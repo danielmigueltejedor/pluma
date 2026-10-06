@@ -1,0 +1,44 @@
+[package]
+name = "vectorcraft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+default-run = "pluma"
+
+autobins = false
+
+[[bin]]
+name = "pluma"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+vectorcraft-engine = { workspace = true }
+vectorcraft-ui-egui = { workspace = true }
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
+egui = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd = { workspace = true }
+arboard = { workspace = true, features = ["image-data"] }
+image = { workspace = true }
+webbrowser = { workspace = true }
+# The window's monitors, size and position (the same winit eframe runs on).
+winit = { version = "0.30", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+clipboard-win = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+muda = { version = "0.21", default-features = false }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSTextInputContext"] }
+
+[build-dependencies]
+# Icon + VERSIONINFO for vectorcraft.exe; build.rs only uses it when targeting Windows.
+winresource = "0.1"

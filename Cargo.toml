@@ -1,281 +1,98 @@
 [workspace]
-members = [
-	"desktop",
-	"desktop/wrapper",
-	"desktop/ui",
-	"desktop/embedded-resources",
-	"desktop/bundle",
-	"desktop/platform/linux",
-	"desktop/platform/mac",
-	"desktop/platform/win",
-	"document/format",
-	"document/graph-storage",
-	"document/container",
-	"editor",
-	"frontend/wrapper",
-	"libraries/dyn-any",
-	"libraries/math-parser",
-	"libraries/ipsum",
-	"libraries/wgpu-sync",
-	"node-graph/libraries/graphene-hash",
-	"node-graph/libraries/*",
-	"node-graph/nodes/*",
-	"node-graph/nodes/raster/shaders",
-	"node-graph/nodes/raster/shaders/entrypoint",
-	"node-graph/graph-craft",
-	"node-graph/graphene-cli",
-	"node-graph/nodes/gstd",
-	"node-graph/interpreted-executor",
-	"node-graph/node-macro",
-	"node-graph/preprocessor",
-	"proc-macros",
-	"tools/cargo-run",
-	"tools/cargo-run/internal/*",
-	"tools/crate-hierarchy-viz",
-	"tools/third-party-licenses",
-	"tools/editor-message-tree",
-	"tools/node-docs",
-]
-default-members = [
-	"editor",
-	"frontend/wrapper",
-	"libraries/dyn-any",
-	"libraries/math-parser",
-	"libraries/ipsum",
-	"node-graph/graph-craft",
-	"node-graph/interpreted-executor",
-	"node-graph/node-macro",
-	"node-graph/preprocessor",
-	# blocked by https://github.com/rust-lang/cargo/issues/16000
-#	"proc-macros",
-	"tools/cargo-run",
-]
-resolver = "2"
+resolver = "3"
+members = ["crates/*", "apps/*", "xtask"]
+default-members = ["crates/*", "apps/vectorcraft", "apps/vectorcraft-cli", "xtask"]
 
 [workspace.package]
-rust-version = "1.88"
+version = "0.3.1"
 edition = "2024"
-authors = ["Graphite Authors <contact@graphite.art>"]
-homepage = "https://graphite.art"
-repository = "https://github.com/GraphiteEditor/Graphite"
 license = "MIT OR Apache-2.0"
-version = "0.0.0"
-readme = "README.md"
-publish = false
+rust-version = "1.95"
+repository = "https://github.com/storytold/vectorcraft"
 
 [workspace.dependencies]
-# Local dependencies
-dyn-any = { path = "libraries/dyn-any", features = [
-	"derive",
-	"glam",
-	"reqwest",
-	"log-bad-types",
-	"rc",
-] }
-graphene-hash = { path = "node-graph/libraries/graphene-hash", features = ["derive"] }
-preprocessor = { path = "node-graph/preprocessor" }
-math-parser = { path = "libraries/math-parser" }
-graphene-application-io = { path = "node-graph/libraries/application-io" }
-graphene-resource = { path = "node-graph/libraries/resources" }
-core-types = { path = "node-graph/libraries/core-types" }
-no-std-types = { path = "node-graph/libraries/no-std-types" }
-raster-types = { path = "node-graph/libraries/raster-types" }
-vector-types = { path = "node-graph/libraries/vector-types" }
-graphic-types = { path = "node-graph/libraries/graphic-types" }
-brush-types = { path = "node-graph/libraries/brush-types" }
-rendering = { path = "node-graph/libraries/rendering" }
-brush-nodes = { path = "node-graph/nodes/brush" }
-blending-nodes = { path = "node-graph/nodes/blending" }
-graphene-core = { path = "node-graph/nodes/gcore" }
-graphic-nodes = { path = "node-graph/nodes/graphic" }
-text-nodes = { path = "node-graph/nodes/text" }
-transform-nodes = { path = "node-graph/nodes/transform" }
-vector-nodes = { path = "node-graph/nodes/vector" }
-repeat-nodes = { path = "node-graph/nodes/repeat" }
-math-nodes = { path = "node-graph/nodes/math" }
-path-bool-nodes = { path = "node-graph/nodes/path-bool" }
-graph-craft = { path = "node-graph/graph-craft" }
-document-format = { path = "document/format" }
-document-graph-storage = { path = "document/graph-storage", default-features = false }
-document-container = { path = "document/container" }
-raster-nodes = { path = "node-graph/nodes/raster" }
-graphene-std = { path = "node-graph/nodes/gstd" }
-interpreted-executor = { path = "node-graph/interpreted-executor" }
-node-macro = { path = "node-graph/node-macro" }
-wgpu-executor = { path = "node-graph/libraries/wgpu-executor" }
-wgpu-sync = { path = "libraries/wgpu-sync" }
-graphite-proc-macros = { path = "proc-macros" }
-graphite-editor = { path = "editor" }
-graphene-canvas-utils = { path = "node-graph/libraries/canvas-utils" }
-ipsum = { path = "libraries/ipsum" }
+# internal
+vectorcraft-geom = { path = "crates/geom" }
+vectorcraft-color = { path = "crates/color" }
+vectorcraft-doc = { path = "crates/doc" }
+vectorcraft-pathops = { path = "crates/pathops" }
+vectorcraft-brush = { path = "crates/brush" }
+vectorcraft-trace = { path = "crates/trace" }
+vectorcraft-text = { path = "crates/text" }
+vectorcraft-effects = { path = "crates/effects" }
+vectorcraft-render = { path = "crates/render" }
+vectorcraft-svg = { path = "crates/svg" }
+vectorcraft-pdf = { path = "crates/pdf" }
+vectorcraft-format = { path = "crates/format" }
+vectorcraft-tools = { path = "crates/tools" }
+vectorcraft-engine = { path = "crates/engine" }
+vectorcraft-ui-egui = { path = "crates/ui-egui" }
+vectorcraft-mcp = { path = "crates/mcp" }
+vectorcraft-testkit = { path = "crates/testkit" }
+vectorcraft-cad = { path = "crates/cad" }
+vectorcraft-eps = { path = "crates/eps" }
+vectorcraft-metafile = { path = "crates/metafile" }
+vectorcraft-plugins = { path = "crates/plugins" }
 
-# Workspace dependencies
-rustc-hash = "2.0"
-bytemuck = { version = "1.13", features = ["derive", "min_const_generics"] }
-serde = { version = "1.0", features = ["derive", "rc"] }
-serde_json = "1.0"
-postcard = { version = "1.1", default-features = false, features = ["use-std"] }
-serde_bytes = "0.11"
-serde-wasm-bindgen = "0.6"
-reqwest = { version = "0.13", features = ["blocking", "json"] }
-futures = "0.3"
-env_logger = "0.11"
-log = "0.4"
-bitflags = { version = "2.4", features = ["serde"] }
-ctor = "0.2"
-convert_case = "0.8"
-titlecase = "3.6"
-fancy-regex = "0.18.0"
-unicode-segmentation = "1.13.2"
-indoc = "2.0.5"
-derivative = "2.2"
-thiserror = "2"
-anyhow = "1.0"
-proc-macro2 = { version = "1", features = ["span-locations"] }
-quote = "1.0"
-chrono = "0.4"
-ron = "0.12"
-fastnoise-lite = "1.1"
-wgpu = { version = "29.0", features = [
-	# We don't have wgpu on multiple threads (yet) https://github.com/gfx-rs/wgpu/blob/trunk/CHANGELOG.md#wgpu-types-now-send-sync-on-wasm
-	"fragile-send-sync-non-atomic-wasm",
-	"spirv",
-	"strict_asserts",
-] }
-once_cell = "1.13" # Remove and replace with `core::cell::LazyCell` (<https://doc.rust-lang.org/core/cell/struct.LazyCell.html>)
-wasm-bindgen = "=0.2.121" # NOTICE: keep in sync with the `wasm-bindgen-cli` version pinned in `.github/workflows/build.yml`, `.devcontainer/devcontainer.json`, `.nix/dev.nix`, `.nix/pkgs/graphite.nix`, and `tools/cargo-run/src/requirements.rs`. We pin this version because wasm-bindgen upgrades may break various things.
-wasm-bindgen-futures = "0.4"
-js-sys = "=0.3.98"
-web-sys = { version = "=0.3.98", features = [
-	"Document",
-	"DomRect",
-	"Element",
-	"HtmlCanvasElement",
-	"CanvasRenderingContext2d",
-	"CanvasPattern",
-	"OffscreenCanvas",
-	"OffscreenCanvasRenderingContext2d",
-	"TextMetrics",
-	"Window",
-	"IdleRequestOptions",
-	"ImageData",
-	"Navigator",
-	"Gpu",
-	"HtmlImageElement",
-	"ImageBitmapRenderingContext",
-] }
-winit = "0.31.0-beta.2"
-keyboard-types = "0.8"
-url = "2.5"
-tokio = { version = "1.29", features = ["fs", "macros", "io-std", "rt", "rt-multi-thread"] }
-# Linebender ecosystem (BEGIN)
+# foundation
 kurbo = { version = "0.13", features = ["serde"] }
-vello = "0.10"
-vello_encoding = "0.10"
-usvg = "0.47"
-simplecss = "0.2"
-parley = { version = "0.9", default-features = false, features = ["std"] }
-skrifa = "0.42"
-polycool = "0.4"
-color = "0.3"
-# Linebender ecosystem (END)
-rand = { version = "0.9", default-features = false, features = ["std_rng"] }
-rand_chacha = "0.9"
-glam = { version = "0.33", default-features = false, features = [
-	"nostd-libm",
-	"scalar-math",
-	"bytemuck",
-	"debug-glam-assert",
-	"all-types",
-] }
-base64 = "0.22"
-blake3 = "1.5"
-mmap-io = { version = "0.9", features = ["hugepages"] }
-image = { version = "0.25", default-features = false, features = [
-	"png",
-	"jpeg",
-	"bmp",
-	"gif",
-	"webp",
-	"tiff",
-	"ico",
-	"tga",
-	"hdr",
-	"exr",
-	"serde",
-] }
-pretty_assertions = "1.4"
-fern = { version = "0.7", features = ["colored"] }
-num_enum = { version = "0.7", default-features = false }
-num-derive = "0.4"
-num-traits = { version = "0.2", default-features = false, features = ["libm"] }
-tsify = { version = "0.5", default-features = false, features = ["js"] }
-syn = { version = "2.0", default-features = false, features = [
-	"full",
-	"derive",
-	"parsing",
-	"printing",
-	"visit-mut",
-	"visit",
-	"clone-impls",
-	"extra-traits",
-	"proc-macro",
-] }
-lyon_geom = "1.0"
-delaunator = "1.0"
-petgraph = { version = "0.7", default-features = false, features = ["graphmap"] }
-half = { version = "2.4", default-features = false, features = ["bytemuck"] }
-tinyvec = { version = "1", features = ["std"] }
-criterion = { version = "0.7", features = ["html_reports"] }
-gungraun = { version = "0.18" }
-ndarray = "0.16"
-strum = { version = "0.27", features = ["derive"] }
-dirs = "6.0"
-cef = "151"
-cef-dll-sys = "151"
-include_dir = "0.7"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing = "0.1"
-rfd = "0.17"
-open = "5.3"
-spin = "0.10"
-clap = "4.5"
+peniko = "0.6"
+thiserror = "2"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+log = "0.4"
+proptest = "1"
+# tests: a TCP port bound without listening (connections to it are refused)
+socket2 = "0.6"
+# Sandboxed WebAssembly plug-ins: a pure-Rust interpreter (MIT OR Apache-2.0) that builds for wasm32
+# too. Without `wat` (text parsing is test-only) and memory64; `validate` keeps full module
+# validation on; the portable dispatcher can't overflow the host stack on long-running modules.
+wasmi = { version = "2.0.0", default-features = false, features = ["std", "validate", "stable", "portable-dispatch"] }
+# Tests: WebAssembly text -> binary for the plug-in fixtures (Apache-2.0 WITH LLVM-exception).
+wat = "1.228"
 
-# Ensure these are kept in sync with .nix/deps/rust-gpu.nix
-# Git commit required for glam=0.33 support (TODO: use release when new version is published. Last publish was Apr 17)
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "389dfe784b5992b3443b8969fdae2f82c932c552", features = ["bytemuck"] }
-cargo-gpu-install = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "389dfe784b5992b3443b8969fdae2f82c932c552", default-features = false }
-
-qrcodegen = "1.8"
-lzma-rust2 = { version = "0.16", default-features = false, features = ["std", "encoder", "optimization", "xz"] }
-scraper = "0.25"
+# rendering / formats
+vello_cpu = "0.2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "tiff", "bmp"] }
+usvg = "0.48"
+krilla = "0.8"
+skrifa = "0.47"
+harfrust = "0.13"
 linesweeper = "0.4"
-smallvec = "1.13.2"
-zip = { version = "8", default-features = false }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+jpeg-encoder = { version = "0.6", default-features = false, features = ["std"] }
+gif = { version = "0.14", default-features = false, features = ["std", "raii_no_panic"] }
+
+# ui
+egui = "0.36"
+egui_extras = { version = "0.36", default-features = false, features = ["svg"] }
+eframe = { version = "0.36", default-features = false }
+egui_kittest = "0.36"
+rfd = "0.17"
+arboard = { version = "3.6", default-features = false }
+clipboard-win = "5.4"
+webbrowser = "1"
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_arch, values("spirv"))'] }
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+# VectorCraft never crashes: shipped code returns `Result`/`Option` instead of panicking (see
+# AGENTS.md › Robustness). Tests may unwrap (clippy.toml).
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+
+[profile.dev.package."*"]
+opt-level = 2
 
 [profile.dev]
 opt-level = 1
 
-[profile.dev.package]
-no-std-types = { opt-level = 1 }
-core-types= { opt-level = 1 }
-interpreted-executor = { opt-level = 1 } # This is a mitigation for https://github.com/rustwasm/wasm-pack/issues/981 which is needed because the node_registry function is too large
-graphite-proc-macros = { opt-level = 1 }
-image = { opt-level = 2 }
-rustc-hash = { opt-level = 3 }
-serde_derive = { opt-level = 1 }
-syn = { opt-level = 1 }
-node-macro = { opt-level = 2 }
-
 [profile.release]
 lto = "thin"
-debug = true
-
-[patch.crates-io]
-winit = { git = "https://github.com/timon-schelling/winit", branch = "graphite" }
-rfd = { git = "https://github.com/timon-schelling/rfd.git", branch = "graphite" } # TODO: Remove this once https://github.com/PolyMeilex/rfd/pull/317 is merged and released
-cef = { git = "https://github.com/timon-schelling/cef-rs.git", branch = "graphite-151" }
-cef-dll-sys = { git = "https://github.com/timon-schelling/cef-rs.git", branch = "graphite-151" }
+codegen-units = 1

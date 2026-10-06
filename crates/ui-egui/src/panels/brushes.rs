@@ -1,0 +1,207 @@
+//! Brushes panel: the document's brush library with rendered stroke previews. Clicking a brush
+//! applies it to the selected paths (and makes it the Paintbrush's current brush).
+
+use std::collections::HashMap;
+
+use egui::{Sense, Ui, vec2};
+use serde_json::{Value, json};
+use vectorcraft_doc::{Appearance, Document, Node, color::Color, color::Paint};
+
+use super::{first_selected, pstate, set_pstate};
+use crate::VectorcraftApp;
+use crate::theme::Tokens;
+use crate::widgets::{self, menu_item};
+
+const KINDS: [(&str, &str); 5] =
+    [("calligraphic", "Calligraphic"), ("scatter", "Scatter"), ("art", "Art"), ("bristle", "Bristle"), ("pattern", "Pattern")];
+
+/// (name, type) of every brush in the active document's library.
+pub fn brushes(app: &mut VectorcraftApp) -> (Vec<(String, String)>, Option<String>) {
+    let Ok(v) = app.run("brush.list", json!({})) else { return (vec![], None) };
+    let list = v["brushes"]
+        .as_array()
+        .map(|a| a.iter().map(|b| (b["name"].as_str().unwrap_or("").to_string(), b["type"].as_str().unwrap_or("").to_string())).collect())
+        .unwrap_or_default();
+    (list, v["current"].as_str().map(str::to_string))
+}
+
+/// A stroke preview for brush definition `def`, rendered at `size` and cached by the definition's
+/// JSON.
+fn preview(ui: &Ui, def: &Value, size: egui::Vec2) -> Option<egui::TextureHandle> {
+    widgets::doc_preview(ui, &format!("brush:{def}"), size, |w, h| {
+        let mut doc = Document::new(w, h);
+        doc.unknown.insert("brushes".into(), json!([def]));
+        let name = def["name"].as_str()?.to_string();
+        let mut ap = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
+        ap.stroke_mut()?.brush = Some(name);
+        // A gentle S-curve across the swatch.
+        let mut bp = vectorcraft_geom::BezPath::new();
+        let (x0, x1) = (h * 0.5, w - h * 0.5);
+        bp.move_to((x0, h * 0.5));
+        bp.curve_to((x0 + (x1 - x0) * 0.35, h * 0.1), (x0 + (x1 - x0) * 0.65, h * 0.9), (x1, h * 0.5));
+        let id = doc.alloc_id();
+        let l = doc.layers[0].id;
+        doc.insert(Some(l), 0, Node::path(id, vectorcraft_geom::PathData::from_bezpath(&bp), ap)).ok()?;
+        Some(doc)
+    })
+}
+
+fn selected_brush(app: &VectorcraftApp) -> Option<String> {
+    first_selected(app).and_then(|n| n.appearance.stroke().and_then(|s| s.brush.clone()))
+}
+
+pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let t = Tokens::get(ui.ctx());
+    let (list, current) = brushes(app);
+    let sel_brush = selected_brush(app);
+    let list_view: bool = pstate(ui.ctx(), "br-list");
+    let hidden: Vec<String> = pstate(ui.ctx(), "br-hidden");
+    let defs: HashMap<String, Value> =
+        list.iter().filter_map(|(n, _)| app.run("brush.get", json!({"name": n})).ok().map(|v| (n.clone(), v))).collect();
+    let mut clicked: Option<String> = None;
+    widgets::list_box(ui, |ui| {
+        ui.set_min_height(110.0);
+        ui.set_width(ui.available_width());
+        if list.is_empty() {
+            super::empty_state(ui, "paintbrush", "No brushes", "Select art and use New Brush to make one.");
+            return;
+        }
+        for (ty, _) in KINDS {
+            if hidden.iter().any(|h| h == ty) {
+                continue;
+            }
+            let group: Vec<&(String, String)> = list.iter().filter(|b| b.1 == ty).collect();
+            if group.is_empty() {
+                continue;
+            }
+            let row = |ui: &mut Ui, name: &str, size: egui::Vec2, label: bool| -> egui::Response {
+                let (r, resp) = ui.allocate_exact_size(size, Sense::click());
+                let on = sel_brush.as_deref() == Some(name) || (sel_brush.is_none() && current.as_deref() == Some(name));
+                if on {
+                    ui.painter().rect_filled(r, 0.0, t.row_selected);
+                } else if resp.hovered() {
+                    ui.painter().rect_filled(r, 0.0, t.hover);
+                }
+                let pw = if label { 72.0 } else { size.x - 4.0 };
+                let pr = egui::Rect::from_min_size(r.left_top() + vec2(2.0, 2.0), vec2(pw, size.y - 4.0));
+                ui.painter().rect_filled(pr, 0.0, egui::Color32::WHITE);
+                if let Some(def) = defs.get(name)
+                    && let Some(tex) = preview(ui, def, pr.size())
+                {
+                    ui.painter().image(tex.id(), pr, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);
+                }
+                if label {
+                    ui.painter().text(
+                        r.left_center() + vec2(pw + 10.0, 0.0),
+                        egui::Align2::LEFT_CENTER,
+                        name,
+                        egui::FontId::proportional(12.5),
+                        t.text,
+                    );
+                }
+                resp.on_hover_text(name)
+            };
+            if list_view {
+                for (name, _) in group {
+                    if row(ui, name, vec2(ui.available_width(), 26.0), true).clicked() {
+                        clicked = Some(name.clone());
+                    }
+                }
+            } else {
+                ui.horizontal_wrapped(|ui| {
+                    for (name, _) in group {
+                        if row(ui, name, vec2(64.0, 28.0), false).clicked() {
+                            clicked = Some(name.clone());
+                        }
+                    }
+                });
+            }
+            ui.separator();
+        }
+    });
+    if let Some(name) = clicked {
+        let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
+        if has_sel {
+            app.run("brush.apply", json!({"name": name})).ok();
+        } else {
+            app.run("brush.setCurrent", json!({"name": name})).ok();
+        }
+    }
+    let has_brush = sel_brush.is_some();
+    let target = sel_brush.clone().or(current.clone());
+    let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
+    widgets::bottom_bar(ui, |ui| {
+        widgets::icon_button_enabled(ui, "library", "Brush Libraries (on the roadmap)", false, false, 24.0);
+        if widgets::icon_button_enabled(ui, "dc-remove-brush", "Remove Brush Stroke", false, has_brush, 24.0).clicked() {
+            app.run("brush.remove", json!({})).ok();
+        }
+        if widgets::icon_button_enabled(ui, "dc-options", "Expand Brush Strokes", false, has_brush, 24.0).clicked() {
+            app.run("object.expandBrush", json!({})).ok();
+        }
+        ui.add_space((ui.available_width() - 2.0 * 28.0).max(0.0));
+        if widgets::icon_button_enabled(ui, "dc-new-item", "New Art Brush from Selection", false, has_sel, 24.0).clicked() {
+            app.run("brush.new", json!({"type": "art"})).ok();
+        }
+        if widgets::icon_button_enabled(ui, "trash-2", "Delete Brush", false, target.is_some(), 24.0).clicked()
+            && let Some(n) = &target
+        {
+            app.run("brush.delete", json!({"name": n})).ok();
+        }
+    });
+}
+
+pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let sel = selected_brush(app);
+    let (_, current) = brushes(app);
+    let target = sel.clone().or(current);
+    let has_sel = app.session.active().is_some_and(|d| !d.selection.is_empty());
+    for (label, ty) in [("New Calligraphic Brush", "calligraphic"), ("New Bristle Brush", "bristle")] {
+        if menu_item(ui, label, true, false) {
+            app.run("brush.new", json!({"type": ty})).ok();
+        }
+    }
+    for (label, ty) in
+        [("New Art Brush from Selection", "art"), ("New Scatter Brush from Selection", "scatter"), ("New Pattern Brush from Selection", "pattern")]
+    {
+        if menu_item(ui, label, has_sel, false) {
+            app.run("brush.new", json!({"type": ty})).ok();
+        }
+    }
+    if menu_item(ui, "Duplicate Brush", target.is_some(), false)
+        && let Some(n) = &target
+    {
+        app.run("brush.duplicate", json!({"name": n})).ok();
+    }
+    if menu_item(ui, "Delete Brush", target.is_some(), false)
+        && let Some(n) = &target
+    {
+        app.run("brush.delete", json!({"name": n})).ok();
+    }
+    if menu_item(ui, "Remove Brush Stroke", sel.is_some(), false) {
+        app.run("brush.remove", json!({})).ok();
+    }
+    if menu_item(ui, "Expand Brush Strokes", sel.is_some(), false) {
+        app.run("object.expandBrush", json!({})).ok();
+    }
+    ui.separator();
+    let mut hidden: Vec<String> = pstate(ui.ctx(), "br-hidden");
+    for (ty, label) in KINDS {
+        let shown = !hidden.iter().any(|h| h == ty);
+        if menu_item(ui, &format!("Show {label} Brushes"), true, shown) {
+            if shown {
+                hidden.push(ty.to_string());
+            } else {
+                hidden.retain(|h| h != ty);
+            }
+            set_pstate(ui.ctx(), "br-hidden", hidden.clone());
+        }
+    }
+    ui.separator();
+    let list: bool = pstate(ui.ctx(), "br-list");
+    if menu_item(ui, "Thumbnail View", true, !list) {
+        set_pstate(ui.ctx(), "br-list", false);
+    }
+    if menu_item(ui, "List View", true, list) {
+        set_pstate(ui.ctx(), "br-list", true);
+    }
+}

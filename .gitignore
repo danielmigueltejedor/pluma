@@ -1,16 +1,9 @@
-branding/
-target/
-third-party-licenses.txt*
-result/
-.flatpak-builder/
-*.spv
-*.exrc
-perf.data*
-profile.json
-profile.json.gz
-flamegraph.svg
-.idea/
-.direnv
+*~
+plan/
+/target
+/dist
+/corpus
+/log
 .DS_Store
-.nvim.lua
-/.devcontainer/devcontainer-lock.json
+# A craft-fonts checkout for CRAFT_FONTS_DIR (CI and release workflows check it out here)
+/craft-fonts
