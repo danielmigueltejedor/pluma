@@ -52,6 +52,38 @@ pub fn select(s: &mut Session, ids: &[NodeId]) {
     exec(s, "select.set", json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>()}));
 }
 
+/// Place `png` as `cut.png` with `params` (`file.place`'s, besides `name` and `dataBase64`), then
+/// cut the placed image's pixel data short right after its first `IDAT` chunk's type, as a
+/// document saved with a damaged image holds it: the header still reads, but the renderer can't
+/// decode the image and draws nothing. Place refuses such a file, so tests cut a placed one. The
+/// image is stored under the key of its new bytes. → `file.place`'s reply.
+pub fn place_cut_png(s: &mut Session, png: &[u8], params: Value) -> Value {
+    let mut p = json!({"name": "cut.png", "dataBase64": vectorcraft_format::base64_encode(png)});
+    if let (Some(o), Value::Object(extra)) = (p.as_object_mut(), params) {
+        o.extend(extra);
+    }
+    let r = exec(s, "file.place", p);
+    let id = NodeId(r["ids"][0].as_u64().unwrap());
+    let doc = Arc::make_mut(&mut s.doc_mut().unwrap().doc);
+    let Some(NodeKind::Image(im)) = doc.node(id).map(|n| &n.kind) else { panic!("{id:?} is not an image") };
+    let old = im.key.clone();
+    let mut bytes = doc.images[&old].bytes.to_vec();
+    let idat = bytes.windows(4).position(|w| w == b"IDAT").unwrap();
+    bytes.truncate(idat + 8);
+    let cut = vectorcraft_doc::ImageBlob::new("image/png", bytes);
+    let key = cut.content_key();
+    doc.images.insert(key.clone(), cut);
+    if let Some(Node { kind: NodeKind::Image(im), .. }) = doc.node_mut(id) {
+        im.key = key;
+    }
+    let mut shown = false;
+    doc.visit_images(|_, im| shown |= im.key == old);
+    if !shown {
+        doc.images.remove(&old);
+    }
+    r
+}
+
 /// The three standard fixture states for sweeping commands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fixture {
@@ -112,7 +144,32 @@ pub fn rich_session() -> Session {
     exec(&mut s, "effect.apply", json!({"effect": "distort.roughen", "params": {"size": 3, "detail": 5, "seed": 7}}));
     let l = id_of(&exec(&mut s, "shape.line", json!({"x1": 20, "y1": 300, "x2": 200, "y2": 350})));
     exec(&mut s, "stroke.set", json!({"weight": 3, "endArrow": "Arrow"}));
-    let _ = id_of(&exec(&mut s, "text.create", json!({"x": 250, "y": 300, "text": "VectorCraft", "size": 30})));
+    let tx = id_of(&exec(&mut s, "text.create", json!({"x": 250, "y": 300, "text": "VectorCraft", "size": 30})));
+    // A non-default paragraph composer, so format round trips cover it.
+    exec(&mut s, "text.setFormat", json!({"ids": [tx.0], "composer": "singleLine"}));
+    // Area type with non-default Area Type Options (vertical alignment, inset).
+    let area = id_of(&exec(
+        &mut s,
+        "text.create",
+        json!({"x": 250, "y": 340, "text": "Centred area type", "size": 12, "area": {"width": 120, "height": 50}}),
+    ));
+    select(&mut s, &[area]);
+    exec(&mut s, "text.areaOptions", json!({"verticalAlign": "center", "inset": 2}));
+    let _ = id_of(&exec(
+        &mut s,
+        "text.create",
+        json!({"x": 300, "y": 330, "size": 14, "text": "Area type shrinks its text to fit the frame.",
+               "area": {"width": 150, "height": 40, "fit": "shrinkText", "fitMinPercent": 40}}),
+    ));
+    // Area type whose paragraphs differ (alignment, spacing, tabs).
+    let para = id_of(&exec(
+        &mut s,
+        "text.create",
+        json!({"x": 20, "y": 360, "text": "Heading\nBody one\tx\nBody two", "size": 9, "area": {"width": 160, "height": 36}}),
+    ));
+    exec(&mut s, "text.setStyle", json!({"id": para, "justify": "center", "start": 0, "end": 0}));
+    exec(&mut s, "text.setFormat", json!({"ids": [para], "spaceBefore": 3, "firstLineIndent": 6, "start": 9, "end": 9}));
+    exec(&mut s, "text.tabs.set", json!({"ids": [para], "stops": [{"position": 80, "align": "right"}], "start": 9, "end": 9}));
     exec(&mut s, "layer.new", json!({"name": "Top"}));
     let d = rect(&mut s, 350.0, 200.0, 80.0, 80.0);
     let e = ellipse(&mut s, 380.0, 230.0, 80.0, 80.0);
@@ -123,6 +180,21 @@ pub fn rich_session() -> Session {
     exec(&mut s, "paint.setFill", json!({"color": "#22aa44"}));
     select(&mut s, &[inner, clip]);
     exec(&mut s, "object.clippingMask.make", json!({}));
+    // Type with an inline graphic: a symbol (a small circle, drawn here) set in a line of text.
+    let dot = ellipse(&mut s, 440.0, 40.0, 12.0, 12.0);
+    select(&mut s, &[dot]);
+    exec(&mut s, "symbol.new", json!({"name": "Dot"}));
+    let t = id_of(&exec(&mut s, "text.create", json!({"x": 250, "y": 370, "text": "Tap  to add", "size": 18})));
+    exec(&mut s, "text.insertInline", json!({"id": t.0, "at": 4, "symbol": "Dot"}));
+    // Variables (data merge): both kinds, bound to art, with two dataset rows and one applied,
+    // so format round trips cover the definitions, the bindings and the rows.
+    exec(&mut s, "variable.define", json!({"name": "Title", "kind": "text"}));
+    exec(&mut s, "variable.define", json!({"name": "Badge", "kind": "visibility"}));
+    exec(&mut s, "variable.bind", json!({"variable": "Title", "ids": [tx.0]}));
+    exec(&mut s, "variable.bind", json!({"variable": "Badge", "ids": [a]}));
+    exec(&mut s, "dataset.new", json!({"name": "Row 1", "values": {"Title": "Merged", "Badge": true}}));
+    exec(&mut s, "dataset.new", json!({"name": "Row 2", "values": {"Title": "Other"}}));
+    exec(&mut s, "dataset.select", json!({"name": "Row 1"}));
     let _ = (a, b, c, l);
     exec(&mut s, "select.none", json!({}));
     s

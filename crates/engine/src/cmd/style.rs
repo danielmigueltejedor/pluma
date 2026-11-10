@@ -20,7 +20,7 @@ use vectorcraft_color::Paint;
 use vectorcraft_doc::{Appearance, DEFAULT_GRAPHIC_STYLE, Document, GraphicStyle, Node, NodeId, NodeKind};
 use vectorcraft_geom::Rect;
 
-use super::*;
+use super::{CommandSpec, Result, Session, always, bad, bool_or, cmd, has_doc, index, object_param, ok, str_param, unique_name};
 use crate::EngineError;
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -30,7 +30,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Apply Graphic Style",
             ["Window", "Graphic Styles"],
             None,
-            "{name, add?: bool, ids? (layers too), target?: \"object\"|\"contents\"} give the objects (default: the selection; a group or layer itself, its fills and strokes painting its members and its effects applying to them as one piece; target contents: the objects inside instead) the style's appearance, opacity, blend mode, isolate and knockout, and link them to it (placed gradients land at the same place relative to each object's bounds); add: true (Alt-click) adds its fills, strokes and effects on top of the existing appearance instead and unlinks. With nothing selected (and no ids) the next object drawn takes the style instead (see appearance.newArt) → {newArt: true}",
+            "{name, add?: bool, ids?|id? (layers too), target?: \"object\"|\"contents\"} give the objects (default: the selection; a group or layer itself, its fills and strokes painting its members and its effects applying to them as one piece; target contents: the objects inside instead) the style's appearance, opacity, blend mode, isolate and knockout, and link them to it (placed gradients land at the same place relative to each object's bounds); add: true (Alt-click) adds its fills, strokes and effects on top of the existing appearance instead and unlinks. On a path directly in a graph series, the graph also stores the paint, weight, opacity and blend mode of the topmost visible fill and stroke (with `add`: of the kinds of row the style shows) and, without `add`, the object's opacity and blend mode (exceptions: docs/mcp.md). With nothing selected (and no ids) the next object drawn takes the style instead (see appearance.newArt) → {newArt: true}",
             has_doc,
             style_apply
         ),
@@ -67,7 +67,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Redefine Graphic Style",
             ["Window", "Appearance"],
             None,
-            "{name?, id?} replace the style (default: the one the object was last linked to) with the look of object `id` or the first selected object; the objects still linked to it update, and that object becomes linked → {name}",
+            "{name?, id?} replace the style (default: the one the object was last linked to) with the look of object `id` or the first selected object; the objects still linked to it update, and that object becomes linked. On a linked path directly in a graph series, the graph also stores the paint, weight, opacity and blend mode of the topmost visible fill and stroke and the object's opacity and blend mode (exceptions: docs/mcp.md) → {name}",
             has_doc,
             style_redefine
         ),
@@ -76,7 +76,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Break Link to Graphic Style",
             ["Window", "Graphic Styles"],
             None,
-            "{ids?} unlink the objects (default: the selection) from their graphic style; they keep their look",
+            "{ids?|id?, target?: \"object\"|\"contents\"} unlink the objects (default: the selection) from their graphic style; they keep their look",
             has_doc,
             style_break_link
         ),
@@ -175,7 +175,7 @@ pub(crate) fn in_sync(n: &Node, g: &GraphicStyle) -> bool {
 
 /// The style `n` is linked to (and still looks like).
 pub(crate) fn linked_style<'a>(d: &'a Document, n: &Node) -> Option<&'a GraphicStyle> {
-    d.graphic_style_by_id(n.graphic_style?).filter(|g| in_sync(n, g))
+    d.graphic_style_by_id(n.extras().graphic_style?).filter(|g| in_sync(n, g))
 }
 
 /// Objects anywhere in the art that `f` accepts.
@@ -215,9 +215,9 @@ fn unitized(mut ap: Appearance, from: Option<Rect>) -> Appearance {
 /// The appearance a new or redefined style takes from `n`: its own. A group without fills or
 /// strokes of its own lends those of its topmost painted object, and type its characters' fill
 /// and stroke. Placed gradients come relative to the unit box (from the bounds of the object
-/// they're on).
+/// they're on). The pen pressure of strokes stays with their own path.
 pub(crate) fn captured(n: &Node) -> Appearance {
-    let mut ap = n.appearance.clone();
+    let mut ap = (*n.appearance).clone().without_pressure();
     if !ap.items.is_empty() {
         return unitized(ap, n.geometric_bounds());
     }
@@ -261,7 +261,7 @@ fn override_chars(n: &mut Node, ap: &Appearance) {
 /// Give `n` style `g`: its appearance (a group or layer too: its own, above its contents; type its
 /// characters' colour too with `chars`, Override Character Color) and transparency.
 fn style_node(n: &mut Node, g: &GraphicStyle, chars: bool) {
-    n.appearance = g.appearance_on(n).into_owned();
+    n.appearance = g.appearance_on(n).into_owned().into();
     if chars {
         override_chars(n, &g.appearance);
     }
@@ -272,14 +272,15 @@ fn style_node(n: &mut Node, g: &GraphicStyle, chars: bool) {
 fn apply_style(d: &mut Document, id: NodeId, g: &GraphicStyle, chars: bool) {
     if let Some(n) = d.node_mut(id) {
         style_node(n, g, chars);
-        n.graphic_style = Some(g.id);
+        n.extras_mut().graphic_style = Some(g.id);
+        super::object::snap_if_aligned(n);
     }
 }
 
 fn set_link(d: &mut Document, ids: &[NodeId], link: Option<u32>) {
     for id in ids {
         if let Some(n) = d.node_mut(*id) {
-            n.graphic_style = link;
+            n.extras_mut().graphic_style = link;
         }
     }
 }
@@ -290,7 +291,7 @@ fn style_index(d: &Document, name: &str) -> Result<usize> {
 
 /// The object a style is made from: `id`, else the first selected object.
 fn source<'a>(s: &'a Session, p: &Value, cmd: &str) -> Result<(NodeId, &'a Node)> {
-    let id = match id_param(p, "id") {
+    let id = match object_param(p, "id", cmd)? {
         Some(id) => id,
         None => super::edit::selected_roots(s)?.first().copied().ok_or_else(|| bad(cmd, "select an object (or pass `id`)"))?,
     };
@@ -303,7 +304,7 @@ impl Session {
     pub fn selection_graphic_style(&self) -> Option<(&GraphicStyle, bool)> {
         let st = self.active()?;
         let n = st.doc.node(*st.selection.subjects().first()?)?;
-        let g = st.doc.graphic_style_by_id(n.graphic_style?)?;
+        let g = st.doc.graphic_style_by_id(n.extras().graphic_style?)?;
         Some((g, in_sync(n, g)))
     }
 
@@ -333,6 +334,7 @@ fn style_apply(s: &mut Session, p: &Value) -> Result<Value> {
         s.new_art_style(&g, add);
         return Ok(json!({ "newArt": true }));
     }
+    let before = s.doc()?.doc.clone();
     s.edit("Apply Graphic Style", |d, _| {
         if add {
             let g = d.graphic_styles[i].clone();
@@ -341,15 +343,20 @@ fn style_apply(s: &mut Session, p: &Value) -> Result<Value> {
                     let ap = g.appearance_on(n).into_owned();
                     n.appearance.items.extend(ap.items);
                     n.appearance.effects.extend(ap.effects);
-                    n.graphic_style = None;
+                    n.extras_mut().graphic_style = None;
                 }
             }
+            // The graph stores the rows of the kinds the style shows, now on top of each stack.
+            let shows = |kind: bool| g.appearance.items.iter().any(|it| it.is_fill() == kind && it.visible());
+            let kinds = (shows(true), shows(false));
+            super::appearance::capture_series_writes(&before, d, &ids, kinds, kinds, false, false);
         } else {
             d.graphic_style_id(i);
             let g = d.graphic_styles[i].clone();
             for id in &ids {
                 apply_style(d, *id, &g, chars);
             }
+            super::appearance::capture_series_writes(&before, d, &ids, (true, true), (true, true), false, true);
         }
         Ok(())
     })?;
@@ -383,7 +390,7 @@ fn style_delete(s: &mut Session, p: &Value) -> Result<Value> {
             let i = style_index(d, name)?;
             let id = d.graphic_styles.remove(i).id;
             if id != 0 {
-                let ids = objects_where(d, |n| n.graphic_style == Some(id));
+                let ids = objects_where(d, |n| n.extras().graphic_style == Some(id));
                 set_link(d, &ids, None);
             }
         }
@@ -447,6 +454,7 @@ fn style_redefine(s: &mut Session, p: &Value) -> Result<Value> {
     let i = match str_param(p, "name") {
         Some(name) => style_index(d, name)?,
         None => n
+            .extras()
             .graphic_style
             .and_then(|id| d.graphic_style_by_id(id))
             .and_then(|g| d.graphic_style_index(&g.name))
@@ -455,18 +463,20 @@ fn style_redefine(s: &mut Session, p: &Value) -> Result<Value> {
     let look = GraphicStyle::of(String::new(), captured(n), n);
     let name = d.graphic_styles[i].name.clone();
     let chars = s.prefs.override_char_color;
-    s.edit(&format!("Redefine Graphic Style \u{201c}{name}\u{201d}"), |d, _| {
+    let before = s.doc()?.doc.clone();
+    s.edit_named("Redefine Graphic Style “{name}”", &name, false, |d, _| {
         let id = d.graphic_style_id(i);
         let old = std::mem::replace(&mut d.graphic_styles[i], GraphicStyle { name: name.clone(), id, ..look });
         // Objects still linked follow the new definition; edited ones are unlinked (they keep
         // their look), and the source keeps its own.
-        let linked = objects_where(d, |n| n.graphic_style == Some(id) && n.id != src);
+        let linked = objects_where(d, |n| n.extras().graphic_style == Some(id) && n.id != src);
         let (follow, edited): (Vec<NodeId>, Vec<NodeId>) = linked.into_iter().partition(|nid| d.node(*nid).is_some_and(|n| in_sync(n, &old)));
         set_link(d, &edited, None);
         let g = d.graphic_styles[i].clone();
-        for nid in follow {
-            apply_style(d, nid, &g, chars);
+        for nid in &follow {
+            apply_style(d, *nid, &g, chars);
         }
+        super::appearance::capture_series_writes(&before, d, &follow, (true, true), (true, true), false, true);
         set_link(d, &[src], Some(id));
         Ok(())
     })?;
@@ -546,7 +556,7 @@ fn style_move(s: &mut Session, p: &Value) -> Result<Value> {
     let to = p.get("to").and_then(Value::as_u64).ok_or_else(|| bad(cmd, "missing `to` (an index)"))?;
     let d = &s.doc()?.doc;
     let from = style_index(d, name)?;
-    let to = (to as usize).min(d.graphic_styles.len() - 1);
+    let to = index(to).min(d.graphic_styles.len() - 1);
     if from == to {
         return ok();
     }

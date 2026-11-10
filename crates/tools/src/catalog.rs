@@ -37,8 +37,8 @@ pub const TOOL_GROUPS: &[&[ToolInfo]] = &[
         t("areaType", "Area Type Tool", None, "tool-type-area"),
         t("typeOnPath", "Type on a Path Tool", None, "tool-type-path"),
         t("verticalType", "Vertical Type Tool", None, "tool-type-vertical"),
-        t("verticalAreaType", "Vertical Area Type Tool", None, "tool-type-vertical"),
-        t("verticalTypeOnPath", "Vertical Type on a Path Tool", None, "tool-type-path"),
+        t("verticalAreaType", "Vertical Area Type Tool", None, "tool-type-vertical-area"),
+        t("verticalTypeOnPath", "Vertical Type on a Path Tool", None, "tool-type-vertical-path"),
         t("touchType", "Touch Type Tool", Some("Shift+T"), "tool-touch-type"),
     ],
     &[
@@ -101,7 +101,8 @@ pub const TOOL_GROUPS: &[&[ToolInfo]] = &[
     &[t("mesh", "Mesh Tool", Some("U"), "tool-mesh")],
     &[t("gradient", "Gradient Tool", Some("G"), "tool-gradient")],
     &[t("eyedropper", "Eyedropper Tool", Some("I"), "tool-eyedropper"), t("measure", "Measure Tool", None, "tool-measure")],
-    &[t("blend", "Blend Tool", Some("W"), "tool-blend")],
+    &[t("blend", "Blend Tool", Some("W"), "tool-blend"), t("objectsOnPath", "Objects on Path Tool", None, "tool-objects-on-path")],
+    &[t("dimension", "Dimension Tool", None, "tool-dimension")],
     &[
         t("symbolSprayer", "Symbol Sprayer Tool", Some("Shift+S"), "tool-symbol"),
         t("symbolShifter", "Symbol Shifter Tool", None, "tool-symbol"),
@@ -136,8 +137,9 @@ pub const TOOL_GROUPS: &[&[ToolInfo]] = &[
     &[t("zoom", "Zoom Tool", Some("Z"), "tool-zoom")],
 ];
 
+/// Every tool: the toolbar's, then the add-ons' ([`crate::addons::GROUPS`]).
 pub fn all_tools() -> impl Iterator<Item = &'static ToolInfo> {
-    TOOL_GROUPS.iter().flat_map(|g| g.iter())
+    TOOL_GROUPS.iter().chain(crate::addons::GROUPS).flat_map(|g| g.iter())
 }
 
 pub fn tool_info(id: &str) -> Option<&'static ToolInfo> {
@@ -152,6 +154,17 @@ pub fn tool_for_shortcut(s: &str) -> Option<&'static ToolInfo> {
 /// Index of the group containing `id`.
 pub fn group_of(id: &str) -> Option<usize> {
     TOOL_GROUPS.iter().position(|g| g.iter().any(|t| t.id == id))
+}
+
+/// Selection, Direct Selection and Group Selection: the tools Cmd held lends the others for a drag.
+pub fn is_selection_tool(id: &str) -> bool {
+    matches!(id, "selection" | "directSelection" | "groupSelection")
+}
+
+/// The tools that show a selected path's anchors and handles as Direct Selection does, and drag
+/// them: a Cmd drag with one of them is a Direct Selection drag until a selection tool is chosen.
+pub fn edits_anchors(id: &str) -> bool {
+    matches!(id, "directSelection" | "pen" | "addAnchor" | "deleteAnchor" | "anchorPoint" | "curvature" | crate::addons::smart_pen::ID)
 }
 
 #[cfg(test)]
@@ -178,5 +191,7 @@ mod tests {
         assert_eq!(tool_for_shortcut("V").unwrap().id, "selection");
         assert_eq!(tool_for_shortcut("Shift+M").unwrap().id, "shapeBuilder");
         assert_eq!(group_of("star"), group_of("rectangle"));
+        assert!(is_selection_tool("groupSelection") && !is_selection_tool("pen"));
+        assert!(edits_anchors("pen") && !edits_anchors("rectangle"));
     }
 }

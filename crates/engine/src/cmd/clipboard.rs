@@ -10,21 +10,24 @@
 //! text besides it (see `flavours`).
 
 mod flavours;
-mod resources;
+pub(crate) mod resources;
+mod table;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 use vectorcraft_brush::Brush;
 use vectorcraft_color::Swatch;
-use vectorcraft_doc::{Document, GraphicStyle, ImageBlob, Node, NodeId, PatternDef, Symbol, TextStyleDef};
-use vectorcraft_geom::Rect;
+use vectorcraft_doc::{Document, GraphicStyle, ImageBlob, Node, NodeId, NodeKind, PatternDef, Selection, Symbol, TextStyleDef};
+use vectorcraft_geom::{PathData, Rect};
 
-pub use flavours::{BITMAP, EMF, Flavour, PASTE_ORDER, PDF, PNG, SVG, TEXT};
+pub use flavours::{AI, BITMAP, EMF, EPS, FILE_HEAD, Flavour, PASTE_ORDER, PDF, PNG, SVG, TEXT, file_flavour, is_address, names_a_picture};
+pub use flavours::{ImageRead, read_image};
 pub(crate) use resources::SwatchChoices;
+pub use resources::{ArtResources, SymbolOptions, art_resources};
 
-use super::*;
+use super::{CommandSpec, Result, Session, always, bad, cmd, f64_or, has_doc, point_param, str_param};
 use crate::DocState;
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -68,6 +71,8 @@ pub struct Clipboard {
     pub images: BTreeMap<String, ImageBlob>,
     /// Symbols the objects place (also inside other symbols and patterns).
     pub symbols: Vec<Symbol>,
+    /// The Symbol Options of [`Self::symbols`] (which the document keeps by name), by symbol name.
+    pub symbol_options: BTreeMap<String, SymbolOptions>,
     /// Patterns the objects paint with (pasting makes their swatches again).
     pub patterns: Vec<PatternDef>,
     /// Global and spot swatches the objects' colours link to, the tint swatches of the tints they
@@ -80,34 +85,188 @@ pub struct Clipboard {
     pub para_styles: Vec<TextStyleDef>,
     /// Brushes the objects' strokes use.
     pub brushes: Vec<Brush>,
-    /// The artboard the objects were copied from: Paste on All Artboards keeps their offset to it.
+    /// The artboard the objects were copied from (none when they lie on no artboard; the first of
+    /// [`Self::artboards`] when there are any): Paste on All Artboards keeps their offset to it.
     pub source_artboard: Option<Rect>,
     /// Per object: the name of the layer it was copied from (Paste Remembers Layers).
     pub source_layers: Vec<Option<String>>,
     /// The open document the objects came from ([`DocState::uid`]): pasting back into it uses its
     /// own resources as they are now.
     pub source_doc: Option<u64>,
+    /// The artboards copied with the Artboard tool (`artboard.copy`); `nodes` are then their art.
+    /// Pasting adds a copy of each with the art.
+    pub artboards: Vec<vectorcraft_doc::Artboard>,
+    /// The selected ruler guides copied with (or without) the objects (#3226), as canvas guides on
+    /// no layer: pasting puts them on the layer new art goes to, moved as the objects are.
+    pub guides: Vec<vectorcraft_doc::Guide>,
+}
+
+/// Indices of segments selected on `sp` (either explicitly or via incident anchors).
+pub(crate) fn subpath_selected_segments(
+    sp: &vectorcraft_geom::SubPath,
+    si: usize,
+    seg_refs: Option<&BTreeSet<(usize, usize)>>,
+    anchor_refs: Option<&BTreeSet<(usize, usize)>>,
+) -> BTreeSet<usize> {
+    let seg_count = sp.segment_count();
+    if seg_count == 0 {
+        return BTreeSet::new();
+    }
+    let n = sp.anchors.len();
+    let mut selected_segs = BTreeSet::new();
+
+    // Segments picked anywhere on the path leave anchors out of it, as Clear does.
+    let has_explicit_segs = seg_refs.is_some_and(|segments| !segments.is_empty());
+    if has_explicit_segs {
+        if let Some(segments) = seg_refs {
+            for &(s, seg) in segments {
+                if s == si && seg < seg_count {
+                    selected_segs.insert(seg);
+                }
+            }
+        }
+        return selected_segs;
+    }
+
+    if let Some(anchors) = anchor_refs {
+        let sub_anchors: BTreeSet<usize> = anchors.iter().filter_map(|&(s, a)| (s == si && a < n).then_some(a)).collect();
+        if !sub_anchors.is_empty() {
+            for i in 0..seg_count {
+                let next = (i + 1) % n;
+                if sub_anchors.contains(&i) && sub_anchors.contains(&next) {
+                    selected_segs.insert(i);
+                }
+            }
+
+            for &i in &sub_anchors {
+                let prev_selected = if sp.closed { sub_anchors.contains(&((i + n - 1) % n)) } else { i > 0 && sub_anchors.contains(&(i - 1)) };
+                let next_selected = if sp.closed { sub_anchors.contains(&((i + 1) % n)) } else { i + 1 < n && sub_anchors.contains(&(i + 1)) };
+                if !prev_selected && !next_selected {
+                    if sp.closed {
+                        selected_segs.insert((i + n - 1) % n);
+                        selected_segs.insert(i);
+                    } else {
+                        if i > 0 {
+                            selected_segs.insert(i - 1);
+                        }
+                        if i < seg_count {
+                            selected_segs.insert(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    selected_segs
+}
+
+/// When direct selection is active on a path (some anchors or segments selected), extract only
+/// the selected runs as new open path nodes (with retracted endpoint handles). Returns `None`
+/// when the node is selected whole or is not a path.
+pub(crate) fn extract_direct_selection(node: &Node, selection: &Selection) -> Option<Vec<Node>> {
+    let seg_refs = selection.segments.get(&node.id);
+    let anchor_refs = selection.anchors.get(&node.id);
+    if seg_refs.is_none() && anchor_refs.is_none() {
+        return None;
+    }
+    let path = node.path_data()?;
+    let mut subpath_segs = Vec::new();
+    let mut total_segs = 0;
+    let mut total_selected = 0;
+
+    for (si, sp) in path.subpaths.iter().enumerate() {
+        let segs = subpath_selected_segments(sp, si, seg_refs, anchor_refs);
+        total_segs += sp.segment_count();
+        total_selected += segs.len();
+        subpath_segs.push(segs);
+    }
+
+    if total_selected == 0 {
+        return None;
+    }
+
+    // When every segment of the path is selected, copy the object unchanged.
+    if total_segs > 0 && total_selected == total_segs {
+        return None;
+    }
+
+    let mut pieces = vec![];
+    for (sp, selected_segs) in path.subpaths.iter().zip(subpath_segs) {
+        let seg_count = sp.segment_count();
+        if selected_segs.is_empty() || seg_count == 0 {
+            continue;
+        }
+        let unselected: BTreeSet<usize> = (0..seg_count).filter(|i| !selected_segs.contains(i)).collect();
+        let surviving = if unselected.is_empty() { vec![sp.clone()] } else { super::path::without_segments(sp.clone(), &unselected) };
+        for surviving_sp in surviving {
+            let mut piece = node.clone();
+            if let NodeKind::Path { rule, clipping, guide, .. } = &node.kind {
+                piece.kind = NodeKind::Path { path: PathData::single(surviving_sp), rule: *rule, live: None, clipping: *clipping, guide: *guide };
+            }
+            pieces.push(piece);
+        }
+    }
+    if pieces.is_empty() { None } else { Some(pieces) }
 }
 
 impl Clipboard {
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.nodes.is_empty() && self.artboards.is_empty() && self.guides.is_empty()
+    }
+
+    /// Does it hold art (objects or artboards) for other apps? Ruler guides stay in VectorCraft:
+    /// a Copy of guides alone empties the system clipboard (#3226).
+    pub fn has_art(&self) -> bool {
+        !self.nodes.is_empty() || !self.artboards.is_empty()
+    }
+
+    /// One newly made clipboard object and the source document resources it uses. Type-range
+    /// Copy builds an object from selected runs rather than copying a whole document node.
+    pub fn from_node(st: &DocState, node: Node) -> Self {
+        let mut clip = Self::gather(&st.doc, vec![node]);
+        clip.source_doc = Some(st.uid);
+        clip
     }
 
     /// Objects `roots` of `st`'s document with their resources, source artboard and layers.
-    pub(crate) fn copy(st: &DocState, roots: &[NodeId]) -> Self {
+    pub(crate) fn copy(st: &DocState, roots: &[NodeId], direct: bool) -> Self {
         let d = &*st.doc;
         let mut nodes = vec![];
         let mut source_layers = vec![];
         for id in roots {
             let (Some(n), Some(anc)) = (d.node(*id), d.ancestry(*id)) else { continue };
-            nodes.push(n.clone());
-            // The nearest enclosing layer (or sublayer).
-            source_layers.push(anc.iter().rev().skip(1).find_map(|a| d.node(*a).filter(|l| l.is_layer())).and_then(|l| l.name.clone()));
+            let layer_name = anc.iter().rev().skip(1).find_map(|a| d.node(*a).filter(|l| l.is_layer())).and_then(|l| l.name.clone());
+            let compound_parent = anc.iter().rev().skip(1).find_map(|a| d.node(*a).filter(|p| matches!(p.kind, NodeKind::Compound { .. })));
+            let inherit_appearance = |mut piece: Node| {
+                if let Some(parent) = compound_parent
+                    && piece.appearance.items.is_empty()
+                {
+                    piece.appearance = parent.appearance.clone();
+                }
+                piece
+            };
+            if direct && let Some(pieces) = extract_direct_selection(n, &st.selection) {
+                for piece in pieces {
+                    nodes.push(inherit_appearance(piece));
+                    source_layers.push(layer_name.clone());
+                }
+            } else {
+                nodes.push(inherit_appearance(n.clone()));
+                source_layers.push(layer_name);
+            }
         }
-        let bounds = nodes.iter().filter_map(Node::visual_bounds).reduce(|a, b| a.union(b));
-        let board = bounds.and_then(|b| d.artboard_at(b.center())).unwrap_or(0);
-        Self { source_artboard: d.artboards.get(board).map(|a| a.rect), source_layers, source_doc: Some(st.uid), ..Self::gather(d, nodes) }
+        // Symbol instances are measured by their art.
+        let symbols = d.symbol_boxes();
+        let bounds = nodes.iter().filter_map(|n| n.visual_bounds_with(&symbols)).reduce(|a, b| a.union(b));
+        // Art on no artboard has no source artboard: in-place pastes put it back where it was (#1924).
+        let board = bounds.and_then(|b| d.artboard_at(b.center()));
+        Self {
+            source_artboard: board.and_then(|i| d.artboards.get(i)).map(|a| a.rect),
+            source_layers,
+            source_doc: Some(st.uid),
+            ..Self::gather(d, nodes)
+        }
     }
 
     /// Every object of `src` (each top-level layer's contents) with its resources, for Place and
@@ -117,9 +276,13 @@ impl Clipboard {
         Self::gather(src, nodes)
     }
 
-    /// Union of the objects' visual bounds.
+    /// Union of the objects' visual bounds, with symbol instances measured by the art of the
+    /// symbols the clipboard holds.
     pub fn bounds(&self) -> Option<Rect> {
-        self.nodes.iter().filter_map(Node::visual_bounds).reduce(|a, b| a.union(b))
+        let mut d = Document::new(100.0, 100.0);
+        d.symbols = self.symbols.clone();
+        let symbols = d.symbol_boxes();
+        self.nodes.iter().filter_map(|n| n.visual_bounds_with(&symbols)).reduce(|a, b| a.union(b))
     }
 
     /// The swatch name conflicts pasting into `st` raises, as (pasted, document) swatches: none
@@ -139,38 +302,61 @@ impl Clipboard {
         d.patterns = self.patterns.clone();
         d.swatches.extend(self.swatches.iter().cloned());
         d.graphic_styles.extend(self.graphic_styles.iter().cloned());
-        d.char_styles = self.char_styles.clone();
-        d.para_styles = self.para_styles.clone();
+        d.char_styles = self.char_styles.clone().into();
+        d.para_styles = self.para_styles.clone().into();
         if !self.brushes.is_empty() {
             let mut lib = vectorcraft_brush::library(&d);
+            // Each brush's place in the library by name: finding it by scanning the growing list
+            // made a library of N brushes cost N² comparisons.
+            let mut at: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            for (i, b) in lib.iter().enumerate() {
+                at.entry(b.name.clone()).or_insert(i);
+            }
             for b in &self.brushes {
-                match lib.iter_mut().find(|x| x.name == b.name) {
+                match at.get(&b.name).and_then(|&i| lib.get_mut(i)) {
                     Some(x) => *x = b.clone(),
-                    None => lib.push(b.clone()),
+                    None => {
+                        at.insert(b.name.clone(), lib.len());
+                        lib.push(b.clone());
+                    }
                 }
             }
             vectorcraft_brush::store(&mut d, &lib);
         }
-        let mut layer = Node::layer(NodeId(u64::MAX), "Clipboard", vectorcraft_doc::LayerColor::Preset(0));
+        // The layer's id is above every copied object's, so the document saves and reopens as
+        // a native file.
+        let mut top = 0;
+        for n in &self.nodes {
+            n.walk(&mut |c| top = top.max(c.id.0));
+        }
+        let mut layer = Node::layer(NodeId(top.saturating_add(1)), "Clipboard", vectorcraft_doc::LayerColor::Preset(0));
         if let Some(ch) = layer.children_mut() {
             *ch = self.nodes.iter().cloned().map(Arc::new).collect();
         }
         d.layers = vec![Arc::new(layer)];
+        d.fix_next_id();
         d
+    }
+
+    /// The objects as standalone SVG (`None` when there are none).
+    pub fn svg(&self) -> Option<String> {
+        if !self.has_art() {
+            return None;
+        }
+        let d = self.to_document();
+        // SVG has no filters for the Photoshop-style effects: their objects go in as images.
+        let flat = super::rasterfx::flatten_pixel_effects(&d);
+        Some(vectorcraft_svg::export(
+            flat.as_ref().unwrap_or(&d),
+            &vectorcraft_svg::ExportOptions { artboard: None, object_ids: vectorcraft_svg::ObjectIds::Minimal, ..Default::default() },
+        ))
     }
 }
 
 impl Session {
     /// The internal clipboard as standalone SVG (`None` when it is empty).
     pub fn clipboard_svg(&self) -> Option<String> {
-        if self.clipboard.is_empty() {
-            return None;
-        }
-        let d = self.clipboard.to_document();
-        Some(vectorcraft_svg::export(
-            &d,
-            &vectorcraft_svg::ExportOptions { artboard: None, object_ids: vectorcraft_svg::ObjectIds::Minimal, ..Default::default() },
-        ))
+        self.clipboard.svg()
     }
 }
 
@@ -217,6 +403,43 @@ mod tests {
         s
     }
 
+    /// The address a browser's Copy Image puts next to the picture (#597), and text that isn't one.
+    #[test]
+    fn an_address_alone_is_told_from_other_text() {
+        for a in [
+            "https://example.com/cat.png",
+            " http://x.org/a?b=1
+",
+            "HTTPS://EXAMPLE.COM",
+            "file:///C:/art/cat.png",
+            "data:image/png;base64,iVBOR",
+            "blob:https://x.org/1",
+        ] {
+            assert!(is_address(a), "{a}");
+        }
+        for t in ["Pasted words", "see https://example.com", "https://a.org https://b.org", "https://", "example.com/cat.png", ""] {
+            assert!(!is_address(t), "{t}");
+        }
+    }
+
+    /// The image markup some browsers put as text next to a copied picture names it too (#1089);
+    /// markup with words in it is text.
+    #[test]
+    fn markup_of_only_images_names_a_picture() {
+        for m in [
+            r#"<img src="https://static.example.com/eagle.png" jsaction="" class="sFlh5c" style="max-width: 351px" alt="">"#,
+            r#"<meta http-equiv="content-type" content="text/html; charset=utf-8"><img src="a.png">"#,
+            "<html><body><!--StartFragment--><IMG SRC=\"a.png\"/><!--EndFragment--></body></html>",
+            r#"<a href="https://x.org"><img src="a.png"></a>"#,
+            "https://example.com/cat.png",
+        ] {
+            assert!(names_a_picture(m), "{m}");
+        }
+        for t in ["<p>Hello</p>", r#"<img src="a.png"> and a caption"#, "<b>bold</b>", "<imgx>", "<img", "plain words", "<br>", ""] {
+            assert!(!names_a_picture(t), "{t}");
+        }
+    }
+
     #[test]
     fn copy_exports_svg_that_round_trips_through_paste() {
         let mut s = session();
@@ -235,6 +458,26 @@ mod tests {
         let b = st.doc.bounds_of(&st.selection.in_paint_order(&st.doc), false).unwrap();
         assert!((b.center().x - 200.0).abs() < 1e-6 && (b.center().y - 150.0).abs() < 1e-6, "{b:?}");
         assert!((b.width() - 30.0).abs() < 1e-6 && (b.height() - 40.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn pasted_type_gets_its_layout_bounds_cache() {
+        // Reported from Illustrator: pasted type kept no layout bounds, so its box (and alignment)
+        // fell back to the rough estimate until the file was saved and reopened.
+        let mut s = session();
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="120"><text x="0" y="80" font-family="Source Sans 3" font-size="40">WWWWWWWW</text></svg>"#;
+        s.execute("clipboard.importSvg", &json!({"svg": svg})).unwrap();
+        s.execute("edit.paste", &json!({})).unwrap();
+        let mut checked = 0;
+        s.doc().unwrap().doc.walk(|n| {
+            let vectorcraft_doc::NodeKind::Text(t) = &n.kind else { return };
+            let cached = t.cached_bounds.expect("pasted type computed its bounds");
+            let real = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).bounds;
+            assert!((cached.width() - real.width()).abs() < 1e-6, "{cached:?} {real:?}");
+            assert!(cached.width() > t.estimate_bounds().width() + 1.0, "{cached:?} is just the estimate");
+            checked += 1;
+        });
+        assert_eq!(checked, 1, "one text object pasted");
     }
 
     #[test]

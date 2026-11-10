@@ -1,212 +1,86 @@
-//! Smart Guides: snapping to anchors, object bounds (edges/centres), artboards, with the magenta
-//! construction lines and labels Illustrator users expect.
+//! Smart Guides: snapping to anchors, path segments (for dragged anchors and drawn points), object
+//! bounds (edges/centres), artboards, with the magenta construction lines and labels Illustrator
+//! users expect. Preferences › Smart Guides sets their colour, which of them show ([`GuideStyle`]),
+//! how near a target pulls (`ToolContext::snapping_tolerance`) and the angles of the construction
+//! guides drawn points land on (`ToolContext::construction_angles`).
+//!
+//! The drawing tools (Pen, Curvature, Pencil, the shape tools, Type, Artboard) all snap the points
+//! they place through one [`DrawSnap`]: their targets are gathered once per document state, sorted,
+//! and each pointer move looks up the few near the pointer by bisection.
+
+use std::collections::HashSet;
+use std::sync::Arc;
 
 use vectorcraft_doc::hit::{HitOptions, hit_test};
-use vectorcraft_doc::{Document, NodeId, NodeKind};
-use vectorcraft_geom::{Point, Rect, Vec2};
+use vectorcraft_doc::{Document, Node, NodeId, NodeKind, OrientedBox, Selection};
+use vectorcraft_geom::kurbo::{ParamCurveDeriv, ParamCurveNearest};
+use vectorcraft_geom::{Affine, BezPath, Line, ParamCurve, PathSeg, Point, Rect, Shape, SubPath, Vec2, constrain_angle_from};
+use vectorcraft_text::{FontDb, layout as layout_text};
 
-use crate::{Overlay, ToolContext};
+use crate::bbox::Handle;
+use crate::{GlyphSnap, Overlay, ScreenFrame, ToolContext};
+
+mod snap;
+mod targets;
+
+pub(crate) use snap::hold_on_path;
+pub use snap::{
+    DEFAULT_CONSTRUCTION_ANGLES, DrawSnap, HandleSnap, Leave, PointSnap, construction_angles, distance_guides, snap_draw, snap_pick, square,
+};
+use targets::Kind;
+pub use targets::Targets;
+#[cfg(test)]
+use targets::{lines_near, object_boxes};
 
 pub const MAGENTA: [u8; 3] = [0xff, 0x3d, 0xfc];
 
+/// How Smart Guides look (Preferences › Smart Guides › Display Options): their colour, and whether
+/// the alignment lines and the anchor/path labels show. Snapping is the same either way.
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Kind {
-    Anchor,
-    Center,
-    Edge,
-    Artboard,
+pub struct GuideStyle {
+    pub color: [u8; 3],
+    /// Alignment Guides: the lines along the edges and centres the art lines up with.
+    pub lines: bool,
+    /// Anchor/Path Labels: "anchor", "center", "path", "align"…
+    pub labels: bool,
 }
 
-impl Kind {
-    fn label(self) -> &'static str {
-        match self {
-            Kind::Anchor => "anchor",
-            Kind::Center => "center",
-            Kind::Edge => "path",
-            Kind::Artboard => "artboard",
-        }
+impl Default for GuideStyle {
+    fn default() -> Self {
+        Self { color: MAGENTA, lines: true, labels: true }
     }
 }
 
-/// Snap targets gathered from the document (excluding the objects being edited).
-#[derive(Default)]
-pub struct Targets {
-    points: Vec<(Point, Kind)>,
-    xs: Vec<(f64, Point, Kind)>,
-    ys: Vec<(f64, Point, Kind)>,
+impl GuideStyle {
+    /// The style the preferences in `cx` ask for.
+    pub fn of(cx: &ToolContext) -> Self {
+        Self { color: cx.smart_guide_color, lines: cx.alignment_guides, labels: cx.anchor_path_labels }
+    }
 }
 
-impl Targets {
-    pub fn collect(doc: &Document, exclude: &[NodeId], visible: Option<Rect>) -> Self {
-        let mut t = Targets::default();
-        let excluded = |id: NodeId| exclude.iter().any(|e| doc.ancestry(id).is_some_and(|a| a.contains(e)));
-        let add_rect = |t: &mut Targets, r: Rect, kind: Kind| {
-            let c = r.center();
-            for p in [Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)] {
-                t.xs.push((p.x, p, kind));
-                t.ys.push((p.y, p, kind));
-            }
-            t.points.push((c, Kind::Center));
-            t.xs.push((c.x, c, Kind::Center));
-            t.ys.push((c.y, c, Kind::Center));
+/// A ruler guide as a snap target.
+struct Ruler {
+    vertical: bool,
+    pos: f64,
+    /// Where it runs along its line: an artboard guide across its artboard (see
+    /// [`vectorcraft_doc::Document::guide_span`]), else (None) the whole canvas.
+    span: Option<(f64, f64)>,
+}
+
+impl Ruler {
+    /// The line it pulls `p` into within `tol` of its ends (its position, where it starts, the
+    /// kind), as [`Targets::xs`] holds them: none where it doesn't run.
+    fn line_at(&self, p: Point, tol: f64) -> Option<(f64, Point, Kind)> {
+        let along = if self.vertical { p.y } else { p.x };
+        let start = match self.span {
+            Some((a, b)) if along < a - tol || along > b + tol => return None,
+            Some((a, _)) => a,
+            None => 0.0,
         };
-        for ab in &doc.artboards {
-            add_rect(&mut t, ab.rect, Kind::Artboard);
-        }
-        let mut budget = 20_000usize;
-        doc.walk(|n| {
-            if budget == 0 || n.is_container() || !n.visible || excluded(n.id) {
-                return;
-            }
-            let Some(b) = n.geometric_bounds() else { return };
-            if let Some(v) = visible
-                && b.intersect(v).area() <= 0.0
-                && !v.contains(b.center())
-            {
-                return;
-            }
-            if let NodeKind::Path { path, .. } = &n.kind {
-                for (_, _, a) in path.anchors() {
-                    t.points.push((a.p, Kind::Anchor));
-                    budget = budget.saturating_sub(1);
-                }
-            }
-            add_rect(&mut t, b, Kind::Edge);
-        });
-        t
+        let from = if self.vertical { Point::new(self.pos, start) } else { Point::new(start, self.pos) };
+        Some((self.pos, from, Kind::Guide))
     }
-
-    /// Anchors and centres of the visible leaves under `roots` (the roots included) whose bounds
-    /// reach into `near`.
-    fn points_near(doc: &Document, roots: &[NodeId], near: Rect) -> Self {
-        let mut t = Targets::default();
-        for n in roots.iter().filter_map(|id| doc.node(*id)) {
-            n.walk(&mut |c| {
-                if c.is_container() || !c.visible {
-                    return;
-                }
-                let Some(b) = c.geometric_bounds() else { return };
-                if b.x0 > near.x1 || b.x1 < near.x0 || b.y0 > near.y1 || b.y1 < near.y0 {
-                    return;
-                }
-                if let NodeKind::Path { path, .. } = &c.kind {
-                    t.points.extend(path.anchors().map(|(_, _, a)| (a.p, Kind::Anchor)));
-                }
-                t.points.push((b.center(), Kind::Center));
-            });
-        }
-        t
-    }
-
-    /// Snap a single point. Returns the snapped point and guide overlays.
-    pub fn snap_point(&self, p: Point, tol: f64) -> (Point, Vec<Overlay>) {
-        if let Some((q, k)) = self.points.iter().filter(|(q, _)| q.distance(p) <= tol).min_by(|a, b| a.0.distance(p).total_cmp(&b.0.distance(p))) {
-            return (*q, vec![Overlay::Label { p: *q, text: k.label().into(), color: MAGENTA }]);
-        }
-        let mut out = p;
-        let mut ov = vec![];
-        if let Some((x, from, _)) =
-            self.xs.iter().filter(|(x, _, _)| (x - p.x).abs() <= tol).min_by(|a, b| (a.0 - p.x).abs().total_cmp(&(b.0 - p.x).abs()))
-        {
-            out.x = *x;
-            ov.push(Overlay::Line { a: *from, b: Point::new(*x, p.y), color: MAGENTA, dashed: false });
-        }
-        if let Some((y, from, _)) =
-            self.ys.iter().filter(|(y, _, _)| (y - p.y).abs() <= tol).min_by(|a, b| (a.0 - p.y).abs().total_cmp(&(b.0 - p.y).abs()))
-        {
-            out.y = *y;
-            ov.push(Overlay::Line { a: *from, b: Point::new(p.x, *y), color: MAGENTA, dashed: false });
-        }
-        if !ov.is_empty() {
-            ov.push(Overlay::Label { p: out, text: "align".into(), color: MAGENTA });
-        }
-        (out, ov)
-    }
-
-    /// Snap a moving rectangle (selection bounds after a move by `d`): tries its corners/edges/centre.
-    pub fn snap_rect(&self, r: Rect, tol: f64) -> (Vec2, Vec<Overlay>) {
-        let c = r.center();
-        let xs = [r.x0, c.x, r.x1];
-        let ys = [r.y0, c.y, r.y1];
-        let best_x = xs
-            .iter()
-            .flat_map(|x| self.xs.iter().map(move |(t, from, _)| (t - x, *from, *x)))
-            .filter(|(d, _, _)| d.abs() <= tol)
-            .min_by(|a, b| a.0.abs().total_cmp(&b.0.abs()));
-        let best_y = ys
-            .iter()
-            .flat_map(|y| self.ys.iter().map(move |(t, from, _)| (t - y, *from, *y)))
-            .filter(|(d, _, _)| d.abs() <= tol)
-            .min_by(|a, b| a.0.abs().total_cmp(&b.0.abs()));
-        let mut d = Vec2::ZERO;
-        let mut ov = vec![];
-        if let Some((dx, from, x)) = best_x {
-            d.x = dx;
-            let x = x + dx;
-            let (y0, y1) = (from.y.min(r.y0), from.y.max(r.y1));
-            ov.push(Overlay::Line { a: Point::new(x, y0), b: Point::new(x, y1), color: MAGENTA, dashed: false });
-        }
-        if let Some((dy, from, y)) = best_y {
-            d.y = dy;
-            let y = y + dy;
-            let (x0, x1) = (from.x.min(r.x0), from.x.max(r.x1));
-            ov.push(Overlay::Line { a: Point::new(x0, y), b: Point::new(x1, y), color: MAGENTA, dashed: false });
-        }
-        (d, ov)
-    }
-}
-
-/// Snap `p` for a drawing tool when smart guides (or grid snapping) are on.
-pub fn snap_draw(cx: &ToolContext, p: Point, exclude: &[NodeId]) -> (Point, Vec<Overlay>) {
-    if cx.snap_to_pixel {
-        return (Point::new(p.x.round(), p.y.round()), vec![]);
-    }
-    if cx.snap_to_grid {
-        let s = cx.doc.grid.spacing / cx.doc.grid.subdivisions.max(1) as f64;
-        return (vectorcraft_geom::snap::snap_point_to_grid(p, s), vec![]);
-    }
-    if !cx.smart_guides {
-        return (p, vec![]);
-    }
-    Targets::collect(cx.doc, exclude, None).snap_point(p, cx.tol(5.0))
-}
-
-/// Snap a picked point (a transform tool's reference point) to the nearest anchor or centre of the
-/// selection or of the object under the pointer, when Snap to Point or Smart Guides is on.
-pub fn snap_pick(cx: &ToolContext, p: Point) -> (Point, Vec<Overlay>) {
-    if !(cx.snap_to_point || cx.smart_guides) {
-        return (p, vec![]);
-    }
-    let tol = cx.tol(5.0);
-    let mut roots = cx.selection.objects.clone();
-    roots.extend(hit_test(cx.doc, p, HitOptions { tol, ..cx.hit_options() }).map(|h| h.leaf));
-    let near = Rect::new(p.x - tol, p.y - tol, p.x + tol, p.y + tol);
-    Targets::points_near(cx.doc, &roots, near).snap_point(p, tol)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::testutil::*;
-
-    #[test]
-    fn snaps_to_anchor_and_alignment() {
-        let (d, _) = doc_with_rect();
-        let t = Targets::collect(&d, &[], None);
-        let (p, ov) = t.snap_point(Point::new(102.0, 99.0), 4.0);
-        assert_eq!(p, Point::new(100.0, 100.0));
-        assert!(matches!(&ov[0], Overlay::Label { text, .. } if text == "anchor"));
-        let (p, _) = t.snap_point(Point::new(301.0, 199.0), 4.0);
-        assert_eq!(p.y, 200.0);
-    }
-
-    #[test]
-    fn rect_snap_aligns_edges() {
-        let (d, id) = doc_with_rect();
-        let t = Targets::collect(&d, &[id], None);
-        // Artboard is 0..500; a rect at x0=2 snaps to the artboard's left edge.
-        let (dv, ov) = t.snap_rect(Rect::new(2.0, 50.0, 52.0, 90.0), 4.0);
-        assert_eq!(dv.x, -2.0);
-        assert!(!ov.is_empty());
-    }
-}
+mod tests;

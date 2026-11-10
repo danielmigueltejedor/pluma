@@ -3,6 +3,7 @@
 //! artboard to a separate file, Include Linked Files, Embed ICC Profiles and Create
 //! PDF-Compatible File.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
@@ -11,7 +12,7 @@ use vectorcraft_color::cms;
 use vectorcraft_doc::Document;
 use vectorcraft_format::{PREVIEW_MAX, SaveOptions};
 
-use super::super::*;
+use super::super::{EngineError, Result, bad};
 use super::{Format, FormatOption};
 
 /// The options `document.save` and the native encoder read.
@@ -25,14 +26,20 @@ pub const OPTIONS: &[FormatOption] = &[
     FormatOption {
         name: "version",
         ty: "integer",
-        default: "3",
-        description: "the format version to write: 3 (current), or 2 or 1 for older VectorCraft versions (not compressed; newer features they don't know are lost there)",
+        default: "4",
+        description: "the format version to write: 4 (current), or 3, 2 or 1 for older VectorCraft versions (1 and 2 are never compressed; newer features they don't know are lost there)",
     },
     FormatOption {
         name: "preview",
         ty: "boolean",
         default: "false",
         description: "embed a PNG preview of the first artboard (at most 256 pixels on its longer side) for file browsers",
+    },
+    FormatOption {
+        name: "precision",
+        ty: "integer",
+        default: "null",
+        description: "round path anchors and handles to this many decimal places, 0 to 9 (a smaller file; colors, transforms and type are kept exactly); null writes them exactly. Only the save that gives it rounds",
     },
     SEPARATE_ARTBOARDS,
     SEPARATE_RANGE,
@@ -41,7 +48,7 @@ pub const OPTIONS: &[FormatOption] = &[
     FormatOption {
         name: "pdfCompatible",
         ty: "boolean",
-        default: "false",
+        default: "true",
         description: "also carry a PDF of every artboard, for apps that read PDF (a larger file)",
     },
 ];
@@ -71,11 +78,19 @@ const EMBED_PROFILES: FormatOption = FormatOption {
     description: "carry the ICC profiles the document is tagged with that were loaded from files (Edit → Assign Profile), so the document keeps them where they aren't installed",
 };
 
-/// The save options of a `.ai` file (a PDF carrying the native document; its PDF options come on
-/// top, see document.exportPdf).
+/// The save and export options of a `.ai` file (a PDF carrying the native document; its PDF
+/// options come on top, see document.exportPdf). Saves always retain every artboard.
 pub const AI_OPTIONS: &[FormatOption] = &[
+    super::ARTBOARD,
+    super::ARTBOARDS,
+    super::USE_ARTBOARDS,
+    FormatOption {
+        name: "range",
+        ty: "string",
+        default: "null",
+        description: "1-based artboards such as \"1-3, 5\", or \"all\": the PDF pages to export, or with separateArtboards the files to save separately",
+    },
     SEPARATE_ARTBOARDS,
-    SEPARATE_RANGE,
     INCLUDE_LINKED,
     EMBED_PROFILES,
     FormatOption {
@@ -90,6 +105,36 @@ pub const AI_OPTIONS: &[FormatOption] = &[
         default: "true",
         description: "compress the PDF's content and the native document it carries (the PDF option compression.compressText)",
     },
+    FormatOption {
+        name: "editingData",
+        ty: "boolean",
+        default: "true",
+        description: "also carry an editing copy of the artwork in the form other apps that open .ai files read: layers and sublayers, groups, compound paths, paths, fills and strokes, colors, linear and radial gradients, patterns on a grid of tiles, swatches, artboards and which one is active, the transparency of objects and layers, objects' opacity masks, clipping groups and layers clipped by a path, embedded images with their pixels, linked images as placed files with a preview, point type, area type and type on a path as text, and symbols and their instances, with other type, other patterns, other clipping objects, other symbol instances and live objects as plain filled and stroked paths, freeform gradients, gradients along or across a stroke and gradients of more than 256 stops as their average color, gradients that dither or mix perceptually as classic ones, and gradient stops linked to global process colors as their colors (written only with every artboard, as Preserve Editing is)",
+    },
+    FormatOption {
+        name: "aiVersion",
+        ty: "string",
+        default: "\"pdf\"",
+        description: "pdf (a PDF-compatible .ai carrying the VectorCraft document) or 7 (the legacy, PostScript-form .ai of version 7, which keeps layers, groups, compound paths and clipping groups in apps that read it; one file per artboard, transparent objects opaque; the other .ai options don't apply; an error for a .ait template)",
+    },
+    FormatOption {
+        name: "transparentImages",
+        ty: "string",
+        default: "\"flatten\"",
+        description: "with aiVersion 7, the images version 7 can't hold (see-through pixels, opacity, a blending mode, or a colorize color unless every pixel is black or white): flatten (the default: each becomes an opaque image of itself and the art under it, clipped to where it changes what shows; that art stays as it is) or omit (left out)",
+    },
+    FormatOption {
+        name: "hiddenObjects",
+        ty: "string",
+        default: "\"layer\"",
+        description: "with aiVersion 7, hidden objects, which version 7 can't hide (it hides only layers): layer (the default: each layer's hidden objects in a hidden layer of their own just above it, out of their groups), omit (left out) or visible (shown where they are)",
+    },
+    FormatOption {
+        name: "outlineText",
+        ty: "boolean",
+        default: "false",
+        description: "with aiVersion 7, type as its outlines instead of text (which apps reading the file set in the fonts it names: they need them installed); type 8-bit text can't hold (characters outside Windows Latin-1, vertical type, ruby, inline graphics, gradient or pattern fills) and type with rotated characters are always outlines",
+    },
 ];
 
 #[derive(Default, Deserialize)]
@@ -98,9 +143,10 @@ struct NativeOptions {
     compress: Option<bool>,
     version: Option<u32>,
     preview: bool,
+    precision: Option<Value>,
     include_linked: bool,
     embed_profiles: Option<bool>,
-    pdf_compatible: bool,
+    pdf_compatible: Option<bool>,
 }
 
 /// What [`save_options`] leaves to [`encode`] (rendering and encoding take time).
@@ -113,28 +159,94 @@ pub(super) struct Extras {
 /// are left to [`encode`]).
 pub(super) fn save_options(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<(SaveOptions, Extras)> {
     let o: NativeOptions = super::encode::options(f, p)?;
-    let mut so = SaveOptions::for_doc(doc);
-    so.compress = o.compress.unwrap_or(false);
-    so.version = o.version.unwrap_or(vectorcraft_format::VERSION);
-    so.include_linked = o.include_linked;
+    // Pretty or compact is decided by [`encode_to`] on the document it writes.
+    let mut so = SaveOptions {
+        compress: o.compress.unwrap_or(false),
+        version: o.version.unwrap_or(vectorcraft_format::VERSION),
+        include_linked: o.include_linked,
+        precision: o.precision.map(|v| precision(cmd, &v)).transpose()?,
+        ..SaveOptions::default()
+    };
     if o.embed_profiles.unwrap_or(true) {
         so.profiles = embedded_profiles(doc);
     }
     so.check().map_err(|e| bad(cmd, e.to_string()))?;
-    Ok((so, Extras { preview: o.preview, pdf: o.pdf_compatible }))
+    let pdf = o.pdf_compatible.unwrap_or(true);
+    so.pdf_compatible = Some(pdf);
+    Ok((so, Extras { preview: o.preview, pdf }))
+}
+
+/// The `precision` option `v`: a whole number of decimal places, 0 to
+/// [`vectorcraft_format::MAX_PRECISION`]. Any other value, a string included, gets the range message.
+fn precision(cmd: &str, v: &Value) -> Result<u8> {
+    let (key, min, max) = ("precision", 0u8, vectorcraft_format::MAX_PRECISION);
+    if let Some(x) = v.as_f64()
+        && x.fract() == 0.0
+        && (f64::from(min)..=f64::from(max)).contains(&x)
+    {
+        return Ok(x as u8);
+    }
+    let x = v.as_f64().map_or_else(|| v.to_string(), |x| x.to_string());
+    Err(bad(cmd, format!("`{key}` must be a whole number between {min} and {max} (got {x})")))
 }
 
 /// The `.vectorcraft` file of `doc` with the options in `p`.
 pub(super) fn encode(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Vec<u8>> {
+    let mut out = Vec::new();
+    encode_to(cmd, f, doc, p, &mut out)?;
+    Ok(out)
+}
+
+/// [`encode`], written to `w` as it is made ([`vectorcraft_format::save_to`]: give it a buffered
+/// writer).
+pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: impl std::io::Write) -> Result<()> {
     let (mut so, extras) = save_options(cmd, f, doc, p)?;
+    // Include Linked Files keeps placed documents' files; older versions get their art.
+    let full = if so.include_linked || so.version < vectorcraft_format::VERSION {
+        crate::cmd::place::document::full_documents(doc).0
+    } else {
+        std::borrow::Cow::Borrowed(doc)
+    };
+    // With a precision, the preview and PDF show the rounded art the file holds.
+    let drawn = match so.precision {
+        Some(decimals) if extras.preview || extras.pdf => Cow::Owned(rounded(&full, so.version, decimals)),
+        _ => Cow::Borrowed(full.as_ref()),
+    };
     if extras.preview {
-        so.preview = preview_png(doc)?;
+        so.preview = preview_png(&drawn)?;
     }
-    if extras.pdf {
-        // Every artboard as PDF pages (no editing data: the file is the native document).
-        so.pdf = Some(super::pdf::encode(cmd, doc, &json!({ "range": "all", "preserveEditing": false }))?.0);
+    if extras.pdf && !drawn.artboards.is_empty() {
+        // Every artboard as PDF pages (no editing data: the file is the native document), dated by
+        // the document's File Info, so the same document and dates give the same bytes.
+        let at = drawn.metadata.modified.or(drawn.metadata.created);
+        so.pdf = Some(super::pdf::encode_at(cmd, &drawn, &json!({ "range": "all", "preserveEditing": false }), at)?.0);
     }
-    vectorcraft_format::save_with(doc, &so).map_err(|e| bad(cmd, e.to_string()))
+    drop(drawn);
+    let native = match full {
+        Cow::Owned(full) if so.include_linked && so.version >= vectorcraft_format::VERSION => {
+            // Include available bytes without replacing missing, relinkable placed objects.
+            let mut original = doc.clone();
+            original.images = full.images;
+            Cow::Owned(original)
+        }
+        other => other,
+    };
+    so.pretty = so.pretty_fits(&native);
+    vectorcraft_format::save_to(&native, &so, w).map_err(|e| bad(cmd, e.to_string()))
+}
+
+/// `doc` with its path geometry rounded to `decimals` places, as [`vectorcraft_format::save_to`]
+/// writes it for `version`: placed documents become groups of their art for older versions.
+fn rounded(doc: &Document, version: u32, decimals: u8) -> Document {
+    let mut d = if version < vectorcraft_format::VERSION && doc.has_placed() {
+        let mut d = doc.with_placed_art().into_owned();
+        d.placed_as_groups();
+        d
+    } else {
+        doc.clone()
+    };
+    d.round_geometry(decimals.min(vectorcraft_format::MAX_PRECISION));
+    d
 }
 
 /// The ICC files of the profiles `doc` is tagged with that were loaded from files (the built-in
@@ -165,21 +277,45 @@ pub(super) fn install_profiles(profiles: BTreeMap<String, Vec<u8>>) -> Vec<Strin
         .collect()
 }
 
-/// The native document a `.ai` file carries, with the options in `p` that apply to it
-/// (`includeLinked`, `embedProfiles`; compact and uncompressed: the PDF compresses it).
-pub(super) fn ai_native(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Vec<u8>> {
+/// Check AI options even when chosen PDF pages omit the native editing attachment.
+pub(super) fn ai_options(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<SaveOptions> {
     let mut q = p.clone();
     if let Some(o) = q.as_object_mut() {
-        o.retain(|k, _| !matches!(k.as_str(), "compress" | "version" | "preview" | "pdfCompatible"));
+        // AI carries the current native format without a separate preview. Its compression
+        // and PDF-content flags are still validated as booleans. Its coordinates are written exactly.
+        o.retain(|k, _| !matches!(k.as_str(), "version" | "preview" | "precision"));
+        if o.get("pdfCompatible").is_some_and(Value::is_null) {
+            o.remove("pdfCompatible");
+        }
     }
     let (mut so, _) = save_options(cmd, f, doc, &q)?;
     so.pretty = false;
-    vectorcraft_format::save_with(doc, &so).map_err(|e| bad(cmd, e.to_string()))
+    so.compress = false; // The PDF compresses its editing attachment.
+    Ok(so)
+}
+
+/// The original native document carried by an AI file, with validated save options.
+pub(super) fn ai_native(cmd: &str, doc: &Document, so: &SaveOptions) -> Result<Vec<u8>> {
+    let native = if so.include_linked {
+        match crate::cmd::place::document::full_documents(doc).0 {
+            Cow::Borrowed(d) => Cow::Borrowed(d),
+            Cow::Owned(full) => {
+                // Include available files, retaining placed objects even when their files
+                // are missing. Only drawn output substitutes unlinked preview images.
+                let mut original = doc.clone();
+                original.images = full.images;
+                Cow::Owned(original)
+            }
+        }
+    } else {
+        Cow::Borrowed(doc)
+    };
+    vectorcraft_format::save_with(&native, so).map_err(|e| bad(cmd, e.to_string()))
 }
 
 /// The first artboard (else the art) as a PNG fitted into [`PREVIEW_MAX`] pixels (`None`: nothing
 /// to show).
-fn preview_png(doc: &Document) -> Result<Option<Vec<u8>>> {
+pub(crate) fn preview_png(doc: &Document) -> Result<Option<Vec<u8>>> {
     let Some(r) = doc.artboards.first().map(|a| a.rect).or_else(|| vectorcraft_render::encode::art_bounds(doc)) else { return Ok(None) };
     let scale = f64::from(PREVIEW_MAX) / r.width().max(r.height());
     if vectorcraft_render::raster_size(r, scale).is_err() {

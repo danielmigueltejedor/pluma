@@ -1,14 +1,22 @@
 //! Shaping: text runs -> positioned glyphs in points (before line breaking).
 
+use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use harfrust::{Direction, Feature, ShapeOptions, UnicodeBuffer};
-use skrifa::MetadataProvider;
-use skrifa::instance::{LocationRef, Size};
-use vectorcraft_doc::CharStyle;
+use unicode_bidi::Level;
+use unicode_script::{Script, UnicodeScript};
+use unicode_segmentation::UnicodeSegmentation;
 
-use crate::features::OtFeatures;
+use harfrust::{BufferClusterLevel, Direction, Feature, ShapeOptions, Tag, UnicodeBuffer};
+use kurbo::Shape;
+use skrifa::MetadataProvider;
+use skrifa::charmap::Charmap;
+use skrifa::instance::Size;
+use vectorcraft_doc::text::INLINE_CHAR;
+use vectorcraft_doc::{CharStyle, Digits, InlineArt};
+
+use crate::features::{OtFeatures, ligatures_suppressed_by};
 use crate::fontdb::{FontDb, FontFace};
 
 /// A shaped glyph with all character-style effects resolved, in points (y down).
@@ -25,6 +33,10 @@ pub(crate) struct SGlyph {
     /// Offset from the pen position, y down.
     pub dx: f64,
     pub dy: f64,
+    /// Right to left: the run's manual kerning, which moves the glyph right along the baseline,
+    /// outside its Character Rotation; with whole-point advances, the difference the kerning makes
+    /// to the cluster's rounded advance. 0 otherwise.
+    pub kern_shift: f64,
     /// Outline scale (font units -> points).
     pub sx: f64,
     pub sy: f64,
@@ -42,6 +54,75 @@ pub(crate) struct SGlyph {
     pub ch: char,
     /// Vertical type: part of a tate-chu-yoko block (set across the column, upright).
     pub tcy: Option<Tcy>,
+    /// Japanese composition: the space taken off before the glyph (an opening bracket after
+    /// another, see [`crate::layout`]); the glyph is drawn that much earlier on the line.
+    pub lead: f64,
+    /// Proportional Metrics changed the glyph's advance (`palt`): it has its proportional width,
+    /// and Japanese composition takes no more space off it (#966).
+    pub proportional: bool,
+    /// Vertical type with Proportional Metrics: what `vpal` does to the glyph when it stands
+    /// upright ([`crate::layout`] applies it).
+    pub vpal: Option<VAdjust>,
+    /// Resolved Unicode bidi embedding level (logical source order).
+    pub level: Level,
+    /// An inline graphic ([`vectorcraft_doc::TextRun::inline`]) standing in for a glyph.
+    pub inline: Option<InlineBox>,
+    /// A word of a script written without spaces (Thai, Lao, Khmer, Myanmar) ends after the
+    /// glyph's cluster, so a line may break there ([`mark_word_ends`]).
+    pub word_end: bool,
+    /// No Break (Character panel menu): keep this glyph on the same line as the neighbouring
+    /// glyphs that have it.
+    pub no_break: bool,
+    /// Standard Vertical Roman Alignment (Character panel menu): in vertical type this glyph
+    /// stands upright when it would otherwise lie on its side ([`crate::layout`]).
+    pub vertical_roman: bool,
+    /// The glyph is of a script whose letters join (Arabic, Syriac, N'Ko, Mongolian, Adlam…),
+    /// decided for the whole segment it was shaped in ([`joins`]): on a curved path it is bent
+    /// along the path so its joins meet.
+    pub cursive: bool,
+    /// Pattern language of this glyph's source run (unknown languages only use user exceptions).
+    pub hyphen_language: crate::hyphen::Language,
+}
+
+/// Does `script` join its letters (a cursive script, whose neighbouring glyphs touch)?
+pub(crate) fn joins(script: Script) -> bool {
+    matches!(
+        script,
+        Script::Arabic
+            | Script::Syriac
+            | Script::Nko
+            | Script::Mongolian
+            | Script::Adlam
+            | Script::Mandaic
+            | Script::Manichaean
+            | Script::Psalter_Pahlavi
+            | Script::Hanifi_Rohingya
+            | Script::Sogdian
+            | Script::Phags_Pa
+    )
+}
+
+/// How `vpal` and the vertical kerning with it move an upright glyph in vertical type and change
+/// its length down the column, in points: `advance` down the column, `dx` and `dy` in glyph space
+/// (y down; `dy` is down the column once the glyph stands upright). `proportional`: `vpal` itself
+/// changed the advance.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct VAdjust {
+    pub advance: f64,
+    pub dx: f64,
+    pub dy: f64,
+    pub proportional: bool,
+}
+
+/// Placement of an inline graphic's art, glyph space being points with the pen at the origin on
+/// the baseline (y down).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct InlineBox {
+    /// The art's bounds in symbol space; `None` when the symbol is missing (the box only takes
+    /// up room).
+    pub art: Option<kurbo::Rect>,
+    /// Art -> glyph space.
+    pub xf: kurbo::Affine,
 }
 
 /// A glyph's place in a tate-chu-yoko block: the block takes one em of the column, its glyphs side
@@ -56,23 +137,34 @@ pub(crate) struct Tcy {
     pub width: f64,
     /// Horizontal scale that fits the block into one em (1 when it fits as it is).
     pub squeeze: f64,
+    /// Tate-chu-yoko Settings › Up/Down of the block, in points (positive moves it up).
+    pub up: f64,
+    /// Tate-chu-yoko Settings › Left/Right of the block, in points (positive moves it right).
+    pub right: f64,
 }
 
 impl SGlyph {
     pub fn is_space(&self) -> bool {
-        matches!(self.ch, ' ' | '\t' | '\u{3000}' | '\u{2002}'..='\u{200B}')
+        self.inline.is_none() && matches!(self.ch, ' ' | '\t' | '\u{3000}' | '\u{2002}'..='\u{200B}')
     }
     /// A line may break after this glyph.
     pub fn break_after(&self) -> bool {
-        self.is_space() || matches!(self.ch, '-' | '\u{2010}' | '\u{2013}' | '\u{2014}' | '/' | SOFT_HYPHEN) || is_cjk(self.ch)
+        self.is_space()
+            || self.word_end
+            || matches!(self.ch, '-' | '\u{2010}' | '\u{2013}' | '\u{2014}' | '/' | SOFT_HYPHEN | '\u{2028}')
+            || is_cjk(self.ch)
     }
     /// A soft (discretionary) hyphen: invisible unless a line breaks after it.
     pub fn is_soft_hyphen(&self) -> bool {
         self.ch == SOFT_HYPHEN
     }
-    /// Part of a word that may be hyphenated (letters and apostrophes).
+    /// Part of a word that may be hyphenated (letters, marks, joiners and apostrophes).
     pub fn is_letter(&self) -> bool {
-        self.ch.is_alphabetic() || matches!(self.ch, '\'' | '’')
+        crate::hyphen::is_word_char(self.ch)
+    }
+    /// Vertical type: a tate-chu-yoko glyph after its block's first, sharing that glyph's cell.
+    pub fn continues_tcy(&self) -> bool {
+        self.tcy.is_some_and(|t| t.pen > 0.0)
     }
 }
 
@@ -87,9 +179,13 @@ pub(crate) fn hyphen_glyph(g: &SGlyph) -> SGlyph {
     h.adv = g.face.advance(gid) * g.sx;
     h.dx = 0.0;
     h.dy = 0.0;
+    h.kern_shift = 0.0;
     h.byte = g.byte + g.len;
     h.len = 0;
     h.ch = '-';
+    h.inline = None;
+    h.proportional = false;
+    h.vpal = None;
     h
 }
 
@@ -104,6 +200,41 @@ pub(crate) fn no_line_start(c: char) -> bool {
         | 'ぁ' | 'ぃ' | 'ぅ' | 'ぇ' | 'ぉ' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ゎ' | 'ゕ' | 'ゖ'
         | 'ァ' | 'ィ' | 'ゥ' | 'ェ' | 'ォ' | 'ッ' | 'ャ' | 'ュ' | 'ョ' | 'ヮ' | 'ヵ' | 'ヶ' | 'ㇰ'..='ㇿ'
         | '！' | '）' | '，' | '．' | '：' | '；' | '？' | '］' | '｝' | '～' | '｡' | '｣' | '､' | '･' | 'ｰ' | 'ｧ'..='ｯ')
+}
+
+/// Soft kinsoku: a character of [`no_line_start`] that may start a line all the same: 々, the
+/// prolonged sound mark ー (JLREQ cl-10) and small kana (cl-11), as JLREQ's level 3 rules allow
+/// (Appendix C.3, https://www.w3.org/TR/jlreq/#addendum_a3).
+pub(crate) fn soft_line_start(c: char) -> bool {
+    matches!(
+        c,
+        '々' | 'ー'
+            | '\u{3041}'
+            | '\u{3043}'
+            | '\u{3045}'
+            | '\u{3047}'
+            | '\u{3049}'
+            | '\u{3063}'
+            | '\u{3083}'
+            | '\u{3085}'
+            | '\u{3087}'
+            | '\u{308E}'
+            | '\u{3095}'
+            | '\u{3096}'
+            | '\u{30A1}'
+            | '\u{30A3}'
+            | '\u{30A5}'
+            | '\u{30A7}'
+            | '\u{30A9}'
+            | '\u{30C3}'
+            | '\u{30E3}'
+            | '\u{30E5}'
+            | '\u{30E7}'
+            | '\u{30EE}'
+            | '\u{30F5}'
+            | '\u{30F6}'
+            | '\u{31F0}'..='\u{31FF}'
+    )
 }
 
 /// Kinsoku: a character that can't end a line (opening brackets).
@@ -133,95 +264,779 @@ pub(crate) fn no_line_end(c: char) -> bool {
     )
 }
 
-fn is_cjk(c: char) -> bool {
+/// Full-width punctuation for Japanese composition (JLREQ cl-01, cl-02, cl-06, cl-07).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Punct {
+    /// An opening bracket: its half-em space is before the mark.
+    Opening,
+    /// A closing bracket, comma or full stop: its half-em space is after the mark.
+    Closing,
+}
+
+pub(crate) fn punct(c: char) -> Option<Punct> {
+    match c {
+        '（' | '「' | '『' | '【' | '〔' | '〈' | '《' | '［' | '｛' | '〘' | '〖' | '｟' | '〝' => Some(Punct::Opening),
+        '）' | '」' | '』' | '】' | '〕' | '〉' | '》' | '］' | '｝' | '〙' | '〗' | '｠' | '〟' | '、' | '。' | '，' | '．' => {
+            Some(Punct::Closing)
+        }
+        _ => None,
+    }
+}
+
+/// Is `c` of a script written without spaces between words, whose line breaks need a model of its
+/// words: Thai, Lao, Khmer or Myanmar (UAX #14's class SA)?
+pub(crate) fn is_unspaced_script(c: char) -> bool {
+    matches!(c.script(), Script::Thai | Script::Lao | Script::Khmer | Script::Myanmar)
+}
+
+/// The byte offsets of `text` where a word of Thai, Lao, Khmer or Myanmar starts or ends: where a
+/// line may break, and where the caret stops word by word, in text without spaces between words.
+/// They come from ICU4X's line segmenter (its dictionaries on the desktop, its far smaller LSTM
+/// models on the web); empty when `text` has none of those scripts. Offsets elsewhere (around
+/// other text) are UAX #14's breaks.
+pub(crate) fn unspaced_word_breaks(text: &str) -> Vec<usize> {
+    #[cfg(not(target_arch = "wasm32"))]
+    static SEGMENTER: std::sync::LazyLock<icu_segmenter::LineSegmenterBorrowed<'static>> =
+        std::sync::LazyLock::new(|| icu_segmenter::LineSegmenter::new_dictionary(Default::default()));
+    #[cfg(target_arch = "wasm32")]
+    static SEGMENTER: std::sync::LazyLock<icu_segmenter::LineSegmenterBorrowed<'static>> =
+        std::sync::LazyLock::new(|| icu_segmenter::LineSegmenter::new_auto(Default::default()));
+    if !text.chars().any(is_unspaced_script) {
+        return vec![];
+    }
+    SEGMENTER.segment_str(text).collect()
+}
+
+/// Mark the glyphs of `sg` (shaped from `text`, which starts at byte `start` of the text the
+/// glyphs index) after which a word of Thai, Lao, Khmer or Myanmar ends ([`unspaced_word_breaks`]);
+/// other text keeps its own breaks.
+pub(crate) fn mark_word_ends(text: &str, start: usize, sg: &mut [SGlyph]) {
+    let breaks: Vec<usize> = unspaced_word_breaks(text).into_iter().map(|b| b + start).collect();
+    if breaks.is_empty() {
+        return;
+    }
+    for g in sg.iter_mut().filter(|g| g.inline.is_none() && is_unspaced_script(g.ch)) {
+        g.word_end = breaks.binary_search(&(g.byte + g.len)).is_ok();
+    }
+}
+
+pub(crate) fn is_cjk(c: char) -> bool {
     matches!(c as u32, 0x2E80..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF | 0xFF00..=0xFFEF | 0x20000..=0x2FFFF)
 }
 
-/// Vertical metrics (points) of a style's resolved face: (ascent, descent, leading).
-pub(crate) fn style_metrics(db: &FontDb, st: &CharStyle) -> (f64, f64, f64) {
+/// The faces of a text's runs ([`FontDb::style_face`] of each run's style), each looked up the first
+/// time layout asks for it and kept for the rest of that layout.
+pub(crate) type RunFaces = [std::cell::OnceCell<Option<Arc<FontFace>>>];
+
+/// The face of run `ri`, whose style is `st`: kept in `faces` when it has a place for the run,
+/// otherwise looked up.
+pub(crate) fn run_face(db: &FontDb, faces: &RunFaces, ri: usize, st: &CharStyle) -> Option<Arc<FontFace>> {
+    match faces.get(ri) {
+        Some(face) => face.get_or_init(|| db.style_face(st)).clone(),
+        None => db.style_face(st),
+    }
+}
+
+/// Vertical metrics (points) of style `st` in its resolved face `face`: (ascent, descent, leading).
+pub(crate) fn style_metrics(face: Option<&FontFace>, st: &CharStyle) -> (f64, f64, f64) {
     let vs = st.v_scale / 100.0;
-    let Some(face) = db.face(&st.font_family, &st.font_style) else { return (st.size * 0.8 * vs, st.size * 0.2 * vs, st.effective_leading()) };
+    let Some(face) = face else {
+        return (st.size * 0.8 * vs, st.size * 0.2 * vs, st.effective_leading());
+    };
     let k = st.size / face.upem;
     (face.ascent * k * vs, face.descent * k * vs, st.effective_leading())
 }
 
-/// Cap height and x height (points) of a style's resolved face.
-pub(crate) fn cap_x_heights(db: &FontDb, st: &CharStyle) -> (f64, f64) {
+/// Cap height and x height (points) of style `st` in its resolved face `face`.
+pub(crate) fn cap_x_heights(face: Option<&FontFace>, st: &CharStyle) -> (f64, f64) {
     let vs = st.v_scale / 100.0;
-    let Some(face) = db.face(&st.font_family, &st.font_style) else { return (st.size * 0.7 * vs, st.size * 0.5 * vs) };
+    let Some(face) = face else {
+        return (st.size * 0.7 * vs, st.size * 0.5 * vs);
+    };
     let k = st.size / face.upem * vs;
     (face.cap_height * k, face.x_height * k)
 }
 
-/// Shape `text[range]`, where `runs` gives each run's byte range in `text` and style.
+/// Shape `text[range]`, where `runs` gives each run's byte range in `text` and style, `inlines`
+/// (parallel to `runs`) the inline graphic of each run that is one, and `levels` each byte's bidi
+/// embedding level from `range.start` (empty: all left to right). Glyphs come out in logical
+/// order, right-to-left ones shaped right to left.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn shape_range(
     db: &FontDb,
     text: &str,
     range: Range<usize>,
     runs: &[(Range<usize>, &CharStyle)],
+    inlines: &[Option<&InlineArt>],
     feats: &OtFeatures,
+    levels: &[Level],
     out: &mut Vec<SGlyph>,
 ) {
-    for (ri, (rr, st)) in runs.iter().enumerate() {
+    shape_runs(db, text, range, runs, inlines, &[], feats, levels, out);
+}
+
+/// [`shape_range`] with `faces`, parallel to `runs`, holding the face of each run
+/// ([`run_face`]).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn shape_runs(
+    db: &FontDb,
+    text: &str,
+    range: Range<usize>,
+    runs: &[(Range<usize>, &CharStyle)],
+    inlines: &[Option<&InlineArt>],
+    faces: &RunFaces,
+    feats: &OtFeatures,
+    levels: &[Level],
+    out: &mut Vec<SGlyph>,
+) {
+    if text.get(range.clone()).is_none() || range.is_empty() {
+        return;
+    }
+    let level_at = |i: usize| levels.get(i - range.start).copied().unwrap_or_else(Level::ltr);
+    let output_start = out.len();
+
+    // Text runs also carry attributes the shaper does not read (fill, stroke, baseline shift and
+    // others). Adjacent runs that shape alike ([`shapes_alike`]) are shaped together, so that a
+    // change of those attributes is not a shaping boundary: kerning pairs, contextual forms and
+    // joining go on across it. Each glyph takes those attributes from its own source run, found by
+    // its source byte ([`shape_segment`]).
+    /// A run of text shaped together: its byte range, style and source runs, or one inline graphic.
+    struct ShapeSpan<'a> {
+        bytes: Range<usize>,
+        st: &'a CharStyle,
+        source_runs: Range<usize>,
+        art: Option<&'a InlineArt>,
+    }
+    let mut spans: Vec<ShapeSpan<'_>> = Vec::new();
+    // The runs are in order: start at the first that ends inside the range and stop past it, so
+    // that each paragraph looks only at its own runs.
+    let first = runs.partition_point(|(rr, _)| rr.end <= range.start);
+    for (ri, (rr, st)) in runs.iter().enumerate().skip(first) {
+        if rr.start >= range.end {
+            break;
+        }
         let a = rr.start.max(range.start);
         let b = rr.end.min(range.end);
-        if a >= b {
+        if a >= b || text.get(a..b).is_none() {
             continue;
         }
-        let Some(primary) = db.face(&st.font_family, &st.font_style) else { continue };
+        let art = inlines.get(ri).copied().flatten();
+        // An inline graphic is a span of its own: never merged with its neighbours.
+        if art.is_none()
+            && let Some(previous) = spans.last_mut()
+            && previous.art.is_none()
+            && previous.bytes.end == a
+            && shapes_alike(previous.st, st)
+        {
+            previous.bytes.end = b;
+            previous.source_runs.end = ri + 1;
+            continue;
+        }
+        spans.push(ShapeSpan { bytes: a..b, st, source_runs: ri..ri + 1, art });
+    }
+
+    for ShapeSpan { bytes, st, source_runs, art } in spans {
+        let a = bytes.start;
+        let b = bytes.end;
+        if let Some(art) = art {
+            if let Some(face) = run_face(db, faces, source_runs.start, st).or_else(|| db.face_covering('a')) {
+                out.push(inline_glyph(&face, st, art, source_runs.start, a..b, text, level_at(a), feats.vertical));
+            }
+            continue;
+        }
+        // A span's style is the style of its first source run.
+        let Some(primary) = run_face(db, faces, source_runs.start, st) else { continue };
         let pmap = primary.skrifa().map(|f| f.charmap());
         // Synthesized Small Caps shape lowercase letters separately (as smaller capitals).
         let small_caps = st.small_caps.is_some() && !st.all_caps;
         // Split into segments by font coverage (and case, for Small Caps).
-        let mut seg = Segment { range: a..a, run: ri, st, face: primary.clone(), small: false };
-        let mut cache: Vec<(char, Arc<FontFace>)> = Vec::new();
-        for (i, c) in text[a..b].char_indices() {
+        let mut seg = Segment { range: a..a, runs, source_runs, st, face: primary.clone(), small: false, level: level_at(a) };
+        let mut cache: std::collections::HashMap<&str, Arc<FontFace>> = std::collections::HashMap::new();
+        let mut script = Script::Common;
+        // A grapheme cluster (a letter and its marks, an emoji sequence) is set in one face.
+        for (i, cluster) in text[a..b].grapheme_indices(true) {
             let i = a + i;
-            let covered = c.is_whitespace() || c.is_control() || pmap.as_ref().is_none_or(|m| m.map(c).is_some());
-            let face = if covered {
+            // Digits are drawn in the style's numeral system: the font must cover that digit.
+            let Some(c) = cluster.chars().next().map(|c| st.digits.map(c)) else { continue };
+            let level = level_at(i);
+            // Whitespace the primary font doesn't map goes to the fallback face like any other
+            // character (#1844): an ideographic space set at zero width would remove an indent.
+            let face = if drawn_chars(cluster, st.digits).all(|c| in_face(pmap.as_ref(), c)) {
                 primary.clone()
-            } else if let Some((_, f)) = cache.iter().find(|(k, _)| *k == c) {
+            } else if let Some(f) = cache.get(cluster) {
                 f.clone()
             } else {
-                let f = db.fallback_for(c, primary.id()).unwrap_or_else(|| primary.clone());
-                cache.push((c, f.clone()));
+                let f = fallback_face(db, &primary, pmap.as_ref(), cluster, st.digits);
+                cache.insert(cluster, f.clone());
                 f
             };
             let small = small_caps && c.is_lowercase();
-            // Combining marks stay with their base.
-            if (face.id() != seg.face.id() || small != seg.small) && !is_mark(c) {
+            let next_script = shaping_script(c);
+            let strong_script = !matches!(next_script, Script::Common | Script::Inherited);
+            let script_change = strong_script && script != Script::Common && script != next_script;
+            // Combining marks, zero width joiners and non-joiners, and variation selectors stay
+            // with the character before them.
+            if (face.id() != seg.face.id() || small != seg.small || level != seg.level || script_change) && !is_mark(c) {
                 if i > seg.range.start {
                     seg.range.end = i;
-                    shape_segment(text, &seg, feats, out);
+                    shape_segment(text, &range, &seg, feats, out);
                 }
-                seg = Segment { range: i..i, face, small, ..seg };
+                seg = Segment { range: i..i, face, small, level, ..seg };
+            }
+            if strong_script {
+                script = next_script;
             }
         }
         if b > seg.range.start {
             seg.range.end = b;
-            shape_segment(text, &seg, feats, out);
+            shape_segment(text, &range, &seg, feats, out);
+        }
+    }
+    // Right-to-left segments come out of the shaper in visual order: back to logical order for
+    // line breaking (the lines are put in visual order once broken).
+    if levels.iter().any(|l| l.is_rtl())
+        && let Some(o) = out.get_mut(output_start..)
+    {
+        o.sort_by_key(|g| g.byte);
+    }
+    if !feats.vertical {
+        optical_pairs(db, text, out.get_mut(output_start..).unwrap_or_default(), runs);
+    }
+}
+
+/// Line segments of a glyph outline in font units, cached for the current shaping pass.
+type Profile = Vec<(f64, f64, f64, f64)>;
+type CachedProfile = (Profile, (f64, f64));
+
+fn outline_profile(
+    db: &FontDb,
+    face: &FontFace,
+    gid: u32,
+    cache: &mut HashMap<(u32, u32), Option<Arc<CachedProfile>>>,
+) -> Option<Arc<CachedProfile>> {
+    let key = (face.id(), gid);
+    cache
+        .entry(key)
+        .or_insert_with(|| {
+            let path = db.outline(face, gid);
+            let bounds = path.bounding_box();
+            if path.elements().is_empty()
+                || path.elements().len() > 512
+                || ![bounds.x0, bounds.y0, bounds.x1, bounds.y1].iter().all(|v| v.is_finite() && v.abs() <= 100_000.0)
+            {
+                return None;
+            }
+            let mut lines = Vec::new();
+            let mut previous = None;
+            let mut contour_start = None;
+            kurbo::flatten(path.iter(), 2.0, |el| match el {
+                kurbo::PathEl::MoveTo(p) => {
+                    previous = Some(p);
+                    contour_start = Some(p);
+                }
+                kurbo::PathEl::LineTo(p) => {
+                    if let Some(a) = previous
+                        && lines.len() < 8192
+                    {
+                        lines.push((a.x, a.y, p.x, p.y));
+                    }
+                    previous = Some(p);
+                }
+                kurbo::PathEl::ClosePath => {
+                    if let Some((a, b)) = previous.zip(contour_start)
+                        && lines.len() < 8192
+                    {
+                        lines.push((a.x, a.y, b.x, b.y));
+                    }
+                    previous = None;
+                    contour_start = None;
+                }
+                _ => {}
+            });
+            (!lines.is_empty() && lines.len() < 8192).then(|| Arc::new((lines, (bounds.y0, bounds.y1))))
+        })
+        .clone()
+}
+
+/// The left and right ink edges where a horizontal slice crosses an outline.
+fn profile_edges(lines: &[(f64, f64, f64, f64)], y: f64, sx: f64, sy: f64, dx: f64, dy: f64) -> Option<(f64, f64)> {
+    let mut left = f64::INFINITY;
+    let mut right = f64::NEG_INFINITY;
+    for &(x0, y0, x1, y1) in lines {
+        let (a, b) = (y0 * sy + dy, y1 * sy + dy);
+        if (a <= y && y < b) || (b <= y && y < a) {
+            let x = (x0 + (x1 - x0) * (y - a) / (b - a)) * sx + dx;
+            left = left.min(x);
+            right = right.max(x);
+        }
+    }
+    (left.is_finite() && right.is_finite()).then_some((left, right))
+}
+
+/// The ink gaps between glyph outline `a` and glyph outline `b` placed `advance` after it, at 24
+/// heights between `low` and `high` where both have ink, sorted. Each outline is placed by its
+/// (scale x, scale y, offset x, offset y).
+fn ink_gaps(
+    a: &[(f64, f64, f64, f64)],
+    b: &[(f64, f64, f64, f64)],
+    left: (f64, f64, f64, f64),
+    right: (f64, f64, f64, f64),
+    advance: f64,
+    low: f64,
+    high: f64,
+) -> Vec<f64> {
+    let mut gaps = Vec::new();
+    if !low.is_finite() || !high.is_finite() || high <= low || !advance.is_finite() {
+        return gaps;
+    }
+    for j in 0..24 {
+        let y = low + (high - low) * (f64::from(j) + 0.5) / 24.0;
+        if let (Some((_, ar)), Some((bl, _))) =
+            (profile_edges(a, y, left.0, left.1, left.2, left.3), profile_edges(b, y, right.0, right.1, right.2, right.3))
+        {
+            let gap = advance + bl - ar;
+            if gap.is_finite() {
+                gaps.push(gap);
+            }
+        }
+    }
+    gaps.sort_by(f64::total_cmp);
+    gaps
+}
+
+/// How far an Optical pair moves toward the reference gap (1 = all the way).
+const OPTICAL_PULL: f64 = 0.6;
+/// The narrowest ink gap an Optical correction leaves, as a fraction of the reference gap.
+const OPTICAL_FLOOR: f64 = 0.3;
+/// The most an Optical correction tightens and loosens a pair, in em.
+const OPTICAL_MAX_TIGHTEN: f64 = 0.12;
+const OPTICAL_MAX_LOOSEN: f64 = 0.06;
+/// The reference gap of a face that has none of the reference pairs, in em.
+const OPTICAL_FALLBACK_GAP: f64 = 0.08;
+
+/// The face's own spacing between two straight stems, in font units: the median ink gap of `nn`,
+/// or of `HH`, then `oo`, when the face doesn't map the letter. `None` when it has none of them.
+fn reference_gap(db: &FontDb, face: &FontFace, cache: &mut HashMap<(u32, u32), Option<Arc<CachedProfile>>>) -> Option<f64> {
+    let upem = face.units_per_em();
+    ['n', 'H', 'o'].into_iter().filter(|&c| face.covers(c)).find_map(|c| {
+        let gid = face.glyph_for(c);
+        let profile = outline_profile(db, face, gid, cache)?;
+        let place = (1.0, 1.0, 0.0, 0.0);
+        let gaps = ink_gaps(&profile.0, &profile.0, place, place, face.advance(gid), profile.1.0, profile.1.1);
+        let gap = gaps.get(gaps.len() / 2).copied()?;
+        (gap.is_finite() && gap > 0.0 && gap < upem).then_some(gap)
+    })
+}
+
+/// The correction to an Optical pair's advance: the pair's median ink gap moves part of the way
+/// ([`OPTICAL_PULL`]) toward `target`, the face's reference gap in the drawn size, its narrowest
+/// gap stays at least [`OPTICAL_FLOOR`] of `target` where the pair allows it, and the change is
+/// rounded to one font unit and limited to [`OPTICAL_MAX_TIGHTEN`] and [`OPTICAL_MAX_LOOSEN`].
+#[allow(clippy::too_many_arguments)]
+fn profile_correction(
+    a: &[(f64, f64, f64, f64)],
+    b: &[(f64, f64, f64, f64)],
+    left: (f64, f64, f64, f64),
+    right: (f64, f64, f64, f64),
+    advance: f64,
+    target: f64,
+    em: f64,
+    upem: f64,
+    low: f64,
+    high: f64,
+) -> Option<f64> {
+    if !em.is_finite() || em <= 0.0 || !upem.is_finite() || upem <= 0.0 || !target.is_finite() || target <= 0.0 {
+        return None;
+    }
+    let gaps = ink_gaps(a, b, left, right, advance, low, high);
+    let (Some(&narrowest), Some(&gap)) = (gaps.first(), gaps.get(gaps.len() / 2)) else { return None };
+    let pulled = OPTICAL_PULL * (target - gap);
+    let correction = pulled.max(OPTICAL_FLOOR * target - narrowest).clamp(-OPTICAL_MAX_TIGHTEN * em, OPTICAL_MAX_LOOSEN * em);
+    let unit = em / upem;
+    let correction = ((correction / unit).round() * unit).clamp(-OPTICAL_MAX_TIGHTEN * em, OPTICAL_MAX_LOOSEN * em);
+    correction.is_finite().then_some(correction)
+}
+
+/// Does `c` take part in Optical spacing? Ideographs, kana, hangul and the fullwidth and CJK
+/// punctuation forms sit on the em grid and dashes join end to end: they keep the font's spacing.
+fn optical_spaces(c: char) -> bool {
+    !matches!(c.script(), Script::Han | Script::Hiragana | Script::Katakana | Script::Hangul | Script::Bopomofo | Script::Yi)
+        && !matches!(c, '\u{3000}'..='\u{303F}' | '\u{3200}'..='\u{33FF}' | '\u{FE30}'..='\u{FE4F}' | '\u{FF00}'..='\u{FFEF}')
+        && !matches!(c, '-' | '\u{2010}'..='\u{2015}' | '\u{2E3A}' | '\u{2E3B}' | '\u{FE58}' | '\u{FE63}' | '\u{FF0D}')
+}
+
+/// Move each Optical pair part of the way toward the face's own stem spacing (see
+/// [`reference_gap`] and [`profile_correction`]), measured at 24 overlapping vertical slices. The
+/// median avoids a single narrow tip deciding the entire pair. Missing ink gives zero correction.
+fn optical_pairs(db: &FontDb, text: &str, glyphs: &mut [SGlyph], runs: &[(Range<usize>, &CharStyle)]) {
+    let mut cache = HashMap::new();
+    let mut corrections: HashMap<[u64; 15], Option<f64>> = HashMap::new();
+    let mut references: HashMap<u32, Option<f64>> = HashMap::new();
+    let shaped_advances: Vec<f64> = glyphs.iter().map(|g| g.adv).collect();
+    for i in 0..glyphs.len().saturating_sub(1) {
+        let Some((a, b)) = glyphs.get(i).zip(glyphs.get(i + 1)) else { continue };
+        if a.level != b.level {
+            continue;
+        }
+        let Some(owner) = runs.get(a.run).map(|(_, s)| *s) else { continue };
+        let invisible = |ch: char| matches!(ch, SOFT_HYPHEN | '\u{2028}') || ch.is_control();
+        if !owner.optical_kerning
+            || a.byte == b.byte
+            || invisible(a.ch)
+            || invisible(b.ch)
+            || text.get(a.byte..b.byte).is_some_and(|between| between.chars().skip(1).any(invisible))
+            || a.rotation != 0.0
+            || b.rotation != 0.0
+        {
+            continue;
+        }
+        if owner.kerning.is_some() {
+            continue;
+        }
+        let mut start = i;
+        while start > 0 && glyphs.get(start - 1).is_some_and(|g| g.byte == a.byte) {
+            start -= 1;
+        }
+        let mut end = i + 1;
+        while end + 1 < glyphs.len() && glyphs[end + 1].byte == b.byte {
+            end += 1;
+        }
+        // A mark may precede its base inside either direction's shaped cluster.
+        let advance = |k: usize| shaped_advances.get(k).copied().unwrap_or(0.0);
+        let first_base = glyphs[start..=i]
+            .iter()
+            .enumerate()
+            .max_by(|(a, _), (b, _)| advance(start + *a).total_cmp(&advance(start + *b)))
+            .map_or(start, |(offset, _)| start + offset);
+        let second_base = glyphs[i + 1..=end]
+            .iter()
+            .enumerate()
+            .max_by(|(a, _), (b, _)| advance(i + 1 + *a).total_cmp(&advance(i + 1 + *b)))
+            .map_or(i + 1, |(offset, _)| i + 1 + offset);
+        let (left_index, right_index, target, cluster_start, cluster_end) =
+            if a.level.is_rtl() { (second_base, first_base, end, i + 1, end) } else { (first_base, second_base, i, start, i) };
+        let (left, right) = (&glyphs[left_index], &glyphs[right_index]);
+        if left.byte == right.byte
+            || left.is_space()
+            || right.is_space()
+            || is_mark(right.ch)
+            || left.inline.is_some()
+            || right.inline.is_some()
+            || left.ch == '\n'
+            || right.ch == '\n'
+            || !optical_spaces(left.ch)
+            || !optical_spaces(right.ch)
+        {
+            continue;
+        }
+        // Neither glyph is rotated, so a right-to-left manual kerning shift adds to the offset.
+        let left_x = left.dx + left.kern_shift;
+        let right_x = right.dx + right.kern_shift;
+        let left_y = left.dy - left.bshift;
+        let right_y = right.dy - right.bshift;
+        let Some(left_style) = runs.get(left.run).map(|(_, s)| *s) else { continue };
+        let em = left.sx * left.face.upem / (left_style.h_scale / 100.0);
+        let tracking = left_style.tracking / 1000.0 * em;
+        // A manual kerning value on the left glyph is part of its advance and, right to left, of
+        // its offset too (it spaces the left glyph from its left neighbor): it is not taken off.
+        let advance = glyphs[cluster_start..=cluster_end].iter().map(|g| g.adv).sum::<f64>() - tracking;
+        let key = [
+            u64::from(left.face.id()),
+            u64::from(left.gid),
+            u64::from(right.face.id()),
+            u64::from(right.gid),
+            left.sx.to_bits(),
+            left.sy.to_bits(),
+            left_x.to_bits(),
+            left_y.to_bits(),
+            right.sx.to_bits(),
+            right.sy.to_bits(),
+            right_x.to_bits(),
+            right_y.to_bits(),
+            advance.to_bits(),
+            em.to_bits(),
+            left.face.upem.to_bits(),
+        ];
+        let correction = *corrections.entry(key).or_insert_with(|| {
+            let reference = *references.entry(left.face.id()).or_insert_with(|| reference_gap(db, &left.face, &mut cache));
+            let reference = reference.map_or(OPTICAL_FALLBACK_GAP * em, |gap| gap * left.sx);
+            let (Some(a), Some(b)) = (outline_profile(db, &left.face, left.gid, &mut cache), outline_profile(db, &right.face, right.gid, &mut cache))
+            else {
+                return None;
+            };
+            let low = (a.1.0 * left.sy + left_y).max(b.1.0 * right.sy + right_y);
+            let high = (a.1.1 * left.sy + left_y).min(b.1.1 * right.sy + right_y);
+            profile_correction(
+                &a.0,
+                &b.0,
+                (left.sx, left.sy, left_x, left_y),
+                (right.sx, right.sy, right_x, right_y),
+                advance,
+                reference,
+                em,
+                left.face.upem,
+                low,
+                high,
+            )
+        });
+        if let (Some(correction), Some(glyph)) = (correction, glyphs.get_mut(target))
+            && !invisible(glyph.ch)
+        {
+            glyph.adv += correction;
         }
     }
 }
 
-/// A piece of one run shaped in one go: one face and, for Small Caps, one case.
+/// Index in the original run list containing `byte`, limited to one coalesced shaping span.
+/// Source runs are ordered and non-overlapping; partitioning keeps attribution bounded when a
+/// document contains many adjacent style runs.
+fn source_run_at(runs: &[(Range<usize>, &CharStyle)], span: &Range<usize>, byte: usize) -> Option<usize> {
+    let source = runs.get(span.clone())?;
+    let i = source.partition_point(|(range, _)| range.end <= byte);
+    source.get(i).filter(|(range, _)| range.contains(&byte)).map(|_| span.start + i)
+}
+
+/// Do text runs in styles `a` and `b` shape alike, so that they are shaped as one piece of text?
+/// They do when they differ only in paint and stroke, underline and strikethrough, overprint, the
+/// character style's name, leading, baseline shift, rotation, Character Alignment, Character
+/// Direction (text is shaped apart where its bidi level changes), Kashidas, the kerning (each glyph takes its
+/// run's, see [`shape_segment`]) and the tracking, as long as the tracking keeps or drops standard
+/// ligatures alike ([`crate::features::ligatures_suppressed_by`]).
+fn shapes_alike(a: &CharStyle, b: &CharStyle) -> bool {
+    // Every field is named, so that a new attribute has to be sorted into one group or the other.
+    let CharStyle {
+        font_family,
+        font_style,
+        font_version,
+        font_axes,
+        size,
+        leading: _,
+        tracking,
+        kerning: _,
+        optical_kerning: _,
+        baseline_shift: _,
+        h_scale,
+        v_scale,
+        rotation: _,
+        fill: _,
+        stroke: _,
+        stroke_width: _,
+        underline: _,
+        strikethrough: _,
+        all_caps,
+        features,
+        style_name: _,
+        overprint_fill: _,
+        overprint_stroke: _,
+        stroke_cap: _,
+        stroke_join: _,
+        stroke_miter_limit: _,
+        stroke_dash: _,
+        stroke_align: _,
+        position,
+        small_caps,
+        char_align: _,
+        char_direction: _,
+        kashidas: _,
+        proportional_metrics,
+        tate_chu_yoko,
+        tcy_up_down: _,
+        tcy_left_right: _,
+        standard_vertical_roman: _,
+        digits,
+        font_height_reference,
+        no_break,
+        language,
+        glyph_alternate,
+    } = a;
+    *font_family == b.font_family
+        && *font_style == b.font_style
+        && *font_version == b.font_version
+        && *font_axes == b.font_axes
+        && *size == b.size
+        && *h_scale == b.h_scale
+        && *v_scale == b.v_scale
+        && *all_caps == b.all_caps
+        && *features == b.features
+        && *position == b.position
+        && *small_caps == b.small_caps
+        && *proportional_metrics == b.proportional_metrics
+        && *tate_chu_yoko == b.tate_chu_yoko
+        && *digits == b.digits
+        && *font_height_reference == b.font_height_reference
+        && *no_break == b.no_break
+        && *language == b.language
+        // A choice applies to the first character of its source run. Even equal choices on
+        // neighboring runs must shape separately so ligatures cannot absorb either character.
+        && glyph_alternate.is_none()
+        && b.glyph_alternate.is_none()
+        && ligatures_suppressed_by(*tracking) == ligatures_suppressed_by(b.tracking)
+}
+
+/// The characters of a grapheme cluster that need a glyph of their own, in the numeral system
+/// `digits`: not what the layout handles itself (tab, line and paragraph breaks), joiners or
+/// variation selectors.
+fn drawn_chars(cluster: &str, digits: Digits) -> impl Iterator<Item = char> + '_ {
+    cluster
+        .chars()
+        .map(move |c| digits.map(c))
+        .filter(|&c| !(c.is_control() || matches!(c, '\u{200C}' | '\u{200D}' | '\u{2028}' | '\u{FE00}'..='\u{FE0F}' | '\u{E0100}'..='\u{E01EF}')))
+}
+
+/// Does the face with charmap `map` have a glyph for `c` (any face does when it has no charmap)?
+fn in_face(map: Option<&Charmap<'_>>, c: char) -> bool {
+    map.is_none_or(|m| m.map(c).is_some())
+}
+
+/// The face of a grapheme cluster the primary face (charmap `pmap`) lacks a character of: the
+/// first fallback face with all of them, so that a letter's marks are shaped with it and attach to
+/// it (#4491); when there is none, the face its first character takes on its own.
+fn fallback_face(db: &FontDb, primary: &Arc<FontFace>, pmap: Option<&Charmap<'_>>, cluster: &str, digits: Digits) -> Arc<FontFace> {
+    let fallback = |c| db.fallback_for_style(c, primary.id(), primary.weight, primary.italic);
+    drawn_chars(cluster, digits)
+        .find_map(|c| fallback(c).filter(|f| drawn_chars(cluster, digits).all(|c| f.covers(c))))
+        .or_else(|| drawn_chars(cluster, digits).next().filter(|&c| !in_face(pmap, c)).and_then(fallback))
+        .unwrap_or_else(|| primary.clone())
+}
+
+/// The script `c` is shaped in: Japanese and Chinese text mixes Han, Hiragana, Katakana and
+/// Bopomofo, shaped together (splitting them would cost a shaper call per change of script).
+fn shaping_script(c: char) -> Script {
+    match c.script() {
+        Script::Hiragana | Script::Katakana | Script::Bopomofo => Script::Han,
+        s => s,
+    }
+}
+
+/// The synthetic glyph of an inline graphic run (`range` = its one character).
+///
+/// The art is scaled uniformly to `scale` x the font size tall, its left edge on the pen and its
+/// vertical centre on the middle of the cap height raised by the inline's shift (see
+/// [`InlineArt`]). Its advance is the scaled art width plus tracking and its character's manual
+/// kerning, which right to left in horizontal type also moves the art right by the value, as it
+/// moves a letter's glyph. The glyph's ascent and descent grow to the art's extent so a tall
+/// graphic opens up its line. A missing symbol takes a square of the same height and draws nothing.
+#[allow(clippy::too_many_arguments)]
+fn inline_glyph(
+    face: &Arc<FontFace>,
+    st: &CharStyle,
+    art: &InlineArt,
+    run: usize,
+    range: Range<usize>,
+    text: &str,
+    level: Level,
+    vertical: bool,
+) -> SGlyph {
+    let size = if st.size.is_finite() { st.size.max(0.0) } else { 0.0 };
+    let vs = if st.v_scale.is_finite() { st.v_scale / 100.0 } else { 1.0 };
+    let km = size / face.upem;
+    let (ascent, descent, cap, xh) = (face.ascent * km * vs, face.descent * km * vs, face.cap_height * km * vs, face.x_height * km * vs);
+    let h = art.safe_scale() * size;
+    let mid = cap * 0.5 + art.safe_shift();
+    let art_bounds = art.bounds.filter(|b| b.height() > 1e-9 && b.width().is_finite() && b.height().is_finite());
+    let (xf, width, drawn) = match art_bounds {
+        Some(b) if h > 0.0 => {
+            let k = h / b.height();
+            let xf = kurbo::Affine::translate((0.0, -mid)) * kurbo::Affine::scale(k) * kurbo::Affine::translate((-b.x0, -(b.y0 + b.y1) * 0.5));
+            (xf, b.width() * k, Some(b))
+        }
+        _ => (kurbo::Affine::IDENTITY, h, None),
+    };
+    let tracking = st.tracking / 1000.0 * size;
+    let manual_kern = st.kerning.map(|v| v / 1000.0 * size).filter(|k| k.is_finite()).unwrap_or(0.0);
+    let adv = width + if tracking.is_finite() { tracking } else { 0.0 } + manual_kern;
+    SGlyph {
+        face: face.clone(),
+        gid: 0,
+        byte: range.start,
+        len: range.len().max(1),
+        run,
+        adv: if adv.is_finite() { adv } else { 0.0 },
+        dx: 0.0,
+        dy: 0.0,
+        kern_shift: if level.is_rtl() && !vertical { manual_kern } else { 0.0 },
+        // Not used to draw (the art has its own transform), but they make the glyph's em box
+        // its run's em: Character Alignment and Top-to-Top leading treat an inline graphic as a
+        // character of its run's size, whatever its scale (see `layout::glyph_em`).
+        sx: if km.is_finite() { km * vs } else { 0.0 },
+        sy: if km.is_finite() { km * vs } else { 0.0 },
+        bshift: if st.baseline_shift.is_finite() { st.baseline_shift } else { 0.0 },
+        rotation: 0.0,
+        ascent: ascent.max(mid + h * 0.5),
+        descent: descent.max(h * 0.5 - mid),
+        leading: st.effective_leading(),
+        cap,
+        xh,
+        ch: text.get(range.clone()).and_then(|s| s.chars().next()).unwrap_or(INLINE_CHAR),
+        tcy: None,
+        lead: 0.0,
+        proportional: false,
+        vpal: None,
+        // U+FFFC is a bidi neutral (ON): its level, resolved from its neighbours, places it in
+        // RTL text like any other glyph once the line is reordered.
+        level,
+        inline: Some(InlineBox { art: drawn, xf }),
+        word_end: false,
+        no_break: st.no_break,
+        vertical_roman: false,
+        cursive: false,
+        hyphen_language: crate::hyphen::Language::None,
+    }
+}
+
+/// A piece of text shaped in one go: one face and, for Small Caps, one case, in runs that shape
+/// alike ([`shapes_alike`]).
+#[derive(Clone)]
 struct Segment<'a> {
     range: Range<usize>,
-    run: usize,
+    /// All the runs, and the indices of those the piece's shaping span takes in.
+    runs: &'a [(Range<usize>, &'a CharStyle)],
+    source_runs: Range<usize>,
+    /// The style of the span's first run, which the others shape alike with.
     st: &'a CharStyle,
     face: Arc<FontFace>,
     /// Lowercase letters drawn as synthesized small capitals.
     small: bool,
+    level: Level,
+}
+
+/// A segment shaped in one style: each glyph's id, cluster, x advance and x and y offset (font
+/// units), whether `palt` gave it another advance, and what `vpal` does to it.
+#[derive(Default)]
+struct Shaped {
+    raw: Vec<(u32, u32, i32, i32, i32)>,
+    proportional: Vec<bool>,
+    vpal: Vec<Option<VAdjust>>,
+    /// Each glyph's own character (cluster at character level), when harakat are styled apart
+    /// from their letters and the character-level pass matches ([`crate::harakat`]); empty
+    /// otherwise (glyphs keep their shaping-cluster start).
+    chars: Vec<u32>,
 }
 
 fn is_mark(c: char) -> bool {
-    matches!(c as u32, 0x0300..=0x036F | 0x1AB0..=0x1AFF | 0x1DC0..=0x1DFF | 0x20D0..=0x20FF | 0xFE20..=0xFE2F | 0x200D | 0xFE00..=0xFE0F)
+    use unicode_general_category::{GeneralCategory, get_general_category};
+    matches!(get_general_category(c), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
+        || matches!(c, '\u{200C}' | '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
 }
 
-fn shape_segment(text: &str, seg: &Segment, feats: &OtFeatures, out: &mut Vec<SGlyph>) {
-    let Segment { range, run, st, face, small } = seg;
-    let (range, run, small) = (range.clone(), *run, *small);
+/// Shape `seg` and append its glyphs to `out`. Each glyph takes the tracking, kerning, baseline
+/// shift, rotation and leading of its own source run. The font's kerning pairs apply after the
+/// characters with automatic kerning: the manual value replaces the font's pair after its
+/// character, and a character before it with automatic kerning keeps the font's pair with it
+/// (except before a character that All Caps or Small Caps sets as several letters, such as ß as
+/// SS). A cluster that would take in characters of runs with different styles (a ligature, a
+/// base with its marks) is not formed: the segment is shaped in pieces at those run boundaries.
+fn shape_segment(text: &str, context: &Range<usize>, seg: &Segment, feats: &OtFeatures, out: &mut Vec<SGlyph>) {
+    let Segment { range, runs, source_runs, st, face, small, level } = seg;
+    let (range, small) = (range.clone(), *small);
+    // The source runs the segment's bytes lie in (a span can hold many segments).
+    let span = runs.get(source_runs.clone()).unwrap_or_default();
+    let first = span.partition_point(|(r, _)| r.end <= range.start);
+    let last = span.partition_point(|(r, _)| r.start < range.end).max(first);
+    let source_runs = &(source_runs.start + first..source_runs.start + last);
     let text_seg = &text[range.clone()];
+    // The segment's script: that of its first character of a script of its own.
+    let cursive = text_seg.chars().map(|c| c.script()).find(|s| !matches!(s, Script::Common | Script::Inherited)).is_some_and(joins);
     let full = st.size.max(0.0);
     // Superscript/subscript and small capitals shrink the glyphs; line metrics keep the full size.
     let (pos_scale, pos_shift) = st.position.scale_shift(full);
@@ -231,66 +1046,332 @@ fn shape_segment(text: &str, seg: &Segment, feats: &OtFeatures, out: &mut Vec<SG
     let km = full / face.upem;
     let hs = st.h_scale / 100.0;
     let vs = st.v_scale / 100.0;
-    let tracking = st.tracking / 1000.0 * size;
-    let manual_kern = st.kerning.map(|v| v / 1000.0 * size).unwrap_or(0.0);
     let ascent = face.ascent * km * vs;
     let descent = face.descent * km * vs;
-    let leading = st.effective_leading();
     let cap = face.cap_height * km * vs;
     let xh = face.x_height * km * vs;
     let upper = st.all_caps || small;
     let first_char = |byte: usize| text[byte..].chars().next().unwrap_or(' ');
+    // The source run of the character at `byte`: its index and style.
+    let run_at = |byte: usize| {
+        let i = source_run_at(runs, source_runs, byte).unwrap_or(source_runs.start);
+        (i, runs.get(i).map_or(*st, |(_, s)| *s))
+    };
+    // The starts of the source runs inside the segment.
+    let boundaries = || runs.get(source_runs.clone()).unwrap_or_default().iter().map(|(r, _)| r.start).filter(|&b| b > range.start && b < range.end);
+    // Shape the pieces of the segment between the bytes `at` (ascending, inside it) on their own.
+    let shape_apart = |at: Vec<usize>, out: &mut Vec<SGlyph>| {
+        let ends = at.iter().copied().chain([range.end]);
+        for (start, end) in std::iter::once(range.start).chain(at.iter().copied()).zip(ends) {
+            shape_segment(text, context, &Segment { range: start..end, ..seg.clone() }, feats, out);
+        }
+    };
+    let manual = |byte: usize| run_at(byte).1.kerning.is_some();
+    let mixed_kerning = boundaries().any(|b| manual(b) != manual(range.start));
+    let optical = |byte: usize| run_at(byte).1.optical_kerning;
+    let mode_boundaries: Vec<usize> = boundaries().filter(|&b| !feats.vertical && optical(b - 1) && !optical(b)).collect();
+    if !mode_boundaries.is_empty() {
+        return shape_apart(mode_boundaries, out);
+    }
+    let manual_ends: Vec<usize> = boundaries().filter(|&b| manual(b - 1) && !manual(b)).collect();
+    if !manual_ends.is_empty() {
+        return shape_apart(manual_ends, out);
+    }
+    // Harakat styled apart from their letters (paint only): shaped with them, each glyph then
+    // takes its own character's run ([`crate::harakat`]).
+    let mark_boundaries: Vec<usize> = boundaries()
+        .filter(|&b| run_at(b - 1).1 != run_at(b).1 && crate::harakat::paint_only_mark_boundary(text, b, run_at(b - 1).1, run_at(b).1))
+        .collect();
+    // Source run starts are sorted. Reuse their classification when checking cluster splits.
+    let styled_marks = !mark_boundaries.is_empty();
+    let char_level = std::cell::Cell::new(false);
 
-    let mut raw: Vec<(u32, u32, i32, i32, i32)> = Vec::with_capacity(text_seg.len()); // gid, cluster, xadv, xoff, yoff
-    let shaped = face.hb().map(|hb| {
-        let shaper = face.shaper.shaper(&hb).build();
-        let mut buf = UnicodeBuffer::new();
-        for (i, c) in text_seg.char_indices() {
-            let cl = (range.start + i) as u32;
-            if upper {
-                for u in c.to_uppercase() {
-                    buf.add(u, cl);
+    // Shape the segment as if all of it were in `st`, with the features `more` on top.
+    let shape_in = |st: &CharStyle, more: &[Feature]| {
+        // A BCP 47 tag is short ASCII; anything else (a file may hold anything) is shaped without one.
+        let language = st
+            .language
+            .as_deref()
+            .filter(|l| l.len() <= 35 && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+            .and_then(|l| l.parse::<harfrust::Language>().ok());
+        let mut shaped = Shaped::default();
+        let Shaped { raw, proportional, vpal, chars } = &mut shaped;
+        let hb_shaped = face.hb().map(|hb| {
+            let shaper = face.shaper.shaper(&hb).instance(face.instance.as_ref()).build();
+            // The baseline and character-level pass use exactly the same resolved features.
+            // Alternate positioning passes still resolve their own features, with `more` last.
+            let with_more = |resolved: Vec<Feature>| resolved.into_iter().chain(more.iter().cloned()).collect::<Vec<_>>();
+            let along_features = with_more(feats.resolve(st));
+            // gid, cluster, x and y advance, x and y offset.
+            let shape = |feats: &[Feature], direction: Direction| {
+                let mut buf = UnicodeBuffer::new();
+                for (i, c) in text_seg.char_indices() {
+                    let cl = (range.start + i) as u32;
+                    let c = st.digits.map(c);
+                    if upper {
+                        for u in c.to_uppercase() {
+                            buf.add(u, cl);
+                        }
+                    } else {
+                        buf.add(c, cl);
+                    }
                 }
+                buf.set_direction(direction);
+                buf.guess_segment_properties();
+                if char_level.get() {
+                    buf.set_cluster_level(BufferClusterLevel::Characters);
+                }
+                // The characters' language picks the font's forms for it (`locl`: Turkish keeps fi
+                // apart and the dot on its i).
+                if let Some(l) = &language {
+                    buf.set_language(l.clone());
+                }
+                // Harfrust keeps this Unicode context for joining/positional shaping, but does not emit
+                // glyphs for it. This retains context at real style/font segmentation boundaries without
+                // shaping across those boundaries or claiming cross-style ligatures/mark attachment.
+                if let Some(pre) = text.get(context.start..range.start) {
+                    buf.set_pre_context(pre);
+                }
+                if let Some(post) = text.get(range.end..context.end) {
+                    buf.set_post_context(post);
+                }
+                // A buffer whose characters name no script reads as `UNKNOWN`: its plan has none.
+                let script = Some(buf.script()).filter(|s| *s != harfrust::script::UNKNOWN);
+                let plan = face.shape_plan(&shaper, buf.direction(), script, language.as_ref(), feats);
+                let gb = shaper.shape(buf, ShapeOptions::new().features(feats).plan(Some(&plan)));
+                gb.glyph_infos()
+                    .iter()
+                    .zip(gb.glyph_positions())
+                    .map(|(info, pos)| (info.glyph_id, info.cluster, pos.x_advance, pos.y_advance, pos.x_offset, pos.y_offset))
+                    .collect::<Vec<_>>()
+            };
+            let along = if level.is_rtl() { Direction::RightToLeft } else { Direction::LeftToRight };
+            *raw = shape(&along_features, along).into_iter().map(|(g, c, xa, _, xo, yo)| (g, c, xa, xo, yo)).collect();
+            let raw = &*raw;
+            let same_glyphs = |v: &[(u32, u32, i32, i32, i32, i32)]| v.len() == raw.len() && v.iter().zip(raw).all(|(a, b)| a.0 == b.0);
+            // The same shaping at character level names each glyph's own character (kept only when
+            // it sets the same glyphs alike, each character in its glyph's cluster).
+            if let Some(classes) = styled_marks.then(|| crate::harakat::mark_classes(face)).flatten()
+                // Without a mark glyph, no glyph can take a later character's paint. Avoid
+                // reshaping; the original clusters already give the conservative ownership.
+                && raw.iter().any(|g| classes.get(skrifa::GlyphId::new(g.0)) == 3)
+            {
+                char_level.set(true);
+                let by_char = shape(&along_features, along);
+                char_level.set(false);
+                *chars = crate::harakat::own_chars(raw, &by_char, range.end, text, |gid| classes.get(skrifa::GlyphId::new(gid)) == 3);
+            }
+            if feats.proportional(st) {
+                // `palt` is positioning only: the same glyphs set on their full widths tell which
+                // advances it changed (kerning and the rest change both alike).
+                let full = shape(&with_more(feats.resolve_fixed_width(st)), along);
+                if same_glyphs(&full) {
+                    *proportional = full.iter().zip(raw).map(|(a, b)| a.2 != b.2).collect();
+                }
+            }
+            if feats.proportional_vertical(st) {
+                // `vpal` adjusts heights, which only top-to-bottom shaping applies: the same glyphs set
+                // top to bottom with it (and the vertical kerning that goes with it, `vkrn` and `vapk`)
+                // and without either tell how it moves each and changes its advance down the column
+                // (y up, advances negative). Which advances `vpal` itself changed comes from setting
+                // them with it alone.
+                let ttb = |proportional, kerning| shape(&with_more(feats.resolve_vertical(st, proportional, kerning)), Direction::TopToBottom);
+                let (with, without, alone) = (ttb(true, true), ttb(false, false), ttb(true, false));
+                if same_glyphs(&with) && same_glyphs(&without) && same_glyphs(&alone) {
+                    *vpal = with
+                        .iter()
+                        .zip(&without)
+                        .zip(&alone)
+                        .map(|((a, b), c)| {
+                            let adj = VAdjust {
+                                advance: f64::from(b.3 - a.3) * k * vs,
+                                dx: f64::from(a.4 - b.4) * k * hs,
+                                dy: -f64::from(a.5 - b.5) * k * vs,
+                                proportional: c.3 != b.3,
+                            };
+                            (adj != VAdjust::default()).then_some(adj)
+                        })
+                        .collect();
+                }
+            }
+        });
+        if hb_shaped.is_none() {
+            // Fallback: nominal glyphs and hmtx advances, no shaping.
+            if let Some(f) = face.skrifa() {
+                let cmap = f.charmap();
+                let gm = f.glyph_metrics(Size::unscaled(), face.location());
+                for (i, c) in text_seg.char_indices() {
+                    let cl = (range.start + i) as u32;
+                    let c = st.digits.map(c);
+                    let chars: Vec<char> = if upper { c.to_uppercase().collect() } else { vec![c] };
+                    for u in chars {
+                        let g = cmap.map(u).unwrap_or_default();
+                        let adv = gm.advance_width(g).unwrap_or(face.upem as f32 * 0.5);
+                        raw.push((g.to_u32(), cl, adv.round() as i32, 0, 0));
+                    }
+                }
+            }
+        }
+        shaped
+    };
+    let first_optical = if optical(range.start) { Some(range.start) } else { boundaries().find(|&b| optical(b)) };
+    let Shaped { raw, proportional, vpal, chars } = if let Some(first) = first_optical.filter(|_| !feats.vertical) {
+        // The pair entering Optical keeps the left character's font kerning. Subsequent
+        // Optical pairs use outline spacing, so font pair features stop at its second character.
+        let optical_off = if first == range.start {
+            first
+        } else {
+            text.get(first..range.end).and_then(|s| s.chars().next()).map_or(range.end, |c| first + c.len_utf8())
+        };
+        let first_manual = if manual(range.start) { Some(range.start) } else { boundaries().find(|&b| manual(b)) };
+        if let Some(start) = first_manual.filter(|&b| b > range.start)
+            && upper
+            && first_char(start).to_uppercase().nth(1).is_some()
+        {
+            return shape_apart(vec![start], out);
+        }
+        let manual_off = first_manual.map_or(range.end, |start| {
+            if start == range.start {
+                start
             } else {
-                buf.add(c, cl);
+                text.get(start..range.end).and_then(|s| s.chars().next()).map_or(range.end, |c| start + c.len_utf8())
             }
+        });
+        let off = optical_off.min(manual_off);
+        let more: Vec<Feature> = [b"kern", b"apkn", b"vkrn", b"vapk"]
+            .into_iter()
+            .filter(|_| off < range.end)
+            .map(|t| Feature::new(Tag::new(t), 0, off..range.end))
+            .collect();
+        shape_in(&CharStyle { kerning: None, ..run_at(range.start).1.clone() }, &more)
+    } else if mixed_kerning {
+        // A font's kerning pair applies after a character with automatic kerning and not after one
+        // with manual kerning. The segment is shaped apart where manual kerning ends, so each piece
+        // is text with automatic kerning followed by text with manual kerning. A piece is shaped
+        // with the font's kerning on, and off (`kern`, and the `apkn`, `vkrn` and `vapk` that
+        // `OtFeatures` turns off with it) from the second character with manual kerning on: a
+        // pair is applied only when both of its glyphs have the feature on.
+        let first = boundaries().find(|&b| manual(b)).unwrap_or(range.end);
+        // A first character with manual kerning that All Caps or Small Caps sets as several letters
+        // (ß as SS) gives them one cluster, which a feature range cannot split, so the font's
+        // kerning between them would stay on: it is shaped apart from the text before it.
+        if upper && first_char(first).to_uppercase().nth(1).is_some() {
+            return shape_apart(vec![first], out);
         }
-        buf.set_direction(Direction::LeftToRight);
-        buf.guess_segment_properties();
-        let feats: Vec<Feature> = feats.resolve(st);
-        let gb = shaper.shape(buf, ShapeOptions::new().features(&feats));
-        for (info, pos) in gb.glyph_infos().iter().zip(gb.glyph_positions()) {
-            raw.push((info.glyph_id, info.cluster, pos.x_advance, pos.x_offset, pos.y_offset));
-        }
-    });
-    if shaped.is_none() {
-        // Fallback: nominal glyphs and hmtx advances, no shaping.
-        if let Some(f) = face.skrifa() {
-            let cmap = f.charmap();
-            let gm = f.glyph_metrics(Size::unscaled(), LocationRef::default());
-            for (i, c) in text_seg.char_indices() {
-                let cl = (range.start + i) as u32;
-                let chars: Vec<char> = if upper { c.to_uppercase().collect() } else { vec![c] };
-                for u in chars {
-                    let g = cmap.map(u).unwrap_or_default();
-                    let adv = gm.advance_width(g).unwrap_or(face.upem as f32 * 0.5);
-                    raw.push((g.to_u32(), cl, adv.round() as i32, 0, 0));
-                }
-            }
-        }
+        let off = text.get(first..range.end).and_then(|s| s.chars().next()).map_or(range.end, |c| first + c.len_utf8());
+        let more: Vec<Feature> = [b"kern", b"apkn", b"vkrn", b"vapk"]
+            .into_iter()
+            .filter(|_| off < range.end)
+            .map(|t| Feature::new(Tag::new(t), 0, off..range.end))
+            .collect();
+        shape_in(&CharStyle { kerning: None, ..(*st).clone() }, &more)
+    } else {
+        // The span's first run may lie outside the segment (a span split by font, case, script
+        // or direction): the kerning mode is that of the segment's own runs.
+        shape_in(run_at(range.start).1, &[])
+    };
+    let mut cluster_starts: Vec<usize> = raw.iter().map(|r| r.1 as usize).collect();
+    cluster_starts.sort_unstable();
+    cluster_starts.dedup();
+    // A glyph is drawn in one style: where a cluster would take in characters of runs in different
+    // styles, the runs are shaped apart, as runs that do not shape alike are.
+    // Except at harakat styled apart only in paint ([`crate::harakat`]).
+    let inside_clusters: Vec<usize> = boundaries()
+        .filter(|&b| cluster_starts.binary_search(&b).is_err() && run_at(b - 1).1 != run_at(b).1)
+        .filter(|b| mark_boundaries.binary_search(b).is_err())
+        .collect();
+    if !inside_clusters.is_empty() {
+        return shape_apart(inside_clusters, out);
+    }
+    // A run's chosen character that the font joins with the characters after it in the run (an f
+    // with a chosen glyph in a `fi` ligature) is shaped apart from them, so the choice is drawn.
+    // A character that starts a longer grapheme (a letter with combining marks, a Hangul syllable
+    // of jamo) stays whole.
+    let ligated: Vec<usize> = runs
+        .get(source_runs.clone())
+        .unwrap_or_default()
+        .iter()
+        .filter(|(r, s)| {
+            let ch = first_char(r.start);
+            s.glyph_alternate.as_ref().is_some_and(|c| face.draws(c, ch)) && !upper && s.digits.map(ch) == ch && range.contains(&r.start)
+        })
+        .map(|(r, _)| {
+            let grapheme = text.get(r.start..).and_then(|s| s.graphemes(true).next()).map_or(0, str::len);
+            (r.start + first_char(r.start).len_utf8(), r.start + grapheme, r.end)
+        })
+        .filter(|&(b, grapheme_end, end)| b == grapheme_end && b < end && b < range.end && cluster_starts.binary_search(&b).is_err())
+        .map(|(b, ..)| b)
+        .collect();
+    if !ligated.is_empty() {
+        return shape_apart(ligated, out);
     }
     let n = raw.len();
+    // Cluster end: the next larger cluster value in the segment, else the segment end.
+    let cluster_end = |cl: usize| cluster_starts.get(cluster_starts.partition_point(|&c| c <= cl)).copied().unwrap_or(range.end);
+    // A glyph chosen for the run's first character replaces the one glyph shaped for it alone,
+    // drawn as typed (not All Caps, Small Caps or another numeral system), in the face the choice
+    // names.
+    let chosen_at = |gi: usize| {
+        let cl = raw[gi].1 as usize;
+        let (run, gst) = run_at(cl);
+        let ch = first_char(cl);
+        let last_in_cluster = gi + 1 == n || raw[gi + 1].1 as usize != cl;
+        let alone = last_in_cluster && (gi == 0 || raw[gi - 1].1 as usize != cl) && cluster_end(cl).saturating_sub(cl) == ch.len_utf8();
+        gst.glyph_alternate
+            .as_ref()
+            .filter(|c| alone && !upper && gst.digits.map(ch) == ch && runs.get(run).is_some_and(|(r, _)| r.start == cl) && face.draws(c, ch))
+    };
+    // The font's positioning (pair kerning, mark placement) was applied to the default glyph, not
+    // to the chosen one: a character drawn with another glyph is shaped apart from its neighbors.
+    let mut chosen_apart: Vec<usize> = (0..n)
+        .filter(|&gi| chosen_at(gi).is_some_and(|c| c.gid != raw[gi].0))
+        .flat_map(|gi| {
+            let cl = raw[gi].1 as usize;
+            [cl, cl + first_char(cl).len_utf8()]
+        })
+        .filter(|&b| b > range.start && b < range.end)
+        .collect();
+    if !chosen_apart.is_empty() {
+        chosen_apart.sort_unstable();
+        chosen_apart.dedup();
+        return shape_apart(chosen_apart, out);
+    }
     for (gi, &(gid, cl, xa, xo, yo)) in raw.iter().enumerate() {
         let cl = cl as usize;
-        // Cluster end: the next larger cluster value in the segment, else the segment end.
-        let end = raw[gi + 1..].iter().map(|r| r.1 as usize).find(|&c| c > cl).unwrap_or(range.end);
+        let (run, gst) = run_at(cl);
+        // A glyph of a harakat styled apart takes its own character's run (paint only).
+        let run = match chars.get(gi).map(|&c| run_at(c as usize)) {
+            Some((own, own_st)) if crate::harakat::paint_only(gst, own_st) => own,
+            _ => run,
+        };
+        let end = cluster_end(cl);
         let last_in_cluster = gi + 1 == n || raw[gi + 1].1 as usize != cl;
         let ch = first_char(cl);
         let mut adv = xa as f64 * k * hs;
-        if ch == SOFT_HYPHEN {
+        // The chosen glyph takes its own advance.
+        let chosen = chosen_at(gi);
+        let gid = match chosen {
+            Some(c) => {
+                adv += (face.advance(c.gid) - face.advance(gid)) * k * hs;
+                c.gid
+            }
+            None => gid,
+        };
+        let mut kern_shift = 0.0;
+        if ch == SOFT_HYPHEN || ch == '\u{2028}' {
             adv = 0.0;
-        } else if last_in_cluster {
-            adv += tracking + manual_kern;
+        } else {
+            let manual_kern = gst.kerning.map(|v| v / 1000.0 * size).unwrap_or(0.0);
+            // Manual kerning spaces a character from the next one in reading order. Right to left,
+            // that one is drawn to its left: the cluster's glyphs move right along the baseline by
+            // the value, so that the space its last glyph's advance gains is at the cluster's left.
+            if level.is_rtl() && !feats.vertical {
+                kern_shift = manual_kern;
+            }
+            if last_in_cluster {
+                let tracking = gst.tracking / 1000.0 * size;
+                adv += tracking + manual_kern;
+            }
         }
         out.push(SGlyph {
             face: face.clone(),
@@ -301,17 +1382,74 @@ fn shape_segment(text: &str, seg: &Segment, feats: &OtFeatures, out: &mut Vec<SG
             adv,
             dx: xo as f64 * k * hs,
             dy: -(yo as f64) * k * vs,
+            kern_shift,
             sx: k * hs,
             sy: k * vs,
-            bshift: st.baseline_shift + pos_shift,
-            rotation: st.rotation,
+            bshift: gst.baseline_shift + pos_shift,
+            rotation: gst.rotation,
             ascent,
             descent,
-            leading,
+            leading: gst.effective_leading(),
             cap,
             xh,
             ch,
             tcy: None,
+            lead: 0.0,
+            proportional: proportional.get(gi).copied().unwrap_or(false),
+            vpal: vpal.get(gi).copied().flatten(),
+            level: *level,
+            inline: None,
+            word_end: false,
+            no_break: gst.no_break,
+            vertical_roman: gst.standard_vertical_roman,
+            cursive,
+            hyphen_language: crate::hyphen::Language::from_tag(gst.language.as_deref()),
         });
+    }
+}
+
+#[cfg(test)]
+mod optical_tests {
+    use super::*;
+
+    fn box_profile(left: f64, right: f64) -> Profile {
+        vec![(left, 0.0, left, 100.0), (right, 0.0, right, 100.0)]
+    }
+
+    #[test]
+    fn optical_side_profiles_tighten_loosen_and_stay_bounded() {
+        // 100 pt in a 1000-unit font: one font unit is 0.1 pt; the reference gap is 8 pt.
+        let a = box_profile(0.0, 80.0);
+        let b = box_profile(0.0, 20.0);
+        let place = (1.0, 1.0, 0.0, 0.0);
+        let correct = |a: &[(f64, f64, f64, f64)], advance: f64, target: f64| {
+            profile_correction(a, &b, place, place, advance, target, 100.0, 1000.0, 0.0, 100.0)
+        };
+        assert_eq!(correct(&a, 120.0, 8.0), Some(-12.0), "a 40 pt gap tightens by at most 0.12 em");
+        assert_eq!(correct(&a, 60.0, 8.0), Some(6.0), "overlapping ink loosens by at most 0.06 em");
+        assert_eq!(correct(&a, 88.0, 8.0), Some(0.0), "the reference gap itself is left alone");
+        assert!((correct(&a, 98.0, 8.0).unwrap() - -6.0).abs() < 1e-9, "a pair moves 0.6 of the way toward the reference");
+        assert!((correct(&a, 84.0, 8.0).unwrap() - 2.4).abs() < 1e-9, "a tight pair opens 0.6 of the way");
+        assert_eq!(correct(&a, 88.0, 0.0), None);
+        assert_eq!(profile_correction(&a, &b, place, place, 120.0, 8.0, 100.0, 1000.0, 100.0, 100.0), None);
+        assert_eq!(profile_correction(&[], &b, place, place, 120.0, 8.0, 100.0, 1000.0, 0.0, 100.0), None);
+
+        // A right side slanting from x 60 at the bottom to x 100 at the top: the median gap is
+        // near the 20 pt reference, but the top nearly touches. The floor keeps 0.3 of it.
+        let slanted = vec![(0.0, 0.0, 0.0, 100.0), (60.0, 0.0, 100.0, 100.0)];
+        let correction = correct(&slanted, 100.0, 20.0).unwrap();
+        let narrowest = ink_gaps(&slanted, &b, place, place, 100.0, 0.0, 100.0)[0];
+        assert!(correction > 1.0, "the narrowest gap opens: {correction}");
+        assert!(narrowest + correction >= 0.3 * 20.0 - 0.1, "{narrowest} + {correction}");
+    }
+
+    #[test]
+    fn ideographs_kana_fullwidth_forms_and_dashes_keep_the_font_spacing() {
+        for c in ['日', 'カ', 'な', '한', '、', 'Ｗ', '-', '\u{2014}', '\u{FF0D}'] {
+            assert!(!optical_spaces(c), "{c:?}");
+        }
+        for c in ['A', 'v', '7', '.', 'Ω', 'Ж', 'א', 'ب', 'क'] {
+            assert!(optical_spaces(c), "{c:?}");
+        }
     }
 }

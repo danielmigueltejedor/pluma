@@ -12,14 +12,30 @@ use serde_json::{Value, json};
 use crate::state::Dialog;
 use crate::{VectorcraftApp, io};
 
-/// Dialog kind. Fields: `index` (document), `name` (its title), `then` (`close`, `closeAll` or
-/// `quit`: what continues after this document) and `discard` (Don't Save).
+/// Dialog kind. Fields: `index` (document), `uid` (the same document, which `index` may no longer
+/// point at once a file dialog answers), `name` (its title), `then` (`close`, `closeAll` or `quit`:
+/// what continues after this document) and `discard` (Don't Save).
 pub const KIND: &str = "saveChanges";
+
+/// Nothing closes while a file dialog's sheet is on the window (macOS): what asked for it runs
+/// again when it answers. (Elsewhere the dialog is a window of its own, and closing goes on.)
+pub(crate) fn refuse_while_picking(app: &VectorcraftApp) -> Result<(), String> {
+    if app.file_sheet_open() { Err(crate::picks::busy().into()) } else { Ok(()) }
+}
+
+/// Finishes the work that decides whether there is anything left to save: the saves running in
+/// the background, and an edit the active tool is computing on another thread (a Shape Builder
+/// merge), which is applied.
+pub fn finish_pending(app: &mut VectorcraftApp) {
+    crate::background::wait_all(app);
+    let r = app.session.finish_tool_edit();
+    crate::canvas::apply_requests(app, r);
+}
 
 /// File → Close (or a tab's ×) for document `i`.
 pub fn close(app: &mut VectorcraftApp, i: usize) -> Result<Value, String> {
-    // A save still running decides whether there is anything left to save.
-    crate::background::wait_all(app);
+    refuse_while_picking(app)?;
+    finish_pending(app);
     let dirty = app.session.documents().get(i).ok_or("no such document")?.is_dirty();
     if dirty { ask(app, i, "close") } else { close_now(app, i) }
 }
@@ -27,7 +43,8 @@ pub fn close(app: &mut VectorcraftApp, i: usize) -> Result<Value, String> {
 /// File → Close All (`then` = `closeAll`) or Quit (`quit`): ask about the next modified document,
 /// or finish once none is left.
 pub fn close_all(app: &mut VectorcraftApp, then: &str) -> Result<Value, String> {
-    crate::background::wait_all(app);
+    refuse_while_picking(app)?;
+    finish_pending(app);
     if let Some(i) = app.session.documents().iter().position(|d| d.is_dirty()) {
         return ask(app, i, then);
     }
@@ -54,29 +71,44 @@ pub fn any_dirty(app: &VectorcraftApp) -> bool {
 /// Show document `i` and ask whether to save it.
 fn ask(app: &mut VectorcraftApp, i: usize, then: &str) -> Result<Value, String> {
     app.session.set_active(i);
-    let name = app.session.documents()[i].title();
-    app.ui.dialog = Some(Dialog::new(KIND, json!({ "index": i, "name": name, "then": then })));
+    let doc = &app.session.documents()[i];
+    let (name, uid) = (doc.title(), doc.uid);
+    app.ui.dialog = Some(Dialog::new(KIND, json!({ "index": i, "uid": uid, "name": name, "then": then })));
     Ok(json!({ "pending": KIND }))
 }
 
-/// Close document `i` through the engine command, keeping `views` aligned with the documents.
+/// Close document `i` through the engine command; [`VectorcraftApp::sync_views`] drops its view.
 fn close_now(app: &mut VectorcraftApp, i: usize) -> Result<Value, String> {
     let r = app.session.execute("file.close", &json!({ "index": i })).map_err(|e| e.to_string())?;
-    if i < app.views.len() {
-        app.views.remove(i);
-    }
     app.sync_views();
+    if app.session.tool_id() == "artboard"
+        && let Some(n) = app.session.active().map(|d| d.doc.artboards.len())
+    {
+        // Closing recreates the tool; restore the surviving document's displayed board.
+        let selected = crate::panels::artboards::selected(app, n);
+        crate::panels::artboards::select(app, selected);
+    }
     Ok(r)
 }
 
 /// Answer the open dialog: save (or, with `discard`, don't), close the document and carry on.
 pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
     let d = app.ui.dialog.take().ok_or("no dialog open")?;
-    let i = d.fields.get("index").and_then(Value::as_u64).map(|i| i as usize).filter(|i| *i < app.session.documents().len());
+    let docs = app.session.documents();
+    // By its uid: documents may have closed while its Save dialog was open.
+    let i = match d.fields.get("uid").and_then(Value::as_u64) {
+        Some(uid) => docs.iter().position(|doc| doc.uid == uid),
+        None => d.fields.get("index").and_then(Value::as_u64).map(|i| i as usize).filter(|i| *i < docs.len()),
+    };
     let i = i.ok_or("no such document")?;
     if !d.bool("discard") {
         app.session.set_active(i);
         let r = io::save(app, vectorcraft_engine::cmd::fileio::SaveMode::Save, &json!({}), false)?;
+        // A save that asks first (replacing a file that would lose what opening it left out) keeps
+        // the document open: it closes once saved.
+        if r.get("pending").is_some() {
+            return Ok(r);
+        }
         // Closing needs the file written: wait for a background save, and stop if it failed.
         if r["background"] == true {
             crate::background::wait_all(app);
@@ -199,6 +231,25 @@ mod tests {
         assert_eq!(app.ui.status, "quit");
         app.ui.status.clear();
         app.run("app.quit", json!({})).unwrap();
+        assert_eq!(app.ui.status, "quit");
+    }
+
+    #[test]
+    fn the_control_channels_quit_says_when_it_asks_first() {
+        // #830: it answered null at once, before the question.
+        let (mut app, _) = app();
+        let ctx = egui::Context::default();
+        let quit = |app: &mut VectorcraftApp| {
+            let (req, _rx) = crate::control::ControlRequest::new("app.quit", json!({}));
+            let crate::control::Outcome::Done(r) = crate::control::handle(app, &ctx, &req) else { panic!("not done") };
+            r
+        };
+        new_doc(&mut app, true);
+        assert_eq!(quit(&mut app), json!({"ok": true, "result": {"pending": KIND}}));
+        assert_eq!((pending(&app), app.ui.status.as_str()), (Some(0), ""));
+        app.ui.dialog = None;
+        app.run("file.save", json!({"path": "/docs/saved.vectorcraft"})).unwrap();
+        assert_eq!(quit(&mut app), json!({"ok": true, "result": null}));
         assert_eq!(app.ui.status, "quit");
     }
 }

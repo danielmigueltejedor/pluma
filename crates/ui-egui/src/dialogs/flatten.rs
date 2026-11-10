@@ -31,7 +31,7 @@ const PRESET_NAME: &str = "__presetName";
 const CUSTOM: &str = "[Custom]";
 
 pub(super) const SPEC: DialogSpec =
-    DialogSpec { heading: |_| "Flatten Transparency".into(), body, confirm, preview: true, min_width: 420.0, ..DialogSpec::FORM };
+    DialogSpec { heading: |_| tl!("Flatten Transparency").into(), body, confirm, preview: true, min_width: 420.0, ..DialogSpec::FORM };
 
 /// Open Flatten Transparency for the selection with the default preset.
 pub fn open(app: &mut VectorcraftApp) {
@@ -86,12 +86,12 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let current = options(d, saved);
     let presets = app.session.flattener_presets();
     ui.horizontal(|ui| {
-        widgets::dim_label(ui, "Preset:");
+        widgets::dim_label(ui, tl!("Preset:"));
         if let Some(p) = preset_dropdown(ui, "flatten-preset", &presets, &d.str("preset"), current.as_ref().ok(), 220.0) {
             put_options(&mut d.fields, &p.options);
             applied(d, &p.name);
         }
-        if widgets::flat_button(ui, "Save Preset…", 100.0).clicked() {
+        if widgets::flat_button(ui, tl!("Save Preset…"), 100.0).clicked() {
             let open = !d.bool(SAVING);
             d.fields.insert(SAVING.into(), json!(open));
             d.fields.insert(PRESET_NAME.into(), json!(app.session.new_preset_name()));
@@ -118,22 +118,22 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 fn save_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     ui.add_space(6.0);
     ui.horizontal(|ui| {
-        widgets::dim_label(ui, "Name:");
+        widgets::dim_label(ui, tl!("Name:"));
         let r = form::text_edit(ui, d, PRESET_NAME, 180.0);
         // Enter saves the preset instead of flattening.
         let enter = r.lost_focus() && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-        if (widgets::flat_button(ui, "Save", 60.0).clicked() || enter)
+        if (widgets::flat_button(ui, tl!("Save"), 60.0).clicked() || enter)
             && let Err(e) = save_preset(app, d)
         {
             app.status(e);
         }
-        if widgets::flat_button(ui, "Cancel", 60.0).clicked() {
+        if widgets::flat_button(ui, tl!("Cancel"), 60.0).clicked() {
             d.fields.insert(SAVING.into(), json!(false));
         }
     });
     let name = d.str(PRESET_NAME);
     if app.session.prefs.flattener_presets.iter().any(|p| p.name.eq_ignore_ascii_case(name.trim())) {
-        widgets::dim_label(ui, "Replaces the saved preset of that name.");
+        widgets::dim_label(ui, tl!("Replaces the saved preset of that name."));
     }
 }
 
@@ -153,7 +153,8 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 }
 
 /// The flattener preset dropdown: `presets` by name, showing `name` while `options` are that
-/// preset's, else [Custom]. Returns the preset chosen.
+/// preset's, else [Custom]. The built-in presets are ours (translated); the saved ones are names.
+/// Returns the preset chosen.
 pub(crate) fn preset_dropdown<'a>(
     ui: &mut egui::Ui,
     id: &str,
@@ -162,9 +163,14 @@ pub(crate) fn preset_dropdown<'a>(
     options: Option<&FlattenOptions>,
     width: f32,
 ) -> Option<&'a FlattenerPreset> {
-    let shown = presets.iter().find(|p| p.name == name && Some(&p.options) == options).map_or(CUSTOM, |p| p.name.as_str());
+    let shown = presets.iter().find(|p| p.name == name && Some(&p.options) == options).map_or(tl!(CUSTOM), |p| p.name.as_str());
     let names: Vec<&str> = presets.iter().map(|p| p.name.as_str()).collect();
-    widgets::dropdown(ui, id, shown, &names, width).map(|i| &presets[i])
+    super::mixed_dropdown(ui, id, shown, &names, width, |k| names.get(k).is_some_and(|n| is_builtin(n))).and_then(|i| presets.get(i))
+}
+
+/// Is `name` a built-in flattener preset's?
+fn is_builtin(name: &str) -> bool {
+    FlattenOptions::PRESETS.iter().any(|id| FlattenOptions::preset_label(id) == Some(name))
 }
 
 /// The width of the option value fields.
@@ -177,30 +183,42 @@ pub(crate) fn options_editor(ui: &mut egui::Ui, id: &str, o: &mut FlattenOptions
     let t = Tokens::get(ui.ctx());
     let before = o.clone();
     let dim = |ui: &mut egui::Ui, s: &str| {
-        ui.label(egui::RichText::new(s).color(t.text_dim).size(11.5));
+        ui.label(egui::RichText::new(tl!(s)).color(t.text_dim).size(11.5));
     };
     ui.add_enabled_ui(enabled, |ui| {
-        widgets::dim_label(ui, "Raster/Vector Balance:");
+        widgets::dim_label(ui, tl!("Raster/Vector Balance:"));
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            dim(ui, "Rasters");
+            dim(ui, tl!("Rasters"));
             let rail = (ui.available_width() - FIELD - 56.0).clamp(80.0, 200.0);
-            if let (Some(x), _) = widgets::color_slider(ui, (id, "balance-slider"), (o.balance / 100.0) as f32, rail, &|_| t.input_border) {
-                o.balance = (x as f64 * 100.0).round();
+            let shown = widgets::SliderValue::field(o.balance, 0.0..=100.0, "", 0);
+            let (x, _, keyed) = widgets::color_slider_stepped(
+                ui,
+                (id, "balance-slider"),
+                tl!("Raster/Vector Balance:"),
+                Some(shown),
+                (o.balance / 100.0) as f32,
+                rail,
+                &|_| t.input_border,
+            );
+            if let Some(b) = x.map(|x| (x as f64 * 100.0).round()).or(keyed) {
+                o.balance = b;
             }
-            dim(ui, "Vectors");
-            if let Some(v) = widgets::plain_field(ui, (id, "balance"), o.balance, "", 0, FIELD - 12.0) {
-                o.balance = v.round().clamp(0.0, 100.0);
+            dim(ui, tl!("Vectors"));
+            if let Some(v) =
+                widgets::range_field_named(ui, (id, "balance"), Some(tl!("Raster/Vector Balance:")), o.balance, 0.0..=100.0, "", 0, FIELD - 12.0)
+            {
+                o.balance = v;
             }
         });
         ui.add_space(4.0);
         egui::Grid::new((id, "resolutions")).num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
-            for (label, key) in [("Line Art and Text Resolution:", 0), ("Gradient and Mesh Resolution:", 1)] {
+            for (label, key) in [(tl!("Line Art and Text Resolution:"), 0), (tl!("Gradient and Mesh Resolution:"), 1)] {
                 widgets::dim_label(ui, label);
                 ui.horizontal(|ui| {
                     let v = if key == 0 { &mut o.line_art_ppi } else { &mut o.gradient_ppi };
-                    if let Some(n) = widgets::plain_field(ui, (id, key), *v, "", 0, FIELD) {
-                        *v = n.round().clamp(1.0, 2400.0);
+                    if let Some(n) = widgets::range_field_named(ui, (id, key), Some(label), *v, 1.0..=2400.0, "", 0, FIELD) {
+                        *v = n;
                     }
                     dim(ui, "ppi");
                 });
@@ -209,12 +227,12 @@ pub(crate) fn options_editor(ui: &mut egui::Ui, id: &str, o: &mut FlattenOptions
         });
         ui.add_space(4.0);
         let switches: [(&str, &mut bool); 6] = [
-            ("Convert All Text to Outlines", &mut o.text_to_outlines),
-            ("Convert All Strokes to Outlines", &mut o.strokes_to_outlines),
-            ("Clip Complex Regions", &mut o.clip_complex_regions),
-            ("Anti-alias Rasters", &mut o.anti_alias),
-            ("Preserve Alpha Transparency", &mut o.preserve_alpha),
-            ("Preserve Overprints and Spot Colors", &mut o.preserve_overprints),
+            (tl!("Convert All Text to Outlines"), &mut o.text_to_outlines),
+            (tl!("Convert All Strokes to Outlines"), &mut o.strokes_to_outlines),
+            (tl!("Clip Complex Regions"), &mut o.clip_complex_regions),
+            (tl!("Anti-alias Rasters"), &mut o.anti_alias),
+            (tl!("Preserve Alpha Transparency"), &mut o.preserve_alpha),
+            (tl!("Preserve Overprints and Spot Colors"), &mut o.preserve_overprints),
         ];
         for (label, v) in switches {
             if widgets::check(ui, label, *v, enabled) {
@@ -229,6 +247,13 @@ pub(crate) fn options_editor(ui: &mut egui::Ui, id: &str, o: &mut FlattenOptions
 mod tests {
     use super::*;
     use vectorcraft_engine::Session;
+
+    /// The built-in presets are told from saved ones by name (only theirs are translated).
+    #[test]
+    fn built_in_presets_are_known_by_name() {
+        assert!(FlattenOptions::builtin_presets().iter().all(|p| is_builtin(&p.name)));
+        assert!(!is_builtin("Regular") && !is_builtin("high"));
+    }
 
     fn frame(app: &mut VectorcraftApp) {
         let ctx = egui::Context::default();
@@ -289,6 +314,45 @@ mod tests {
         st.doc.layers[0].walk(&mut |n| images += matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)) as usize);
         assert_eq!(images, 1, "balance 0 rasterizes");
         assert!(!transparent_left(&app));
+    }
+
+    /// Cancel with the Save Preset row showing closes the dialog and rolls the preview back.
+    #[test]
+    fn cancel_while_saving_a_preset_closes_the_dialog() {
+        let mut app = scene();
+        let before = app.session.doc().unwrap().doc.clone();
+        app.run("ui.flattenTransparencyDialog", json!({})).unwrap();
+        app.ui.dialog.as_mut().unwrap().fields.insert("preview".into(), json!(true));
+        frame(&mut app);
+        app.ui.dialog.as_mut().unwrap().fields.insert(SAVING.into(), json!(true));
+        frame(&mut app);
+        super::super::cancel(&mut app);
+        assert!(app.ui.dialog.is_none() && !app.session.in_interaction());
+        assert_eq!(app.session.doc().unwrap().doc, before, "Cancel rolls back");
+    }
+
+    #[test]
+    fn ok_says_in_the_status_bar_when_an_image_could_not_be_decoded() {
+        const WARNING: &str = "an image couldn't be decoded and is missing from the picture";
+        // A PNG whose header reads but whose pixel data is cut short.
+        let mut png = Vec::new();
+        image::RgbaImage::from_pixel(64, 32, image::Rgba([200, 30, 30, 255]))
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        for preview in [true, false] {
+            let mut app = scene();
+            let placed = vectorcraft_testkit::fixtures::place_cut_png(&mut app.session, &png, json!({}));
+            // The image is half transparent itself, so Flatten Transparency flattens it wherever it was placed.
+            app.run("transparency.set", json!({"ids": placed["ids"], "opacity": 50})).unwrap();
+            app.run("select.all", json!({})).unwrap();
+            app.run("ui.flattenTransparencyDialog", json!({})).unwrap();
+            app.ui.dialog.as_mut().unwrap().fields.insert("preview".into(), json!(preview));
+            frame(&mut app);
+            assert_eq!(app.session.in_interaction(), preview);
+            app.status("");
+            super::super::confirm(&mut app).unwrap();
+            assert_eq!(app.ui.status, WARNING, "preview {preview}");
+        }
     }
 
     #[test]

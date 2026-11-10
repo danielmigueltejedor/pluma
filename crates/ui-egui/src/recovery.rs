@@ -4,8 +4,10 @@
 //! left copies behind (a crash). The copies themselves are the engine's
 //! ([`vectorcraft_engine::cmd::recovery`]).
 
+use std::sync::Arc;
+
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::recovery;
+use vectorcraft_engine::cmd::recovery::{self, RecoveryStore};
 
 use crate::VectorcraftApp;
 use crate::background::{self, Writer};
@@ -26,17 +28,25 @@ pub struct Timer {
     beat: f64,
 }
 
-/// Each frame: the startup question once, the timer and the heartbeat (`now`: app time in
-/// seconds) → in how many seconds they want the next frame (none while Data Recovery is off).
+/// Each frame: the startup question once no other dialog is open, the timer and the heartbeat
+/// (`now`: app time in seconds) → in how many seconds they want the next frame (none while Data Recovery is off).
 pub fn frame(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
-    if !app.recovery.checked {
+    // A dialog already open at launch (the Safe Mode choice) is answered first.
+    if !app.recovery.checked && app.ui.dialog.is_none() {
         app.recovery.checked = true;
         offer(app);
     }
     tick(app, now);
     if !(0.0..recovery::HEARTBEAT_EVERY).contains(&(now - app.recovery.beat)) {
         app.recovery.beat = now;
-        recovery::heartbeat(&app.session);
+        // Copies another app removed while this one's timers were paused (it took this one for
+        // gone) are written again at once.
+        let lost = recovery::heartbeat(&mut app.session);
+        if !lost.is_empty()
+            && let Some(store) = recovery::store(&app.session)
+        {
+            write(app, &store, |uid| lost.contains(&uid));
+        }
     }
     let interval = f64::from(app.session.prefs.autosave_interval.max(1)) * 60.0;
     let next = app.recovery.last.map(|t| t + interval - now)?;
@@ -77,10 +87,16 @@ pub fn tick(app: &mut VectorcraftApp, now: f64) -> usize {
             return 0;
         }
     }
+    write(app, &store, |_| true)
+}
+
+/// Start a recovery copy of every document that needs one and `pick` picks (by uid) → how many
+/// were started.
+fn write(app: &mut VectorcraftApp, store: &Arc<dyn RecoveryStore>, pick: impl Fn(u64) -> bool) -> usize {
     recovery::forget_clean(&mut app.session);
-    let jobs = match recovery::jobs(&mut app.session, &store) {
+    let jobs = match recovery::jobs(&mut app.session, store) {
         // A document whose save or last copy is still being written waits for the next round.
-        Ok((jobs, _)) => jobs.into_iter().filter(|j| !app.background.busy_with(j.uid)).collect::<Vec<_>>(),
+        Ok((jobs, _)) => jobs.into_iter().filter(|j| pick(j.uid) && !app.background.busy_with(j.uid)).collect::<Vec<_>>(),
         Err(e) => {
             app.status(format!("Couldn't save recovery data: {e}"));
             return 0;
@@ -127,9 +143,16 @@ pub fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     if !errors.is_empty() {
         return Err(errors.join("; "));
     }
-    app.status(match id {
-        "file.recovery.discard" => format!("Discarded {} recovered document(s)", done.len()),
-        _ => format!("Restored {} recovered document(s): save them to keep them", done.len()),
-    });
+    app.status(recovered_status(id == "file.recovery.discard", done.len()));
     Ok(json!(done))
+}
+
+/// The status bar's line for `n` recovered documents discarded or restored.
+pub(crate) fn recovered_status(discarded: bool, n: usize) -> String {
+    let (one, other) = if discarded {
+        ("Discarded {n} recovered document", "Discarded {n} recovered documents")
+    } else {
+        ("Restored {n} recovered document: save it to keep it", "Restored {n} recovered documents: save them to keep them")
+    };
+    crate::i18n::msg_n(n as u64, one, other, &[])
 }

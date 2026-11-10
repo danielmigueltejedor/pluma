@@ -32,7 +32,7 @@ pub const SLOT: &str = "ui.perspectiveUserPreset";
 pub const SLOTS: usize = 5;
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
-    heading: |_| "Perspective Grid Presets".into(),
+    heading: |_| tl!("Perspective Grid Presets").into(),
     body,
     confirm: |app, _| {
         app.ui.dialog = None;
@@ -64,19 +64,26 @@ fn details(p: &GridDefinition) -> Vec<(&'static str, String)> {
     let u = p.unit();
     let len = |v: f64| u.format(u.to_pt(v));
     let mut rows = vec![
-        ("Type:", ["One Point", "Two Point", "Three Point"].get(usize::from(p.kind.clamp(1, 3) - 1)).copied().unwrap_or_default().to_string()),
-        ("Units:", u.label().to_string()),
-        ("Scale:", format!("{}:{}", Unit::Points.number(p.scale[0]), Unit::Points.number(p.scale[1]))),
-        ("Gridline every:", len(p.gridline)),
+        (
+            tl!("Type:"),
+            [tl!("One Point"), tl!("Two Point"), tl!("Three Point")]
+                .get(usize::from(p.kind.clamp(1, 3) - 1))
+                .copied()
+                .unwrap_or_default()
+                .to_string(),
+        ),
+        (tl!("Units:"), u.label().to_string()),
+        (tl!("Scale:"), format!("{}:{}", Unit::Points.number(p.scale[0]), Unit::Points.number(p.scale[1]))),
+        (tl!("Gridline every:"), len(p.gridline)),
     ];
     if p.kind != 1 {
-        rows.push(("Viewing Angle:", format!("{:.1}°", p.angle)));
+        rows.push((tl!("Viewing Angle:"), format!("{:.1}°", p.angle)));
     }
-    rows.extend([("Viewing Distance:", len(p.distance)), ("Horizon Height:", len(p.horizon_height))]);
+    rows.extend([(tl!("Viewing Distance:"), len(p.distance)), (tl!("Horizon Height:"), len(p.horizon_height))]);
     if p.kind == 3 {
-        rows.push(("Third Vanishing Point:", format!("{}, {}", len(p.third_vp[0]), len(p.third_vp[1]))));
+        rows.push((tl!("Third Vanishing Point:"), format!("{}, {}", len(p.third_vp[0]), len(p.third_vp[1]))));
     }
-    rows.push(("Opacity:", format!("{:.0}%", p.opacity)));
+    rows.push((tl!("Opacity:"), format!("{:.0}%", p.opacity)));
     rows
 }
 
@@ -91,13 +98,14 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             ui.set_width(260.0);
-            widgets::dim_label(ui, "Presets:");
+            widgets::dim_label(ui, tl!("Presets:"));
             widgets::list_box(ui, |ui| {
                 egui::ScrollArea::vertical().id_salt("perspective-presets").min_scrolled_height(240.0).max_height(240.0).show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.set_min_height(240.0);
                     for (k, p) in presets.iter().enumerate() {
-                        if ui.selectable_label(k == i, &p.name).clicked() {
+                        let shown = if is_builtin(&p.name) { tl!(&p.name) } else { p.name.as_str() };
+                        if ui.selectable_label(k == i, shown).clicked() {
                             act = Some(Action::Select(p.name.clone()));
                         }
                     }
@@ -106,19 +114,19 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                if widgets::flat_button(ui, "New…", 48.0).on_hover_text("A new preset starting from the selected one").clicked() {
+                if widgets::flat_button(ui, tl!("New…"), 48.0).on_hover_text(tl!("A new preset starting from the selected one")).clicked() {
                     act = Some(Action::New);
                 }
-                if ui.add_enabled_ui(!builtin, |ui| widgets::flat_button(ui, "Edit…", 48.0)).inner.clicked() {
+                if ui.add_enabled_ui(!builtin, |ui| widgets::flat_button(ui, tl!("Edit…"), 48.0)).inner.clicked() {
                     act = Some(Action::Edit);
                 }
-                if ui.add_enabled_ui(!builtin, |ui| widgets::flat_button(ui, "Delete", 52.0)).inner.clicked() {
+                if ui.add_enabled_ui(!builtin, |ui| widgets::flat_button(ui, tl!("Delete"), 52.0)).inner.clicked() {
                     act = Some(Action::Delete);
                 }
-                if widgets::flat_button(ui, "Import…", 60.0).clicked() {
+                if widgets::flat_button(ui, tl!("Import…"), 60.0).clicked() {
                     act = Some(Action::Import);
                 }
-                if widgets::flat_button(ui, "Export…", 60.0).on_hover_text("Save the selected preset to a file").clicked() {
+                if widgets::flat_button(ui, tl!("Export…"), 60.0).on_hover_text(tl!("Save the selected preset to a file")).clicked() {
                     act = Some(Action::Export);
                 }
             });
@@ -126,7 +134,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         ui.add_space(18.0);
         ui.vertical(|ui| {
             ui.set_width(280.0);
-            ui.label(egui::RichText::new(&preset.name).color(t.text_strong).strong());
+            ui.label(egui::RichText::new(if builtin { tl!(&preset.name) } else { preset.name.as_str() }).color(t.text_strong).strong());
             ui.add_space(8.0);
             egui::Grid::new("perspective-preset-details").num_columns(2).spacing([12.0, 4.0]).show(ui, |ui| {
                 for (label, value) in details(preset) {
@@ -137,15 +145,24 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             });
             if builtin {
                 ui.add_space(6.0);
-                ui.label(egui::RichText::new("Built-in presets don't change: New… starts an editable copy.").color(t.text_dim).size(11.5));
+                ui.label(egui::RichText::new(tl!("Built-in presets don't change: New… starts an editable copy.")).color(t.text_dim).size(11.5));
             }
         });
     });
     let name = preset.name.clone();
-    if let Some(a) = act
-        && let Err(e) = run(app, d, a, &name)
-    {
-        app.status(e);
+    if let Some(a) = act {
+        let r = match a {
+            // Their file dialogs, shown off the UI thread, import into or export from the dialog
+            // as it is then.
+            Action::Import | Action::Export => {
+                let (current, export) = (name.clone(), matches!(a, Action::Export));
+                crate::picks::in_dialog(app, d, move |app, d| run(app, d, if export { Action::Export } else { Action::Import }, &current))
+            }
+            a => run(app, d, a, &name),
+        };
+        if let Err(e) = r {
+            app.status(e);
+        }
     }
     false
 }
@@ -178,8 +195,8 @@ pub(super) fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current
                 f();
                 return Ok(());
             }
-            let pick = crate::FilePick { filters: vec![("Perspective grid presets", PRESET_EXTS)], ..Default::default() };
-            let path = app.services.pick_open.as_mut().and_then(|f| f(&pick)).ok_or("cancelled")?;
+            let pick = crate::FilePick { filters: vec![crate::FilePick::filter("Perspective grid presets", PRESET_EXTS)], ..Default::default() };
+            let path = crate::picks::open(app, &pick).ok_or("cancelled")?;
             let r = app.run("perspective.presets.import", json!({ "path": path }))?;
             if let Some(first) = r["imported"].get(0).and_then(Value::as_str) {
                 select(d, first);
@@ -199,11 +216,6 @@ pub fn slot_preset(app: &VectorcraftApp, id: &str) -> Option<String> {
     let (kind, n) = id.strip_prefix(SLOT)?.split_once('.')?;
     let (kind, n): (u8, usize) = (kind.parse().ok()?, n.parse().ok()?);
     app.session.prefs.perspective_presets.iter().filter(|p| p.kind == kind).nth(n.checked_sub(1)?).map(|p| p.name.clone())
-}
-
-/// How many saved presets the slots list (the native menu is rebuilt when this changes).
-pub fn listed_slots(app: &VectorcraftApp) -> usize {
-    (1..=3u8).map(|k| app.session.prefs.perspective_presets.iter().filter(|p| p.kind == k).count().min(SLOTS)).sum()
 }
 
 /// View → Perspective Grid → One/Two/Three Point Perspective (`kind` 1–3): the built-in views of

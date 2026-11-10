@@ -6,29 +6,44 @@
 //! the caller's writer (the file system here; a save panel or a browser download in the apps) and
 //! makes the file the document's own (path, format, options, saved state) for Save and Save As.
 
+use std::io::Write as _;
 use std::sync::Arc;
 
 use serde_json::{Map, Value, json};
 use vectorcraft_doc::Document;
 
-use super::super::*;
+use super::super::{CommandSpec, Result, Session, always, bad, bool_or, clock_date, cmd, date_param, has_doc, str_param};
 use super::{
-    ArtboardPick, Encoded, Format, Loaded, encode_all, file_stem, format, format_for_name, load, read_file, with_compression_pref, write_encoded,
-    write_file,
+    ARTBOARD_PARAMS, ArtboardPick, Encoded, Format, Loaded, encode_all, file_stem, format, format_for_name, load, read_file, with_compression_pref,
+    write_encoded,
 };
 use crate::{DocState, Prefs};
 
 /// The formats Save As offers, in menu order (append-only). The other writable formats are exports:
 /// they never become the document's own file.
-pub const SAVE_FORMATS: &[&str] = &["vectorcraft", "template", "pdf", "svg", "svgz", "ai"];
+pub const SAVE_FORMATS: &[&str] = &["vectorcraft", "template", "pdf", "svg", "svgz", "ai", "eps"];
+
+/// The formats Save as Template writes, the default first: a native template, or a
+/// PDF-compatible `.ait` (written as a `.ai` file is).
+pub const TEMPLATE_FORMATS: &[&str] = &["template", "ait"];
 
 /// Save-panel filters `(label, [extension])` for `first` (a format id, or a file name whose
 /// extension names one): when Save writes that format, one per [`SAVE_FORMATS`] entry with it
 /// leading (the panel's default type), else none (an export picks its own). Only the extension a
 /// save writes (never the former native name).
 pub fn save_filters(first: &str) -> Vec<(&'static str, &'static [&'static str])> {
-    let Some(first) = format_for_name(first).or_else(|| format(first)).filter(|f| SAVE_FORMATS.contains(&f.id)) else { return vec![] };
-    let mut v: Vec<&'static Format> = SAVE_FORMATS.iter().filter_map(|id| format(id)).collect();
+    filters(SAVE_FORMATS, first)
+}
+
+/// [`save_filters`] for Save as Template: one per [`TEMPLATE_FORMATS`] entry.
+pub fn template_filters(first: &str) -> Vec<(&'static str, &'static [&'static str])> {
+    filters(TEMPLATE_FORMATS, first)
+}
+
+/// One filter per format of `ids`, `first` leading; none when `first` names none of them.
+fn filters(ids: &[&str], first: &str) -> Vec<(&'static str, &'static [&'static str])> {
+    let Some(first) = format_for_name(first).or_else(|| format(first)).filter(|f| ids.contains(&f.id)) else { return vec![] };
+    let mut v: Vec<&'static Format> = ids.iter().filter_map(|id| format(id)).collect();
     v.sort_by_key(|f| f.id != first.id);
     v.into_iter().map(|f| (f.label, &f.extensions[..1])).collect()
 }
@@ -73,13 +88,17 @@ pub struct SavePlan {
     pub format: &'static Format,
     /// The format's options (only those its encoder reads).
     pub options: Map<String, Value>,
-    /// Suggested file name: `<name>.<ext>`, `<name> copy.<ext>` or `<name> template.vctemplate`.
+    /// Suggested file name: `<name>.<ext>`, `<name> copy.<ext>` or `<name> template.<ext>`.
     pub name: String,
     /// Suggested folder: the document's own, or the Templates folder for a template.
     pub folder: Option<String>,
     /// The `modified` param (as `date_param` reads it): the File Info date a Save or Save As to a file
     /// stamps; `None`: the time it is written.
     pub modified: Option<Option<i64>>,
+    /// Warnings about the params themselves: each native option (`compress`, `version`,
+    /// `preview`, `precision`) given beside the path, and each key of `options`, that the format
+    /// doesn't read, naming the file the save writes.
+    pub notes: Vec<String>,
 }
 
 impl SavePlan {
@@ -93,18 +112,61 @@ impl SavePlan {
 /// File Info's dates for a save to a file: the modified date (and the created date, when it has
 /// none) become `at`. Not an undo step.
 pub fn stamp_save_dates(st: &mut DocState, at: i64) {
-    let d = std::sync::Arc::make_mut(&mut st.doc);
+    stamp_doc_dates(std::sync::Arc::make_mut(&mut st.doc), at);
+}
+
+fn stamp_doc_dates(d: &mut Document, at: i64) {
     d.metadata.created.get_or_insert(at);
     d.metadata.modified = Some(at);
 }
 
-/// The Templates folder: the `templatesFolder` preference, else `Documents/VectorCraft Templates`
-/// in the user's home (none where there is no home folder, as on the web).
+/// The Templates folder: the `templatesFolder` preference, else `VectorCraft Templates` in the
+/// user's documents folder (none where there is no home folder, as on the web).
 pub fn templates_folder(prefs: &Prefs) -> Option<String> {
     if !prefs.templates_folder.is_empty() {
         return Some(prefs.templates_folder.clone());
     }
-    Some(std::path::Path::new(&home_folder()?).join("Documents").join("VectorCraft Templates").to_string_lossy().to_string())
+    Some(documents_folder()?.join("VectorCraft Templates").to_string_lossy().to_string())
+}
+
+/// The Templates folder for a file dialog to start in (#703): made when it's missing; where it
+/// can't be, the nearest folder above it that exists, else the home folder. A dialog asked to
+/// start in a folder that isn't there shows an error on some desktops.
+pub fn templates_dialog_folder(prefs: &Prefs) -> Option<String> {
+    let folder = std::path::PathBuf::from(templates_folder(prefs)?);
+    if !folder.is_dir() {
+        // Best effort: a folder that can't be made (or automation may not write) leaves the
+        // nearest one that exists.
+        let _ = super::create_dir(&folder.to_string_lossy());
+    }
+    folder.ancestors().find(|a| a.is_dir()).map(|a| a.to_string_lossy().into_owned()).or_else(home_folder)
+}
+
+/// The user's documents folder: on Linux and the BSDs the one the desktop names
+/// (`XDG_DOCUMENTS_DIR` in `user-dirs.dirs`: `~/Documenti`, `~/Dokumente`…), elsewhere `Documents`
+/// in the home folder.
+fn documents_folder() -> Option<std::path::PathBuf> {
+    let home = std::path::PathBuf::from(home_folder()?);
+    if cfg!(all(unix, not(target_os = "macos"))) {
+        let config =
+            std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from).filter(|p| p.is_absolute()).unwrap_or_else(|| home.join(".config"));
+        if let Some(dir) = std::fs::read_to_string(config.join("user-dirs.dirs")).ok().and_then(|t| xdg_documents(&t, &home)) {
+            return Some(dir);
+        }
+    }
+    Some(home.join("Documents"))
+}
+
+/// `XDG_DOCUMENTS_DIR` in a `user-dirs.dirs` file's `text`, `$HOME` being `home`. None when it isn't
+/// set, is relative, or is the home folder itself (the spec's way of turning it off).
+fn xdg_documents(text: &str, home: &std::path::Path) -> Option<std::path::PathBuf> {
+    let line = text.lines().map(str::trim).find(|l| l.starts_with("XDG_DOCUMENTS_DIR="))?;
+    let value = line.split_once('=')?.1.trim().trim_matches('"');
+    let dir = match value.strip_prefix("$HOME") {
+        Some(rest) => home.join(rest.trim_start_matches('/')),
+        None => std::path::PathBuf::from(value),
+    };
+    (dir.has_root() && dir != home).then_some(dir)
 }
 
 /// The user's home folder (`HOME`, else `USERPROFILE` on Windows; none on the web).
@@ -125,10 +187,21 @@ fn parent_folder(path: &str) -> Option<String> {
     std::path::Path::new(path).parent().map(|p| p.to_string_lossy().to_string()).filter(|p| !p.is_empty())
 }
 
+/// A file dialog's starting folder for a path on disk (#4122): the path's parent when it is a
+/// folder, else the nearest ancestor directory that exists.
+pub fn dialog_folder(path: &str) -> Option<String> {
+    let folder = parent_folder(path)?;
+    let path = std::path::PathBuf::from(folder);
+    path.ancestors().find(|a| a.is_dir()).map(|a| a.to_string_lossy().into_owned())
+}
+
 /// A save format by id or extension, or why it isn't one.
 fn save_format_of(f: &str) -> std::result::Result<&'static Format, String> {
     match format(f) {
         Some(f) if SAVE_FORMATS.contains(&f.id) => Ok(f),
+        Some(f) if TEMPLATE_FORMATS.contains(&f.id) => {
+            Err(format!("Save writes {}, not {}: use file.saveAsTemplate to write it", SAVE_FORMATS.join(", "), f.label))
+        }
         Some(f) => Err(format!("Save writes {}, not {}: use document.export for other formats", SAVE_FORMATS.join(", "), f.label)),
         None => Err(format!("unknown format `{f}` (Save writes {})", SAVE_FORMATS.join(", "))),
     }
@@ -138,6 +211,18 @@ fn save_format_of(f: &str) -> std::result::Result<&'static Format, String> {
 /// names, else native (see [`SAVE_FORMATS`]); other formats are exports.
 pub fn save_format(format: Option<&str>, path: Option<&str>) -> std::result::Result<&'static Format, String> {
     save_format_of(format.or_else(|| path.and_then(format_for_name).map(|f| f.id)).unwrap_or("vectorcraft"))
+}
+
+/// `path` for a template in format `f`: kept when its extension names `f`, with the extension
+/// replaced when it names another format (`card.png` → `card.vctemplate`), else with `f`'s
+/// extension added (`card`, `card v1.2`).
+fn template_path(path: &str, f: &Format) -> String {
+    let ext = f.extensions[0];
+    match format_for_name(path) {
+        Some(g) if g.id == f.id => path.to_string(),
+        Some(_) => std::path::Path::new(path).with_extension(ext).to_string_lossy().into_owned(),
+        None => format!("{path}.{ext}"),
+    }
 }
 
 /// [`save_format_of`] for command `cmd`.
@@ -152,11 +237,19 @@ pub fn save_plan(s: &Session, mode: SaveMode, p: &Value) -> Result<SavePlan> {
     let st = s.doc()?;
     let path = str_param(p, "path").map(str::to_string);
     let format = match (mode, str_param(p, "format"), path.as_deref().and_then(format_for_name)) {
-        (SaveMode::Template, ..) => checked(cmd, "template")?,
+        // `.ait` when the format or else the path's extension names it; else a native template.
+        (SaveMode::Template, f, by_name) => match f.map_or(by_name, format).filter(|f| TEMPLATE_FORMATS.contains(&f.id)) {
+            Some(f) => f,
+            None => checked(cmd, "template")?,
+        },
         (_, Some(f), _) => checked(cmd, f)?,
         (_, None, Some(f)) => checked(cmd, f.id)?,
         (_, None, None) => checked(cmd, st.format)?,
     };
+    let path = if mode == SaveMode::Template { path.map(|p| template_path(&p, format)) } else { path };
+    if let Some((key, top, inner)) = disagreeing_option(p, is_svg(format)).map_err(|e| bad(cmd, e))? {
+        return Err(bad(cmd, format!("`{key}: {top}` and `options.{key}: {inner}` disagree: give the option once")));
+    }
     let mut given: Map<String, Value> = match p.get("options") {
         Some(Value::Object(o)) => o.iter().filter(|(k, _)| reads_option(format, k)).map(|(k, v)| (k.clone(), v.clone())).collect(),
         None | Some(Value::Null) => Map::new(),
@@ -169,7 +262,7 @@ pub fn save_plan(s: &Session, mode: SaveMode, p: &Value) -> Result<SavePlan> {
         given = svg;
     } else {
         // So do PDF options (as the Save PDF dialog and document.exportPdf name them) and the
-        // native ones (compress, version, preview).
+        // native ones (compress, version, preview, precision).
         if let Some(o) = p.as_object() {
             given.extend(
                 o.iter().filter(|(k, v)| !v.is_null() && k.as_str() != "path" && reads_option(format, k)).map(|(k, v)| (k.clone(), v.clone())),
@@ -177,7 +270,18 @@ pub fn save_plan(s: &Session, mode: SaveMode, p: &Value) -> Result<SavePlan> {
         }
     }
     // None given: the ones the document was last saved with in this format.
-    let options = if given.is_empty() && format.id == st.format { st.save_options.clone() } else { given };
+    let mut options = if given.is_empty() && format.id == st.format { remembered_save_options(st) } else { given };
+    // Remember the effective choice, including the encoder's default, so another document's
+    // later save cannot change what this one writes. Invalid non-null values still reach validation.
+    if matches!(format.id, "vectorcraft" | "template") {
+        let pdf = match options.get("pdfCompatible") {
+            None | Some(Value::Null) => Some(native_pdf_preference(s, Some(st)).unwrap_or(true)),
+            _ => None,
+        };
+        if let Some(pdf) = pdf {
+            options.insert("pdfCompatible".into(), json!(pdf));
+        }
+    }
     // Save writes the document's own file; the other modes only where they are told to.
     let path =
         path.or_else(|| (mode == SaveMode::Save && !st.converted && !st.recovered && format.id == st.format).then(|| st.path.clone()).flatten());
@@ -189,42 +293,209 @@ pub fn save_plan(s: &Session, mode: SaveMode, p: &Value) -> Result<SavePlan> {
         SaveMode::Save | SaveMode::SaveAs => format!("{stem}.{ext}"),
     };
     let folder = match mode {
-        SaveMode::Template => templates_folder(&s.prefs),
+        SaveMode::Template => templates_dialog_folder(&s.prefs),
         _ => st.path.as_deref().and_then(parent_folder),
     };
     let modified = date_param(p, "modified", cmd)?;
-    Ok(SavePlan { mode, path, format, options, name, folder, modified })
+    if let Some(path) = &path {
+        super::check_not_lossy_overwrite(st, path, p, cmd)?;
+    }
+    let written = written_as(cmd, format, &Value::Object(options.clone()));
+    let top = NATIVE_OPTIONS.iter().filter(|k| p.get(**k).is_some_and(|v| !v.is_null())).map(|k| k.to_string());
+    let nested = p.get("options").and_then(Value::as_object).into_iter().flatten().filter(|(_, v)| !v.is_null()).map(|(k, _)| k);
+    let notes = top
+        .filter(|k| !reads_option(format, k))
+        .chain(nested.filter(|k| !reads_option(format, k)).map(|k| format!("options.{k}")))
+        .map(|k| format!("`{k}` was not used: {} files don't read it", written.label))
+        .collect();
+    Ok(SavePlan { mode, path, format, options, name, folder, modified, notes })
+}
+
+/// The native save options, which a save also takes beside the path.
+const NATIVE_OPTIONS: [&str; 4] = ["compress", "version", "preview", "precision"];
+
+/// The first option `p` gives both beside the path and in `options` with different values, as
+/// `(key, top-level value, options value)`. For an SVG save (`svg`), an SVG option's value on
+/// either side is the one its `svg: {…}` object gives, else the flat one.
+fn disagreeing_option(p: &Value, svg: bool) -> std::result::Result<Option<(String, Value, Value)>, String> {
+    let Some(inner) = p.get("options").filter(|o| o.is_object()) else { return Ok(None) };
+    let given = |m: &Value| -> std::result::Result<Map<String, Value>, String> {
+        let mut out: Map<String, Value> = m
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(k, v)| !(v.is_null() || matches!(k.as_str(), "path" | "format" | "options") || svg && k.as_str() == "svg"))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        if svg {
+            out.extend(super::svg_options(m)?);
+        }
+        Ok(out)
+    };
+    let top = given(p)?;
+    Ok(given(inner)?.into_iter().find_map(|(k, v)| {
+        let t = top.get(&k).filter(|t| !same_value(t, &v))?.clone();
+        Some((k, t, v))
+    }))
+}
+
+/// `a == b`, with a whole number and a float of the same value (`3` and `3.0`) the same.
+fn same_value(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Number(x), Value::Number(y)) => x == y || ((x.is_f64() || y.is_f64()) && x.as_f64() == y.as_f64()),
+        _ => a == b,
+    }
+}
+
+/// Native documents and templates share only their PDF choice. Other source formats use the
+/// application's last native choice, keeping an AI file's separate PDF option out of it.
+fn native_pdf_preference(s: &Session, st: Option<&DocState>) -> Option<bool> {
+    st.filter(|d| matches!(d.format, "vectorcraft" | "template"))
+        .and_then(|d| d.save_options.get("pdfCompatible"))
+        .and_then(Value::as_bool)
+        .or_else(|| s.prefs.native_save_options.get("pdfCompatible").and_then(Value::as_bool))
+}
+
+/// The options `st` was last saved with, their artboards (`artboard`, `artboards` and `range`)
+/// following the artboards they named ([`DocState::save_artboards`]): an artboard deleted since is
+/// left out, and one that moved is named by its new number. When none of the artboards the save
+/// used is left, the pick is left out, and a save without options writes the artboards it writes
+/// when none is named. `range` `"all"` stays as it is. Artboards given to a save are still checked.
+pub fn remembered_save_options(st: &DocState) -> Map<String, Value> {
+    let mut options = st.save_options.clone();
+    let ids: Vec<u32> = st.doc.artboards.iter().map(|a| a.id).collect();
+    // The encoders refuse a document without artboards themselves.
+    if ids.is_empty() {
+        return options;
+    }
+    // Artboard `i` of the save, where it is now (by number when the save's artboards are unknown).
+    let then = &st.save_artboards;
+    let count = if then.is_empty() { ids.len() } else { then.len() };
+    let now = |i: usize| match then.get(i) {
+        Some(id) => ids.iter().position(|x| x == id),
+        None => (then.is_empty() && i < ids.len()).then_some(i),
+    };
+    // Each pick that names artboards: `Some` of where they are now (empty: all gone).
+    let mut moved: Vec<(&str, Option<Vec<usize>>)> = vec![];
+    for k in ARTBOARD_PARAMS {
+        let named = match (k, options.get(k)) {
+            ("range", Some(Value::String(r))) if r.trim().is_empty() || r.trim().eq_ignore_ascii_case("all") => continue,
+            ("range", Some(Value::String(r))) => match vectorcraft_doc::range::parse_range(r, count) {
+                Ok(v) => v,
+                Err(_) => {
+                    moved.push((k, Some(vec![])));
+                    continue;
+                }
+            },
+            ("artboards", Some(v @ Value::Array(_))) => match serde_json::from_value::<Vec<usize>>(v.clone()) {
+                Ok(v) => v,
+                Err(_) => continue,
+            },
+            ("artboard", Some(v)) => match v.as_u64().and_then(|i| usize::try_from(i).ok()) {
+                Some(i) => vec![i],
+                None => continue,
+            },
+            _ => continue,
+        };
+        let there: Vec<usize> = named.iter().filter_map(|i| now(*i)).collect();
+        // A range that reads differently against the artboards there are now (`"2-"` once one
+        // was added) is written out as the artboards it named.
+        let reads = match (k, options.get(k)) {
+            ("range", Some(Value::String(r))) => vectorcraft_doc::range::parse_range(r, ids.len()).ok(),
+            _ => Some(named),
+        };
+        moved.push((k, (reads.as_ref() != Some(&there)).then_some(there)));
+    }
+    // The pick a save uses (as `ArtboardPick::resolve` reads it: `range`, then `artboards`, then
+    // `artboard`) is gone: so is the rest.
+    let used = ["range", "artboards", "artboard"].into_iter().find(|k| match options.get(*k) {
+        Some(Value::String(r)) => !r.trim().is_empty(),
+        Some(v) => !v.is_null(),
+        None => false,
+    });
+    let gone = |k: &str| moved.iter().any(|(m, there)| *m == k && there.as_ref().is_some_and(Vec::is_empty));
+    if used.is_some_and(gone) {
+        for k in ARTBOARD_PARAMS {
+            options.remove(k);
+        }
+        return options;
+    }
+    for (k, there) in moved {
+        let Some(there) = there else { continue };
+        let value = match (k, there.first()) {
+            (_, None) => None,
+            ("range", Some(_)) => Some(json!(range_text(&there))),
+            ("artboards", Some(_)) => Some(json!(there)),
+            (_, Some(i)) => Some(json!(i)),
+        };
+        match value {
+            Some(v) => _ = options.insert(k.into(), v),
+            None => _ = options.remove(k),
+        }
+    }
+    options
+}
+
+/// 0-based artboard indices as a 1-based range in the same order, runs joined (`"1-2, 5"`).
+fn range_text(picked: &[usize]) -> String {
+    let mut runs: Vec<(usize, usize)> = vec![];
+    for &i in picked {
+        match runs.last_mut() {
+            Some((_, end)) if *end + 1 == i => *end = i,
+            _ => runs.push((i, i)),
+        }
+    }
+    let run = |&(a, b): &(usize, usize)| if a == b { format!("{}", a + 1) } else { format!("{}-{}", a + 1, b + 1) };
+    runs.iter().map(run).collect::<Vec<_>>().join(", ")
 }
 
 /// Does a save in `f` read option `key`? PDF (and a .ai file, a PDF) also reads its General
-/// settings (`createLayers`…) and presets.
-fn reads_option(f: &Format, key: &str) -> bool {
+/// settings (`createLayers`…) and presets. A save drops each option its format doesn't read.
+pub fn reads_option(f: &Format, key: &str) -> bool {
     f.options.iter().any(|o| o.name == key) || (is_pdf(f) && (super::pdf::OPTIONS.iter().any(|o| o.name == key) || super::pdf::is_setting(key)))
 }
 
 /// Formats that carry the whole native document: they lose nothing, and record links relative to
-/// where they are written. A `.ai` file is a PDF carrying it.
+/// where they are written. A `.ai` or `.ait` file is a PDF carrying it; EPS carries it in comments.
 fn is_native(f: &Format) -> bool {
-    matches!(f.id, "vectorcraft" | "template" | "ai")
+    matches!(f.id, "vectorcraft" | "template" | "ai" | "ait" | "eps")
 }
 
 fn is_pdf(f: &Format) -> bool {
-    matches!(f.id, "pdf" | "ai")
+    matches!(f.id, "pdf" | "ai" | "ait")
 }
 
 fn is_svg(f: &Format) -> bool {
     matches!(f.id, "svg" | "svgz")
 }
 
-/// The document as written: native files carry the view to reopen at.
+/// The document as written: native files carry the view to reopen at and the Layers panel's open
+/// rows and transparency grid visibility; a `.ai` file names the view's active artboard
+/// ([`DocState::active_artboard`]) as its active one.
 fn doc_to_save(st: &DocState, f: &Format) -> Arc<Document> {
-    if is_native(f) && st.doc.last_view != st.view {
-        let mut d = (*st.doc).clone();
-        d.last_view = st.view.clone();
-        Arc::new(d)
-    } else {
-        st.doc.clone()
+    if !is_native(f) {
+        return st.doc.clone();
     }
+    let open = st.layers_open.saved(&st.doc);
+    let active = moved_active_artboard(st, &st.doc, f);
+    if st.doc.last_view == st.view && st.doc.layers_open == open && st.doc.transparency_grid == st.transparency_grid && active.is_none() {
+        return st.doc.clone();
+    }
+    let mut d = (*st.doc).clone();
+    if active.is_some() {
+        d.opened_artboard = active;
+    }
+    d.last_view = st.view.clone();
+    d.transparency_grid = st.transparency_grid;
+    d.layers_open = open;
+    Arc::new(d)
+}
+
+/// The artboard a `.ai` or `.ait` file written from `st` (`doc`, the document it writes) names as
+/// its active one, when that is not already the one `doc` opened on: the view's active artboard
+/// ([`DocState::active_artboard`]), if `doc` has it.
+pub(super) fn moved_active_artboard(st: &DocState, doc: &Document, f: &Format) -> Option<u32> {
+    st.active_artboard.filter(|id| matches!(f.id, "ai" | "ait") && doc.artboards.iter().any(|a| a.id == *id) && doc.opened_artboard != Some(*id))
 }
 
 /// What a format loses against a native file (reported whenever a save writes it).
@@ -249,14 +520,44 @@ pub struct SaveJob {
     params: Value,
     /// The document when the job was made: what counts as saved once the file is written.
     snapshot: Arc<Document>,
+    /// The live document `snapshot` was made from, and the date stamped on `snapshot` (not on the
+    /// live document until the file is written).
+    source: Arc<Document>,
+    stamped: Option<i64>,
     /// The artboards also saved to files of their own (`separateArtboards`).
     boards: Vec<usize>,
+}
+
+/// Writes the file at a path with what the filler it is given writes into it
+/// ([`SaveJob::write_streamed`]).
+pub type StreamWrite<'a> = &'a mut dyn FnMut(&str, &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>) -> Result<()>;
+
+/// Bytes gathered before a streamed save writes them to the file.
+const STREAM_BUFFER: usize = 256 << 10;
+
+/// A writer that counts the bytes written through it.
+struct Counted<W> {
+    inner: W,
+    n: u64,
+}
+
+impl<W: std::io::Write> std::io::Write for Counted<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        self.n += n as u64;
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 /// The artboards a native or `.ai` save also writes to files of their own: with
 /// `separateArtboards`, those `range` names (default all).
 fn separate_boards(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Vec<usize>> {
-    if !is_native(f) || !bool_or(p, "separateArtboards", false) {
+    // A legacy .ai file is a file per artboard already.
+    if !is_native(f) || f.id == "eps" || !bool_or(p, "separateArtboards", false) || super::legacy_ai::wanted(cmd, f, p)? {
         return Ok(vec![]);
     }
     let range = str_param(p, "range").filter(|r| !r.trim().is_empty()).map(str::to_string);
@@ -267,24 +568,30 @@ fn separate_boards(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<V
 
 /// `doc` reduced to artboard `i` and the art on it (Save each artboard to a separate file):
 /// objects whose bounds touch the artboard, in their layers; resources are kept.
-fn artboard_doc(doc: &Document, i: usize) -> Document {
+pub(super) fn artboard_doc(doc: &Document, i: usize) -> Document {
     let mut d = doc.clone();
     let Some(a) = doc.artboards.get(i) else { return d };
-    let r = a.rect;
     d.artboards = vec![a.clone()];
-    // It opens fitted to its artboard, not at the master file's view.
-    d.last_view = None;
-    for layer in &mut d.layers {
-        keep_on(layer, r);
-    }
+    keep_art_on(&mut d, a.rect);
     d
 }
 
-/// Keep in layer `n` (and its sublayers) only the objects touching `r`.
+/// Reduce `d` to the objects touching `r`, in their layers (resources are kept), opening
+/// fitted to its artboard rather than at the master file's view.
+pub(super) fn keep_art_on(d: &mut Document, r: vectorcraft_geom::Rect) {
+    d.last_view = None;
+    d.layers_open = None;
+    for layer in &mut d.layers {
+        keep_on(layer, r);
+    }
+}
+
+/// Keep in layer `n` (and its sublayers) only the objects touching `r`, and those without bounds.
 fn keep_on(n: &mut Arc<vectorcraft_doc::Node>, r: vectorcraft_geom::Rect) {
     let touches = |b: vectorcraft_geom::Rect| b.x0 <= r.x1 && b.x1 >= r.x0 && b.y0 <= r.y1 && b.y1 >= r.y0;
     if let Some(children) = Arc::make_mut(n).children_mut() {
-        children.retain(|c| c.is_layer() || c.visual_bounds().is_some_and(touches));
+        // An object whose bounds can't be measured (type in a missing font) stays: dropping it loses art.
+        children.retain(|c| c.is_layer() || c.visual_bounds().is_none_or(touches));
         for c in children.iter_mut().filter(|c| c.is_layer()) {
             keep_on(c, r);
         }
@@ -304,27 +611,176 @@ fn blank_pages(doc: &Document) -> Document {
 
 /// Why a `.ai` file saved without PDF content looks empty elsewhere.
 const NOT_PDF_COMPATIBLE: &str = "saved without PDF content: VectorCraft opens it as before, other apps show empty pages";
+/// The same, for a file that carries the editing copy of its art.
+const NOT_PDF_COMPATIBLE_EDITING: &str =
+    "saved without PDF content: VectorCraft and apps that read its editing data open it, other apps show empty pages";
 
-/// Snapshot the active document for `plan` (stamping File Info's dates when the file becomes the
-/// document's own). Bad options fail here, before anything is encoded.
-pub fn save_job(s: &mut Session, plan: SavePlan) -> Result<SaveJob> {
-    // The web build, without a clock, leaves the dates unless given one.
-    if plan.path.is_some()
-        && plan.retargets()
-        && let Some(at) = clock_date(s, "modified", plan.modified)
-    {
-        stamp_save_dates(s.doc_mut()?, at);
+/// `f` (`.ai` or `.ait`) named, in its option errors, as a file saved without PDF content.
+fn without_pdf(f: &Format) -> Format {
+    let label = if f.id == "ait" { "non-PDF-compatible .ait template" } else { "non-PDF-compatible .ai" };
+    Format { label, ..*f }
+}
+
+/// `f` named, in its errors and notes, as the file a save with options `p` writes: a version 7
+/// `.ai` as the legacy `.ai`, and a `.ai` or `.ait` with `pdfCompatible: false` as one saved
+/// without PDF content.
+fn written_as(cmd: &str, f: &Format, p: &Value) -> Format {
+    if f.id == "ai" && super::legacy_ai::wanted(cmd, f, p).unwrap_or(false) {
+        super::legacy_ai::named(f)
+    } else if matches!(f.id, "ai" | "ait") && !bool_or(p, "pdfCompatible", true) {
+        without_pdf(f)
+    } else {
+        *f
     }
-    job_for(s, s.doc()?, plan)
+}
+
+/// `e`, an error of the export encoders, under the save command `cmd` instead of
+/// `document.export`.
+fn named_for_save(cmd: &str, e: crate::EngineError) -> crate::EngineError {
+    match e {
+        crate::EngineError::BadParams { cmd: c, msg } if c == "document.export" => bad(cmd, msg),
+        e => e,
+    }
+}
+
+/// Refuse the artboards a `.ai` or `.ait` save is given (`artboard`, `artboards`, or a `range`
+/// that isn't empty) when one of them is not in `doc`, with the error an export gives. The save
+/// then writes every artboard, or a legacy `.ai` file's `range`, whatever `artboard` and
+/// `artboards` name. An empty `artboards` list is not refused: the save writes every artboard.
+fn named_artboards_exist(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<()> {
+    let n = doc.artboards.len();
+    // The encoders refuse a document without artboards themselves.
+    if n == 0 {
+        return Ok(());
+    }
+    // The encoders refuse a value of the wrong type themselves, each with its own label.
+    let Ok(mut picked) = super::encode::options::<ArtboardPick>(&written_as(cmd, f, p), p) else {
+        return Ok(());
+    };
+    picked.range = picked.range.filter(|r| !r.trim().is_empty());
+    if picked.range.is_none() && picked.artboards.as_ref().is_some_and(Vec::is_empty) {
+        return Ok(());
+    }
+    picked.resolve(n).map_err(|e| bad(cmd, e))?;
+    Ok(())
+}
+
+/// The `.ai` option `editingData`: whether the file also carries the editing copy of the art that
+/// other apps read (default on).
+#[derive(Default, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct AiEditingData {
+    editing_data: Option<bool>,
+}
+
+/// The shared Save and Export encoder for `.ai` files (and `.ait` templates, the same file):
+/// PDF-compatible by default, without PDF content (`pdfCompatible: false`), or legacy version 7
+/// `.ai` files (`aiVersion: "7"`).
+pub(super) fn encode_ai(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Encoded> {
+    if super::legacy_ai::wanted(cmd, f, p)? {
+        return super::legacy_ai::encode(cmd, f, doc, p);
+    }
+    let mut params = if p.is_object() { p.clone() } else { json!({}) };
+    if let Some(o) = params.as_object_mut() {
+        o.insert("preserveEditing".into(), json!(true));
+        // Keep upstream AI PDF layers, including hidden layers, unless a standard decides.
+        if o.get("standard").is_none_or(Value::is_null) {
+            o.entry("createLayers").or_insert(json!(true));
+        }
+        if let Some(c) = o.get("compress").and_then(Value::as_bool) {
+            let compression = o.entry("compression").or_insert_with(|| json!({}));
+            if let Some(m) = compression.as_object_mut() {
+                m.insert("compressText".into(), json!(c));
+            }
+        }
+    }
+    let pdf_compatible = bool_or(&params, "pdfCompatible", true);
+    let f = &if pdf_compatible { *f } else { without_pdf(f) };
+    let native_options = super::native::ai_options(cmd, f, doc, &params)?;
+    if !pdf_compatible {
+        let picked: ArtboardPick = super::encode::options(f, &params)?;
+        let picked = picked.resolve(doc.artboards.len()).map_err(|e| bad(cmd, e))?;
+        if picked.is_some_and(|v| !v.into_iter().eq(0..doc.artboards.len())) {
+            return Err(bad(cmd, "pdfCompatible: false needs every artboard to keep the editable artwork"));
+        }
+    }
+    let edited = doc.without_edit_modes();
+    // Resolve placed files only for the drawn pages. Missing files become preview images there;
+    // the native attachment keeps the original placed objects and their relinkable metadata.
+    let (pages, placed_warnings) = if pdf_compatible {
+        crate::cmd::place::document::full_documents(&edited)
+    } else {
+        (std::borrow::Cow::Owned(blank_pages(&edited)), Vec::new())
+    };
+    let native = || super::native::ai_native(cmd, doc, &native_options);
+    let other_apps: AiEditingData = super::encode::options(f, &params)?;
+    let carries_editing = std::cell::Cell::new(false);
+    let private = || {
+        if !other_apps.editing_data.unwrap_or(true) {
+            return Ok(None);
+        }
+        // The art with placed files resolved as the pages draw them, also when the pages are blank.
+        let resolved;
+        let (art, mut resolved_warnings): (&Document, Vec<String>) = if pdf_compatible {
+            (&pages, Vec::new())
+        } else {
+            let (d, w) = crate::cmd::place::document::full_documents(&edited);
+            resolved = d;
+            (&resolved, w)
+        };
+        // With the artboards' background colors, as the pages draw them.
+        let art = super::export::with_artboard_fills(art, &params, 0..art.artboards.len()).map_err(|e| bad(cmd, e))?;
+        let o = vectorcraft_eps::AiEditingOptions {
+            title: doc.title.clone(),
+            created: doc.metadata.created.or_else(vectorcraft_doc::metadata::output_time),
+        };
+        let (data, lost) = vectorcraft_eps::ai_private_data(&art, &o).map_err(|e| bad(cmd, e))?;
+        // Placed files that weren't found are written as their previews here too.
+        resolved_warnings.extend(lost);
+        carries_editing.set(true);
+        Ok(Some((data, resolved_warnings)))
+    };
+    let (bytes, mut warnings) = super::pdf::encode_carrying(cmd, &pages, &params, native, private)?;
+    warnings.extend(placed_warnings);
+    if !pdf_compatible {
+        warnings.push(if carries_editing.get() { NOT_PDF_COMPATIBLE_EDITING } else { NOT_PDF_COMPATIBLE }.to_string());
+    }
+    Ok(Encoded { warnings, ..Encoded::one(bytes) })
+}
+
+/// Snapshot the active document for `plan` (stamping File Info's dates on the snapshot when the
+/// file becomes the document's own; the live document gets them in [`SaveJob::finish`]). Bad
+/// options fail here, before anything is encoded.
+pub fn save_job(s: &mut Session, plan: SavePlan) -> Result<SaveJob> {
+    // A Shape Builder merge still being computed for a click is saved with the document.
+    s.finish_tool_edit_later()?;
+    // The web build, without a clock, leaves the dates unless given one.
+    let at = if plan.path.is_some() && plan.retargets() { clock_date(s, "modified", plan.modified) } else { None };
+    job_for_stamped(s, s.doc()?, plan, at)
 }
 
 /// Snapshot `st` (any open document of `s`) for `plan`, without stamping dates (Data Recovery
 /// snapshots documents that aren't active).
 pub(crate) fn job_for(s: &Session, st: &DocState, plan: SavePlan) -> Result<SaveJob> {
+    job_for_stamped(s, st, plan, None)
+}
+
+fn job_for_stamped(s: &Session, st: &DocState, plan: SavePlan, stamped: Option<i64>) -> Result<SaveJob> {
     let cmd = plan.mode.command();
-    let own = doc_to_save(st, plan.format);
+    let mut own = doc_to_save(st, plan.format);
+    // The file the document is saved as (else its own) titles it if New's name is all it has.
+    let file = plan.path.as_deref().filter(|_| plan.retargets()).or(st.path.as_deref());
+    if let Some(d) = super::titled_for_export(&own, file, plan.format.id) {
+        own = Arc::new(d);
+    }
+    let mut snapshot = st.doc.clone();
+    if let Some(at) = stamped {
+        stamp_doc_dates(Arc::make_mut(&mut own), at);
+        stamp_doc_dates(Arc::make_mut(&mut snapshot), at);
+    }
     // A native file records its links' paths relative to where it is written.
-    let relative = plan.path.as_deref().filter(|_| is_native(plan.format)).and_then(|p| crate::cmd::links::with_relative_paths(&own, p));
+    let base = crate::cmd::links::LinkBase::of(st);
+    let relative = plan.path.as_deref().filter(|_| is_native(plan.format)).and_then(|p| crate::cmd::links::with_relative_paths(&own, base, p));
     let doc = relative.map_or(own, Arc::new);
     let mut params = plan.options.clone();
     if is_svg(plan.format) {
@@ -335,22 +791,25 @@ pub(crate) fn job_for(s: &Session, st: &DocState, plan: SavePlan) -> Result<Save
     if matches!(plan.format.id, "vectorcraft" | "template") {
         // Not remembered with the options: the preference decides each time it isn't given.
         params = with_compression_pref(&s.prefs, &params);
-        super::native::save_options(cmd, plan.format, &doc, &params)?;
+        super::native::save_options(cmd, plan.format, &doc, &params).map_err(|e| named_for_save(cmd, e))?;
     }
     let boards = separate_boards(cmd, plan.format, &doc, &params)?;
     let mut params = super::pdf::expand_preset(s, cmd, &params)?.into_owned();
-    if let (Some(o), "ai") = (params.as_object_mut(), plan.format.id) {
-        // A PDF of every artboard with the PDF options, always carrying the native document.
-        o.extend([("preserveEditing".into(), json!(true)), ("range".into(), json!("all"))]);
-        // Use Compression compresses the PDF's content.
-        if let Some(c) = o.get("compress").and_then(Value::as_bool) {
-            let compression = o.entry("compression").or_insert_with(|| json!({}));
-            if let Some(m) = compression.as_object_mut() {
-                m.insert("compressText".into(), json!(c));
-            }
+    let legacy = super::legacy_ai::wanted(cmd, plan.format, &params)?;
+    if matches!(plan.format.id, "ai" | "ait") {
+        named_artboards_exist(cmd, plan.format, &doc, &params)?;
+    }
+    if let (Some(o), "ai" | "ait") = (params.as_object_mut(), plan.format.id) {
+        // Save keeps every artboard; exports may choose a subset instead. A legacy .ai file per
+        // artboard keeps a range given: the artboards to save.
+        let chosen = legacy && plan.format.id == "ai" && o.get("range").and_then(Value::as_str).is_some_and(|r| !r.trim().is_empty());
+        // A `range` that isn't text is left for the encoder to refuse, as an export refuses it.
+        let text = o.get("range").is_none_or(|r| r.is_string() || r.is_null());
+        if !chosen && text {
+            o.insert("range".into(), json!("all"));
         }
     }
-    Ok(SaveJob { plan, doc, params, snapshot: st.doc.clone(), boards })
+    Ok(SaveJob { plan, doc, params, snapshot, source: st.doc.clone(), stamped, boards })
 }
 
 impl SaveJob {
@@ -363,35 +822,57 @@ impl SaveJob {
         &self.snapshot
     }
 
+    /// The document the job writes (the snapshot, as the file keeps it).
+    pub(crate) fn doc(&self) -> &Arc<Document> {
+        &self.doc
+    }
+
+    /// Encode `doc` (the job's document, changed) as the job encodes its own: one file.
+    pub(crate) fn encode_doc(&self, doc: &Document) -> Result<Encoded> {
+        self.encode_one(doc)
+    }
+
     /// Encode the file → it (and, with `separateArtboards`, a file per artboard after it), with
     /// the warnings (what the format loses first, then the encoder's own notes: PDF options not
-    /// applied yet…).
+    /// applied yet…, then the plan's notes on its params).
     pub fn encode(&self) -> Result<Encoded> {
         let mut enc = self.encode_one(&self.doc)?;
         for &b in &self.boards {
             let one = self.encode_one(&artboard_doc(&self.doc, b))?;
             enc.files.extend(one.files.into_iter().map(|(_, bytes)| (Some(b), bytes)));
         }
-        let pdf_less = self.plan.format.id == "ai" && !bool_or(&self.params, "pdfCompatible", true);
-        let notes = fidelity_warning(self.plan.format).into_iter().chain(pdf_less.then(|| NOT_PDF_COMPATIBLE.to_string()));
-        enc.warnings.splice(0..0, notes);
+        enc.warnings.splice(0..0, self.format_losses());
+        enc.warnings.extend(self.plan.notes.iter().cloned());
         Ok(enc)
+    }
+
+    /// What the file loses against the document: the artboards an SVG file leaves out first (the
+    /// status bar shows only the first warning), then what the format loses.
+    fn format_losses(&self) -> impl Iterator<Item = String> {
+        let f = self.plan.format;
+        let lost = if is_svg(f) { super::svg::lost_artboards_warning(&self.doc, &self.params, f.label) } else { None };
+        lost.into_iter().chain(fidelity_warning(f))
+    }
+
+    /// The warnings known before the file is encoded, in the order a written file's reply gives
+    /// them: what the format loses, then the plan's notes on its params (a reply sent before the
+    /// file is written, as Background Save's, gives these).
+    pub fn known_warnings(&self) -> Vec<String> {
+        self.format_losses().chain(self.plan.notes.iter().cloned()).collect()
     }
 
     /// Encode one file of `doc` in the job's format.
     fn encode_one(&self, doc: &Document) -> Result<Encoded> {
         let (cmd, f) = (self.plan.mode.command(), self.plan.format);
-        let enc = if f.id == "ai" {
-            // The pages (blank without PDF content), carrying the native document.
-            let pages = doc.without_edit_modes();
-            let pages = if bool_or(&self.params, "pdfCompatible", true) { pages } else { std::borrow::Cow::Owned(blank_pages(&pages)) };
-            let native = || super::native::ai_native(cmd, f, doc, &self.params);
-            let (bytes, warnings) = super::pdf::encode_carrying(cmd, &pages, &self.params, native)?;
-            Encoded { warnings, ..Encoded::one(bytes) }
-        } else {
-            encode_all(doc, f.id, &self.params)?
-        };
-        if enc.files.len() != 1 {
+        let enc = match f.id {
+            "ai" | "ait" => encode_ai(cmd, f, doc, &self.params),
+            "eps" => super::eps::encode_save(doc, &self.params),
+            _ => encode_all(doc, f.id, &self.params),
+        }
+        .map_err(|e| named_for_save(cmd, e))?;
+        // A legacy .ai file per artboard.
+        let per_artboard = f.id == "ai" && super::legacy_ai::wanted(cmd, f, &self.params)?;
+        if enc.files.len() != 1 && !per_artboard {
             return Err(bad(cmd, "Save writes one artboard: name one, or export several with document.export"));
         }
         Ok(enc)
@@ -431,17 +912,84 @@ impl SaveJob {
         Ok(out)
     }
 
+    /// Is the file written as it is encoded by [`SaveJob::write_streamed`]? A native file (or
+    /// template) to a path, without a file per artboard.
+    pub fn streams(&self) -> bool {
+        self.plan.path.is_some() && matches!(self.plan.format.id, "vectorcraft" | "template") && self.boards.is_empty()
+    }
+
+    /// [`SaveJob::write`] through `stream`, which writes the file at a path with what the filler
+    /// it is given writes (atomically, as [`vectorcraft_format::write_atomic_with`]). A native
+    /// file goes into it as it is encoded ([`SaveJob::streams`]), never held whole in memory;
+    /// other files are encoded first, then written into it.
+    pub fn write_streamed(&self, stream: StreamWrite) -> Result<Value> {
+        let (Some(path), true) = (&self.plan.path, self.streams()) else {
+            return self.write(|p, b| stream(p, &mut |w| w.write_all(b)));
+        };
+        let (cmd, f) = (self.plan.mode.command(), self.plan.format);
+        let doc = self.doc.without_edit_modes();
+        let doc = match f.id {
+            // A native file flagged so opening it starts a new untitled document (as
+            // `encode_all` writes it).
+            "template" => {
+                let mut d = doc.into_owned();
+                d.template = true;
+                std::borrow::Cow::Owned(d)
+            }
+            _ => doc,
+        };
+        // The encoder's failure, kept apart from the writer's (which `stream` reports).
+        let mut failed = None;
+        let mut written = 0u64;
+        let mut fill = |w: &mut dyn std::io::Write| {
+            let mut out = Counted { inner: std::io::BufWriter::with_capacity(STREAM_BUFFER, w), n: 0 };
+            let r = super::native::encode_to(cmd, f, &doc, &self.params, &mut out);
+            written = out.n;
+            match r {
+                Ok(()) => out.inner.flush(),
+                Err(e) => {
+                    failed = Some(e);
+                    Err(std::io::Error::other("the file couldn't be encoded"))
+                }
+            }
+        };
+        let r = stream(path, &mut fill);
+        r.map_err(|e| failed.take().unwrap_or(e))?;
+        Ok(json!({ "path": path, "bytes": written, "format": f.id, "warnings": self.known_warnings() }))
+    }
+
     /// Once written: Save and Save As (except to a template) make the file `st`'s own: path,
     /// title, format, options, and the snapshot as the saved state (edits made since the job was
-    /// made keep the document modified).
+    /// made keep the document modified; changes that are not edits to save don't,
+    /// [`DocState::same_content`]).
     pub fn finish(self, st: &mut DocState) {
         let retargets = self.plan.retargets();
         if let (true, Some(path)) = (retargets, self.plan.path) {
             st.path = Some(path);
             st.format = self.plan.format.id;
             st.save_options = self.plan.options;
+            // A later save rounds only when it gives `precision` too.
+            st.save_options.remove("precision");
+            st.save_artboards = self.snapshot.artboards.iter().map(|a| a.id).collect();
             st.converted = false;
             st.recovered = false;
+            if let Some(at) = self.stamped {
+                if Arc::ptr_eq(&st.doc, &self.source) {
+                    st.doc = self.snapshot.clone();
+                } else if st.same_content(&self.source) {
+                    // Changed while the save ran only by changes that are not edits to save
+                    // (Puppet Warp pins dropped, Edit Text ended, type laid out again after a font
+                    // scan): with the dates, the document counts as saved.
+                    stamp_save_dates(st, at);
+                    return st.mark_saved();
+                } else {
+                    // Edited while the save ran: the dates still go on, the edits stay unsaved. The
+                    // undo history holds the document as it was before the dates, so that is the
+                    // saved state: undoing back to it leaves the document unmodified.
+                    stamp_save_dates(st, at);
+                    return st.mark_saved_as(&self.source);
+                }
+            }
             st.mark_saved_as(&self.snapshot);
         }
     }
@@ -450,11 +998,21 @@ impl SaveJob {
     /// its own also ends its Data Recovery copy.
     pub fn complete(self, s: &mut Session, uid: u64) {
         let saved = self.plan.retargets() && self.plan.path.is_some();
+        if saved && self.plan.format.id == "vectorcraft" {
+            let mut last = self.plan.options.clone();
+            last.retain(|k, _| !ARTBOARD_PARAMS.contains(&k.as_str()) && !matches!(k.as_str(), "separateArtboards" | "compress" | "precision"));
+            s.prefs.native_save_options = last;
+        }
+        // The other open documents that place this one show the new version.
+        let written = self.plan.path.clone().filter(|_| matches!(self.plan.format.id, "vectorcraft" | "template"));
         if let Some(st) = s.document_mut(uid) {
             self.finish(st);
         }
         if saved {
             crate::cmd::recovery::forget(s, uid);
+        }
+        if let Some(path) = written {
+            crate::cmd::links::refresh_placed(s, uid, &path);
         }
     }
 }
@@ -469,10 +1027,14 @@ pub fn save_with(s: &mut Session, plan: SavePlan, write: impl FnMut(&str, &[u8])
     Ok(out)
 }
 
-/// A save command: plan, then write with the file system.
-fn save(s: &mut Session, mode: SaveMode, p: &Value) -> Result<Value> {
+/// A save command: plan, then write with the file system (a native file as it is encoded).
+pub(crate) fn save(s: &mut Session, mode: SaveMode, p: &Value) -> Result<Value> {
     let plan = save_plan(s, mode, p)?;
-    save_with(s, plan, write_file)
+    let job = save_job(s, plan)?;
+    let uid = s.doc()?.uid;
+    let out = job.write_streamed(&mut super::write_file_with)?;
+    job.complete(s, uid);
+    Ok(out)
 }
 
 fn can_revert(s: &Session) -> std::result::Result<(), String> {
@@ -489,12 +1051,15 @@ fn can_revert(s: &Session) -> std::result::Result<(), String> {
 fn revert(s: &mut Session, _: &Value) -> Result<Value> {
     let index = s.active_index().ok_or(crate::EngineError::NoDocument)?;
     let path = s.doc()?.path.clone().ok_or_else(|| bad("file.revert", "the document has never been saved"))?;
-    let Loaded { mut doc, .. } = load(&path, &read_file(&path)?)?;
+    let Loaded { mut doc, native_pdf_compatible, .. } = load(&path, &read_file(&path)?)?.with_grid_prefs(&s.prefs);
     doc.template = false;
     // Back to the saved file: its recovery copy has nothing left to recover.
     let uid = s.doc()?.uid;
     crate::cmd::recovery::forget(s, uid);
     s.replace_document(index, doc);
+    if let Some(pdf) = native_pdf_compatible {
+        s.doc_mut()?.save_options.insert("pdfCompatible".into(), json!(pdf));
+    }
     Ok(json!({ "path": path }))
 }
 
@@ -504,16 +1069,27 @@ fn format_options(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.active();
     let id = str_param(p, "format").or(st.map(|d| d.format)).unwrap_or("vectorcraft");
     let f = format(id)
-        .filter(|f| f.write || SAVE_FORMATS.contains(&f.id))
+        .filter(|f| f.write || SAVE_FORMATS.contains(&f.id) || TEMPLATE_FORMATS.contains(&f.id))
         .ok_or_else(|| bad(C, format!("`{id}` is no writable format (see document.formats)")))?;
-    let saved = st.filter(|d| d.format == f.id).map(|d| &d.save_options);
+    // A document not yet saved as a native file starts from the native options used last.
+    let saved = st
+        .filter(|d| d.format == f.id)
+        .map(remembered_save_options)
+        .filter(|m| !m.is_empty())
+        .or_else(|| (f.id == "vectorcraft" && !s.prefs.native_save_options.is_empty()).then(|| s.prefs.native_save_options.clone()));
     // A native save compresses as Use Compression says, unless told otherwise.
     let prefs = with_compression_pref(&s.prefs, &json!({}));
+    let native_pdf = matches!(f.id, "vectorcraft" | "template").then(|| native_pdf_preference(s, st)).flatten();
     let mut v = f.to_json();
     if let Some(options) = v["options"].as_object_mut() {
         for (name, o) in options.iter_mut() {
             let default = prefs.get(name).filter(|_| matches!(f.id, "vectorcraft" | "template")).unwrap_or(&o["default"]);
-            o["value"] = saved.and_then(|m| m.get(name)).unwrap_or(default).clone();
+            o["value"] = saved.as_ref().and_then(|m| m.get(name)).unwrap_or(default).clone();
+            if name == "pdfCompatible"
+                && let Some(pdf) = native_pdf
+            {
+                o["value"] = json!(pdf);
+            }
         }
     }
     v["saveFormats"] =
@@ -528,7 +1104,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save Document",
             [],
             None,
-            "{path?, format?: vectorcraft|template|pdf|svg|svgz|ai (default: the path's extension, else the document's own format), options?: {…the format's options, see file.formatOptions; default: as last saved}, svg?: {…SVG options} (SVG options may also be given flat; an SVG save keeps hidden layers, display:none, unless hiddenLayers is false), native (also flat): compress?: bool (gzip; default: the useCompression preference), version?: 3 (2 or 1: for older VectorCraft versions, never compressed), preview?: false (embed a PNG of the first artboard, at most 256 px), native and .ai: separateArtboards?: false (also save each artboard of range?: \"1-3, 5\"|\"all\" (default) to <name>-<artboard>.<ext> beside the file, holding that artboard and the art touching it; the result's files lists every file written), includeLinked?: false (keep linked files' own pixels, not just their previews; they stay linked), embedProfiles?: true (carry the ICC profiles loaded from files that the document is tagged with; opening the file installs them where missing), pdfCompatible?: false for native (also carry a PDF of every artboard) | true for .ai (false: blank pages, only the native document), .ai: compress?: true (compression.compressText), modified?: Unix seconds|null (the File Info modified date, and created date when there is none, a save to a file stamps; default now, recorded in the journal so a replay matches; null: leave the dates)} → {path, format, bytes, warnings, files?: [path…] (the file and its artboards' files), linked?: [path…] (images an SVG links to)}. Save writes one artboard, except a .ai file: a PDF-compatible file of every artboard carrying the native document (preserveEditing always on; PDF options flat or in options), which document.open restores exactly; separateArtboards writes more files, one per artboard. Without a path it writes the document's own file in its own format: a document opened from or saved as SVG/PDF saves as that again (warnings name what the format loses). No path known (never saved, converted from an older version, restored by Data Recovery, or another format) → {dataBase64, format, name, folder?, warnings} and the document stays modified",
+            "{path?, format?: vectorcraft|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own format), options?: {…the format's options, see file.formatOptions; default: as last saved}, svg?: {…SVG options} (an SVG save keeps hidden layers, display:none, unless hiddenLayers is false), …the SVG and PDF options given flat instead (an option given flat or in svg and in options with different values is an error), compress?: bool (native, also in options: gzip; default: the useCompression preference; warnings say when the format doesn't read compress, version, preview or precision given flat, or a key given in options), version?: 4 (3, 2 or 1: for older VectorCraft versions; 1 and 2 are never compressed), preview?: false (embed a PNG of the first artboard, at most 256 px), precision?: 0..9 (native: round path anchors and handles to this many decimal places, a smaller file; colors, transforms and type stay exact; default: exact, and a later save without it writes exactly again), separateArtboards?: false (native and .ai: also save each artboard of `range` to <name>-<artboard>.<ext> beside the file, holding that artboard and the art touching it; the result's files lists every file written), range?: \"1-3, 5\"|\"all\" (default; with separateArtboards), includeLinked?: false (keep linked files' own pixels, not just their previews; they stay linked), embedProfiles?: true (carry the ICC profiles loaded from files that the document is tagged with; opening the file installs them where missing), pdfCompatible?: true (native: also carry a PDF of every artboard; false omits it) | true for .ai (false: blank pages, only the native document; a .ai file's compress, default true, is its compression.compressText), modified?: Unix seconds|null (the File Info modified date, and created date when there is none, a save to a file stamps; default now, recorded in the journal so a replay matches; null: leave the dates)} → {path, format, bytes, warnings, files?: [path…] (the file and its artboards' files), linked?: [path…] (images an SVG links to)}. Save writes one artboard, except a .ai file: a PDF-compatible file of every artboard carrying the native document (preserveEditing always on; PDF options flat or in options), which document.open restores exactly, on the active artboard (the app's, else the one the document opened on; with editingData: false, the first); separateArtboards writes more files, one per artboard. EPS saves the chosen artboard (first by default), retaining its page margins and the whole editable document; its PostScript appearance flattens transparency, as EPS requires. Without a path it writes the document's own file in its own format: a document opened from or saved as SVG/PDF/EPS saves as that again (warnings name what the format loses). No path known (never saved, converted from an older version, restored by Data Recovery, or another format) → {dataBase64, format, name, folder?, warnings} and the document stays modified. A key that no save format takes, beside the path or in options, and an unknown key inside a PDF option's object or svg, are refused",
             has_doc,
             |s, p| save(s, SaveMode::Save, p)
         ),
@@ -537,7 +1113,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save As…",
             ["File"],
             Some("Cmd+Shift+S"),
-            "{path?, format?: vectorcraft|template|pdf|svg|svgz|ai (default: the path's extension, else the document's own), options?, svg?, modified? (as document.save)} the document takes on the new path, name and format (except a template, which is always a copy) → {path, format, bytes, warnings}; no path → {dataBase64, format, name, folder?, warnings}",
+            "{…as document.save} {path?, format?: vectorcraft|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own; ait, a .ait template, is written by file.saveAsTemplate), options?, svg?, precision?, modified?} the document takes on the new path, name and format (except a template, which is always a copy) → {path, format, bytes, warnings}; no path → {dataBase64, format, name, folder?, warnings}",
             has_doc,
             |s, p| save(s, SaveMode::SaveAs, p)
         ),
@@ -546,7 +1122,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save a Copy…",
             ["File"],
             Some("Cmd+Alt+S"),
-            "{path?, format?, options?} (as file.saveAs) write a copy; the document keeps its path, title and modified state → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> copy.<ext>\", folder?, warnings}",
+            "{…as document.save} {path?, format?, options?, precision?} write a copy; the document keeps its path, title and modified state → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> copy.<ext>\", folder?, warnings}",
             has_doc,
             |s, p| save(s, SaveMode::Copy, p)
         ),
@@ -555,7 +1131,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save as Template…",
             ["File"],
             None,
-            "{path?, compress?, version?, preview? (as document.save)} a native template (.vctemplate) that opens as a new untitled document; the document is unchanged → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> template.vctemplate\", folder: the Templates folder (preference templatesFolder), warnings}",
+            "{…as document.save} {path? (saved with the format's extension: one naming another format is replaced, and one is added to a name without it), format?: template (default) | ait (also when format is not given and the path ends in .ait), compress?, version?, preview?, precision?} a template that opens as a new untitled document: a native template (.vctemplate), or a PDF-compatible .ait written as a .ai file is (the .ai options and the PDF options, as document.save takes them for .ai; aiVersion 7 is an error); the document is unchanged → {path, format, bytes, warnings}; no path → {dataBase64, format, name: \"<name> template.<ext>\", folder: the Templates folder (preference templatesFolder), warnings}",
             has_doc,
             |s, p| save(s, SaveMode::Template, p)
         ),
@@ -573,7 +1149,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Revert",
             ["File"],
             Some("F12"),
-            "{} discard the changes: reload the saved file into the same tab (history cleared; the tab keeps its place and view). Saved, modified documents only; if the file can't be read the document is left as it is → {path}. The app asks first (a confirm dialog) unless confirmed: true",
+            "{confirmed?: bool (the app's own: it asks first, then runs the command with it)} discard the changes: reload the saved file into the same tab (history cleared; the tab keeps its place and view). Saved, modified documents only; if the file can't be read the document is left as it is → {path}. The app asks first (a confirm dialog) unless confirmed: true",
             can_revert,
             revert
         ),
@@ -582,9 +1158,67 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Format Options",
             [],
             None,
-            "{format?: a writable format id (default: the document's own)} → {id, label, extensions, mime, read, write, raster, options: {name: {type, default, description, value}}, saveFormats: [{id, label, extensions}]}; value = the document's option as last saved in that format, else the default",
+            "{format?: a writable format id or ait (default: the document's own)} → {id, label, extensions, mime, read, write, raster, options: {name: {type, default, description, value}}, saveFormats: [{id, label, extensions}]}; value = the document's option as last saved in that format, else (native, for a document not yet saved as one) as the last native save used it, else the default",
             always,
             format_options
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests_folders {
+    use std::path::{Path, PathBuf};
+
+    /// #703: the documents folder a desktop names in `user-dirs.dirs`, not an English `Documents`.
+    #[test]
+    fn the_desktops_documents_folder_is_read_from_user_dirs() {
+        let home = Path::new("/home/david");
+        let file = "# comment\nXDG_DESKTOP_DIR=\"$HOME/Scrivania\"\nXDG_DOCUMENTS_DIR=\"$HOME/Documenti\"\n";
+        assert_eq!(super::xdg_documents(file, home), Some(PathBuf::from("/home/david/Documenti")));
+        assert_eq!(super::xdg_documents("XDG_DOCUMENTS_DIR=\"/data/docs\"", home), Some(PathBuf::from("/data/docs")));
+        // "$HOME/" turns it off; a relative or missing one isn't used.
+        assert_eq!(super::xdg_documents("XDG_DOCUMENTS_DIR=\"$HOME/\"", home), None);
+        assert_eq!(super::xdg_documents("XDG_DOCUMENTS_DIR=\"docs\"", home), None);
+        assert_eq!(super::xdg_documents("XDG_MUSIC_DIR=\"$HOME/Musica\"", home), None);
+    }
+
+    /// #4122: File → Open starts in the folder of the last opened file.
+    #[test]
+    fn dialog_folder_is_the_nearest_existing_parent() {
+        let base = std::env::temp_dir().join(format!("vc-open-folder-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let file = base.join("poster.svg");
+        assert_eq!(super::dialog_folder(&file.to_string_lossy()).map(PathBuf::from), Some(base.clone()));
+        let missing = base.join("gone").join("card.ai");
+        assert_eq!(super::dialog_folder(&missing.to_string_lossy()).map(PathBuf::from), Some(base.clone()));
+        assert!(super::dialog_folder("poster.svg").is_none());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// #703: the Templates folder a dialog starts in exists: made when missing, else the nearest
+    /// folder above it.
+    #[test]
+    fn the_templates_dialog_folder_exists() {
+        let base = std::env::temp_dir().join(format!("vc-templates-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let mut prefs = crate::Prefs::default();
+        let wanted = base.join("Modelli").join("VectorCraft Templates");
+        prefs.templates_folder = wanted.to_string_lossy().into_owned();
+        assert_eq!(super::templates_dialog_folder(&prefs).map(PathBuf::from), Some(wanted.clone()));
+        assert!(wanted.is_dir(), "made");
+        // A file in the way: the nearest folder that exists.
+        std::fs::write(base.join("blocked"), b"x").unwrap();
+        prefs.templates_folder = base.join("blocked").join("Templates").to_string_lossy().into_owned();
+        assert_eq!(super::templates_dialog_folder(&prefs).map(PathBuf::from), Some(base.clone()));
+        // Automation that may not write there makes no folder.
+        let outside = base.join("Outside").join("Templates");
+        prefs.templates_folder = outside.to_string_lossy().into_owned();
+        std::fs::create_dir_all(base.join("Allowed")).unwrap();
+        let roots = crate::file_access::AutomationRoots::new(&[&base], &[&base.join("Allowed")]).unwrap().unwrap();
+        crate::file_access::confine(Some(&roots), || super::templates_dialog_folder(&prefs));
+        assert!(!outside.exists(), "not made");
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }

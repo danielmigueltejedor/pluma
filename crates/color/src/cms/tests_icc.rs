@@ -22,7 +22,8 @@ fn cmyk_profiles_convert_like_the_cms() {
         assert_eq!(parse(&bytes).color_space, moxcms::DataColorSpace::Cmyk);
         let p = IccProfile::from_bytes(None, &bytes).unwrap();
         assert_eq!((p.name.as_str(), p.kind), (name, ProfileKind::Cmyk));
-        let cms = Cms::new(&ColorSettings { cmyk: name.into(), ..Default::default() }).unwrap();
+        // The encoded profile converts without black-point compensation, so compare without it.
+        let cms = Cms::new(&ColorSettings { cmyk: name.into(), bpc: false, ..Default::default() }).unwrap();
         for cmyk in [[0.0; 4], [1.0, 0.0, 0.0, 0.0], [0.2, 0.7, 0.1, 0.3], [0.0, 0.0, 0.0, 1.0], [0.5, 0.5, 0.5, 0.0]] {
             let want = cms.cmyk_to_srgb(cmyk, false);
             let got = p.to_srgb(&cmyk, Intent::RelativeColorimetric).unwrap();
@@ -59,4 +60,195 @@ fn a_loaded_profile_is_embedded_as_loaded() {
     bytes[100] = 7;
     register_icc(&bytes, Some("Embedded As Loaded RGB".into())).unwrap();
     assert_eq!(&*icc_bytes("Embedded As Loaded RGB").unwrap(), &bytes[..]);
+}
+
+/// Settings with an ICC CMYK profile (Generic CMYK's, loaded as a file is) and Wide Gamut RGB.
+fn icc_cmyk(bpc: bool) -> Cms {
+    let name = register_icc(&icc_bytes(GENERIC_CMYK).unwrap(), Some("Test ICC CMYK".into())).unwrap().name;
+    Cms::new(&ColorSettings { rgb: WIDE_GAMUT_RGB.into(), cmyk: name, bpc, ..ColorSettings::default() }).unwrap()
+}
+
+#[test]
+fn icc_cmyk_converts_into_a_wide_rgb_space_directly_without_clipping_to_srgb() {
+    let wide = icc_cmyk(true);
+    let cyan = [1.0, 0.0, 0.0, 0.0];
+    let direct = wide.cmyk_to_rgb(cyan, Intent::RelativeColorimetric);
+    // Through sRGB, cyan clips to sRGB's gamut first: in the wider space that reads as a red
+    // channel well above zero.
+    let hub = wide.srgb_to_rgb(wide.cmyk_to_srgb(cyan, false));
+    assert!(direct[0] + 0.15 < hub[0], "direct {direct:?}, through sRGB {hub:?}");
+    // Same colour either way where sRGB holds it: a mid grey and paper white.
+    for inks in [[0.0, 0.0, 0.0, 0.5], [0.0; 4]] {
+        let (d, h) = (wide.cmyk_to_rgb(inks, Intent::RelativeColorimetric), wide.srgb_to_rgb(wide.cmyk_to_srgb(inks, false)));
+        assert!(d.iter().zip(h).all(|(a, b)| (a - b).abs() < 0.02), "{inks:?}: direct {d:?}, through sRGB {h:?}");
+    }
+    // Cms::convert takes the direct route for CMYK.
+    let Color::Rgb { r, .. } = wide.convert(&Color::Cmyk { c: 1.0, m: 0.0, y: 0.0, k: 0.0 }, Model::Rgb, Intent::RelativeColorimetric) else {
+        panic!("RGB")
+    };
+    assert!((r - direct[0]).abs() < 1e-6);
+}
+
+#[test]
+fn black_point_compensation_maps_the_darkest_ink_to_rgb_black() {
+    let rich = [0.75, 0.68, 0.67, 0.9];
+    let (on, off) = (icc_cmyk(true).cmyk_to_rgb(rich, Intent::RelativeColorimetric), icc_cmyk(false).cmyk_to_rgb(rich, Intent::RelativeColorimetric));
+    // Without compensation the profile's black is a dark grey; with it, rich black goes most of
+    // the way to RGB black (not all: it isn't quite the darkest ink the profile prints).
+    assert!(off.iter().all(|v| *v > 0.1), "without: {off:?}");
+    assert!(on.iter().zip(off).all(|(a, b)| *a < 0.08 && *a < b * 0.5), "with: {on:?}, without: {off:?}");
+    // The screen shows what an sRGB conversion writes, compensated alike.
+    let srgb = |bpc| {
+        let c = icc_cmyk(bpc);
+        Cms::new(&ColorSettings { rgb: SRGB.into(), ..c.settings().clone() }).unwrap()
+    };
+    for bpc in [true, false] {
+        let c = srgb(bpc);
+        assert_eq!(c.cmyk_to_srgb(rich, false), c.cmyk_to_rgb(rich, Intent::RelativeColorimetric), "bpc {bpc}");
+    }
+    // White is untouched, and absolute colorimetric never compensates.
+    let white = icc_cmyk(true).cmyk_to_rgb([0.0; 4], Intent::RelativeColorimetric);
+    assert!(white.iter().all(|v| *v > 0.99), "{white:?}");
+    let abs = |bpc| icc_cmyk(bpc).cmyk_to_rgb(rich, Intent::AbsoluteColorimetric);
+    assert_eq!(abs(true), abs(false));
+}
+
+/// #1584: every built-in profile (RGB, CMYK and gray) has each tag on a 4-byte boundary and a size
+/// that is a multiple of 4 (ICC.1 §7.1.2), and still reads back as the same space.
+#[test]
+fn builtin_profiles_align_their_sizes_and_tags() {
+    for name in BUILTIN_RGB.into_iter().chain(BUILTIN_CMYK).chain([GRAY]) {
+        let icc = super::icc_bytes(name).unwrap();
+        let be = |at: usize| u32::from_be_bytes([icc[at], icc[at + 1], icc[at + 2], icc[at + 3]]) as usize;
+        assert_eq!(be(0), icc.len(), "{name}: header size");
+        assert_eq!(icc.len() % 4, 0, "{name}: {} bytes", icc.len());
+        let n = be(128);
+        for i in 0..n {
+            let (off, size) = (be(132 + 12 * i + 4), be(132 + 12 * i + 8));
+            assert_eq!(off % 4, 0, "{name}: tag {i} at {off}");
+            assert!(off + size <= icc.len());
+        }
+        let back = moxcms::ColorProfile::new_from_slice(&icc).unwrap();
+        let orig = moxcms::ColorProfile::new_srgb();
+        if name == super::SRGB {
+            assert_eq!((back.red_colorant, back.green_colorant, back.blue_colorant), (orig.red_colorant, orig.green_colorant, orig.blue_colorant));
+        }
+    }
+}
+
+/// #2707: the CMYK profiles written here carry every tag ICC.1 requires of an output profile (the
+/// tables of all three intents and the gamut tag): Windows rejects one without them, and Photos
+/// then can't show a CMYK TIFF that embeds it.
+#[test]
+fn cmyk_profiles_have_the_tags_of_an_output_profile() {
+    for name in BUILTIN_CMYK {
+        let icc = icc_bytes(name).unwrap();
+        let be = |at: usize| u32::from_be_bytes([icc[at], icc[at + 1], icc[at + 2], icc[at + 3]]) as usize;
+        let tags: Vec<&[u8]> = (0..be(128)).map(|i| &icc[132 + 12 * i..136 + 12 * i]).collect();
+        for want in [b"desc", b"cprt", b"wtpt", b"A2B0", b"A2B1", b"A2B2", b"B2A0", b"B2A1", b"B2A2", b"gamt"] {
+            assert!(tags.contains(&&want[..]), "{name}: no {}", String::from_utf8_lossy(want));
+        }
+        let p = parse(&icc);
+        assert!(p.lut_a_to_b_saturation.is_some() && p.lut_b_to_a_saturation.is_some() && p.gamut.is_some(), "{name}");
+    }
+}
+
+/// A profile whose localized-name records all point at one long string is refused before moxcms
+/// copies each of them; a few short names pass.
+#[test]
+fn aliased_localized_names_are_refused() {
+    let profile = |records: u32, length: u32| {
+        let mut b = vec![0u8; 128];
+        b.extend(1u32.to_be_bytes());
+        let tag_at = 128 + 4 + 12;
+        let size = 16 + 12 * records + length;
+        b.extend(b"desc");
+        b.extend((tag_at as u32).to_be_bytes());
+        b.extend(size.to_be_bytes());
+        b.extend(b"mluc");
+        b.extend([0; 4]);
+        b.extend(records.to_be_bytes());
+        b.extend(12u32.to_be_bytes());
+        for _ in 0..records {
+            b.extend(b"enUS");
+            b.extend(length.to_be_bytes());
+            b.extend((16 + 12 * records).to_be_bytes());
+        }
+        b.extend(vec![0u8; length as usize]);
+        b
+    };
+    assert!(super::icc::localized_text_fits(&profile(3, 64)));
+    assert!(!super::icc::localized_text_fits(&profile(4096, 64 << 10)));
+}
+
+/// A tag table that lists one tag many times, every entry pointing at the same long text, is
+/// refused before moxcms decodes the text once per entry; distinct tags pass.
+#[test]
+fn repeated_tags_are_refused() {
+    let profile = |sigs: &[&[u8; 4]], text: usize| {
+        let mut b = vec![0u8; 128];
+        b.extend((sigs.len() as u32).to_be_bytes());
+        let tag_at = 128 + 4 + 12 * sigs.len();
+        let size = 8 + text;
+        for sig in sigs {
+            b.extend(*sig);
+            b.extend((tag_at as u32).to_be_bytes());
+            b.extend((size as u32).to_be_bytes());
+        }
+        b.extend(b"text");
+        b.extend([0; 4]);
+        b.extend(vec![b'a'; text]);
+        b
+    };
+    assert_eq!(super::icc::repeated_tag(&profile(&[b"desc", b"cprt", b"dmdd"], 64)), None);
+    let many: Vec<&[u8; 4]> = std::iter::repeat_n(b"desc", 4096).collect();
+    let bytes = profile(&many, 256 << 10);
+    assert_eq!(super::icc::repeated_tag(&bytes), Some(u32::from_be_bytes(*b"desc")));
+    assert!(matches!(super::icc::IccProfile::from_bytes(None, &bytes), Err(super::CmsError::BadProfile(_))));
+}
+
+/// Reloading an RGB profile under the name it had (a new file for "My RGB") changes what CMYK
+/// converts to in it: the direct CMYK → RGB transform isn't kept from the old file.
+#[test]
+fn a_reloaded_rgb_profile_replaces_the_direct_cmyk_transform_into_it() {
+    let cmyk = register_icc(&icc_bytes(GENERIC_CMYK).unwrap(), Some("Reload Test CMYK".into())).unwrap().name;
+    let rgb = "Reload Test RGB";
+    let cyan = [1.0, 0.0, 0.0, 0.0];
+    let convert = || {
+        let cms = Cms::new(&ColorSettings { rgb: rgb.into(), cmyk: cmyk.clone(), ..ColorSettings::default() }).unwrap();
+        cms.cmyk_to_rgb(cyan, Intent::RelativeColorimetric)
+    };
+    register_icc(&icc::builtin_rgb_bytes(SRGB).unwrap(), Some(rgb.into())).unwrap();
+    let in_srgb = convert();
+    register_icc(&icc::builtin_rgb_bytes(PROPHOTO_RGB).unwrap(), Some(rgb.into())).unwrap();
+    let in_prophoto = convert();
+    // What a CMYK profile loaded afresh gives in the new file.
+    let fresh = register_icc(&icc_bytes(GENERIC_CMYK).unwrap(), Some("Reload Test CMYK 2".into())).unwrap().name;
+    let want = Cms::new(&ColorSettings { rgb: rgb.into(), cmyk: fresh, ..ColorSettings::default() })
+        .unwrap()
+        .cmyk_to_rgb(cyan, Intent::RelativeColorimetric);
+    assert!(in_srgb.iter().zip(want).any(|(a, b)| (a - b).abs() > 0.05), "sRGB {in_srgb:?} vs ProPhoto {want:?}");
+    assert!(in_prophoto.iter().zip(want).all(|(a, b)| (a - b).abs() < 1e-4), "after the reload {in_prophoto:?}, want {want:?}");
+}
+
+/// The app loads a profile and only then switches to the new settings, so the working spaces
+/// built before the reload keep converting in between: a CMYK color they convert after it doesn't
+/// leave the old RGB file's transform for the settings built afterwards.
+#[test]
+fn settings_built_before_a_reload_dont_leave_the_old_transform_to_the_new_ones() {
+    let cmyk = register_icc(&icc_bytes(GENERIC_CMYK).unwrap(), Some("Stale Test CMYK".into())).unwrap().name;
+    let rgb = "Stale Test RGB";
+    let cyan = [1.0, 0.0, 0.0, 0.0];
+    let settings = ColorSettings { rgb: rgb.into(), cmyk: cmyk.clone(), ..ColorSettings::default() };
+    register_icc(&icc::builtin_rgb_bytes(SRGB).unwrap(), Some(rgb.into())).unwrap();
+    let old = Cms::new(&settings).unwrap();
+    let in_srgb = old.cmyk_to_rgb(cyan, Intent::RelativeColorimetric);
+    register_icc(&icc::builtin_rgb_bytes(PROPHOTO_RGB).unwrap(), Some(rgb.into())).unwrap();
+    assert_eq!(old.cmyk_to_rgb(cyan, Intent::RelativeColorimetric), in_srgb, "the old settings keep the old file");
+    let in_prophoto = Cms::new(&settings).unwrap().cmyk_to_rgb(cyan, Intent::RelativeColorimetric);
+    // What a CMYK profile loaded afresh gives in the new file.
+    let fresh = register_icc(&icc_bytes(GENERIC_CMYK).unwrap(), Some("Stale Test CMYK 2".into())).unwrap().name;
+    let want = Cms::new(&ColorSettings { cmyk: fresh, ..settings }).unwrap().cmyk_to_rgb(cyan, Intent::RelativeColorimetric);
+    assert!(in_srgb.iter().zip(want).any(|(a, b)| (a - b).abs() > 0.05), "sRGB {in_srgb:?} vs ProPhoto {want:?}");
+    assert!(in_prophoto.iter().zip(want).all(|(a, b)| (a - b).abs() < 1e-4), "after the reload {in_prophoto:?}, want {want:?}");
 }

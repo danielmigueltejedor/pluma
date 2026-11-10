@@ -1,14 +1,29 @@
-//! The plug-in manifest (`vc_manifest`) and parameter schema.
+//! The plug-in manifest (`vc_manifest`) and parameter schema: what each parameter holds
+//! ([`ParamSpec`]) and how dialogs show it ([`ParamUi`], in [`crate::dialog`]).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
+use crate::dialog::ParamUi;
+use crate::permissions::{self, API_LEVEL, INPUTS_API, PROGRESS_API, Permission};
 use crate::{Error, Result};
 
 /// Longest manifest the host reads.
 pub const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 /// Most parameters a plug-in may declare.
-pub const MAX_PARAMS: usize = 64;
+pub const MAX_PARAMS: usize = 256;
+/// Most parameters outside groups (`group`): a dialog of more is sorted into sections.
+pub const MAX_UNGROUPED: usize = 64;
+/// Longest text a `string` parameter may hold, in characters.
+pub const MAX_TEXT: usize = 4_096;
+/// Most numbers a `numberList` parameter may hold.
+pub const MAX_LIST: usize = 256;
+/// Most file extensions an exporter or an importer may declare.
+pub const MAX_EXTENSIONS: usize = 8;
+/// Most menu commands a plug-in may add (`commands`).
+pub const MAX_COMMANDS: usize = 32;
+/// Longest command id, in characters.
+pub const MAX_COMMAND_ID: usize = 32;
 
 /// What a plug-in is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,6 +35,12 @@ pub enum Kind {
     /// A live effect: rewrites one object's geometry each time it is drawn, from its appearance
     /// stack (Effect › Plug-ins, `effect.apply`).
     Effect,
+    /// An exporter: writes the document in a file format of its own, whose extensions the manifest
+    /// lists (File › Export › Export As, `document.export`; see [`crate::export`]).
+    Exporter,
+    /// An importer: reads a file in a format of its own, whose extensions the manifest lists, into
+    /// a new document (File › Open, `document.open`; see [`crate::import`]).
+    Importer,
 }
 
 impl Kind {
@@ -27,7 +48,63 @@ impl Kind {
         match self {
             Kind::Filter => "filter",
             Kind::Effect => "effect",
+            Kind::Exporter => "exporter",
+            Kind::Importer => "importer",
         }
+    }
+}
+
+/// A kind of object a filter may ask to be given besides paths and compound paths (its manifest's
+/// `inputs`, plug-in API level 2). The filter reads these objects and returns each one as it was
+/// given: it can't change or delete them ([`crate::objects::decode_output_with`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum InputKind {
+    /// Point, area and path type: its text runs with their character attributes, and its
+    /// paragraph attributes.
+    Type,
+    /// An embedded or linked image: its size, color mode and, when small, its pixels.
+    Image,
+    /// A symbol instance: the symbol it shows and its transform.
+    SymbolInstance,
+}
+
+impl InputKind {
+    /// Every kind, in the order the docs list them.
+    pub const ALL: [InputKind; 3] = [InputKind::Type, InputKind::Image, InputKind::SymbolInstance];
+
+    /// Its name in `inputs`, which is also the `type` of such an object in a filter's input.
+    pub fn name(self) -> &'static str {
+        match self {
+            InputKind::Type => "type",
+            InputKind::Image => "image",
+            InputKind::SymbolInstance => "symbolInstance",
+        }
+    }
+
+    /// The kind named `name`.
+    pub fn parse(name: &str) -> Option<InputKind> {
+        InputKind::ALL.into_iter().find(|k| k.name() == name)
+    }
+}
+
+/// How much one run of a plug-in may compute.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Budget {
+    /// The usual budget ([`crate::Limits::default`]).
+    #[default]
+    Light,
+    /// A filter's larger budget for heavy but legitimate work (routing, packing, simulation):
+    /// [`crate::HEAVY_FUEL`] instructions and [`crate::HEAVY_WALL_TIME_MS`]. The
+    /// user allows it once, when the plug-in is installed, and the app runs it in the background
+    /// with Cancel.
+    Heavy,
+}
+
+impl Budget {
+    /// The usual budget, which a manifest written back leaves out (`skip_serializing_if`).
+    fn is_light(&self) -> bool {
+        *self == Budget::Light
     }
 }
 
@@ -57,6 +134,54 @@ pub enum ParamSpec {
         #[serde(default)]
         default: Option<String>,
     },
+    /// Text of at most `max_length` characters (a text field).
+    #[serde(rename = "string")]
+    Text {
+        #[serde(default)]
+        default: String,
+        #[serde(default = "text_max", rename = "maxLength")]
+        max_length: usize,
+    },
+    /// `min_items` to `max_items` numbers, each in `min..=max` (a field of numbers separated by
+    /// commas or spaces).
+    #[serde(rename_all = "camelCase")]
+    NumberList {
+        min: f64,
+        max: f64,
+        #[serde(default)]
+        default: Vec<f64>,
+        #[serde(default)]
+        min_items: usize,
+        #[serde(default = "list_max")]
+        max_items: usize,
+    },
+    /// A color (a color button that opens a color picker). Its default, and a value passed to
+    /// `plugin.run`, is a color object as paints hold one (`{"model": "rgb", "r", "g", "b"}`, or
+    /// `cmyk`, `gray`, `lab`) or a hex string (`"#3a7bd5"`); the plug-in always gets a color object.
+    Color {
+        /// As the manifest gives it (`null`: black), read with [`color_value`] when used, so a hex
+        /// default follows the working RGB space in use then, not the one at install.
+        #[serde(default)]
+        default: Value,
+    },
+}
+
+/// A color parameter's value: a color object, or a hex string (display sRGB, converted into the
+/// active working RGB space as the color picker's choices are), its components clamped into range.
+pub fn color_value(v: &Value) -> Option<vectorcraft_color::Color> {
+    use vectorcraft_color::{Color, cms};
+    let c = match v {
+        Value::String(s) => match Color::from_hex(s)? {
+            Color::Rgb { r, g, b } => {
+                let [r, g, b] = cms::active().srgb_to_rgb([r, g, b]);
+                Color::rgb(r, g, b)
+            }
+            other => other,
+        },
+        Value::Object(_) => serde_json::from_value(v.clone()).ok()?,
+        _ => return None,
+    };
+    Some(crate::objects::clamp_color(c))
 }
 
 fn int_min() -> i64 {
@@ -65,15 +190,105 @@ fn int_min() -> i64 {
 fn int_max() -> i64 {
     1_000_000
 }
+fn text_max() -> usize {
+    256
+}
+fn list_max() -> usize {
+    16
+}
+fn first_api() -> u32 {
+    1
+}
+fn is_first_api(api: &u32) -> bool {
+    *api == 1
+}
+
+/// One declared parameter: what it holds, and how dialogs show it. In the manifest both are keys of
+/// the same object: `{"type": "number", "min": 0, "max": 10, "default": 1, "unit": "mm"}`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Param {
+    #[serde(flatten)]
+    pub spec: ParamSpec,
+    #[serde(flatten)]
+    pub ui: ParamUi,
+}
+
+/// A menu command a plug-in adds (`commands`): the host lists it under Object › Plug-ins › the
+/// plug-in's name (Effect › Plug-ins for a live effect's), runs it as the command
+/// `plugin.<plug-in id>.<id>`, and calls the plug-in's `vc_run` with `_context.command` set to
+/// `id` and the parameters it declares.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Command {
+    /// `[a-z][a-z0-9_]*`, at most [`MAX_COMMAND_ID`] characters, unique within the manifest.
+    pub id: String,
+    /// The menu label: 1 to 64 printable characters, shown with bidirectional characters escaped
+    /// ([`crate::permissions::display_text`]).
+    pub label: String,
+    /// Parameters in declaration (dialog) order, declared as the manifest's own are.
+    #[serde(default, deserialize_with = "ordered_params", serialize_with = "params_as_object")]
+    pub params: Vec<(String, Param)>,
+}
+
+impl Command {
+    /// The label as menus and errors show it: control and bidirectional characters escaped, at
+    /// most [`crate::permissions::MAX_SHOWN_NAME`] characters.
+    pub fn shown_label(&self) -> String {
+        crate::permissions::display_text(self.label.trim(), crate::permissions::MAX_SHOWN_NAME)
+    }
+}
+
+impl From<ParamSpec> for Param {
+    fn from(spec: ParamSpec) -> Self {
+        Param { spec, ui: ParamUi::default() }
+    }
+}
 
 impl ParamSpec {
-    /// The value a parameter takes when it isn't given.
+    /// The value a parameter takes when it isn't given (numeric defaults clamped into range).
     pub fn default_value(&self) -> Value {
         match self {
-            ParamSpec::Number { default, .. } => json!(default),
-            ParamSpec::Int { default, .. } => json!(default),
+            ParamSpec::Number { min, max, default } => json!(default.clamp(*min, *max)),
+            ParamSpec::Int { min, max, default } => json!((*default).clamp(*min, *max)),
             ParamSpec::Bool { default } => json!(default),
             ParamSpec::Choice { options, default } => json!(default.clone().or_else(|| options.first().cloned()).unwrap_or_default()),
+            ParamSpec::Text { default, max_length } => json!(default.chars().take(*max_length).collect::<String>()),
+            ParamSpec::NumberList { min, max, default, .. } => json!(default.iter().map(|x| x.clamp(*min, *max)).collect::<Vec<f64>>()),
+            ParamSpec::Color { default } => serde_json::to_value(color_value(default).unwrap_or_default()).unwrap_or_default(),
+        }
+    }
+
+    /// Checks the spec of parameter `k`.
+    fn validate(&self, k: &str) -> Result<()> {
+        let bad = |what: &str| Err(Error::Manifest(format!("parameter `{k}`: {what}")));
+        match self {
+            ParamSpec::Number { min, max, default } if !(min.is_finite() && max.is_finite() && default.is_finite()) || min > max => bad("bad range"),
+            ParamSpec::Int { min, max, .. } if min > max => bad("bad range"),
+            ParamSpec::Choice { options, default } => {
+                if options.is_empty() || options.len() > 64 || options.iter().any(|o| o.is_empty() || o.len() > 64 || o.chars().any(char::is_control))
+                {
+                    return bad("choices must be 1-64 non-empty, printable strings");
+                }
+                if default.as_ref().is_some_and(|d| !options.contains(d)) {
+                    return bad("default is not one of the options");
+                }
+                Ok(())
+            }
+            ParamSpec::Color { default } if !default.is_null() && color_value(default).is_none() => {
+                bad("a color default must be a color object or a hex string such as \"#3a7bd5\"")
+            }
+            ParamSpec::Text { default, max_length } if !(1..=MAX_TEXT).contains(max_length) || default.chars().count() > *max_length => {
+                bad(&format!("`maxLength` must be 1-{MAX_TEXT}, and the default no longer"))
+            }
+            ParamSpec::NumberList { min, max, default, min_items, max_items } => {
+                if !(min.is_finite() && max.is_finite()) || min > max || default.iter().any(|x| !x.is_finite()) {
+                    return bad("bad range");
+                }
+                if !(1..=MAX_LIST).contains(max_items) || min_items > max_items || !(*min_items..=*max_items).contains(&default.len()) {
+                    return bad(&format!("`minItems` and `maxItems` must be 0-{MAX_LIST}, `maxItems` at least 1, and the default that many"));
+                }
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 }
@@ -93,9 +308,35 @@ pub struct Manifest {
     pub description: String,
     #[serde(default)]
     pub author: String,
+    /// The plug-in API level it was built for, 1 to [`API_LEVEL`] (1 when left out).
+    #[serde(default = "first_api", skip_serializing_if = "is_first_api")]
+    pub api: u32,
+    /// The permissions it asks for ([`crate::permissions`]), which the user approves when it is
+    /// installed. Left out, it gets the ones its kind implies ([`Permission::implied`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Vec<String>>,
+    /// The kinds of object a filter asks to be given besides paths and compound paths, by
+    /// [`InputKind::name`]: only a filter at `api` 2 or later whose `permissions` list `doc.read`
+    /// lists them. Left out or empty, it is given paths and compound paths alone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty", deserialize_with = "input_names")]
+    pub inputs: Vec<String>,
     /// Parameters in declaration (dialog) order; a JSON object `{"name": spec, …}` in the manifest.
     #[serde(default, deserialize_with = "ordered_params", serialize_with = "params_as_object")]
-    pub params: Vec<(String, ParamSpec)>,
+    pub params: Vec<(String, Param)>,
+    /// An exporter's or an importer's file extensions, lower case and without the dot; the first is
+    /// the one an exporter's files get. Only exporters and importers declare them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<String>,
+    /// How much a run may compute: only a filter may be [`Budget::Heavy`].
+    #[serde(default, skip_serializing_if = "Budget::is_light")]
+    pub budget: Budget,
+    /// A live effect at `api` 2 that returns painted pieces ([`crate::painted`]): `true` when the
+    /// manifest has `"paintOutput": true`, the only value the key may hold.
+    #[serde(default, rename = "paintOutput", skip_serializing_if = "std::ops::Not::not")]
+    pub paint_output: bool,
+    /// The menu commands it adds, in menu order (a filter or a live effect only).
+    #[serde(default, deserialize_with = "ordered_commands", skip_serializing_if = "Vec::is_empty")]
+    pub commands: Vec<Command>,
 }
 
 impl Manifest {
@@ -105,6 +346,9 @@ impl Manifest {
             return Err(Error::Manifest(format!("manifest is {} bytes (limit {MAX_MANIFEST_BYTES})", bytes.len())));
         }
         let text = std::str::from_utf8(bytes).map_err(|_| Error::Manifest("manifest is not UTF-8".into()))?;
+        if serde_json::from_str::<Value>(text).is_ok_and(|v| v.get("paintOutput").is_some_and(|p| *p != Value::Bool(true))) {
+            return Err(Error::Manifest("`paintOutput` may only be true".into()));
+        }
         let man: Manifest = serde_json::from_str(text).map_err(|e| Error::Manifest(format!("manifest: {e}")))?;
         man.validate()?;
         Ok(man)
@@ -119,10 +363,30 @@ impl Manifest {
             kind: Kind::Filter,
             description: String::new(),
             author: String::new(),
+            api: 1,
+            permissions: None,
+            inputs: Vec::new(),
             params: Vec::new(),
+            extensions: Vec::new(),
+            budget: Budget::Light,
+            paint_output: false,
+            commands: Vec::new(),
         }
     }
 
+    /// The manifest command `c` runs with: this one with `c`'s label as its name and `c`'s
+    /// parameters as its own, so dialogs show them and [`Manifest::resolve_params`] checks them.
+    pub fn for_command(&self, c: &Command) -> Manifest {
+        Manifest { name: c.label.clone(), params: c.params.clone(), commands: Vec::new(), ..self.clone() }
+    }
+
+    /// The command with id `id`.
+    pub fn command(&self, id: &str) -> Option<&Command> {
+        self.commands.iter().find(|c| c.id == id)
+    }
+
+    /// Checks what the module declared: its id, name and text lengths, its extensions, a budget its
+    /// kind may have (only a filter may be heavy), and each parameter and its dialog layout.
     fn validate(&self) -> Result<()> {
         if !valid_id(&self.id) {
             return Err(Error::Manifest(format!("invalid id {:?}: use 1-64 characters from A-Z a-z 0-9 . _ -", self.id)));
@@ -134,29 +398,145 @@ impl Manifest {
         if self.version.len() > 32 || self.description.len() > 1024 || self.author.len() > 128 {
             return Err(Error::Manifest("`version`, `description` or `author` is too long".into()));
         }
-        for (k, spec) in &self.params {
+        if !(1..=API_LEVEL).contains(&self.api) {
+            return Err(Error::Manifest(format!("`api` is {}; this host implements plug-in API levels 1 to {API_LEVEL}", self.api)));
+        }
+        if let Some(names) = &self.permissions
+            && let Some(host) =
+                permissions::validate(self.kind, !self.commands.is_empty(), names)?.into_iter().find(|p| permissions::HOST.contains(p))
+            && self.api < PROGRESS_API
+        {
+            let permission = host.name();
+            return Err(Error::Manifest(format!("permission `{permission}` needs plug-in API level {PROGRESS_API}: give `api` {PROGRESS_API}")));
+        }
+        self.validate_inputs()?;
+        if self.paint_output && (self.kind != Kind::Effect || self.api < 2) {
+            return Err(Error::Manifest("`paintOutput` is only for a live effect (`kind` \"effect\") at `api` 2".into()));
+        }
+        self.validate_extensions()?;
+        match (self.budget, self.kind) {
+            (Budget::Light, _) | (Budget::Heavy, Kind::Filter) => {}
+            (Budget::Heavy, Kind::Effect) => {
+                return Err(Error::Manifest("a live effect runs while the document is drawn, so it can't be `heavy`".into()));
+            }
+            (Budget::Heavy, Kind::Exporter) => {
+                return Err(Error::Manifest("an exporter always gets an export's budget: leave `budget` out".into()));
+            }
+            (Budget::Heavy, Kind::Importer) => {
+                return Err(Error::Manifest("an importer always gets an import's budget: leave `budget` out".into()));
+            }
+        }
+        self.validate_params()?;
+        self.validate_commands()
+    }
+
+    /// Checks each parameter and its dialog layout.
+    fn validate_params(&self) -> Result<()> {
+        for (i, (k, p)) in self.params.iter().enumerate() {
             if !valid_key(k) {
                 return Err(Error::Manifest(format!("invalid parameter name {k:?}")));
             }
-            match spec {
-                ParamSpec::Number { min, max, default } => {
-                    if !(min.is_finite() && max.is_finite() && default.is_finite()) || min > max {
-                        return Err(Error::Manifest(format!("parameter `{k}`: bad range")));
-                    }
-                }
-                ParamSpec::Int { min, max, .. } if min > max => return Err(Error::Manifest(format!("parameter `{k}`: bad range"))),
-                ParamSpec::Choice { options, default } => {
-                    if options.is_empty()
-                        || options.len() > 64
-                        || options.iter().any(|o| o.is_empty() || o.len() > 64 || o.chars().any(char::is_control))
-                    {
-                        return Err(Error::Manifest(format!("parameter `{k}`: choices must be 1-64 non-empty, printable strings")));
-                    }
-                    if default.as_ref().is_some_and(|d| !options.contains(d)) {
-                        return Err(Error::Manifest(format!("parameter `{k}`: default is not one of the options")));
-                    }
-                }
-                _ => {}
+            p.spec.validate(k)?;
+            p.ui.validate(self, i, k)?;
+        }
+        if self.params.iter().filter(|(_, p)| p.ui.group.is_none()).count() > MAX_UNGROUPED {
+            return Err(Error::Manifest(format!("at most {MAX_UNGROUPED} parameters outside groups: give the others a `group`")));
+        }
+        Ok(())
+    }
+
+    /// `inputs` names each [`InputKind`] at most once, and only a filter at `api` 2 or later lists
+    /// any, with a `permissions` list that holds `doc.read`: installing it then asks the user to
+    /// grant them ([`Manifest::asks_permissions`]).
+    fn validate_inputs(&self) -> Result<()> {
+        if self.inputs.is_empty() {
+            return Ok(());
+        }
+        if self.kind != Kind::Filter {
+            return Err(Error::Manifest("only a filter declares `inputs`".into()));
+        }
+        for (i, name) in self.inputs.iter().enumerate() {
+            let shown = permissions::display_text(name, permissions::MAX_SHOWN_FIELD);
+            if InputKind::parse(name).is_none() {
+                return Err(Error::Manifest(format!("`inputs` names an unknown object kind `{shown}`: use type, image or symbolInstance")));
+            }
+            if self.inputs.get(..i).is_some_and(|before| before.contains(name)) {
+                return Err(Error::Manifest(format!("`inputs` lists `{shown}` twice")));
+            }
+        }
+        if self.api < INPUTS_API {
+            return Err(Error::Manifest("`inputs` needs `api` 2 or later".into()));
+        }
+        if !self.permissions.as_ref().is_some_and(|p| p.iter().any(|n| n == Permission::DocRead.name())) {
+            return Err(Error::Manifest("`inputs` needs the permission `doc.read`".into()));
+        }
+        Ok(())
+    }
+
+    /// A filter or a live effect lists at most [`MAX_COMMANDS`] commands, each with a distinct
+    /// id, a printable label and parameters declared as the manifest's own are. A heavy filter
+    /// lists none. The error names the command: its id, or its place in the list.
+    fn validate_commands(&self) -> Result<()> {
+        if self.commands.is_empty() {
+            return Ok(());
+        }
+        if matches!(self.kind, Kind::Exporter | Kind::Importer) {
+            return Err(Error::Manifest("only a filter or a live effect declares `commands`".into()));
+        }
+        if self.budget == Budget::Heavy {
+            return Err(Error::Manifest("a heavy filter runs in the background, so it can't declare `commands`".into()));
+        }
+        if self.commands.len() > MAX_COMMANDS {
+            return Err(Error::Manifest(format!("at most {MAX_COMMANDS} `commands`")));
+        }
+        for (i, c) in self.commands.iter().enumerate() {
+            let name = command_name(i, &c.id);
+            if !valid_command_id(&c.id) {
+                return Err(Error::Manifest(format!(
+                    "command {name}: use an id of 1-{MAX_COMMAND_ID} characters from a-z 0-9 _ that starts with a letter"
+                )));
+            }
+            let label = c.label.trim();
+            if label.is_empty() || label.chars().count() > 64 || label.chars().any(char::is_control) {
+                return Err(Error::Manifest(format!("command {name}: `label` must be 1-64 printable characters")));
+            }
+            if self.commands.get(..i).is_some_and(|before| before.iter().any(|b| b.id == c.id)) {
+                return Err(Error::Manifest(format!("command {name} is declared twice")));
+            }
+            self.for_command(c).validate_params().map_err(|e| {
+                let e = match e {
+                    Error::Manifest(why) => why,
+                    other => other.to_string(),
+                };
+                Error::Manifest(format!("command {name}: {e}"))
+            })?;
+        }
+        Ok(())
+    }
+
+    /// The kinds of object besides paths and compound paths it asks to be given (`inputs`).
+    pub fn input_kinds(&self) -> Vec<InputKind> {
+        self.inputs.iter().filter_map(|n| InputKind::parse(n)).collect()
+    }
+
+    /// An exporter or an importer lists 1 to [`MAX_EXTENSIONS`] distinct extensions of 1 to 16
+    /// lower-case letters and digits; other kinds list none.
+    fn validate_extensions(&self) -> Result<()> {
+        let exts = &self.extensions;
+        let count_ok = !exts.is_empty() && exts.len() <= MAX_EXTENSIONS;
+        match self.kind {
+            Kind::Exporter if !count_ok => return Err(Error::Manifest(format!("an exporter declares 1 to {MAX_EXTENSIONS} `extensions`"))),
+            Kind::Importer if !count_ok => return Err(Error::Manifest(format!("an importer declares 1 to {MAX_EXTENSIONS} `extensions`"))),
+            Kind::Exporter | Kind::Importer => {}
+            _ if exts.is_empty() => return Ok(()),
+            _ => return Err(Error::Manifest("only an exporter or an importer declares `extensions`".into())),
+        }
+        for (i, e) in exts.iter().enumerate() {
+            if !(1..=16).contains(&e.len()) || !e.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) {
+                return Err(Error::Manifest(format!("extension {e:?}: use 1-16 lower-case letters and digits, without the dot")));
+            }
+            if exts.get(..i).is_some_and(|before| before.contains(e)) {
+                return Err(Error::Manifest(format!("extension {e:?} is listed twice")));
             }
         }
         Ok(())
@@ -168,14 +548,19 @@ impl Manifest {
         let parts: Vec<String> = self
             .params
             .iter()
-            .map(|(k, spec)| match spec {
-                ParamSpec::Number { min, max, default } => format!("{k}: {min}..{max} ({default})"),
-                ParamSpec::Int { min, max, default } => format!("{k}: int {min}..{max} ({default})"),
+            .map(|(k, p)| match &p.spec {
+                ParamSpec::Number { min, max, default } => format!("{k}: {min}..{max} ({})", default.clamp(*min, *max)),
+                ParamSpec::Int { min, max, default } => format!("{k}: int {min}..{max} ({})", (*default).clamp(*min, *max)),
                 ParamSpec::Bool { default } => format!("{k}: bool ({default})"),
                 ParamSpec::Choice { options, .. } => {
                     let opts: Vec<String> = options.iter().map(|o| format!("{o:?}")).collect();
-                    format!("{k}: {} ({})", opts.join("|"), spec.default_value().as_str().unwrap_or_default())
+                    format!("{k}: {} ({})", opts.join("|"), p.spec.default_value().as_str().unwrap_or_default())
                 }
+                ParamSpec::Text { max_length, .. } => format!("{k}: string of at most {max_length} ({})", p.spec.default_value()),
+                ParamSpec::NumberList { min, max, min_items, max_items, .. } => {
+                    format!("{k}: {min_items} to {max_items} numbers {min}..{max} ({})", p.spec.default_value())
+                }
+                ParamSpec::Color { default } => format!("{k}: color object or hex ({})", color_value(default).unwrap_or_default().to_hex()),
             })
             .collect();
         format!("{{{}}}", parts.join(", "))
@@ -183,7 +568,23 @@ impl Manifest {
 
     /// Every parameter at its default value.
     pub fn defaults(&self) -> Map<String, Value> {
-        self.params.iter().map(|(k, spec)| (k.clone(), spec.default_value())).collect()
+        self.params.iter().map(|(k, p)| (k.clone(), p.spec.default_value())).collect()
+    }
+
+    /// What the plug-in may do: the permissions it lists, else every one its kind may list
+    /// ([`Permission::allowed`]: a live effect with commands also changes the document and keeps
+    /// data with it).
+    pub fn permissions(&self) -> Vec<Permission> {
+        let commands = !self.commands.is_empty();
+        match &self.permissions {
+            Some(names) => permissions::validate(self.kind, commands, names).unwrap_or_default(),
+            None => Permission::allowed(self.kind, commands).to_vec(),
+        }
+    }
+
+    /// Does installing it need the user's approval: does it list permissions?
+    pub fn asks_permissions(&self) -> bool {
+        self.permissions.as_ref().is_some_and(|p| !p.is_empty())
     }
 
     /// Validates user `params` against the schema: missing keys take their defaults, numbers are
@@ -196,7 +597,8 @@ impl Manifest {
             _ => return Err(Error::Params("plug-in parameters must be a JSON object".into())),
         };
         let mut out = Map::new();
-        for (k, spec) in &self.params {
+        for (k, p) in &self.params {
+            let spec = &p.spec;
             let Some(v) = given.get(k).filter(|v| !v.is_null()) else {
                 out.insert(k.clone(), spec.default_value());
                 continue;
@@ -205,8 +607,17 @@ impl Manifest {
             let resolved = match spec {
                 ParamSpec::Number { min, max, .. } => json!(v.as_f64().filter(|f| f.is_finite()).ok_or_else(|| wrong("a number"))?.clamp(*min, *max)),
                 ParamSpec::Int { min, max, .. } => {
-                    let f = v.as_f64().filter(|f| f.is_finite()).ok_or_else(|| wrong("a number"))?;
-                    json!((f.round().clamp(*min as f64, *max as f64)) as i64)
+                    // Keep JSON integers exact: f64 cannot represent every i64 or its bounds.
+                    let value = if let Some(i) = v.as_i64() {
+                        i.clamp(*min, *max)
+                    } else if v.is_u64() {
+                        // Past i64::MAX, so past any maximum.
+                        *max
+                    } else {
+                        let f = v.as_f64().filter(|f| f.is_finite()).ok_or_else(|| wrong("a number"))?;
+                        (f.round() as i64).clamp(*min, *max)
+                    };
+                    json!(value)
                 }
                 ParamSpec::Bool { .. } => json!(v.as_bool().ok_or_else(|| wrong("true or false"))?),
                 ParamSpec::Choice { options, .. } => {
@@ -216,6 +627,21 @@ impl Manifest {
                     }
                     json!(s)
                 }
+                ParamSpec::Text { max_length, .. } => {
+                    json!(v.as_str().ok_or_else(|| wrong("a string"))?.chars().take(*max_length).collect::<String>())
+                }
+                ParamSpec::NumberList { min, max, min_items, max_items, .. } => {
+                    let items = v.as_array().ok_or_else(|| wrong("a list of numbers"))?;
+                    if !(*min_items..=*max_items).contains(&items.len()) {
+                        return Err(wrong(&format!("a list of {min_items} to {max_items} numbers")));
+                    }
+                    let numbers: Option<Vec<f64>> = items.iter().map(|x| x.as_f64().filter(|f| f.is_finite()).map(|f| f.clamp(*min, *max))).collect();
+                    json!(numbers.ok_or_else(|| wrong("a list of numbers"))?)
+                }
+                ParamSpec::Color { .. } => {
+                    let c = color_value(v).ok_or_else(|| wrong("a color object or a hex string such as \"#3a7bd5\""))?;
+                    serde_json::to_value(c).map_err(|e| Error::Params(format!("`{k}`: {e}")))?
+                }
             };
             out.insert(k.clone(), resolved);
         }
@@ -224,10 +650,10 @@ impl Manifest {
 }
 
 /// Reads the `params` object keeping its key order (serde_json's `Map` would sort it).
-fn ordered_params<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Vec<(String, ParamSpec)>, D::Error> {
+fn ordered_params<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Vec<(String, Param)>, D::Error> {
     struct V;
     impl<'de> serde::de::Visitor<'de> for V {
-        type Value = Vec<(String, ParamSpec)>;
+        type Value = Vec<(String, Param)>;
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             f.write_str("an object of parameter specs")
         }
@@ -235,8 +661,8 @@ fn ordered_params<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result
             Ok(Vec::new())
         }
         fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> std::result::Result<Self::Value, A::Error> {
-            let mut out: Vec<(String, ParamSpec)> = Vec::new();
-            while let Some((k, v)) = map.next_entry::<String, ParamSpec>()? {
+            let mut out: Vec<(String, Param)> = Vec::new();
+            while let Some((k, v)) = map.next_entry::<String, Param>()? {
                 if out.len() >= MAX_PARAMS {
                     return Err(serde::de::Error::custom(format!("too many parameters (limit {MAX_PARAMS})")));
                 }
@@ -251,7 +677,131 @@ fn ordered_params<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result
     d.deserialize_any(V)
 }
 
-fn params_as_object<S: serde::Serializer>(p: &[(String, ParamSpec)], s: S) -> std::result::Result<S::Ok, S::Error> {
+/// Reads `inputs`: a list of names (`null`: none). Anything else is an error that names the key, as
+/// [`Manifest::validate_inputs`] names a wrong entry.
+fn input_names<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Vec<String>, D::Error> {
+    let wrong = || serde::de::Error::custom("`inputs` must be a list of object kinds: type, image or symbolInstance");
+    match Value::deserialize(d)? {
+        Value::Null => Ok(Vec::new()),
+        Value::Array(names) => names.into_iter().map(|n| if let Value::String(s) = n { Ok(s) } else { Err(wrong()) }).collect(),
+        _ => Err(wrong()),
+    }
+}
+
+/// Reads the `commands` list one entry at a time from the manifest itself, so each command's
+/// `params` keep their declaration order and a repeated parameter is refused. A malformed entry
+/// is an error that names it (its id when the id comes before the fault, otherwise its place in
+/// the list), and a list is refused at its first entry past [`MAX_COMMANDS`].
+fn ordered_commands<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Vec<Command>, D::Error> {
+    use serde::de::{Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor};
+
+    /// A command's `params`, read in declaration order.
+    struct Params(Vec<(String, Param)>);
+    impl<'de> Deserialize<'de> for Params {
+        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+            ordered_params(d).map(Params)
+        }
+    }
+
+    /// The entry at place `.0` in the list.
+    struct Entry(usize);
+    impl<'de> serde::de::DeserializeSeed<'de> for Entry {
+        type Value = Command;
+        fn deserialize<D: serde::Deserializer<'de>>(self, d: D) -> std::result::Result<Command, D::Error> {
+            d.deserialize_any(self)
+        }
+    }
+    impl<'de> Visitor<'de> for Entry {
+        type Value = Command;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "command [{}] as {{id, label, params?}}", self.0)
+        }
+        fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> std::result::Result<Command, A::Error> {
+            let (mut id, mut label, mut params) = (None::<String>, None::<String>, None::<Params>);
+            let named = |id: &Option<String>, e: &dyn std::fmt::Display| {
+                A::Error::custom(format!("command {}: {e}", command_name(self.0, id.as_deref().unwrap_or_default())))
+            };
+            while let Some(key) = map.next_key::<String>().map_err(|e| named(&id, &e))? {
+                let repeated = match key.as_str() {
+                    "id" if id.is_none() => {
+                        id = Some(map.next_value().map_err(|e| named(&id, &e))?);
+                        false
+                    }
+                    "label" if label.is_none() => {
+                        label = Some(map.next_value().map_err(|e| named(&id, &e))?);
+                        false
+                    }
+                    "params" if params.is_none() => {
+                        params = Some(map.next_value().map_err(|e| named(&id, &e))?);
+                        false
+                    }
+                    "id" | "label" | "params" => true,
+                    _ => {
+                        map.next_value::<IgnoredAny>().map_err(|e| named(&id, &e))?;
+                        false
+                    }
+                };
+                if repeated {
+                    return Err(named(&id, &format_args!("duplicate field `{key}`")));
+                }
+            }
+            let Some(id) = id else {
+                return Err(named(&None, &"missing field `id`"));
+            };
+            let Some(label) = label else {
+                return Err(named(&Some(id), &"missing field `label`"));
+            };
+            Ok(Command { id, label, params: params.map(|p| p.0).unwrap_or_default() })
+        }
+    }
+
+    struct List;
+    impl<'de> Visitor<'de> for List {
+        type Value = Vec<Command>;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("`commands` as a list of {id, label, params?}")
+        }
+        fn visit_unit<E: serde::de::Error>(self) -> std::result::Result<Self::Value, E> {
+            Ok(Vec::new())
+        }
+        fn visit_map<A: MapAccess<'de>>(self, _: A) -> std::result::Result<Self::Value, A::Error> {
+            Err(A::Error::custom("`commands` must be a list of {id, label, params?}"))
+        }
+        fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error> {
+            let mut out = Vec::new();
+            while out.len() < MAX_COMMANDS {
+                match seq.next_element_seed(Entry(out.len()))? {
+                    Some(c) => out.push(c),
+                    None => return Ok(out),
+                }
+            }
+            match seq.next_element::<IgnoredAny>()? {
+                Some(_) => Err(A::Error::custom(format!("at most {MAX_COMMANDS} `commands`"))),
+                None => Ok(out),
+            }
+        }
+    }
+
+    d.deserialize_any(List)
+}
+
+/// How errors name the command at place `i` with id `id`: the id in backticks, escaped and capped
+/// as prompts show text, or `[i]` when it has none.
+fn command_name(i: usize, id: &str) -> String {
+    match id {
+        "" => format!("[{i}]"),
+        id => format!("`{}`", crate::permissions::display_text(id, crate::permissions::MAX_SHOWN_FIELD)),
+    }
+}
+
+/// `[a-z][a-z0-9_]*`, 1 to [`MAX_COMMAND_ID`] characters.
+fn valid_command_id(id: &str) -> bool {
+    id.len() <= MAX_COMMAND_ID
+        && id.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
+        && id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+}
+
+fn params_as_object<S: serde::Serializer>(p: &[(String, Param)], s: S) -> std::result::Result<S::Ok, S::Error> {
     use serde::ser::SerializeMap;
     let mut m = s.serialize_map(Some(p.len()))?;
     for (k, v) in p {
@@ -306,6 +856,428 @@ mod tests {
     }
 
     #[test]
+    fn integer_parameters_preserve_precision_and_exact_bounds() {
+        let m = Manifest::parse(
+            br#"{"id":"org.example.generative","name":"Generative Pattern","kind":"filter",
+                "params":{"seed":{"type":"int","min":-9007199254740995,"max":9007199254740995}}}"#,
+        )
+        .unwrap();
+        for (given, expected) in [
+            (json!(9007199254740992_i64), 9007199254740992_i64),
+            (json!(9007199254740993_i64), 9007199254740993_i64),
+            (json!(-9007199254740993_i64), -9007199254740993_i64),
+            (json!(i64::MAX), 9007199254740995_i64),
+            (json!(i64::MIN), -9007199254740995_i64),
+            (json!(u64::MAX), 9007199254740995_i64),
+            (json!(1e30), 9007199254740995_i64),
+            (json!(-1e30), -9007199254740995_i64),
+            (json!(3.6), 4_i64),
+        ] {
+            let resolved = m.resolve_params(&json!({"seed": given})).unwrap();
+            assert_eq!(resolved["seed"], json!(expected), "input: {given}");
+        }
+    }
+
+    #[test]
+    fn numeric_defaults_stay_in_the_declared_range() {
+        let m = Manifest::parse(
+            br#"{"id":"org.example.defaults","name":"Defaults","kind":"filter",
+                "params":{"count":{"type":"int","min":1,"max":10},
+                          "seed":{"type":"int","min":-9007199254740995,"max":-9007199254740993,"default":0},
+                          "amount":{"type":"number","min":0,"max":100,"default":500}}}"#,
+        )
+        .unwrap();
+        let expected = json!({"count": 1, "seed": -9007199254740993_i64, "amount": 100.0});
+        assert_eq!(Value::Object(m.defaults()), expected);
+        assert_eq!(
+            m.params_doc(),
+            "{count: int 1..10 (1), seed: int -9007199254740995..-9007199254740993 (-9007199254740993), amount: 0..100 (100)}"
+        );
+        for given in [Value::Null, json!({}), json!({"count": null, "seed": null, "amount": null})] {
+            assert_eq!(Value::Object(m.resolve_params(&given).unwrap()), expected);
+        }
+    }
+
+    #[test]
+    fn an_exporter_lists_its_extensions_and_other_kinds_list_none() {
+        let m = Manifest::parse(br#"{"id":"org.example.plotter","name":"Plotter","kind":"exporter","extensions":["plt","plot"]}"#).unwrap();
+        assert_eq!((m.kind, m.extensions.as_slice()), (Kind::Exporter, &["plt".to_string(), "plot".to_string()][..]));
+        assert_eq!(serde_json::to_value(&m).unwrap()["extensions"], json!(["plt", "plot"]));
+        let filter = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter"}"#).unwrap();
+        assert!(serde_json::to_value(&filter).unwrap().get("extensions").is_none());
+        for bad in [
+            r#"{"id":"a","name":"x","kind":"exporter"}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":[]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":["PLT"]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":[".plt"]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":[""]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":["abcdefghijklmnopq"]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":["plt","plt"]}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":["a","b","c","d","e","f","g","h","i"]}"#,
+            r#"{"id":"a","name":"x","kind":"filter","extensions":["plt"]}"#,
+            r#"{"id":"a","name":"x","kind":"effect","extensions":["plt"]}"#,
+        ] {
+            assert!(Manifest::parse(bad.as_bytes()).is_err(), "{bad}");
+        }
+    }
+
+    /// An importer lists the extensions it reads by the exporter's rules, and gets an import's
+    /// budget and the `import.read` permission.
+    #[test]
+    fn an_importer_lists_its_extensions() {
+        let m = Manifest::parse(br#"{"id":"org.example.plotter","name":"Plotter","kind":"importer","extensions":["plt","hpgl"]}"#).unwrap();
+        assert_eq!((m.kind, m.extensions.as_slice()), (Kind::Importer, &["plt".to_string(), "hpgl".to_string()][..]));
+        assert_eq!(serde_json::to_value(&m).unwrap()["kind"], json!("importer"));
+        assert_eq!(m.permissions(), [Permission::ImportRead]);
+        for (bad, says) in [
+            (r#"{"id":"a","name":"x","kind":"importer"}"#, "an importer declares 1 to 8"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":[]}"#, "an importer declares 1 to 8"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["a","b","c","d","e","f","g","h","i"]}"#, "an importer declares 1 to 8"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["Plt"]}"#, "lower-case"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":[".plt"]}"#, "without the dot"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["abcdefghijklmnopq"]}"#, "1-16"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["plt","plt"]}"#, "listed twice"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["plt"],"budget":"heavy"}"#, "an import's budget"),
+            (r#"{"id":"a","name":"x","kind":"importer","extensions":["plt"],"permissions":["doc.read"]}"#, "doesn't apply"),
+            (r#"{"id":"a","name":"x","kind":"filter","extensions":["plt"]}"#, "only an exporter or an importer"),
+        ] {
+            let e = Manifest::parse(bad.as_bytes()).unwrap_err().to_string();
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+    }
+
+    /// A filter may ask for a heavy budget; a live effect runs while the document is drawn and an
+    /// exporter has an export's budget, so they can't. Light, the default, isn't written back.
+    #[test]
+    fn only_a_filter_asks_for_a_heavy_budget() {
+        let heavy = Manifest::parse(br#"{"id":"org.example.route","name":"Route","kind":"filter","budget":"heavy"}"#).unwrap();
+        assert_eq!(heavy.budget, Budget::Heavy);
+        assert_eq!(serde_json::to_value(&heavy).unwrap()["budget"], json!("heavy"));
+        for light in [r#"{"id":"a","name":"x","kind":"filter"}"#, r#"{"id":"a","name":"x","kind":"effect","budget":"light"}"#] {
+            let m = Manifest::parse(light.as_bytes()).unwrap();
+            assert_eq!(m.budget, Budget::Light);
+            assert!(serde_json::to_value(&m).unwrap().get("budget").is_none(), "{light}");
+        }
+        for bad in [
+            r#"{"id":"a","name":"x","kind":"effect","budget":"heavy"}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","extensions":["plt"],"budget":"heavy"}"#,
+            r#"{"id":"a","name":"x","kind":"filter","budget":"huge"}"#,
+            r#"{"id":"a","name":"x","kind":"filter","budget":true}"#,
+        ] {
+            assert!(Manifest::parse(bad.as_bytes()).is_err(), "{bad}");
+        }
+    }
+
+    /// A manifest lists the permissions it asks for, checked against its kind; without the key it
+    /// gets the ones its kind implies, as plug-ins did before manifests listed them, and needs no
+    /// approval. `api` is 1 when left out, and a later level is refused.
+    #[test]
+    fn permissions_and_api_level() {
+        let listed = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","api":1,"permissions":["doc.write","doc.read"]}"#).unwrap();
+        assert_eq!(listed.permissions(), [Permission::DocRead, Permission::DocWrite]);
+        assert!(listed.asks_permissions());
+        assert_eq!(serde_json::to_value(&listed).unwrap()["permissions"], json!(["doc.write", "doc.read"]));
+        assert!(serde_json::to_value(&listed).unwrap().get("api").is_none(), "level 1 isn't written back");
+        let plain = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter"}"#).unwrap();
+        assert_eq!((plain.api, plain.asks_permissions()), (1, false));
+        assert_eq!(plain.permissions(), [Permission::DocRead, Permission::DocWrite, Permission::State]);
+        assert!(serde_json::to_value(&plain).unwrap().get("permissions").is_none());
+        let effect = Manifest::parse(br#"{"id":"a","name":"x","kind":"effect"}"#).unwrap();
+        assert_eq!(effect.permissions(), [Permission::DocRead, Permission::EffectRender]);
+        // A live effect's commands may change the document: one with commands gets `doc.write`
+        // and `state` too, and may list them.
+        let commands = br#"{"id":"a","name":"x","kind":"effect","commands":[{"id":"c","label":"C"}]}"#;
+        let with_commands = Manifest::parse(commands).unwrap();
+        assert_eq!(with_commands.permissions(), [Permission::DocRead, Permission::DocWrite, Permission::State, Permission::EffectRender]);
+        let listing =
+            br#"{"id":"a","name":"x","kind":"effect","permissions":["doc.read","effect.render","doc.write"],"commands":[{"id":"c","label":"C"}]}"#;
+        assert_eq!(Manifest::parse(listing).unwrap().permissions(), [Permission::DocRead, Permission::DocWrite, Permission::EffectRender]);
+        let without = br#"{"id":"a","name":"x","kind":"effect","permissions":["doc.read","effect.render","doc.write"]}"#;
+        assert!(Manifest::parse(without).unwrap_err().to_string().contains("`doc.write` doesn't apply"));
+        let exporter = Manifest::parse(br#"{"id":"a","name":"x","kind":"exporter","extensions":["plt"]}"#).unwrap();
+        assert_eq!(exporter.permissions(), [Permission::DocRead, Permission::ExportWrite]);
+        assert!(!Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","permissions":[]}"#).unwrap().asks_permissions());
+        // Level 2 adds `progress`, which only a level-2 manifest may list.
+        let level2 = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","api":2,"permissions":["progress","doc.read"]}"#).unwrap();
+        assert_eq!((level2.api, level2.permissions()), (2, vec![Permission::DocRead, Permission::Progress]));
+        assert_eq!(serde_json::to_value(&level2).unwrap()["api"], json!(2));
+        let plain2 = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","api":2}"#).unwrap();
+        assert!(!plain2.permissions().contains(&Permission::Progress), "never implied");
+        let storing = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","api":2,"permissions":["cache","settings"]}"#).unwrap();
+        assert_eq!(storing.permissions(), [Permission::Settings, Permission::Cache]);
+        assert!(!plain2.permissions().iter().any(|p| permissions::HOST.contains(p)), "never implied");
+        for (bad, says) in [
+            (r#"{"id":"a","name":"x","kind":"filter","permissions":["doc.read","net.fetch"]}"#, "unknown permission `net.fetch`"),
+            (r#"{"id":"a","name":"x","kind":"filter","permissions":["ui.panel"]}"#, "reserved"),
+            (r#"{"id":"a","name":"x","kind":"effect","permissions":["doc.read"]}"#, "effect.render"),
+            (r#"{"id":"a","name":"x","kind":"filter","permissions":"doc.read"}"#, "manifest"),
+            (r#"{"id":"a","name":"x","kind":"filter","permissions":["progress"]}"#, "`progress` needs plug-in API level 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":1,"permissions":["progress"]}"#, "`progress` needs plug-in API level 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","permissions":["settings"]}"#, "`settings` needs plug-in API level 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":1,"permissions":["doc.read","cache"]}"#, "`cache` needs plug-in API level 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":3}"#, "`api` is 3"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":0}"#, "`api` is 0"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":-1}"#, "manifest"),
+        ] {
+            let e = Manifest::parse(bad.as_bytes()).unwrap_err().to_string();
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+    }
+
+    /// A filter at `api` 2 may ask for type, images and symbol instances (`inputs`), each kind once,
+    /// with a `permissions` list holding `doc.read`, so installing it asks for approval. Left out
+    /// or empty, it asks for none and isn't written back. Anything else is refused naming `inputs`.
+    #[test]
+    fn a_filter_at_api_2_lists_the_inputs_it_reads() {
+        let m = Manifest::parse(
+            br#"{"id":"org.example.inspect","name":"Inspect","kind":"filter","api":2,"permissions":["doc.read","doc.write"],"inputs":["type","image","symbolInstance"]}"#,
+        )
+        .unwrap();
+        assert_eq!(m.input_kinds(), InputKind::ALL);
+        assert!(m.asks_permissions());
+        assert_eq!(serde_json::to_value(&m).unwrap()["inputs"], json!(["type", "image", "symbolInstance"]));
+        let some = Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","api":2,"permissions":["doc.read"],"inputs":["image"]}"#).unwrap();
+        assert_eq!(some.input_kinds(), [InputKind::Image]);
+        assert!(some.asks_permissions());
+        for none in [
+            r#"{"id":"a","name":"x","kind":"filter"}"#,
+            r#"{"id":"a","name":"x","kind":"filter","inputs":[]}"#,
+            r#"{"id":"a","name":"x","kind":"filter","inputs":null}"#,
+            r#"{"id":"a","name":"x","kind":"effect","inputs":[]}"#,
+        ] {
+            let m = Manifest::parse(none.as_bytes()).unwrap();
+            assert!(m.input_kinds().is_empty(), "{none}");
+            assert!(serde_json::to_value(&m).unwrap().get("inputs").is_none(), "{none}");
+        }
+        for (bad, says) in [
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":["text"]}"#, "`inputs` names an unknown object kind `text`"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":["Type"]}"#, "unknown object kind `Type`"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":["image","image"]}"#, "`inputs` lists `image` twice"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":"type"}"#, "`inputs` must be a list"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":[1]}"#, "`inputs` must be a list"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":{"type":true}}"#, "`inputs` must be a list"),
+            (r#"{"id":"a","name":"x","kind":"filter","inputs":["type"]}"#, "`inputs` needs `api` 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":1,"inputs":["type"]}"#, "`inputs` needs `api` 2"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"permissions":["doc.write"],"inputs":["type"]}"#, "needs the permission `doc.read`"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"inputs":["type"]}"#, "`inputs` needs the permission `doc.read`"),
+            (r#"{"id":"a","name":"x","kind":"filter","api":2,"permissions":[],"inputs":["image"]}"#, "`inputs` needs the permission `doc.read`"),
+            (r#"{"id":"a","name":"x","kind":"effect","api":2,"inputs":["type"]}"#, "only a filter declares `inputs`"),
+            (r#"{"id":"a","name":"x","kind":"exporter","extensions":["plt"],"api":2,"inputs":["image"]}"#, "only a filter declares `inputs`"),
+        ] {
+            let e = Manifest::parse(bad.as_bytes()).unwrap_err().to_string();
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+        let long = format!(r#"{{"id":"a","name":"x","kind":"filter","api":2,"inputs":[{}]}}"#, vec![r#""type""#; 1000].join(","));
+        assert!(Manifest::parse(long.as_bytes()).unwrap_err().to_string().contains("twice"));
+    }
+
+    /// A live effect at `api` 2 may declare `"paintOutput": true`, and only that value; any other
+    /// kind or level, and `false`, `null` or another type, is refused naming the key. Without the
+    /// key, at any level, the effect returns geometry only.
+    #[test]
+    fn only_a_level_2_live_effect_declares_paint_output() {
+        let painted = Manifest::parse(br#"{"id":"org.example.tone","name":"Tone","kind":"effect","api":2,"paintOutput":true}"#).unwrap();
+        assert!(painted.paint_output);
+        assert_eq!(serde_json::to_value(&painted).unwrap()["paintOutput"], json!(true));
+        let listed =
+            Manifest::parse(br#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":true,"permissions":["doc.read","effect.render"]}"#)
+                .unwrap();
+        assert!(listed.paint_output);
+        for plain in [r#"{"id":"a","name":"x","kind":"effect","api":2}"#, r#"{"id":"a","name":"x","kind":"effect"}"#] {
+            let m = Manifest::parse(plain.as_bytes()).unwrap();
+            assert!(!m.paint_output, "{plain}");
+            assert!(serde_json::to_value(&m).unwrap().get("paintOutput").is_none(), "{plain}");
+        }
+        for bad in [
+            r#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":false}"#,
+            r#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":null}"#,
+            r#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":1}"#,
+            r#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":"true"}"#,
+            r#"{"id":"a","name":"x","kind":"effect","paintOutput":true}"#,
+            r#"{"id":"a","name":"x","kind":"effect","api":1,"paintOutput":true}"#,
+            r#"{"id":"a","name":"x","kind":"filter","api":2,"paintOutput":true}"#,
+            r#"{"id":"a","name":"x","kind":"exporter","api":2,"extensions":["plt"],"paintOutput":true}"#,
+            r#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":true,"permissions":["doc.read"]}"#,
+        ] {
+            let e = Manifest::parse(bad.as_bytes()).unwrap_err().to_string();
+            assert!(e.contains("paintOutput") || e.contains("effect.render"), "{bad}: {e}");
+        }
+    }
+
+    #[test]
+    fn commands_and_paint_output_may_both_be_declared_on_a_live_effect() {
+        let m = Manifest::parse(br#"{"id":"a","name":"x","kind":"effect","api":2,"paintOutput":true,"commands":[{"id":"c","label":"C"}]}"#).unwrap();
+        assert!(m.paint_output);
+        assert_eq!(m.commands.len(), 1);
+    }
+
+    /// A filter or a live effect lists menu commands with their own parameters; a `menu` key is
+    /// ignored. A malformed entry, a bad or repeated id, a label that isn't printable and too many
+    /// commands are refused, and the error names the command.
+    #[test]
+    fn commands_are_checked_and_errors_name_them() {
+        let m = Manifest::parse(
+            br#"{"id":"org.example.tidy","name":"Tidy","kind":"filter","commands":[
+                {"id":"tidy_all","label":"Tidy All","menu":"File"},
+                {"id":"grow","label":"Grow","params":{"mode":{"type":"bool"},"by":{"type":"number","min":0,"max":10,"default":2}}}]}"#,
+        )
+        .unwrap();
+        assert_eq!(m.commands.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["tidy_all", "grow"]);
+        let grow = m.command("grow").unwrap();
+        assert_eq!(grow.params.iter().map(|p| p.0.as_str()).collect::<Vec<_>>(), ["mode", "by"], "declaration order");
+        let run = m.for_command(grow);
+        assert_eq!((run.name.as_str(), run.id.as_str()), ("Grow", "org.example.tidy"));
+        assert_eq!(Value::Object(run.resolve_params(&json!({"by": 50})).unwrap()), json!({"by": 10.0, "mode": false}));
+        let written = serde_json::to_value(&m).unwrap();
+        assert_eq!(written["commands"][1]["params"]["by"]["max"], json!(10.0));
+        assert!(written["commands"][0].get("menu").is_none(), "a menu key is not kept");
+        assert!(serde_json::to_value(Manifest::parse(br#"{"id":"a","name":"x","kind":"filter"}"#).unwrap()).unwrap().get("commands").is_none());
+        let effect = Manifest::parse(br#"{"id":"a","name":"x","kind":"effect","commands":[{"id":"c","label":"C"}]}"#).unwrap();
+        assert_eq!(effect.commands.len(), 1);
+        let label = |l: &str| Command { id: "c".into(), label: l.into(), params: Vec::new() }.shown_label();
+        assert_eq!(label("Flip\u{202E}txt.exe"), "Flip\\u{202E}txt.exe");
+
+        let many: Vec<String> = (0..=MAX_COMMANDS).map(|i| format!(r#"{{"id":"c{i}","label":"C"}}"#)).collect();
+        let too_many = format!(r#"{{"id":"a","name":"x","kind":"filter","commands":[{}]}}"#, many.join(","));
+        for (bad, says) in [
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"ok","label":"A"},{"label":"B"}]}"#, "command [1]: missing field `id`"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"nolabel"}]}"#, "command `nolabel`: missing field `label`"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"Upper","label":"A"}]}"#, "command `Upper`: use an id"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"9lives","label":"A"}]}"#, "command `9lives`: use an id"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"a.b","label":"A"}]}"#, "command `a.b`: use an id"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"","label":"A"}]}"#, "command [0]: use an id"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":" "}]}"#, "command `x`: `label`"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":"a\nb"}]}"#, "command `x`: `label`"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":"A"},{"id":"x","label":"B"}]}"#, "command `x` is declared twice"),
+            (
+                r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":"A","params":{"r":{"type":"number","min":5,"max":1,"default":1}}}]}"#,
+                "command `x`: parameter `r`: bad range",
+            ),
+            (
+                r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":"A","params":{"id":{"type":"bool"}}}]}"#,
+                "command `x`: invalid parameter",
+            ),
+            (
+                r#"{"id":"a","name":"x","kind":"filter","commands":[{"id":"x","label":"A","params":{"r":{"type":"bool"},"r":{"type":"int"}}}]}"#,
+                "command `x`: parameter `r` is declared twice",
+            ),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":[1]}"#, "command [0]"),
+            (r#"{"id":"a","name":"x","kind":"filter","commands":{"id":"x"}}"#, "must be a list"),
+            (r#"{"id":"a","name":"x","kind":"exporter","extensions":["plt"],"commands":[{"id":"x","label":"A"}]}"#, "only a filter or a live effect"),
+            (r#"{"id":"a","name":"x","kind":"filter","budget":"heavy","commands":[{"id":"x","label":"A"}]}"#, "heavy filter"),
+            (too_many.as_str(), "at most 32 `commands`"),
+        ] {
+            let e = Manifest::parse(bad.as_bytes()).unwrap_err().to_string();
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+        let long_id = format!(r#"{{"id":"a","name":"x","kind":"filter","commands":[{{"id":"{}","label":"A"}}]}}"#, "c".repeat(MAX_COMMAND_ID + 1));
+        assert!(Manifest::parse(long_id.as_bytes()).is_err());
+        let hidden =
+            Manifest::parse("{\"id\":\"a\",\"name\":\"x\",\"kind\":\"filter\",\"commands\":[{\"id\":\"x\u{202E}\",\"label\":\"A\"}]}".as_bytes());
+        assert!(hidden.unwrap_err().to_string().contains("command `x\\u{202E}`"), "an id in an error is escaped");
+    }
+
+    #[test]
+    fn strings_and_number_lists_resolve_like_the_other_types() {
+        let m = Manifest::parse(
+            br#"{"id":"org.example.text","name":"Text","kind":"filter","params":{
+                "label":{"type":"string","default":"Rose","maxLength":8},
+                "angles":{"type":"numberList","min":0,"max":360,"default":[45,135],"minItems":1,"maxItems":3},
+                "free":{"type":"string"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(Value::Object(m.defaults()), json!({"label": "Rose", "angles": [45.0, 135.0], "free": ""}));
+        let p = m.resolve_params(&json!({"label": "Sunflowers", "angles": [-10, 90, 400]})).unwrap();
+        assert_eq!((&p["label"], &p["angles"]), (&json!("Sunflowe"), &json!([0.0, 90.0, 360.0])), "cut and clamped");
+        for bad in [json!({"label": 3}), json!({"angles": []}), json!({"angles": [1, 2, 3, 4]}), json!({"angles": [1, "x"]}), json!({"angles": 5})] {
+            assert!(m.resolve_params(&bad).is_err(), "{bad}");
+        }
+        assert_eq!(
+            m.params_doc(),
+            r#"{label: string of at most 8 ("Rose"), angles: 1 to 3 numbers 0..360 ([45.0,135.0]), free: string of at most 256 ("")}"#
+        );
+    }
+
+    /// A color's default and value may be a color object or a hex string; the plug-in always gets
+    /// a color object, its components clamped. Without a default it is black.
+    #[test]
+    fn colors_resolve_to_color_objects() {
+        let m = Manifest::parse(
+            br##"{"id":"org.example.grid","name":"Grid","kind":"filter","params":{
+                "line":{"type":"color","default":"#ff0000"},
+                "ink":{"type":"color","default":{"model":"cmyk","c":1,"m":0,"y":0,"k":2}},
+                "plain":{"type":"color"}}}"##,
+        )
+        .unwrap();
+        assert_eq!(
+            Value::Object(m.defaults()),
+            json!({"line": {"model": "rgb", "r": 1.0, "g": 0.0, "b": 0.0},
+                   "ink": {"model": "cmyk", "c": 1.0, "m": 0.0, "y": 0.0, "k": 1.0},
+                   "plain": {"model": "rgb", "r": 0.0, "g": 0.0, "b": 0.0}})
+        );
+        let p = m.resolve_params(&json!({"line": "#0000ff", "ink": {"model": "gray", "k": 0.5}})).unwrap();
+        assert_eq!(p["line"], json!({"model": "rgb", "r": 0.0, "g": 0.0, "b": 1.0}));
+        assert_eq!(p["ink"], json!({"model": "gray", "k": 0.5}));
+        for bad in [json!({"line": "not a color"}), json!({"line": 3}), json!({"line": {"model": "hsv", "h": 1}})] {
+            assert!(m.resolve_params(&bad).is_err(), "{bad}");
+        }
+        assert!(m.params_doc().starts_with("{line: color object or hex (#ff0000)"));
+        assert!(Manifest::parse(br#"{"id":"a","name":"x","kind":"filter","params":{"c":{"type":"color","default":"nope"}}}"#).is_err());
+    }
+
+    /// A hex color is display sRGB: in a wide-gamut working RGB space it becomes the working RGB
+    /// color that shows as that hex, read when used, while the manifest keeps the default as written.
+    #[test]
+    fn hex_colors_follow_the_working_rgb_space() {
+        const CHILD: &str = "VECTORCRAFT_TEST_PLUGIN_COLOR_PROFILE";
+        if std::env::var_os(CHILD).is_none() {
+            // Color settings are process-wide: exercise this profile in a separate test process.
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "manifest::tests::hex_colors_follow_the_working_rgb_space", "--nocapture"])
+                .env(CHILD, "1")
+                .output()
+                .unwrap();
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                output.status.success() && stdout.contains("test result: ok. 1 passed; 0 failed;"),
+                "isolated color profile test failed:\n{stdout}\n{}",
+                String::from_utf8_lossy(&output.stderr),
+            );
+            return;
+        }
+        use vectorcraft_color::{Color, cms};
+        let m =
+            Manifest::parse(br##"{"id":"org.example.grid","name":"Grid","kind":"filter","params":{"line":{"type":"color","default":"#3a7bd5"}}}"##)
+                .unwrap();
+        cms::set_active(&cms::ColorSettings { rgb: cms::WIDE_GAMUT_RGB.into(), ..Default::default() }).unwrap();
+        for c in [m.defaults()["line"].clone(), m.resolve_params(&json!({"line": "#3a7bd5"})).unwrap()["line"].clone()] {
+            let c: Color = serde_json::from_value(c).unwrap();
+            assert_ne!(c, Color::rgb8(0x3a, 0x7b, 0xd5), "converted into the working space");
+            assert_eq!(c.to_hex(), "#3a7bd5", "shows as the hex given");
+        }
+        assert_eq!(serde_json::to_value(&m).unwrap()["params"]["line"]["default"], json!("#3a7bd5"), "kept as written");
+        cms::set_active(&cms::ColorSettings::default()).unwrap();
+    }
+
+    #[test]
+    fn up_to_256_parameters_with_at_most_64_outside_groups() {
+        let manifest = |n: usize, grouped: usize| {
+            let params: Vec<String> = (0..n)
+                .map(|i| match i < grouped {
+                    true => format!(r#""p{i}":{{"type":"bool","group":"G{}"}}"#, i % 4),
+                    false => format!(r#""p{i}":{{"type":"bool"}}"#),
+                })
+                .collect();
+            format!(r#"{{"id":"a","name":"x","kind":"filter","params":{{{}}}}}"#, params.join(","))
+        };
+        assert!(Manifest::parse(manifest(MAX_UNGROUPED, 0).as_bytes()).is_ok());
+        assert!(Manifest::parse(manifest(MAX_UNGROUPED + 1, 0).as_bytes()).is_err(), "too many outside groups");
+        let all = Manifest::parse(manifest(MAX_PARAMS, MAX_PARAMS - MAX_UNGROUPED).as_bytes()).unwrap();
+        assert_eq!(all.params.len(), MAX_PARAMS);
+        assert!(Manifest::parse(manifest(MAX_PARAMS + 1, MAX_PARAMS).as_bytes()).is_err(), "too many in all");
+    }
+
+    #[test]
     fn rejects_bad_manifests() {
         for bad in [
             "",
@@ -322,6 +1294,13 @@ mod tests {
             r#"{"id":"a","name":"x","kind":"filter","params":{"preview":{"type":"bool"}}}"#,
             r#"{"id":"a","name":"x","kind":"filter","params":{"a":{"type":"bool"},"a":{"type":"bool"}}}"#,
             r#"{"id":"a","name":"x","kind":"filter","params":[1]}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"t":{"type":"string","maxLength":0}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"t":{"type":"string","default":"abc","maxLength":2}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"l":{"type":"numberList","min":1,"max":0}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"l":{"type":"numberList","min":0,"max":1,"maxItems":0}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"l":{"type":"numberList","min":0,"max":1,"maxItems":257}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"l":{"type":"numberList","min":0,"max":1,"minItems":2,"maxItems":1}}}"#,
+            r#"{"id":"a","name":"x","kind":"filter","params":{"l":{"type":"numberList","min":0,"max":1,"minItems":2,"default":[1]}}}"#,
         ] {
             assert!(Manifest::parse(bad.as_bytes()).is_err(), "{bad}");
         }

@@ -22,7 +22,7 @@ use crate::{VectorcraftApp, io, widgets};
 pub const KIND: &str = "dxfImport";
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
-    heading: |d| if d.str("mode") == "place" { "Place DXF" } else { "DXF Import Options" }.into(),
+    heading: |d| if d.str("mode") == "place" { tl!("Place DXF") } else { tl!("DXF Import Options") }.into(),
     body,
     confirm,
     min_width: 560.0,
@@ -109,10 +109,10 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     let r = if d.str("mode") == "place" {
         let mut p = with_file(d.fields.get("__place"), d, &file);
         p["dxf"] = dxf;
-        crate::place::run(app, &p).map(|_| ())
+        crate::place::run_for_user(app, &p).map(|_| ())
     } else {
         let path = d.fields.get("path").and_then(Value::as_str).map(str::to_string);
-        io::open_document(app, &d.str("name"), &file.bytes, path, &json!({ "dxf": dxf }))
+        io::open_document(app, &d.str("name"), &file.bytes, path, &json!({ "dxf": dxf })).map(|_| ())
     };
     match r {
         Ok(()) => {
@@ -141,19 +141,19 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             let layouts: Vec<String> =
                 d.fields.get("layouts").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::to_string).collect();
             let rows: Vec<(&str, &str)> = layouts.iter().map(|l| (l.as_str(), l.as_str())).collect();
-            choice(ui, d, "layout", "Layout:", &rows);
+            choice(ui, d, "layout", tl!("Layout:"), &rows);
             ui.add_space(10.0);
-            widgets::subheader(ui, "Scaling");
-            check(ui, d, "fit", "Scale to Fit Artboard");
+            widgets::subheader(ui, tl!("Scaling"));
+            check(ui, d, "fit", tl!("Scale to Fit Artboard"));
             ui.add_enabled_ui(!d.bool("fit"), |ui| super::dxf_options::scale_row(ui, d));
             ui.horizontal(|ui| {
                 ui.add_space(LABEL + 8.0);
-                check(ui, d, "scaleLineweights", "Scale Lineweights");
+                check(ui, d, "scaleLineweights", tl!("Scale Lineweights"));
             });
             ui.add_space(10.0);
-            widgets::subheader(ui, "Options");
-            check(ui, d, "center", "Center Artwork");
-            check(ui, d, "mergeLayers", "Merge Layers");
+            widgets::subheader(ui, tl!("Options"));
+            check(ui, d, "center", tl!("Center Artwork"));
+            check(ui, d, "mergeLayers", tl!("Merge Layers"));
         });
     });
     false
@@ -163,7 +163,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 fn preview(app: &mut VectorcraftApp, ctx: &egui::Context, d: &Dialog) -> Option<egui::TextureHandle> {
     let file = app.ui.dialog_file.clone()?;
     let layout = d.str("layout");
-    let key = egui::Id::new(("dxf-preview", file.token, layout.as_str()));
+    let key = egui::Id::unique(("dxf-preview", file.token, layout.as_str()));
     let o = vectorcraft_cad::ImportOptions { layout: Some(layout.clone()), fit: true, ..Default::default() };
     // A layout that can't be read shows an empty preview (and isn't read again).
     preview_texture(app, ctx, key, "dxf-preview", PREVIEW, || vectorcraft_cad::import(&file.bytes, &o).ok().map(|r| r.document))

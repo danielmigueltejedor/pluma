@@ -50,6 +50,36 @@ location /vectorcraft/ {
 
 Local test: `python3 -m http.server 8765` inside the folder, then open http://localhost:8765/.
 
+## Browser requirements
+
+The wasm is built with WebAssembly SIMD (`-C target-feature=+simd128`, `.cargo/config.toml`,
+#2786), so it needs a browser that has it:
+
+| Browser | First version |
+|---|---|
+| Chrome, Edge | 91 |
+| Firefox | 89 |
+| Safari (macOS and iOS/iPadOS) | 16.4 |
+
+Source: caniuse `wasm-simd` and the WebAssembly feature table (webassembly.org/features). An older
+browser can't compile the module. There is no fallback build and no message: the page stays on
+"Loading VectorCraft..." and the console shows a WebAssembly compile error. The app also needs
+WebGPU or WebGL2 (see "Renderer selection" below). If you must serve older browsers, put a
+version check in front of the app on your own page.
+
+## Fonts folder
+
+Builds made with craft-fonts (`CRAFT_FONTS_DIR`, all releases) have a `fonts/` folder beside the
+wasm: the Arabic fonts the app fetches instead of embedding (about 8 MB, each next to its OFL
+licence). Serve it with the rest of the site. Noto Sans Arabic is fetched before the app starts;
+the other families load in the background and appear in the font menus as they arrive.
+
+- Serve `.ttf` as `font/ttf` (the browser checks each file's SHA-256, so a wrong type or a
+  rewritten file makes the app skip that font and log `web font …` in the console).
+- The folder names are the files' SHA-256 prefixes, so `fonts/*` can be cached forever
+  (`Cache-Control: public, max-age=31536000, immutable`); `_headers` and `.htaccess` do this.
+- Without the folder the app still runs, but Arabic text shows as boxes.
+
 ## Embedding in a page (iframe)
 
 ```html

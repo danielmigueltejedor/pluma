@@ -11,6 +11,7 @@
 use kurbo::{Affine, BezPath, CubicBez, ParamCurve, ParamCurveNearest, Point, Rect};
 use serde::{Deserialize, Serialize};
 
+use crate::cms::{self, Model};
 use crate::{Color, Gradient, GradientStop};
 
 /// The spread a new point gets.
@@ -157,11 +158,13 @@ impl Freeform {
         f
     }
 
-    /// Colour the points along `g`, first to last.
+    /// Color the points along `g`, first to last, mixing neighboring stops in the model they share
+    /// ([`Color::lerp_keep_model`]).
     pub fn recolor(&mut self, g: &Gradient) {
         let n = self.points.len();
-        for (k, p) in self.points.iter_mut().enumerate() {
-            (p.color, p.opacity) = g.sample(k as f32 / (n - 1).max(1) as f32);
+        let at = (0..n).map(|k| k as f32 / (n - 1).max(1) as f32);
+        for (p, (color, opacity)) in self.points.iter_mut().zip(g.sample_increasing_with(at, Color::lerp_keep_model)) {
+            (p.color, p.opacity) = (color, opacity);
         }
     }
 
@@ -230,10 +233,10 @@ impl Freeform {
         best
     }
 
-    /// The colour and opacity at `p` for a painted box whose [`spread_scale`] is `scale`.
+    /// The color and opacity at `p` for a painted box whose [`spread_scale`] is `scale`, as
+    /// [`Self::model_field`] mixes them.
     pub fn sample(&self, p: Point, scale: f64) -> (Color, f32) {
-        let ([r, g, b], a) = self.field(scale).sample(p);
-        (Color::rgb(r, g, b), a)
+        self.model_field(scale).sample(p)
     }
 
     /// The colour field, with colours converted and lines tessellated once (for sampling many
@@ -263,6 +266,32 @@ impl Freeform {
             pieces.extend(v.windows(2).map(|w| Piece { a: w[0], b: w[1], share: if len > 0.0 { w[0].at.distance(w[1].at) / len } else { 1.0 / n } }));
         }
         Field { points, pieces, eps: 1e-9 * (scale.abs() + 1.0) }
+    }
+
+    /// [`Self::field`] mixing the colors in the model every point shares instead of display RGB:
+    /// the C, M, Y and K inks (as a CMYK document drawn by ink planes mixes them), the Gray ink,
+    /// or the RGB or Lab components. Points in different models mix in display RGB, as
+    /// [`Self::field`] mixes them, and the field gives that color in the working RGB space.
+    pub fn model_field(&self, scale: f64) -> ModelField {
+        let Some(model) = self.shared_model() else { return ModelField { model: None, first: self.field(scale), k: None } };
+        let parts = |c: &Color| match *c {
+            Color::Rgb { r, g, b } => [r, g, b, 0.0],
+            Color::Cmyk { c, m, y, k } => [c, m, y, k],
+            Color::Gray { k } => [k, 0.0, 0.0, 0.0],
+            Color::Lab { l, a, b } => [l, a, b, 0.0],
+        };
+        let first = self.field_with(scale, &|c| {
+            let [x, y, z, _] = parts(c);
+            [x, y, z]
+        });
+        let k = (model == Model::Cmyk).then(|| self.field_with(scale, &|c| [parts(c)[3], 0.0, 0.0]));
+        ModelField { model: Some(model), first, k }
+    }
+
+    /// The color model every point is in (`None` without points or when their models differ).
+    pub fn shared_model(&self) -> Option<Model> {
+        let m = self.points.first()?.color.model();
+        self.points.iter().all(|p| p.color.model() == m).then_some(m)
     }
 
     /// Add a point; returns its index.
@@ -324,8 +353,9 @@ impl Freeform {
         true
     }
 
-    /// Insert a point on segment `segment` of line `line` at curve parameter `t`, with the colour,
-    /// opacity and spread between the segment's ends. Returns the new point's index.
+    /// Insert a point on segment `segment` of line `line` at curve parameter `t`, with the color
+    /// (in the model the ends share, [`Color::lerp_keep_model`]), opacity and spread between the
+    /// segment's ends. Returns the new point's index.
     pub fn split_line(&mut self, line: usize, segment: usize, t: f64) -> Option<usize> {
         let c = *self.segments(line).get(segment)?;
         let l = &self.lines[line];
@@ -334,7 +364,7 @@ impl Freeform {
         let u = t as f32;
         let p = FreeformPoint {
             at: c.eval(t),
-            color: a.color.lerp(&b.color, u),
+            color: a.color.lerp_keep_model(&b.color, u),
             opacity: a.opacity + (b.opacity - a.opacity) * u,
             spread: a.spread + (b.spread - a.spread) * u,
         };
@@ -363,6 +393,15 @@ impl Source {
             radius: self.radius + (o.radius - self.radius) * t as f64,
         }
     }
+}
+
+/// The centers of a `cols` × `rows` grid of cells over `b`, row by row.
+fn cell_centers(b: Rect, cols: u16, rows: u16) -> impl Iterator<Item = Point> {
+    let (cw, ch) = (b.width() / cols as f64, b.height() / rows as f64);
+    (0..rows as usize * cols as usize).map(move |k| {
+        let (i, j) = (k % cols as usize, k / cols as usize);
+        Point::new(b.x0 + (i as f64 + 0.5) * cw, b.y0 + (j as f64 + 0.5) * ch)
+    })
 }
 
 /// A freeform gradient ready to sample ([`Freeform::field`]).
@@ -399,11 +438,7 @@ impl Field {
     /// Samples at the centres of a `cols` × `rows` grid of cells over `b`, row by row: RGB and
     /// opacity (as [`Self::sample`]).
     pub fn grid(&self, b: Rect, cols: u16, rows: u16) -> impl Iterator<Item = ([f32; 3], f32)> + '_ {
-        let (cw, ch) = (b.width() / cols as f64, b.height() / rows as f64);
-        (0..rows as usize * cols as usize).map(move |k| {
-            let (i, j) = (k % cols as usize, k / cols as usize);
-            self.sample(Point::new(b.x0 + (i as f64 + 0.5) * cw, b.y0 + (j as f64 + 0.5) * ch))
-        })
+        cell_centers(b, cols, rows).map(move |p| self.sample(p))
     }
 
     /// Display RGB and opacity at `p`.
@@ -440,6 +475,62 @@ impl Field {
     }
 }
 
+/// A freeform gradient ready to sample in its points' color model ([`Freeform::model_field`]).
+#[derive(Clone, Debug)]
+pub struct ModelField {
+    /// The model the points share (`None` when their models differ).
+    model: Option<Model>,
+    /// The first three components (C, M and Y; R, G and B; L, a and b; display RGB when the
+    /// models differ), or the Gray ink as the first of the three values.
+    first: Field,
+    /// The K ink of a CMYK field.
+    k: Option<Field>,
+}
+
+impl ModelField {
+    /// The model the points share (`None` when their models differ).
+    pub fn model(&self) -> Option<Model> {
+        self.model
+    }
+
+    /// The color and opacity at `p`: in the points' shared model, else in the working RGB space.
+    pub fn sample(&self, p: Point) -> (Color, f32) {
+        let ([x, y, z], a) = self.first.sample(p);
+        let c = match self.model {
+            None => {
+                let [r, g, b] = cms::active().srgb_to_rgb([x, y, z]);
+                Color::rgb(r, g, b)
+            }
+            Some(Model::Rgb) => Color::rgb(x, y, z),
+            Some(Model::Cmyk) => Color::cmyk(x, y, z, self.k.as_ref().map_or(0.0, |k| k.sample(p).0[0])),
+            Some(Model::Gray) => Color::gray(x),
+            Some(Model::Lab) => Color::lab(x, y, z),
+        };
+        (c, a)
+    }
+
+    /// [`Self::sample`] at the centers of a `cols` × `rows` grid of cells over `b`, row by row.
+    pub fn grid(&self, b: Rect, cols: u16, rows: u16) -> impl Iterator<Item = (Color, f32)> + '_ {
+        cell_centers(b, cols, rows).map(move |p| self.sample(p))
+    }
+
+    /// Display RGB and opacity at `p`: the display color of [`Self::sample`], or the display RGB
+    /// the points mix in when their models differ.
+    pub fn display_sample(&self, p: Point) -> ([f32; 3], f32) {
+        if self.model.is_none() {
+            return self.first.sample(p);
+        }
+        let (c, a) = self.sample(p);
+        (c.to_rgb(), a)
+    }
+
+    /// [`Self::display_sample`] at the centers of a `cols` × `rows` grid of cells over `b`, row by
+    /// row.
+    pub fn display_grid(&self, b: Rect, cols: u16, rows: u16) -> impl Iterator<Item = ([f32; 3], f32)> + '_ {
+        cell_centers(b, cols, rows).map(move |p| self.display_sample(p))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,6 +557,22 @@ mod tests {
     }
 
     #[test]
+    fn the_model_field_grid_and_display_samples_match_its_sample() {
+        let mut f = two(0.0);
+        (f.points[0].color, f.points[1].color) = (Color::cmyk(1.0, 0.0, 0.0, 0.0), Color::cmyk(0.0, 0.0, 0.0, 1.0));
+        let field = f.model_field(50.0);
+        let b = Rect::new(0.0, 0.0, 100.0, 20.0);
+        let (cells, shown): (Vec<_>, Vec<_>) = (field.grid(b, 5, 1).collect(), field.display_grid(b, 5, 1).collect());
+        let (mid, a) = field.sample(Point::new(50.0, 10.0));
+        assert_eq!(cells[2], (mid, a));
+        assert_eq!(shown[2], (mid.to_rgb(), a));
+        // Points in different models give their display mix.
+        (f.points[0].color, f.points[1].color) = (red(), Color::gray(0.5));
+        let (rgb, _) = f.model_field(50.0).display_sample(Point::new(50.0, 0.0));
+        assert!(close(rgb, [0.75, 0.25, 0.25]), "{rgb:?}");
+    }
+
+    #[test]
     fn the_sample_at_a_point_is_its_colour() {
         let f = two(0.0);
         let (c, o) = f.sample(Point::new(0.0, 0.0), 50.0);
@@ -475,6 +582,31 @@ mod tests {
         // Half way between equal points: an even mix.
         let (c, o) = f.sample(Point::new(50.0, 0.0), 50.0);
         assert!(close(c.to_rgb(), [0.5, 0.0, 0.5]) && (o - 0.75).abs() < 1e-6, "{c:?}");
+    }
+
+    #[test]
+    fn the_sample_mixes_in_the_model_the_points_share() {
+        let halfway = |a: Color, b: Color| {
+            let mut f = two(0.0);
+            (f.points[0].color, f.points[1].color) = (a, b);
+            f.sample(Point::new(50.0, 0.0), 50.0).0
+        };
+        let near = |a: Color, b: Color| match (a, b) {
+            (Color::Cmyk { c, m, y, k }, Color::Cmyk { c: c2, m: m2, y: y2, k: k2 }) => {
+                [c - c2, m - m2, y - y2, k - k2].iter().all(|d| d.abs() < 1e-5)
+            }
+            (Color::Gray { k }, Color::Gray { k: k2 }) => (k - k2).abs() < 1e-5,
+            (Color::Lab { l, a, b }, Color::Lab { l: l2, a: a2, b: b2 }) => [l - l2, a - a2, b - b2].iter().all(|d| d.abs() < 1e-4),
+            _ => false,
+        };
+        let c = halfway(Color::cmyk(1.0, 0.0, 0.0, 0.0), Color::cmyk(0.0, 0.0, 0.0, 1.0));
+        assert!(near(c, Color::cmyk(0.5, 0.0, 0.0, 0.5)), "{c:?}");
+        let c = halfway(Color::gray(0.2), Color::gray(0.6));
+        assert!(near(c, Color::gray(0.4)), "{c:?}");
+        let c = halfway(Color::lab(50.0, 10.0, -20.0), Color::lab(70.0, 30.0, 0.0));
+        assert!(near(c, Color::lab(60.0, 20.0, -10.0)), "{c:?}");
+        // Points in different models mix in RGB.
+        assert!(matches!(halfway(Color::cmyk(1.0, 0.0, 0.0, 0.0), red()), Color::Rgb { .. }));
     }
 
     #[test]

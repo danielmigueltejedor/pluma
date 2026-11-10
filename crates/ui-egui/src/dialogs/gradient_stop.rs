@@ -27,7 +27,10 @@ use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::widgets::{self, Live};
 
-pub(super) const SPEC: DialogSpec = DialogSpec::window(show, confirm);
+pub(super) const SPEC: DialogSpec = DialogSpec { inputs: |_| &["color", "opacity", "location", "spread"], ..DialogSpec::window(show, confirm) };
+
+/// The field holding the frame the popover was first drawn in.
+const OPENED: &str = "__opened";
 
 /// What the popover edits: the selected stop of the gradient behind the active proxy (with all
 /// its stops), or the selected point of a freeform gradient.
@@ -87,12 +90,20 @@ fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let screen =
         d.fields.get("screen").and_then(Value::as_array).and_then(|a| Some(egui::pos2(a.first()?.as_f64()? as f32, a.get(1)?.as_f64()? as f32)));
     let chip = Point::new(d.f64("x", 0.0), d.f64("y", 0.0));
-    let pos = screen.unwrap_or_else(|| {
-        app.canvas_rect.zip(app.view().copied()).map_or(ctx.content_rect().center(), |(r, v)| Xf::new(r, &v).to_screen(chip) + vec2(14.0, 14.0))
+    let area = egui::Id::unique("gradient-stop-popover");
+    let size = ctx.memory(|m| m.area_rect(area)).map_or(POPOVER_SIZE, |r| r.size());
+    let pos = screen.unwrap_or_else(|| match app.canvas_rect.zip(app.view().copied()) {
+        Some((canvas, v)) => {
+            let xf = Xf::new(canvas, &v);
+            let at = xf.to_screen(chip);
+            selection_on_screen(app, &xf).map_or(at + vec2(14.0, 14.0), |art| beside_art(at, art, size, canvas))
+        }
+        None => ctx.content_rect().center(),
     });
     let swatches = d.str("tab") == "swatches";
     let mut tab = None;
-    let resp = egui::Area::new(egui::Id::new("gradient-stop-popover"))
+    let mut eyedropper = false;
+    let resp = egui::Area::new(area)
         .order(egui::Order::Foreground)
         .fixed_pos(pos)
         .constrain(true)
@@ -100,10 +111,16 @@ fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             egui::Frame::popup(&ctx.global_style()).fill(t.panel).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
                 ui.set_width(250.0);
                 ui.horizontal(|ui| {
-                    for (icon, tip, on) in [("palette", "Color", !swatches), ("swatch-book", "Swatches", swatches)] {
+                    for (icon, tip, on) in [("palette", tl!("Color"), !swatches), ("swatch-book", tl!("Swatches"), swatches)] {
                         if widgets::icon_button(ui, icon, tip, on, 24.0).clicked() {
                             tab = Some(if icon == "palette" { "color" } else { "swatches" });
                         }
+                    }
+                    // A stop's colour can come from the art, as from the Gradient panel's eyedropper.
+                    if matches!(target, Target::Stop(..))
+                        && widgets::icon_button(ui, "pipette", tl!("Eyedropper: click the art to sample the stop's colour"), false, 24.0).clicked()
+                    {
+                        eyedropper = true;
                     }
                 });
                 ui.add_space(6.0);
@@ -115,13 +132,13 @@ fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 }
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    widgets::dim_label(ui, "Opacity:");
+                    widgets::dim_label(ui, tl!("Opacity:"));
                     if let Some(v) = widgets::plain_field(ui, "stop-pop-op", target.opacity() as f64 * 100.0, "%", 0, 54.0) {
                         apply(app, &target, &json!({ "opacity": v }));
                     }
                     let (label, key, value) = match &target {
-                        Target::Stop(stops, i) => ("Location:", "location", stops[*i].offset),
-                        Target::Point(p, _) => ("Spread:", "spread", p.spread),
+                        Target::Stop(stops, i) => (tl!("Location:"), "location", stops[*i].offset),
+                        Target::Point(p, _) => (tl!("Spread:"), "spread", p.spread),
                     };
                     widgets::dim_label(ui, label);
                     if let Some(v) = widgets::plain_field(ui, ("stop-pop", key), value as f64 * 100.0, "%", 1, 54.0) {
@@ -131,21 +148,60 @@ fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
             });
         })
         .response;
-    if let (Some(tab), Some(d)) = (tab, app.ui.dialog.as_mut()) {
-        d.fields.insert("tab".into(), json!(tab));
+    if eyedropper {
+        app.ui.dialog = None;
+        crate::panels::gradient::stop_eyedropper(app);
+        return;
     }
-    // The double-click that opened the popover lands on its chip, outside it: only a later click
-    // elsewhere closes it.
-    if resp.clicked_elsewhere() && !ctx.input(|i| i.pointer.button_double_clicked(egui::PointerButton::Primary)) {
+    // The frame it opened in (its first drawn).
+    let frame = ctx.cumulative_frame_nr();
+    let opened = d.fields.get(OPENED).and_then(Value::as_u64).unwrap_or(frame);
+    if let Some(d) = app.ui.dialog.as_mut() {
+        if let Some(tab) = tab {
+            d.fields.insert("tab".into(), json!(tab));
+        }
+        d.fields.insert(OPENED.into(), json!(opened));
+    }
+    // The click that opened the popover (the Gradient panel's colour chip) or the double-click
+    // (a stop's chip) lands outside it: only a later click elsewhere closes it (#577).
+    if frame > opened && resp.clicked_elsewhere() && !ctx.input(|i| i.pointer.button_double_clicked(egui::PointerButton::Primary)) {
         app.ui.dialog = None;
     }
+}
+
+/// The popover's size before it has been drawn.
+const POPOVER_SIZE: egui::Vec2 = vec2(272.0, 360.0);
+
+/// The selected art's box on the screen.
+fn selection_on_screen(app: &VectorcraftApp, xf: &Xf) -> Option<egui::Rect> {
+    let st = app.session.active()?;
+    let b = st.doc.bounds_of(&st.selection.objects, false)?;
+    Some(egui::Rect::from_points(&xf.quad(b)))
+}
+
+/// Where the popover opened from a stop's chip at `chip` goes: beside the selected `art` on the
+/// first side of it with room for a popover of `size` in `room` (right, left, below, above), so
+/// the art it recolours stays in view (#862); else beside the chip.
+fn beside_art(chip: egui::Pos2, art: egui::Rect, size: egui::Vec2, room: egui::Rect) -> egui::Pos2 {
+    const GAP: f32 = 12.0;
+    let x = (chip.x - size.x / 2.0).clamp(room.left(), (room.right() - size.x).max(room.left()));
+    let y = (chip.y - size.y / 2.0).clamp(room.top(), (room.bottom() - size.y).max(room.top()));
+    [
+        egui::pos2(art.right() + GAP, y),
+        egui::pos2(art.left() - GAP - size.x, y),
+        egui::pos2(x, art.bottom() + GAP),
+        egui::pos2(x, art.top() - GAP - size.y),
+    ]
+    .into_iter()
+    .find(|p| room.contains_rect(egui::Rect::from_min_size(*p, size)))
+    .unwrap_or(chip + vec2(14.0, 14.0))
 }
 
 /// Document swatches as tiles: a click gives the stop (or point) that colour.
 fn swatch_grid(app: &mut VectorcraftApp, ui: &mut egui::Ui, target: &Target) {
     let colors = swatch_colors(app);
     if colors.is_empty() {
-        widgets::dim_label(ui, "The document has no colour swatches.");
+        widgets::dim_label(ui, tl!("The document has no colour swatches."));
         return;
     }
     let current = target.color();
@@ -162,12 +218,13 @@ fn swatch_grid(app: &mut VectorcraftApp, ui: &mut egui::Ui, target: &Target) {
     });
     let Some((name, c)) = pick else { return };
     match target {
-        // A global or spot colour (or a tint of one) stays linked.
+        // A global or spot color (or a tint of one) stays linked, and the swatch's color keeps
+        // its model.
         Target::Stop(stops, i) => {
             let link = crate::panels::gradient::dropped_link(app, &json!({ "swatch": name }));
-            set_stops(app, &recolor(stops.clone(), *i, c, link), Some(*i), Live::Released);
+            crate::panels::gradient::set_stops_keeping_models(app, &recolor(stops.clone(), *i, c, link), Some(*i), Live::Released);
         }
-        Target::Point(_, i) => edit_point(app, "paint.freeform.setPoint", json!({ "index": i, "color": color_json(&c) })),
+        Target::Point(_, i) => edit_point(app, "paint.freeform.setPoint", json!({ "index": i, "color": color_json(&c), "keepModel": true })),
     }
 }
 
@@ -239,6 +296,28 @@ mod tests {
         app
     }
 
+    /// #862: the popover goes beside the art, on the first side with room, not over it.
+    #[test]
+    fn the_popover_goes_beside_the_art_it_edits() {
+        let room = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(1200.0, 800.0));
+        let size = egui::vec2(272.0, 360.0);
+        let place = |art: egui::Rect| egui::Rect::from_min_size(beside_art(art.center(), art, size, room), size);
+        // Room on the right.
+        let art = egui::Rect::from_min_max(egui::pos2(300.0, 300.0), egui::pos2(500.0, 450.0));
+        assert!(place(art).left() > art.right() && room.contains_rect(place(art)));
+        // Against the right edge: on the left.
+        let art = egui::Rect::from_min_max(egui::pos2(900.0, 300.0), egui::pos2(1150.0, 450.0));
+        assert!(place(art).right() < art.left());
+        // As wide as the room: below it, or above it near the bottom.
+        let art = egui::Rect::from_min_max(egui::pos2(100.0, 20.0), egui::pos2(1100.0, 300.0));
+        assert!(place(art).top() > art.bottom());
+        let art = egui::Rect::from_min_max(egui::pos2(100.0, 420.0), egui::pos2(1100.0, 780.0));
+        assert!(place(art).bottom() < art.top());
+        // Nowhere to go: beside the chip, as before.
+        let art = room.shrink(10.0);
+        assert_eq!(beside_art(art.center(), art, size, room), art.center() + egui::vec2(14.0, 14.0));
+    }
+
     fn stops(app: &VectorcraftApp) -> Vec<GradientStop> {
         match selected(app) {
             Some(Target::Stop(stops, _)) => stops,
@@ -246,10 +325,18 @@ mod tests {
         }
     }
 
+    thread_local! {
+        // One context per test, so frames follow one another as in the app.
+        static CTX: egui::Context = {
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            ctx
+        };
+    }
+
     /// One headless frame of the dialog layer and the shortcuts.
     fn frame(app: &mut VectorcraftApp, events: Vec<egui::Event>) {
-        let ctx = egui::Context::default();
-        crate::theme::install_fonts(&ctx);
+        let ctx = CTX.with(Clone::clone);
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
             crate::shortcuts::handle(app, ui.ctx());
             super::super::show(app, ui.ctx());
@@ -266,7 +353,11 @@ mod tests {
         let mut app = app();
         let view = app.view_info();
         let chip = Point::new(150.0, 150.0 + 10.0 / view.zoom);
-        crate::canvas::dispatch(&mut app, &PointerEvent { kind: PointerKind::DoubleClick, pos: chip, mods: Default::default(), pressure: 1.0 }, view);
+        crate::canvas::dispatch(
+            &mut app,
+            &PointerEvent { kind: PointerKind::DoubleClick, pos: chip, mods: Default::default(), backquote: false, pressure: 1.0, pen: None },
+            view,
+        );
         let d = app.ui.dialog.clone().expect("the popover opened");
         assert_eq!((d.kind.as_str(), d.fields["index"].clone(), d.str("tab")), ("gradientStop", json!(1), "color".into()));
         assert_eq!(app.session.selected_stop(), Some(1));
@@ -312,6 +403,25 @@ mod tests {
         assert!(app.ui.dialog.is_none(), "a click elsewhere closes it");
     }
 
+    /// #577: the Gradient panel's colour chip opens it with a click whose release lands in the
+    /// frame it opens in, outside it: that click doesn't close it.
+    #[test]
+    fn the_click_that_opens_it_from_the_panel_keeps_it_open() {
+        let mut app = app();
+        let at = egui::pos2(5.0, 5.0);
+        frame(&mut app, vec![egui::Event::PointerMoved(at), click(at, true)]);
+        // The panel opens it while the click is released.
+        app.ui.dialog = Some(Dialog::new("gradientStop", json!({"index": 1, "screen": [200.0, 200.0], "tab": "color"})));
+        frame(&mut app, vec![click(at, false)]);
+        for _ in 0..3 {
+            frame(&mut app, vec![]);
+        }
+        assert!(app.ui.dialog.is_some(), "the opening click must not close it");
+        let away = egui::pos2(5.0, 600.0);
+        frame(&mut app, vec![egui::Event::PointerMoved(away), click(away, true), click(away, false)]);
+        assert!(app.ui.dialog.is_none(), "a later click elsewhere closes it");
+    }
+
     #[test]
     fn the_popover_closes_when_its_stop_goes_away() {
         let mut app = app();
@@ -347,7 +457,11 @@ mod tests {
         let (p, i) = point(&app);
         // Double-clicking the point opens the popover beside it.
         let view = app.view_info();
-        crate::canvas::dispatch(&mut app, &PointerEvent { kind: PointerKind::DoubleClick, pos: p.at, mods: Default::default(), pressure: 1.0 }, view);
+        crate::canvas::dispatch(
+            &mut app,
+            &PointerEvent { kind: PointerKind::DoubleClick, pos: p.at, mods: Default::default(), backquote: false, pressure: 1.0, pen: None },
+            view,
+        );
         let d = app.ui.dialog.clone().expect("the popover opened");
         assert_eq!((d.kind.as_str(), d.fields["index"].clone()), ("gradientStop", json!(i)));
         frame(&mut app, vec![]);

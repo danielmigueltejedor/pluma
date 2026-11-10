@@ -148,6 +148,40 @@ fn done_keeps_the_settings_without_printing_and_bad_settings_keep_the_dialog() {
     assert!(!crate::menus::enabled(&app, "print.printerSetup"), "the mock has no settings to open");
 }
 
+/// A print queue that puts each page on the paper as it is, as `lp` does.
+struct UprightQueue(Jobs);
+
+impl PrintService for UprightQueue {
+    fn printers(&mut self) -> Vec<Printer> {
+        vec![]
+    }
+
+    fn print(&mut self, job: &PrintJob) -> Result<String, String> {
+        MockPrint(self.0.clone()).print(job)
+    }
+
+    fn turns_landscape(&self) -> bool {
+        false
+    }
+}
+
+#[test]
+fn a_landscape_job_goes_upright_to_a_queue_that_does_not_turn_it() {
+    let sizes = |pdf: &[u8]| vectorcraft_pdf::info(pdf, None).unwrap().pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>();
+    let landscape = json!({"settings": {"autoRotate": false, "orientation": "landscape", "artboards": "range", "range": "1"}});
+    // The desktop's queue: Letter upright, the art turned on it.
+    let jobs = Jobs::default();
+    let services = Services { print: Some(Box::new(UprightQueue(jobs.clone()))), ..Default::default() };
+    let mut desktop = VectorcraftApp::new(Session::new(), services);
+    desktop.run("file.new", json!({"width": 120, "height": 90})).unwrap();
+    desktop.run("file.print", landscape.clone()).unwrap();
+    assert_eq!(sizes(&jobs.borrow()[0].2), [(612.0, 792.0)]);
+    // A service that turns pages itself (the browser's dialog) gets the landscape page.
+    let (mut app, jobs) = app();
+    app.run("file.print", landscape).unwrap();
+    assert_eq!(sizes(&jobs.borrow()[0].2), [(792.0, 612.0)]);
+}
+
 #[test]
 fn without_a_print_service_print_saves_a_pdf() {
     let written: Written = Rc::default();
@@ -183,6 +217,24 @@ fn without_a_print_service_print_saves_a_pdf() {
 }
 
 #[test]
+fn copies_per_sheet_prints_a_grid_of_each_artboard() {
+    let (mut app, jobs) = app();
+    app.run("file.print", json!({})).unwrap();
+    set(&mut app, "copiesPerSheet", json!(true));
+    set(&mut app, "gutter", json!(9));
+    frame(&mut app);
+    let r = super::confirm(&mut app).unwrap();
+    assert_eq!(r["pages"], 3, "a sheet per artboard");
+    assert_eq!(pages(&jobs.borrow()[0].2), 3);
+    let saved = app.session.active().unwrap().doc.print_setup.clone().unwrap();
+    assert_eq!((saved["copiesPerSheet"].clone(), saved["gutter"].clone()), (json!(true), json!(9.0)));
+    // Each 120 × 90 artboard fills landscape Letter 6 across and 6 down, 9 pt apart.
+    let pv = app.session.execute("print.preview", &json!({})).unwrap();
+    assert_eq!(pv["sheets"][0]["copies"].as_array().map(Vec::len), Some(36));
+    assert_eq!(pv["sheets"][0]["copies"][1], json!([142.5, 13.5, 262.5, 103.5]));
+}
+
+#[test]
 fn dragging_the_preview_moves_the_placement_on_the_paper() {
     let (mut app, _) = app();
     // The page as the preview shows it, for each way the paper can be turned.
@@ -191,6 +243,8 @@ fn dragging_the_preview_moves_the_placement_on_the_paper() {
         (json!({"autoRotate": false, "orientation": "portraitFlipped"}), (10.0, 5.0)),
         (json!({"output": {"emulsion": "down"}, "transverse": true}), (-4.0, 7.0)),
         (json!({"scaling": "custom", "scale": {"width": 50, "height": 200}}), (6.0, -8.0)),
+        // Copies per sheet: the drag moves the whole grid.
+        (json!({"copiesPerSheet": true, "gutter": 9}), (10.0, 5.0)),
     ] {
         let before = app.session.execute("print.preview", &json!({ "settings": settings })).unwrap();
         let sheet = &before["sheets"][0];

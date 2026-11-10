@@ -12,8 +12,9 @@ const DISCORD: Color32 = Color32::from_rgb(0x58, 0x65, 0xF2);
 
 /// The Discord button's label, height and width.
 fn discord_layout(ui: &Ui, large: bool) -> (std::sync::Arc<egui::Galley>, f32, f32) {
-    let (h, font, label) = if large { (36.0, theme::semibold(14.0), "Join our Discord") } else { (24.0, theme::semibold(12.0), "Discord") };
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::WHITE);
+    let (h, font, label) =
+        if large { (36.0, theme::semibold(14.0), tl!("Join our Discord")) } else { (24.0, egui::FontId::proportional(12.0), "Discord") };
+    let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
     let w = galley.size().x + h * 0.55 + h * 0.9;
     (galley, h, w)
 }
@@ -23,44 +24,73 @@ pub fn discord_width(ui: &Ui, large: bool) -> f32 {
     discord_layout(ui, large).2
 }
 
-/// A Discord pill button: compact for the header, large for About / Home.
+/// The Discord button: compact and quiet for the app bar, large for About / Home.
 pub fn discord_button(app: &mut VectorcraftApp, ui: &mut Ui, large: bool) -> egui::Response {
     let (galley, h, w) = discord_layout(ui, large);
     let icon = h * 0.55;
     let (r, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
-    let fill = if resp.hovered() { DISCORD.gamma_multiply(0.85) } else { DISCORD };
-    ui.painter().rect_filled(r, CornerRadius::same((h / 2.0) as u8), fill);
+    let at = egui::pos2(0.0, r.center().y - galley.size().y / 2.0);
     let ir = egui::Rect::from_center_size(r.left_center() + vec2(h * 0.35 + icon / 2.0, 0.0), vec2(icon, icon));
-    icons::paint(ui, "message-circle", ir, Color32::WHITE);
-    ui.painter().galley(egui::pos2(ir.right() + h * 0.2, r.center().y - galley.size().y / 2.0), galley, Color32::WHITE);
-    let resp = resp.on_hover_text("Join the ArtCraft community on Discord (discord.gg/artcraft)");
+    if large {
+        // The theme's accent, as the primary buttons use it, so the call to action matches the
+        // rest of the window (and PhotoCraft's, #4684); Discord's colour stays on the app-bar icon.
+        let t = Tokens::get(ui.ctx());
+        let fill = if resp.hovered() { t.accent } else { t.accent_strong };
+        ui.painter().rect_filled(r, CornerRadius::same((h / 2.0) as u8), fill);
+        icons::paint(ui, "message-circle", ir, Color32::WHITE);
+        ui.painter().galley(egui::pos2(ir.right() + h * 0.2, at.y), galley, Color32::WHITE);
+    } else {
+        // In the app bar it stays quiet: a soft button with Discord's colour on its icon alone.
+        let t = Tokens::get(ui.ctx());
+        ui.painter().rect_filled(r, CornerRadius::same(6), if resp.hovered() { t.hover } else { t.button });
+        icons::paint(ui, "message-circle", ir, DISCORD);
+        ui.painter().galley(egui::pos2(ir.right() + h * 0.2, at.y), galley, if resp.hovered() { t.text_strong } else { t.text });
+    }
+    let resp = resp.on_hover_text(tl!("Join the ArtCraft community on Discord (discord.gg/artcraft)"));
     if resp.clicked() {
         app.open_link("help.discord");
     }
     resp
 }
 
-/// One link row: icon, label, opens the command's URL.
-fn link(app: &mut VectorcraftApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str) {
+/// One link row: icon, label, opens the command's URL. `centered` drops the icon so the label
+/// alone sits in the middle of the column.
+fn link(app: &mut VectorcraftApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str, centered: bool) {
     let t = Tokens::get(ui.ctx());
-    ui.horizontal(|ui| {
-        icons::icon(ui, icon, 16.0, t.icon);
-        let r = ui.add(egui::Button::new(egui::RichText::new(label).color(t.accent).size(13.0)).frame(false)).on_hover_text(url);
-        if r.clicked() {
-            app.open_link(cmd);
-        }
-    });
+    let button = |ui: &mut Ui| ui.add(egui::Button::new(egui::RichText::new(label).color(t.accent).size(13.0)).frame(false)).on_hover_text(url);
+    let r = if centered {
+        button(ui)
+    } else {
+        ui.horizontal(|ui| {
+            icons::icon(ui, icon, 16.0, t.icon);
+            button(ui)
+        })
+        .inner
+    };
+    if r.clicked() {
+        app.open_link(cmd);
+    }
 }
 
 /// The Discord button and the website / app page / GitHub links.
 pub fn links(app: &mut VectorcraftApp, ui: &mut Ui) {
+    links_in(app, ui, false);
+}
+
+/// [`links`] for a centred column (the Home screen's, as PhotoCraft's, #4684): the Discord button
+/// and the links, each in the middle.
+pub fn links_centered(app: &mut VectorcraftApp, ui: &mut Ui) {
+    links_in(app, ui, true);
+}
+
+fn links_in(app: &mut VectorcraftApp, ui: &mut Ui, centered: bool) {
     discord_button(app, ui, true);
     ui.add_space(8.0);
     let l = app.session.execute("help.links", &serde_json::json!({})).unwrap_or_default();
     let s = |k: &str| l[k].as_str().unwrap_or("").to_string();
-    link(app, ui, "globe", "ArtCraft website", "help.website", &s("website"));
-    link(app, ui, "external-link", "VectorCraft on getartcraft.com", "help.appPage", &s("appPage"));
-    link(app, ui, "git-branch", "Source code on GitHub", "help.github", &s("github"));
+    link(app, ui, "globe", tl!("ArtCraft website"), "help.website", &s("website"), centered);
+    link(app, ui, "external-link", tl!("VectorCraft on getartcraft.com"), "help.appPage", &s("appPage"), centered);
+    link(app, ui, "git-branch", tl!("Source code on GitHub"), "help.github", &s("github"), centered);
 }
 
 #[cfg(test)]

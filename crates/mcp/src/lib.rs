@@ -16,11 +16,17 @@
 
 mod backend;
 mod headless;
+mod intake;
+pub mod logging;
+mod prompts;
+mod resources;
 mod server;
 mod tools;
 
 pub use backend::{Backend, Remote};
 pub use headless::Headless;
+pub use prompts::{PROMPTS, PromptArg, PromptDef};
+pub use resources::{DOC_JSON_URI, DOC_URI, TEMPLATES};
 pub use server::{PROTOCOL_VERSION, Server};
 pub use tools::{ToolResult, call_tool, tool_definitions};
 
@@ -29,23 +35,3 @@ pub const DEFAULT_ADDR: &str = "127.0.0.1:7979";
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod tests_distortkeys;
-#[cfg(test)]
-mod tests_exportas;
-#[cfg(test)]
-mod tests_fileio;
-#[cfg(test)]
-mod tests_freeform;
-#[cfg(test)]
-mod tests_gradient;
-#[cfg(test)]
-mod tests_links;
-#[cfg(test)]
-mod tests_liquify;
-#[cfg(test)]
-mod tests_persp;
-#[cfg(test)]
-mod tests_place;
-#[cfg(test)]
-mod tests_svg;

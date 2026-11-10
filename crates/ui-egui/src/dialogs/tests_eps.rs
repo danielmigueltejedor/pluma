@@ -34,9 +34,9 @@ fn export_as_eps_shows_eps_options_then_writes_and_remembers_them() {
     set(&mut app, "flattenerPreset", json!("High Resolution"));
     let r = confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
-    // One file per artboard, named with an underscore.
-    assert_eq!(names(&written), ["/out/Untitled-1_Artboard-1.eps", "/out/Untitled-1_Artboard-2.eps"]);
-    assert_eq!(r["files"].as_array().map(Vec::len), Some(2));
+    // The central file, then one file per artboard, named with an underscore.
+    assert_eq!(names(&written), ["/out/Untitled-1.eps", "/out/Untitled-1_Artboard-1.eps", "/out/Untitled-1_Artboard-2.eps"]);
+    assert_eq!(r["files"].as_array().map(Vec::len), Some(3));
     let bytes = &written.borrow()[0].1;
     let (text, tiff) = vectorcraft_eps::sections(bytes).unwrap();
     assert!(tiff.is_some() && String::from_utf8_lossy(text).contains("%%LanguageLevel: 2"));
@@ -72,4 +72,23 @@ fn the_eps_options_dialog_needs_a_document() {
     let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
     assert!(app.run("ui.epsOptionsDialog", json!({})).is_err());
     assert!(!crate::menus::enabled(&app, "ui.epsOptionsDialog"));
+}
+
+/// Opening an EPS file whose PostScript reads only partly says why, in the status bar and in
+/// `file.open`'s result (what `app.open` and MCP's `open_file` return): the error, the operator
+/// and the procedure it ran in.
+#[test]
+fn opening_an_eps_that_reads_partly_says_why() {
+    let dir = std::env::temp_dir().join(format!("vc-eps-open-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("partial.eps");
+    std::fs::write(&path, "%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n%%EndComments\n0 0 10 10 rectfill /p { frobnicate } def p\n%%EOF\n")
+        .unwrap();
+    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
+    let r = app.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
+    let w = r["warnings"][0].as_str().unwrap();
+    assert!(w.contains("`frobnicate`") && w.contains("in `p`"), "{r}");
+    assert!(app.ui.status.contains("Opened with 1 note:") && app.ui.status.contains("frobnicate"), "{}", app.ui.status);
+    std::fs::remove_dir_all(dir).ok();
 }

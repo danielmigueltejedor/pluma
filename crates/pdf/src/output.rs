@@ -1,30 +1,36 @@
 //! Save PDF › Output: colours converted to a destination profile, the ICC profiles that tag them,
 //! and the output intent and Trapped entries.
 //!
+//! A document's colours are in its own colour spaces ([`document_cms`]): the profiles assigned to
+//! it (Edit › Assign Profile), which it keeps when saved and opened again, else the working spaces.
+//!
 //! - Conversion ([`ColorConversion`]): `destination` converts every colour to the destination
 //!   profile's model (CMYK or RGB) with the colour settings' intent, also colours already in that
 //!   model when their profile differs from the destination; `preserveNumbers` converts only the
 //!   colours of the other model (and Lab ones), keeping the numbers of those already in it.
 //!   Grey stays grey. Images (and freeform gradients' images) are converted the same way, pixel
-//!   by pixel; printer's marks are not. The destination is a profile name; empty, the document's
+//!   by pixel (CMYK images too: they keep their numbers unless converted, see [`CmykPixels`]);
+//!   printer's marks are not. The destination is a profile name; empty, the document's
 //!   profile for its colour mode.
 //! - Profiles ([`ProfileInclusion`]): with `all`, with `destination`, and with `taggedSource` on a
 //!   document that was assigned profiles, colours are written in ICC-based colour spaces: CMYK
 //!   with the CMYK profile in effect (the destination when converting to CMYK, else the
 //!   document's), RGB with sRGB (colours of another RGB space as their sRGB equivalents) and grey
 //!   with the sRGB tone curve. Otherwise they are device colours. PDF/A, PDF/X-3 and PDF/X-4
-//!   always tag them; PDF/X-1a never does, and always converts to a CMYK destination (see
-//!   [`crate::pdfx`]).
+//!   always tag them, whatever `profiles` says; PDF/X-1a never does, and always converts to a
+//!   CMYK destination (see [`crate::pdfx`]).
 //! - Output intent: the profile `outputIntent` names, embedded as the `/GTS_PDFX` output intent
 //!   of the catalog with the condition, identifier and registry; Trapped goes in the document
 //!   information (`/False` when an output intent is written untrapped). PDF/A files carry their
 //!   own output intent: neither is written there. PDF/X files always have one: blank, the CMYK
-//!   profile in effect.
+//!   profile in effect. A profile that also tags colours is embedded once, shared by both.
 
 use std::sync::{Arc, OnceLock};
 
+use craft_pdf::write::backend as krilla;
+use krilla::image::ImageColorspace;
 use vectorcraft_color::Color;
-use vectorcraft_color::cms::{self, Cms, Intent, Model, ProfileKind, ProofLut};
+use vectorcraft_color::cms::{self, Cms, CmykLut, Intent, Model, ProfileKind, ProofLut};
 use vectorcraft_doc::{ColorMode, Document};
 
 use crate::patch::{Patch, Xref};
@@ -46,8 +52,10 @@ struct Dest {
 
 /// How an export writes colours (see the module documentation).
 pub(crate) struct ColorOut {
-    /// The colour settings colours come from.
+    /// The colour settings colours come from: the document's colour spaces ([`document_cms`]).
     source: Arc<Cms>,
+    /// Why colours aren't in a profile assigned to the document (warnings).
+    pub profile_notes: Vec<String>,
     dest: Option<Dest>,
     /// Colours are written in ICC-based colour spaces.
     pub tagged: bool,
@@ -58,6 +66,8 @@ pub(crate) struct ColorOut {
     pub srgb_note: Option<String>,
     /// The image transform, built when the first image needs it.
     pixels: OnceLock<Option<Pixels>>,
+    /// The CMYK image transform, built when the first CMYK image needs it.
+    cmyk_pixels: OnceLock<Option<CmykPixels>>,
     intent: Intent,
     /// The output intent and Trapped entries to write.
     catalog: Option<Catalog>,
@@ -92,14 +102,48 @@ impl Default for ColorOut {
         let intent = source.settings().intent;
         Self {
             source,
+            profile_notes: vec![],
             dest: None,
             tagged: false,
             cmyk_profile,
             srgb_note: None,
             pixels: OnceLock::new(),
+            cmyk_pixels: OnceLock::new(),
             intent,
             catalog: None,
             standard: Standard::None,
+        }
+    }
+}
+
+/// The colour settings `doc`'s colours are in: the active ones, with the profiles assigned to the
+/// document (Edit › Assign Profile) as its RGB and CMYK spaces. The document keeps them when it
+/// is saved and opened again, while the working spaces are the app's (a new session starts with
+/// the defaults), so the two can differ. An assigned profile that isn't available leaves its
+/// working space, with a warning in the second value.
+pub(crate) fn document_cms(doc: &Document) -> (Arc<Cms>, Vec<String>) {
+    let active = cms::active();
+    let mut settings = active.settings().clone();
+    let mut notes = vec![];
+    let assigned = [(&doc.color_profiles.rgb, ProfileKind::Rgb, "RGB"), (&doc.color_profiles.cmyk, ProfileKind::Cmyk, "CMYK")];
+    for (name, kind, label) in assigned {
+        let Some(name) = name else { continue };
+        let space = if kind == ProfileKind::Rgb { &mut settings.rgb } else { &mut settings.cmyk };
+        match cms::profile(name).filter(|p| p.kind == kind) {
+            Some(p) => *space = p.name,
+            None => notes.push(format!(
+                "the document's {label} profile “{name}” isn't available: its {label} colours are written in the working {label} space, {space}"
+            )),
+        }
+    }
+    if settings == *active.settings() {
+        return (active, notes);
+    }
+    match Cms::new(&settings) {
+        Ok(own) => (Arc::new(own), notes),
+        Err(e) => {
+            notes.push(format!("the document's colour profiles can't be used ({e}): its colours are written in the working spaces"));
+            (active, notes)
         }
     }
 }
@@ -116,6 +160,8 @@ fn destination(set: &PdfSettings, mode: ColorMode, source: &Cms) -> Result<Optio
     let name = o.destination.trim();
     let fallback = if cmyk_only { crate::pdfx::cmyk_destination(set, source) } else { String::new() };
     let name = match (name.is_empty(), mode) {
+        // Document CMYK: the CMYK profile in effect, in an RGB document too (#2950).
+        (false, _) if name.eq_ignore_ascii_case(crate::DOCUMENT_CMYK) => source.settings().cmyk.as_str(),
         (false, _) => name,
         (true, _) if cmyk_only => fallback.as_str(),
         (true, ColorMode::Cmyk) => source.settings().cmyk.as_str(),
@@ -166,9 +212,11 @@ pub(crate) fn warnings(set: &PdfSettings) -> Vec<String> {
 }
 
 impl ColorOut {
-    /// How `set` writes the colours of `doc` (the colour settings are the source).
+    /// How `set` writes the colours of `doc` (its colour spaces, [`document_cms`], are the source).
     pub(crate) fn new(doc: &Document, set: &PdfSettings) -> Result<Self, PdfError> {
-        let mut out = Self::default();
+        let (source, profile_notes) = document_cms(doc);
+        let cmyk_profile = source.settings().cmyk.clone();
+        let mut out = Self { source, profile_notes, cmyk_profile, ..Self::default() };
         let source = out.source.clone();
         let st = source.settings();
         if let Some((name, model)) = destination(set, doc.color_mode, &source)? {
@@ -276,16 +324,43 @@ impl ColorOut {
             .as_ref()
     }
 
+    /// How CMYK images' ink amounts are converted; `None` when they keep their numbers (no
+    /// conversion, or to a CMYK destination that keeps them).
+    pub(crate) fn cmyk_pixels(&self) -> Option<&CmykPixels> {
+        self.cmyk_pixels
+            .get_or_init(|| {
+                let d = self.dest.as_ref().filter(|d| !(d.keep && d.model == Model::Cmyk))?;
+                let cmyk = d.model == Model::Cmyk;
+                // Each ink combination as a CMYK colour is written.
+                let lut = CmykLut::build(|[c, m, y, k]| {
+                    let out = self.color(&Color::Cmyk { c, m, y, k }, self.intent, false, true);
+                    if cmyk {
+                        return d.cms.to_cmyk(&out, self.intent);
+                    }
+                    let [r, g, b] = match out {
+                        Color::Rgb { r, g, b } => [r, g, b],
+                        other => d.cms.srgb_to_rgb(d.cms.display_rgb(&other)),
+                    };
+                    [r, g, b, 0.0]
+                });
+                Some(CmykPixels { lut, cmyk })
+            })
+            .as_ref()
+    }
+
     /// `pdf` with the output intent and Trapped entries, and a PDF/X file's identification
     /// ([`crate::pdfx`]) → (the file, warnings).
-    pub(crate) fn write_catalog(&self, pdf: Vec<u8>) -> Result<(Vec<u8>, Vec<String>), PdfError> {
-        let Some(cat) = &self.catalog else { return Ok((pdf, vec![])) };
+    pub(crate) fn write_catalog(&self, pdf: Vec<u8>, display_doc_title: bool) -> Result<(Vec<u8>, Vec<String>), PdfError> {
+        let cat = self.catalog.as_ref();
+        if cat.is_none() && !display_doc_title {
+            return Ok((pdf, vec![]));
+        }
         let xref = Xref::read(&pdf).ok_or_else(|| PdfError::Write("the written PDF has no cross-reference table".into()))?;
         let mut patch = Patch::new(&xref);
         let mut warnings = vec![];
         let root = xref.trailer_ref(&pdf, b"/Root").and_then(|n| xref.dict(&pdf, n));
         let Some(root) = root else { return Err(PdfError::Write("the written PDF has no catalog".into())) };
-        if let Some(OutputIntent { id, condition, registry, info, profile }) = &cat.intent {
+        if let Some(OutputIntent { id, condition, registry, info, profile }) = cat.and_then(|c| c.intent.as_ref()) {
             if crate::lab_spot::find(pdf.get(root.0..root.1).unwrap_or_default(), b"/OutputIntents", 0).is_some() {
                 warnings.push("the file has an output intent already: the one asked for is left out".into());
             } else {
@@ -297,20 +372,31 @@ impl ColorOut {
                 }
                 if let Some((name, n)) = profile {
                     let icc = cms::icc_bytes(name).map_err(|e| PdfError::Write(format!("output intent profile: {e}")))?;
-                    let data = deflate(&icc).map_err(|e| PdfError::Write(format!("output intent profile: {e}")))?;
-                    let mut stream = format!("<</N {n}/Length {}/Filter/FlateDecode>>\nstream\n", data.len()).into_bytes();
-                    stream.extend_from_slice(&data);
-                    stream.extend_from_slice(b"\nendstream");
-                    dict.push_str(&format!("/DestOutputProfile {} 0 R", patch.add_object(stream)));
+                    // The profile tagging the colours is often this one: both share its stream.
+                    let shared = if self.tagged { tagging_stream(&pdf, &xref, &icc) } else { None };
+                    let stream = match shared {
+                        Some(s) => s,
+                        None => {
+                            let data = deflate(&icc).map_err(|e| PdfError::Write(format!("output intent profile: {e}")))?;
+                            let mut stream = format!("<</N {n}/Length {}/Filter/FlateDecode>>\nstream\n", data.len()).into_bytes();
+                            stream.extend_from_slice(&data);
+                            stream.extend_from_slice(b"\nendstream");
+                            patch.add_object(stream)
+                        }
+                    };
+                    dict.push_str(&format!("/DestOutputProfile {stream} 0 R"));
                 }
                 dict.push_str(">>");
                 let oi = patch.add_object(dict.into_bytes());
                 patch.replace(root.0, root.0, format!("/OutputIntents[{oi} 0 R]").into_bytes());
             }
         }
+        if display_doc_title && crate::lab_spot::find(pdf.get(root.0..root.1).unwrap_or_default(), b"/ViewerPreferences", 0).is_none() {
+            patch.replace(root.0, root.0, b"/ViewerPreferences<</DisplayDocTitle true>>".to_vec());
+        }
         let info = xref.trailer_ref(&pdf, b"/Info").and_then(|n| xref.dict(&pdf, n));
         let mut entries = String::new();
-        if let Some(trapped) = cat.trapped
+        if let Some(trapped) = cat.and_then(|c| c.trapped)
             && info.is_none_or(|(s, e)| crate::lab_spot::find(pdf.get(s..e).unwrap_or_default(), b"/Trapped", 0).is_none())
         {
             entries.push_str(if trapped { "/Trapped/True" } else { "/Trapped/False" });
@@ -324,7 +410,7 @@ impl ColorOut {
                 patch.trailer_entry(format!("/Info {n} 0 R").as_bytes());
             }
         }
-        crate::pdfx::xmp(&pdf, &xref, root, &mut patch, self.standard, cat.trapped == Some(true))?;
+        crate::pdfx::xmp(&pdf, &xref, root, &mut patch, self.standard, cat.and_then(|c| c.trapped) == Some(true))?;
         Ok((patch.apply(&pdf, &xref)?, warnings))
     }
 }
@@ -345,6 +431,11 @@ impl Dest {
                     _ => self.cms.lab_to_cmyk(source.lab(c), intent),
                 };
                 Color::Cmyk { c, m, y, k }
+            }
+            // CMYK straight into the destination RGB (the destination shares the source's CMYK).
+            (_, Color::Cmyk { c, m, y, k }) => {
+                let [r, g, b] = self.cms.cmyk_to_rgb([*c, *m, *y, *k], intent);
+                Color::Rgb { r, g, b }
             }
             _ => {
                 let [r, g, b] = self.cms.srgb_to_rgb(source.display_rgb(c));
@@ -382,6 +473,36 @@ fn catalog(set: &PdfSettings, cmyk_profile: &str) -> Option<Catalog> {
     });
     let trapped = (o.trapped || intent.is_some()).then_some(o.trapped);
     (intent.is_some() || trapped.is_some()).then_some(Catalog { intent, trapped })
+}
+
+/// The object number of the stream of an ICC-based colour space of `pdf` that holds profile `icc`
+/// (its data as it is, or Flate-compressed); `None` when no colour space uses that profile.
+fn tagging_stream(pdf: &[u8], xref: &Xref, icc: &[u8]) -> Option<u32> {
+    use std::io::Read;
+    const ICC: &[u8] = b"[/ICCBased ";
+    let mut from = 0;
+    while let Some(at) = crate::lab_spot::find(pdf, ICC, from) {
+        from = at + ICC.len();
+        let Some(n) = crate::patch::number(pdf, from).and_then(|(n, _)| u32::try_from(n).ok()) else { continue };
+        let Some(obj) = xref.dict(pdf, n).and_then(|(s, e)| pdf.get(s..e)) else { continue };
+        let Some(length) = crate::lab_spot::find(obj, b"/Length", 0).and_then(|i| crate::patch::number(obj, i + b"/Length".len())) else {
+            continue;
+        };
+        let Some(data) = crate::lab_spot::find(obj, b"stream", length.1).map(|i| i + b"stream".len()) else { continue };
+        let data = data + obj.get(data..).map_or(0, |r| r.iter().take(2).take_while(|b| matches!(b, b'\r' | b'\n')).count());
+        let Some(raw) = data.checked_add(length.0).and_then(|e| obj.get(data..e)) else { continue };
+        let same = if crate::lab_spot::find(obj.get(..data).unwrap_or_default(), b"/FlateDecode", 0).is_some() {
+            let mut out = vec![];
+            // One byte more than the profile is enough to tell a longer one apart.
+            flate2::read::ZlibDecoder::new(raw).take(icc.len() as u64 + 1).read_to_end(&mut out).is_ok() && out == icc
+        } else {
+            raw == icc
+        };
+        if same {
+            return Some(n);
+        }
+    }
+    None
 }
 
 /// `s` as a PDF text string: a literal string when it is printable ASCII, else UTF-16BE (with its
@@ -424,10 +545,6 @@ pub(crate) enum Pixels {
 }
 
 impl Pixels {
-    pub(crate) fn is_cmyk(&self) -> bool {
-        matches!(self, Self::Cmyk(_))
-    }
-
     /// Convert the RGB samples of straight RGBA pixels `rgba` in place (RGB destinations).
     pub(crate) fn rgb_in_place(&self, rgba: &mut [u8]) {
         if let Self::Rgb(lut) = self {
@@ -453,5 +570,32 @@ impl Pixels {
                 })
                 .collect(),
         )
+    }
+}
+
+/// How CMYK images' ink amounts are converted to the destination: a lookup table to its RGB
+/// values, or to its CMYK ones (another profile).
+pub(crate) struct CmykPixels {
+    lut: CmykLut,
+    /// The destination is CMYK.
+    cmyk: bool,
+}
+
+impl CmykPixels {
+    /// Ink amounts `inks` (four bytes a pixel) converted → (the samples, their colour space).
+    pub(crate) fn convert(&self, inks: &[u8]) -> (Vec<u8>, ImageColorspace) {
+        let n = if self.cmyk { 4 } else { 3 };
+        let mut out = Vec::with_capacity(inks.len() / 4 * n);
+        // Runs of one colour convert once.
+        let mut last: Option<([u8; 4], [u8; 4])> = None;
+        for p in inks.as_chunks::<4>().0 {
+            let v = match last {
+                Some((k, v)) if k == *p => v,
+                _ => self.lut.apply8(*p),
+            };
+            last = Some((*p, v));
+            out.extend_from_slice(v.get(..n).unwrap_or_default());
+        }
+        (out, if self.cmyk { ImageColorspace::Cmyk } else { ImageColorspace::Rgb })
     }
 }

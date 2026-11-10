@@ -177,13 +177,13 @@ impl Document {
     }
     /// Is `id` a user slice or an object with slice options?
     pub fn is_slice(&self, id: NodeId) -> bool {
-        self.slice(id).is_some() || self.node(id).is_some_and(|n| n.slice.is_some())
+        self.slice(id).is_some() || self.node(id).is_some_and(|n| n.extras().slice.is_some())
     }
     /// The options of slice `id` (user or object).
     pub fn slice_options(&self, id: NodeId) -> Option<&SliceOptions> {
         match self.slice(id) {
             Some(s) => Some(&s.options),
-            None => self.node(id)?.slice.as_deref(),
+            None => self.node(id)?.extras().slice.as_deref(),
         }
     }
     /// The rectangle of slice `id` before clipping: a user slice's own, an object slice's object's
@@ -191,14 +191,14 @@ impl Document {
     pub fn slice_bounds(&self, id: NodeId) -> Option<Rect> {
         match self.slice(id) {
             Some(s) => Some(s.rect),
-            None => self.node(id).filter(|n| n.slice.is_some())?.visual_bounds(),
+            None => self.node(id).filter(|n| n.extras().slice.is_some())?.visual_bounds(),
         }
     }
     /// The visible objects with slice options and their visual bounds, in paint order.
     pub fn object_slices(&self) -> Vec<(NodeId, Rect)> {
         fn walk(nodes: &[Arc<Node>], out: &mut Vec<(NodeId, Rect)>) {
             for n in nodes.iter().filter(|n| n.visible) {
-                if n.slice.is_some()
+                if n.extras().slice.is_some()
                     && let Some(b) = n.visual_bounds()
                 {
                     out.push((n.id, b));
@@ -274,6 +274,10 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         return vec![];
     }
     let inside: Vec<Rect> = cut.iter().map(|r| region.intersect(*r)).filter(|r| valid_rect(*r)).collect();
+    // Every band scans every cut: past a bound the layout is refused, not truncated.
+    if inside.len() > MAX_AUTO_CUTS {
+        return vec![];
+    }
     let mut ys: Vec<f64> = inside.iter().flat_map(|r| [r.y0, r.y1]).chain([region.y0, region.y1]).collect();
     ys.sort_by(f64::total_cmp);
     ys.dedup_by(|a, b| (*a - *b).abs() <= EPS);
@@ -298,6 +302,9 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         // Spans continuing an open slice extend it; the others close.
         let mut next = Vec::with_capacity(free.len());
         for (a, b) in free {
+            if done.len() + open.len() + next.len() >= MAX_AUTO_SLICES {
+                break;
+            }
             match open.iter().position(|r: &Rect| (r.x0 - a).abs() <= EPS && (r.x1 - b).abs() <= EPS) {
                 Some(i) => {
                     let mut r = open.swap_remove(i);
@@ -309,7 +316,18 @@ pub fn auto_slices(region: Rect, cut: &[Rect]) -> Vec<Rect> {
         }
         done.append(&mut open);
         open = next;
+        // Crossing strips make a cell of every crossing: the layout stops, short, past a bound.
+        if done.len() + open.len() >= MAX_AUTO_SLICES {
+            break;
+        }
     }
     done.append(&mut open);
+    done.truncate(MAX_AUTO_SLICES);
     done
 }
+
+/// The most slices automatic layout makes.
+const MAX_AUTO_SLICES: usize = 10_000;
+
+/// The most cut rectangles automatic layout works through.
+const MAX_AUTO_CUTS: usize = 2_000;

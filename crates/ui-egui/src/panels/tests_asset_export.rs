@@ -21,7 +21,10 @@ fn app(web: bool) -> (VectorcraftApp, Log, [u64; 2]) {
     let l = log.clone();
     let mut services = Services::default();
     if web {
-        services.download = Some(Box::new(move |name: &str, bytes: &[u8]| l.borrow_mut().push((name.to_string(), bytes.to_vec()))));
+        services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {
+            l.borrow_mut().push((name.to_string(), bytes.to_vec()));
+            Ok(())
+        }));
     }
     let mut app = VectorcraftApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
@@ -48,6 +51,23 @@ fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>
     let mut v = vec![];
     out.shapes.iter().for_each(|c| texts(&c.shape, &mut v));
     v
+}
+
+/// One frame of the panel menu, including its item positions.
+fn menu_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+    let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 700.0))), events, ..Default::default() };
+    let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
+    out.textures_delta.clear();
+    fn texts(s: &egui::Shape, out: &mut Vec<(String, Rect)>) {
+        match s {
+            egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect())),
+            egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, out)),
+            _ => {}
+        }
+    }
+    let mut labels = vec![];
+    out.shapes.iter().for_each(|s| texts(&s.shape, &mut labels));
+    labels
 }
 
 fn click(at: Pos2) -> Vec<egui::Event> {
@@ -151,11 +171,40 @@ fn renaming_an_asset_runs_assets_rename() {
     crate::theme::install_fonts(&ctx);
     frame(&ctx, &mut app, vec![], false);
     // Double-click starts editing the name (as typed here); Enter commits it.
-    ctx.data_mut(|d| d.insert_temp(egui::Id::new("asset-export-rename"), (id, "Logo".to_string())));
+    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("asset-export-rename"), (id, "Logo".to_string())));
     frame(&ctx, &mut app, vec![], false);
     let enter = egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
     frame(&ctx, &mut app, vec![enter], false);
     assert_eq!(assets(&mut app)[0]["name"], "Logo");
+}
+
+/// Shift+Enter in an asset's name field renames it and keeps the field open, the new name
+/// selected; Enter then renames it again and closes the field.
+#[test]
+fn shift_enter_renames_an_asset_and_keeps_the_field_open() {
+    let (mut app, _, [a, _]) = app(false);
+    let id = app.run("assets.add", json!({"ids": [a]})).unwrap()["assets"][0].as_u64().unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let rename_id = egui::Id::unique("asset-export-rename");
+    let field = rename_id.with("field");
+    let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
+    frame(&ctx, &mut app, vec![], false);
+    // What a double-click on the tile does: its name field opens with the name.
+    ctx.data_mut(|d| d.insert_temp(rename_id, (id, "Asset 1".to_string())));
+    frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, vec![key(egui::Key::A, egui::Modifiers::COMMAND), egui::Event::Text("Logo".into())], false);
+    frame(&ctx, &mut app, vec![key(egui::Key::Enter, egui::Modifiers::SHIFT)], false);
+    assert_eq!(assets(&mut app)[0]["name"], "Logo", "Shift+Enter applies the name");
+    assert!(ctx.memory(|m| m.has_focus(field)), "the field keeps the focus");
+    assert!(ctx.data(|d| d.get_temp::<(u64, String)>(rename_id)).is_some(), "and stays open");
+    frame(&ctx, &mut app, vec![], false);
+    let selected = egui::TextEdit::load_state(&ctx, field).and_then(|st| st.cursor.char_range()).map(|r| r.as_sorted_char_range());
+    assert_eq!(selected.map(|r| (r.start.0, r.end.0)), Some((0, 4)), "the name shown is selected");
+    frame(&ctx, &mut app, vec![egui::Event::Text("Mark".into())], false);
+    frame(&ctx, &mut app, vec![key(egui::Key::Enter, egui::Modifiers::NONE)], false);
+    assert_eq!(assets(&mut app)[0]["name"], "Mark", "typing replaced it, and Enter applies that");
+    assert!(ctx.data(|d| d.get_temp::<(u64, String)>(rename_id)).is_none(), "and closes the field");
 }
 
 #[test]
@@ -177,13 +226,289 @@ fn the_rows_are_the_shared_export_settings() {
     // A preset set by an agent shows as its rows.
     app.run("assets.settings.set", json!({"preset": "mobile"})).unwrap();
     let texts = frame(&ctx, &mut app, vec![], false);
-    assert!(has(&texts, "Mobile 1x/2x/3x") && has(&texts, "@3x"));
+    assert!(has(&texts, "iOS") && has(&texts, "@3x"));
     // Export (nothing selected: every asset) downloads one zip on the web.
     let texts = frame(&ctx, &mut app, vec![], false);
     frame(&ctx, &mut app, click(at(&texts, "Export")), false);
     let log = log.borrow();
     assert_eq!(log.len(), 1);
     assert_eq!(log[0].0, "Untitled-1.zip");
+}
+
+/// The panel menu applies and saves presets, and lists presets imported while it is open.
+#[test]
+fn the_preset_menu_applies_saves_and_lists_presets() {
+    let (mut app, _, [a, _]) = app(true);
+    app.run("assets.add", json!({"ids": [a]})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    assert!(!has(&texts, "Export Preset:"));
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Logo Package")));
+    let settings = app.run("document.exportSettings", json!({})).unwrap()["settings"].clone();
+    assert_eq!(settings["formats"].as_array().map(Vec::len), Some(5), "{settings}");
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "✓ Logo Package"), "the menu checks the applied preset");
+    // Save: the shared settings under a name of their own.
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save As Preset…")));
+    let texts = frame(&ctx, &mut app, vec![], false);
+    assert!(has(&texts, "Name:"));
+    super::set_pstate(&ctx, "asset-export-save-preset", Some("Mine".to_string()));
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Save")), false);
+    let mine = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Mine").expect("saved").clone();
+    assert_eq!(mine.settings["formats"], settings["formats"]);
+    // Create Sub-folders, off after a preset that sorts by format, is saved with it.
+    assert_eq!((mine.settings.get("folders"), mine.settings.get("subfolders")), (Some(&json!("format")), Some(&json!(false))), "{:?}", mine.settings);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "✓ Mine"), "the menu checks the saved preset");
+    // A preset file opened while the panel shows (the web's Import) is in its menu.
+    let data = app.run("document.exportPresets.export", json!({"names": ["Mine"]})).unwrap()["data"].as_str().unwrap().to_string();
+    crate::io::open_bytes(&mut app, "pack.vcexportpresets", data.as_bytes(), None).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "   Mine 2"), "{:?}", texts.iter().map(|t| &t.0).collect::<Vec<_>>());
+    // A mobile preset with no sub-folders is saved again with no sub-folders.
+    app.run("document.exportPresets.save", json!({"name": "Flat", "settings": {"preset": "mobile", "folders": "none"}})).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Flat")));
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save As Preset…")));
+    super::set_pstate(&ctx, "asset-export-save-preset", Some("Flat Again".to_string()));
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Save")), false);
+    let again = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Flat Again").expect("saved").clone();
+    assert_eq!(
+        (again.settings.get("preset"), again.settings.get("folders"), again.settings.get("subfolders")),
+        (Some(&json!("mobile")), Some(&json!("none")), Some(&json!(false))),
+        "{:?}",
+        again.settings
+    );
+}
+
+#[test]
+fn the_panel_saves_mobile_preset_without_subfolders() {
+    let (mut app, _, [a, _]) = app(true);
+    app.run("assets.add", json!({"ids": [a]})).unwrap();
+    let asset = app.run("assets.list", json!({})).unwrap()["assets"][0]["id"].as_u64().unwrap();
+    app.run("assets.settings.set", json!({"preset": "mobile", "subfolders": false})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save As Preset…")));
+    super::set_pstate(&ctx, "asset-export-save-preset", Some("Flat Mobile".to_string()));
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Save")), false);
+
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Flat Mobile").expect("saved");
+    assert_eq!(saved.settings.get("folders"), Some(&json!("none")));
+    assert_eq!(saved.settings.get("subfolders"), Some(&json!(false)));
+
+    let out = app.run("document.exportForScreens", json!({"exportPreset": "Flat Mobile", "assets": [asset]})).unwrap();
+    let files = out["files"].as_array().unwrap();
+    assert_eq!(files.len(), 3, "{out}");
+    assert!(files.iter().all(|f| !f["name"].as_str().unwrap().contains('/')), "{out}");
+
+    app.run("assets.settings.set", json!({"exportPreset": "Flat Mobile"})).unwrap();
+    let settings = app.run("document.exportSettings", json!({})).unwrap();
+    assert_eq!(settings["settings"]["folders"], "none");
+    assert_eq!(settings["settings"]["subfolders"], false);
+}
+
+#[test]
+fn asset_export_preserves_applied_preset_naming_and_folders_when_saving() {
+    let (mut app, _, [a, _]) = app(true);
+    app.run("assets.add", json!({"ids": [a]})).unwrap();
+    let asset = app.run("assets.list", json!({})).unwrap()["assets"][0]["id"].as_u64().unwrap();
+    let original = json!({
+        "formats": [{"format": "svg"}],
+        "name": "<name>-###",
+        "folders": "format",
+        "counterStart": 7,
+        "counterPer": "file",
+        "includeBleed": true,
+    });
+    app.run("document.exportPresets.save", json!({"name": "Named Assets", "settings": original})).unwrap();
+    let before = app.run("document.exportForScreens", json!({"exportPreset": "Named Assets", "assets": [asset]})).unwrap();
+
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Named Assets")));
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "✓ Named Assets"));
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Named Assets").expect("saved");
+    for key in ["name", "folders", "counterStart", "counterPer", "includeBleed"] {
+        assert_eq!(saved.settings.get(key), original.get(key), "{key}: {:?}", saved.settings);
+    }
+    let file = app.run("document.exportPresets.export", json!({"names": ["Named Assets"]})).unwrap();
+    let data: Value = serde_json::from_str(file["data"].as_str().unwrap()).unwrap();
+    for key in ["name", "folders", "counterStart", "counterPer", "includeBleed"] {
+        assert_eq!(data["presets"][0]["settings"].get(key), original.get(key), "{key}: {data}");
+    }
+    let after = app.run("document.exportForScreens", json!({"exportPreset": "Named Assets", "assets": [asset]})).unwrap();
+    assert_eq!(after["files"][0]["name"], before["files"][0]["name"]);
+}
+
+#[test]
+fn asset_export_replaces_applied_format_choice_when_saving() {
+    let (mut app, _, _) = app(true);
+    app.run(
+        "document.exportPresets.save",
+        json!({
+            "name": "Named Rows",
+            "settings": {"formats": [{"format": "svg"}], "name": "<name>-###"}
+        }),
+    )
+    .unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Named Rows")));
+    app.run("assets.settings.set", json!({"preset": "mobile"})).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Named Rows").expect("saved");
+    assert_eq!(saved.settings.get("preset"), Some(&json!("mobile")));
+    assert!(saved.settings.get("formats").is_none(), "{:?}", saved.settings);
+    assert_eq!(saved.settings.get("name"), Some(&json!("<name>-###")));
+
+    app.run("assets.settings.set", json!({"exportPreset": "Named Rows"})).unwrap();
+    app.run("file.exportForScreens", json!({})).unwrap();
+    assert_eq!(app.ui.dialog.as_ref().unwrap().fields["formats"], json!(vectorcraft_engine::cmd::fileio::screen_preset_rows("mobile").unwrap()));
+    crate::dialogs::cancel(&mut app);
+
+    app.run("document.exportPresets.save", json!({"name": "Mobile First", "settings": {"preset": "mobile", "name": "<name>-###"}})).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Mobile First")));
+    app.run("assets.settings.set", json!({"formats": [{"format": "svg"}]})).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Mobile First").expect("saved");
+    assert_eq!(saved.settings.get("formats"), Some(&json!([{"format": "svg"}])));
+    assert!(saved.settings.get("preset").is_none(), "{:?}", saved.settings);
+    assert_eq!(saved.settings.get("name"), Some(&json!("<name>-###")));
+}
+
+#[test]
+fn asset_export_saves_changed_rows_with_applied_preset_fields() {
+    let (mut app, _, _) = app(true);
+    let original = json!({
+        "formats": [{"format": "svg"}],
+        "name": "<name>-###",
+        "counterStart": 7,
+        "counterPer": "file",
+        "folder": "exports",
+        "includeBleed": true,
+    });
+    app.run("document.exportPresets.save", json!({"name": "Named Rows", "settings": original})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Named Rows")));
+    app.run("assets.settings.set", json!({"formats": [{"format": "png", "scale": "2x"}]})).unwrap();
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Named Rows").expect("saved");
+    assert_eq!(saved.settings["formats"], json!([{"format": "png", "scale": "2x"}]));
+    for key in ["name", "counterStart", "counterPer", "folder", "includeBleed"] {
+        assert_eq!(saved.settings.get(key), original.get(key), "{key}: {:?}", saved.settings);
+    }
+}
+
+#[test]
+fn asset_export_saves_changed_subfolders_from_applied_preset() {
+    let (mut app, _, _) = app(true);
+    app.run("document.exportPresets.save", json!({"name": "Grouped Mobile", "settings": {"preset": "mobile", "folders": "format"}})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Grouped Mobile")));
+    app.run("assets.settings.set", json!({"subfolders": true})).unwrap();
+    let current = app.run("document.exportSettings", json!({})).unwrap();
+    assert_eq!(current["settings"]["folders"], "rows");
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Grouped Mobile").expect("saved");
+    assert_eq!(saved.settings.get("folders"), Some(&json!("rows")));
+    assert_eq!(saved.settings.get("subfolders"), Some(&json!(true)));
+    app.run("assets.settings.set", json!({"exportPreset": "Grouped Mobile"})).unwrap();
+    let reapplied = app.run("document.exportSettings", json!({})).unwrap();
+    assert_eq!(reapplied["settings"]["folders"], "rows");
+}
+
+#[test]
+fn asset_export_preserves_applied_mobile_preset_folder_choice() {
+    let (mut app, _, _) = app(true);
+    app.run("document.exportPresets.save", json!({"name": "Mobile by Format", "settings": {"preset": "mobile", "folders": "format"}})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Mobile by Format")));
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "✓ Mobile by Format"));
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+    let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Mobile by Format").expect("saved");
+    assert_eq!(saved.settings.get("folders"), Some(&json!("format")));
+    assert_eq!(saved.settings.get("subfolders"), Some(&json!(false)));
+}
+
+/// The panel keeps its list of export presets from frame to frame, and builds it again when the
+/// saved presets change.
+#[test]
+fn the_panel_builds_the_preset_list_again_only_when_the_presets_change() {
+    let (mut app, _, _) = app(true);
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    menu_frame(&ctx, &mut app, vec![]);
+    app.asset_export_presets[0]["mark"] = json!(true);
+    frame(&ctx, &mut app, vec![], false);
+    menu_frame(&ctx, &mut app, vec![]);
+    assert_eq!(app.asset_export_presets[0]["mark"], true, "the list was not built again");
+    app.run("document.exportPresets.save", json!({"name": "Mine", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+    menu_frame(&ctx, &mut app, vec![]);
+    let list = &app.asset_export_presets;
+    assert!(list[0].get("mark").is_none() && list.as_array().unwrap().iter().any(|p| p["name"] == "Mine"), "{list}");
+}
+
+#[test]
+fn the_preset_menu_saves_changes_and_opens_import_and_export() {
+    let (mut app, log, _) = app(true);
+    app.run("document.exportPresets.save", json!({"name": "Pack", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+    let opened = Rc::new(RefCell::new(0));
+    let opened_for_picker = opened.clone();
+    app.services.open_async = Some(Box::new(move || *opened_for_picker.borrow_mut() += 1));
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    menu_frame(&ctx, &mut app, vec![]);
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Pack")));
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    assert!(has(&texts, "✓ Pack"));
+    app.run("assets.settings.set", json!({"formats": [{"format": "png", "scale": "2x"}]})).unwrap();
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Save Changes")));
+    let pack = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Pack").unwrap();
+    assert_eq!(pack.settings["formats"][0]["format"], "png");
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Export Preset…")));
+    assert_eq!(log.borrow()[0].0, "Pack.vcexportpresets");
+    let texts = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&texts, "   Import Preset…")));
+    assert_eq!(*opened.borrow(), 1);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -203,4 +528,316 @@ fn export_writes_into_the_picked_folder() {
     frame(&ctx, &mut app, click(at(&texts, "Export")), false);
     assert!(dir.join("Badge.png").is_file(), "{:?}", std::fs::read_dir(&dir).map(|d| d.count()));
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn tiff_dropdown_exports_only_the_selected_asset_and_shares_settings() {
+    let (mut app, log, [a, b]) = app(true);
+    app.run("paint.setFill", json!({"ids": [a], "color": "#c03020"})).unwrap();
+    app.run("paint.setFill", json!({"ids": [b], "color": "#2040c0"})).unwrap();
+    app.run("assets.add", json!({"ids": [a], "name": "Badge"})).unwrap();
+    app.run("assets.add", json!({"ids": [b], "name": "Other"})).unwrap();
+    app.run(
+        "assets.settings.set",
+        json!({
+            "formats": [{"format": "png", "scale": "2x", "suffix": "@2x"}],
+            "settings": {"tiff": {"byteOrder": "big", "lzw": false, "embedIcc": false}}
+        }),
+    )
+    .unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "PNG")), false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "TIFF")), false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    assert!(has(&texts, "TIFF"));
+    let saved = app.run("document.exportSettings", json!({})).unwrap()["settings"].clone();
+    assert_eq!(saved["formats"], json!([{"format": "tiff", "scale": "2x", "suffix": "@2x"}]));
+    frame(&ctx, &mut app, click(at(&texts, "Badge")), false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Export 1 Selected")), false);
+    {
+        let log = log.borrow();
+        let [(name, bytes)] = log.as_slice() else { panic!("expected only the selected asset") };
+        assert_eq!(name, "Badge@2x.tif");
+        assert_eq!(&bytes[..4], b"MM\0*", "the saved TIFF byte order reaches asset export");
+        let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Tiff).unwrap().to_rgba8();
+        assert_eq!(img.dimensions(), (60, 40), "the selected 30x20 asset at 2x");
+        let pixel = img.get_pixel(30, 20).0;
+        assert!(pixel[0] > pixel[1] && pixel[0] > pixel[2] && pixel[3] == 255, "the red Badge, not the blue Other asset: {pixel:?}");
+    }
+    app.run("file.exportForScreens", json!({})).unwrap();
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!(d.fields["formats"], saved["formats"]);
+    assert_eq!(d.fields["settings"]["tiff"]["byteOrder"], "big");
+    assert_eq!(d.fields["settings"]["tiff"]["lzw"], false);
+    assert_eq!(d.fields["settings"]["tiff"]["embedIcc"], false);
+}
+
+/// TIFF tag 262 identifies RGB (2) or separated CMYK (5), independently of a decoder's conversion.
+fn tiff_photometric(bytes: &[u8]) -> u16 {
+    let big = match &bytes[..4] {
+        b"II*\0" => false,
+        b"MM\0*" => true,
+        magic => panic!("not TIFF: {magic:?}"),
+    };
+    let short = |at: usize| {
+        let b = bytes[at..at + 2].try_into().unwrap();
+        if big { u16::from_be_bytes(b) } else { u16::from_le_bytes(b) }
+    };
+    let long = |at: usize| {
+        let b = bytes[at..at + 4].try_into().unwrap();
+        if big { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) }
+    };
+    let dir = long(4) as usize;
+    let entry = (0..usize::from(short(dir))).map(|i| dir + 2 + 12 * i).find(|&at| short(at) == 262).expect("PhotometricInterpretation");
+    assert_eq!((short(entry + 2), long(entry + 4)), (3, 1), "one SHORT");
+    short(entry + 8)
+}
+
+/// Remembered format settings that hold keys the export no longer reads, and settings for a format
+/// it doesn't write, are left out of the panel's export, so it is not refused.
+#[test]
+fn export_leaves_out_remembered_keys_no_longer_read() {
+    let (mut app, log, [a, _]) = app(true);
+    app.run("assets.add", json!({"ids": [a], "name": "Badge"})).unwrap();
+    let serde_json::Value::Object(saved) = json!({
+        "formats": [{"format": "tiff", "scale": "1x", "noSuchOption": 1}],
+        "settings": {"png": {"noSuchSetting": true}, "dxf": {}, "tiff": {"lzw": false, "noSuchSetting": 1}}
+    }) else {
+        panic!("an object")
+    };
+    std::sync::Arc::make_mut(&mut app.session.active_mut().unwrap().doc).export_settings = saved;
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+    let log = log.borrow();
+    let [(name, _)] = log.as_slice() else { panic!("expected one TIFF: {}", app.ui.status) };
+    assert_eq!(name, "Badge.tif");
+}
+
+#[test]
+fn tiff_cmyk_defaults_match_screens_and_preserve_explicit_rgb() {
+    for rgb_override in [false, true] {
+        let mut models = vec![];
+        for screens in [false, true] {
+            let (mut app, log, [a, _]) = app(true);
+            app.run("object.convertDocumentColorMode", json!({"mode": "cmyk"})).unwrap();
+            app.run("assets.add", json!({"ids": [a], "name": "Badge"})).unwrap();
+            assert!(app.session.active().unwrap().doc.export_settings.get("settings").is_none(), "fresh format settings");
+            if rgb_override {
+                app.run("assets.settings.set", json!({"settings": {"tiff": {"colorModel": "rgb"}}})).unwrap();
+            }
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            frame(&ctx, &mut app, vec![], false);
+            let texts = frame(&ctx, &mut app, vec![], false);
+            frame(&ctx, &mut app, click(at(&texts, "PNG")), false);
+            let texts = frame(&ctx, &mut app, vec![], false);
+            frame(&ctx, &mut app, click(at(&texts, "TIFF")), false);
+            let texts = frame(&ctx, &mut app, vec![], false);
+            assert!(has(&texts, "TIFF"));
+            if !rgb_override {
+                assert!(app.session.active().unwrap().doc.export_settings.get("settings").and_then(|s| s.get("tiff")).is_none());
+            }
+            if screens {
+                // The 24 pt gear is the rightmost control in the Formats row of this 236 pt panel.
+                frame(&ctx, &mut app, click(pos2(236.0 - 12.0, at(&texts, "Formats:").y)), false);
+                let d = app.ui.dialog.as_ref().expect("the panel gear opens Format Settings");
+                assert_eq!((d.kind.as_str(), d.str("tab"), d.str("__settings")), ("exportForScreens", "assets".into(), "tiff".into()));
+                assert_eq!(d.fields["settings"]["tiff"]["colorModel"], if rgb_override { "rgb" } else { "cmyk" });
+                crate::dialogs::confirm(&mut app).unwrap();
+                assert!(app.ui.dialog.is_none());
+            } else {
+                frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+            }
+            let log = log.borrow();
+            let [(name, bytes)] = log.as_slice() else { panic!("expected one TIFF: screens={screens}, rgb_override={rgb_override}") };
+            assert_eq!(name, "Badge.tif");
+            models.push(tiff_photometric(bytes));
+        }
+        assert_eq!(models, vec![if rgb_override { 2 } else { 5 }; 2], "direct panel and screens; explicit RGB={rgb_override}");
+    }
+}
+
+#[test]
+fn tiff_panel_preserves_shared_antialias_and_explicit_overrides() {
+    for (format_aa, row_aa, effective_aa) in [(None, None, "none"), (Some("art"), None, "art"), (Some("art"), Some("none"), "none")] {
+        let (mut app, log, _) = app(true);
+        // The fractional ellipse reuses the raster-export hard/smooth edge oracle.
+        let id = app.run("shape.ellipse", json!({"x": 5.3, "y": 4.7, "width": 25.8, "height": 21.5})).unwrap()["id"].clone();
+        app.run("assets.add", json!({"ids": [id], "name": "Edge"})).unwrap();
+        let mut row = json!({"format": "png", "scale": "1x", "suffix": ""});
+        if let Some(aa) = row_aa {
+            row["antiAlias"] = json!(aa);
+        }
+        let other_settings = json!({"png": {"antiAlias": "type", "interlaced": true}, "jpg": {"quality": 80}});
+        let mut settings = other_settings.clone();
+        if let Some(aa) = format_aa {
+            settings["tiff"] = json!({"antiAlias": aa});
+        }
+        app.run("assets.settings.set", json!({"formats": [row], "antiAlias": "none", "settings": settings})).unwrap();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        frame(&ctx, &mut app, vec![], false);
+        let texts = frame(&ctx, &mut app, vec![], false);
+        frame(&ctx, &mut app, click(at(&texts, "PNG")), false);
+        let texts = frame(&ctx, &mut app, vec![], false);
+        frame(&ctx, &mut app, click(at(&texts, "TIFF")), false);
+        let texts = frame(&ctx, &mut app, vec![], false);
+        assert!(has(&texts, "TIFF"));
+        frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+        {
+            let log = log.borrow();
+            let [(name, bytes)] = log.as_slice() else { panic!("expected one TIFF: format={format_aa:?}, row={row_aa:?}") };
+            assert_eq!(name, "Edge.tif");
+            let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Tiff).unwrap().to_rgba8();
+            assert!(img.pixels().any(|p| p[3] == 255), "the ellipse is present");
+            assert!(img.pixels().any(|p| p[3] == 0), "transparent outside the ellipse");
+            let hard = img.pixels().all(|p| p[3] == 0 || p[3] == 255);
+            assert_eq!(hard, effective_aa == "none", "effective anti-aliasing: format={format_aa:?}, row={row_aa:?}");
+        }
+        let saved = app.run("document.exportSettings", json!({})).unwrap()["settings"].clone();
+        assert_eq!(saved["antiAlias"], "none", "the shared choice stays saved");
+        assert_eq!(saved["settings"], settings, "direct export preserves saved format options, including an absent TIFF map");
+        assert_eq!(saved["formats"][0]["format"], "tiff");
+        assert_eq!(saved["formats"][0].get("antiAlias").and_then(Value::as_str), row_aa, "row overrides stay on the row");
+        for format in ["png", "jpg"] {
+            assert_eq!(saved["settings"][format], other_settings[format], "other format choices survive");
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn tiff_saved_aliases_use_document_defaults_and_explicit_rgb() {
+    let dir = std::env::temp_dir().join(format!("vc-asset-tiff-aliases-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    // The first case is the historical control: saved tif without an explicit model must be CMYK.
+    // Native picked folders let the mixed-row case inspect each file without introducing a ZIP decoder.
+    for (case, (alias, rgb_override, mixed)) in
+        [("tif", false, false), ("TIFF", false, false), (".tif", false, true), ("tif", true, false)].into_iter().enumerate()
+    {
+        let folder = dir.join(case.to_string());
+        let picked = folder.to_string_lossy().replace('\\', "/");
+        let (mut app, _, [a, _]) = app(false);
+        app.services.pick_folder = Some(Box::new(move || Some(picked.clone())));
+        app.run("object.convertDocumentColorMode", json!({"mode": "cmyk"})).unwrap();
+        app.run("assets.add", json!({"ids": [a], "name": "Badge"})).unwrap();
+        let mut rows = vec![json!({"format": alias, "scale": "2x", "suffix": "@2x"})];
+        if mixed {
+            rows.push(json!({"format": "png", "scale": "1x", "suffix": ""}));
+        }
+        let mut settings = json!({"png": {"interlaced": true}});
+        if rgb_override {
+            settings["tiff"] = json!({"colorModel": "rgb"});
+        }
+        let saved = json!({"formats": rows, "settings": settings});
+        app.run("assets.settings.set", saved.clone()).unwrap();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        frame(&ctx, &mut app, vec![], false);
+        let texts = frame(&ctx, &mut app, vec![], false);
+        // Keep the valid saved spelling; choosing the TIFF dropdown would hide the alias bug.
+        frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+        let bytes = std::fs::read(folder.join("Badge@2x.tif")).unwrap();
+        assert_eq!(tiff_photometric(&bytes), if rgb_override { 2 } else { 5 }, "saved alias {alias}, explicit RGB={rgb_override}");
+        if rgb_override {
+            let img = image::load_from_memory_with_format(&bytes, image::ImageFormat::Tiff).unwrap();
+            assert_eq!((img.width(), img.height()), (60, 40), "the saved TIFF row is still 2x");
+        }
+        if mixed {
+            let png = std::fs::read(folder.join("Badge.png")).unwrap();
+            let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).unwrap();
+            assert_eq!((img.width(), img.height()), (30, 20), "the PNG row keeps its own 1x scale");
+            assert_eq!(png.get(28), Some(&1), "the saved PNG interlace option survives the TIFF defaults");
+        }
+        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), if mixed { 2 } else { 1 });
+        assert_eq!(
+            app.run("document.exportSettings", json!({})).unwrap()["settings"],
+            saved,
+            "direct export preserves saved aliases and explicit options"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Export 3D Object in the panel menu collects the selected 3D object; its tile is marked 3D, the
+/// Format row sets its mesh format, and Export writes it as a mesh file beside the pictures.
+#[test]
+fn a_3d_asset_takes_its_format_from_the_row_and_exports_as_a_mesh() {
+    let (mut app, log, [a, b]) = app(true);
+    app.run("select.set", json!({"ids": [a]})).unwrap();
+    app.run("effect.apply", json!({"effect": "threeD.extrude", "params": {"depth": 20}})).unwrap();
+    app.run("layer.setProps", json!({"id": a, "name": "Box"})).unwrap();
+    app.run("assets.add", json!({"ids": [b], "name": "Flat"})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    // Without a 3D asset there is no 3D Format row.
+    frame(&ctx, &mut app, vec![], false);
+    assert!(!has(&frame(&ctx, &mut app, vec![], false), "3D Format:"));
+    menu_frame(&ctx, &mut app, vec![]);
+    let items = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&items, "   Export 3D Object")));
+    let list = assets(&mut app);
+    assert_eq!((list[1]["name"].clone(), list[1]["format3D"].clone()), (json!("Box"), json!("usda")));
+    let texts = frame(&ctx, &mut app, vec![], false);
+    let texts = if has(&texts, "3D Format:") { texts } else { frame(&ctx, &mut app, vec![], false) };
+    assert!(has(&texts, "3D") && has(&texts, "3D Format:"), "{:?}", texts.iter().map(|t| &t.0).collect::<Vec<_>>());
+    frame(&ctx, &mut app, click(at(&texts, "USDA")), false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "OBJ")), false);
+    assert_eq!(assets(&mut app)[1]["format3D"], "obj");
+    // The menu left the new 3D asset selected: Export writes its OBJ and MTL alone, as one zip.
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Export 1 Selected")), false);
+    {
+        let log = log.borrow();
+        let [(name, zip)] = log.as_slice() else { panic!("{:?} {}", log.iter().map(|f| &f.0).collect::<Vec<_>>(), app.ui.status) };
+        assert!(name.ends_with(".zip"), "{name}");
+        let has_name = |n: &str| zip.windows(n.len()).any(|w| w == n.as_bytes());
+        assert!(has_name("Box.obj") && has_name("Box.mtl"));
+    }
+    // Every asset: the 3D asset's files first, since they are written at once, then the picture
+    // asset as before.
+    log.borrow_mut().clear();
+    menu_frame(&ctx, &mut app, vec![]);
+    let items = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&items, "   Select All Assets")));
+    frame(&ctx, &mut app, vec![], false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+    let log = log.borrow();
+    assert_eq!(log.iter().map(|f| f.0.ends_with(".zip")).collect::<Vec<_>>(), [true, false], "{:?}", log.iter().map(|f| &f.0).collect::<Vec<_>>());
+    assert!(log[1].0.starts_with("Flat"), "{}", log[1].0);
+}
+
+/// When the 3D assets fail to export, Export leaves the picture assets unexported and the status
+/// bar keeps the 3D error.
+#[test]
+fn a_failed_3d_export_stops_the_picture_export() {
+    let (mut app, log, [a, b]) = app(true);
+    app.run("select.set", json!({"ids": [a]})).unwrap();
+    app.run("effect.apply", json!({"effect": "threeD.extrude", "params": {"depth": 20}})).unwrap();
+    app.run("layer.setProps", json!({"id": a, "name": "Box"})).unwrap();
+    app.run("assets.add3D", json!({"ids": [a]})).unwrap();
+    app.run("select.set", json!({"ids": [a]})).unwrap();
+    app.run("effect.remove", json!({"index": 0})).unwrap();
+    app.run("assets.add", json!({"ids": [b], "name": "Flat"})).unwrap();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    menu_frame(&ctx, &mut app, vec![]);
+    let items = menu_frame(&ctx, &mut app, vec![]);
+    menu_frame(&ctx, &mut app, click(at(&items, "   Select All Assets")));
+    frame(&ctx, &mut app, vec![], false);
+    let texts = frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, click(at(&texts, "Export")), false);
+    assert!(log.borrow().is_empty(), "{:?}", log.borrow().iter().map(|f| &f.0).collect::<Vec<_>>());
+    assert!(app.ui.status.contains("Box"), "{}", app.ui.status);
 }

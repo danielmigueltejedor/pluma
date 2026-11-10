@@ -20,7 +20,7 @@ use vectorcraft_tools::distort::perspective::{GridDefinition, PerspectiveGrid};
 use vectorcraft_tools::{PointerEvent, PointerKind, ToolKey};
 
 use super::distortcmds::{grid_of, silent, store_grid};
-use super::*;
+use super::{CommandSpec, EngineError, Result, Session, always, bad, bool_or, cmd, has_doc, str_param, switch_or, unique_name};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Perspective Grid",
             [],
             None,
-            "{} → {grid: the model (as perspective.grid.set takes it), define: the Define Grid fields (as perspective.grid.define takes them), station: {x, y, distance} (the viewer: centre of vision on the horizon, distance to the picture plane, pt), defined: false while the document uses the default grid}",
+            "{} → {grid: the model (as perspective.grid.set takes it), define: the Define Grid fields (as perspective.grid.define takes them; name is the preset only while the grid still has its fields, else \"\" for custom: dragging the horizon, a vanishing point or the station point makes it custom, moving a plane does not), station: {x, y, distance} (the viewer: centre of vision on the horizon, distance to the picture plane, pt), defined: false while the document uses the default grid}",
             has_doc,
             grid_get
         ),
@@ -56,7 +56,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Save Perspective Grid Preset",
             [],
             None,
-            "{name?: (default: a new \"Perspective Preset N\"), newName?: rename it, preset?: the preset to start from (default: the saved preset `name`, else the document's grid), …the perspective.grid.define fields (over it)} create or change a saved preset (Save Grid as Preset: just `name`); built-in ones are protected → {name, created, definition}",
+            "{name?: (default: a new \"Perspective Preset N\"), newName?: rename it, preset?: the preset to start from (default: the saved preset `name`, else the document's grid), …the fields of perspective.grid.define (over it)} create or change a saved preset (Save Grid as Preset: just `name`); built-in ones are protected → {name, created, definition}",
             always,
             presets_save
         ),
@@ -222,7 +222,13 @@ pub(crate) fn grid_info(doc: &vectorcraft_doc::Document, g: &PerspectiveGrid) ->
 
 fn grid_get(s: &mut Session, _: &Value) -> Result<Value> {
     let doc = &s.doc()?.doc;
-    Ok(grid_info(doc, &grid_of(doc)))
+    let g = grid_of(doc);
+    let mut info = grid_info(doc, &g);
+    // The grid is its preset only while it has the preset's fields: a station point or vanishing
+    // point dragged since makes it a custom grid.
+    let def = g.definition();
+    info["define"]["name"] = json!(s.preset_named(&def, &[&def.name]));
+    Ok(info)
 }
 
 fn grid_define(s: &mut Session, p: &Value) -> Result<Value> {
@@ -366,7 +372,7 @@ fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
     let base = GridDefinition::default();
     let check = |v: &Value| base.merged(v).map_err(|e| bad(C, format!("`{}`: {e}", v["name"].as_str().unwrap_or("?"))));
     let presets = file.presets.iter().map(check).collect::<Result<Vec<_>>>()?;
-    let replace = bool_or(p, "replace", false);
+    let replace = switch_or(p, "replace", false, C)?;
     let mut imported = vec![];
     for mut preset in presets {
         // A built-in view comes in as a saved copy ("2P-Normal View"…): the built-in one stays.
@@ -390,9 +396,13 @@ fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "imported": imported }))
 }
 
-/// Toggle (or set, with `on`) a view option of the grid.
-fn view_option(s: &mut Session, p: &Value, field: fn(&mut PerspectiveGrid) -> &mut bool) -> Result<Value> {
-    let want = p.get("on").and_then(Value::as_bool);
+/// Toggle (or set, with `on`) a view option of the grid for the command `cmd`.
+fn view_option(s: &mut Session, p: &Value, cmd: &str, field: fn(&mut PerspectiveGrid) -> &mut bool) -> Result<Value> {
+    // A missing or null `on` toggles the option.
+    let want = match p.get("on") {
+        None | Some(Value::Null) => None,
+        Some(_) => Some(switch_or(p, "on", false, cmd)?),
+    };
     let mut g = silent(s, |g| {
         let f = field(g);
         *f = want.unwrap_or(!*f);
@@ -401,24 +411,24 @@ fn view_option(s: &mut Session, p: &Value, field: fn(&mut PerspectiveGrid) -> &m
 }
 
 fn lock(s: &mut Session, p: &Value) -> Result<Value> {
-    view_option(s, p, |g| &mut g.locked)
+    view_option(s, p, "perspective.grid.lock", |g| &mut g.locked)
 }
 
 fn lock_station(s: &mut Session, p: &Value) -> Result<Value> {
-    view_option(s, p, |g| &mut g.lock_station)
+    view_option(s, p, "perspective.grid.lockStation", |g| &mut g.lock_station)
 }
 
 fn snap(s: &mut Session, p: &Value) -> Result<Value> {
-    view_option(s, p, |g| &mut g.snap)
+    view_option(s, p, "perspective.grid.snap", |g| &mut g.snap)
 }
 
 fn rulers(s: &mut Session, p: &Value) -> Result<Value> {
-    view_option(s, p, |g| &mut g.rulers)
+    view_option(s, p, "perspective.grid.rulers", |g| &mut g.rulers)
 }
 
 /// Snap to Grid for a move of `ids` from page point `from` to `to` (unless `p` says `snap: false`):
 /// the plane and depth of the first one and the plane-space correction that lands the edge of the
-/// joint bounds of the objects there nearer a gridline on it.
+/// joint bounds of the objects on that plane, each measured at its own depth, nearer a gridline on it.
 pub(crate) fn snap_fix(doc: &Document, ids: &[NodeId], p: &Value, (from, to): (Point, Point)) -> Option<(Plane, f64, Vec2)> {
     let g = grid_of(doc);
     if !bool_or(p, "snap", g.snap) {
@@ -452,7 +462,7 @@ impl Session {
                 let w = self.prefs.perspective_widget;
                 let st = self.active().filter(|_| w.show)?;
                 let g = PerspectiveGrid::current(&st.doc);
-                if !g.shown(self.tool_id()) {
+                if !g.visible {
                     return None;
                 }
                 let place = WidgetPlace { screen: view.screen.as_ref(), corner: w.position };
@@ -476,6 +486,6 @@ impl Session {
             ToolKey::Digit(4) => Plane::None,
             _ => return None,
         };
-        PerspectiveGrid::current(&self.active()?.doc).shown(self.tool_id()).then_some(plane)
+        PerspectiveGrid::current(&self.active()?.doc).visible.then_some(plane)
     }
 }

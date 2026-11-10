@@ -11,21 +11,206 @@ use crate::import::{Dsc, import};
 use crate::{EpsOptions, Level, Preview, Raster};
 
 /// `body` as an EPS file with a 100 × 100 pt bounding box.
-fn eps(body: &str) -> Vec<u8> {
+pub(super) fn eps(body: &str) -> Vec<u8> {
     format!("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n%%EndComments\n{body}\nshowpage\n%%EOF\n").into_bytes()
 }
 
-fn read(body: &str) -> crate::Imported {
+pub(super) fn read(body: &str) -> crate::Imported {
     import(&eps(body)).unwrap()
 }
 
+#[test]
+fn postscript_roll_negative_count_is_refused() {
+    let err = import(&eps("-1 1 roll")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_putinterval_negative_index_is_refused() {
+    let err = import(&eps("(abcd) -1 (x) putinterval pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_negative_string_count_is_refused() {
+    let err = import(&eps("-1 string pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_negative_repeat_count_is_refused() {
+    let err = import(&eps("-1 { } repeat pop")).unwrap_err();
+    assert!(err.contains("rangecheck"));
+}
+
+#[test]
+fn postscript_put_negative_index_is_refused() {
+    let err = import(&eps("/a [0] def a -1 1 put pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("index"));
+}
+
+#[test]
+fn postscript_negative_packedarray_count_is_refused() {
+    let err = import(&eps("-1 packedarray pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_get_negative_index_is_refused() {
+    let err = import(&eps("/a [0] def a -1 get pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("index"));
+}
+
+#[test]
+fn postscript_negative_dict_count_is_refused() {
+    let err = import(&eps("-1 dict pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_negative_array_count_is_refused() {
+    let err = import(&eps("-1 array pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_index_negative_count_is_refused() {
+    let err = import(&eps("1 -1 index pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_getinterval_negative_count_is_refused() {
+    let err = import(&eps("(a) 1 -1 getinterval pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_getinterval_negative_at_is_refused() {
+    let err = import(&eps("(a) -1 1 getinterval pop")).unwrap_err();
+    assert!(err.contains("rangecheck") && err.contains("count"));
+}
+
+#[test]
+fn postscript_copy_negative_count_is_refused() {
+    let err = import(&eps("1 -1 copy pop")).unwrap_err();
+    assert!(err.contains("rangecheck"));
+}
+
+#[test]
+fn postscript_srand_non_integer_operand_is_refused() {
+    let err = import(&eps("1.5 srand")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("srand"));
+}
+
+#[test]
+fn postscript_roll_non_integer_count_is_refused() {
+    let err = import(&eps("1.5 1 roll")).unwrap_err();
+    assert!(err.contains("typecheck"));
+}
+
+#[test]
+fn postscript_roll_non_integer_displacement_is_refused() {
+    let err = import(&eps("1 1.5 roll")).unwrap_err();
+    assert!(err.contains("typecheck"));
+}
+
+#[test]
+fn postscript_repeat_non_procedure_operand_is_refused() {
+    let err = import(&eps("1 1 repeat")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("repeat"));
+}
+
+#[test]
+fn postscript_repeat_non_integer_count_is_refused() {
+    let err = import(&eps("1.5 { pop } repeat")).unwrap_err();
+    assert!(err.contains("typecheck"));
+}
+
+#[test]
+fn postscript_mod_non_integer_operand_is_refused() {
+    let err = import(&eps("1.5 2 mod")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("mod"));
+}
+
+#[test]
+fn postscript_loop_non_procedure_operand_is_refused() {
+    let err = import(&eps("1 loop")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("loop"));
+}
+
+#[test]
+fn postscript_index_non_integer_count_is_refused() {
+    let err = import(&eps("1 1.5 index pop")).unwrap_err();
+    assert!(err.contains("typecheck"));
+}
+
+#[test]
+fn postscript_ifelse_non_procedure_branch_is_refused() {
+    let err = import(&eps("true { pop } 1 ifelse")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("ifelse"));
+}
+
+#[test]
+fn postscript_ifelse_non_boolean_condition_is_refused() {
+    let err = import(&eps("1 { pop } { pop } ifelse")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("ifelse"));
+}
+
+#[test]
+fn postscript_if_non_procedure_body_is_refused() {
+    let err = import(&eps("true 1 if")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("if"));
+}
+
+#[test]
+fn postscript_if_non_boolean_condition_is_refused() {
+    let err = import(&eps("1 { pop } if")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("if"));
+}
+
+#[test]
+fn postscript_idiv_non_integer_operand_is_refused() {
+    let err = import(&eps("1.5 2 idiv")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("idiv"));
+}
+
+#[test]
+fn postscript_for_non_procedure_operand_is_refused() {
+    let err = import(&eps("1 1 10 1 for")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("for"));
+}
+
+#[test]
+fn postscript_copy_non_integer_operand_count_is_refused() {
+    let err = import(&eps("1 1.5 copy pop")).unwrap_err();
+    assert!(err.contains("typecheck") && err.contains("copy"));
+}
+
+/// #1714: arrays and dictionaries a program links into themselves or each other are freed with
+/// the interpreter, also the ones it no longer reaches and when it stops on an error.
+#[test]
+fn arrays_and_dictionaries_holding_themselves_are_freed() {
+    // The arrays still alive once a program's interpreter has released what it made: the ones
+    // the interpreter itself holds, the same for every program here.
+    let left = |program: &str| {
+        let _ = import(&eps(program));
+        crate::import::obj::ARRAYS_LEFT.with(std::cell::Cell::get)
+    };
+    let plain = left("/a 1 array def /b 1 array def a 0 b put");
+    let cycles = "/a 1 array def a 0 a put         /b 1 array def /c 1 array def b 0 c put c 0 b put         /d 1 dict def /e 1 array def d /e e put e 0 d put         1 array dup 0 1 index put pop         /a null def /b null def";
+    for program in [cycles.to_string(), format!("{cycles} 1 0 div"), format!("{cycles} /p {{ p }} def")] {
+        assert_eq!(left(&program), plain, "{program}");
+    }
+}
+
 /// The objects of the document's layer.
-fn objects(d: &Document) -> Vec<Arc<Node>> {
+pub(super) fn objects(d: &Document) -> Vec<Arc<Node>> {
     d.layers[0].children().unwrap().clone()
 }
 
 /// Every object, down through groups, in order.
-fn all(d: &Document) -> Vec<Arc<Node>> {
+pub(super) fn all(d: &Document) -> Vec<Arc<Node>> {
     fn walk(n: &Arc<Node>, out: &mut Vec<Arc<Node>>) {
         out.push(n.clone());
         for c in n.children().into_iter().flatten() {
@@ -39,25 +224,25 @@ fn all(d: &Document) -> Vec<Arc<Node>> {
     out
 }
 
-fn fill(n: &Node) -> Option<&Paint> {
+pub(super) fn fill(n: &Node) -> Option<&Paint> {
     n.appearance.items.iter().find_map(|i| match i {
         AppearanceItem::Fill(f) => Some(&f.paint),
         _ => None,
     })
 }
 
-fn stroke(n: &Node) -> Option<&vectorcraft_doc::StrokeLayer> {
+pub(super) fn stroke(n: &Node) -> Option<&vectorcraft_doc::StrokeLayer> {
     n.appearance.items.iter().find_map(|i| match i {
         AppearanceItem::Stroke(s) => Some(s),
         _ => None,
     })
 }
 
-fn bounds(n: &Node) -> Rect {
+pub(super) fn bounds(n: &Node) -> Rect {
     n.geometric_bounds().unwrap()
 }
 
-fn near(a: Rect, b: Rect) -> bool {
+pub(super) fn near(a: Rect, b: Rect) -> bool {
     [(a.x0, b.x0), (a.y0, b.y0), (a.x1, b.x1), (a.y1, b.y1)].iter().all(|(x, y)| (x - y).abs() < 0.05)
 }
 
@@ -81,6 +266,26 @@ fn paths_fill_and_stroke_in_document_space() {
     assert!(near(bounds(&o[0]), Rect::new(10.0, 70.0, 30.0, 90.0)));
     assert!(near(bounds(&o[1]), Rect::new(5.0, 85.0, 15.0, 95.0)));
     assert!(stroke(&o[2]).is_some());
+}
+
+/// Each `closepath` adds an element to the path, so on a path that holds `MAX_PATH` (1,048,576)
+/// elements it stops the reading with the same error as `lineto`, run from a procedure or from an
+/// encoded user path.
+#[test]
+fn closepath_stops_at_the_path_limit() {
+    for body in [
+        // A moveto and 1,100,000 closepaths.
+        "newpath 0 0 moveto 1100000 { closepath } repeat",
+        // An encoded user path: setbbox and moveto, then 4,750 pairs of a repeat count of 223 (the
+        // byte 255) and closepath (10), 1,059,250 closepaths.
+        "/s 9502 string def s 0 0 put s 1 1 put 2 2 9500 { dup s exch 255 put 1 add s exch 10 put } for \
+         newpath [ [0 0 10 10 0 0] s ] uappend",
+    ] {
+        // The square drawn before the error stays, and the one after it is left out.
+        let r = read(&format!("0 0 10 10 rectfill {body} 20 20 10 10 rectfill"));
+        assert_eq!(objects(&r.document).len(), 1, "{body}: {:?}", r.warnings);
+        assert!(r.warnings[0].contains("a path has too many points"), "{body}: {:?}", r.warnings);
+    }
 }
 
 #[test]
@@ -151,6 +356,49 @@ fn line_state_reaches_the_stroke() {
     assert!(stroke(&objects(&read("0 setlinewidth 0 0 moveto 9 9 lineto stroke").document)[0]).unwrap().width > 0.0);
 }
 
+/// `setdash` takes a dash pattern of up to 65,535 entries, the most elements an array has in a
+/// typical implementation (PLRM 3rd ed., Table B.1), and raises `limitcheck` for a longer one.
+#[test]
+fn dash_patterns_hold_at_most_65535_entries() {
+    let dash = |n: usize| format!("/a {n} array def 0 1 {} {{ a exch 1 put }} for a 0 setdash", n - 1);
+    check(&format!("{} currentdash pop length 65535 eq", dash(65535)));
+    let r = read(&format!("0 0 10 10 rectfill {}", dash(65536)));
+    assert_eq!(objects(&r.document).len(), 1, "{:?}", r.warnings);
+    assert!(r.warnings.iter().any(|w| w.contains("limitcheck in `setdash`")), "{:?}", r.warnings);
+}
+
+/// Saved and copied graphics states share the dash pattern, and `setdash`, `currentdash` and
+/// each stroke count the entries they read or copy against the budgets. Under a pattern of
+/// 65,535 entries, 4,000,000 passes of `gsave grestore` and 2,000,000 passes of
+/// `gstate currentgstate setgstate` finish, and loops of `setdash`, `currentdash` and `strokepath`
+/// run out of a budget.
+#[test]
+fn work_on_the_longest_dash_pattern_ends_soon() {
+    let dash = "0 0 10 10 rectfill /a 65535 array def 0 1 65534 { a exch 1 put } for a 0 setdash";
+    for body in ["4000000 { gsave grestore } repeat", "2000000 { gstate currentgstate setgstate } repeat"] {
+        let r = read_soon(&format!("{dash} {body} 20 20 10 10 rectfill"));
+        assert_eq!(objects(&r.document).len(), 2, "{body}: {:?}", r.warnings);
+        assert!(r.warnings.is_empty(), "{body}: {:?}", r.warnings);
+    }
+    for (body, why) in [
+        ("{ a 0 setdash } loop", "runs too long"),
+        ("{ currentdash pop pop } loop", "uses too much memory"),
+        ("{ newpath 0 0 moveto 100 0 lineto strokepath } loop", "runs too long"),
+    ] {
+        let r = read_soon(&format!("{dash} {body}"));
+        assert_eq!(objects(&r.document).len(), 1, "{body}: {:?}", r.warnings);
+        assert!(r.warnings.iter().any(|w| w.contains(why)), "{body}: {:?}", r.warnings);
+    }
+}
+
+#[test]
+fn a_chain_of_filters_over_the_program_is_bounded() {
+    let r = read_soon("0 0 10 10 rectfill currentfile 100 { 0 (x) /SubFileDecode filter } repeat pop 20 20 10 10 rectfill");
+    assert!(r.warnings.iter().any(|w| w.contains("too many filters")), "{:?}", r.warnings);
+    let r = read_soon("0 0 10 10 rectfill currentfile 3 { 0 (x) /SubFileDecode filter } repeat pop 20 20 10 10 rectfill");
+    assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+}
+
 #[test]
 fn procedures_bind_def_loops_and_dictionaries() {
     let r = read(
@@ -193,6 +441,26 @@ fn clips_become_clipping_groups() {
     // eoclip of a path.
     let o = objects(&read("10 10 moveto 30 10 lineto 30 30 lineto closepath eoclip newpath 0 0 50 50 rectfill").document);
     assert!(matches!(o[0].kind, NodeKind::Group { clip: true, .. }));
+    // #1542: a diamond touching the page edges has the page as its bounding box but still clips.
+    let o = objects(&read("50 0 moveto 100 50 lineto 50 100 lineto 0 50 lineto closepath clip newpath 0 0 100 100 rectfill").document);
+    assert!(matches!(o[0].kind, NodeKind::Group { clip: true, .. }), "{:?}", o[0].kind);
+    // A turned square around the whole page clips nothing.
+    let o = objects(&read("50 -60 moveto 160 50 lineto 50 160 lineto -60 50 lineto closepath clip newpath 0 0 100 100 rectfill").document);
+    assert!(matches!(o[0].kind, NodeKind::Path { .. }), "{:?}", o[0].kind);
+}
+
+#[test]
+fn clips_nest_only_so_deep() {
+    // Each clip inside the last one used to nest a clipping group one level deeper, past the stack.
+    let r = read("1 1 200000 { pop 0 0 50 50 rectclip } for 1 1 5 5 rectfill");
+    let mut depth = 0;
+    let mut n = objects(&r.document)[0].clone();
+    while let NodeKind::Group { children, clip: true } = &n.kind {
+        depth += 1;
+        n = children.last().unwrap().clone();
+    }
+    assert_eq!(depth, vectorcraft_doc::clipnest::MAX_NEST);
+    assert!(r.warnings.iter().any(|w| w.contains("clips nested more than")), "{:?}", r.warnings);
 }
 
 #[test]
@@ -217,6 +485,94 @@ fn shadings_become_gradients() {
     assert_eq!(g.gradient.kind, GradientKind::Radial);
     let offsets: Vec<f32> = g.gradient.stops.iter().map(|s| s.offset).collect();
     assert_eq!(offsets, vec![0.0, 0.25, 1.0]);
+    // Pieces that don't meet at a bound make a hard stop: the colour before the bound and the
+    // one after it, at the same offset (the PDF reader does the same).
+    let hard = "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 200 0] /Function << /FunctionType 3 /Domain [0 1] /Bounds [0.5] /Encode [0 1 0 1] /Functions [<< /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >>] >> >>";
+    let r = read(&format!("0 0 200 50 rectclip {hard} shfill"));
+    let o = objects(&r.document);
+    let Some(Paint::Gradient(g)) = fill(&o[0]) else { panic!("{:?}", o[0]) };
+    let stops: Vec<(f32, Color)> = g.gradient.stops.iter().map(|s| (s.offset, s.color)).collect();
+    let (red, blue) = (Color::rgb(1.0, 0.0, 0.0), Color::rgb(0.0, 0.0, 1.0));
+    assert_eq!(stops.len(), 4, "{stops:?}");
+    assert_eq!((stops[0], stops[3]), ((0.0, red), (1.0, blue)), "{stops:?}");
+    assert_eq!((stops[1].0, stops[2]), (0.5, (0.5, red)), "{stops:?}");
+    let near = |a: [f32; 3], b: [f32; 3]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-6);
+    assert!(near(stops[1].1.to_rgb(), blue.to_rgb()), "{stops:?}");
+}
+
+/// #3585: arithmetic that overflows to infinity or NaN is an `undefinedresult` error, so a
+/// non-finite number never reaches a shading function's `Domain` (where it used to panic).
+#[test]
+fn non_finite_arithmetic_is_undefinedresult() {
+    let errs = |body: &str| {
+        let r = read(&format!("0 0 10 10 rectfill {body}"));
+        assert_eq!(objects(&r.document).len(), 1, "{body}: {:?}", r.warnings);
+        r.warnings.iter().any(|w| w.contains("undefinedresult"))
+    };
+    for body in [
+        "1.7e308 1.7e308 add pop",
+        "-1.7e308 1.7e308 sub pop",
+        "1e300 1e300 mul pop",
+        "-1 ln pop",
+        "0 ln pop",
+        "-1 log pop",
+        "-1 sqrt pop",
+        "10 400 exp pop",
+    ] {
+        assert!(errs(body), "{body}");
+    }
+    let axial =
+        "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 100 0] /Function << /FunctionType 2 /Domain [n n] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> >>";
+    assert!(errs(&format!("/n 1e300 1e300 mul dup sub def 0 0 100 100 rectclip {axial} shfill")));
+    // A sampled function with a Size below 1 is a rangecheck, not a panic.
+    let sampled = "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 100 0] /Function << /FunctionType 0 /Domain [0 1] /Range [0 1 0 1 0 1] /Size [0.5] /BitsPerSample 8 /DataSource (abc) >> >>";
+    let r = read(&format!("0 0 10 10 rectfill gsave 0 0 100 100 rectclip {sampled} shfill grestore"));
+    assert!(!objects(&r.document).is_empty(), "{:?}", r.warnings);
+}
+
+/// Tiling patterns and spot inks are found again through a hash of what tells them apart, so a
+/// program that makes 200,000 patterns and 200,001 inks reads within [`read_soon`]'s 20 seconds.
+/// Patterns are named Pattern 1, Pattern 2 and so on in the order they are made. A pattern made
+/// again from its prototype is the same pattern, and so is an uncolored pattern set again in a
+/// color it was set in before.
+#[test]
+fn many_tiling_patterns_and_spot_inks_read_in_linear_time() {
+    let r = read(
+        "/pp { pop 0 0 1 1 rectfill } def \
+         /a << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 1 1] /XStep 2 /YStep 2 /PaintProc /pp load >> def \
+         /b << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 1 1] /XStep 3 /YStep 2 /PaintProc /pp load >> def \
+         /u << /PatternType 1 /PaintType 2 /TilingType 1 /BBox [0 0 1 1] /XStep 2 /YStep 2 /PaintProc /pp load >> matrix makepattern def \
+         a matrix makepattern setpattern 0 0 10 10 rectfill b matrix makepattern setpattern 10 0 10 10 rectfill \
+         a [2 0 0 2 0 0] makepattern setpattern 20 0 10 10 rectfill /DeviceRGB setcolorspace \
+         1 0 0 u setpattern 30 0 10 10 rectfill 0 0 1 u setpattern 40 0 10 10 rectfill 1 0 0 u setpattern 50 0 10 10 rectfill",
+    );
+    let d = &r.document;
+    let names: Vec<&str> = d.patterns.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Pattern 1", "Pattern 2", "Pattern 3", "Pattern 4"]);
+    let fills: Vec<String> = objects(d)
+        .iter()
+        .map(|o| match fill(o) {
+            Some(Paint::Pattern { pattern, .. }) => pattern.clone(),
+            p => panic!("{p:?}"),
+        })
+        .collect();
+    assert_eq!(fills, ["Pattern 1", "Pattern 2", "Pattern 1", "Pattern 3", "Pattern 4", "Pattern 3"]);
+    assert!(names.iter().all(|n| d.swatch(n).is_some_and(|s| matches!(s.paint, Paint::Pattern { .. }))));
+    // 100,000 patterns whose cells differ, an uncolored pattern in 100,000 tints of an ink that is
+    // white at every tint (only the tint tells those patterns apart), and 200,000 more inks.
+    let r = read_soon(
+        "0 1 99999 { /i exch def << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 1 1] /XStep i 2 add /YStep 1 \
+         /PaintProc { pop 0 0 1 1 rectfill } >> matrix makepattern setpattern } for \
+         [/Separation (Spot) /DeviceGray { pop 1 }] setcolorspace \
+         /p << /PatternType 1 /PaintType 2 /TilingType 1 /BBox [0 0 1 1] /XStep 2 /YStep 2 /PaintProc { pop 0 0 1 1 rectfill } >> \
+         matrix makepattern def 0 1 99999 { 100000 div p setpattern } for \
+         0 1 199999 { /i exch def [/Separation i 8 string cvs /DeviceGray {}] setcolorspace } for 0 0 1 1 rectfill",
+    );
+    let d = &r.document;
+    assert_eq!(d.patterns.len(), 200_000);
+    assert!(d.patterns.iter().enumerate().all(|(i, p)| p.name == format!("Pattern {}", i + 1)));
+    assert_eq!(d.swatches.iter().filter(|s| matches!(s.paint, Paint::Pattern { .. })).count(), 200_000);
+    assert_eq!(d.swatches.iter().filter(|s| s.spot).count(), 200_001);
 }
 
 #[test]
@@ -353,14 +709,36 @@ fn the_bounding_box_comes_from_the_header_or_the_trailer() {
     assert!(r.warnings.iter().any(|w| w.contains("first of the file's 2 pages")), "{:?}", r.warnings);
 }
 
+/// #1552: a Type 42 font's glyph space is one unit an em, so its identity FontMatrix scaled to 12
+/// sets 12 pt type (a Type 1's 0.001 matrix needs the 1000-unit space).
+#[test]
+fn type_42_fonts_set_type_at_their_size() {
+    for (kind, matrix) in [(42, "[1 0 0 1 0 0]"), (1, "[0.001 0 0 0.001 0 0]")] {
+        let body = format!(
+            "/T 10 dict begin /FontName /T def /FontType {kind} def /FontMatrix {matrix} def /Encoding StandardEncoding def currentdict end /T exch definefont pop \
+             /T findfont 12 scalefont setfont 10 20 moveto (Hi) show"
+        );
+        let r = read(&body);
+        let NodeKind::Text(t) = &objects(&r.document)[0].kind else { panic!("{:?}", r.warnings) };
+        let size = t.runs[0].style.size * t.xf.determinant().abs().sqrt();
+        assert!((size - 12.0).abs() < 1e-6, "FontType {kind}: {size} pt");
+    }
+}
+
+/// The encrypted part of a font program is skipped up to its `cleartomark` in the file it is in:
+/// the program's own file, or a file being run (`cvx exec`), as Ghostscript's `eps2write` runs
+/// each Type 1 font it embeds.
 #[test]
 fn embedded_font_programs_are_skipped() {
     let body = "/MyFont 10 dict begin /FontName /MyFont def /FontMatrix [0.001 0 0 0.001 0 0] def currentdict end currentfile eexec\n\
                 0123456789abcdef garbage that is encrypted\n0000000000000000000000000000000000000000000000000000000000000000\ncleartomark\n\
                 /MyFont findfont 10 scalefont setfont 10 10 moveto (x) show";
-    let r = read(body);
-    let NodeKind::Text(t) = &objects(&r.document)[0].kind else { panic!("{:?}", r.warnings) };
-    assert_eq!(t.runs[0].style.font_family, "My Font");
+    for program in [body.to_string(), format!("currentfile 0 (endstream) /SubFileDecode filter cvx exec\n{body}\nendstream\n")] {
+        let r = read(&program);
+        let NodeKind::Text(t) = &objects(&r.document)[0].kind else { panic!("{program}: {:?}", r.warnings) };
+        assert_eq!(t.runs[0].style.font_family, "My Font");
+        assert!(program_warnings(&r.warnings).is_empty(), "{program}: {:?}", r.warnings);
+    }
 }
 
 /// A document with what the writer writes in its own ways: gradients, type, an image with
@@ -402,8 +780,9 @@ fn rich_doc() -> Document {
         xf: Affine::new([10.0, 0.0, 0.0, 10.0, 110.0, 110.0]),
         link: None,
         placement: Default::default(),
+        pixels: None,
     };
-    let n = Node::new(d.alloc_id(), NodeKind::Image(im));
+    let n = Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)));
     add(&mut d, n);
     d.swatches.push(Swatch { name: "Spot".into(), paint: Paint::solid(Color::cmyk(0.0, 0.5, 1.0, 0.0)), global: true, spot: true });
     let spot = Paint::Solid { color: Color::cmyk(0.0, 0.5, 1.0, 0.0), swatch: Some("Spot".into()), tint: 1.0 };
@@ -451,4 +830,761 @@ fn device_settings_are_accepted_and_change_nothing() {
     );
     assert_eq!(objects(&r.document).len(), 1, "{:?}", r.warnings);
     assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+}
+
+/// Check that `body` draws one square, blue: it sets blue when what it checks holds, else red.
+/// `warnings` without the note naming fonts that aren't available: which those are depends on the
+/// fonts installed where the tests run, not on the program.
+pub(super) fn program_warnings(warnings: &[String]) -> Vec<&String> {
+    warnings.iter().filter(|w| !w.starts_with(super::MISSING_FONTS_NOTE)).collect()
+}
+
+fn blue(body: &str) {
+    let r = read(&format!("{body} 10 10 80 80 rectfill"));
+    let o = objects(&r.document);
+    assert_eq!(o.len(), 1, "{body}: {:?}", r.warnings);
+    assert_eq!(fill(&o[0]), Some(&Paint::solid(Color::rgb(0.0, 0.0, 1.0))), "{body}");
+    assert!(program_warnings(&r.warnings).is_empty(), "{body}: {:?}", r.warnings);
+}
+
+/// Check that PostScript `cond` leaves `true`.
+pub(super) fn check(cond: &str) {
+    blue(&format!("{cond} {{ 0 0 1 setrgbcolor }} {{ 1 0 0 setrgbcolor }} ifelse"));
+}
+
+/// #3547: a line before counted metadata ends in CR/LF. Leaving LF unread shifts the
+/// metadata by one byte and makes its final `>` look like PostScript instead of data.
+#[test]
+fn readline_keeps_counted_metadata_aligned_for_every_line_ending() {
+    let tiff = crate::tiff::encode(&Raster { width: 4, height: 4, rgba: [0, 128, 0, 255].repeat(16) }, false, false).unwrap();
+    for eol in ["\n", "\r", "\r\n"] {
+        let ps = eps(&format!(
+            "/consume {{ currentfile 80 string readline pop pop currentfile 4 string readstring pop pop }} bind def\n\
+             consume\nheader{eol}<x/>\n0 0 1 setrgbcolor 10 20 30 40 rectfill"
+        ));
+        for bytes in [ps.clone(), crate::dos_eps(&ps, &tiff).unwrap()] {
+            let r = import(&bytes).unwrap();
+            assert!(!r.preview, "valid art must not become the low-resolution TIFF preview");
+            assert!(r.warnings.is_empty(), "{eol:?}: {:?}", r.warnings);
+            let art = objects(&r.document);
+            assert_eq!(art.len(), 1);
+            assert!(matches!(art[0].kind, NodeKind::Path { .. }));
+            assert_eq!(fill(&art[0]), Some(&Paint::solid(Color::rgb(0.0, 0.0, 1.0))));
+        }
+    }
+}
+
+/// CR/LF is one terminator in buffered and decoded streams too; lone CR never consumes
+/// the next payload byte, EOF is safe, and ordinary `readstring` preserves binary CR/LF.
+#[test]
+fn readline_streams_preserve_the_next_payload_byte() {
+    for eol in ["\n", "\r", "\r\n"] {
+        let bytes = format!("header{eol}XY");
+        let hex: String = bytes.bytes().map(|b| format!("{b:02x}")).collect();
+        for source in [format!("<{hex}> /ReusableStreamDecode filter"), format!("({hex}>) /ASCIIHexDecode filter")] {
+            check(&format!(
+                "/f {source} def f 32 string readline exch (header) eq and \
+                 f 2 string readstring exch (XY) eq and and"
+            ));
+        }
+    }
+    check("/f <6865616465720d> /ReusableStreamDecode filter def f 32 string readline exch (header) eq and f read not and");
+    check("/f <0d0a5859> /ReusableStreamDecode filter def f 4 string readstring exch <0d0a5859> eq and");
+}
+
+#[test]
+fn the_generic_category_defines_new_categories() {
+    // #234: the reference app's prolog.
+    blue("/Generic /Category findresource pop 0 0 1 setrgbcolor");
+    blue(
+        "[/CSA /Gradient /Procedure] { /Generic /Category findresource dup length dict copy /Category defineresource pop } forall 0 0 1 setrgbcolor",
+    );
+    let define = "[/CSA /Gradient] { /Generic /Category findresource dup length dict copy /Category defineresource pop } forall \
+                  /G1 << /Kind 7 >> /Gradient defineresource pop";
+    check(&format!("{define} /G1 /Gradient findresource /Kind get 7 eq"));
+    check(&format!("{define} /Gradient /Category resourcestatus {{ pop pop true }} {{ false }} ifelse"));
+    check(&format!("{define} /G1 /Gradient resourcestatus {{ pop pop true }} {{ false }} ifelse"));
+    check(&format!("{define} /G1 /Gradient undefineresource /G1 /Gradient resourcestatus not"));
+    check(&format!("{define} {{ /G2 /Gradient findresource }} stopped"));
+    // Unknown categories aren't instances of Category; a category is a dictionary.
+    check("/Nonsense /Category resourcestatus not");
+    check("{ /Nonsense /Category findresource } stopped");
+    check("{ /X 5 /Category defineresource } stopped");
+}
+
+/// The standard encodings are instances of the Encoding category, the same arrays as the names in
+/// `systemdict` (PLRM 3rd ed., §3.9.2 and `findencoding`, <https://www.adobe.com/jp/print/postscript/pdfs/PLRM.pdf>).
+/// Ghostscript's `eps2write` finds `StandardEncoding` that way for the fonts it embeds.
+#[test]
+fn the_standard_encodings_are_encoding_resources() {
+    check("/StandardEncoding /Encoding findresource StandardEncoding eq");
+    check("/ISOLatin1Encoding /Encoding findresource ISOLatin1Encoding eq");
+    check("/StandardEncoding /Encoding resourcestatus { pop pop true } { false } ifelse");
+    check("{ /Nope /Encoding findresource } stopped");
+}
+
+#[test]
+fn clipsave_and_cliprestore_bring_the_clip_back() {
+    // #234.
+    blue("clipsave 0 0 50 50 rectclip cliprestore 0 0 1 setrgbcolor");
+    // The fill after cliprestore covers the whole square, unclipped.
+    let r = read("clipsave 0 0 50 50 rectclip 1 0 0 setrgbcolor 0 0 10 10 rectfill cliprestore 0 0 1 setrgbcolor 10 10 80 80 rectfill");
+    let o = objects(&r.document);
+    assert_eq!(o.len(), 2, "{:?}", r.warnings);
+    assert!(matches!(o[0].kind, NodeKind::Group { clip: true, .. }), "{:?}", o[0].kind);
+    assert!(matches!(o[1].kind, NodeKind::Path { clipping: false, .. }), "{:?}", o[1].kind);
+    assert!(near(bounds(&o[1]), Rect::new(10.0, 10.0, 90.0, 90.0)), "{:?}", bounds(&o[1]));
+    // Nested, leaving the rest of the graphics state alone.
+    let r = read(
+        "0 0 60 60 rectclip clipsave 0 0 20 20 rectclip clipsave 0 0 5 5 rectclip cliprestore 0 1 0 setrgbcolor cliprestore \
+         10 10 80 80 rectfill",
+    );
+    let NodeKind::Group { children, clip: true } = &objects(&r.document)[0].kind else { panic!("{:?}", r.warnings) };
+    assert!(near(bounds(&children[0]), Rect::new(0.0, 40.0, 60.0, 100.0)), "{:?}", bounds(&children[0]));
+    assert_eq!(fill(&children[1]), Some(&Paint::solid(Color::rgb(0.0, 1.0, 0.0))));
+    // grestore undoes the clipsaves after its gsave; cliprestore with nothing saved does nothing.
+    let o = objects(&read("cliprestore gsave clipsave 0 0 50 50 rectclip grestore cliprestore 10 10 80 80 rectfill").document);
+    assert!(matches!(o[0].kind, NodeKind::Path { .. }), "{:?}", o[0].kind);
+}
+
+#[test]
+fn languagelevel_is_an_integer_and_runs() {
+    // #234.
+    blue(
+        "/Level2? systemdict /languagelevel known dup { pop systemdict /languagelevel get 2 ge } if def \
+         Level2? { 0 0 1 setrgbcolor } { 1 0 0 setrgbcolor } ifelse",
+    );
+    check("languagelevel 3 eq");
+    check("{ languagelevel } bind exec 3 eq");
+}
+
+#[test]
+fn intervals_share_their_arrays_and_strings() {
+    // #234: astore into a subarray stores into the array.
+    blue("/a 4 array def 1 2 a 0 2 getinterval astore pop a 0 get 1 eq { 0 0 1 setrgbcolor } { 1 0 0 setrgbcolor } ifelse");
+    // put, putinterval and copy into an interval; an interval of an interval.
+    check("/a [0 0 0 0 0] def a 1 3 getinterval 1 2 getinterval 0 7 put a 2 get 7 eq");
+    check("/a [0 0 0 0] def a 2 2 getinterval 0 [8 9] putinterval a 3 get 9 eq");
+    check("/a [0 0 0 0] def [5 6] a 1 2 getinterval copy pop a 2 get 6 eq");
+    check("/s (abcd) def s 1 2 getinterval 0 (XY) putinterval s (aXYd) eq");
+    check("/s (abcd) def s 2 1 getinterval 0 90 put s (abZd) eq");
+    check("/s 8 string def 42 s 2 6 getinterval cvs pop s 2 2 getinterval (42) eq");
+    // The same interval is the same object; another one is not.
+    check("/a 4 array def a 0 2 getinterval a 0 2 getinterval eq");
+    check("/a 4 array def a 0 2 getinterval a 0 3 getinterval ne a 0 2 getinterval a 1 2 getinterval ne and");
+    // Reads and writes stay inside the interval.
+    check("/a [1 2 3 4] def { a 1 2 getinterval 2 get } stopped { a 1 2 getinterval 2 0 put } stopped and");
+    check("/a [1 2 3 4] def a 1 2 getinterval length 2 eq a 1 2 getinterval aload pop 3 eq exch 2 eq and and");
+    check("/n 0 def [1 2 3 4] 1 2 getinterval { n add /n exch def } forall n 5 eq");
+    // A procedure from an interval runs only its part.
+    check("{ 1 2 3 } 1 2 getinterval cvx exec add 5 eq");
+    // The prolog's stack save: the operands into part of one array, and back.
+    check(
+        "/stk 10 array def /lev 3 array def 1 2 3 count dup lev exch 0 exch put stk exch 0 exch getinterval astore pop \
+         clear stk 0 lev 0 get getinterval aload pop add add 6 eq",
+    );
+}
+
+#[test]
+fn resourceforall_enumerates_matching_names() {
+    // #234.
+    blue("(*) { pop } 128 string /Category resourceforall 0 0 1 setrgbcolor");
+    let count = |template: &str| format!("/n 0 def ({template}) {{ pop /n n 1 add def }} 128 string /Form resourceforall n");
+    let define = "[/Foo /Fop /Bar /F*x] { 1 dict /Form defineresource pop } forall";
+    check(&format!("{define} {} 4 eq", count("*")));
+    check(&format!("{define} {} 2 eq", count("Fo?")));
+    check(&format!("{define} {} 3 eq", count("F*")));
+    check(&format!("{define} {} 1 eq", count("F\\\\*x")));
+    check(&format!("{define} {} 0 eq", count("Q*")));
+    check(&format!("{define} {} 1 eq", count("*a*")));
+    // Each name is copied into the scratch string; exit stops.
+    check(&format!("{define} /last () def (B*) {{ dup length string copy /last exch def }} 8 string /Form resourceforall last (Bar) eq"));
+    check(&format!("{define} /n 0 def (*) {{ pop /n n 1 add def exit }} 8 string /Form resourceforall n 1 eq"));
+    // A scratch string too small for the names, as the prolog probes it.
+    check(&format!("{define} {{ (*) {{ pop }} 2 string /Form resourceforall }} stopped"));
+    check("/n 0 def (Gen*) { pop /n n 1 add def } 16 string /Category resourceforall n 1 eq");
+}
+
+#[test]
+fn the_standard_dictionaries_are_dictionaries_in_systemdict() {
+    // The reference app's EPS prolog looks them up by name rather than running them.
+    check("systemdict /userdict get type /dicttype eq");
+    check("/globaldict where { /globaldict get begin currentdict globaldict eq end } { false } ifelse");
+    check("systemdict /systemdict get systemdict eq systemdict /statusdict known and");
+    check("userdict /x 5 put systemdict /userdict get /x get 5 eq");
+    check("/errordict load /handleerror known errordict $error eq and");
+    check("SharedFontDirectory type /dicttype eq");
+}
+
+/// A key may be any object but null (PLRM 3rd ed., §3.3.9, <https://www.adobe.com/jp/print/postscript/pdfs/PLRM.pdf>),
+/// so `known` answers for every other key.
+/// Ghostscript's `eps2write` looks an inline image's filter up in a dictionary of abbreviations,
+/// and the filter may be an array of them.
+#[test]
+fn known_answers_false_for_keys_no_dictionary_holds() {
+    check("<< /A85 /ASCII85Decode >> [ /A85 /LZW ] known not");
+    check("1 dict 1 dict known not 1 dict 1.5 known not and 1 dict mark known not and");
+    check("<< /A85 /ASCII85Decode >> /A85 known << 1 2 >> 1.0 known and");
+    check("{ 1 dict null known } stopped");
+}
+
+/// `cvi` and `cvr` read a string as the PostScript syntax reads a number (PLRM 3rd ed., chapter
+/// 8), radix numbers included: prologs turn a name's `#20` escape back into its character with
+/// `(16#20) cvi`.
+#[test]
+fn cvi_and_cvr_read_radix_numbers() {
+    check("(16#20) cvi 32 eq (8#17) cvi 15 eq and ( 2#101 ) cvi 5 eq and (36#Z) cvi 35 eq and");
+    check("(16#ff) cvr 255 eq (3.7) cvi 3 eq and (-2.5e1) cvr -25 eq and (12) cvr 12 eq and");
+    check("{ (16#zz) cvi } stopped { (inf) cvr } stopped and { (16#-1) cvi } stopped and { () cvi } stopped and");
+    // A name's escapes, as a prolog undoes them for a spot colour named `PANTONE 300 C`.
+    check("(PANTONE#20300) dup 7 3 getinterval (16#--) dup 3 4 -1 roll 1 2 getinterval putinterval cvi 32 eq exch pop");
+}
+
+#[test]
+fn dictstack_and_internaldict_answer() {
+    check("10 array dictstack length countdictstack eq");
+    check("userdict begin 10 array dictstack dup length 1 sub get userdict eq end");
+    check("{ 1 array dictstack } stopped");
+    check("1183615869 internaldict /k 1 put 1183615869 internaldict /k get 1 eq");
+    check("currentsystemparams /MaxPatternCache get type /integertype eq");
+    check("<< /MaxPatternItem currentsystemparams /MaxPatternCache get >> setuserparams currentuserparams /MaxFontItem known");
+}
+
+/// `bind` makes the procedures it goes into read-only and leaves read-only procedures alone (PLRM
+/// 3rd ed., `bind` in chapter 8), so a later `bind` of a procedure holding one doesn't turn a name
+/// it kept into an operator defined since: here `M` stays the procedure's own variable, as in the
+/// prologs that keep `M` for `setmiterlimit` and also as the name of a variable.
+#[test]
+fn bind_leaves_procedures_it_already_bound_alone() {
+    let get = "/Get { 4 dict begin /M 7 def { M } exec end } bind def /M /setmiterlimit load def";
+    check(&format!("{get} /Outer {{ //Get exec }} bind def Outer 7 eq"));
+    // Nor does it go into one made read-only.
+    check("/I { M } readonly def /P { //I exec } def /M /setmiterlimit load def /P load bind pop /M 3 def P 3 eq");
+    check("/P { M } readonly def /M /setmiterlimit load def /P load bind pop /M 3 def P 3 eq");
+    // A procedure bound on its own is still bound again (only those inside are read-only).
+    check("/P { M } bind def /M /setmiterlimit load def /P load bind 0 get type /operatortype eq");
+}
+
+#[test]
+fn an_executable_filter_runs_its_data_as_a_program() {
+    // A string run as a program through a filter (0 and an empty string set no end of data).
+    check("(1 2 add) 0 () /SubFileDecode filter cvx exec 3 eq");
+    check("(1 2 add) 0 () /SubFileDecode filter dup xcheck not exch cvx xcheck and");
+    check("(abcd) 2 () /SubFileDecode filter 8 string readstring pop (ab) eq");
+    check("{ (1 add) 0 () /SubFileDecode filter cvx exec } stopped");
+    // The data following it in the file: `74727565` is `true`.
+    check("currentfile /ASCIIHexDecode filter cvx exec 74727565>");
+    // A literal file is only pushed.
+    check("(1 2 add) 0 () /SubFileDecode filter exec type /filetype eq");
+}
+
+/// `SubFileDecode`'s count is how many bytes (or end strings) to pass, not an allocation: a count
+/// past the 4 MiB cap on allocations (a long content stream's `/Length`) is read, and only the data
+/// there passes through.
+#[test]
+fn subfile_counts_past_the_allocation_cap_are_read() {
+    check("(1 2 add) 6000000 () /SubFileDecode filter cvx exec 3 eq");
+    check("(1 2 add) 5000000 (x) /SubFileDecode filter cvx exec 3 eq");
+    check("(abcd) 7000000 () /SubFileDecode filter 8 string readstring pop (abcd) eq");
+    check("{ (1) -1 () /SubFileDecode filter } stopped");
+}
+
+#[test]
+fn flushfile_skips_the_data_of_a_filter() {
+    // Metadata that isn't PostScript, skipped up to its end marker.
+    blue("currentfile 0 (%%EndPacket) /SubFileDecode filter flushfile\n<?xml version=\"1.0\"?><x a=\"(\"/>\n%%EndPacket\n0 0 1 setrgbcolor");
+}
+
+/// Executable files are untrusted programs too: running one inside itself stops at the nesting
+/// limit, and the program's own file runs once. Type laid out in a loop (`cshow` on a long
+/// string, `stringwidth` in `loop`) counts against the operation budget like the loop itself.
+#[test]
+fn hostile_executable_files_and_type_loops_are_refused() {
+    let refused = |body: &str, why: &str| {
+        let e = import(&eps(body)).err().unwrap_or_default();
+        assert!(e.contains(why), "{body}: {e}");
+    };
+    refused("/p { (p) 0 () /SubFileDecode filter cvx exec } def p", "too deeply");
+    refused("/p { (p) 0 () /SubFileDecode filter cvx exec } def { p } stopped pop p", "too deeply");
+    refused("/a { (b) 0 () /SubFileDecode filter cvx exec } def /b { (a) 0 () /SubFileDecode filter cvx exec } def a", "too deeply");
+    refused("/Helvetica findfont 10 scalefont setfont { pop pop pop } 1000000 string cshow", "too long");
+    // The program's own file, made executable, is already running.
+    blue("currentfile cvx exec currentfile flushfile 0 0 1 setrgbcolor");
+}
+
+/// Reads `body` as [`read`] does, on a thread of its own, and fails the test when reading takes
+/// more than 20 s.
+fn read_soon(body: &str) -> crate::Imported {
+    read_within(body, 20)
+}
+
+/// Reads `body` as [`read`] does, on a thread of its own, and fails the test when reading takes
+/// more than `secs` seconds.
+fn read_within(body: &str, secs: u64) -> crate::Imported {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let ps = eps(body);
+    std::thread::spawn(move || tx.send(import(&ps)).ok());
+    rx.recv_timeout(std::time::Duration::from_secs(secs)).unwrap_or_else(|_| panic!("reading {body} did not finish")).unwrap()
+}
+
+/// Reads `body` after a square: the square stays, and the program runs out of the operation
+/// budget. Running to the end of the budget can take over 20 s on a slow CI runner
+/// (`search_in_a_loop_runs_out_of_the_budget` searches about 3 GB, 14 s on a fast desktop), so the
+/// limit here only catches a program that never stops.
+pub(super) fn runs_out_of_budget(body: &str) {
+    let r = read_within(&format!("0 0 10 10 rectfill {body}"), 120);
+    assert_eq!(objects(&r.document).len(), 1, "{body}: {:?}", r.warnings);
+    assert!(r.warnings.iter().any(|w| w.contains("the program runs too long")), "{body}: {:?}", r.warnings);
+}
+
+/// A large file that runs far more operations than a small one may, but only a few hundred for
+/// each object it draws, reads to its end: the operation budget grows with the program's length.
+#[test]
+fn a_large_file_with_many_objects_reads_to_its_end() {
+    let n = 200_000;
+    let mut body = String::from(
+        "/sq { 4 dict begin /y exch def /x exch def 0 1 200 { pop } for \
+                                 x y moveto x 1 add y lineto x y 1 add lineto closepath fill end } def\n",
+    );
+    for i in 0..n {
+        body.push_str(&format!("{} {} sq\n", i % 100, i / 2000));
+    }
+    let r = read_within(&body, 300);
+    assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+    assert_eq!(objects(&r.document).len(), n);
+}
+
+/// A loop of operators whose work grows with the path they make runs out of the operation budget
+/// (PLRM 3rd ed., chapter 8): `arc` and `arct` with a huge radius, which make thousands of curve
+/// segments, `strokepath` with a dash far finer than the line, dashes of length zero included, and
+/// `rectfill` with an array of 2,000 rectangles.
+#[test]
+fn paths_made_in_a_loop_run_out_of_the_budget() {
+    for body in [
+        "{ newpath 0 0 2.2e18 0 1440 arc } loop",
+        "{ newpath 0 0 moveto 1 0 1 1 1e30 arct } loop",
+        "[1] 0 setdash { newpath 0 0 moveto 9900 0 lineto strokepath } loop",
+        "[0 1] 0 setdash { newpath 0 0 moveto 9900 0 lineto strokepath } loop",
+        "/a [ 0 1 1999 { pop 0 0 1 1 } for ] def nulldevice { a rectfill } loop",
+    ] {
+        runs_out_of_budget(body);
+    }
+}
+
+/// A loop of operators that read or copy the whole current path or clip path runs out of the
+/// operation budget (PLRM 3rd ed., chapter 8): `pathbbox`, `clip`, `clippath`, `shfill` (which
+/// reads the clip path for the area it paints), `pathforall` (which copies the path before it runs
+/// a procedure) and `setgstate`. `gstate` and `currentgstate` run out of memory first.
+#[test]
+fn paths_read_or_copied_in_a_loop_run_out_of_the_budget() {
+    // 10,001 elements reaching 10,000,000 points to the right: what `shfill` paints in a clip of
+    // them lies far outside the page and is left out.
+    let path = "newpath 0 0 moveto 0 1 9999 { pop 1000 0 rlineto } for";
+    let sh = "/sh << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 10 0] \
+              /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> def";
+    for body in [
+        "{ pathbbox pop pop pop pop } loop",
+        "{ clip } loop",
+        "clip newpath { clippath } loop",
+        "clip newpath { sh shfill } loop",
+        "{ { pop pop exit } { } { } { } pathforall } loop",
+        "/g gstate def { g setgstate } loop",
+    ] {
+        runs_out_of_budget(&format!("{sh} {path} {body}"));
+    }
+}
+
+/// A loop of `uappend` on an encoded user path runs out of the operation budget (PLRM 3rd ed.,
+/// section 4.6.2 and Table 4.3: each byte of the operator string is an operator, or a count of up
+/// to 223 repeats of the next one): one that runs `ucache` millions of times, one of repeat counts
+/// alone, and one with a long data array.
+#[test]
+fn encoded_user_paths_in_a_loop_run_out_of_the_budget() {
+    for body in [
+        // 100,000 pairs of a count of 223 repeats (byte 255) and `ucache` (byte 11): each
+        // `uappend` runs `ucache` 22,300,000 times.
+        "/s 200000 string def 0 2 199998 { dup s exch 255 put 1 add s exch 11 put } for /up [ [ ] s ] def",
+        // 200,000 repeat counts and no operator.
+        "/s 200000 string def 0 1 199999 { s exch 255 put } for /up [ [ ] s ] def",
+        // A data array of 400,000 nulls and an empty operator string.
+        "/up [ 400000 array () ] def",
+    ] {
+        runs_out_of_budget(&format!("{body} {{ up uappend }} loop"));
+    }
+}
+
+/// `arc` raises its second angle by multiples of 360 until it is at least the first, and `arcn`
+/// lowers it until it is at most the first (PLRM 3rd ed., `arc` and `arcn` in chapter 8), however
+/// large the angles: the arc runs between the angles' remainders after whole turns and ends at
+/// the second angle, the new current point.
+#[test]
+fn arcs_with_huge_angles_end_at_their_second_angle() {
+    // `at(deg)` is the point at `deg` degrees on the circle of radius 10 around (50, 50), in
+    // document space.
+    let at = |deg: f64| Point::new(50.0 + 10.0 * deg.to_radians().cos(), 50.0 - 10.0 * deg.to_radians().sin());
+    // Each program is listed with the remainders of its first and second angles after whole turns.
+    for (body, first, second) in [
+        ("50 50 10 1e18 0 arc", 280.0, 0.0),
+        ("50 50 10 1e308 0 arc", 296.0, 0.0),
+        ("50 50 10 0 1e18 arcn", 0.0, 280.0),
+        ("50 50 10 0 1e308 arcn", 0.0, 296.0),
+    ] {
+        let r = read_soon(&format!("newpath {body} currentpoint stroke 1 1 rectfill"));
+        let o = objects(&r.document);
+        assert_eq!(o.len(), 2, "{body}: {:?}", r.warnings);
+        // The arc lies within one quarter of the circle, so its endpoints span its bounds.
+        let (a, b) = (at(first), at(second));
+        assert!(near(bounds(&o[0]), Rect::from_points(a, b)), "{body}: {:?}", bounds(&o[0]));
+        // The second object is the square drawn at the current point.
+        assert!(near(bounds(&o[1]), Rect::new(b.x, b.y - 1.0, b.x + 1.0, b.y)), "{body}: {:?}", bounds(&o[1]));
+    }
+}
+
+/// An axial shading's function is one function dictionary or an array of one for each color
+/// component (PLRM 3rd ed., Table 4.13). One evaluation visits at most 257 functions, and past
+/// that the shading raises `limitcheck`: when four levels of arrays each have 100 entries that all
+/// refer to the same array of the level below (at the last level, the same function), one
+/// evaluation would visit 101,010,101 functions. Each function visited also counts against the
+/// operation budget.
+#[test]
+fn shading_functions_in_shared_arrays_stop_at_the_limits() {
+    let axial = |function: &str| format!("<< /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 100 0] /Function {function} >>");
+    let f = "/f << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> def";
+    // `a`: an array of `n` references to the function `f`.
+    let array = |n: usize| format!("{f} /a {n} array def 0 1 {} {{ a exch f put }} for", n - 1);
+    // Each level is an array of 100 references to the level below.
+    let levels = "/l2 100 array def 0 1 99 { l2 exch a put } for /l3 100 array def 0 1 99 { l3 exch l2 put } for \
+                  /l4 100 array def 0 1 99 { l4 exch l3 put } for";
+    let limitcheck = |r: &crate::Imported| r.warnings.iter().any(|w| w.contains("limitcheck in `shfill`: Function"));
+    let r = read_soon(&format!("0 0 10 10 rectfill {} {levels} {} shfill", array(100), axial("l4")));
+    assert!(limitcheck(&r) && objects(&r.document).len() == 1, "{:?}", r.warnings);
+    // 256 references are 257 functions for each sample, the most allowed; one more raises `limitcheck`.
+    let r = read_soon(&format!("{} {} shfill", array(256), axial("a")));
+    let o = objects(&r.document);
+    assert!(r.warnings.is_empty() && matches!(fill(&o[0]), Some(Paint::Gradient(_))), "{:?}", r.warnings);
+    let r = read_soon(&format!("0 0 10 10 rectfill {} {} shfill", array(257), axial("a")));
+    assert!(limitcheck(&r) && objects(&r.document).len() == 1, "{:?}", r.warnings);
+    // Each of these shadings visits 33 * 257 functions (33 samples), and 2000 of them count for
+    // more than the operation budget.
+    let r = read(&format!("{} /sh {} def 2000 {{ sh shfill }} repeat", array(256), axial("a")));
+    assert!(r.warnings.iter().any(|w| w.contains("the program runs too long")), "{:?}", r.warnings);
+}
+
+/// Type only measured (`stringwidth`) or drawn as outlines (`charpath`) adds no type to the
+/// document, so its font isn't named as one that shows in the fallback font.
+#[test]
+fn fonts_only_measured_or_outlined_are_not_named_as_missing() {
+    let r = read("/Nowhere-Bold 12 selectfont (Hi) stringwidth pop pop newpath 10 10 moveto (Hi) true charpath fill 10 10 80 80 rectfill");
+    assert!(!objects(&r.document).iter().any(|n| matches!(n.kind, NodeKind::Text(_))));
+    assert!(!r.warnings.iter().any(|w| w.starts_with(super::MISSING_FONTS_NOTE)), "{:?}", r.warnings);
+}
+
+#[test]
+fn cshow_runs_its_procedure_for_each_character() {
+    check("/n 0 def { pop pop pop /n n 1 add def } (abc) cshow n 3 eq");
+    // Each call gets the character's code and width.
+    check("/c 0 def { pop pop /c exch def } (A) cshow c 65 eq");
+    check(
+        "/Helvetica findfont 10 scalefont setfont /w 0 def { pop w add /w exch def pop } (ab) cshow \
+         (ab) stringwidth pop w sub abs 0.001 lt",
+    );
+}
+
+/// A `w` × `h` 8-bit palette TIFF with an alpha sample (`ExtraSamples` [1]), uncompressed in
+/// strips of `per` rows, in either byte order, as the reference app writes its EPS previews:
+/// pixel (x, y) is entry `(x + y) % 3` of a red, green, blue map, at alpha `12 x`.
+fn palette_tiff(w: u16, h: u16, per: u16, big: bool) -> Vec<u8> {
+    let u16b = |v: u16| if big { v.to_be_bytes() } else { v.to_le_bytes() };
+    let u32b = |v: u32| if big { v.to_be_bytes() } else { v.to_le_bytes() };
+    // Shorts in an entry, left-justified.
+    let shorts = |v: &[u16]| -> [u8; 4] {
+        let mut f = [0; 4];
+        for (i, s) in v.iter().enumerate() {
+            f[2 * i..2 * i + 2].copy_from_slice(&u16b(*s));
+        }
+        f
+    };
+    let row = u32::from(w) * 2;
+    let mut out = vec![];
+    out.extend(if big { *b"MM\0*" } else { *b"II*\0" });
+    out.extend([0; 4]);
+    let data_at = out.len() as u32;
+    for y in 0..h {
+        for x in 0..w {
+            out.extend([((x + y) % 3) as u8, (x * 12) as u8]);
+        }
+    }
+    let map_at = out.len() as u32;
+    for (c, full) in [0xFFFF, 0x8000, 0xFFFF].into_iter().enumerate() {
+        for i in 0..256 {
+            out.extend(u16b(if i == c { full } else { 0 }));
+        }
+    }
+    let strips: Vec<u16> = (0..h.div_ceil(per)).collect();
+    let offsets_at = out.len() as u32;
+    for k in &strips {
+        out.extend(u32b(data_at + u32::from(k * per) * row));
+    }
+    let counts_at = out.len() as u32;
+    for k in &strips {
+        out.extend(u32b(u32::from(per.min(h - k * per)) * row));
+    }
+    let ifd = out.len() as u32;
+    out[4..8].copy_from_slice(&u32b(ifd));
+    let n = strips.len() as u32;
+    let entries: [(u16, u16, u32, [u8; 4]); 12] = [
+        (256, 3, 1, shorts(&[w])),
+        (257, 3, 1, shorts(&[h])),
+        (258, 3, 2, shorts(&[8, 8])),
+        (259, 3, 1, shorts(&[1])),
+        (262, 3, 1, shorts(&[3])),
+        (273, 4, n, u32b(if n == 1 { data_at } else { offsets_at })),
+        (277, 3, 1, shorts(&[2])),
+        (278, 3, 1, shorts(&[per])),
+        (279, 4, n, u32b(if n == 1 { u32::from(h) * row } else { counts_at })),
+        (284, 3, 1, shorts(&[1])),
+        (320, 3, 768, u32b(map_at)),
+        (338, 3, 1, shorts(&[1])),
+    ];
+    out.extend(u16b(entries.len() as u16));
+    for (tag, kind, count, field) in entries {
+        out.extend(u16b(tag));
+        out.extend(u16b(kind));
+        out.extend(u32b(count));
+        out.extend(field);
+    }
+    out.extend([0; 4]);
+    out
+}
+
+#[test]
+fn a_palette_preview_with_alpha_is_placed() {
+    // #234: the program fails, so the preview is placed.
+    let ps = eps("0 0 1 setrgbcolor 10 10 80 80 rectfill frobnicate");
+    for (big, per) in [(false, 5), (true, 5), (false, 10), (true, 3)] {
+        let tiff = palette_tiff(20, 10, per, big);
+        let r = import(&crate::dos_eps(&ps, &tiff).unwrap()).unwrap();
+        assert!(r.preview, "{big} {per}");
+        assert!(r.warnings[0].contains("preview"), "{:?}", r.warnings);
+        let o = objects(&r.document);
+        let NodeKind::Image(im) = &o[0].kind else { panic!("{:?}", o[0].kind) };
+        assert_eq!((im.width, im.height), (20, 10));
+        assert!(near(bounds(&o[0]), Rect::new(0.0, 0.0, 100.0, 100.0)));
+        let png = image::load_from_memory(&r.document.images[&im.key].bytes).unwrap().to_rgba8();
+        for (x, y) in [(0, 0), (1, 0), (2, 0), (19, 9), (7, 4), (3, 6)] {
+            let [r, g, b] = [[255, 0, 0], [0, 128, 0], [0, 0, 255]][((x + y) % 3) as usize];
+            assert_eq!(png.get_pixel(x, y).0, [r, g, b, (x * 12) as u8], "({x}, {y}) {big} {per}");
+        }
+    }
+}
+
+#[test]
+fn a_damaged_palette_preview_is_refused_without_panicking() {
+    let tiff = palette_tiff(20, 10, 5, false);
+    assert!(crate::tiff::palette_rgba(&tiff).is_some());
+    // Cut anywhere before the last entry's value (the directory is at the end): nothing.
+    for cut in 0..tiff.len() - 6 {
+        assert!(crate::tiff::palette_rgba(&tiff[..cut]).is_none(), "{cut}");
+    }
+    // Any byte changed: a picture or nothing.
+    for big in [false, true] {
+        let tiff = palette_tiff(20, 10, 5, big);
+        for at in 0..tiff.len() {
+            for v in [0, 1, 2, 0x7f, 0x80, 0xff] {
+                let mut t = tiff.clone();
+                t[at] = v;
+                let _ = crate::tiff::palette_rgba(&t);
+            }
+        }
+    }
+    // A damaged preview of an unreadable program: the hard error.
+    let ps = eps("frobnicate");
+    for t in [&tiff[..tiff.len() / 2], b"II*\0garbage", &[0; 64]] {
+        let e = import(&crate::dos_eps(&ps, t).unwrap()).unwrap_err();
+        assert!(e.contains("can't be read"), "{e}");
+    }
+}
+
+/// #3582: `search` in a loop on multi-megabyte strings, with a needle half as
+/// long as the string that differs in its last byte, finish quickly and run out of the operation
+/// budget.
+#[test]
+fn search_in_a_loop_runs_out_of_the_budget() {
+    let make = "/h 4194304 string def /n 2097152 string def n 2097152 1 sub 1 put";
+    runs_out_of_budget(&format!("{make} {{ h n search {{ pop pop pop }} {{ pop }} ifelse }} loop"));
+}
+
+/// #3584: operators that touch up to 4 MiB or 100,000 objects are charged for it, so a loop of them
+/// runs out of the operation budget instead of keeping the importer busy for hours.
+#[test]
+fn big_operators_in_a_loop_run_out_of_the_budget() {
+    let strings = "/a 4194304 string def /b 4194304 string def";
+    for body in [
+        format!("{strings} {{ a 0 b putinterval }} loop"),
+        format!("{strings} {{ b a copy pop }} loop"),
+        "99990 { 0 } repeat { 99990 1 roll } loop".to_string(),
+        "mark 99990 { 0 } repeat { counttomark pop } loop".to_string(),
+    ] {
+        runs_out_of_budget(&body);
+    }
+}
+
+/// #3568: an image dictionary with more data sources than colour components is a `rangecheck`.
+#[test]
+fn an_image_with_more_data_sources_than_components_is_refused() {
+    let sources = "<80> ".repeat(64);
+    let e = import(&eps(&format!(
+        "/DeviceGray setcolorspace << /ImageType 1 /Width 64 /Height 64 /BitsPerComponent 8 /MultipleDataSources true \
+         /ImageMatrix [64 0 0 64 0 0] /DataSource [{sources}] >> image"
+    )))
+    .unwrap_err();
+    assert!(e.contains("rangecheck") && e.contains("DataSource"), "{e}");
+}
+
+/// #3568: every data source's plane is charged against the memory budget, not only the RGBA
+/// output: two large four-source images together go over it.
+#[test]
+fn the_planes_of_multi_source_images_are_charged() {
+    let image = "/DeviceCMYK setcolorspace << /ImageType 1 /Width 8192 /Height 8192 /BitsPerComponent 8 \
+                 /MultipleDataSources true /ImageMatrix [8192 0 0 8192 0 0] /DataSource [<80> <80> <80> <80>] >> image\n";
+    let r = import(&eps(&image.repeat(2))).unwrap();
+    assert!(r.warnings.iter().any(|w| w.contains("too much memory")), "{:?}", r.warnings);
+}
+
+/// The planes an image is decoded from, and the decoder's copies of the strings a procedure gives
+/// to fill them, stop counting against the memory budget once the image is decoded: they are freed
+/// then. A procedure that hands back one large buffer for every image (1 MiB here, for a one-pixel
+/// image) charged the whole buffer each time, and a file of many images came in as its preview.
+#[test]
+fn an_images_transient_data_is_not_charged_after_it() {
+    let body = "/buf 1048576 string def\n1100 { 1 1 8 [1 0 0 1 0 0] { buf } image } repeat\n";
+    let r = import(&eps(body)).unwrap();
+    assert!(!r.warnings.iter().any(|w| w.contains("too much memory")), "{:?}", r.warnings);
+    let mut images = 0;
+    r.document.walk(|n| images += usize::from(matches!(n.kind, NodeKind::Image(_))));
+    assert_eq!(images, 1100);
+}
+
+/// What a data source procedure allocates stays counted, whatever image it fills: a procedure
+/// that keeps each new string (in an array here) still runs into the memory budget, however small
+/// the images it fills are.
+#[test]
+fn strings_a_data_source_keeps_stay_charged() {
+    let body = "/keep 1100 array def /i 0 def\n\
+        1100 { 1 1 8 [1 0 0 1 0 0] { keep i 1048576 string put keep i get /i i 1 add def } image } repeat\n";
+    let r = import(&eps(body)).unwrap();
+    assert!(r.warnings.iter().any(|w| w.contains("too much memory")), "{:?}", r.warnings);
+}
+
+/// #3568: a single sample plane over the data limit is refused.
+#[test]
+fn an_oversized_image_plane_is_refused() {
+    let e = import(&eps("/DeviceCMYK setcolorspace << /ImageType 1 /Width 8192 /Height 8192 /BitsPerComponent 16 \
+         /ImageMatrix [8192 0 0 8192 0 0] /DataSource <80> >> image"))
+    .unwrap_err();
+    assert!(e.contains("too large"), "{e}");
+}
+
+/// Graphics states kept with `gstate` or `currentgstate` each hold a copy of the current path, and
+/// the copies count against the memory budget as `gsave` does.
+#[test]
+fn stored_graphics_states_use_up_the_memory_budget() {
+    let path = "newpath 0 0 moveto 0 1 1000000 { pop 1 0 rlineto } for";
+    for body in ["30 { gstate } repeat", "30 { 0 currentgstate } repeat"] {
+        let r = read_soon(&format!("0 0 10 10 rectfill {path} {body}"));
+        assert!(r.warnings.iter().any(|w| w.contains("uses too much memory")), "{body}: {:?}", r.warnings);
+    }
+}
+
+/// `bitshift` by the most negative integer shifts right by everything, not a negation overflow.
+#[test]
+fn bitshift_by_the_most_negative_integer_does_not_panic() {
+    let r = read("0 0 10 10 rectfill 1 -9223372036854775808 bitshift pop -1 -9223372036854775808 bitshift pop");
+    assert_eq!(objects(&r.document).len(), 1, "{:?}", r.warnings);
+}
+
+/// The stops (offset, grey's black ink or red) and the start and end of the linear gradient `n` is
+/// filled with.
+fn linear_stops(n: &Node) -> (Vec<(f32, f32)>, Point, Point) {
+    let Some(Paint::Gradient(g)) = fill(n) else { panic!("not a gradient: {:?}", fill(n)) };
+    assert_eq!(g.gradient.kind, GradientKind::Linear);
+    let level = |c: &Color| match *c {
+        Color::Gray { k } => k,
+        Color::Rgb { r, .. } => r,
+        other => panic!("{other:?}"),
+    };
+    let geom = g.geom.unwrap();
+    (g.gradient.stops.iter().map(|s| (s.offset, level(&s.color))).collect(), geom.start, geom.end)
+}
+
+#[test]
+fn abutting_strips_of_a_gradient_become_one_gradient() {
+    // A grey ramp drawn right to left as 40 strips 2 pt wide under a clip, after a strip of no
+    // width on its right edge: the clip path filled with one linear gradient, without seams.
+    let r = read(
+        "gsave 10 10 80 80 rectclip 90 10 0 80 rectfill
+         0 1 39 { /i exch def i 39 div setgray 88 i 2 mul sub 10 2 80 rectfill } for grestore",
+    );
+    let o = objects(&r.document);
+    assert_eq!(o.len(), 1, "{o:#?}");
+    let n = &o[0];
+    assert!(matches!(n.kind, NodeKind::Path { .. }));
+    assert!(near(bounds(n), Rect::new(10.0, 10.0, 90.0, 90.0)), "{:?}", bounds(n));
+    let (stops, start, end) = linear_stops(n);
+    // A straight ramp needs only its two ends, at the middles of the end strips: black on the
+    // right, white on the left.
+    assert_eq!(stops.len(), 2, "{stops:?}");
+    let x = |t: f32| start.x + (end.x - start.x) * f64::from(t);
+    assert!((start.y - end.y).abs() < 1e-6);
+    let ((t0, k0), (t1, k1)) = (stops[0], stops[1]);
+    // A grey's level is its black ink: 1 for black.
+    let (dark, light) = if k0 > k1 { ((x(t0), k0), (x(t1), k1)) } else { ((x(t1), k1), (x(t0), k0)) };
+    assert!((dark.0 - 89.0).abs() < 0.01 && (dark.1 - 1.0).abs() < 1e-6, "{dark:?}");
+    assert!((light.0 - 11.0).abs() < 0.01 && light.1.abs() < 1e-6, "{light:?}");
+}
+
+#[test]
+fn strips_under_a_larger_clip_keep_the_clip() {
+    // The same ramp under a clip larger than the strips: the gradient fills only where the
+    // strips were, still clipped, not the whole clip.
+    let r = read(
+        "gsave 5 5 90 90 rectclip
+         0 1 39 { /i exch def i 39 div setgray 88 i 2 mul sub 10 2 80 rectfill } for grestore",
+    );
+    let o = objects(&r.document);
+    assert_eq!(o.len(), 1, "{o:#?}");
+    let NodeKind::Group { children, clip: true } = &o[0].kind else { panic!("not a clipping group: {:#?}", o[0]) };
+    let [_, fill] = children.as_slice() else { panic!("{children:#?}") };
+    assert!(near(bounds(fill), Rect::new(10.0, 10.0, 90.0, 90.0)), "{:?}", bounds(fill));
+    let (stops, _, _) = linear_stops(fill);
+    assert_eq!(stops.len(), 2, "{stops:?}");
+}
+
+#[test]
+fn turned_strips_become_a_gradient_across_them() {
+    // Strips drawn in a turned space: the gradient runs square to them.
+    let r = read("50 50 translate 30 rotate 0 1 19 { /i exch def i 19 div 0 0 setrgbcolor i 2 mul 20 sub -20 2 40 rectfill } for");
+    let o = objects(&r.document);
+    assert_eq!(o.len(), 1, "{o:#?}");
+    let (stops, start, end) = linear_stops(&o[0]);
+    assert_eq!(stops.len(), 2, "{stops:?}");
+    let d = end - start;
+    // 30° in PostScript's y-up space is −30° in the document's y-down one.
+    let angle = d.y.atan2(d.x).to_degrees();
+    assert!((angle + 30.0).abs() < 0.01 || (angle - 150.0).abs() < 0.01, "{angle}");
+    assert!((d.hypot() - 40.0).abs() < 0.01, "{}", d.hypot());
+}
+
+#[test]
+fn abutting_blocks_of_distinct_colours_stay_apart() {
+    // Side by side but each a different colour (a row of swatches): not a gradient.
+    let blocks: String =
+        (0..8).map(|i| format!("{} {} {} setrgbcolor {} 10 10 80 rectfill ", i % 2, (i / 2) % 2, (i / 4) % 2, 10 + i * 10)).collect();
+    assert_eq!(objects(&read(&blocks).document).len(), 8);
+    // Too few strips to be sure of.
+    let few: String = (0..5).map(|i| format!("{} setgray {} 10 2 80 rectfill ", f64::from(i) / 40.0, 10 + i * 2)).collect();
+    assert_eq!(objects(&read(&few).document).len(), 5);
+    // Strips with gaps between them.
+    let gaps: String = (0..10).map(|i| format!("{} setgray {} 10 2 80 rectfill ", f64::from(i) / 40.0, 10 + i * 3)).collect();
+    assert_eq!(objects(&read(&gaps).document).len(), 10);
 }
