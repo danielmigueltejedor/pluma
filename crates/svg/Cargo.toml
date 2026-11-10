@@ -9,12 +9,15 @@ description = "VectorCraft SVG import and export"
 workspace = true
 
 [dependencies]
+# Which paths stored in documents may be opened.
+craft-docpath = { workspace = true }
 vectorcraft-geom = { workspace = true }
 vectorcraft-color = { workspace = true }
 vectorcraft-doc = { workspace = true }
 vectorcraft-effects = { workspace = true }
 vectorcraft-brush = { workspace = true }
 vectorcraft-text = { workspace = true }
+vectorcraft-pathops = { workspace = true }
 kurbo = { workspace = true }
 usvg = { workspace = true }
 thiserror = { workspace = true }
@@ -26,11 +29,16 @@ flate2 = { workspace = true }
 image = { workspace = true }
 # Colour / transform / length parsing for the <text> fallback (MIT OR Apache-2.0; already used by usvg).
 svgtypes = "0.16"
+simplecss = "0.2.2"
 
 [dev-dependencies]
 # Reading embedded font subsets back.
 skrifa = { workspace = true }
-resvg = { version = "0.45", default-features = false }
+# A variable font built in code (no font file is committed).
+vectorcraft-text = { workspace = true, features = ["test-fonts"] }
+resvg = { version = "0.45", default-features = false, features = ["raster-images"] }
+# usvg as a reference viewer that lays text out in a font (text_layout.rs).
+usvg = { workspace = true, features = ["text"] }
 vectorcraft-testkit = { workspace = true }
 proptest = { workspace = true }
 image = { workspace = true }

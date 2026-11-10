@@ -1,5 +1,5 @@
-//! File → Document Setup: General (units, bleed, Edit Artboards, outline images, substitution
-//! highlights), Transparency (grid size and colours, simulated paper, flattener preset, white
+//! File → Document Setup: General (units, bleed, Edit Artboards, outline images, the substituted
+//! glyphs highlight), Transparency (grid size and colours, simulated paper, flattener preset, white
 //! overprint) and Type (language, quotes, superscript/subscript/small caps, text export) tabs.
 //!
 //! Fields: what `document.setup` reports (and takes back), plus `tab` and `bleedLinked`. OK runs
@@ -21,7 +21,7 @@ const UI_ONLY: [&str; 2] = ["tab", "bleedLinked"];
 pub(super) const LABEL: f32 = 130.0;
 
 pub(super) const SPEC: DialogSpec =
-    DialogSpec { heading: |_| "Document Setup".into(), body, confirm, min_width: 540.0, max_width: Some(540.0), ..DialogSpec::FORM };
+    DialogSpec { heading: |_| tl!("Document Setup").into(), body, confirm, min_width: 540.0, max_width: Some(540.0), ..DialogSpec::FORM };
 
 /// Open Document Setup on the active document's settings.
 pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
@@ -48,15 +48,16 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         d.fields.insert("tab".into(), json!(TABS[i]));
     }
     ui.add_space(12.0);
+    let mut close = false;
     ui.vertical(|ui| {
         ui.set_min_height(330.0);
         match tab {
-            0 => general(app, ui, d),
+            0 => close = general(app, ui, d),
             1 => transparency(app, ui, d),
             _ => typography(ui, d),
         }
     });
-    false
+    close
 }
 
 /// A dropdown row bound to the string `d.fields[key]`; `options` are (value, label).
@@ -77,30 +78,35 @@ fn unit(d: &Dialog) -> Unit {
     Unit::named(&d.str("units")).unwrap_or_default()
 }
 
-fn general(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+/// The General tab of Document Setup (units, bleed, artboard editing, options).
+fn general(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let units: Vec<(&str, &str)> = Unit::ALL.iter().map(|u| (u.label(), u.label())).collect();
-    choice(ui, d, "units", "Units:", &units);
+    choice(ui, d, "units", tl!("Units:"), &units);
     ui.add_space(6.0);
     let unit = unit(d);
-    widgets::label_row(ui, "Bleed:", LABEL, |ui| form::bleed(ui, d, unit, 64.0));
+    widgets::label_row(ui, tl!("Bleed:"), LABEL, |ui| form::bleed(ui, d, unit, 64.0));
     ui.add_space(6.0);
+    let mut close = false;
     widgets::label_row(ui, "", LABEL, |ui| {
         // Applies the settings, then edits the artboards with the Artboard tool.
-        if widgets::flat_button(ui, "Edit Artboards", 120.0).clicked() && confirm(app, d).is_ok() {
+        if widgets::flat_button_fit(ui, tl!("Edit Artboards"), 120.0).clicked() && confirm(app, d).is_ok() {
             app.select_tool("artboard");
+            // The shared frame restores its working copy after drawing the body. Tell it to
+            // close too, otherwise it reopens the dialog that confirm just closed.
+            close = true;
         }
     });
     ui.add_space(12.0);
-    check(ui, d, "outlineImages", "Show Images in Outline Mode");
-    check(ui, d, "highlightSubstitutedFonts", "Highlight Substituted Fonts");
-    check(ui, d, "highlightSubstitutedGlyphs", "Highlight Substituted Glyphs");
+    check(ui, d, "outlineImages", tl!("Show Images in Outline Mode"));
+    check(ui, d, "highlightSubstitutedGlyphs", tl!("Highlight Substituted Glyphs"));
+    close
 }
 
 fn transparency(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let t = Tokens::get(ui.ctx());
-    widgets::subheader(ui, "Transparency Grid");
+    widgets::subheader(ui, tl!("Transparency Grid"));
     let sizes: Vec<(&str, &str)> = GridSize::ALL.iter().map(|g| (g.id(), g.label())).collect();
-    choice(ui, d, "gridSize", "Grid Size:", &sizes);
+    choice(ui, d, "gridSize", tl!("Grid Size:"), &sizes);
     let colors: Vec<String> = d
         .fields
         .get("gridColors")
@@ -112,7 +118,7 @@ fn transparency(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
         .find(|(_, pair)| colors.len() == 2 && colors.iter().zip(pair).all(|(h, c)| h.eq_ignore_ascii_case(&c.to_hex())))
         .map_or("Custom", |(n, _)| n);
     let names: Vec<&str> = GRID_COLOR_PRESETS.iter().map(|(n, _)| *n).chain(["Custom"]).collect();
-    widgets::label_row(ui, "Grid Colors:", LABEL, |ui| {
+    widgets::label_row(ui, tl!("Grid Colors:"), LABEL, |ui| {
         if let Some((_, pair)) = widgets::dropdown(ui, "gridColors", preset, &names, 220.0).and_then(|i| GRID_COLOR_PRESETS.get(i)) {
             d.fields.insert("gridColors".into(), json!(pair.map(|c| c.to_hex())));
         }
@@ -126,7 +132,8 @@ fn transparency(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
                 ui.painter().rect_filled(chip, 2.0, crate::panels::c32(&c));
             }
             ui.painter().rect_stroke(chip, 2.0, egui::Stroke::new(1.0, t.input_border), egui::StrokeKind::Inside);
-            if let Some(c) = widgets::hex_field(ui, ("grid-color", i), hex).and_then(|h| vectorcraft_color::Color::from_hex(&h)) {
+            let name = format!("{} {}", tl!("Grid Colors:"), i + 1);
+            if let Some(c) = widgets::hex_field_named(ui, ("grid-color", i), Some(&name), hex).and_then(|h| vectorcraft_color::Color::from_hex(&h)) {
                 let mut v = colors.clone();
                 v.resize(2, "#ffffff".into());
                 v[i] = c.to_hex();
@@ -136,27 +143,29 @@ fn transparency(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
         }
     });
     ui.add_space(4.0);
-    check(ui, d, "simulatePaper", "Simulate Colored Paper");
+    check(ui, d, "simulatePaper", tl!("Simulate Colored Paper"));
     ui.add_space(14.0);
-    widgets::subheader(ui, "Export and Clipboard Transparency Flattener Settings");
+    widgets::subheader(ui, tl!("Export and Clipboard Transparency Flattener Settings"));
     let presets: Vec<String> = app.session.flattener_presets().into_iter().map(|p| p.name).collect();
     let options: Vec<(&str, &str)> = presets.iter().map(|p| (p.as_str(), p.as_str())).collect();
-    choice(ui, d, "flattenerPreset", "Preset:", &options);
-    check(ui, d, "discardWhiteOverprint", "Discard White Overprint in Output");
+    choice(ui, d, "flattenerPreset", tl!("Preset:"), &options);
+    check(ui, d, "discardWhiteOverprint", tl!("Discard White Overprint in Output"));
 }
 
 fn typography(ui: &mut egui::Ui, d: &mut Dialog) {
     let t = Tokens::get(ui.ctx());
-    let langs: Vec<(&str, &str)> = LANGUAGES.iter().map(|(l, _)| (*l, *l)).collect();
+    let langs: Vec<(&str, &str)> = LANGUAGES.iter().map(|(l, _, _)| (*l, *l)).collect();
     let before = d.str("language");
-    choice(ui, d, "language", "Language:", &langs);
+    choice(ui, d, "language", tl!("Language:"), &langs);
     // A language brings its quotes.
     if d.str("language") != before
         && let Some(q) = vectorcraft_doc::setup::language_quotes(&d.str("language"))
     {
         d.fields.insert("quotes".into(), json!({"double": q.double.iter().collect::<String>(), "single": q.single.iter().collect::<String>()}));
     }
-    for (key, label, choices) in [("double", "Double Quotes:", Quotes::DOUBLE_CHOICES), ("single", "Single Quotes:", Quotes::SINGLE_CHOICES)] {
+    for (key, label, choices) in
+        [("double", tl!("Double Quotes:"), Quotes::DOUBLE_CHOICES), ("single", tl!("Single Quotes:"), Quotes::SINGLE_CHOICES)]
+    {
         let pairs: Vec<String> = choices.iter().map(|p| p.iter().collect()).collect();
         let labels: Vec<&str> = pairs.iter().map(String::as_str).collect();
         let cur = d.fields.get("quotes").and_then(|q| q.get(key)).and_then(Value::as_str).unwrap_or("").to_string();
@@ -168,17 +177,17 @@ fn typography(ui: &mut egui::Ui, d: &mut Dialog) {
             }
         });
     }
-    check(ui, d, "typographersQuotes", "Use Typographer's Quotes");
+    check(ui, d, "typographersQuotes", tl!("Use Typographer's Quotes"));
     ui.add_space(14.0);
-    widgets::subheader(ui, "Options");
+    widgets::subheader(ui, tl!("Options"));
     egui::Grid::new("docsetup-scripts").num_columns(3).spacing([16.0, 6.0]).show(ui, |ui| {
         ui.label("");
-        for h in ["Size", "Position"] {
+        for h in [tl!("Size"), tl!("Position")] {
             ui.label(egui::RichText::new(h).size(11.0).color(t.text_dim));
         }
         ui.end_row();
-        for (key, label) in [("superscript", "Superscript:"), ("subscript", "Subscript:")] {
-            ui.label(egui::RichText::new(label).color(t.text));
+        for (key, label) in [("superscript", tl!("Superscript:")), ("subscript", tl!("Subscript:"))] {
+            widgets::field_label(ui, egui::RichText::new(label).color(t.text));
             for part in ["size", "position"] {
                 let v = d.fields.get(key).and_then(|m| m.get(part)).and_then(Value::as_f64).unwrap_or(0.0);
                 if let Some(n) = widgets::plain_field(ui, (key, part), v, "%", 1, 70.0) {
@@ -189,22 +198,95 @@ fn typography(ui: &mut egui::Ui, d: &mut Dialog) {
             }
             ui.end_row();
         }
-        ui.label(egui::RichText::new("Small Caps:").color(t.text));
+        widgets::field_label(ui, egui::RichText::new(tl!("Small Caps:")).color(t.text));
         if let Some(n) = widgets::plain_field(ui, "smallCaps", d.f64("smallCapsSize", 70.0), "%", 1, 70.0) {
             d.fields.insert("smallCapsSize".into(), json!(n));
         }
         ui.end_row();
     });
     ui.add_space(6.0);
-    choice(ui, d, "exportText", "Export:", &[("editable", "Preserve Text Editability"), ("appearance", "Preserve Text Appearance")]);
+    choice(ui, d, "exportText", tl!("Export:"), &[("editable", tl!("Preserve Text Editability")), ("appearance", tl!("Preserve Text Appearance"))]);
 }
 
 #[cfg(test)]
 mod tests {
+    use egui::{Event, PointerButton, Pos2, Rect, vec2};
     use serde_json::json;
     use vectorcraft_engine::Session;
 
     use crate::VectorcraftApp;
+
+    fn dialog_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
+        let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 900.0))), events, ..Default::default() };
+        let mut out = ctx.run_ui(raw, |ui| crate::dialogs::show(app, ui.ctx()));
+        out.textures_delta.clear();
+        out.shapes
+            .iter()
+            .filter_map(|s| match &s.shape {
+                egui::Shape::Text(t) => Some((t.galley.text().to_string(), Rect::from_min_size(t.pos, t.galley.size()))),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn click_dialog_button(app: &mut VectorcraftApp, label: &str) {
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        crate::theme::apply(&ctx, Default::default());
+        dialog_frame(app, &ctx, vec![]);
+        let texts = dialog_frame(app, &ctx, vec![]);
+        let at = texts.iter().find(|(text, _)| text == label).unwrap_or_else(|| panic!("missing {label}: {texts:?}")).1.center();
+        let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+        dialog_frame(app, &ctx, vec![Event::PointerMoved(at), button(true)]);
+        dialog_frame(app, &ctx, vec![button(false)]);
+        dialog_frame(app, &ctx, vec![]);
+    }
+
+    #[test]
+    fn edit_artboards_applies_settings_and_closes_the_dialog() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+        app.run("file.documentSetup", json!({})).unwrap();
+        app.ui.dialog.as_mut().unwrap().fields.insert("bleed".into(), json!([9, 9, 9, 9]));
+        click_dialog_button(&mut app, "Edit Artboards");
+        assert!(app.ui.dialog.is_none(), "Edit Artboards must leave the canvas accessible");
+        assert_eq!(app.session.tool_id(), "artboard");
+        let st = app.session.active().unwrap();
+        assert_eq!(st.doc.setup.bleed, [9.0; 4]);
+        assert_eq!(st.history.undo.len(), 1);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(app.session.active().unwrap().doc.setup.bleed, [0.0; 4]);
+    }
+
+    #[test]
+    fn edit_artboards_with_invalid_settings_keeps_the_dialog_and_tool() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+        app.run("file.documentSetup", json!({})).unwrap();
+        app.ui.dialog.as_mut().unwrap().fields.insert("bleed".into(), json!(500));
+        click_dialog_button(&mut app, "Edit Artboards");
+        assert!(app.ui.dialog.is_some());
+        assert_eq!(app.session.tool_id(), "selection");
+        let st = app.session.active().unwrap();
+        assert_eq!(st.doc.setup.bleed, [0.0; 4]);
+        assert!(st.history.undo.is_empty());
+    }
+
+    #[test]
+    fn ok_and_cancel_close_without_switching_tools() {
+        for (button, expected_bleed, undo_steps) in [("OK", [9.0; 4], 1), ("Cancel", [0.0; 4], 0)] {
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+            app.run("file.documentSetup", json!({})).unwrap();
+            app.ui.dialog.as_mut().unwrap().fields.insert("bleed".into(), json!([9, 9, 9, 9]));
+            click_dialog_button(&mut app, button);
+            assert!(app.ui.dialog.is_none(), "{button}");
+            assert_eq!(app.session.tool_id(), "selection");
+            let st = app.session.active().unwrap();
+            assert_eq!(st.doc.setup.bleed, expected_bleed);
+            assert_eq!(st.history.undo.len(), undo_steps);
+        }
+    }
 
     fn frame(app: &mut VectorcraftApp) {
         let ctx = egui::Context::default();
@@ -241,5 +323,24 @@ mod tests {
         app.ui.dialog.as_mut().unwrap().fields.insert("bleed".into(), json!(500));
         assert!(crate::dialogs::confirm(&mut app).is_err());
         assert!(app.ui.dialog.is_some());
+    }
+
+    /// Highlight Substituted Fonts is in Preferences › Type, so the General tab shows only the
+    /// substituted glyphs highlight, and OK still applies.
+    #[test]
+    fn general_tab_has_no_substituted_fonts_checkbox() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
+        app.run("file.documentSetup", json!({})).unwrap();
+        assert!(app.ui.dialog.as_ref().unwrap().fields.get("highlightSubstitutedFonts").is_none());
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        crate::theme::apply(&ctx, Default::default());
+        dialog_frame(&mut app, &ctx, vec![]);
+        let texts: Vec<String> = dialog_frame(&mut app, &ctx, vec![]).into_iter().map(|(t, _)| t).collect();
+        assert!(texts.iter().any(|t| t == "Highlight Substituted Glyphs"), "{texts:?}");
+        assert!(!texts.iter().any(|t| t == "Highlight Substituted Fonts"), "{texts:?}");
+        crate::dialogs::confirm(&mut app).unwrap();
+        assert!(app.ui.dialog.is_none());
     }
 }

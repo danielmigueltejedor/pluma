@@ -274,10 +274,11 @@ pub(super) fn release(cx: &ToolContext, a: Option<&Annotator>, g: Gesture, lines
     }
 }
 
-/// Escape during a drag: the point a drag-out deselected is selected again.
+/// Escape during a drag: the point a drag-out deselected is selected again, also when the drag
+/// came back inside the object.
 pub(super) fn cancel(g: &Gesture) -> Vec<Action> {
     match g.grab {
-        Grab::Point(i) if g.out => vec![Action::Cancel, select(Some(i))],
+        Grab::Point(i) if g.left => vec![Action::Cancel, select(Some(i))],
         _ => vec![Action::Cancel],
     }
 }
@@ -321,14 +322,14 @@ pub(super) fn key(cx: &ToolContext, a: &Annotator, lines: &mut Lines, key: ToolK
 pub(super) fn cursor(cx: &ToolContext, a: &Annotator, g: Option<&Gesture>, p: Point) -> Cursor {
     match g.filter(|g| g.began).map(|g| (&g.grab, g.out)) {
         Some((Grab::Point(_), true)) => return Cursor::RemoveStop,
-        Some((Grab::Spread { .. }, _)) => return Cursor::ResizeH,
+        Some((Grab::Spread { .. }, _)) => return Cursor::ResizeH.turned(cx.view_angle()),
         Some(_) => return Cursor::Move,
         None => {}
     }
     if a.point_at(cx, p).is_some() {
         Cursor::Move
     } else if a.ring_at(cx, p).is_some() {
-        Cursor::ResizeH
+        Cursor::ResizeH.turned(cx.view_angle())
     } else if a.line_at(cx, p).is_some() || on_art(cx, p) {
         Cursor::AddStop
     } else {
@@ -451,6 +452,31 @@ mod tests {
         assert!(!t.claims_key(&cx, ToolKey::Escape));
     }
 
+    /// A dropped click adds no point and leaves the line being drawn open: the next click still
+    /// joins it. A dropped drag of a point is canceled as by Escape.
+    #[test]
+    fn a_dropped_click_keeps_the_line_open() {
+        let (d, s) = doc(FreeformMode::Lines);
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        let mut t = GradientTool::default();
+        let add = |x: f64, y: f64, line: bool| Action::Exec("paint.freeform.addPoint".into(), json!({"at": [x, y], "line": line, "stroke": false}));
+        assert_eq!(click(&mut t, &cx, 140.0, 150.0), vec![add(140.0, 150.0, false)]);
+        cx.freeform_point = Some(2);
+        assert!(t.claims_key(&cx, ToolKey::Escape));
+        // The engine sends the release after the drop.
+        t.pointer(&cx, &ev(PointerKind::Down, 170.0, 160.0));
+        assert!(t.drop_press(&cx).is_empty());
+        assert!(t.pointer(&cx, &ev(PointerKind::Up, 170.0, 160.0)).is_empty(), "the dropped click adds no point");
+        assert!(t.claims_key(&cx, ToolKey::Escape), "the line stays open");
+        assert_eq!(click(&mut t, &cx, 160.0, 140.0), vec![add(160.0, 140.0, true)]);
+        t.pointer(&cx, &ev(PointerKind::Down, 120.0, 121.0));
+        assert_eq!(t.pointer(&cx, &ev(PointerKind::Drag, 130.0, 140.0))[0], Action::Begin("Gradient".into()));
+        assert_eq!(t.drop_press(&cx), vec![Action::Cancel]);
+        assert!(!t.busy());
+        assert!(t.pointer(&cx, &ev(PointerKind::Up, 130.0, 140.0)).is_empty());
+    }
+
     #[test]
     fn a_point_dragged_out_of_the_object_is_removed() {
         let (d, s) = doc(FreeformMode::Points);
@@ -474,6 +500,11 @@ mod tests {
         t.pointer(&cx, &ev(PointerKind::Down, 120.0, 120.0));
         t.pointer(&cx, &ev(PointerKind::Drag, 60.0, 60.0));
         assert_eq!(t.key(&cx, ToolKey::Escape, Default::default()), vec![Action::Cancel, select(Some(0))]);
+        // Also after the drag came back inside.
+        t.pointer(&cx, &ev(PointerKind::Down, 120.0, 120.0));
+        t.pointer(&cx, &ev(PointerKind::Drag, 60.0, 60.0));
+        t.pointer(&cx, &ev(PointerKind::Drag, 110.0, 110.0));
+        assert_eq!(t.key(&cx, ToolKey::Escape, Default::default()), vec![Action::Cancel, select(Some(0))]);
     }
 
     #[test]
@@ -486,6 +517,11 @@ mod tests {
         // Spread 0.2 of half the 100 pt box: a 10 pt ring around (150, 180), its handle on it.
         assert_eq!(t.cursor(&cx, Point::new(150.0, 170.0), Default::default()), Cursor::ResizeH);
         assert!(t.overlays(&cx).contains(&Overlay::Handle { p: Point::new(166.0, 180.0), color: LINE }), "at least 16 px out");
+        // In a view turned 90° the handle shows below the point and drags up and down on screen.
+        let mut turned = crate::testutil::cx(&d, &s, &p);
+        turned.freeform_point = Some(2);
+        turned.screen = turned_view(90.0);
+        assert_eq!(t.cursor(&turned, Point::new(166.0, 180.0), Default::default()), Cursor::ResizeV);
         assert!(t.pointer(&cx, &ev(PointerKind::Down, 160.0, 180.0)).is_empty());
         let spread = |a: &[Action]| match a.last() {
             Some(Action::Preview(c, v)) if c == "paint.freeform.setPoint" && v["index"] == 2 => (v["spread"].as_f64().unwrap() * 1e4).round() / 1e4,

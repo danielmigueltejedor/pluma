@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use vectorcraft_doc::{Artboard, Background, ColorMode, Document, Unit};
 use vectorcraft_geom::{Point, Rect};
 
-use super::*;
+use super::{CommandSpec, Result, Session, always, bad, clock_date, cmd, date_param, str_param};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -103,28 +103,45 @@ impl PreviewMode {
     }
 }
 
+/// A saved preset's raster effects resolution, within 1 to 2400 ppi (72 when it isn't finite).
+fn de_ppi<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<f64, D::Error> {
+    Ok(Some(f64::deserialize(d)?).filter(|v| v.is_finite()).unwrap_or(72.0).clamp(1.0, 2400.0))
+}
+
 /// Everything New Document sets: a preset (built-in, saved or recent) or `file.new`'s params.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DocSettings {
     /// The preset's name.
     pub name: String,
-    /// Artboard size in points.
+    /// Artboard size in points, more than 0 and up to `MAX_SIDE` (a saved or Recent preset's
+    /// value outside that range is read as the nearer end, and one of 0 or less is read as 1).
+    #[serde(deserialize_with = "de_side")]
     pub width: f64,
+    #[serde(deserialize_with = "de_side")]
     pub height: f64,
     pub units: Unit,
+    /// 1 to `MAX_ARTBOARDS` (a saved or Recent preset's value outside that range is read as the
+    /// nearer end).
+    #[serde(deserialize_with = "de_artboards")]
     pub artboards: u32,
     pub layout: ArtboardLayout,
     /// Columns of a grid layout.
     pub columns: u32,
-    /// Space between artboards, points.
+    /// Space between artboards, points: 0 to `MAX_SPACING` (a saved or Recent preset's value
+    /// outside that range is read as the nearer end).
+    #[serde(deserialize_with = "de_spacing")]
     pub spacing: f64,
     /// Change to Right-to-Left Layout: the first artboard at the right.
     pub right_to_left: bool,
-    /// Top, bottom, left, right, points.
+    /// Top, bottom, left, right, points: 0 to `MAX_BLEED` each (a saved or Recent preset's value
+    /// outside that range is read as the nearer end).
+    #[serde(deserialize_with = "de_bleed")]
     pub bleed: [f64; 4],
     pub background: Background,
     pub color_mode: ColorMode,
+    /// 1 to 2400 ppi (a saved preset's value outside that range is read as the nearer end).
+    #[serde(deserialize_with = "de_ppi")]
     pub raster_effects_ppi: f64,
     pub preview_mode: PreviewMode,
 }
@@ -321,8 +338,12 @@ impl DocSettings {
                 id: i as u32 + 1,
                 name: format!("Artboard {}", i + 1),
                 rect,
+                locked: false,
                 show_center_mark: false,
                 show_cross_hairs: false,
+                show_video_safe_areas: false,
+                video_ruler_pixel_aspect_ratio: 1.0,
+                color: None,
             })
             .collect();
         d
@@ -341,13 +362,48 @@ pub fn color_mode_id(m: ColorMode) -> &'static str {
     }
 }
 
+/// A saved or Recent preset's artboard side: up to [`MAX_SIDE`] points, and 1 when it is 0 or less.
+fn de_side<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<f64, D::Error> {
+    let v = f64::deserialize(d)?;
+    Ok(if v > 0.0 { v.min(MAX_SIDE) } else { 1.0 })
+}
+
+/// A saved or Recent preset's artboard count, rounded and kept to 1 to [`MAX_ARTBOARDS`] as
+/// `file.new` reads its `artboards` param.
+fn de_artboards<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<u32, D::Error> {
+    Ok(f64::deserialize(d)?.round().clamp(1.0, MAX_ARTBOARDS as f64) as u32)
+}
+
+/// A saved or Recent preset's artboard spacing, kept to 0 to [`MAX_SPACING`] points.
+fn de_spacing<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<f64, D::Error> {
+    Ok(f64::deserialize(d)?.clamp(0.0, MAX_SPACING))
+}
+
+/// A saved or Recent preset's bleed, each side kept to 0 to `MAX_BLEED` points.
+fn de_bleed<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<[f64; 4], D::Error> {
+    Ok(vectorcraft_doc::setup::bleed_in_range(<[f64; 4]>::deserialize(d)?))
+}
+
 /// Top-left corners for artboards of `sizes` from `origin`: `columns` per row, `spacing` apart,
 /// each column as wide and each row as tall as its largest artboard; `by_column` fills columns
 /// top to bottom first, `rtl` puts the first column at the right.
 pub(crate) fn grid_origins(sizes: &[(f64, f64)], origin: Point, columns: usize, spacing: f64, by_column: bool, rtl: bool) -> Vec<Point> {
-    let n = sizes.len();
-    let cols = columns.clamp(1, n.max(1));
-    let rows = n.div_ceil(cols).max(1);
+    let n = sizes.len().max(1);
+    let cols = columns.clamp(1, n);
+    grid_origins_rc(sizes, origin, (n.div_ceil(cols), cols), spacing, by_column, rtl)
+}
+
+/// [`grid_origins`] on a grid of `rows` × `cols` cells (at least enough for every artboard when
+/// filled the `by_column` way).
+pub(crate) fn grid_origins_rc(
+    sizes: &[(f64, f64)],
+    origin: Point,
+    (rows, cols): (usize, usize),
+    spacing: f64,
+    by_column: bool,
+    rtl: bool,
+) -> Vec<Point> {
+    let (rows, cols) = (rows.max(1), cols.max(1));
     // Grid cell (row, column) of artboard i.
     let cell = |i: usize| {
         let (r, c) = if by_column { (i % rows, i / rows) } else { (i / cols, i % cols) };
@@ -362,7 +418,7 @@ pub(crate) fn grid_origins(sizes: &[(f64, f64)], origin: Point, columns: usize, 
         }
     }
     let offset = |spans: &[f64], k: usize| spans.iter().take(k).map(|s| s + spacing).sum::<f64>();
-    (0..n)
+    (0..sizes.len())
         .map(|i| {
             let (r, c) = cell(i);
             Point::new(origin.x + offset(&col_w, c), origin.y + offset(&row_h, r))
@@ -461,6 +517,7 @@ pub const CATEGORIES: &[Category] = &[
             ("Logo 1000×1000", 1000.0, 1000.0, PX),
             ("Business Card 3.5 × 2 in", 3.5, 2.0, IN),
             ("Business Card 85 × 55 mm", 85.0, 55.0, MM),
+            ("Business Card 91 × 55 mm", 91.0, 55.0, MM),
             ("Letterhead Letter", 8.5, 11.0, IN),
             ("Letterhead A4", 210.0, 297.0, MM),
             ("Envelope DL", 220.0, 110.0, MM),
@@ -552,6 +609,7 @@ pub(crate) fn file_new(s: &mut Session, p: &Value) -> Result<Value> {
         settings.name = "Custom".into();
     }
     let mut d = settings.document();
+    d.grid = s.prefs.grid();
     d.title = match str_param(p, "name").or(str_param(p, "title")).map(str::trim).filter(|t| !t.is_empty()) {
         // New Document offers the next untitled name: taking it uses it up.
         Some(t) if t == s.peek_untitled() => s.next_untitled(),

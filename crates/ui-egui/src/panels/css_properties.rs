@@ -105,7 +105,7 @@ fn sentence(w: &str) -> String {
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     let Some(selected) = app.session.active().map(|st| !st.selection.is_empty()) else {
-        widgets::dim_label(ui, "No document");
+        widgets::dim_label(ui, tl!("No document"));
         return;
     };
     let opts: CssOptions = pstate(&ctx, OPTIONS);
@@ -118,18 +118,26 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 Some(job) => {
                     ui.add(egui::Label::new(egui::WidgetText::LayoutJob(job.clone())).selectable(true).extend());
                 }
-                None if selected => super::empty_state(ui, "globe", "No CSS", "The selected objects have no CSS of their own (see below)."),
-                None => super::empty_state(ui, "globe", "No selection", "Select objects to see their CSS, or Generate CSS for the whole document."),
+                None if selected => super::empty_state(ui, "globe", tl!("No CSS"), tl!("The selected objects have no CSS of their own (see below).")),
+                None => super::empty_state(
+                    ui,
+                    "globe",
+                    tl!("No selection"),
+                    tl!("Select objects to see their CSS, or Generate CSS for the whole document."),
+                ),
             }
         });
     });
     let notes = (shown.more > 0)
-        .then(|| format!("{} more rules: Export writes every one.", shown.more))
+        .then(|| crate::i18n::tn(shown.more as u64, "{n} more rule: Export writes it.", "{n} more rules: Export writes every one."))
         .into_iter()
-        .chain(
-            (shown.skipped > 0)
-                .then(|| format!("{} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.", shown.skipped)),
-        )
+        .chain((shown.skipped > 0).then(|| {
+            crate::i18n::tn(
+                shown.skipped,
+                "{n} unnamed object left out: name it, or turn on Unnamed Objects in the panel menu.",
+                "{n} unnamed objects left out: name them, or turn on Unnamed Objects in the panel menu.",
+            )
+        }))
         .chain(shown.warnings.iter().map(|w| sentence(w)));
     let dim = Tokens::get(&ctx).text_dim;
     for n in notes {
@@ -139,13 +147,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let scope = if all { "all" } else { "selection" };
     let (mut generate, mut copy, mut export) = (false, false, false);
     widgets::bottom_bar(ui, |ui| {
-        generate =
-            widgets::icon_button_enabled(ui, "sparkles", "Generate CSS: the whole document's CSS while nothing is selected", all, !selected, 24.0)
-                .clicked();
+        generate = widgets::icon_button_enabled(
+            ui,
+            "sparkles",
+            tl!("Generate CSS: the whole document's CSS while nothing is selected"),
+            all,
+            !selected,
+            24.0,
+        )
+        .clicked();
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let tip = if all { "Export All…" } else { "Export Selected CSS…" };
+            let tip = if all { tl!("Export All…") } else { tl!("Export Selected CSS…") };
             export = widgets::icon_button_enabled(ui, "save", tip, false, has_css, 24.0).clicked();
-            let tip = if all { "Copy All Styles" } else { "Copy Selected Style" };
+            let tip = if all { tl!("Copy All Styles") } else { tl!("Copy Selected Style") };
             copy = widgets::icon_button_enabled(ui, "copy", tip, false, has_css, 24.0).clicked();
         });
     });
@@ -168,12 +182,13 @@ pub(crate) fn copy(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String>
     let css = r["css"].as_str().filter(|c| !c.is_empty()).ok_or("no CSS to copy: select objects with CSS of their own")?.to_string();
     let rules = r["rules"].as_array().map_or(0, Vec::len);
     app.clipboard_out = Some(css.clone());
-    app.status(format!("Copied the CSS of {rules} object(s)"));
+    app.status(crate::i18n::msg_n(rules as u64, "Copied the CSS of {n} object", "Copied the CSS of {n} objects", &[]));
     Ok(json!({ "css": css, "rules": rules }))
 }
 
 /// `css.exportFile {path?, scope?, …css.selection options}`: `css.export` written to `path`, else
-/// a picked file (the web downloads it), its pictures next to it → `{path, rules, images}`.
+/// a picked file (the web downloads it), its pictures next to it → `{path, rules, images,
+/// warnings}`.
 pub(crate) fn export_file(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     let mut q = p.clone();
     let path = q.as_object_mut().and_then(|o| o.remove("path")).and_then(|v| v.as_str().map(str::to_string));
@@ -189,8 +204,14 @@ pub(crate) fn export_file(app: &mut VectorcraftApp, p: &Value) -> Result<Value, 
         io::write_to(&mut app.services, &at, &bytes)?;
         images.push(at);
     }
-    app.status(format!("Exported {path}"));
-    Ok(json!({ "path": path, "rules": r["rules"], "images": images }))
+    // The status bar shows the first warning in Export As's message.
+    let warnings: Vec<&str> = r["warnings"].as_array().map(|w| w.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+    let what = &path;
+    app.status(match warnings.first() {
+        Some(first) => io::exported_with_notes(what, warnings.len(), first),
+        None => format!("Exported {path}"),
+    });
+    Ok(json!({ "path": path, "rules": r["rules"], "images": images, "warnings": r["warnings"] }))
 }
 
 /// The panel (≡) menu: copy and export, Generate CSS and the export options.
@@ -199,22 +220,22 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let Some(selected) = app.session.active().map(|st| !st.selection.is_empty()) else { return };
     let mut opts: CssOptions = pstate(&ctx, OPTIONS);
     let all: bool = pstate(&ctx, ALL);
-    if menu_item(ui, "Copy Selected Style", selected, false) {
+    if menu_item(ui, tl!("Copy Selected Style"), selected, false) {
         crate::menus::invoke(app, "css.copy", params(&opts, "selection"));
     }
-    if menu_item(ui, "Export Selected CSS…", selected, false) {
+    if menu_item(ui, tl!("Export Selected CSS…"), selected, false) {
         crate::menus::invoke(app, "css.exportFile", params(&opts, "selection"));
     }
-    if menu_item(ui, "Export All…", true, false) {
+    if menu_item(ui, tl!("Export All…"), true, false) {
         crate::menus::invoke(app, "css.exportFile", params(&opts, "all"));
     }
     ui.separator();
-    if menu_item(ui, "Generate CSS", true, all) {
+    if menu_item(ui, tl!("Generate CSS"), true, all) {
         set_pstate(&ctx, ALL, !all);
     }
     ui.separator();
     let before = opts.clone();
-    ui.menu_button(format!("   Units: {}", opts.units.name()), |ui| {
+    ui.menu_button(format!("   {}", crate::i18n::fmt(tl!("Units: {units}"), &[("units", opts.units.name())])), |ui| {
         for u in CssUnits::ALL {
             if menu_item(ui, u.name(), true, opts.units == u) {
                 opts.units = u;
@@ -222,10 +243,10 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     });
     for (label, on) in [
-        ("Absolute Position", &mut opts.position),
-        ("Width and Height", &mut opts.dimensions),
-        ("Unnamed Objects", &mut opts.unnamed),
-        ("Rasterize Unsupported Art", &mut opts.rasterize),
+        (tl!("Absolute Position"), &mut opts.position),
+        (tl!("Width and Height"), &mut opts.dimensions),
+        (tl!("Unnamed Objects"), &mut opts.unnamed),
+        (tl!("Rasterize Unsupported Art"), &mut opts.rasterize),
     ] {
         if menu_item(ui, label, true, *on) {
             *on = !*on;

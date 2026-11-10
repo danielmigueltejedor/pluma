@@ -60,19 +60,29 @@ impl FontFace {
 
     /// The face as a font file to embed: the glyphs of `chars` alone when its licence allows
     /// subsetting, else the whole face. Ligatures, kerning and other layout features are left out
-    /// of subsets (viewers draw each character's own glyph). `None` when the licence forbids
-    /// embedding or the font can't be read.
+    /// of subsets (viewers draw each character's own glyph). A named instance of a variable font
+    /// ([`FontFace::variations`]) is embedded as a static font of that instance (the variable file
+    /// would show its default instance), CFF2 outlines becoming TrueType ones. `None` when the
+    /// licence forbids embedding or the font can't be read.
     pub fn embed(&self, chars: &[char]) -> Option<EmbeddedFont> {
         let font = self.skrifa()?;
         let cff = [b"CFF ", b"CFF2"].iter().any(|t| font.table_data(Tag::new(t)).is_some());
         let whole = || Some(EmbeddedFont { data: sfnt(font.table_directory.sfnt_version(), tables(&font))?, cff, subset: false });
+        let instance = !self.variations().is_empty();
         match self.embedding() {
             Embedding::Forbidden => None,
+            // Every glyph of the instance, keeping their ids.
+            Embedding::Whole if instance => {
+                let all: Vec<char> = font.charmap().mappings().filter_map(|(c, _)| char::from_u32(c)).collect();
+                subset(self, &font, &all, true).map(|(data, cff)| EmbeddedFont { data, cff, subset: false })
+            }
             Embedding::Whole => whole(),
-            Embedding::Subset => match subset(self, &font, chars) {
-                Some(data) => Some(EmbeddedFont { data, cff, subset: true }),
-                // Outlines the subsetter can't read (CFF2): what the licence allows anyway.
-                None => whole(),
+            Embedding::Subset => match subset(self, &font, chars, false) {
+                Some((data, cff)) => Some(EmbeddedFont { data, cff, subset: true }),
+                // Outlines the subsetter can't read: what the licence allows anyway (a named
+                // instance can't be embedded whole, which would show the default instance).
+                None if !instance => whole(),
+                None => None,
             },
         }
     }
@@ -83,10 +93,17 @@ fn tables<'a>(font: &skrifa::FontRef<'a>) -> Vec<(Tag, Cow<'a, [u8]>)> {
     font.table_directory.table_records().iter().filter_map(|r| font.table_data(r.tag()).map(|d| (r.tag(), Cow::Borrowed(d.as_bytes())))).collect()
 }
 
-/// `face` reduced to the glyphs of `chars`, with a `cmap` mapping them and the face's `OS/2`.
-fn subset(face: &FontFace, font: &skrifa::FontRef<'_>, chars: &[char]) -> Option<Vec<u8>> {
+/// `face` reduced to the glyphs of `chars` (every glyph, keeping their ids, when `all`), with a
+/// `cmap` mapping them and the face's `OS/2`; a named instance instanced. Returns the font and
+/// whether its outlines are CFF ones.
+fn subset(face: &FontFace, font: &skrifa::FontRef<'_>, chars: &[char], all: bool) -> Option<(Vec<u8>, bool)> {
     let charmap = font.charmap();
     let mut remapper = subsetter::GlyphRemapper::new();
+    if all {
+        for gid in 0..font.maxp().ok()?.num_glyphs() {
+            remapper.remap(gid);
+        }
+    }
     let mut map: Vec<(u32, u16)> = chars
         .iter()
         .filter_map(|c| {
@@ -96,14 +113,20 @@ fn subset(face: &FontFace, font: &skrifa::FontRef<'_>, chars: &[char]) -> Option
         .collect();
     map.sort_unstable();
     map.dedup_by_key(|m| m.0);
-    let data = subsetter::subset(face.data(), face.index(), &remapper).ok()?;
+    let data = if face.variations().is_empty() {
+        subsetter::subset(face.data(), face.index(), &remapper).ok()?
+    } else {
+        let coords: Vec<(subsetter::Tag, f32)> = face.variations().iter().map(|(t, v)| (subsetter::Tag::new(t), *v)).collect();
+        subsetter::subset_with_variations(face.data(), face.index(), &coords, &remapper).ok()?
+    };
     let sub = skrifa::FontRef::new(&data).ok()?;
+    let cff = [b"CFF ", b"CFF2"].iter().any(|t| sub.table_data(Tag::new(t)).is_some());
     let mut t: Vec<(Tag, Cow<'_, [u8]>)> = tables(&sub).into_iter().filter(|(tag, _)| *tag != CMAP && *tag != OS2).collect();
     t.push((CMAP, Cow::Owned(cmap(&map)?)));
     if let Some(os2) = font.table_data(OS2) {
         t.push((OS2, Cow::Owned(os2_for(os2.as_bytes(), &map))));
     }
-    sfnt(sub.table_directory.sfnt_version(), t)
+    Some((sfnt(sub.table_directory.sfnt_version(), t)?, cff))
 }
 
 /// The face's `OS/2` table with its first and last character fitted to the subset's.
@@ -200,6 +223,9 @@ fn checksum(data: &[u8]) -> u32 {
     words.iter().chain([&last]).fold(0u32, |s, w| s.wrapping_add(u32::from_be_bytes(*w)))
 }
 
+/// The most bytes of a font file written.
+const MAX_FONT_BYTES: usize = 256 << 20;
+
 /// An OpenType file of `tables` (unique tags) with checksums and the `head` checksum adjustment.
 fn sfnt(version: u32, mut tables: Vec<(Tag, Cow<'_, [u8]>)>) -> Option<Vec<u8>> {
     tables.sort_by_key(|t| t.0);
@@ -207,7 +233,12 @@ fn sfnt(version: u32, mut tables: Vec<(Tag, Cow<'_, [u8]>)>) -> Option<Vec<u8>> 
     let n = u16::try_from(tables.len()).ok().filter(|n| *n > 0)?;
     let sel = n.ilog2() as u16;
     let range = 2u16.checked_pow(u32::from(sel))?.checked_mul(16)?;
-    let mut out = Vec::with_capacity(12 + 16 * tables.len() + tables.iter().map(|t| t.1.len() + 3).sum::<usize>());
+    // Tables may alias one range of the input: the file is no larger than a font file may be.
+    let size = tables.iter().try_fold(12 + 16 * tables.len(), |sum, t| sum.checked_add(t.1.len().checked_add(3)?))?;
+    if size > MAX_FONT_BYTES {
+        return None;
+    }
+    let mut out = Vec::with_capacity(size);
     out.extend(version.to_be_bytes());
     for v in [n, range, sel, n.checked_mul(16)? - range] {
         out.extend(v.to_be_bytes());

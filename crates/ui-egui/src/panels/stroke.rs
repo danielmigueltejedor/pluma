@@ -4,7 +4,7 @@
 use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, WidthProfile};
+use vectorcraft_doc::{Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, Unit, WidthProfile};
 use vectorcraft_engine::inspect::StrokeMixed;
 
 use super::{character, current_stroke, pstate, set_pstate, stroke_mixed};
@@ -12,8 +12,34 @@ use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
 use crate::{VectorcraftApp, icons};
 
-pub const WEIGHT_PRESETS: [f64; 22] =
+/// Stroke weight dropdown presets in points, from the ladder of `unit` (Units > Stroke): each
+/// unit has its own ladder of round values in that unit, so the dropdown reads `0.25 mm`, not the
+/// `0.088 mm` a converted pt ladder gives. Feet, yards and meters, which no stroke is measured
+/// in, keep the pt ladder.
+pub fn weight_presets(unit: Unit) -> [f64; 22] {
+    let native = match unit {
+        Unit::Millimeters => MM_PRESETS,
+        Unit::Centimeters => CM_PRESETS,
+        Unit::Inches => IN_PRESETS,
+        Unit::Pixels => PX_PRESETS,
+        Unit::Picas => return PC_PRESETS,
+        Unit::Points | Unit::FeetInches | Unit::Feet | Unit::Meters | Unit::Yards | Unit::Q | Unit::Ha => return PT_PRESETS,
+    };
+    native.map(|v| unit.to_pt(v))
+}
+
+const PT_PRESETS: [f64; 22] =
     [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0];
+const MM_PRESETS: [f64; 22] = [0.1, 0.25, 0.35, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 15.0, 20.0, 25.0, 30.0];
+const CM_PRESETS: [f64; 22] = [0.01, 0.02, 0.03, 0.05, 0.06, 0.07, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0];
+const IN_PRESETS: [f64; 22] =
+    [0.0078, 0.0156, 0.0313, 0.0625, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+const PX_PRESETS: [f64; 22] =
+    [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 30.0, 40.0];
+/// The pica ladder (0p1 … 5p) in points, so every entry is an exact pt weight. The dropdown shows
+/// them as decimal picas (`0.083 p`) until [`Unit::number`] writes `0p1` notation.
+const PC_PRESETS: [f64; 22] =
+    [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 15.0, 18.0, 21.0, 24.0, 27.0, 30.0, 33.0, 36.0, 48.0, 60.0];
 
 /// A profile's points as its silhouette: none (the plain bar) for the uniform stroke.
 fn silhouette(points: &[(f64, f64, f64)]) -> Option<&[(f64, f64, f64)]> {
@@ -40,24 +66,33 @@ pub fn dash_fields(pattern: &[f64]) -> [Option<f64>; 6] {
     out
 }
 
-/// The dash/gap fields and alignment the Dashed Line section shows: the stroke's dashes, or with
+/// The full pattern and alignment the Dashed Line section shows: the stroke's dashes, or with
 /// dashes off the last ones turned off (`last`), at first 12 pt dashes fitted to corners.
-fn dash_state(dash: Option<&Dash>, last: Option<([Option<f64>; 6], bool)>) -> ([Option<f64>; 6], bool) {
+fn dash_state(dash: Option<&Dash>, last: Option<(Vec<f64>, bool)>) -> (Vec<f64>, bool) {
     match dash {
-        Some(d) => (dash_fields(&d.pattern), d.align_corners),
-        None => last.unwrap_or(([Some(12.0), None, None, None, None, None], true)),
+        Some(d) => (d.pattern.clone(), d.align_corners),
+        None => last.unwrap_or((vec![12.0], true)),
     }
 }
 
 /// Six dash/gap fields → a dash pattern: stops at the first empty dash; a dash without a gap
 /// repeats its length as the gap (Illustrator's behaviour).
 pub fn dash_pattern(fields: &[Option<f64>; 6]) -> Vec<f64> {
+    edited_dash_pattern(fields, &[])
+}
+
+/// Edit the visible fields without dropping entries the panel cannot show. Clearing a dash
+/// still ends the pattern there; a mixed selection supplies no shared pattern to preserve.
+pub(crate) fn edited_dash_pattern(fields: &[Option<f64>; 6], previous: &[f64]) -> Vec<f64> {
     let mut out = vec![];
     for pair in 0..3 {
         let Some(d) = fields[pair * 2] else { break };
         let g = fields[pair * 2 + 1].unwrap_or(d);
         out.push(d.max(0.0));
         out.push(g.max(0.0));
+    }
+    if out.len() == fields.len() {
+        out.extend(previous.iter().skip(fields.len()).copied());
     }
     if out.iter().all(|v| *v == 0.0) {
         out.clear();
@@ -79,23 +114,36 @@ fn set(app: &mut VectorcraftApp, p: Value) {
     }
 }
 
+/// A mixed selection starts a new shared pattern instead of copying one object's hidden tail.
+fn set_dash_fields(app: &mut VectorcraftApp, fields: &[Option<f64>; 6], previous: &[f64], mixed: bool) {
+    let previous = if mixed { &[][..] } else { previous };
+    // The command keeps each stroke's dash offset and alignment.
+    set(app, json!({"dash": edited_dash_pattern(fields, previous)}));
+}
+
 /// The weight the Stroke panel, Control bar and Properties panel show: blank where the selected
 /// objects differ, the default for new art without a stroke.
 pub(crate) fn shown_weight(app: &VectorcraftApp, st: Option<&StrokeLayer>, mixed: &StrokeMixed) -> Option<f64> {
     (!mixed.weight).then(|| st.map_or(app.session.paint.stroke_width, |s| s.width))
 }
 
-/// The weight spinner (Stroke panel, Control bar): Units > Stroke, presets, blank when mixed.
+/// The weight spinner (Stroke panel, Control bar, Properties panel): Units > Stroke, presets, blank
+/// when mixed. A plain step stops at each preset: 0.52 pt goes down to 0.5 pt, not to 0 pt.
 pub(crate) fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, weight: Option<f64>, width: f32) {
-    if let Some(w) = widgets::spin_field(ui, id, weight, app.session.stroke_unit(), width, 1.0, 0.0, &WEIGHT_PRESETS) {
+    let unit = app.session.stroke_unit();
+    if let Some(w) = widgets::spin_field_stops_named(ui, id, Some(tl!("Weight:")), weight, unit, width, 1.0, 0.0, &weight_presets(unit)) {
         set(app, json!({"weight": w}));
     }
 }
 
-/// The Stroke panel in a popover anchored to `resp` (the Control bar's and the Properties
-/// panel's Stroke links), which a click on it toggles.
-pub(crate) fn popover(app: &mut VectorcraftApp, resp: &egui::Response) {
-    egui::Popup::menu(resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
+/// The underlined Stroke link (`label`: the Control bar's "Stroke:", the Properties panel's
+/// "Stroke"): a click toggles the Stroke panel in a popover under it, and a drag scrubs the weight
+/// field after it ([`crate::scrub`]).
+pub(crate) fn link(app: &mut VectorcraftApp, ui: &mut Ui, label: &str) {
+    let t = Tokens::get(ui.ctx());
+    // A drag on it scrubs the weight field after it (#4088).
+    let resp = crate::scrub::link_label(ui, egui::RichText::new(label).size(12.0).color(t.text).underline()).on_hover_text(tl!("Stroke options"));
+    widgets::popover(&resp, resp.clicked(), |ui| {
         ui.set_width(260.0);
         show(app, ui);
     });
@@ -110,10 +158,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let hidden: bool = pstate(ui.ctx(), "stroke-hide-options");
     let label_w = 64.0;
     let row_label = |ui: &mut Ui, s: &str| {
-        ui.add_sized(vec2(label_w, 24.0), egui::Label::new(egui::RichText::new(s).size(12.5).color(t.text)).halign(egui::Align::RIGHT));
+        let l = ui.add_sized(vec2(label_w, 24.0), egui::Label::new(egui::RichText::new(s).size(12.5).color(t.text)).halign(egui::Align::RIGHT));
+        crate::scrub::note_label(ui, l.rect);
     };
     ui.horizontal(|ui| {
-        row_label(ui, "Weight:");
+        row_label(ui, tl!("Weight:"));
         weight_field(app, ui, "stroke-weight", weight, 120.0);
     });
     if hidden {
@@ -124,11 +173,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let join = st.as_ref().map(|s| s.join).filter(|_| !mixed.join);
     let align = st.as_ref().map(|s| s.align).filter(|_| !mixed.align);
     ui.horizontal(|ui| {
-        row_label(ui, "Cap:");
+        row_label(ui, tl!("Cap:"));
         for (v, icon, tip, name) in [
-            (LineCap::Butt, "dc-cap-butt", "Butt Cap", "butt"),
-            (LineCap::Round, "dc-cap-round", "Round Cap", "round"),
-            (LineCap::Square, "dc-cap-square", "Projecting Cap", "square"),
+            (LineCap::Butt, "dc-cap-butt", tl!("Butt Cap"), "butt"),
+            (LineCap::Round, "dc-cap-round", tl!("Round Cap"), "round"),
+            (LineCap::Square, "dc-cap-square", tl!("Projecting Cap"), "square"),
         ] {
             if widgets::icon_button(ui, icon, tip, cap == Some(v), 24.0).clicked() {
                 set(app, json!({"cap": name}));
@@ -136,32 +185,32 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     });
     ui.horizontal(|ui| {
-        row_label(ui, "Corner:");
+        row_label(ui, tl!("Corner:"));
         for (v, icon, tip, name) in [
-            (LineJoin::Miter, "dc-join-miter", "Miter Join", "miter"),
-            (LineJoin::Round, "dc-join-round", "Round Join", "round"),
-            (LineJoin::Bevel, "dc-join-bevel", "Bevel Join", "bevel"),
+            (LineJoin::Miter, "dc-join-miter", tl!("Miter Join"), "miter"),
+            (LineJoin::Round, "dc-join-round", tl!("Round Join"), "round"),
+            (LineJoin::Bevel, "dc-join-bevel", tl!("Bevel Join"), "bevel"),
         ] {
             if widgets::icon_button(ui, icon, tip, join == Some(v), 24.0).clicked() {
                 set(app, json!({"join": name}));
             }
         }
-        widgets::dim_label(ui, "Limit:");
+        widgets::dim_label(ui, tl!("Limit:"));
         let lim = st.as_ref().map(|s| s.miter_limit).unwrap_or(10.0);
         if !matches!(join, Some(LineJoin::Round | LineJoin::Bevel)) {
-            if let Some(v) = widgets::mixed_field(ui, "stroke-limit", (!mixed.miter_limit).then_some(lim), " x", 0, 50.0) {
-                set(app, json!({"miterLimit": v.clamp(1.0, 500.0)}));
+            if let Some(v) = widgets::range_field(ui, "stroke-limit", (!mixed.miter_limit).then_some(lim), 1.0..=500.0, " x", 0, 50.0) {
+                set(app, json!({"miterLimit": v}));
             }
         } else {
             ui.label(egui::RichText::new(format!("{lim:.0} x")).color(t.text_disabled));
         }
     });
     ui.horizontal(|ui| {
-        row_label(ui, "Align Stroke:");
+        row_label(ui, tl!("Align Stroke:"));
         for (v, icon, tip, name) in [
-            (StrokeAlign::Center, "dc-stroke-center", "Align Stroke to Center", "center"),
-            (StrokeAlign::Inside, "dc-stroke-inside", "Align Stroke to Inside", "inside"),
-            (StrokeAlign::Outside, "dc-stroke-outside", "Align Stroke to Outside", "outside"),
+            (StrokeAlign::Center, "dc-stroke-center", tl!("Align Stroke to Center"), "center"),
+            (StrokeAlign::Inside, "dc-stroke-inside", tl!("Align Stroke to Inside"), "inside"),
+            (StrokeAlign::Outside, "dc-stroke-outside", tl!("Align Stroke to Outside"), "outside"),
         ] {
             // Only closed paths take a stroke inside or outside (not open paths, not type).
             let enabled = v == StrokeAlign::Center || mixed.can_align;
@@ -173,23 +222,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     widgets::divider(ui);
     // Dashed line.
     let dash = st.as_ref().and_then(|s| s.dash.as_ref());
-    let (fields, align_corners) = dash_state(dash, pstate(ui.ctx(), "stroke-dash-last"));
+    let (pattern, align_corners) = dash_state(dash, pstate(ui.ctx(), "stroke-dash-last"));
+    let fields = dash_fields(&pattern);
     let shown = if mixed.dash { [None; 6] } else { fields };
     ui.horizontal(|ui| {
-        if widgets::check(ui, "Dashed Line", dash.is_some(), st.is_some()) {
+        if widgets::check(ui, tl!("Dashed Line"), dash.is_some(), st.is_some()) {
             if dash.is_some() {
-                set_pstate(ui.ctx(), "stroke-dash-last", Some((fields, align_corners)));
+                set_pstate(ui.ctx(), "stroke-dash-last", Some((pattern.clone(), align_corners)));
                 set(app, json!({"dash": null}));
             } else {
-                set(app, json!({"dash": dash_pattern(&fields), "alignDashes": align_corners}));
+                set(app, json!({"dash": edited_dash_pattern(&fields, &pattern), "alignDashes": align_corners}));
             }
         }
         ui.add_space((ui.available_width() - 56.0).max(0.0));
         let on = dash.is_some();
-        if widgets::icon_button_enabled(ui, "dc-dash-exact", "Exact dash lengths", on && !align_corners, on, 24.0).clicked() {
+        if widgets::icon_button_enabled(ui, "dc-dash-exact", tl!("Exact dash lengths"), on && !align_corners, on, 24.0).clicked() {
             set(app, json!({"alignDashes": false}));
         }
-        if widgets::icon_button_enabled(ui, "dc-dash-align", "Fit dashes to corners and ends", on && align_corners, on, 24.0).clicked() {
+        if widgets::icon_button_enabled(ui, "dc-dash-align", tl!("Fit dashes to corners and ends"), on && align_corners, on, 24.0).clicked() {
             set(app, json!({"alignDashes": true}));
         }
     });
@@ -199,21 +249,24 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         let mut nf = shown;
         let mut changed = false;
         for (i, f) in shown.iter().enumerate() {
-            let r = ui.add_enabled_ui(dash.is_some(), |ui| widgets::opt_field(ui, ("dash", i), *f, unit, fw)).inner;
+            // The dash and gap names are in the row below the fields, so name each cell here:
+            // "dash 1", "gap 1", "dash 2"….
+            let cell = if i % 2 == 0 { tl!("dash") } else { tl!("gap") };
+            let name = format!("{} {}", cell, i / 2 + 1);
+            let r = ui.add_enabled_ui(dash.is_some(), |ui| widgets::opt_field_named(ui, ("dash", i), Some(&name), *f, unit, fw)).inner;
             if let Some(x) = r {
                 nf[i] = x.map(|v| v.max(0.0));
                 changed = true;
             }
         }
         if changed && dash.is_some() {
-            // The command keeps the dash offset and alignment.
-            set(app, json!({"dash": dash_pattern(&nf)}));
+            set_dash_fields(app, &nf, &pattern, mixed.dash);
         }
     });
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 3.0;
         let fw = ((ui.available_width() - 15.0) / 6.0).clamp(28.0, 40.0);
-        for lbl in ["dash", "gap", "dash", "gap", "dash", "gap"] {
+        for lbl in [tl!("dash"), tl!("gap"), tl!("dash"), tl!("gap"), tl!("dash"), tl!("gap")] {
             ui.add_sized(vec2(fw, 12.0), egui::Label::new(egui::RichText::new(lbl).size(10.5).color(t.text_dim)));
         }
     });
@@ -221,14 +274,14 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Arrowheads.
     let (sa, ea) = (st.as_ref().and_then(|s| s.start_arrow), st.as_ref().and_then(|s| s.end_arrow));
     ui.horizontal(|ui| {
-        row_label(ui, "Arrowheads:");
+        row_label(ui, tl!("Arrowheads:"));
         if let Some(a) = arrow_dropdown(ui, "arrow-start", sa, true) {
             set(app, json!({"startArrow": a.map(|a| format!("{a:?}"))}));
         }
         if let Some(a) = arrow_dropdown(ui, "arrow-end", ea, false) {
             set(app, json!({"endArrow": a.map(|a| format!("{a:?}"))}));
         }
-        if widgets::icon_button_enabled(ui, "arrow-left-right", "Swap start and end arrowheads", false, st.is_some(), 22.0).clicked() {
+        if widgets::icon_button_enabled(ui, "arrow-left-right", tl!("Swap start and end arrowheads"), false, st.is_some(), 22.0).clicked() {
             app.run("stroke.setAdvanced", json!({"swapArrows": true})).ok();
         }
     });
@@ -237,17 +290,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Scale and Align only mean something for a stroke with a head.
     let (arrow_align, has_head) = arrow_align_state(st.as_ref());
     ui.horizontal(|ui| {
-        row_label(ui, "Scale:");
+        row_label(ui, tl!("Scale:"));
         let mut ns = None;
         ui.add_enabled_ui(has_head, |ui| {
-            if let Some(v) = widgets::plain_field(ui, "arrow-scale-s", scale.0, "%", 0, 56.0) {
+            let start_name = format!("{} 1", tl!("Scale:"));
+            if let Some(v) = widgets::plain_field_named(ui, "arrow-scale-s", Some(&start_name), scale.0, "%", 0, 56.0) {
                 ns = Some((v, if linked { v } else { scale.1 }));
             }
-            if let Some(v) = widgets::plain_field(ui, "arrow-scale-e", scale.1, "%", 0, 56.0) {
+            let end_name = format!("{} 2", tl!("Scale:"));
+            if let Some(v) = widgets::plain_field_named(ui, "arrow-scale-e", Some(&end_name), scale.1, "%", 0, 56.0) {
                 ns = Some((if linked { v } else { scale.0 }, v));
             }
         });
-        if widgets::icon_button(ui, if linked { "link" } else { "link-2-off" }, "Link start and end arrowhead scales", linked, 22.0).clicked() {
+        if widgets::icon_button(ui, if linked { "link" } else { "link-2-off" }, tl!("Link start and end arrowhead scales"), linked, 22.0).clicked() {
             set_pstate(ui.ctx(), "arrow-scale-link", !linked);
         }
         if let Some((a, b)) = ns {
@@ -255,7 +310,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
     });
     ui.horizontal(|ui| {
-        row_label(ui, "Align:");
+        row_label(ui, tl!("Align:"));
         for (v, name, icon, tip) in ARROW_ALIGN {
             if widgets::icon_button_enabled(ui, icon, tip, arrow_align == v, has_head, 22.0).clicked() {
                 set(app, json!({"arrowAlign": name}));
@@ -265,15 +320,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     widgets::divider(ui);
     // Profile.
     ui.horizontal(|ui| {
-        row_label(ui, "Profile:");
+        row_label(ui, tl!("Profile:"));
         if let Some(id) = profile_dropdown(app, ui, st.as_ref().and_then(|s| s.profile.as_ref())) {
             set(app, json!({"profile": id}));
         }
         let can_flip = st.as_ref().is_some_and(|s| s.profile.is_some());
-        if widgets::icon_button_enabled(ui, "flip-horizontal-2", "Flip Along", false, can_flip, 22.0).clicked() {
+        // Lucide names these icons for their mirror line: the vertical-line icon flips the
+        // profile along the path, while the horizontal-line icon flips it across the path.
+        if widgets::icon_button_enabled(ui, "flip-vertical-2", tl!("Flip Along"), false, can_flip, 22.0).clicked() {
             app.run("stroke.setAdvanced", json!({"flipProfile": "along"})).ok();
         }
-        if widgets::icon_button_enabled(ui, "flip-vertical-2", "Flip Across", false, can_flip, 22.0).clicked() {
+        if widgets::icon_button_enabled(ui, "flip-horizontal-2", tl!("Flip Across"), false, can_flip, 22.0).clicked() {
             app.run("stroke.setAdvanced", json!({"flipProfile": "across"})).ok();
         }
     });
@@ -318,9 +375,9 @@ fn arrow_dropdown(ui: &mut Ui, id: &str, cur: Option<Arrowhead>, start: bool) ->
     let body = Rect::from_min_max(r.min + vec2(3.0, 0.0), pos2(r.right() - 16.0, r.bottom()));
     paint_arrow(ui, body, cur, start, t.text_strong);
     icons::paint(ui, "chevron-down", Rect::from_center_size(pos2(r.right() - 8.0, r.center().y), vec2(10.0, 10.0)), t.icon);
-    let resp = resp.on_hover_text(if start { "Start arrowhead" } else { "End arrowhead" });
+    let resp = resp.on_hover_text(if start { tl!("Start arrowhead") } else { tl!("End arrowhead") });
     let mut out = None;
-    egui::Popup::menu(&resp).id(egui::Id::new(("arrow-pop", id))).show(|ui| {
+    egui::Popup::menu(&resp).id(egui::Id::unique(("arrow-pop", id))).show(|ui| {
         ui.set_min_width(170.0);
         egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
             for a in std::iter::once(None).chain(Arrowhead::ALL.map(Some)) {
@@ -334,7 +391,7 @@ fn arrow_dropdown(ui: &mut Ui, id: &str, cur: Option<Arrowhead>, start: bool) ->
                 ui.painter().text(
                     row.left_center() + vec2(66.0, 0.0),
                     egui::Align2::LEFT_CENTER,
-                    arrow_label(a),
+                    tl!(arrow_label(a)),
                     egui::FontId::proportional(11.5),
                     t.text,
                 );
@@ -348,18 +405,21 @@ fn arrow_dropdown(ui: &mut Ui, id: &str, cur: Option<Arrowhead>, start: bool) ->
     out
 }
 
-/// Draw a width profile's silhouette (its points; None: the plain bar) into `r`.
+/// Draw a width profile's silhouette (its points; None: the plain bar) into `r`. A profile made
+/// with the Width tool can be many times the stroke's weight: the silhouette is scaled to fit `r`
+/// by its widest point, and clipped to it (#909).
 pub fn paint_profile(ui: &Ui, r: Rect, points: Option<&[(f64, f64, f64)]>, color: Color32) {
     let n = 32;
     let half = r.height() / 2.0 - 1.0;
+    let widths: Vec<(f64, f64)> = (0..=n).map(|i| points.map_or((0.35, 0.35), |p| WidthProfile::at_points(p, i as f64 / n as f64))).collect();
+    let widest = widths.iter().map(|(l, rr)| l.max(*rr)).filter(|w| w.is_finite()).fold(1.0, f64::max);
     let mut top = vec![];
     let mut bot = vec![];
-    for i in 0..=n {
-        let tt = i as f64 / n as f64;
-        let (l, rr) = points.map_or((0.35, 0.35), |p| WidthProfile::at_points(p, tt));
-        let x = r.left() + tt as f32 * r.width();
-        top.push(pos2(x, r.center().y - l as f32 * half));
-        bot.push(pos2(x, r.center().y + rr as f32 * half));
+    for (i, (l, rr)) in widths.iter().enumerate() {
+        let x = r.left() + i as f32 / n as f32 * r.width();
+        let side = |w: f64| if w.is_finite() { (w / widest).clamp(0.0, 1.0) as f32 * half } else { 0.0 };
+        top.push(pos2(x, r.center().y - side(*l)));
+        bot.push(pos2(x, r.center().y + side(*rr)));
     }
     let mut mesh = egui::Mesh::default();
     for i in 0..=n {
@@ -371,7 +431,7 @@ pub fn paint_profile(ui: &Ui, r: Rect, points: Option<&[(f64, f64, f64)]>, color
         mesh.add_triangle(a, a + 1, a + 2);
         mesh.add_triangle(a + 1, a + 3, a + 2);
     }
-    ui.painter().add(egui::Shape::mesh(mesh));
+    ui.painter().with_clip_rect(r).add(egui::Shape::mesh(mesh));
 }
 
 /// The Profile dropdown (Stroke panel, Control bar): the stroke's own silhouette on the button
@@ -385,7 +445,7 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
     let body = Rect::from_min_max(r.min + vec2(6.0, 5.0), pos2(r.right() - 20.0, r.bottom() - 5.0));
     paint_profile(ui, body, cur.and_then(|p| silhouette(&p.points)), t.text_strong);
     icons::paint(ui, "chevron-down", Rect::from_center_size(pos2(r.right() - 9.0, r.center().y), vec2(10.0, 10.0)), t.icon);
-    let resp = resp.on_hover_text("Variable Width Profile");
+    let resp = resp.on_hover_text(tl!("Variable Width Profile"));
     let mut out = None;
     egui::Popup::menu(&resp).show(|ui| {
         egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
@@ -402,7 +462,14 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
                     ui.painter().rect_filled(row, 0.0, t.hover);
                 }
                 paint_profile(ui, Rect::from_min_size(row.min + vec2(6.0, 6.0), vec2(70.0, 14.0)), silhouette(e.points), t.text_strong);
-                ui.painter().text(row.left_center() + vec2(84.0, 0.0), egui::Align2::LEFT_CENTER, e.label, egui::FontId::proportional(11.5), t.text);
+                ui.painter().text(
+                    row.left_center() + vec2(84.0, 0.0),
+                    egui::Align2::LEFT_CENTER,
+                    // A saved profile's name is the user's.
+                    super::label_or_name(e.label, e.built_in),
+                    egui::FontId::proportional(11.5),
+                    t.text,
+                );
                 if rr.clicked() {
                     out = Some(e.id.to_string());
                     ui.close();
@@ -415,11 +482,11 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
 
 pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     let hidden: bool = pstate(ui.ctx(), "stroke-hide-options");
-    if menu_item(ui, if hidden { "Show Options" } else { "Hide Options" }, true, false) {
+    if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {
         set_pstate(ui.ctx(), "stroke-hide-options", !hidden);
     }
     ui.separator();
-    if menu_item(ui, "Add to Profiles…", crate::menus::enabled(app, "stroke.widthProfile.add"), false) {
+    if menu_item(ui, tl!("Add to Profiles…"), crate::menus::enabled(app, "stroke.widthProfile.add"), false) {
         let name = app.session.next_profile_name();
         let p = json!({"command": "stroke.widthProfile.add", "label": "Variable Width Profile", "params": {"name": name}});
         app.run("ui.paramDialog", p).ok();
@@ -427,10 +494,10 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Deletes the selected stroke's saved profile.
     let shown = current_stroke(app).and_then(|s| s.profile);
     let saved = shown.as_ref().and_then(|p| app.session.profile_entry(Some(p))).is_some_and(|e| !e.built_in);
-    if menu_item(ui, "Delete Profile", saved, false) {
+    if menu_item(ui, tl!("Delete Profile"), saved, false) {
         app.run("stroke.widthProfile.delete", json!({})).ok();
     }
-    if menu_item(ui, "Reset Profiles", crate::menus::enabled(app, "stroke.widthProfile.reset"), false) {
+    if menu_item(ui, tl!("Reset Profiles"), crate::menus::enabled(app, "stroke.widthProfile.reset"), false) {
         app.run("stroke.widthProfile.reset", json!({})).ok();
     }
 }
@@ -451,6 +518,128 @@ mod tests {
         assert_eq!(dash_pattern(&[Some(5.0), None, None, Some(9.0), None, None]), vec![5.0, 5.0]);
         assert!(dash_pattern(&[None; 6]).is_empty());
         assert!(dash_pattern(&[Some(0.0), Some(0.0), None, None, None, None]).is_empty());
+    }
+
+    #[test]
+    fn dash_edits_keep_unshown_entries_and_the_existing_empty_field_rules() {
+        for pattern in [
+            vec![12.0, 6.0, 2.0, 3.0, 4.0, 5.0],
+            vec![12.0, 6.0, 2.0, 3.0, 4.0, 5.0, 20.0],
+            vec![12.0, 6.0, 2.0, 3.0, 4.0, 5.0, 20.0, 10.0],
+            vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 9.0],
+        ] {
+            let mut fields = dash_fields(&pattern);
+            assert_eq!(edited_dash_pattern(&fields, &pattern), pattern);
+            fields[0] = Some(14.0);
+            let mut expected = pattern.clone();
+            expected[0] = 14.0;
+            assert_eq!(edited_dash_pattern(&fields, &pattern), expected);
+            // An empty gap repeats its dash; an empty dash deliberately shortens the pattern.
+            fields[1] = None;
+            expected[1] = 14.0;
+            assert_eq!(edited_dash_pattern(&fields, &pattern), expected);
+            fields[2] = None;
+            assert_eq!(edited_dash_pattern(&fields, &pattern), vec![14.0, 14.0]);
+        }
+        assert!(edited_dash_pattern(&[None; 6], &[12.0; 8]).is_empty());
+        assert!(edited_dash_pattern(&[Some(0.0); 6], &[0.0; 8]).is_empty());
+        let invalid = [12.0, 6.0, 2.0, 3.0, 4.0, 5.0, -1.0, 10.0];
+        let pattern = edited_dash_pattern(&dash_fields(&invalid), &invalid);
+        assert_eq!(pattern, invalid);
+        assert!(!Dash { pattern, ..Default::default() }.is_dashed());
+    }
+
+    #[test]
+    fn turning_dashes_off_keeps_the_full_pattern_for_turning_them_back_on() {
+        let dash = Dash { pattern: vec![0.0, 6.0, 0.0, 7.0, 0.0, 8.0, 0.0, 9.0], align_corners: true, ..Default::default() };
+        let saved = dash_state(Some(&dash), None);
+        let (pattern, align) = dash_state(None, Some(saved));
+        assert_eq!(edited_dash_pattern(&dash_fields(&pattern), &pattern), dash.pattern);
+        assert!(align);
+        let (pattern, align) = dash_state(None, None);
+        assert_eq!(dash_pattern(&dash_fields(&pattern)), vec![12.0, 12.0]);
+        assert!(align);
+    }
+
+    #[test]
+    fn editing_an_extended_dash_keeps_other_stroke_options_and_is_undoable() {
+        use vectorcraft_engine::Session;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
+        app.session.execute("shape.line", &json!({"x1": 10, "y1": 50, "x2": 90, "y2": 50})).unwrap();
+        set(&mut app, json!({"dash": [0, 6, 0, 7, 0, 8, 0, 9], "dashOffset": 3, "alignDashes": true, "cap": "round"}));
+        let before = current_stroke(&app).unwrap();
+        frame(&mut app);
+        assert_eq!(current_stroke(&app).unwrap(), before, "viewing the panel changes nothing");
+        let dash = before.dash.as_ref().unwrap();
+        let mut fields = dash_fields(&dash.pattern);
+        fields[5] = Some(10.0);
+        set_dash_fields(&mut app, &fields, &dash.pattern, false);
+        let after = current_stroke(&app).unwrap();
+        let mut expected = before.clone();
+        expected.dash.as_mut().unwrap().pattern[5] = 10.0;
+        assert_eq!(after, expected, "the tail, offset, alignment, cap and other options stay");
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(current_stroke(&app).unwrap(), before);
+        app.run("edit.redo", json!({})).unwrap();
+        assert_eq!(current_stroke(&app).unwrap(), after);
+    }
+
+    #[test]
+    fn mixed_dashes_stay_mixed_until_an_edit_replaces_the_shared_fields() {
+        use vectorcraft_doc::NodeId;
+        use vectorcraft_engine::Session;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
+        let mut ids = vec![];
+        let mut before = vec![];
+        for tail in [10.0, 20.0] {
+            let r = app.session.execute("shape.line", &json!({"x1": 10, "y1": tail, "x2": 90, "y2": tail})).unwrap();
+            ids.push(NodeId(r["id"].as_u64().unwrap()));
+            set(&mut app, json!({"dash": [12, 6, 2, 3, 4, 5, tail, 9], "dashOffset": tail, "alignDashes": true}));
+            before.push(current_stroke(&app).unwrap());
+        }
+        app.session.execute("select.set", &json!({"ids": ids.iter().map(|id| id.0).collect::<Vec<_>>()})).unwrap();
+        assert!(app.session.active().unwrap().stroke_mixed().dash);
+        frame(&mut app);
+        for (id, expected) in ids.iter().zip(&before) {
+            assert_eq!(app.session.active().unwrap().doc.node(*id).unwrap().appearance.stroke(), Some(expected));
+        }
+        let fields = [Some(4.0), None, None, None, None, None];
+        set_dash_fields(&mut app, &fields, &before[0].dash.as_ref().unwrap().pattern, true);
+        for (id, original) in ids.iter().zip(&before) {
+            let st = app.session.active().unwrap().doc.node(*id).unwrap().appearance.stroke().unwrap();
+            let mut expected = original.clone();
+            expected.dash.as_mut().unwrap().pattern = vec![4.0, 4.0];
+            assert_eq!(st, &expected, "no hidden tail is copied to the mixed selection");
+        }
+    }
+
+    /// #909: a profile many times the stroke's weight (made with the Width tool) draws inside its
+    /// box, scaled by its widest point, and the plain bar keeps its look.
+    #[test]
+    fn wide_profiles_fit_their_preview() {
+        let ctx = egui::Context::default();
+        let r = Rect::from_min_size(pos2(10.0, 10.0), egui::vec2(80.0, 16.0));
+        let drawn = |points: Option<&[(f64, f64, f64)]>| {
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| paint_profile(ui, r, points, Color32::WHITE));
+            out.textures_delta.clear();
+            out.shapes
+                .into_iter()
+                .filter_map(|c| match c.shape {
+                    egui::Shape::Mesh(m) => Some((c.clip_rect, m.vertices.iter().map(|v| v.pos).collect::<Vec<_>>())),
+                    _ => None,
+                })
+                .next()
+                .unwrap()
+        };
+        let (clip, wide) = drawn(Some(&[(0.0, 1.0, 1.0), (0.5, 10.0, 10.0), (1.0, 1.0, 1.0)]));
+        assert!(clip.min.y >= r.min.y - 0.5 && clip.max.y <= r.max.y + 0.5, "{clip:?}");
+        assert!(wide.iter().all(|p| p.y >= r.top() && p.y <= r.bottom()), "{wide:?}");
+        let middle = wide.iter().map(|p| (p.y - r.center().y).abs()).fold(0.0, f32::max);
+        assert!((middle - (r.height() / 2.0 - 1.0)).abs() < 1e-3, "the widest point fills the box ({middle})");
+        let (_, plain) = drawn(None);
+        assert!(plain.iter().all(|p| (p.y - r.center().y).abs() <= 0.35 * (r.height() / 2.0 - 1.0) + 1e-3));
     }
 
     #[test]
@@ -524,5 +713,161 @@ mod tests {
         // The panel shows the selected characters' stroke.
         assert_eq!(current_stroke(&app).map(|s| (s.join, s.width)), Some((LineJoin::Round, 4.0)));
         frame(&mut app);
+    }
+
+    /// #3370: the wheel over the focused Weight field stops at 0 and over the focused Limit field
+    /// at 1, in the field and in the document; it went on to -3 pt and 0 x.
+    #[test]
+    fn the_wheel_stops_weight_at_zero_and_limit_at_one() {
+        use egui::{Event, Modifiers, MouseWheelUnit, PointerButton, Pos2};
+        use vectorcraft_engine::Session;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 80})).unwrap();
+        app.run("stroke.set", json!({"weight": 1, "join": "miter", "miterLimit": 2})).unwrap();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let mut time = 0.0;
+        // One frame of the panel → the texts painted, with their rects.
+        let mut frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+            time += 0.05;
+            let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 600.0)));
+            let raw = egui::RawInput { events, time: Some(time), screen_rect, focused: true, ..Default::default() };
+            let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+            out.textures_delta.clear();
+            out.shapes
+                .into_iter()
+                .filter_map(|s| match s.shape {
+                    egui::Shape::Text(t) => Some((t.galley.text().to_string(), Rect::from_min_size(t.pos, t.galley.size()))),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        // The weight and the limit.
+        let stroke = |app: &VectorcraftApp| current_stroke(app).map(|s| [s.width, s.miter_limit]).unwrap();
+        // A weight steps through the presets below 1 pt: one step above 0 pt is 0.25 pt.
+        for (shown, after, which, low, back) in [("1 pt", "0 pt", 0, 0.0, "0.25 pt"), ("2 x", "1 x", 1, 1.0, "2 x")] {
+            let texts = frame(&mut app, vec![]);
+            let at = texts.iter().find(|(t, _)| t == shown).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no {shown:?} in {texts:?}"));
+            let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
+            frame(&mut app, vec![Event::PointerMoved(at), button(true)]);
+            frame(&mut app, vec![button(false)]);
+            frame(&mut app, vec![]);
+            for _ in 0..4 {
+                let notch = Event::MouseWheel {
+                    unit: MouseWheelUnit::Line,
+                    delta: vec2(0.0, -1.0),
+                    phase: egui::TouchPhase::Move,
+                    modifiers: Modifiers::NONE,
+                    source: egui::MouseWheelSource::Unknown,
+                };
+                frame(&mut app, vec![Event::PointerMoved(at), notch]);
+            }
+            let texts = frame(&mut app, vec![]);
+            assert_eq!(stroke(&app)[which], low, "{shown}: {:?}", stroke(&app));
+            assert!(texts.iter().any(|(t, _)| t == after), "{shown} → {after}: {texts:?}");
+            // At the bound, a step down and a step up in one frame end one step above it.
+            let key = |key| Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+            frame(&mut app, vec![key(egui::Key::ArrowDown), key(egui::Key::ArrowUp)]);
+            let texts = frame(&mut app, vec![]);
+            assert!(texts.iter().any(|(t, _)| t == back), "{after}, down and up → {back}: {texts:?}");
+        }
+    }
+
+    /// ↑/↓ in the Weight field go from a weight between the listed weights to the next listed
+    /// weight in their direction, typed with a decimal comma too: 0,52 pt went down to 0 pt and the
+    /// stroke was removed. From 1 pt and up a step is still a whole point.
+    #[test]
+    fn the_arrows_step_a_weight_to_the_next_listed_weight() {
+        use egui::{Event, Key, Modifiers, PointerButton, Pos2};
+        use vectorcraft_engine::Session;
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+        app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 80})).unwrap();
+        app.run("stroke.set", json!({"weight": 1})).unwrap();
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let mut time = 0.0;
+        let mut frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+            time += 0.05;
+            let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 600.0)));
+            let raw = egui::RawInput { events, time: Some(time), screen_rect, focused: true, ..Default::default() };
+            let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+            out.textures_delta.clear();
+            out.shapes
+                .into_iter()
+                .filter_map(|s| match s.shape {
+                    egui::Shape::Text(t) => Some((t.galley.text().to_string(), Rect::from_min_size(t.pos, t.galley.size()))),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let texts = frame(&mut app, vec![]);
+        let at = texts.iter().find(|(t, _)| t == "1 pt").map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no 1 pt in {texts:?}"));
+        let key = |key| Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
+        let click = |pos| {
+            let button = |pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
+            [vec![Event::PointerMoved(pos), button(true)], vec![button(false)], vec![]]
+        };
+        let away = Pos2::new(290.0, 590.0);
+        // (Units > Stroke, points per unit, typed, arrow, the weight after in that unit). A preset
+        // with more places than a step keeps them: 0.0156 in goes down to 0.0078 in.
+        for (units, per_unit, typed, arrow, after) in [
+            ("points", 1.0, "0,52", Key::ArrowDown, 0.5),
+            ("points", 1.0, "0,51", Key::ArrowDown, 0.5),
+            ("points", 1.0, "0,4", Key::ArrowDown, 0.25),
+            ("points", 1.0, "0,52", Key::ArrowUp, 0.75),
+            ("points", 1.0, "0,1", Key::ArrowUp, 0.25),
+            ("points", 1.0, "0,75", Key::ArrowDown, 0.5),
+            ("points", 1.0, "0,5", Key::ArrowDown, 0.25),
+            ("points", 1.0, "1", Key::ArrowDown, 0.75),
+            ("points", 1.0, "1", Key::ArrowUp, 2.0),
+            ("points", 1.0, "1,5", Key::ArrowDown, 1.0),
+            ("points", 1.0, "14", Key::ArrowDown, 13.0),
+            ("points", 1.0, "14,5", Key::ArrowUp, 15.0),
+            ("inches", 72.0, "0,02", Key::ArrowDown, 0.0156),
+            ("inches", 72.0, "0,0156", Key::ArrowDown, 0.0078),
+            ("inches", 72.0, "0,016", Key::ArrowDown, 0.0156),
+        ] {
+            app.session.prefs.units_stroke = units.into();
+            for events in click(at) {
+                frame(&mut app, events);
+            }
+            frame(&mut app, vec![Event::Text(typed.into()), key(Key::Enter)]);
+            for events in click(away) {
+                frame(&mut app, events);
+            }
+            let typed_weight = typed.replace(',', ".").parse::<f64>().unwrap();
+            assert!((current_stroke(&app).unwrap().width - typed_weight * per_unit).abs() < 1e-9, "typed {typed}");
+            for events in click(at) {
+                frame(&mut app, events);
+            }
+            frame(&mut app, vec![key(arrow)]);
+            frame(&mut app, vec![]);
+            let w = current_stroke(&app).unwrap().width / per_unit;
+            assert!((w - after).abs() < 1e-9, "{typed} {units} and {arrow:?}: {w}");
+            for events in click(away) {
+                frame(&mut app, events);
+            }
+        }
+        // In picas the field shows 2 pt as 0.167 p; the next press goes on to 1 pt.
+        app.session.prefs.units_stroke = "picas".into();
+        for events in click(at) {
+            frame(&mut app, events);
+        }
+        frame(&mut app, vec![Event::Text("0p3".into()), key(Key::Enter)]);
+        for events in click(away) {
+            frame(&mut app, events);
+        }
+        assert_eq!(current_stroke(&app).unwrap().width, 3.0, "typed 0p3");
+        for events in click(at) {
+            frame(&mut app, events);
+        }
+        for (arrow, after) in [(Key::ArrowDown, 2.0), (Key::ArrowDown, 1.0), (Key::ArrowUp, 2.0), (Key::ArrowUp, 3.0)] {
+            frame(&mut app, vec![key(arrow)]);
+            frame(&mut app, vec![]);
+            let w = current_stroke(&app).unwrap().width;
+            assert!((w - after).abs() < 1e-9, "picas, {arrow:?} → {after} pt: {w}");
+        }
     }
 }

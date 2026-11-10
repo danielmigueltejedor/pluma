@@ -3,7 +3,8 @@
 //! Magic Wand: click an object to select every object with similar attributes. The matching and
 //! its settings (Magic Wand panel) live in the engine's `select.magicWand` command; Shift adds,
 //! Alt subtracts. Lasso: freehand loop selecting anchor points inside it (direct-selection
-//! style); Shift adds, Alt subtracts.
+//! style), and picking the gradient mesh points inside it with their meshes selected (the
+//! tool's `meshPoints` option, which a solid fill colour recolours); Shift adds, Alt subtracts.
 
 use std::collections::BTreeSet;
 
@@ -13,6 +14,7 @@ use vectorcraft_doc::{AnchorRef, NodeId, NodeKind};
 use vectorcraft_geom::Point;
 
 use super::paint_owner;
+use crate::meshedit::{MeshEdit, grid_of};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 #[derive(Default)]
@@ -41,7 +43,7 @@ impl Tool for MagicWandTool {
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
-        Cursor::Crosshair
+        Cursor::MagicWand
     }
 }
 
@@ -67,6 +69,8 @@ pub fn point_in_polygon(poly: &[Point], p: Point) -> bool {
 pub struct LassoTool {
     points: Vec<Point>,
     active: bool,
+    /// The picked gradient mesh points.
+    mesh: MeshEdit,
 }
 
 fn anchors_json(v: &BTreeSet<AnchorRef>) -> Value {
@@ -103,9 +107,13 @@ impl Tool for LassoTool {
                 if poly.len() < 3 {
                     return if add || sub { vec![] } else { vec![Action::Exec("select.none".into(), json!({}))] };
                 }
-                // Anchors inside the loop for every editable path.
+                // Anchors inside the loop for every editable path the Lasso may pick.
                 let mut hits: Vec<(NodeId, BTreeSet<AnchorRef>)> = vec![];
-                cx.doc.walk(|n| {
+                let mut inside: Vec<(NodeId, usize)> = vec![];
+                crate::draw2::walk_pickable(cx, |n| {
+                    if let Some(grid) = grid_of(n) {
+                        inside.extend(grid.points.iter().enumerate().filter(|(_, q)| point_in_polygon(&poly, q.p)).map(|(i, _)| (n.id, i)));
+                    }
                     if let NodeKind::Path { path, .. } = &n.kind {
                         let v: BTreeSet<AnchorRef> =
                             path.anchors().filter(|(_, _, a)| point_in_polygon(&poly, a.p)).map(|(s, i, _)| (s, i)).collect();
@@ -114,26 +122,25 @@ impl Tool for LassoTool {
                         }
                     }
                 });
-                hits.retain(|(id, _)| cx.doc.is_editable(*id) && cx.doc.is_visible(*id));
-                if sub {
-                    // Current anchor selection minus the lassoed anchors.
-                    let mut items = vec![];
-                    for id in &cx.selection.objects {
-                        let Some(path) = cx.doc.node(*id).and_then(|n| n.path_data()) else { continue };
-                        let cur: BTreeSet<AnchorRef> = match cx.selection.partial(*id) {
-                            Some(s) => s.clone(),
-                            None => path.anchors().map(|(s, i, _)| (s, i)).collect(),
-                        };
-                        let remove = hits.iter().find(|(h, _)| h == id).map(|(_, v)| v.clone()).unwrap_or_default();
-                        let rest: BTreeSet<AnchorRef> = cur.difference(&remove).copied().collect();
-                        if !rest.is_empty() {
-                            items.push(json!({ "id": id.0, "anchors": anchors_json(&rest) }));
-                        }
+                let editable = cx.doc.editable();
+                hits.retain(|(id, _)| editable(*id) && cx.doc.is_visible(*id));
+                // The mesh points inside the loop are picked, and their meshes selected whole;
+                // Alt deselects a mesh only when it loses its last picked point.
+                inside.retain(|(id, _)| editable(*id) && cx.doc.is_visible(*id));
+                for (id, any) in self.mesh.lasso(&inside, add, sub) {
+                    if any != sub {
+                        hits.push((id, BTreeSet::new()));
                     }
-                    return vec![Action::Exec("select.anchorsMany".into(), json!({ "items": items, "add": false }))];
                 }
                 let items: Vec<Value> = hits.iter().map(|(id, v)| json!({ "id": id.0, "anchors": anchors_json(v) })).collect();
-                vec![Action::Exec("select.anchorsMany".into(), json!({ "items": items, "add": add }))]
+                let mode = if sub {
+                    "subtract"
+                } else if add {
+                    "add"
+                } else {
+                    "set"
+                };
+                vec![Action::Exec("select.anchorsMany".into(), json!({ "items": items, "mode": mode }))]
             }
             _ => vec![],
         }
@@ -147,15 +154,20 @@ impl Tool for LassoTool {
         vec![]
     }
 
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
-        if !self.active || self.points.len() < 2 {
-            return vec![];
+    fn options(&self) -> Value {
+        self.mesh.options()
+    }
+
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
+        let mut out = self.mesh.overlays(cx, &|id| cx.selection.contains(id));
+        if self.active && self.points.len() >= 2 {
+            out.push(Overlay::Path { path: super::polygon(&self.points, false), color: [0x40, 0x40, 0x40], width: 1.0, dashed: true });
         }
-        vec![Overlay::Path { path: super::polygon(&self.points, false), color: [0x40, 0x40, 0x40], width: 1.0, dashed: true }]
+        out
     }
 
     fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
-        Cursor::Crosshair
+        Cursor::Lasso
     }
 }
 
@@ -181,6 +193,36 @@ mod tests {
         assert_eq!(miss, vec![Action::Exec("select.none".into(), json!({}))]);
     }
 
+    /// The Lasso selects anchor points only on the art a click can pick: not on a Shaper Group's
+    /// original shapes unless they are isolated (Construction mode), and in isolation mode only on
+    /// the isolated object.
+    #[test]
+    fn lasso_leaves_out_shaper_sources_and_art_outside_isolation() {
+        let (d, _, sources, face) = doc_with_shaper_group();
+        let rect = d.layers[0].children().unwrap()[0].id;
+        let b = d.node(sources).and_then(|n| n.children()).unwrap()[1].id;
+        let (s, p) = (Selection::default(), paint());
+        let lasso = |isolation: Option<NodeId>, poly: [(f64, f64); 3]| {
+            let cx = ToolContext { isolation, ..cx(&d, &s, &p) };
+            let mut t = LassoTool::default();
+            t.pointer(&cx, &PointerEvent::new(PointerKind::Down, poly[0].0, poly[0].1));
+            for (x, y) in &poly[1..] {
+                t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, *x, *y));
+            }
+            let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Up, poly[2].0, poly[2].1));
+            let Some(Action::Exec(_, v)) = a.first() else { panic!("a selection command: {a:?}") };
+            v["items"].as_array().unwrap().iter().map(|it| NodeId(it["id"].as_u64().unwrap())).collect::<Vec<_>>()
+        };
+        // Around the top right corner of the second square, which only its original shape has.
+        let corner = [(130.0, 280.0), (180.0, 280.0), (150.0, 320.0)];
+        assert_eq!(lasso(None, corner), vec![]);
+        assert_eq!(lasso(Some(sources), corner), vec![b]);
+        // Around the face's top left corner, where the first original shape has an anchor too.
+        let shared = [(-20.0, 280.0), (30.0, 280.0), (0.0, 320.0)];
+        assert_eq!(lasso(None, shared), vec![face]);
+        assert_eq!(lasso(Some(rect), shared), vec![]);
+    }
+
     #[test]
     fn lasso_selects_anchors_inside() {
         let (d, id) = doc_with_rect();
@@ -198,7 +240,47 @@ mod tests {
         assert_eq!(c, "select.anchorsMany");
         assert_eq!(v["items"][0]["id"], id.0);
         assert_eq!(v["items"][0]["anchors"].as_array().unwrap().len(), 1);
-        assert_eq!(v["add"], false);
+        assert_eq!(v["mode"], "set");
         assert!(point_in_polygon(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], Point::new(2.0, 2.0)));
+    }
+
+    /// A Lasso loop round a corner of a path warped by a mesh envelope still selects the path's
+    /// anchor there, besides picking the envelope's grid point (#5351).
+    #[test]
+    fn lasso_keeps_picking_the_anchors_of_an_envelopes_path() {
+        use std::sync::Arc;
+        use vectorcraft_doc::Node;
+        use vectorcraft_doc::live::{EnvelopeKind, EnvelopeOptions, grid_points};
+        use vectorcraft_geom::{Affine, Rect};
+        let (mut d, a) = doc_with_rect();
+        let rect = d.node(a).cloned().unwrap();
+        let kind = EnvelopeKind::Mesh { rows: 1, cols: 1, points: grid_points(Rect::new(100.0, 100.0, 200.0, 200.0), 1, 1), handles: vec![] };
+        let env = NodeKind::Envelope {
+            content: vec![Arc::new(rect)],
+            kind: Box::new(kind),
+            fidelity: 50.0,
+            editing: false,
+            options: EnvelopeOptions::NEW,
+            frame: Box::new(Affine::IDENTITY),
+        };
+        d.remove(a).unwrap();
+        let e = d.alloc_id();
+        let l = d.layers[0].id;
+        d.insert(Some(l), 0, Node::new(e, env)).unwrap();
+        let (s, p) = (Selection::default(), paint());
+        let cx = cx(&d, &s, &p);
+        let mut t = LassoTool::default();
+        // A triangle around the top-left corner (100,100) only.
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 80.0, 80.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 140.0, 80.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 80.0, 140.0));
+        let r = t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 80.0, 140.0));
+        let Some(Action::Exec(c, v)) = r.first() else { panic!("a selection command: {r:?}") };
+        assert_eq!(c, "select.anchorsMany");
+        let items = v["items"].as_array().unwrap();
+        let path = items.iter().find(|it| it["id"] == a.0).expect("the warped path's anchor is selected");
+        assert_eq!(path["anchors"].as_array().unwrap().len(), 1);
+        assert!(items.iter().any(|it| it["id"] == e.0), "the envelope is selected with its grid point");
+        assert_eq!(t.options()["meshPoints"].as_array().unwrap().len(), 1);
     }
 }

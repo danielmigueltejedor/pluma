@@ -1,14 +1,19 @@
 //! Window → Workspace: saved panel/bar layouts (Essentials, Essentials Classic, Painting, …),
 //! Reset, New Workspace…, Manage Workspaces…. A workspace is a snapshot of `UiState` layout
 //! flags; UI brightness and everything else is untouched when switching.
+//!
+//! As in Illustrator, a workspace remembers the changes made in it: switching to another one keeps
+//! the layout as it was left (`UiState::workspace_changes`, kept with the preferences), switching
+//! back brings it back, and Reset <name> returns to the workspace as saved. New Workspace… with
+//! the name of a user workspace saves the current layout as it.
 
 use std::sync::atomic::Ordering;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::state::{Dialog, DockTab, UiState};
-use crate::theme::{self, Tokens};
+use crate::state::{CustomToolbar, Dialog, DockTab, FloatingFlyout, FloatingPanels, UiState};
+use crate::theme::Tokens;
 use crate::{VectorcraftApp, widgets};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -16,6 +21,9 @@ use crate::{VectorcraftApp, widgets};
 pub struct Workspace {
     pub name: String,
     pub control_bar: bool,
+    /// The Control bar is docked to the bottom of the window (built-in workspaces, and workspaces
+    /// saved without this field: the top).
+    pub control_bar_bottom: bool,
     pub rulers: bool,
     pub toolbar: bool,
     pub toolbar_double: bool,
@@ -23,8 +31,45 @@ pub struct Workspace {
     pub task_bar: bool,
     pub dock: bool,
     pub dock_tab: DockTab,
+    /// The dock's tabbed group is collapsed to icons (built-in workspaces: expanded).
+    pub dock_collapsed: bool,
     pub open_panel: Option<String>,
     pub status_bar: bool,
+    pub help_bar: bool,
+    /// Tool groups torn off the toolbar into floating strips (built-in workspaces: none).
+    pub floating_flyouts: Vec<FloatingFlyout>,
+    /// Floating panel groups in workspaces saved before the canvas joined `docking`; read only
+    /// to convert them ([`crate::layout_migration`]).
+    #[serde(skip_serializing)]
+    pub floating_panels: Vec<FloatingPanels>,
+    /// The workspace's own panel layout; none: the default layout from its flags.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docking: Option<craft_ui::docking::Layout<String>>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub docking_hidden: std::collections::BTreeMap<String, craft_ui::docking::Location<String>>,
+    /// Tabs closed together by a panel shortcut.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub docking_hidden_groups: Vec<Vec<String>>,
+    /// Panels dropped on the icon column, in older workspaces (read only).
+    #[serde(default, skip_serializing)]
+    pub docking_icons: std::collections::BTreeSet<String>,
+    /// The panels shown by dock groups collapsed to their tabs, in older workspaces (read only).
+    #[serde(default, skip_serializing)]
+    pub docking_collapsed: std::collections::BTreeSet<String>,
+    /// Where the Tools panel floats (built-in workspaces: docked).
+    pub toolbar_pos: Option<[f32; 2]>,
+    /// The docked Tools panel sits beside the canvas, inside any left-side panels (built-in
+    /// workspaces and workspaces saved without it: at the window's left edge).
+    pub tools_beside_canvas: bool,
+    /// The docked Tools panel stands on the right, left of the panels (built-in workspaces and
+    /// workspaces saved without it: on the left).
+    pub toolbar_right: bool,
+    /// Main dock column width in screen points while `docking` is none (#1753).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dock_width: Option<f32>,
+    /// The toolbars made with New Toolbar in this workspace (built-in workspaces: none).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub toolbars: Vec<CustomToolbar>,
 }
 
 impl Default for Workspace {
@@ -35,6 +80,8 @@ impl Default for Workspace {
 }
 
 pub const ESSENTIALS: &str = "Essentials";
+/// Touch workspace (Window → Workspace → Touch; Preferences › Devices › Enable Touch Workspace).
+pub const TOUCH: &str = "Touch";
 
 /// Built-in workspaces, in Illustrator's menu order (Essentials first).
 pub fn builtins() -> Vec<Workspace> {
@@ -96,7 +143,37 @@ pub fn builtins() -> Vec<Workspace> {
             x.toolbar_advanced = true;
             x.open_panel = Some("symbols".into());
         }),
+        w(TOUCH, &|x| {
+            x.control_bar = true;
+            x.toolbar = true;
+            x.toolbar_advanced = true;
+            x.task_bar = true;
+            x.open_panel = Some("align".into());
+        }),
     ]
+}
+
+/// Preferences › Devices › Enable Touch Workspace (#394): on, a touch screen switches to the Touch
+/// workspace; off, or when no touch screen is reported, the workspace before that switch is
+/// restored if Touch was entered automatically. Each switch keeps the layout it leaves and brings
+/// back the one it returns to as it was left, as Window › Workspace does.
+pub fn sync_touch_workspace(app: &mut VectorcraftApp, touch_screen: bool) {
+    let auto = app.session.prefs.touch_workspace && touch_screen;
+    if auto {
+        if app.ui.workspace != TOUCH {
+            if app.ui.touch_workspace_restore.is_none() {
+                app.ui.touch_workspace_restore = Some(app.ui.workspace.clone());
+            }
+            // Touch is built in, so the switch finds it.
+            let _ = switch(&mut app.ui, TOUCH);
+        }
+    } else if app.ui.touch_workspace_restore.is_some() && app.ui.workspace == TOUCH {
+        let back = app.ui.touch_workspace_restore.take().filter(|n| find(&app.ui, n).is_some()).unwrap_or_else(|| ESSENTIALS.to_string());
+        // `back` names a workspace that exists (or Essentials), so the switch finds it.
+        let _ = switch(&mut app.ui, &back);
+    } else if !auto {
+        app.ui.touch_workspace_restore = None;
+    }
 }
 
 pub fn is_builtin(name: &str) -> bool {
@@ -108,6 +185,7 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
     Workspace {
         name: name.into(),
         control_bar: ui.control_bar,
+        control_bar_bottom: ui.control_bar_bottom,
         rulers: ui.view.rulers,
         toolbar: ui.toolbar,
         toolbar_double: ui.toolbar_double,
@@ -115,34 +193,118 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         task_bar: ui.task_bar,
         dock: ui.dock,
         dock_tab: ui.dock_tab,
+        dock_collapsed: ui.dock_collapsed,
         open_panel: ui.open_panel.clone(),
         status_bar: ui.status_bar,
+        help_bar: ui.help_bar,
+        floating_flyouts: ui.floating_flyouts.clone(),
+        floating_panels: Vec::new(),
+        docking: ui.docking.clone(),
+        docking_hidden: ui.docking_hidden.clone(),
+        docking_hidden_groups: ui.docking_hidden_groups.clone(),
+        docking_icons: Default::default(),
+        docking_collapsed: Default::default(),
+        toolbar_pos: ui.toolbar_pos,
+        tools_beside_canvas: ui.tools_beside_canvas,
+        toolbar_right: ui.toolbar_right,
+        dock_width: ui.dock_width,
+        toolbars: ui.custom_toolbars.clone(),
     }
 }
 
 /// Apply a workspace's layout flags (brightness, prefs, shortcuts etc. untouched).
 pub fn apply(ui: &mut UiState, w: &Workspace) {
     ui.control_bar = w.control_bar;
+    ui.control_bar_bottom = w.control_bar_bottom;
     ui.view.rulers = w.rulers;
     ui.toolbar = w.toolbar;
     ui.toolbar_double = w.toolbar_double;
     ui.toolbar_advanced = w.toolbar_advanced;
     ui.task_bar = w.task_bar;
     ui.dock = w.dock;
+    ui.tab_hid = None;
     ui.dock_tab = w.dock_tab;
+    ui.dock_collapsed = w.dock_collapsed;
     ui.open_panel = w.open_panel.clone();
     ui.status_bar = w.status_bar;
+    ui.help_bar = w.help_bar;
+    ui.floating_flyouts = w.floating_flyouts.clone();
+    ui.docking_generation = ui.docking_generation.wrapping_add(1);
+    ui.docking = w.docking.clone().filter(crate::panel_docking::valid);
+    ui.docking_hidden = w.docking_hidden.clone();
+    ui.docking_hidden_groups = w.docking_hidden_groups.clone();
+    ui.toolbar_pos = w.toolbar_pos;
+    ui.tools_beside_canvas = w.tools_beside_canvas;
+    ui.toolbar_right = w.toolbar_right;
+    ui.dock_width = w.dock_width;
+    crate::state::sanitize_toolbar_pos(&mut ui.toolbar_pos);
+    ui.custom_toolbars = w.toolbars.clone();
+    crate::custom_toolbars::sanitize(&mut ui.custom_toolbars);
+    // The drawer edits a toolbar of the workspace left: it closes.
+    if ui.drawer_toolbar.take().is_some() {
+        ui.tools_drawer = false;
+    }
     ui.flyout = None;
     ui.workspace = w.name.clone();
 }
 
-/// A workspace by name (user workspaces shadow nothing: names are unique across both lists).
-pub fn find(ui: &UiState, name: &str) -> Option<Workspace> {
+/// Keep the layout of the current workspace as it is now, so switching back brings it back.
+fn remember(ui: &mut UiState) {
+    // Kept under the saved workspace's spelling, which `find_saved` matches whatever the case.
+    let Some(saved) = find_saved(ui, &ui.workspace.clone()) else { return };
+    let w = capture(ui, &saved.name);
+    ui.workspace_changes.retain(|x| !x.name.eq_ignore_ascii_case(&saved.name));
+    ui.workspace_changes.push(w);
+    // Over the cap, the oldest go: the layout just kept is the newest.
+    let over = ui.workspace_changes.len().saturating_sub(64);
+    ui.workspace_changes.drain(..over);
+}
+
+/// Switch to workspace `name` as it was left (its changes since it was saved), else as saved.
+pub fn switch(ui: &mut UiState, name: &str) -> Result<String, String> {
+    let saved = find_saved(ui, name).ok_or_else(|| format!("unknown workspace (one of {})", names(ui).join(", ")))?;
+    remember(ui);
+    let w = ui.workspace_changes.iter().find(|w| w.name.eq_ignore_ascii_case(&saved.name)).cloned().unwrap_or(saved);
+    apply(ui, &w);
+    Ok(w.name)
+}
+
+/// Reset the current workspace to the way it was saved, dropping its changes.
+pub fn reset(ui: &mut UiState) -> String {
+    let w = find_saved(ui, &ui.workspace.clone()).unwrap_or_default();
+    ui.workspace_changes.retain(|x| !x.name.eq_ignore_ascii_case(&w.name));
+    // The toolbars made with New Toolbar stay in the workspace they were made in.
+    let toolbars = std::mem::take(&mut ui.custom_toolbars);
+    apply(ui, &w);
+    ui.custom_toolbars = toolbars;
+    w.name
+}
+
+/// Keep the toolbars made with New Toolbar in the current workspace's changes, and nothing else of
+/// its layout that its changes do not already hold.
+fn keep_toolbars(ui: &mut UiState) {
+    let Some(saved) = find_saved(ui, &ui.workspace.clone()) else { return };
+    if let Some(w) = ui.workspace_changes.iter_mut().find(|x| x.name.eq_ignore_ascii_case(&saved.name)) {
+        w.toolbars = ui.custom_toolbars.clone();
+    } else if saved.toolbars != ui.custom_toolbars {
+        ui.workspace_changes.push(Workspace { toolbars: ui.custom_toolbars.clone(), ..saved });
+        let over = ui.workspace_changes.len().saturating_sub(64);
+        ui.workspace_changes.drain(..over);
+    }
+}
+
+/// A workspace by name as saved (user workspaces shadow nothing: names are unique across both lists).
+pub fn find_saved(ui: &UiState, name: &str) -> Option<Workspace> {
     ui.custom_workspaces
         .iter()
         .find(|w| w.name.eq_ignore_ascii_case(name))
         .cloned()
         .or_else(|| builtins().into_iter().find(|w| w.name.eq_ignore_ascii_case(name)))
+}
+
+/// A workspace by name as saved.
+pub fn find(ui: &UiState, name: &str) -> Option<Workspace> {
+    find_saved(ui, name)
 }
 
 /// Every workspace name: built-ins then user workspaces.
@@ -159,11 +321,19 @@ pub fn save_as(ui: &mut UiState, name: &str) -> Result<(), String> {
     if is_builtin(name) {
         return Err(format!("`{name}` is a built-in workspace; choose another name"));
     }
+    // The changes go into the workspace saved, which starts with none; the one left keeps the
+    // changes it had (none of these), and the toolbars made with New Toolbar, which the workspace
+    // saved starts with a copy of.
+    if !ui.workspace.eq_ignore_ascii_case(name) {
+        keep_toolbars(ui);
+    }
+    // A user workspace of that name in another case is replaced, as `find_saved` would find it.
     let w = capture(ui, name);
-    match ui.custom_workspaces.iter_mut().find(|x| x.name == name) {
+    match ui.custom_workspaces.iter_mut().find(|x| x.name.eq_ignore_ascii_case(name)) {
         Some(x) => *x = w,
         None => ui.custom_workspaces.push(w),
     }
+    ui.workspace_changes.retain(|x| !x.name.eq_ignore_ascii_case(name));
     ui.workspace = name.into();
     Ok(())
 }
@@ -174,8 +344,13 @@ pub fn delete(ui: &mut UiState, name: &str) -> Result<(), String> {
     if ui.custom_workspaces.len() == before {
         return Err(if is_builtin(name) { format!("`{name}` is built in and can't be deleted") } else { format!("no workspace `{name}`") });
     }
+    ui.workspace_changes.retain(|w| w.name != name);
+    // The current workspace deleted: Essentials (as it was left) takes over, rather than its layout
+    // staying on screen under Essentials's name, to be remembered as Essentials's changes.
     if ui.workspace == name {
-        ui.workspace = ESSENTIALS.into();
+        let essentials =
+            ui.workspace_changes.iter().find(|w| w.name == ESSENTIALS).cloned().or_else(|| find_saved(ui, ESSENTIALS)).unwrap_or_default();
+        apply(ui, &essentials);
     }
     Ok(())
 }
@@ -187,6 +362,9 @@ pub fn rename(ui: &mut UiState, from: &str, to: &str) -> Result<(), String> {
     }
     let w = ui.custom_workspaces.iter_mut().find(|w| w.name == from).ok_or_else(|| format!("no user workspace `{from}`"))?;
     w.name = to.into();
+    for w in ui.workspace_changes.iter_mut().filter(|w| w.name == from) {
+        w.name = to.into();
+    }
     if ui.workspace == from {
         ui.workspace = to.into();
     }
@@ -239,7 +417,8 @@ pub fn popup(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
                 ui.separator();
             }
             crate::menus::Item::Cmd(label, id, p) => {
-                let label = crate::menus::dynamic_label(app, id, label);
+                // As the Window menu draws it: custom workspace names (and Reset <name>) as they are.
+                let label = crate::menus::display_label(app, id, label);
                 let text = match crate::menus::checked(app, id, &p) {
                     Some(true) => format!("✓  {label}"),
                     Some(false) => format!("     {label}"),
@@ -263,18 +442,8 @@ pub fn popup(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
 pub fn run_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     let s = |k: &str| p.get(k).and_then(Value::as_str).map(str::to_string);
     let r = match id {
-        "window.workspace" => match s("name").and_then(|n| find(&app.ui, &n)) {
-            Some(w) => {
-                apply(&mut app.ui, &w);
-                Ok(json!({"workspace": w.name}))
-            }
-            None => Err(format!("unknown workspace (one of {})", names(&app.ui).join(", "))),
-        },
-        "window.workspace.reset" => {
-            let w = find(&app.ui, &app.ui.workspace.clone()).unwrap_or_default();
-            apply(&mut app.ui, &w);
-            Ok(json!({"workspace": w.name}))
-        }
+        "window.workspace" => switch(&mut app.ui, &s("name").unwrap_or_default()).map(|name| json!({"workspace": name})),
+        "window.workspace.reset" => Ok(json!({"workspace": reset(&mut app.ui)})),
         "window.workspace.new" => match s("name") {
             Some(n) => save_as(&mut app.ui, &n).map(|_| json!({"workspace": n})),
             None => {
@@ -313,76 +482,69 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let t = Tokens::get(ctx);
     let (mut ok, mut cancel) = (false, false);
     let mut action: Option<(&str, Value)> = None;
-    egui::Area::new(egui::Id::new("modal-dim")).order(egui::Order::Middle).fixed_pos(egui::pos2(0.0, 0.0)).show(ctx, |ui| {
-        ui.allocate_rect(ctx.content_rect(), egui::Sense::click());
-    });
     let manage = d.kind == "manageWorkspaces";
-    egui::Window::new("Workspace")
-        .id(egui::Id::new("dialog-workspace"))
-        .order(egui::Order::Foreground)
-        .collapsible(false)
-        .resizable(false)
-        .title_bar(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, -40.0])
-        .frame(egui::Frame::window(&ctx.global_style()).fill(t.panel).inner_margin(egui::Margin::same(22)))
-        .show(ctx, |ui| {
-            ui.set_width(340.0);
-            ui.label(egui::RichText::new(if manage { "Manage Workspaces" } else { "New Workspace" }).font(theme::semibold(16.0)).color(t.text));
-            ui.add_space(12.0);
-            if manage {
-                egui::Frame::NONE.fill(t.input).stroke(egui::Stroke::new(1.0, t.input_border)).inner_margin(egui::Margin::same(4)).show(ui, |ui| {
-                    ui.set_min_height(140.0);
-                    ui.set_width(ui.available_width());
-                    for n in names(&app.ui) {
-                        let builtin = is_builtin(&n);
-                        let text = if builtin { egui::RichText::new(&n).color(t.text_dim) } else { egui::RichText::new(&n).color(t.text) };
-                        if ui.selectable_label(d.str("selected") == n, text).clicked() && !builtin {
-                            d.fields.insert("selected".into(), json!(n));
-                            d.fields.insert("name".into(), json!(n));
-                        }
+    crate::dialogs::modal::show(ctx, "Workspace", egui::Id::unique("dialog-workspace"), -40.0, 22, |ui| {
+        ui.set_width(340.0);
+        crate::dialogs::modal::heading(ui, if manage { tl!("Manage Workspaces") } else { tl!("New Workspace") });
+        ui.add_space(12.0);
+        if manage {
+            egui::Frame::NONE.fill(t.input).stroke(egui::Stroke::new(1.0, t.input_border)).inner_margin(egui::Margin::same(4)).show(ui, |ui| {
+                ui.set_min_height(140.0);
+                ui.set_width(ui.available_width());
+                for n in names(&app.ui) {
+                    let builtin = is_builtin(&n);
+                    let shown = crate::panels::label_or_name(&n, builtin);
+                    let text = if builtin { egui::RichText::new(shown).color(t.text_dim) } else { egui::RichText::new(shown).color(t.text) };
+                    if ui.selectable_label(d.str("selected") == n, text).clicked() && !builtin {
+                        d.fields.insert("selected".into(), json!(n));
+                        d.fields.insert("name".into(), json!(n));
                     }
-                });
-                ui.add_space(8.0);
-                let sel = d.str("selected");
-                ui.horizontal(|ui| {
-                    let mut name = d.str("name");
-                    if ui.add(egui::TextEdit::singleline(&mut name).desired_width(180.0)).changed() {
-                        d.fields.insert("name".into(), json!(name));
-                    }
-                    if ui.button("New").on_hover_text("Save the current layout under this name").clicked() {
-                        action = Some(("window.workspace.new", json!({"name": d.str("name")})));
-                    }
-                    ui.add_enabled_ui(!sel.is_empty(), |ui| {
-                        if ui.button("Rename").clicked() {
-                            action = Some(("window.workspace.rename", json!({"name": sel, "to": d.str("name")})));
-                        }
-                        if ui.button("Delete").clicked() {
-                            action = Some(("window.workspace.delete", json!({"name": sel})));
-                        }
-                    });
-                });
-            } else {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Name:").color(t.text_dim));
-                    let mut name = d.str("name");
-                    let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(240.0));
-                    if r.changed() {
-                        d.fields.insert("name".into(), json!(name));
-                    }
-                });
-                ui.label(egui::RichText::new("Saves the current bars, toolbar and panel layout.").color(t.text_dim).size(11.0));
-            }
-            ui.add_space(16.0);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::primary_button(ui, "OK").clicked() {
-                    ok = true;
-                }
-                ui.add_space(8.0);
-                if !manage && widgets::secondary_button(ui, "Cancel").clicked() {
-                    cancel = true;
                 }
             });
+            ui.add_space(8.0);
+            let sel = d.str("selected");
+            ui.horizontal(|ui| {
+                let mut name = d.str("name");
+                if ui.add(egui::TextEdit::singleline(&mut name).align(egui::Align2::LEFT_CENTER).desired_width(180.0)).changed() {
+                    d.fields.insert("name".into(), json!(name));
+                }
+                if ui.button(tl!("New")).on_hover_text(tl!("Save the current layout under this name")).clicked() {
+                    action = Some(("window.workspace.new", json!({"name": d.str("name")})));
+                }
+                ui.add_enabled_ui(!sel.is_empty(), |ui| {
+                    if ui.button(tl!("Rename")).clicked() {
+                        action = Some(("window.workspace.rename", json!({"name": sel, "to": d.str("name")})));
+                    }
+                    if ui.button(tl!("Delete")).clicked() {
+                        action = Some(("window.workspace.delete", json!({"name": sel})));
+                    }
+                });
+            });
+        } else {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(tl!("Name:")).color(t.text_dim));
+                let mut name = d.str("name");
+                let r = ui.add(egui::TextEdit::singleline(&mut name).align(egui::Align2::LEFT_CENTER).desired_width(240.0));
+                if r.changed() {
+                    d.fields.insert("name".into(), json!(name));
+                }
+            });
+            ui.label(egui::RichText::new(tl!("Saves the current bars, toolbar and panel layout.")).color(t.text_dim).size(11.0));
+        }
+        ui.add_space(16.0);
+        // As wide as the fields and as tall as the buttons, as in `dialogs::show`: a right-to-left
+        // layout would take all the height left in the window and center the buttons in it.
+        let row = egui::vec2(ui.min_rect().width(), ui.spacing().interact_size.y);
+        ui.allocate_ui_with_layout(row, egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if widgets::primary_button(ui, tl!("OK")).clicked() {
+                ok = true;
+            }
+            ui.add_space(8.0);
+            if !manage && widgets::secondary_button(ui, tl!("Cancel")).clicked() {
+                cancel = true;
+            }
         });
+    });
     if !manage && ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
         ok = true;
     }
@@ -445,6 +607,131 @@ mod tests {
         assert_eq!(back.workspace, "Mine");
     }
 
+    /// Changes made in a workspace come back after switching away and back, and after a restart, until Reset.
+    #[test]
+    fn a_workspace_keeps_its_changes_across_switches_until_reset() {
+        let mut ui = UiState::default();
+        save_as(&mut ui, "Görkem").unwrap();
+        // Changes made in it after saving (a panel moved, the control bar shown)…
+        ui.control_bar = true;
+        ui.dock_tab = DockTab::Layers;
+        let mut layout = crate::panel_docking::default_layout(&ui);
+        if let Some(craft_ui::docking::Node::Split { second, .. }) = layout.root.as_mut()
+            && let craft_ui::docking::Node::Dock { columns, .. } = second.as_mut()
+        {
+            columns[0].groups[0].minimized = true;
+        }
+        ui.docking = Some(layout.clone());
+        // …are still there after switching away and back.
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert!(!ui.control_bar && ui.docking.is_none(), "Essentials comes as saved");
+        switch(&mut ui, "Görkem").unwrap();
+        assert!(ui.control_bar && ui.dock_tab == DockTab::Layers);
+        assert_eq!(ui.docking, Some(layout), "its panel layout too");
+        // Built-in workspaces remember theirs too.
+        switch(&mut ui, ESSENTIALS).unwrap();
+        ui.status_bar = false;
+        switch(&mut ui, "Görkem").unwrap();
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert!(!ui.status_bar);
+        // They survive a restart (the preferences' JSON round trip).
+        let mut ui: UiState = serde_json::from_value(serde_json::to_value(&ui).unwrap()).unwrap();
+        ui = ui.sanitized();
+        switch(&mut ui, "Görkem").unwrap();
+        assert!(ui.control_bar);
+        // Reset Görkem: back to the way it was saved.
+        assert_eq!(reset(&mut ui), "Görkem");
+        assert!(!ui.control_bar && ui.docking.is_none());
+        switch(&mut ui, ESSENTIALS).unwrap();
+        switch(&mut ui, "Görkem").unwrap();
+        assert!(!ui.control_bar, "a reset workspace stays reset");
+        // Renamed, it keeps its changes; deleted, they go.
+        ui.control_bar = true;
+        switch(&mut ui, ESSENTIALS).unwrap();
+        rename(&mut ui, "Görkem", "G").unwrap();
+        switch(&mut ui, "G").unwrap();
+        assert!(ui.control_bar);
+        switch(&mut ui, ESSENTIALS).unwrap();
+        delete(&mut ui, "G").unwrap();
+        assert!(ui.workspace_changes.iter().all(|w| w.name != "G"));
+    }
+
+    /// Deleting the current workspace shows Essentials as it was left, not the deleted one's layout.
+    #[test]
+    fn deleting_the_current_workspace_switches_to_essentials_without_leaking_its_layout() {
+        let mut ui = UiState::default();
+        save_as(&mut ui, "Tmp").unwrap();
+        ui.control_bar = true;
+        delete(&mut ui, "Tmp").unwrap();
+        assert_eq!(ui.workspace, ESSENTIALS);
+        assert!(!ui.control_bar, "Essentials's layout is shown, not the deleted one's");
+        save_as(&mut ui, "Other").unwrap();
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert!(!ui.control_bar, "Essentials didn't remember the deleted workspace's layout");
+    }
+
+    /// With 64 layouts remembered, the oldest goes and the one just left is kept.
+    #[test]
+    fn a_full_list_of_remembered_layouts_drops_the_oldest_not_the_newest() {
+        let mut ui = UiState::default();
+        let names: Vec<String> = (0..70).map(|i| format!("W{i}")).collect();
+        for name in &names {
+            save_as(&mut ui, name).unwrap();
+        }
+        for name in &names {
+            switch(&mut ui, name).unwrap();
+            ui.control_bar = true;
+        }
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert_eq!(ui.workspace_changes.len(), 64);
+        assert!(ui.workspace_changes.iter().all(|w| w.name != "W0"), "the oldest went");
+        switch(&mut ui, "W69").unwrap();
+        assert!(ui.control_bar, "the layout just left is kept");
+    }
+
+    /// Workspace names match whatever their case, as `find` does: "Mine" saved over "mine" replaces
+    /// it, and changes made under one spelling come back under the other.
+    #[test]
+    fn workspace_names_match_whatever_their_case() {
+        let mut ui = UiState::default();
+        save_as(&mut ui, "mine").unwrap();
+        save_as(&mut ui, "Mine").unwrap();
+        assert_eq!(ui.custom_workspaces.len(), 1, "one workspace, not two spellings");
+        ui.control_bar = true;
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert_eq!(switch(&mut ui, "MINE").unwrap(), "Mine");
+        assert!(ui.control_bar, "its changes came back");
+        // A preferences file with a remembered layout under another spelling, twice: it maps to the
+        // saved one, once.
+        ui.control_bar = false;
+        switch(&mut ui, ESSENTIALS).unwrap();
+        let mut odd = capture(&ui, "MINE");
+        odd.control_bar = true;
+        ui.workspace_changes = vec![odd.clone(), Workspace { name: "mine".into(), ..odd }];
+        let mut ui = ui.sanitized();
+        assert_eq!(ui.workspace_changes.iter().map(|w| w.name.as_str()).collect::<Vec<_>>(), ["Mine"]);
+        switch(&mut ui, "Mine").unwrap();
+        assert!(ui.control_bar);
+    }
+
+    /// Saving a workspace takes the current layout into it, which then starts with no changes.
+    #[test]
+    fn saving_a_workspace_moves_the_changes_into_it() {
+        let mut ui = UiState { control_bar: true, ..Default::default() };
+        save_as(&mut ui, "Mine").unwrap();
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert!(!ui.control_bar, "Essentials stays as saved: the changes went into Mine");
+        switch(&mut ui, "Mine").unwrap();
+        assert!(ui.control_bar);
+        // Saving again under the same name takes the current layout and starts with no changes.
+        ui.status_bar = false;
+        save_as(&mut ui, "Mine").unwrap();
+        assert!(ui.workspace_changes.iter().all(|w| w.name != "Mine"));
+        ui.status_bar = true;
+        assert_eq!(reset(&mut ui), "Mine");
+        assert!(!ui.status_bar);
+    }
+
     #[test]
     fn builtin_names_are_protected() {
         let mut ui = UiState::default();
@@ -462,8 +749,61 @@ mod tests {
     #[test]
     fn all_requested_workspaces_exist() {
         let ui = UiState::default();
-        for n in ["Essentials", "Essentials Classic", "Painting", "Typography", "Layout", "Tracing", "Web", "Automation"] {
+        for n in ["Essentials", "Essentials Classic", "Painting", "Typography", "Layout", "Tracing", "Web", "Automation", TOUCH] {
             assert!(find(&ui, n).is_some(), "{n}");
         }
+    }
+
+    #[test]
+    fn touch_workspace_preference_switches_and_restores() {
+        use crate::{Services, VectorcraftApp};
+        use vectorcraft_engine::Session;
+
+        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        app.ui.workspace = "Typography".into();
+        app.session.prefs.touch_workspace = true;
+        sync_touch_workspace(&mut app, true);
+        assert_eq!(app.ui.workspace, TOUCH);
+        assert_eq!(app.ui.touch_workspace_restore.as_deref(), Some("Typography"));
+        assert!(app.ui.control_bar && app.ui.open_panel.as_deref() == Some("align"));
+        app.session.prefs.touch_workspace = false;
+        sync_touch_workspace(&mut app, true);
+        assert_eq!(app.ui.workspace, "Typography");
+        assert!(app.ui.touch_workspace_restore.is_none());
+    }
+
+    #[test]
+    fn saved_workspaces_restore_dock_width() {
+        let mut ui = UiState { dock_width: Some(420.0), ..Default::default() };
+        save_as(&mut ui, "Wide").unwrap();
+        ui.dock_width = Some(260.0);
+        save_as(&mut ui, "Narrow").unwrap();
+        let wide = find(&ui, "Wide").unwrap();
+        apply(&mut ui, &wide);
+        assert_eq!(ui.dock_width, Some(420.0));
+        let narrow = find(&ui, "Narrow").unwrap();
+        apply(&mut ui, &narrow);
+        assert_eq!(ui.dock_width, Some(260.0));
+        let back: UiState = serde_json::from_value(serde_json::to_value(&ui).unwrap()).unwrap();
+        assert_eq!(back.custom_workspaces[1].dock_width, Some(260.0));
+    }
+
+    /// A workspace keeps the edge the Control bar is docked to, and one saved without it docks the
+    /// bar at the top.
+    #[test]
+    fn saved_workspaces_restore_the_control_bar_edge() {
+        let mut ui = UiState { control_bar: true, control_bar_bottom: true, ..Default::default() };
+        save_as(&mut ui, "Bottom").unwrap();
+        switch(&mut ui, ESSENTIALS).unwrap();
+        assert!(!ui.control_bar_bottom, "Essentials docks the bar at the top");
+        switch(&mut ui, "Bottom").unwrap();
+        assert!(ui.control_bar_bottom, "the saved workspace docks it at the bottom");
+        let back: UiState = serde_json::from_value(serde_json::to_value(&ui).unwrap()).unwrap();
+        assert!(back.control_bar_bottom && back.custom_workspaces[0].control_bar_bottom, "both survive the preferences' JSON");
+        let mut old = serde_json::to_value(&back.custom_workspaces[0]).unwrap();
+        assert!(old.as_object_mut().unwrap().remove("controlBarBottom").is_some());
+        let old: Workspace = serde_json::from_value(old).unwrap();
+        apply(&mut ui, &old);
+        assert!(ui.control_bar && !ui.control_bar_bottom, "an older workspace docks the bar at the top");
     }
 }

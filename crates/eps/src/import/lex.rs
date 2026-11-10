@@ -15,7 +15,13 @@ pub(crate) struct Lexer<'a> {
     /// The whitespace character that ended the last token is still unread (data the program
     /// reads from itself starts after it).
     fresh: bool,
+    /// The last object read has immediately evaluated names (`//name`) in it, read as executable
+    /// names starting with [`IMMEDIATE`] for the interpreter to replace by their values.
+    pub immediate: bool,
 }
+
+/// How an immediately evaluated name (`//name`) is read, until the interpreter replaces it.
+pub(crate) const IMMEDIATE: &str = "//";
 
 fn is_space(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\r' | b'\n' | b'\x0c' | b'\0')
@@ -31,7 +37,7 @@ fn syntax<T>(what: &str) -> Res<T> {
 
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a [u8]) -> Self {
-        Self { src, pos: 0, fresh: false }
+        Self { src, pos: 0, fresh: false, immediate: false }
     }
 
     /// What is left to read.
@@ -86,6 +92,7 @@ impl<'a> Lexer<'a> {
 
     /// The next object at the top level (`None` at the end of the file).
     pub fn next(&mut self) -> Res<Option<Obj>> {
+        self.immediate = false;
         let t = self.token(0);
         self.fresh = true;
         t
@@ -140,13 +147,14 @@ impl<'a> Lexer<'a> {
             }
             b'}' | b')' => return syntax(&char::from(b).to_string()),
             b'/' => {
-                // `//name` is looked up when run (rather than when read).
+                // `//name` stands for the name's value when it is read.
                 let immediate = self.peek() == Some(b'/');
                 if immediate {
                     self.pos += 1;
+                    self.immediate = true;
                 }
                 let name = self.word();
-                if immediate { Obj::Exec(Rc::from(name.as_str())) } else { Obj::Name(Rc::from(name.as_str())) }
+                if immediate { Obj::Exec(Rc::from(format!("{IMMEDIATE}{name}").as_str())) } else { Obj::Name(Rc::from(name.as_str())) }
             }
             _ => {
                 self.pos -= 1;
@@ -244,7 +252,7 @@ pub(crate) fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() {
         return Some(0);
     }
-    hay.windows(needle.len()).position(|w| w == needle)
+    memchr::memmem::find(hay, needle)
 }
 
 /// Hexadecimal digits (whitespace ignored, an odd last digit padded with 0); `None` on others.
@@ -268,7 +276,7 @@ pub(crate) fn hex_decode(body: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// A number token (`12`, `-3.5`, `.5`, `1e-3`, `16#ff`), or `None`.
-fn number(w: &str) -> Option<Obj> {
+pub(crate) fn number(w: &str) -> Option<Obj> {
     let first = w.bytes().next()?;
     if !(first.is_ascii_digit() || matches!(first, b'+' | b'-' | b'.')) {
         return None;
@@ -278,6 +286,10 @@ fn number(w: &str) -> Option<Obj> {
     }
     if let Some((base, digits)) = w.split_once('#') {
         let base: u32 = base.parse().ok().filter(|b| (2..=36).contains(b))?;
+        // `from_str_radix` accepts a leading sign; a PostScript radix number has digits only.
+        if digits.starts_with(['+', '-']) {
+            return None;
+        }
         return i64::from_str_radix(digits, base).ok().map(Obj::Int);
     }
     // Rust reads `inf` and `nan`; PostScript doesn't.
@@ -286,4 +298,16 @@ fn number(w: &str) -> Option<Obj> {
     }
     let v: f64 = w.parse().ok()?;
     v.is_finite().then_some(Obj::Real(v))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn radix_number_with_sign_after_hash_is_not_a_number() {
+        assert!(number("16#+ff").is_none());
+        assert!(number("16#-ff").is_none());
+        assert!(matches!(number("16#ff"), Some(Obj::Int(255))));
+    }
 }

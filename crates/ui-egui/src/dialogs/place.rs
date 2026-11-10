@@ -3,7 +3,10 @@
 //! object) or loads the place cursor with several ([`crate::place::confirm`]).
 //!
 //! Fields: `files` (`[{path} | {name}]`), `link`, `template`, `replace`, and `__replace` (one file
-//! and one selected object: Replace applies), `__info` (a line per file).
+//! and one selected object: Replace applies), `__documents` and `__others` (VectorCraft documents
+//! from files are picked, other files are: what Link's tooltip explains), `__info` (a line per
+//! file; on the desktop the lines are read off the UI thread and are empty until they are read,
+//! [`crate::place::fill_lines`]).
 
 use serde_json::{Value, json};
 
@@ -16,7 +19,7 @@ use crate::{VectorcraftApp, widgets};
 pub const KIND: &str = "place";
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
-    heading: |_| "Place".into(),
+    heading: |_| tl!("Place").into(),
     body,
     confirm: crate::place::confirm,
     ok: Some("Place"),
@@ -32,11 +35,14 @@ const OPTIONS: [(&str, &str, &str); 3] = [
     ("replace", "Replace", "Swap the selected object for the file, keeping its place and transform"),
 ];
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+    if crate::place::fill_lines(app, d) {
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+    }
     let t = Tokens::get(ui.ctx());
     let files: Vec<Value> = d.fields.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
     let info = d.fields.get("__info").cloned().unwrap_or_default();
-    widgets::subheader(ui, if files.len() == 1 { "File" } else { "Files" });
+    widgets::subheader(ui, if files.len() == 1 { tl!("File") } else { tl!("Files") });
     widgets::list_box(ui, |ui| {
         egui::ScrollArea::vertical().max_height(180.0).auto_shrink([false, true]).show(ui, |ui| {
             ui.set_width(ui.available_width());
@@ -63,7 +69,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     });
     if files.len() > 1 {
         ui.add_space(4.0);
-        widgets::dim_label(ui, "Click to place each file at 100%, or drag to size it; arrow keys switch files, Esc skips one.");
+        widgets::dim_label(ui, tl!("Click to place each file at 100%, or drag to size it; arrow keys switch files, Esc skips one."));
     }
     ui.add_space(10.0);
     // The options row.
@@ -72,12 +78,32 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         for (key, label, tip) in OPTIONS {
             let on = d.bool(key);
             let enabled = key != "replace" || d.bool("__replace");
-            let resp = ui.scope(|ui| widgets::check(ui, label, on && enabled, enabled));
-            if resp.inner {
+            let tip = if key == "link" { link_tip(d) } else { tl!(tip).to_string() };
+            if widgets::check_tip(ui, tl!(label), on && enabled, enabled, &tip) {
                 d.fields.insert(key.into(), json!(!on));
             }
-            resp.response.on_hover_text(tip);
         }
     });
     false
+}
+
+/// Link's tooltip: what it does for the files picked (images, VectorCraft documents, or both), a
+/// line each.
+pub(crate) fn link_tip(d: &Dialog) -> String {
+    let lines = match (d.bool("__documents"), d.bool("__others")) {
+        (true, false) => {
+            vec![
+                tl!("On: one locked object showing the document, updated when it changes."),
+                tl!("Off: an editable copy of its art, embedded in this document."),
+            ]
+        }
+        (true, true) => {
+            vec![
+                tl!("Images: link to the file instead of only embedding it."),
+                tl!("VectorCraft documents: one locked object, updated when the file changes."),
+            ]
+        }
+        _ => vec![tl!("Keep a link to an image file instead of only embedding it")],
+    };
+    lines.join("\n")
 }

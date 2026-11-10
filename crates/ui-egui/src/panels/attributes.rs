@@ -27,7 +27,7 @@ fn state(app: &VectorcraftApp, ctx: &egui::Context) -> (AttributesInfo, bool) {
     let Some(st) = app.session.active() else { return Default::default() };
     let sel = &st.selection.objects;
     let key: Key = (st.uid, st.revision, sel.len(), sel.first().copied(), sel.last().copied());
-    let id = egui::Id::new("attr-state");
+    let id = egui::Id::unique("attr-state");
     if let Some((k, v)) = ctx.data(|d| d.get_temp::<(Key, (AttributesInfo, bool))>(id))
         && k == key
     {
@@ -65,7 +65,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let has = !info.ids.is_empty();
     ui.horizontal(|ui| {
         for (label, key, value) in
-            [("Overprint Fill", "overprintFill", info.overprint_fill), ("Overprint Stroke", "overprintStroke", info.overprint_stroke)]
+            [(tl!("Overprint Fill"), "overprintFill", info.overprint_fill), (tl!("Overprint Stroke"), "overprintStroke", info.overprint_stroke)]
         {
             if widgets::check3(ui, label, value, has) {
                 set(app, json!({ key: value != Some(true) }));
@@ -76,19 +76,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     if !pstate::<bool>(ui.ctx(), HIDE_OPTIONS) {
         widgets::divider(ui);
         ui.horizontal(|ui| {
-            let center = [("dc-center-hide", "Don't Show Center", false), ("dc-center-show", "Show Center", true)];
+            let center = [("dc-center-hide", tl!("Don't Show Center"), false), ("dc-center-show", tl!("Show Center"), true)];
             if let Some(v) = pair(ui, has, info.show_center, center) {
                 set(app, json!({ "showCenter": v }));
             }
             ui.add_space(10.0);
-            let dir = [("dc-dir-off", "Reverse Path Direction Off", false), ("dc-dir-on", "Reverse Path Direction On", true)];
+            let dir = [("dc-dir-off", tl!("Reverse Path Direction Off"), false), ("dc-dir-on", tl!("Reverse Path Direction On"), true)];
             if let Some(v) = pair(ui, paths, info.reversed, dir) {
                 app.run("path.reverse", json!({ "reversed": v })).ok();
             }
             ui.add_space(10.0);
             let rules = [
-                ("dc-rule-nonzero", "Use Non-Zero Winding Fill Rule", FillRule::NonZero),
-                ("dc-rule-evenodd", "Use Even-Odd Fill Rule", FillRule::EvenOdd),
+                ("dc-rule-nonzero", tl!("Use Non-Zero Winding Fill Rule"), FillRule::NonZero),
+                ("dc-rule-evenodd", tl!("Use Even-Odd Fill Rule"), FillRule::EvenOdd),
             ];
             if let Some(r) = pair(ui, paths, info.fill_rule, rules) {
                 app.run("path.setFillRule", json!({ "rule": if r == FillRule::EvenOdd { "evenOdd" } else { "nonZero" } })).ok();
@@ -96,7 +96,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         });
         ui.add_space(4.0);
         let url = info.url.clone().filter(|u| !u.is_empty());
-        widgets::label_row(ui, "Image Map:", LABEL_W, |ui| {
+        widgets::label_row(ui, tl!("Image Map:"), LABEL_W, |ui| {
             ui.add_enabled_ui(has, |ui| {
                 let labels = ImageMap::ALL.map(ImageMap::label);
                 if let Some(i) = widgets::dropdown(ui, "attr-map", info.image_map.map_or("", ImageMap::label), &labels, 100.0) {
@@ -104,12 +104,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 }
             });
             ui.add_space(6.0);
-            let r = ui.add_enabled_ui(url.is_some(), |ui| widgets::flat_button(ui, "Browser", 64.0)).inner;
-            if r.on_hover_text("Open the URL in the web browser").clicked() {
+            let r = ui.add_enabled_ui(url.is_some(), |ui| widgets::flat_button(ui, tl!("Browser"), 64.0)).inner;
+            if r.on_hover_text(tl!("Open the URL in the web browser")).clicked() {
                 app.run("attributes.openUrl", json!({})).ok();
             }
         });
-        widgets::label_row(ui, "URL:", LABEL_W, |ui| {
+        widgets::label_row(ui, tl!("URL:"), LABEL_W, |ui| {
             ui.add_enabled_ui(has, |ui| {
                 let width = (ui.available_width() - 26.0).max(80.0);
                 if let Some(u) = widgets::text_field(ui, "attr-url", info.url.as_deref(), width, 1) {
@@ -121,26 +121,26 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     if !pstate::<bool>(ui.ctx(), HIDE_NOTE) {
         widgets::divider(ui);
-        widgets::subheader(ui, "Note:");
+        widgets::subheader(ui, tl!("Note:"));
         ui.add_enabled_ui(has, |ui| {
-            if let Some(n) = widgets::text_field(ui, "attr-note", info.note.as_deref(), ui.available_width(), 3) {
+            if let Some(n) = widgets::text_field_named(ui, "attr-note", Some(tl!("Note:")), info.note.as_deref(), ui.available_width(), 3) {
                 set(app, json!({ "note": n }));
             }
         });
     }
     if !has {
-        widgets::dim_label(ui, if selection_len(app) == 0 { "No Selection" } else { "" });
+        widgets::dim_label(ui, if selection_len(app) == 0 { tl!("No Selection") } else { "" });
     }
 }
 
 /// The recent URLs button: a menu of the URLs given lately; picking one sets it.
 fn recent_urls(app: &mut VectorcraftApp, ui: &mut Ui) {
-    let resp = widgets::icon_button_enabled(ui, "chevron-down", "Recent URLs", false, !app.session.recent_urls.is_empty(), 20.0);
+    let resp = widgets::icon_button_enabled(ui, "chevron-down", tl!("Recent URLs"), false, !app.session.recent_urls.is_empty(), 20.0);
     let mut chosen = None;
     egui::Popup::menu(&resp).show(|ui| {
         ui.set_min_width(220.0);
         for u in &app.session.recent_urls {
-            if menu_item(ui, u, true, false) {
+            if widgets::menu_item_name(ui, u, true, false) {
                 chosen = Some(u.clone());
             }
         }
@@ -151,7 +151,7 @@ fn recent_urls(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 pub fn menu(_app: &mut VectorcraftApp, ui: &mut Ui) {
-    for (key, hide, show) in [(HIDE_OPTIONS, "Hide Options", "Show Options"), (HIDE_NOTE, "Hide Note", "Show Note")] {
+    for (key, hide, show) in [(HIDE_OPTIONS, tl!("Hide Options"), tl!("Show Options")), (HIDE_NOTE, tl!("Hide Note"), tl!("Show Note"))] {
         let hidden: bool = pstate(ui.ctx(), key);
         if menu_item(ui, if hidden { show } else { hide }, true, false) {
             set_pstate(ui.ctx(), key, !hidden);
@@ -161,11 +161,12 @@ pub fn menu(_app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// `attributes.openUrl {url?}`: open `url`, else the selection's URL, in the web browser.
 pub(crate) fn open_url(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+    app.refuse_automation("attributes.openUrl")?;
     let url = match p.get("url").and_then(Value::as_str) {
         Some(u) => u.to_string(),
         None => app.session.attributes_info().url.filter(|u| !u.is_empty()).ok_or("the selection has no URL (or they differ)")?,
     };
-    app.open_url(&url);
+    app.open_document_url(&url)?;
     Ok(json!({ "url": url }))
 }
 
@@ -222,5 +223,38 @@ mod tests {
         let texts = frame(&mut app);
         assert!(!texts.iter().any(|t| t == "https://example.com/a" || t == "first note"), "{texts:?}");
         assert!(open_url(&mut app, &json!({})).is_err());
+    }
+
+    /// Only web and mail URLs reach the browser.
+    #[test]
+    fn the_browser_opens_web_and_mail_urls_only() {
+        for ok in ["https://example.com/a", "HTTP://example.com", "mailto:someone@example.com"] {
+            assert!(crate::browsable_url(ok).is_ok(), "{ok}");
+        }
+        for refused in [
+            "file:///tmp/a.html",
+            "javascript:void(0)",
+            "ms-settings:",
+            "smb://host/share",
+            "x-app://run",
+            "example.com",
+            " https://example.com",
+            "https://a\nb",
+            "",
+        ] {
+            assert!(crate::browsable_url(refused).is_err(), "{refused}");
+        }
+        let opened = std::rc::Rc::new(std::cell::RefCell::new(Vec::<String>::new()));
+        let o = opened.clone();
+        let services = crate::Services { open_url: Some(Box::new(move |u: &str| o.borrow_mut().push(u.to_string()))), ..Default::default() };
+        let mut app = VectorcraftApp::new(Session::new(), services);
+        run(&mut app, "file.new", json!({"width": 100, "height": 100}));
+        run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50}));
+        run(&mut app, "attributes.set", json!({"url": "file:///tmp/run.desktop"}));
+        assert!(open_url(&mut app, &json!({})).is_err());
+        assert!(open_url(&mut app, &json!({"url": "vscode://file/x"})).is_err());
+        assert!(opened.borrow().is_empty());
+        open_url(&mut app, &json!({"url": "https://example.com/b"})).unwrap();
+        assert_eq!(*opened.borrow(), ["https://example.com/b"]);
     }
 }

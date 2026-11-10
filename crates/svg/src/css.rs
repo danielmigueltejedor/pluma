@@ -4,12 +4,13 @@
 //! here, colours are `#rrggbb` (or `rgba()` where CSS has no separate opacity), gradients take the
 //! stops SVG export writes, and numbers go through [`fmt_num`].
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use vectorcraft_color::{BlendMode, Color, GradientKind, GradientPaint, Paint};
 use vectorcraft_doc::{AppearanceItem, CharStyle, Document, Justify, LineCap, LiveShape, Node, NodeId, NodeKind, StrokeAlign, StrokeLayer, TextKind};
 use vectorcraft_effects::RasterFx;
+use vectorcraft_geom::shapes::{self, CornerKind};
 use vectorcraft_geom::{Affine, PathData, Point, Rect};
 
 use crate::export::sanitize_id;
@@ -25,7 +26,28 @@ pub(crate) fn declarations<'a>(props: impl IntoIterator<Item = &'a (&'static str
 
 /// A CSS string.
 pub(crate) fn css_string(s: &str) -> String {
-    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+    quoted(s, '"')
+}
+
+/// `s` as a CSS string in `quote`s. A backslash and the quote are escaped, and so are line breaks
+/// and other control characters (a newline would end the string and let the rest be rules) and
+/// `<` and `>` (which could end a `<style>` element), as hex escapes.
+fn quoted(s: &str, quote: char) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push(quote);
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            c if c == quote => {
+                out.push('\\');
+                out.push(c);
+            }
+            c if c.is_control() || matches!(c, '<' | '>') => out.push_str(&format!("\\{:x} ", u32::from(c))),
+            c => out.push(c),
+        }
+    }
+    out.push(quote);
+    out
 }
 
 pub(crate) fn blend_css(b: BlendMode) -> &'static str {
@@ -49,9 +71,13 @@ pub(crate) fn blend_css(b: BlendMode) -> &'static str {
     }
 }
 
-/// An object's opacity, blend mode and isolation.
+/// An object's opacity, blend mode and isolation, and `display: none` when it is hidden (written
+/// only when hidden objects are kept).
 pub(crate) fn transparency(n: &Node) -> Props {
     let mut p = Props::new();
+    if !n.visible {
+        p.push(("display", "none".into()));
+    }
     if n.opacity < 1.0 {
         p.push(("opacity", fmt_num(n.opacity as f64, 3)));
     }
@@ -65,19 +91,50 @@ pub(crate) fn transparency(n: &Node) -> Props {
 }
 
 /// The weight and italic of the face style `st` asks for: what embedded fonts' `@font-face`
-/// rules and the characters using them say, so each face is told apart (Semibold from Bold).
+/// rules and the characters using them say, so each face is told apart (Semibold from Bold). A
+/// Variable Font `wght` setting is the weight.
 pub(crate) fn font_descriptor(st: &CharStyle) -> (u16, bool) {
     let fs = st.font_style.to_ascii_lowercase();
-    (vectorcraft_text::style_weight(&st.font_style).round().clamp(1.0, 1000.0) as u16, fs.contains("italic") || fs.contains("oblique"))
+    let weight =
+        st.font_axes.get("wght").copied().filter(|w| w.is_finite()).unwrap_or_else(|| f64::from(vectorcraft_text::style_weight(&st.font_style)));
+    (weight.round().clamp(1.0, 1000.0) as u16, fs.contains("italic") || fs.contains("oblique"))
+}
+
+/// The width character style `st` asks for, in percent of the normal width: its Variable Font
+/// `wdth` setting (an axis in those units), which `font-stretch` writes; `None` without one.
+pub(crate) fn font_stretch(st: &CharStyle) -> Option<f64> {
+    st.font_axes.get("wdth").copied().filter(|w| w.is_finite() && *w > 0.0)
+}
+
+/// The generic family to list after `family`, with its leading comma, so a viewer without the font draws
+/// the kind of face it was (the font's class, as the font menu's filters know it) rather than its default
+/// serif. Nothing when `family` is a generic family itself.
+fn generic_fallback(family: &str) -> &'static str {
+    const GENERIC: [&str; 5] = ["serif", "sans-serif", "monospace", "cursive", "fantasy"];
+    if GENERIC.iter().any(|g| family.trim().eq_ignore_ascii_case(g)) {
+        return "";
+    }
+    match vectorcraft_text::FontDb::global().family_traits(family).class {
+        vectorcraft_text::FontClass::Serif => ", serif",
+        vectorcraft_text::FontClass::Monospaced => ", monospace",
+        vectorcraft_text::FontClass::Script => ", cursive",
+        _ => ", sans-serif",
+    }
 }
 
 /// The font of character style `st`: family, size (the vertical scale; writers stretch the
-/// horizontal one), weight and style, lengths written by `len`. The weight is the style's number
-/// (600 for Semibold, 300 for Light), `bold` for 700 and left out for 400.
+/// horizontal one), weight and style, and its Variable Font settings, lengths written by `len`.
+/// The weight is the style's number (600 for Semibold, 300 for Light) or the `wght` setting,
+/// `bold` for 700 and left out for 400. The settings are `font-variation-settings` (`"wght" 650`),
+/// and the `wdth` setting is `font-stretch` too ([`font_stretch`]).
 pub(crate) fn font_props(st: &CharStyle, len: &dyn Fn(f64) -> String) -> Props {
     let mut p = Props::new();
-    let fam = if st.font_family.contains(|c: char| c.is_whitespace() || c == ',') { format!("'{}'", st.font_family) } else { st.font_family.clone() };
-    p.push(("font-family", fam));
+    // A quoted family escapes `\`, `'` and line breaks, which would otherwise end the string early.
+    // Only a plain identifier (no leading digit) can be written bare; anything else is quoted.
+    let bare = st.font_family.chars().next().is_some_and(|c| !c.is_ascii_digit() && c != '-')
+        && st.font_family.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_'));
+    let fam = if !bare { quoted(&st.font_family, '\'') } else { st.font_family.clone() };
+    p.push(("font-family", format!("{fam}{}", generic_fallback(&st.font_family))));
     p.push(("font-size", len(st.size * st.v_scale / 100.0)));
     let (weight, italic) = font_descriptor(st);
     match weight {
@@ -87,6 +144,14 @@ pub(crate) fn font_props(st: &CharStyle, len: &dyn Fn(f64) -> String) -> Props {
     }
     if italic {
         p.push(("font-style", "italic".into()));
+    }
+    if let Some(w) = font_stretch(st) {
+        p.push(("font-stretch", format!("{}%", fmt_num(w, 3))));
+    }
+    let axes: Vec<String> =
+        st.font_axes.iter().filter(|(_, v)| v.is_finite()).map(|(tag, v)| format!("{} {}", css_string(tag), fmt_num(*v, 3))).collect();
+    if !axes.is_empty() {
+        p.push(("font-variation-settings", axes.join(", ")));
     }
     p
 }
@@ -104,15 +169,22 @@ pub(crate) fn type_props(st: &CharStyle, len: &dyn Fn(f64) -> String) -> Props {
         // Manual kerning replaces the font's pair kerning.
         p.push(("font-kerning", "none".into()));
     }
-    if !st.features.is_empty() {
-        let v: Vec<String> = st
-            .features
-            .iter()
-            .map(|t| match t.strip_prefix('-') {
-                Some(off) => format!("\"{off}\" 0"),
-                None => format!("\"{t}\" 1"),
-            })
-            .collect();
+    let mut v: Vec<String> = st
+        .features
+        .iter()
+        .map(|t| match t.strip_prefix('-') {
+            Some(off) => (off, 0),
+            None => (t.as_str(), 1),
+        })
+        // A feature tag is four letters or digits: anything else could end the CSS string.
+        .filter(|(tag, _)| tag.len() == 4 && tag.bytes().all(|b| b.is_ascii_alphanumeric()))
+        .map(|(tag, on)| format!("\"{tag}\" {on}"))
+        .collect();
+    // Proportional Metrics: `palt` (SVG writes vertical type as outlines).
+    if st.proportional_metrics {
+        v.push("\"palt\" 1".into());
+    }
+    if !v.is_empty() {
         p.push(("font-feature-settings", v.join(", ")));
     }
     match (st.underline, st.strikethrough) {
@@ -185,7 +257,7 @@ impl CssUnits {
 pub struct CssOptions {
     pub units: CssUnits,
     /// `position: absolute` with `left` and `top` from the top-left corner of the object's
-    /// artboard (the one its centre is on, else the first).
+    /// artboard (the one its centre is on, its edges included, else the first).
     pub position: bool,
     /// `width` and `height`.
     pub dimensions: bool,
@@ -257,7 +329,7 @@ impl CssSheet {
 /// paragraph's alignment; shadows and glows give `box-shadow` (`text-shadow`), a Gaussian blur
 /// `filter: blur()`. Other art is described as its box (see [`CssOptions::rasterize`]).
 pub fn css_rules(doc: &Document, ids: &[NodeId], opts: &CssOptions) -> CssSheet {
-    let mut w = Rules { doc, opts, sheet: CssSheet::default(), seen: HashSet::new(), names: HashSet::new() };
+    let mut w = Rules { doc, opts, sheet: CssSheet::default(), seen: HashSet::new(), names: HashSet::new(), next_suffix: HashMap::new() };
     for n in ids.iter().filter_map(|id| doc.node(*id)) {
         w.object(n);
     }
@@ -272,6 +344,8 @@ struct Rules<'a> {
     seen: HashSet<NodeId>,
     /// Class names given, lower case.
     names: HashSet<String>,
+    /// The next suffix to try for each base class name, lower case.
+    next_suffix: HashMap<String, usize>,
 }
 
 /// The CSS of one object's art, and why it is approximate.
@@ -303,7 +377,8 @@ impl Rules<'_> {
         if !n.visible {
             return;
         }
-        let plain_group = n.name.is_none() && transparency(n).is_empty() && !n.appearance.effects.iter().any(|e| e.visible) && n.mask.is_none();
+        let plain_group =
+            n.name.is_none() && transparency(n).is_empty() && !n.appearance.effects.iter().any(|e| e.visible) && n.extras().mask.is_none();
         match &n.kind {
             NodeKind::Layer { template: true, .. } | NodeKind::Path { guide: true, .. } => {}
             NodeKind::Layer { children, clip: false, .. } => children.iter().for_each(|c| self.object(c)),
@@ -315,14 +390,18 @@ impl Rules<'_> {
     /// A class name for `name` (an object's, or its kind's), unique in the sheet.
     fn class_name(&mut self, name: &str) -> String {
         let base = sanitize_id(name).replace('.', "_");
-        let mut cand = base.clone();
-        for i in 2.. {
-            if self.names.insert(cand.to_lowercase()) {
-                break;
-            }
-            cand = format!("{base}-{i}");
+        if self.names.insert(base.to_lowercase()) {
+            return base;
         }
-        cand
+        // Each base goes on from the suffix it last gave: objects sharing a name take linear work.
+        let next = self.next_suffix.entry(base.to_lowercase()).or_insert(2);
+        loop {
+            let cand = format!("{base}-{next}");
+            *next += 1;
+            if self.names.insert(cand.to_lowercase()) {
+                return cand;
+            }
+        }
     }
 
     fn rule(&mut self, n: &Node) {
@@ -366,7 +445,7 @@ impl Rules<'_> {
         let Some(b) = b else { return p };
         if self.opts.position {
             let c = b.center();
-            let ab = self.doc.artboards.iter().find(|a| a.rect.contains(c)).or_else(|| self.doc.artboards.first());
+            let ab = self.doc.artboard_holding(c, false).and_then(|i| self.doc.artboards.get(i)).or_else(|| self.doc.artboards.first());
             let origin = ab.map_or(Point::ZERO, |a| Point::new(a.rect.x0, a.rect.y0));
             p.push(("position", "absolute".into()));
             p.push(("left", self.len(b.x0 - origin.x)));
@@ -385,7 +464,7 @@ impl Rules<'_> {
         let mut radius = None;
         let text = match &n.kind {
             NodeKind::Path { path, live, .. } => {
-                match corners(path, live.as_ref()) {
+                match corners(path, live.as_deref()) {
                     Some(Corners::Square) => {}
                     Some(Corners::Round(r)) => radius = Some(r.iter().map(|r| self.len(*r)).collect::<Vec<_>>().join(" ")),
                     Some(Corners::Ellipse) => radius = Some("50%".into()),
@@ -411,7 +490,7 @@ impl Rules<'_> {
         }
         art.props.extend(radius.map(|r| ("border-radius", r)));
         self.effects(n, text, &mut art);
-        if n.mask.as_ref().is_some_and(|m| !m.disabled) {
+        if n.extras().mask.as_ref().is_some_and(|m| !m.disabled) {
             art.unsupported("an opacity mask");
         }
         art
@@ -515,14 +594,24 @@ impl Rules<'_> {
         }
     }
 
-    /// Type: its first character style's font, colour and spacing, its paragraph's alignment.
+    /// Type: its first character style's font, colour and spacing, its paragraph's alignment. The
+    /// font size is the em size the characters are drawn at
+    /// ([`vectorcraft_text::FontDb::font_heights_resolved`]).
     fn type_art(&mut self, n: &Node, t: &vectorcraft_doc::TextObject, art: &mut Art) {
+        let resolved = vectorcraft_text::FontDb::global().font_heights_resolved(t);
+        let t = &*resolved;
         if matches!(t.kind, TextKind::OnPath { .. }) {
             art.unsupported("type on a path");
         }
         if n.appearance.items.iter().any(|i| i.visible() && !i.paint().is_none()) {
             art.unsupported("fills or strokes on the type object");
         }
+        // Area type that Shrink Text to Fit scales down is written in the styles it draws in.
+        let fitted = matches!((&t.kind, t.area.fit), (TextKind::Area { .. }, vectorcraft_doc::AreaFit::ShrinkText { .. }))
+            .then(|| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).fit_scale)
+            .filter(|f| *f != 1.0)
+            .map(|f| vectorcraft_text::scaled(t, f));
+        let t = fitted.as_ref().unwrap_or(t);
         let st = t.first_style();
         if t.runs.iter().any(|r| r.style != st) {
             self.warn("type with several character styles is written in its first one");
@@ -544,8 +633,12 @@ impl Rules<'_> {
         if let Some(l) = st.leading {
             art.props.push(("line-height", self.len(l)));
         }
+        // One element: the first paragraph's alignment.
+        if (1..t.paragraph_count()).any(|i| t.para_at(i).justify != t.para.justify) {
+            art.unsupported("paragraphs aligned differently");
+        }
         let align = match t.para.justify {
-            Justify::Left => None,
+            Justify::Auto | Justify::Left => None,
             Justify::Center => Some("center"),
             Justify::Right => Some("right"),
             Justify::JustifyLeft | Justify::JustifyCenter | Justify::JustifyRight | Justify::JustifyAll => Some("justify"),
@@ -556,7 +649,8 @@ impl Rules<'_> {
         }
     }
 
-    /// Shadows and glows as `box-shadow` (type: `text-shadow`), a Gaussian blur as `filter`.
+    /// Shadows and glows as `box-shadow` (type: `text-shadow`), a Gaussian blur as `filter`. A drop
+    /// shadow with Darkness is left out and the art marked unsupported.
     fn effects(&mut self, n: &Node, text: bool, art: &mut Art) {
         let fx = &n.appearance.effects;
         if fx.iter().any(|e| e.visible && !vectorcraft_effects::is_raster(&e.id)) {
@@ -566,6 +660,7 @@ impl Rules<'_> {
         let mut filter = None;
         for f in vectorcraft_effects::raster_effects(fx) {
             match f {
+                RasterFx::DropShadow { darkness: Some(_), .. } => art.unsupported("drop shadows with Darkness"),
                 RasterFx::DropShadow { opacity, dx, dy, blur, color, .. } => {
                     shadows.push(format!("{} {} {} {}", self.len(dx), self.len(dy), self.len(blur), color_css(&color, opacity)))
                 }
@@ -573,8 +668,9 @@ impl Rules<'_> {
                 RasterFx::InnerGlow { opacity, blur, color, center: false, .. } if !text => {
                     shadows.push(format!("inset 0 0 {} {}", self.len(blur), color_css(&color, opacity)))
                 }
-                RasterFx::GaussianBlur { radius } => filter = Some(format!("blur({})", self.len(radius / 2.0))),
+                RasterFx::GaussianBlur { radius, .. } => filter = Some(format!("blur({})", self.len(radius / 2.0))),
                 RasterFx::InnerGlow { .. } | RasterFx::Feather { .. } => art.unsupported("inner glows or feathering"),
+                RasterFx::Pixel(_) | RasterFx::Rasterize(_) => art.unsupported("pixel effects"),
             }
         }
         if !shadows.is_empty() {
@@ -599,23 +695,33 @@ fn corners(path: &PathData, live: Option<&LiveShape>) -> Option<Corners> {
         let [_, b, c, _, _, _] = xf.as_coeffs();
         b.abs() < 1e-9 && c.abs() < 1e-9
     };
-    match live {
-        Some(LiveShape::Rectangle { radii, xf, .. }) if upright(xf) => {
-            let [a, _, _, d, _, _] = xf.as_coeffs();
-            let s = (a * d).abs().sqrt();
+    // Sizes and radii in document units.
+    match live.map(LiveShape::folded).as_ref() {
+        // CSS rounds corners only: an inverted round or chamfered corner has no border radius.
+        Some(LiveShape::Rectangle { w, h, radii, kinds, radii_relative, xf })
+            if upright(xf) && radii.iter().zip(kinds).all(|(r, k)| *r <= 0.0 || *k == CornerKind::Round) =>
+        {
+            // The radii as drawn: no two neighbours' cuts add up to more than their side, so CSS
+            // draws them as they are.
+            let base = shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, *w, *h));
+            let resolved = vectorcraft_doc::corners::resolve_stored_radii(&base, radii, *radii_relative);
+            let stored = std::array::from_fn(|i| resolved.get(i).copied().unwrap_or(0.0));
+            let radii = shapes::fitted_corner_radii(*w, *h, stored);
             if radii.iter().all(|r| *r <= 0.0) {
                 Some(Corners::Square)
             } else if radii.iter().all(|r| (r - radii[0]).abs() < 1e-9) {
-                Some(Corners::Round(vec![radii[0] * s]))
+                Some(Corners::Round(vec![radii[0]]))
             } else {
-                Some(Corners::Round(radii.iter().map(|r| r.max(0.0) * s).collect()))
+                Some(Corners::Round(radii.to_vec()))
             }
         }
         Some(LiveShape::Ellipse { pie, xf, .. }) if upright(xf) => {
             let sweep = (pie.1 - pie.0).abs();
             (sweep < 1e-6 || (sweep - 360.0).abs() < 1e-6).then_some(Corners::Ellipse)
         }
-        Some(LiveShape::Rectangle { .. } | LiveShape::Ellipse { .. } | LiveShape::Polygon { .. } | LiveShape::Line { .. }) => None,
+        Some(
+            LiveShape::Rectangle { .. } | LiveShape::Ellipse { .. } | LiveShape::Polygon { .. } | LiveShape::Line { .. } | LiveShape::Path { .. },
+        ) => None,
         None => is_upright_rectangle(path).then_some(Corners::Square),
     }
 }
@@ -630,4 +736,47 @@ fn is_upright_rectangle(path: &PathData) -> bool {
         && sp.anchors.iter().all(|a| corner(a.p))
         && b.width() > 0.0
         && b.height() > 0.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn family(name: &str) -> String {
+        let st = CharStyle { font_family: name.into(), ..CharStyle::default() };
+        let p = font_props(&st, &|v| format!("{v}px"));
+        p.into_iter().find(|(k, _)| *k == "font-family").unwrap().1
+    }
+
+    #[test]
+    fn font_family_quoted_unless_plain_identifier() {
+        assert!(family("04b03").starts_with("'04b03'"), "{}", family("04b03"));
+        assert!(family("a;b").starts_with("'a;b'"));
+        assert!(family("a\"b").starts_with("'a\"b'"));
+        assert!(family("a(b").starts_with("'a(b'"));
+        assert!(family("Arial").starts_with("Arial,"));
+    }
+
+    #[test]
+    fn class_names_sharing_a_base_take_the_next_free_suffix() {
+        let doc = Document::new(10.0, 10.0);
+        let opts = CssOptions::default();
+        let mut w =
+            Rules { doc: &doc, opts: &opts, sheet: CssSheet::default(), seen: HashSet::new(), names: HashSet::new(), next_suffix: HashMap::new() };
+        assert_eq!(w.class_name("a-3"), "a-3");
+        let names: Vec<String> = (0..4).map(|_| w.class_name("A")).collect();
+        assert_eq!(names, ["A", "A-2", "A-4", "A-5"]);
+        // Many objects of one name: each suffix is tried once.
+        for _ in 0..20_000 {
+            w.class_name("b");
+        }
+        assert_eq!(w.next_suffix["b"], 20_001);
+    }
+
+    #[test]
+    fn line_breaks_and_tags_cannot_end_a_string() {
+        assert!(family("a\n} * {color:red").starts_with(r"'a\a } * {color:red'"), "{}", family("a\n} * {color:red"));
+        assert_eq!(css_string("w\r\"</style>"), r#""w\d \"\3c /style\3e ""#);
+        assert_eq!(css_string("wght"), "\"wght\"");
+    }
 }

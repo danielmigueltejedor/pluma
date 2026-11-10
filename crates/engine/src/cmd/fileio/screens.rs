@@ -1,23 +1,33 @@
 //! File → Export → Export for Screens (`document.exportForScreens`): the chosen artboards (or the
-//! whole document, or the chosen assets of the Asset Export panel) in every format row at each
-//! row's size, into a folder and its sub-folders, or returned for download (each file, or one ZIP);
-//! the presets the dialog offers; and the settings the document remembers
+//! whole document, the chosen assets of the Asset Export panel, layers, or the selection) in every
+//! format row at each row's size, into a folder and its sub-folders, or returned for download (each
+//! file, or one ZIP); the presets the dialog offers; and the settings the document remembers
 //! (`document.exportSettings`), which the Asset Export panel shares ([`SHARED_KEYS`]).
+//!
+//! A batch export names every file from one pattern (`name`, see [`super::naming`]: the document's
+//! and the item's names, a counter, the date), and sorts the files into folders by row, by format,
+//! by item, or by item and format (`folders`).
 
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use vectorcraft_doc::Document;
 use vectorcraft_geom::Rect;
 
-use super::super::*;
+use super::super::{EngineError, NodeId, Result, Session, bad, bool_or, str_param};
 use super::encode::single_artboard;
-use super::export::{isolated, without_artboards};
-use super::{ARTBOARD_PARAMS, ArtboardPick, Format, artboard_file_names, create_dir, encode, unique_file_names, writable, write_file};
+use super::export::{export_crop, isolated, selected_artwork, without_artboards};
+use super::naming::{self, NameParts};
+use super::{
+    ARTBOARD_PARAMS, ArtboardPick, Format, artboard_file_names_keeping_dots, create_dir, distinct_names_by, encode_with_warnings, merge,
+    unique_file_names_keeping_dots, with_black_output, writable, write_file,
+};
 
 const C: &str = "document.exportForScreens";
+/// The Asset Export panel's export, which exports through [`export`].
+const ASSETS: &str = "assets.export";
 
 /// How big a raster row's files are.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -36,7 +46,14 @@ impl ScreenSize {
     /// `2x` (or `2`), `100w`, `100h` or `72ppi`, in any case; positive numbers only.
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim().to_ascii_lowercase();
-        let num = |t: &str| t.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v > 0.0);
+        // Digits and `.` only: `str::parse` would also take `+2`, `1e2`, `inf` and `nan`.
+        let num = |t: &str| {
+            let t = t.trim();
+            if !t.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
+                return None;
+            }
+            t.parse::<f64>().ok().filter(|v| v.is_finite() && *v > 0.0)
+        };
         if let Some(n) = s.strip_suffix("ppi") {
             return num(n).map(Self::Ppi);
         }
@@ -78,9 +95,9 @@ impl ScreenSize {
         }
     }
 
-    /// Pixels per point for `region`.
-    fn scale_for(self, region: Rect) -> Result<f64> {
-        let per = |px: f64, pt: f64| (pt > 0.0).then(|| px / pt).ok_or_else(|| bad(C, "an empty artboard has no width or height to scale to"));
+    /// Pixels per point for `region` (`cmd` names the command in the error).
+    pub(super) fn scale_for(self, cmd: &str, region: Rect) -> Result<f64> {
+        let per = |px: f64, pt: f64| (pt > 0.0).then(|| px / pt).ok_or_else(|| bad(cmd, "an empty artboard has no width or height to scale to"));
         match self {
             Self::Width(w) => per(w, region.width()),
             Self::Height(h) => per(h, region.height()),
@@ -141,8 +158,45 @@ fn safe_name(s: &str) -> Option<String> {
     (!n.trim_matches('.').is_empty()).then_some(n)
 }
 
+/// Text that goes into a file name (prefix, suffix, a data set's name in Batch, a name pattern's text
+/// and the names it puts in): the characters Windows does not allow in a file name (`/`, `\`, `:`,
+/// `<`, `>`, `"`, `|`, `?`, `*` and the control characters U+0000 to U+001F,
+/// <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>) become `-` on every
+/// platform, so the name cannot make a subfolder or point outside the folder the file is written to.
+pub(super) fn file_part(s: &str) -> String {
+    s.chars().map(|c| if matches!(c, '/' | '\\' | ':' | '<' | '>' | '"' | '|' | '?' | '*') || c < ' ' { '-' } else { c }).collect()
+}
+
+/// A whole file or folder name (`Logo@2x.png`, a sub-folder) through [`file_part`], without
+/// trailing periods and spaces, and with `-` after a Windows device name that is the whole name or
+/// comes before its first period: `CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9` and `LPT1` to `LPT9`,
+/// also with `¹`, `²` or `³` for the digit, in any case (`CON.png` becomes `CON-.png`). The same on
+/// every platform. Spaces between the device name and the period are dropped (`CON .png` becomes
+/// `CON-.png`).
+pub(crate) fn safe_file_name(s: &str) -> String {
+    name_without_device(&file_part(s))
+}
+
+/// [`safe_file_name`] without [`file_part`]: drops trailing periods and spaces and puts `-` after a
+/// Windows device name, and keeps every other character, so a source file name with `\` or `:` keeps
+/// it where the file system allows it.
+pub(super) fn name_without_device(name: &str) -> String {
+    let name = name.trim_end_matches(['.', ' ']);
+    let (base, rest) = name.split_at(name.find('.').unwrap_or(name.len()));
+    // Windows ignores spaces before the extension, so `CON .png` is the CON device too.
+    let base = base.trim_end_matches(' ');
+    let upper = base.to_ascii_uppercase();
+    let numbered = |n: &str| n.chars().count() == 1 && n.chars().all(|c| matches!(c, '1'..='9' | '¹' | '²' | '³'));
+    let device = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || upper.strip_prefix("COM").or_else(|| upper.strip_prefix("LPT")).is_some_and(numbered);
+    if device { format!("{base}-{rest}") } else { name.to_string() }
+}
+
 /// Keys of a format row that aren't encoder options.
-const ROW_KEYS: [&str; 7] = ["format", "scale", "ppi", "width", "height", "suffix", "folder"];
+pub(crate) const ROW_KEYS: [&str; 7] = ["format", "scale", "ppi", "width", "height", "suffix", "folder"];
+
+/// The writable formats a format row can't name.
+pub(crate) const UNWRITTEN_FORMATS: [&str; 5] = ["template", "txt", "dxf", "emf", "wmf"];
 
 /// One format row: what to write, at which size, with which suffix, into which sub-folder.
 struct Row {
@@ -153,6 +207,8 @@ struct Row {
     folder: String,
     /// The encoder options: the format's settings, then the row's own.
     options: Value,
+    /// What makes two rows the same file: format, size, suffix and options.
+    key: String,
 }
 
 impl Row {
@@ -161,15 +217,15 @@ impl Row {
             return Err(bad(C, "each format is an object {format, scale?, suffix?}"));
         }
         let format = writable(C, Some(str_param(row, "format").unwrap_or("png")), None)?;
-        if matches!(format.id, "vectorcraft" | "template" | "txt" | "dxf" | "eps" | "emf" | "wmf") {
-            return Err(bad(C, "Export for Screens writes png, png8, jpg, webp, gif, svg, svgz or pdf"));
+        if UNWRITTEN_FORMATS.contains(&format.id) {
+            return Err(bad(C, "Export for Screens writes png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai or vectorcraft"));
         }
         // Vector formats have no pixel size: it doesn't apply and adds no @2x suffix (not even one
         // left over from a raster row switched to SVG or PDF).
         let size = if format.raster { ScreenSize::of_row(row)? } else { ScreenSize::Scale(1.0) };
         let suffix = match str_param(row, "suffix") {
             Some(s) if !format.raster && is_size_suffix(s) => String::new(),
-            Some(s) => s.to_string(),
+            Some(s) => file_part(s),
             None => size.suffix(),
         };
         let folder = match str_param(row, "folder").and_then(safe_name) {
@@ -195,13 +251,21 @@ impl Row {
         let options = Value::Object(options);
         // A PDF preset (built-in or saved) becomes its settings.
         let options = if format.id == "pdf" { super::pdf::expand_preset(s, C, &options)?.into_owned() } else { options };
-        Ok(Self { format, size, suffix, folder, options })
+        // Two rows that would write the same bytes under the same name are one file.
+        let key = format!("{}|{}|{suffix}|{options}", format.id, size.label());
+        Ok(Self { format, size, suffix, folder, options, key })
+    }
+
+    /// Formats that hold a whole document to edit (native, Illustrator, EPS): written from a
+    /// document of the item alone, one artboard, rather than with an `artboard` option.
+    fn whole_document(&self) -> bool {
+        matches!(self.format.id, "vectorcraft" | "ai" | "eps")
     }
 
     /// The encoder options for `region`, `artboard` of the document written.
     fn options_for(&self, region: Rect, artboard: Option<usize>) -> Result<Value> {
         let mut o = self.options.clone();
-        if let Some(b) = artboard {
+        if let Some(b) = artboard.filter(|_| !self.whole_document()) {
             o["artboard"] = json!(b);
         }
         if self.format.raster {
@@ -209,7 +273,7 @@ impl Row {
                 // The resolution is stored in the file too.
                 ScreenSize::Ppi(ppi) => o["ppi"] = json!(ppi),
                 size => {
-                    o["scale"] = json!(size.scale_for(region)?);
+                    o["scale"] = json!(size.scale_for(C, region)?);
                     if let Some(m) = o.as_object_mut() {
                         m.remove("ppi");
                     }
@@ -222,7 +286,37 @@ impl Row {
 
 /// The settings the Asset Export panel shares with the dialog: what is exported, not which art
 /// or where to.
-pub(crate) const SHARED_KEYS: [&str; 6] = ["formats", "preset", "settings", "prefix", "subfolders", "antiAlias"];
+pub const SHARED_KEYS: [&str; 6] = ["formats", "preset", "settings", "prefix", "subfolders", "antiAlias"];
+
+/// The keys `document.exportForScreens` reads: those of [`ScreenParams`], the formats and their
+/// settings, `antiAlias`, `exportPreset` and `openLocation`, which the app reads.
+pub(crate) const PARAM_KEYS: [&str; 25] = [
+    "artboard",
+    "artboards",
+    "range",
+    "folder",
+    "zip",
+    "fullDocument",
+    "includeBleed",
+    "includeArtboardFill",
+    "subfolders",
+    "preset",
+    "prefix",
+    "assets",
+    "layers",
+    "selection",
+    "name",
+    "counterStart",
+    "counterPer",
+    "date",
+    "folders",
+    "pdfs",
+    "formats",
+    "settings",
+    "antiAlias",
+    "exportPreset",
+    "openLocation",
+];
 
 /// What `document.exportForScreens` reads besides the formats.
 #[derive(Default, Deserialize)]
@@ -234,16 +328,173 @@ struct ScreenParams {
     zip: bool,
     full_document: bool,
     include_bleed: bool,
+    /// Include Artboard Fill: the artboards' background colors behind the art (default on).
+    include_artboard_fill: Option<bool>,
     subfolders: bool,
     preset: Option<String>,
     prefix: Option<String>,
     /// Asset ids (Asset Export) to write instead of artboards.
     assets: Option<Vec<u64>>,
+    /// Layer ids to write instead of artboards: each layer's art alone.
+    layers: Option<Vec<u64>>,
+    /// The selection instead of artboards: `one` file of it all, or one for `each` object.
+    selection: Option<String>,
+    /// The file name pattern ([`naming`]); without it, `prefix` + name + suffix.
+    name: Option<String>,
+    /// The counter's first value (`####` in `name`).
+    counter_start: Option<u64>,
+    /// The counter counts `item`s (every file of an artboard has its number) or `file`s.
+    counter_per: Option<String>,
+    /// The date the pattern's date tokens use (`YYYY-MM-DD`); default today (UTC).
+    date: Option<String>,
+    /// Where files go: `none` (all in the folder), `rows` (the rows' sub-folders, as
+    /// `subfolders`), `format` (a folder per extension), `item`, or `itemFormat`.
+    folders: Option<String>,
+    /// Export PDFs As: `single` (the artboards a PDF row writes are the pages of one file) or
+    /// `multiple` (a file per artboard, the default).
+    pdfs: Option<String>,
+}
+
+/// How exported files are sorted into folders.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Folders {
+    None,
+    Rows,
+    Format,
+    Item,
+    ItemFormat,
+}
+
+impl Folders {
+    fn of(o: &ScreenParams) -> Result<Self> {
+        Ok(match o.folders.as_deref() {
+            None if o.subfolders || o.preset.is_some() => Self::Rows,
+            None | Some("none" | "") => Self::None,
+            Some("rows") => Self::Rows,
+            Some("format") => Self::Format,
+            Some("item") => Self::Item,
+            Some("itemFormat") => Self::ItemFormat,
+            Some(f) => return Err(bad(C, format!("folders `{f}`: none, rows, format, item or itemFormat"))),
+        })
+    }
+}
+
+/// One thing a batch export writes a file of per row: an artboard, an asset, a layer, the
+/// selection or one selected object, or the whole document.
+struct Item {
+    /// Its name as the user gave it (`<name>`).
+    name: String,
+    /// Its name made safe and unique among the items (the default file name, the item folder).
+    stem: String,
+    /// The document written: the whole document with `artboard`, or the item alone.
+    doc: Arc<Document>,
+    artboard: Option<usize>,
+    region: Rect,
+    /// Full Document: what a PDF row writes (every artboard of the document).
+    every_artboard: Option<Arc<Document>>,
 }
 
 impl ScreenParams {
     fn of(p: &Value) -> Result<Self> {
         if p.is_object() { Self::deserialize(p).map_err(|e| bad(C, e.to_string())) } else { Ok(Self::default()) }
+    }
+
+    /// An error when more than one of `assets`, `layers`, `selection` and `fullDocument` is given.
+    fn one_source(&self) -> Result<()> {
+        let sources = [self.full_document, self.assets.is_some(), self.layers.is_some(), self.selection.is_some()].iter().filter(|b| **b).count();
+        if sources > 1 {
+            return Err(bad(C, "give one of assets, layers, selection or fullDocument"));
+        }
+        Ok(())
+    }
+
+    /// `selection`: `None` without it, `Some(false)` for `one` file, `Some(true)` for `each` object.
+    fn selection_mode(&self) -> Result<Option<bool>> {
+        match self.selection.as_deref() {
+            None => Ok(None),
+            Some("one") => Ok(Some(false)),
+            Some("each") => Ok(Some(true)),
+            Some(m) => Err(bad(C, format!("selection `{m}`: one or each"))),
+        }
+    }
+}
+
+/// How a batch export names its files and sorts them into folders.
+struct Naming {
+    /// The `name` pattern, when it holds more than spaces.
+    pattern: Option<String>,
+    /// The `prefix`, through [`file_part`].
+    prefix: String,
+    /// The document's name, safe as a file name (`<filename>`, the Full Document's item).
+    filename: String,
+    /// The date and time the pattern's tokens use.
+    when: [i64; 6],
+    counter_start: u64,
+    /// The counter counts files rather than items.
+    per_file: bool,
+    folders: Folders,
+    /// Export PDFs As › Single file.
+    single_pdf: bool,
+}
+
+impl Naming {
+    /// The naming of params `o` for a document named `title`: its file's path, or its title before it is saved.
+    fn of(o: &ScreenParams, title: &str) -> Result<Self> {
+        let folders = Folders::of(o)?;
+        // A prefix names files, not folders.
+        let prefix = file_part(o.prefix.as_deref().unwrap_or(""));
+        let when = match o.date.as_deref() {
+            Some(d) => naming::parse_date(d).ok_or_else(|| bad(C, format!("date `{d}`: YYYY-MM-DD")))?,
+            None => vectorcraft_doc::metadata::output_time().map_or([1970, 1, 1, 0, 0, 0], vectorcraft_doc::metadata::civil),
+        };
+        let per_file = match o.counter_per.as_deref() {
+            None | Some("item") => false,
+            Some("file") => true,
+            Some(c) => return Err(bad(C, format!("counterPer `{c}`: item or file"))),
+        };
+        let single_pdf = match o.pdfs.as_deref() {
+            None | Some("multiple") => false,
+            Some("single") => true,
+            Some(m) => return Err(bad(C, format!("pdfs `{m}`: single or multiple"))),
+        };
+        let filename = safe_name(&super::file_stem(title)).unwrap_or_else(|| "Untitled".into());
+        let pattern = o.name.clone().filter(|n| !n.trim().is_empty());
+        Ok(Self { pattern, prefix, filename, when, counter_start: o.counter_start.unwrap_or(1), per_file, folders, single_pdf })
+    }
+
+    /// The sub-folder (`None` for the export folder itself) and the file name of the file row `r`
+    /// writes of `item`, the `index`th item (from 0), when `files` files came before it.
+    fn file(&self, item: &Item, index: usize, files: u64, r: &Row) -> (Option<String>, String) {
+        let counter = self.counter_start.saturating_add(if self.per_file { files } else { index as u64 });
+        let ext = r.format.extensions.first().copied().unwrap_or(r.format.id);
+        let prefix = &self.prefix;
+        let stem = match self.pattern.as_deref() {
+            Some(pattern) => {
+                let parts = NameParts {
+                    filename: &self.filename,
+                    name: &item.name,
+                    index: index + 1,
+                    counter,
+                    format: ext,
+                    scale: &if r.format.raster { r.size.label() } else { String::new() },
+                    suffix: &r.suffix,
+                    when: self.when,
+                };
+                let named = naming::render(pattern, &parts);
+                let named = if named.is_empty() { item.stem.clone() } else { named };
+                if naming::has_suffix_token(pattern) { format!("{prefix}{named}") } else { format!("{prefix}{named}{}", r.suffix) }
+            }
+            None => format!("{prefix}{}{}", item.stem, r.suffix),
+        };
+        let file = safe_file_name(&format!("{stem}.{ext}"));
+        let sub = match self.folders {
+            Folders::None => None,
+            Folders::Rows => Some(safe_file_name(&r.folder)),
+            Folders::Format => Some(ext.to_string()),
+            Folders::Item => Some(item.stem.clone()),
+            Folders::ItemFormat => Some(format!("{}/{ext}", item.stem)),
+        };
+        (sub, file)
     }
 }
 
@@ -278,13 +529,42 @@ pub(crate) fn check_settings(s: &Session, p: &Value) -> Result<()> {
     rows_of(s, p, ScreenParams::of(p)?.preset.as_deref()).map(|_| ())
 }
 
+/// `name` the way a case-insensitive file system compares names: lower-cased, then each character
+/// upper-cased where its upper case is one character. Names with the same lower case give the
+/// same key, and so do `ΟΣ`, `ος` and `οσ` (`ΟΣ`); `ᾈ` and `ᾀ` give `ᾀ`, and `ß` stays `ß`.
+/// Dotless `ı` stays `ı`, as NTFS and Unicode case folding outside Turkic languages keep it apart
+/// from `i` and `I`.
+fn fold(name: &str) -> String {
+    name.to_lowercase()
+        .chars()
+        .map(|c| {
+            if c == 'ı' {
+                return c;
+            }
+            let mut upper = c.to_uppercase();
+            match (upper.next(), upper.next()) {
+                (Some(u), None) => u,
+                _ => c,
+            }
+        })
+        .collect()
+}
+
 /// The file names (and bytes) an export wrote, or the files it returns.
 #[derive(Default)]
 struct Output {
-    /// Lower-case relative names already used (two identical rows write one file).
-    taken: HashSet<String>,
-    /// Sub-folders already made.
+    /// Relative names already used, by their [`fold`]ed spelling, with what wrote each (two
+    /// identical rows write one file; different files that would share a name get `-2`, `-3`…).
+    taken: std::collections::HashMap<String, String>,
+    /// Each sub-folder as the first file in it spells it, by its [`fold`]ed name.
+    folders: std::collections::HashMap<String, String>,
+    /// Sub-folders already made, by their [`fold`]ed names.
     made: HashSet<String>,
+    /// For each [`fold`]ed name asked for, the number to try next: many files given one name
+    /// would otherwise try `-2`, `-3`… from the start each time.
+    next: std::collections::HashMap<String, u64>,
+    /// Each [`fold`]ed name asked for with the file (`key`) that got a name from it.
+    claimed: HashSet<(String, String)>,
     /// `(relative name, bytes)` kept to return or zip (empty when written to a folder).
     kept: Vec<(String, Vec<u8>)>,
     /// The paths written.
@@ -292,22 +572,67 @@ struct Output {
 }
 
 impl Output {
-    /// Is `name` new (not written by an identical row already)?
-    fn claim(&mut self, name: &str) -> bool {
-        self.taken.insert(name.to_lowercase())
+    /// The name the file `key` writes as `name` takes: `name`, else `name-2`, `name-3`… when
+    /// another file has it, with or without a name pattern; `None` when the same file (`key`) was
+    /// written as `name` already. Names are compared without case, and a sub-folder keeps the
+    /// spelling of the first file put in it.
+    fn claim(&mut self, name: &str, key: &str) -> Option<String> {
+        let name = match name.rsplit_once('/') {
+            Some((dir, file)) => {
+                let dir = self.folders.entry(fold(dir)).or_insert_with(|| dir.to_string());
+                format!("{dir}/{file}")
+            }
+            None => name.to_string(),
+        };
+        let asked = (fold(&name), key.to_string());
+        // The same file under the same name again: it has its name already.
+        if self.claimed.contains(&asked) {
+            return None;
+        }
+        let (base, ext) = name.rsplit_once('.').map_or((name.as_str(), ""), |(b, e)| (b, e));
+        let start = self.next.get(&asked.0).copied().unwrap_or(1);
+        for n in start.. {
+            let candidate = if n == 1 {
+                name.to_string()
+            } else if ext.is_empty() {
+                format!("{base}-{n}")
+            } else {
+                format!("{base}-{n}.{ext}")
+            };
+            match self.taken.get(&fold(&candidate)) {
+                Some(k) if k == key => return None,
+                Some(_) => continue,
+                None => {
+                    self.taken.insert(fold(&candidate), key.to_string());
+                    self.next.insert(asked.0.clone(), n + 1);
+                    self.claimed.insert(asked);
+                    return Some(candidate);
+                }
+            }
+        }
+        None
     }
 
-    /// Write `bytes` as `name` (relative) under `folder`, or keep them.
-    fn put(&mut self, folder: Option<&str>, keep: bool, name: String, bytes: Vec<u8>) -> Result<()> {
+    /// Write `bytes` as `name` (relative) under `folder` with `writer`, or keep them.
+    fn put(
+        &mut self,
+        folder: Option<&str>,
+        keep: bool,
+        name: String,
+        bytes: Vec<u8>,
+        writer: &mut dyn FnMut(&str, &[u8]) -> Result<()>,
+    ) -> Result<()> {
         match folder {
             Some(dir) if !keep => {
                 if let Some((sub, _)) = name.rsplit_once('/')
-                    && self.made.insert(sub.to_lowercase())
+                    && self.made.insert(fold(sub))
                 {
                     create_dir(&format!("{dir}/{sub}"))?;
                 }
                 let path = format!("{dir}/{name}");
-                write_file(&path, &bytes)?;
+                // A cancel that came while the file was encoded writes nothing more.
+                vectorcraft_doc::cancel::check()?;
+                writer(&path, &bytes)?;
                 self.written.push(path);
             }
             _ => self.kept.push((name, bytes)),
@@ -316,31 +641,340 @@ impl Output {
     }
 }
 
-/// File → Export for Screens: [`export`], with the params remembered in the document
-/// (`document.exportSettings`).
+/// File → Export for Screens: [`export`] (over the settings of `exportPreset`, when given), with
+/// the params remembered in the document (`document.exportSettings`).
 pub(super) fn export_for_screens(s: &mut Session, p: &Value) -> Result<Value> {
-    let r = export(s, p)?;
-    remember(s, p);
+    let p = with_preset(s, p)?;
+    let r = export(s, &p)?;
+    remember(s, &p);
     Ok(r)
 }
 
-/// Every chosen artboard in every format row, one file each (a PDF holds its artboard alone), or
-/// with `fullDocument` one file per row (a PDF of every artboard, else the bounds of all art), or
-/// with `assets` each asset's art alone, cropped to it. Artboards (assets) that share a name get
-/// `-2`, `-3`… instead of overwriting.
+// ---------- export presets ----------
+
+/// A saved batch export: what to write and how to name and sort it, to use again
+/// (`document.exportPresets.*`, `exportPreset`). Kept with the preferences.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ScreenExportPreset {
+    pub name: String,
+    /// The [`PRESET_KEYS`] of `document.exportForScreens` params.
+    pub settings: Map<String, Value>,
+}
+
+/// What a preset keeps: the formats, their settings, the naming and the folders; not which art
+/// (it changes with the document) nor where to (unless given).
+pub const PRESET_KEYS: [&str; 14] = [
+    "formats",
+    "settings",
+    "preset",
+    "name",
+    "prefix",
+    "counterStart",
+    "counterPer",
+    "folders",
+    "subfolders",
+    "includeBleed",
+    "includeArtboardFill",
+    "antiAlias",
+    "folder",
+    "fullDocument",
+];
+
+/// The built-in export presets: (name, settings).
+pub fn builtin_presets() -> Vec<ScreenExportPreset> {
+    let marks = json!({"trim": true, "registration": true, "colorBars": true, "pageInfo": true});
+    let preset = |name: &str, settings: Value| ScreenExportPreset { name: name.into(), settings: settings.as_object().cloned().unwrap_or_default() };
+    vec![
+        preset(
+            "Logo Package",
+            json!({
+                "name": "<filename>-<name>",
+                "folders": "format",
+                "formats": [
+                    {"format": "svg"},
+                    {"format": "png", "scale": "1x", "suffix": ""},
+                    {"format": "png", "scale": "2x", "suffix": "@2x"},
+                    {"format": "pdf"},
+                    {"format": "pdf", "suffix": "-print", "marks": marks},
+                ],
+            }),
+        ),
+        preset("Print-Ready PDF", json!({"formats": [{"format": "pdf", "suffix": "-print", "marks": marks, "bleed": {"useDocument": true}}]})),
+    ]
+}
+
+/// The preset called `name`: a saved one, else a built-in one.
+fn find_preset(s: &Session, name: &str) -> Option<ScreenExportPreset> {
+    s.prefs.screen_export_presets.iter().find(|p| p.name == name).cloned().or_else(|| builtin_presets().into_iter().find(|p| p.name == name))
+}
+
+/// `p` over the settings of its `exportPreset`, when it names one (its own keys win).
+pub(super) fn with_preset(s: &Session, p: &Value) -> Result<Value> {
+    let Some(name) = str_param(p, "exportPreset") else { return Ok(p.clone()) };
+    let preset = find_preset(s, name).ok_or_else(|| bad(C, format!("no export preset `{name}` (see document.exportPresets.list)")))?;
+    let mut merged = preset.settings;
+    if let Some(o) = p.as_object() {
+        merged.extend(o.iter().filter(|(k, _)| k.as_str() != "exportPreset").map(|(k, v)| (k.clone(), v.clone())));
+    }
+    Ok(Value::Object(merged))
+}
+
+/// The rows of `document.exportPresets.list`: the built-in presets, then `saved`, each
+/// `{name, builtIn, settings}`.
+pub fn preset_list(saved: &[ScreenExportPreset]) -> Value {
+    let row = |p: &ScreenExportPreset, built_in: bool| json!({"name": p.name, "builtIn": built_in, "settings": p.settings});
+    Value::Array(builtin_presets().iter().map(|p| row(p, true)).chain(saved.iter().map(|p| row(p, false))).collect())
+}
+
+pub(super) fn presets_list(s: &mut Session, _: &Value) -> Result<Value> {
+    Ok(json!({ "presets": preset_list(&s.prefs.screen_export_presets) }))
+}
+
+/// The [`PRESET_KEYS`] of `given`, refused as an error of command `cmd` when an export would
+/// refuse them.
+fn preset_settings(s: &Session, cmd: &str, given: &Map<String, Value>) -> Result<Map<String, Value>> {
+    let settings: Map<String, Value> = given.iter().filter(|(k, _)| PRESET_KEYS.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect();
+    // Refuse what an export would refuse, now rather than when the preset is used.
+    check_settings(s, &Value::Object(settings.clone())).map_err(|e| bad(cmd, e.to_string()))?;
+    Folders::of(&ScreenParams::of(&Value::Object(settings.clone()))?).map_err(|e| bad(cmd, e.to_string()))?;
+    let mut settings = settings;
+    remove_passwords(&mut settings);
+    Ok(settings)
+}
+
+/// The longest export preset name kept (characters), as for asset names (`assets::MAX_NAME`).
+const MAX_PRESET_NAME: usize = 255;
+
+/// `name` trimmed and at most [`MAX_PRESET_NAME`] characters long (`None` when empty), as
+/// `assets::clean_name` keeps an asset name.
+fn preset_name(name: &str) -> Option<String> {
+    let n: String = name.trim().chars().take(MAX_PRESET_NAME).collect();
+    (!n.is_empty()).then_some(n)
+}
+
+pub(super) fn presets_save(s: &mut Session, p: &Value) -> Result<Value> {
+    const SAVE: &str = "document.exportPresets.save";
+    let name = str_param(p, "name").and_then(preset_name).ok_or_else(|| bad(SAVE, "give the preset a name"))?;
+    if builtin_presets().iter().any(|b| b.name == name) {
+        return Err(bad(SAVE, format!("`{name}` is a built-in preset: save under another name")));
+    }
+    let given = p.get("settings").and_then(Value::as_object).ok_or_else(|| bad(SAVE, "settings is an object of document.exportForScreens params"))?;
+    let settings = preset_settings(s, SAVE, given)?;
+    let preset = ScreenExportPreset { name: name.clone(), settings };
+    let created = match s.prefs.screen_export_presets.iter_mut().find(|q| q.name == name) {
+        Some(slot) => {
+            *slot = preset.clone();
+            false
+        }
+        None => {
+            s.prefs.screen_export_presets.push(preset.clone());
+            true
+        }
+    };
+    Ok(json!({ "name": name, "created": created, "settings": preset.settings }))
+}
+
+pub(super) fn presets_delete(s: &mut Session, p: &Value) -> Result<Value> {
+    const DELETE: &str = "document.exportPresets.delete";
+    let name = str_param(p, "name").ok_or_else(|| bad(DELETE, "missing `name`"))?;
+    if builtin_presets().iter().any(|b| b.name == name) {
+        return Err(bad(DELETE, format!("`{name}` is built in and stays")));
+    }
+    let before = s.prefs.screen_export_presets.len();
+    s.prefs.screen_export_presets.retain(|q| q.name != name);
+    if s.prefs.screen_export_presets.len() == before {
+        return Err(bad(DELETE, format!("no saved export preset `{name}`")));
+    }
+    Ok(json!({ "deleted": name }))
+}
+
+/// What `document.exportPresets.export` writes and `document.exportPresets.import` reads.
+#[derive(Serialize, Deserialize)]
+struct PresetFile {
+    format: String,
+    #[serde(default)]
+    presets: Vec<ScreenExportPreset>,
+}
+
+/// The `format` of an export presets file, also its extension.
+pub const PRESET_FILE_FORMAT: &str = "vcexportpresets";
+
+/// The extensions of export presets files (opening one imports it).
+pub const PRESET_FILE_EXTS: &[&str] = &[PRESET_FILE_FORMAT];
+
+/// The most presets one file imports.
+const MAX_IMPORT: usize = 1000;
+
+/// The most bytes in an export presets file.
+const MAX_PRESET_FILE_BYTES: usize = 4 << 20;
+
+pub(super) fn presets_export(s: &mut Session, p: &Value) -> Result<Value> {
+    const EXPORT: &str = "document.exportPresets.export";
+    // A file holds no more presets than an import reads.
+    let too_many = || bad(EXPORT, format!("more than {MAX_IMPORT} presets"));
+    let presets = match p.get("names") {
+        Some(Value::Array(names)) if names.len() > MAX_IMPORT => return Err(too_many()),
+        Some(Value::Array(names)) => {
+            let find = |n: &Value| {
+                let n = n.as_str().ok_or_else(|| bad(EXPORT, "`names` lists preset names"))?;
+                find_preset(s, n).ok_or_else(|| bad(EXPORT, format!("no export preset `{n}` (see document.exportPresets.list)")))
+            };
+            names.iter().map(find).collect::<Result<Vec<_>>>()?
+        }
+        None | Some(Value::Null) => s.prefs.screen_export_presets.clone(),
+        Some(_) => return Err(bad(EXPORT, "`names` is a list of preset names")),
+    };
+    if presets.is_empty() {
+        return Err(bad(EXPORT, "no saved export presets to export (name built-in ones in `names`)"));
+    }
+    if presets.len() > MAX_IMPORT {
+        return Err(too_many());
+    }
+    let count = presets.len();
+    let text = serde_json::to_string_pretty(&PresetFile { format: PRESET_FILE_FORMAT.into(), presets }).map_err(|e| bad(EXPORT, e.to_string()))?;
+    if text.len() > MAX_PRESET_FILE_BYTES {
+        return Err(bad(EXPORT, format!("export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes")));
+    }
+    match str_param(p, "path") {
+        Some(path) => {
+            write_file(path, text.as_bytes())?;
+            Ok(json!({"path": path, "count": count}))
+        }
+        None => Ok(json!({"data": text, "count": count})),
+    }
+}
+
+pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
+    const IMPORT: &str = "document.exportPresets.import";
+    let bytes = match (str_param(p, "path"), str_param(p, "data"), str_param(p, "dataBase64")) {
+        (Some(path), ..) => super::read_file_head(path, MAX_PRESET_FILE_BYTES + 1)?,
+        (None, Some(text), _) => {
+            if text.len() > MAX_PRESET_FILE_BYTES {
+                return Err(bad(IMPORT, format!("export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes")));
+            }
+            text.as_bytes().to_vec()
+        }
+        (None, None, Some(b64)) => {
+            if b64.bytes().filter(|b| !b.is_ascii_whitespace()).count() > MAX_PRESET_FILE_BYTES.div_ceil(3) * 4 {
+                return Err(bad(IMPORT, format!("export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes")));
+            }
+            vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(IMPORT, "bad dataBase64"))?
+        }
+        _ => return Err(bad(IMPORT, "give `path`, `data` or `dataBase64`")),
+    };
+    if bytes.len() > MAX_PRESET_FILE_BYTES {
+        return Err(bad(IMPORT, format!("export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes")));
+    }
+    let file: PresetFile = serde_json::from_slice(&bytes).map_err(|e| bad(IMPORT, format!("not an export presets file: {e}")))?;
+    if file.format != PRESET_FILE_FORMAT {
+        return Err(bad(IMPORT, format!("not an export presets file (format `{}`)", file.format)));
+    }
+    if file.presets.len() > MAX_IMPORT {
+        return Err(bad(IMPORT, format!("more than {MAX_IMPORT} presets")));
+    }
+    // Settings a hand-edited file may carry are refused as document.exportPresets.save refuses
+    // them, before any preset is added.
+    let mut presets = vec![];
+    for q in file.presets {
+        let settings = preset_settings(s, IMPORT, &q.settings).map_err(|e| match e {
+            EngineError::BadParams { msg, .. } => bad(IMPORT, format!("`{}`: {msg}", q.name)),
+            e => e,
+        })?;
+        let name = preset_name(&q.name).unwrap_or_else(|| "Export Preset".to_string());
+        presets.push((name, settings));
+    }
+    let replace = bool_or(p, "replace", false);
+    let saved = &mut s.prefs.screen_export_presets;
+    let saved_before = saved.len();
+    // A built-in name, or a saved one that stays, gets a number.
+    let mut taken: std::collections::HashSet<String> =
+        builtin_presets().into_iter().map(|b| b.name).chain(saved.iter().map(|q| q.name.clone())).collect();
+    let mut imported = vec![];
+    for (base, settings) in presets {
+        if replace && let Some(slot) = saved.iter_mut().take(saved_before).find(|q| q.name == base) {
+            slot.settings = settings;
+            imported.push(base);
+            continue;
+        }
+        let mut name = super::import_name(&base, |n| taken.contains(n));
+        if name.chars().count() > MAX_PRESET_NAME {
+            // A number after a long name stays within the limit: the name is cut to leave room for
+            // a space and the longest number.
+            let short: String = base.chars().take(MAX_PRESET_NAME - 21).collect();
+            let short = short.trim_end();
+            name = super::import_name(short, |n| n == short || taken.contains(n));
+        }
+        taken.insert(name.clone());
+        saved.push(ScreenExportPreset { name: name.clone(), settings });
+        imported.push(name);
+    }
+    Ok(json!({ "imported": imported }))
+}
+
+/// `settings` (a document's export settings) with export preset `name` applied as the Asset
+/// Export panel applies one: its formats (or mobile/density `preset`), its format settings over
+/// the ones there, its prefix (none when it has none), its folders (`folders`, or `subfolders`)
+/// with Create Sub-folders on for a folder per row, and its anti-aliasing.
+pub(crate) fn with_export_preset(s: &Session, cmd: &str, settings: &mut Map<String, Value>, name: &str) -> Result<()> {
+    let preset = find_preset(s, name).ok_or_else(|| bad(cmd, format!("no export preset `{name}` (see document.exportPresets.list)")))?.settings;
+    if let Some(formats) = preset.get("formats") {
+        settings.insert("formats".into(), formats.clone());
+        settings.remove("preset");
+    } else if let Some(p) = preset.get("preset") {
+        settings.insert("preset".into(), p.clone());
+        settings.remove("formats");
+    }
+    if let Some(given) = preset.get("settings").and_then(Value::as_object) {
+        let all = settings.entry("settings").or_insert_with(|| json!({}));
+        if !all.is_object() {
+            *all = json!({});
+        }
+        if let Some(all) = all.as_object_mut() {
+            for (id, o) in given {
+                match (all.get_mut(id).and_then(Value::as_object_mut), o.as_object()) {
+                    (Some(mine), Some(o)) => mine.extend(o.iter().map(|(k, v)| (k.clone(), v.clone()))),
+                    _ => _ = all.insert(id.clone(), o.clone()),
+                }
+            }
+        }
+    }
+    match preset.get("prefix") {
+        Some(prefix) => _ = settings.insert("prefix".into(), prefix.clone()),
+        None => _ = settings.remove("prefix"),
+    }
+    // Its `folders` (Export for Screens shows it; empty is none, as an export reads it), else its
+    // `subfolders` (a folder per row or none). Create Sub-folders is on for a folder per row, as
+    // the dialog sets it.
+    let folders = preset
+        .get("folders")
+        .and_then(Value::as_str)
+        .map(|f| if f.is_empty() { "none" } else { f })
+        .or_else(|| preset.get("subfolders").and_then(Value::as_bool).map(|b| if b { "rows" } else { "none" }));
+    if let Some(f) = folders {
+        settings.insert("folders".into(), json!(f));
+        settings.insert("subfolders".into(), json!(f == "rows"));
+    }
+    if let Some(aa) = preset.get("antiAlias") {
+        settings.insert("antiAlias".into(), aa.clone());
+    }
+    Ok(())
+}
+
+/// Every chosen artboard (asset, layer, selected object) in every format row, one file each (a PDF
+/// holds its artboard alone), or with `fullDocument` one file per row (a PDF of every artboard,
+/// else the bounds of all art). Items that share a name get `-2`, `-3`… instead of overwriting, and
+/// so do different files that would share a name, with or without the `name` pattern. The reply's
+/// `warnings` lists every warning the encoders give for the files, each once.
 pub(crate) fn export(s: &mut Session, p: &Value) -> Result<Value> {
+    check_passwords(p)?;
     let o = ScreenParams::of(p)?;
     let rows = rows_of(s, p, o.preset.as_deref())?;
-    if o.full_document && o.assets.is_some() {
-        return Err(bad(C, "give assets or fullDocument, not both"));
-    }
-    let subfolders = o.subfolders || o.preset.is_some();
-    // A prefix names files, not folders.
-    let prefix: String = o.prefix.as_deref().unwrap_or("").chars().map(|c| if matches!(c, '/' | '\\' | ':') { '-' } else { c }).collect();
-    let folder = o.folder.as_deref().filter(|f| !f.is_empty());
-    if let Some(dir) = folder {
-        create_dir(dir)?;
-    }
+    o.one_source()?;
+    // `<filename>`: the document's file, as Save names it, or its title before it is saved.
+    let st = s.doc()?;
+    let naming = Naming::of(&o, st.path.as_deref().unwrap_or(&st.doc.title))?;
+    let selection = o.selection_mode()?;
+    let selected = if selection.is_some() { selected_artwork(s)? } else { vec![] };
     let doc = s.doc()?.doc.clone();
     // Include Bleed: each artboard grown by the document's bleed.
     let doc = if o.include_bleed && doc.setup.has_bleed() {
@@ -352,92 +986,330 @@ pub(crate) fn export(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         doc
     };
-    let name_of = |r: &Row, stem: &str| {
-        let file = format!("{prefix}{stem}{}.{}", r.suffix, r.format.extensions[0]);
-        if subfolders { format!("{}/{file}", r.folder) } else { file }
-    };
+    let crop = rows.iter().any(|r| r.format.id != "pdf");
+    let items = items(&doc, &o, selection, &selected, &naming.filename, crop, true)?;
+    // Appearance of Black › Printing / Exporting for RGB raster rows.
+    // Include Artboard Fill off: the encoders leave the background colors out.
+    let fill = if o.include_artboard_fill == Some(false) { json!({ "includeArtboardFill": false }) } else { json!({}) };
+    let rows = rows.into_iter().map(|r| Row { options: merge(with_black_output(s, &r.options), fill.clone()), ..r }).collect();
+    let export = ScreenExport { cmd: C, o, rows, naming, items };
+    match &mut s.screens_hand_off {
+        Some(slot) => {
+            *slot = Some(export);
+            Ok(Value::Null)
+        }
+        None => export.write(&mut |path, bytes| write_file(path, bytes)),
+    }
+}
+
+/// An export as `document.exportForScreens` and `assets.export` take it from the session: the
+/// params, the format rows, the naming, and each item with the document it writes
+/// ([`Session::prepare_screen_export`]). [`ScreenExport::write`] encodes and writes its files
+/// without the session, on any thread.
+pub struct ScreenExport {
+    /// The command whose errors it gives: `document.exportForScreens` or `assets.export`.
+    cmd: &'static str,
+    o: ScreenParams,
+    rows: Vec<Row>,
+    naming: Naming,
+    items: Vec<Item>,
+}
+
+impl Session {
+    /// Run `assets.export` when `id` names it, else `document.exportForScreens`, with `params` as
+    /// a command (checked and journaled as any other; Export for Screens remembers its settings)
+    /// that encodes and writes nothing → the export it prepared, which [`ScreenExport::write`]
+    /// encodes and writes (on the desktop with Background Export on, Export for Screens and the
+    /// Asset Export panel do this on the background thread).
+    pub fn prepare_screen_export(&mut self, id: &str, params: &Value) -> Result<ScreenExport> {
+        let cmd = if id == ASSETS { ASSETS } else { C };
+        self.screens_hand_off = Some(None);
+        let r = self.execute(cmd, params);
+        let handed = self.screens_hand_off.take().flatten();
+        match (r, handed) {
+            (Err(e), _) => Err(e),
+            (Ok(_), Some(export)) => Ok(ScreenExport { cmd, ..export }),
+            // Every run that succeeds hands one over.
+            (Ok(_), None) => Err(bad(cmd, "nothing to export")),
+        }
+    }
+}
+
+impl ScreenExport {
+    /// Make the export folder, encode the files and write each with `writer` into the folder and
+    /// its sub-folders, or keep them to zip (the zip written with `writer` into the folder) or to
+    /// return → the reply of `document.exportForScreens`. It reports one progress step per file
+    /// ([`vectorcraft_doc::cancel::progress`]), and a cancel stops it before it encodes or writes
+    /// another file.
+    pub fn write(self, writer: &mut dyn FnMut(&str, &[u8]) -> Result<()>) -> Result<Value> {
+        let cmd = self.cmd;
+        // A refusal names `assets.export` when that command prepared the export, as its reply does.
+        encode_and_write(self, writer).map_err(|e| if cmd == C { e } else { crate::cmd::assets::of_cmd(cmd, e) })
+    }
+}
+
+/// [`ScreenExport::write`].
+fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) -> Result<()>) -> Result<Value> {
+    let ScreenExport { o, rows, naming, items, .. } = export;
+    let folder = o.folder.as_deref().filter(|f| !f.is_empty());
+    if let Some(dir) = folder {
+        create_dir(dir)?;
+    }
     let mut out = Output::default();
-    if o.full_document {
-        let stem = safe_name(&super::file_stem(&doc.title)).unwrap_or_else(|| "Untitled".into());
-        // The bounds of all visible art, as the one artboard of the files that aren't PDFs.
-        let mut whole: Option<Document> = None;
+    // The encoders' warnings for every file, each once.
+    let mut warnings: Vec<String> = Vec::new();
+    // Include Bleed: a grown artboard already holds the bleed. Assets, layers and a selection are
+    // written on a page of their own bounds, which it doesn't grow.
+    let bleed_on_page = o.include_bleed && o.assets.is_none() && o.layers.is_none() && o.selection.is_none();
+    let mut write = |doc: &Document, format: &str, options: &Value| -> Result<Vec<u8>> {
+        // The steps are the files: an encoder's own steps (artboards, pages) are not reported.
+        let (bytes, notes) = vectorcraft_doc::cancel::quiet(|| encode_with_warnings(doc, format, options))?;
+        for w in notes {
+            if !(bleed_on_page && w == super::pdf::BLEED_LEFT_OUT) && !warnings.contains(&w) {
+                warnings.push(w);
+            }
+        }
+        Ok(bytes)
+    };
+    // A whole-document copy of an artboard, for the formats that write documents to edit.
+    let mut board_docs: std::collections::HashMap<usize, Arc<Document>> = std::collections::HashMap::new();
+    let mut files = 0u64;
+    // One step per item and row, the files a name collision skips included.
+    let steps = (items.len() * rows.len()) as u64;
+    let mut step = 0u64;
+    // Export PDFs As › Single file: with several artboards, a PDF row writes them all as the pages
+    // of one file, named as the document, with the first of them.
+    let artboards: Option<Vec<usize>> = items.iter().map(|i| i.artboard).collect::<Option<Vec<_>>>().filter(|a| naming.single_pdf && a.len() > 1);
+    for (index, item) in items.iter().enumerate() {
         for r in &rows {
-            let name = name_of(r, &stem);
-            if !out.claim(&name) {
+            vectorcraft_doc::cancel::check()?;
+            vectorcraft_doc::cancel::progress(step, steps, &format!("Exporting file {} of {steps}", step + 1));
+            step += 1;
+            let single = artboards.as_ref().filter(|_| r.format.id == "pdf");
+            if single.is_some() && index > 0 {
                 continue;
             }
-            let bytes = if r.format.id == "pdf" {
+            let document = single.map(|_| Item {
+                name: naming.filename.clone(),
+                stem: naming.filename.clone(),
+                doc: item.doc.clone(),
+                artboard: None,
+                region: item.region,
+                every_artboard: None,
+            });
+            let (sub, file) = naming.file(document.as_ref().unwrap_or(item), index, files, r);
+            let name = sub.map_or_else(|| file.clone(), |d| format!("{d}/{file}"));
+            let Some(name) = out.claim(&name, &format!("{}|{}", item.stem, r.key)) else { continue };
+            let bytes = if let Some(boards) = single {
+                let mut options = r.options.clone();
+                options["range"] = json!(boards.iter().map(|b| (b + 1).to_string()).collect::<Vec<_>>().join(", "));
+                write(&item.doc, "pdf", &options)?
+            } else if let (Some(all), "pdf") = (&item.every_artboard, r.format.id) {
                 // One page per artboard.
                 let mut options = r.options.clone();
                 options["range"] = json!("all");
-                encode(&doc, "pdf", &options)?
+                write(all, "pdf", &options)?
+            } else if r.whole_document() && item.artboard.is_some() {
+                let b = item.artboard.unwrap_or(0);
+                // That artboard alone, as Save's separateArtboards writes it: its art, not the others' (#3868).
+                let d = board_docs
+                    .entry(b)
+                    .or_insert_with(|| {
+                        let mut d = single_artboard(&item.doc, item.region, &item.name);
+                        // It keeps its background color.
+                        if let (Some(a), Some(from)) = (d.artboards.first_mut(), item.doc.artboards.get(b)) {
+                            a.color = from.color;
+                        }
+                        super::save::keep_art_on(&mut d, item.region);
+                        Arc::new(d)
+                    })
+                    .clone();
+                let mut options = r.options_for(item.region, None)?;
+                // An EPS page is the artboard, not its art's bounds: an artboard without art still writes.
+                if r.format.id == "eps" {
+                    options["useArtboards"] = json!(true);
+                }
+                write(&d, r.format.id, &options)?
             } else {
-                if whole.is_none() {
-                    let bounds =
-                        vectorcraft_render::encode::art_bounds(&doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
-                    whole = Some(single_artboard(&doc, bounds, "Document"));
-                }
-                let Some(d) = whole.as_ref() else { continue };
-                let region = d.artboards.first().map_or(Rect::ZERO, |a| a.rect);
-                encode(d, r.format.id, &r.options_for(region, Some(0))?)?
+                write(&item.doc, r.format.id, &r.options_for(item.region, item.artboard)?)?
             };
-            out.put(folder, o.zip, name, bytes)?;
+            out.put(folder, o.zip, name, bytes, writer)?;
+            files += 1;
         }
-    } else if let Some(ids) = &o.assets {
-        let assets =
-            ids.iter().map(|id| doc.asset(*id).ok_or_else(|| bad(C, format!("no asset {id} (see assets.list)")))).collect::<Result<Vec<_>>>()?;
-        if assets.is_empty() {
-            return Err(bad(C, "no assets to export"));
-        }
-        for (a, stem) in assets.iter().zip(unique_file_names(assets.iter().map(|a| (a.name.as_str(), "Asset".to_string())))) {
-            let (d, bounds) = isolated(&doc, &doc.paint_order(a.nodes.iter().copied()), &a.name)
-                .ok_or_else(|| bad(C, format!("asset `{}` has no art to export", a.name)))?;
-            for r in &rows {
-                let name = name_of(r, &stem);
-                if !out.claim(&name) {
-                    continue;
-                }
-                let bytes = encode(&d, r.format.id, &r.options_for(bounds, Some(0))?)?;
-                out.put(folder, o.zip, name, bytes)?;
-            }
-        }
-    } else {
-        let n = doc.artboards.len();
-        let boards = o.boards.resolve(n).map_err(|e| bad(C, e))?.unwrap_or_else(|| (0..n).collect());
-        if boards.is_empty() {
-            return Err(bad(C, "the document has no artboard"));
-        }
-        for (b, stem) in boards.iter().copied().zip(artboard_file_names(&doc, &boards)) {
-            let region = doc.artboards.get(b).map_or(Rect::ZERO, |a| a.rect);
-            for r in &rows {
-                let name = name_of(r, &stem);
-                if !out.claim(&name) {
-                    continue; // the same file from two identical rows
-                }
-                let bytes = encode(&doc, r.format.id, &r.options_for(region, Some(b))?)?;
-                out.put(folder, o.zip, name, bytes)?;
-            }
-        }
+    }
+    // A cancel that came while the last file was encoded returns no files. A folder export
+    // without a ZIP has written every file by now, so it returns them.
+    if o.zip || folder.is_none() {
+        vectorcraft_doc::cancel::check()?;
     }
     let names: Vec<&str> = out.kept.iter().map(|(n, _)| n.as_str()).collect();
     if o.zip {
-        let zip = super::zip::store(&out.kept).map_err(|e| bad(C, e))?;
-        let zip_name = format!("{prefix}{}.zip", safe_name(&super::file_stem(&doc.title)).unwrap_or_else(|| "Untitled".into()));
+        let zip = super::zip::deflate(&out.kept, super::zip::FIXED_TIME, vectorcraft_doc::cancel::is_cancelled);
+        // A cancel that came while the files were deflated returns and writes no archive.
+        vectorcraft_doc::cancel::check()?;
+        let zip = zip.map_err(|e| bad(C, e))?;
+        let zip_name = safe_file_name(&format!("{}{}.zip", naming.prefix, naming.filename));
         return match folder {
             Some(dir) => {
                 let path = format!("{dir}/{zip_name}");
-                write_file(&path, &zip)?;
-                Ok(json!({ "path": path, "bytes": zip.len(), "files": names }))
+                writer(&path, &zip)?;
+                Ok(json!({ "path": path, "bytes": zip.len(), "files": names, "warnings": warnings }))
             }
-            None => Ok(json!({ "name": zip_name, "dataBase64": vectorcraft_format::base64_encode(&zip), "bytes": zip.len(), "files": names })),
+            None => Ok(
+                json!({ "name": zip_name, "dataBase64": vectorcraft_format::base64_encode(&zip), "bytes": zip.len(), "files": names, "warnings": warnings }),
+            ),
         };
     }
     Ok(match folder {
-        Some(_) => json!({ "files": out.written }),
+        Some(_) => json!({ "files": out.written, "warnings": warnings }),
         None => {
-            json!({ "files": out.kept.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).collect::<Vec<_>>() })
+            let files: Vec<Value> =
+                out.kept.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).collect();
+            json!({ "files": files, "warnings": warnings })
         }
     })
+}
+
+/// The path, relative to the export folder, of the first file `document.exportForScreens` with
+/// params `p` writes (sub-folders included: `2x/Logo@2x.png`): the first format row's file of the
+/// first artboard, asset, layer or selected object, or of the whole document, named as [`export`]
+/// names it. It encodes and writes nothing and cuts no art out of the document: of the objects
+/// selected for a file each, it measures only the first ones, up to the first that draws something.
+/// It does not refuse what the export refuses for drawing nothing: a checked asset or layer, the
+/// selection as one file, or the Full Document with no visible art.
+/// The Export for Screens dialog shows it on its Example line.
+pub fn first_file(s: &Session, p: &Value) -> Result<String> {
+    let p = with_preset(s, p)?;
+    let o = ScreenParams::of(&p)?;
+    let rows = rows_of(s, &p, o.preset.as_deref())?;
+    o.one_source()?;
+    let selection = o.selection_mode()?;
+    let st = s.doc()?;
+    let doc = &st.doc;
+    let mut selected = if selection.is_some() { selected_artwork(s)? } else { vec![] };
+    // A file per object: objects that draw nothing write no file.
+    if selection == Some(true) {
+        selected = selected.into_iter().find(|id| export_crop(doc, &[*id]).is_some()).into_iter().collect();
+    }
+    let naming = Naming::of(&o, st.path.as_deref().unwrap_or(&doc.title))?;
+    let items = items(doc, &o, selection, &selected, &naming.filename, false, false)?;
+    let (Some(item), Some(r)) = (items.first(), rows.first()) else { return Err(bad(C, "nothing to export")) };
+    let (sub, file) = naming.file(item, 0, 0, r);
+    Ok(sub.map_or_else(|| file.clone(), |d| format!("{d}/{file}")))
+}
+
+/// What `o` exports a file of per row ([`Item`]): the whole document, the assets, the layers, the
+/// selection (one item, or one per object), else the chosen artboards.
+/// `crop`: some row needs the Full Document's art bounds (a format other than PDF). `art`: each
+/// asset, layer and selected object is cut out of the document; without it, only the items' names
+/// are made, every item holds the whole document, and none is left out for drawing nothing.
+fn items(
+    doc: &Arc<Document>,
+    o: &ScreenParams,
+    selection: Option<bool>,
+    selected: &[NodeId],
+    filename: &str,
+    crop: bool,
+    art: bool,
+) -> Result<Vec<Item>> {
+    // The art of `ids` alone, as an item named `name`.
+    let alone = |ids: &[NodeId], name: &str| -> Option<(Arc<Document>, Rect)> {
+        if !art {
+            return Some((doc.clone(), Rect::ZERO));
+        }
+        isolated(doc, &doc.paint_order(ids.iter().copied()), name).map(|(d, r)| (Arc::new(d), r))
+    };
+    // Each item's stem follows Windows' file-naming rules, and no two items share one, compared as
+    // the item folders are (`fold`).
+    let safe = |stems: Vec<String>| distinct_names_by(stems.iter().map(|s| safe_file_name(s)), fold);
+    let named = |pieces: Vec<(String, Arc<Document>, Option<usize>, Rect)>, fallback: &str| -> Vec<Item> {
+        let stems = safe(unique_file_names_keeping_dots(pieces.iter().map(|(n, ..)| (n.as_str(), fallback.to_string()))));
+        pieces
+            .into_iter()
+            .zip(stems)
+            .map(|((name, doc, artboard, region), stem)| Item { name, stem, doc, artboard, region, every_artboard: None })
+            .collect()
+    };
+    if o.full_document {
+        // The bounds of all visible art, as the one artboard of the files that aren't PDFs (a PDF
+        // row writes every artboard of the document itself). It is named after the document: an
+        // SVG of one artboard takes the artboard's name as its title (#3544), and this one stands
+        // for the whole document.
+        let (whole, region) = if crop {
+            let bounds = vectorcraft_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
+            (Arc::new(single_artboard(doc, bounds, &doc.title)), bounds)
+        } else {
+            (doc.clone(), Rect::ZERO)
+        };
+        let name = filename.to_string();
+        let stem = safe_file_name(&name);
+        return Ok(vec![Item { name, stem, doc: whole, artboard: Some(0), region, every_artboard: Some(doc.clone()) }]);
+    }
+    if let Some(ids) = &o.assets {
+        let mut pieces = vec![];
+        for id in ids {
+            let a = doc.asset(*id).ok_or_else(|| bad(C, format!("no asset {id} (see assets.list)")))?;
+            if a.format_3d.is_some() {
+                return Err(bad(C, format!("asset {id} is a 3D asset: assets.export3D writes it")));
+            }
+            let (d, r) = alone(&a.nodes, &a.name).ok_or_else(|| bad(C, format!("asset `{}` has no art to export", a.name)))?;
+            pieces.push((a.name.clone(), d, Some(0), r));
+        }
+        if pieces.is_empty() {
+            return Err(bad(C, "no assets to export"));
+        }
+        return Ok(named(pieces, "Asset"));
+    }
+    if let Some(ids) = &o.layers {
+        let mut pieces = vec![];
+        for id in ids {
+            let layer = doc.node(NodeId(*id)).filter(|n| n.is_layer()).ok_or_else(|| bad(C, format!("no layer {id} (see layer.list)")))?;
+            let mut art = vec![];
+            crate::cmd::assets::art_under(doc, layer.id, &mut art);
+            let name = layer.display_name();
+            let (d, r) = alone(&art, &name).ok_or_else(|| bad(C, format!("layer `{name}` has no art to export")))?;
+            pieces.push((name, d, Some(0), r));
+        }
+        if pieces.is_empty() {
+            return Err(bad(C, "no layers to export"));
+        }
+        return Ok(named(pieces, "Layer"));
+    }
+    if let Some(each) = selection {
+        if selected.is_empty() {
+            return Err(bad(C, "select something to export"));
+        }
+        let mut pieces = vec![];
+        if each {
+            for id in selected {
+                let name = doc.node(*id).map(|n| n.display_name()).filter(|n| !n.is_empty()).unwrap_or_else(|| "Selection".into());
+                if let Some((d, r)) = alone(&[*id], &name) {
+                    pieces.push((name, d, Some(0), r));
+                }
+            }
+        } else if let Some((d, r)) = alone(selected, "Selection") {
+            pieces.push(("Selection".to_string(), d, Some(0), r));
+        }
+        if pieces.is_empty() {
+            return Err(bad(C, "the selection has no art to export"));
+        }
+        return Ok(named(pieces, "Selection"));
+    }
+    let n = doc.artboards.len();
+    let boards = o.boards.resolve(n).map_err(|e| bad(C, e))?.unwrap_or_else(|| (0..n).collect());
+    if boards.is_empty() {
+        return Err(bad(C, "the document has no artboard"));
+    }
+    let stems = safe(artboard_file_names_keeping_dots(doc, &boards));
+    Ok(boards
+        .into_iter()
+        .zip(stems)
+        .map(|(b, stem)| {
+            let a = doc.artboards.get(b);
+            let name = a.map(|a| a.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| stem.clone());
+            Item { name, stem, doc: doc.clone(), artboard: Some(b), region: a.map_or(Rect::ZERO, |a| a.rect), every_artboard: None }
+        })
+        .collect())
 }
 
 /// Keep the params of a successful export in the document (without `zip`, a delivery detail, and
@@ -451,9 +1323,61 @@ fn remember(s: &mut Session, p: &Value) {
     let _ = store_settings(s, settings);
 }
 
+/// The PDF passwords an export may be given (`security` of a PDF row or of `settings.pdf`).
+const PASSWORD_KEYS: [&str; 2] = ["openPassword", "permissionsPassword"];
+
+/// Left where [`remove_passwords`] took a password out: an export of these settings is refused
+/// until a password is given again ([`check_passwords`]), rather than written unprotected.
+const PASSWORD_REQUIRED: &str = "passwordRequired";
+
+/// `settings` without the PDF passwords anywhere in them: settings kept in the document (which
+/// native saves write) or in the preferences hold the export's choices, never its secrets, as
+/// the PDF settings themselves are saved without them. Where one was given, [`PASSWORD_REQUIRED`]
+/// says so.
+fn remove_passwords(settings: &mut Map<String, Value>) {
+    let mut removed = false;
+    for key in PASSWORD_KEYS {
+        removed |= settings.remove(key).is_some_and(|v| v.as_str().is_none_or(|p| !p.is_empty()));
+    }
+    if removed {
+        settings.insert(PASSWORD_REQUIRED.into(), Value::Bool(true));
+    }
+    for v in settings.values_mut() {
+        remove_passwords_in(v);
+    }
+}
+
+/// Refuse export params `v` that hold settings whose PDF passwords were left out
+/// ([`PASSWORD_REQUIRED`]) without a password given again.
+fn check_passwords(v: &Value) -> Result<()> {
+    match v {
+        Value::Object(m) => {
+            let given = PASSWORD_KEYS.iter().any(|k| m.get(*k).and_then(Value::as_str).is_some_and(|p| !p.is_empty()));
+            if m.get(PASSWORD_REQUIRED) == Some(&Value::Bool(true)) && !given {
+                return Err(bad(
+                    C,
+                    "the PDF security settings were saved without their passwords: give openPassword or permissionsPassword again, or security without passwordRequired to export unprotected",
+                ));
+            }
+            m.values().try_for_each(check_passwords)
+        }
+        Value::Array(items) => items.iter().try_for_each(check_passwords),
+        _ => Ok(()),
+    }
+}
+
+fn remove_passwords_in(v: &mut Value) {
+    match v {
+        Value::Object(m) => remove_passwords(m),
+        Value::Array(items) => items.iter_mut().for_each(remove_passwords_in),
+        _ => {}
+    }
+}
+
 /// Make `settings` the document's export settings. Not an undo step (like the settings of any
 /// export); the document has changed only if they differ.
-pub(crate) fn store_settings(s: &mut Session, settings: Map<String, Value>) -> Result<()> {
+pub(crate) fn store_settings(s: &mut Session, mut settings: Map<String, Value>) -> Result<()> {
+    remove_passwords(&mut settings);
     let st = s.doc_mut()?;
     if st.doc.export_settings != settings {
         Arc::make_mut(&mut st.doc).export_settings = settings;
@@ -465,4 +1389,67 @@ pub(crate) fn store_settings(s: &mut Session, settings: Map<String, Value>) -> R
 /// `document.exportSettings`: the Export for Screens settings the document last exported with.
 pub(super) fn export_settings(s: &mut Session, _: &Value) -> Result<Value> {
     Ok(json!({ "settings": s.doc()?.doc.export_settings }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Output, ScreenSize, safe_file_name};
+
+    /// Files given one name are numbered in turn, each numbering going on from the last one (so
+    /// thousands of them don't each try every number used before), and a file asking again for
+    /// the name it got is told it has it.
+    #[test]
+    fn taken_names_are_numbered_from_the_last_number() {
+        let mut out = Output::default();
+        assert_eq!(out.claim("a.png", "1").as_deref(), Some("a.png"));
+        assert_eq!(out.claim("A.png", "2").as_deref(), Some("A-2.png"));
+        assert_eq!(out.claim("a-3.png", "x").as_deref(), Some("a-3.png"));
+        assert_eq!(out.claim("a.png", "3").as_deref(), Some("a-4.png"));
+        assert_eq!(out.claim("a.png", "2"), None);
+        assert_eq!(out.claim("a.png", "1"), None);
+        assert_eq!(out.claim("sub/a.png", "1").as_deref(), Some("sub/a.png"));
+        for k in 0..20_000 {
+            assert!(out.claim("same.png", &k.to_string()).is_some());
+        }
+        assert_eq!(out.claim("same.png", "last").as_deref(), Some("same-20001.png"));
+    }
+
+    #[test]
+    fn size_parse_refuses_signs_and_exponents() {
+        for s in ["+2x", "+2", "+100w", "+100h", "+72ppi", "-2x", "1e2", "2e0w"] {
+            assert_eq!(ScreenSize::parse(s), None, "{s}");
+        }
+        assert_eq!(ScreenSize::parse("2x"), Some(ScreenSize::Scale(2.0)));
+        assert_eq!(ScreenSize::parse("1.5"), Some(ScreenSize::Scale(1.5)));
+        assert_eq!(ScreenSize::parse("100W"), Some(ScreenSize::Width(100.0)));
+        assert_eq!(ScreenSize::parse("72ppi"), Some(ScreenSize::Ppi(72.0)));
+    }
+
+    #[test]
+    fn device_name_with_space_before_extension_is_protected() {
+        assert_eq!(safe_file_name("CON.png"), "CON-.png");
+        assert_eq!(safe_file_name("CON .png"), "CON-.png");
+        assert_eq!(safe_file_name("NUL .png"), "NUL-.png");
+        assert_eq!(safe_file_name("COM1 .png"), "COM1-.png");
+        assert_eq!(safe_file_name("lpt9  .png"), "lpt9-.png");
+        assert_eq!(safe_file_name("My CON .png"), "My CON .png");
+    }
+
+    /// The settings an export leaves in the document keep its PDF security choices but not its
+    /// passwords, in a row or in `settings.pdf`.
+    #[test]
+    fn stored_settings_leave_out_pdf_passwords() {
+        let mut s = crate::Session::new();
+        s.execute("file.new", &serde_json::json!({"width": 100, "height": 100})).unwrap();
+        let given = serde_json::json!({
+            "formats": [{"format": "pdf", "security": {"openPassword": "open sesame", "permissionsPassword": "owner", "printing": "low"}}],
+            "settings": {"pdf": {"security": {"openPassword": "open sesame", "copy": false}}},
+        });
+        super::store_settings(&mut s, given.as_object().unwrap().clone()).unwrap();
+        let kept = serde_json::Value::Object(s.doc().unwrap().doc.export_settings.clone());
+        assert!(!kept.to_string().contains("Password"), "{kept}");
+        assert_eq!(kept["formats"][0]["security"]["printing"], "low");
+        assert_eq!(kept["settings"]["pdf"]["security"]["copy"], false);
+        assert_eq!(kept["formats"][0]["security"]["passwordRequired"], true);
+    }
 }

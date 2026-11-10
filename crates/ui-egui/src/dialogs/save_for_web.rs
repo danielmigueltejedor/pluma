@@ -33,13 +33,14 @@ use crate::{VectorcraftApp, io, widgets};
 pub const KIND: &str = "saveForWeb";
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
-    heading: |_| "Save for Web".into(),
+    heading: |_| tl!("Save for Web").into(),
     body,
     confirm,
     ok: Some("Save…"),
     ok_label: Some(|app| if io::is_web(app) { "Download" } else { "Save…" }),
     discard: Some("Done"),
     min_width: PREVIEW_W + GAP + SIDE_W,
+    inputs: |_| &["path", "preset"],
     ..DialogSpec::FORM
 };
 
@@ -68,11 +69,12 @@ const MATTE_LABELS: [&str; 4] = ["None", "White", "Black", "Other"];
 /// JPEG quality steps: (label, quality).
 const QUALITIES: [(&str, u8); 5] = [("Low", 10), ("Medium", 30), ("High", 60), ("Very High", 80), ("Maximum", 100)];
 
-/// Open the dialog on the remembered settings.
+/// Open on the document's active artboard, keeping the other remembered settings.
 pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     let n = app.session.active().ok_or("no document")?.doc.artboards.len();
     let mut s = app.session.last_web_settings();
-    // A remembered artboard this document doesn't have: its first.
+    s.artboard = Some(crate::panels::artboards::selected(app, n));
+    // A document with no artboards has no valid index.
     if s.artboard.is_some_and(|a| a >= n) {
         s.artboard = None;
     }
@@ -131,7 +133,8 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 }
 
 /// `file.saveForWeb` with settings: write the files (`path`, else a picked file: the page with HTML
-/// output, else the image); the web downloads them.
+/// output, else the image); the web downloads them. The status bar shows the export's first
+/// warning.
 pub(crate) fn save(app: &mut VectorcraftApp, mut p: Value) -> Result<Value, String> {
     // Bad settings never open a save panel.
     let s = app.session.web_settings(&p)?;
@@ -145,8 +148,11 @@ pub(crate) fn save(app: &mut VectorcraftApp, mut p: Value) -> Result<Value, Stri
             io::write_to(&mut app.services, name, &bytes)?;
             names.push(json!(name));
         }
-        app.status(format!("Downloaded {} file(s)", names.len()));
-        return Ok(json!({ "files": names, "bytes": r["bytes"] }));
+        match names.first().and_then(Value::as_str).filter(|_| has_warnings(&r)) {
+            Some(first) => io::report_saved(app, first, &r),
+            None => app.status(crate::i18n::msg_n(names.len() as u64, "Downloaded {n} file", "Downloaded {n} files", &[])),
+        }
+        return Ok(json!({ "files": names, "bytes": r["bytes"], "warnings": r["warnings"] }));
     }
     let ext = if s.output == WebOutput::Html { "html" } else { s.format.ext() };
     let path = io::target_path(app, path, ext)?;
@@ -155,35 +161,196 @@ pub(crate) fn save(app: &mut VectorcraftApp, mut p: Value) -> Result<Value, Stri
     }
     let r = app.run("document.exportForWeb", p)?;
     let n = r["files"].as_array().map_or(0, Vec::len);
-    app.status(if n > 1 { format!("Saved {n} files beside {path}") } else { format!("Saved {path}") });
+    if n > 1 && !has_warnings(&r) {
+        app.status(format!("Saved {n} files beside {path}"));
+    } else {
+        io::report_saved(app, &path, &r);
+    }
     Ok(r)
 }
 
-/// `file.saveForWeb.browser`: the HTML page and its images in a temporary folder, opened in the
-/// default browser (desktop).
+/// Whether an export's reply `r` has warnings (an image that couldn't be decoded):
+/// [`io::report_saved`] puts the first in the status bar as a save's note.
+fn has_warnings(r: &Value) -> bool {
+    r["warnings"].as_array().is_some_and(|w| !w.is_empty())
+}
+
+/// The preview page's name from the document's title `stem`: one file name in the preview folder.
+/// `file_stem` gives back a title it can't take a stem of ("../.."), so one with a separator or of
+/// dots only is "Untitled".
+pub(super) fn preview_name(stem: &str) -> &str {
+    if stem.trim().is_empty() || stem.contains(['/', '\\']) || stem.chars().all(|c| c == '.') { "Untitled" } else { stem }
+}
+
+/// `file.saveForWeb.browser`: the HTML page and its images in a new temporary folder, opened in the
+/// default browser (desktop). When the export has warnings, the status bar shows the first in
+/// place of "Opened …".
 pub(crate) fn browser_preview(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     if io::is_web(app) {
         return Err("Preview in Browser needs the desktop app (the web downloads files instead)".into());
     }
+    app.refuse_automation("file.saveForWeb.browser")?;
     let stem = app.session.active().map(|st| vectorcraft_engine::cmd::fileio::file_stem(&st.doc.title)).ok_or("no document")?;
     let dir = temp_folder()?;
-    let path = format!("{dir}/{}.html", if stem.trim().is_empty() { "Untitled" } else { stem.as_str() });
+    let path = format!("{dir}/{}.html", preview_name(&stem));
     let mut q = if p.is_object() { p.clone() } else { json!({}) };
     if let Some(o) = q.as_object_mut() {
         o.insert("path".into(), json!(path));
         o.insert("output".into(), json!("html"));
     }
-    app.run("document.exportForWeb", q)?;
+    let r = app.run("document.exportForWeb", q)?;
     app.open_url(&io::file_url(&path));
-    Ok(json!({ "path": path }))
+    if has_warnings(&r) {
+        io::report_saved(app, &path, &r);
+    }
+    Ok(json!({ "path": path, "warnings": r["warnings"] }))
 }
 
-/// The folder browser previews go to.
+/// The age at which a later browser preview removes an earlier preview's folder.
+#[cfg(not(target_arch = "wasm32"))]
+const PREVIEW_KEEP: std::time::Duration = std::time::Duration::from_secs(3600);
+
+/// The folder a browser preview goes to: a new one for each preview, in the system's temporary
+/// folder ([`preview_folder_in`]).
 #[cfg(not(target_arch = "wasm32"))]
 fn temp_folder() -> Result<String, String> {
-    let dir = std::env::temp_dir().join("VectorCraft Save for Web");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    Ok(dir.to_string_lossy().replace('\\', "/"))
+    preview_folder_in(&std::env::temp_dir(), PREVIEW_KEEP)
+}
+
+/// The name of a folder that a preview made in the temporary folder, beside a `VectorCraft Save
+/// for Web` it couldn't use, before the process id and the count.
+#[cfg(not(target_arch = "wasm32"))]
+const BESIDE: &str = "VectorCraft Save for Web ";
+
+/// A new folder for a browser preview in the temporary folder `tmp`: inside `VectorCraft Save for
+/// Web` ([`preview_folder`]), or, when that folder can't be used, directly in `tmp`, named
+/// [`BESIDE`] followed by the process id and a count. The log says why the shared folder wasn't
+/// used. Each preview first removes the folders of that name in `tmp` last changed `keep` or longer
+/// ago ([`remove_old`]).
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn preview_folder_in(tmp: &std::path::Path, keep: std::time::Duration) -> Result<String, String> {
+    remove_old(tmp, BESIDE, keep);
+    preview_folder(&tmp.join("VectorCraft Save for Web"), keep).or_else(|e| {
+        log::warn!("vectorcraft: Preview in Browser can't use {e}, so the preview goes to a new folder of its own");
+        new_folder(tmp, BESIDE)
+    })
+}
+
+/// A new folder in `root` ([`new_folder`]). `root` is made when it is missing. An existing `root`
+/// is refused when it is a link or not a folder, or, on unix, when it belongs to another user or
+/// users other than its owner can write to it. Before the new folder is made, the preview folders
+/// in `root` last changed `keep` or longer ago are removed ([`remove_old`]).
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn preview_folder(root: &std::path::Path, keep: std::time::Duration) -> Result<String, String> {
+    match private_folder().recursive(true).create(root) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(format!("{}: {e}", root.display())),
+    }
+    let m = std::fs::symlink_metadata(root).map_err(|e| format!("{}: {e}", root.display()))?;
+    if let Some(why) = refused(&m) {
+        return Err(format!("{}: {}", root.display(), why));
+    }
+    remove_old(root, "", keep);
+    new_folder(root, "")
+}
+
+/// Removes the preview folders in `dir` last changed `keep` or longer ago: folders (not links)
+/// named `prefix` followed by `<digits>-<digits>`, on unix only those the current user owns. Other
+/// entries are left alone.
+#[cfg(not(target_arch = "wasm32"))]
+fn remove_old(dir: &std::path::Path, prefix: &str, keep: std::time::Duration) {
+    for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        if !is_preview_name(&e.file_name(), prefix) {
+            continue;
+        }
+        // `DirEntry::metadata` doesn't follow a link, so a link is never a folder here.
+        let Ok(m) = e.metadata() else { continue };
+        let old = m.modified().ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age >= keep);
+        if old && m.is_dir() && mine(&m) {
+            // Best effort: one that can't be removed now is tried again by the next preview.
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
+}
+
+/// A new folder in `parent` named `prefix` followed by the process id, `-` and a count of the
+/// process's previews; on unix only its owner can open it. A name that is already taken, by an
+/// earlier process with the same id or by anyone else, is skipped for the next count.
+#[cfg(not(target_arch = "wasm32"))]
+fn new_folder(parent: &std::path::Path, prefix: &str) -> Result<String, String> {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    loop {
+        let dir = parent.join(format!("{prefix}{}-{}", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        match private_folder().create(&dir) {
+            Ok(()) => return Ok(dir.to_string_lossy().replace('\\', "/")),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(format!("{}: {e}", dir.display())),
+        }
+    }
+}
+
+/// A builder for folders that only their owner can read, write or open (mode 0o700).
+#[cfg(unix)]
+fn private_folder() -> std::fs::DirBuilder {
+    let mut b = std::fs::DirBuilder::new();
+    std::os::unix::fs::DirBuilderExt::mode(&mut b, 0o700);
+    b
+}
+
+/// A builder for folders: a plain one outside unix.
+#[cfg(all(not(unix), not(target_arch = "wasm32")))]
+fn private_folder() -> std::fs::DirBuilder {
+    std::fs::DirBuilder::new()
+}
+
+/// Why a preview root whose metadata (of the root itself, not what a link points to) is `m` can't
+/// be used, or `None` when it can.
+#[cfg(not(target_arch = "wasm32"))]
+fn refused(m: &std::fs::Metadata) -> Option<&'static str> {
+    if m.file_type().is_symlink() {
+        Some("it is a link")
+    } else if !m.is_dir() {
+        Some("it is not a folder")
+    } else if !mine(m) {
+        Some("it belongs to another user")
+    } else if others_can_write(m) {
+        Some("other users can write to it")
+    } else {
+        None
+    }
+}
+
+/// Whether the current user owns the file with metadata `m`.
+#[cfg(unix)]
+fn mine(m: &std::fs::Metadata) -> bool {
+    std::os::unix::fs::MetadataExt::uid(m) == rustix::process::geteuid().as_raw()
+}
+
+/// Whether the current user owns the file with metadata `m`: always true outside unix.
+#[cfg(all(not(unix), not(target_arch = "wasm32")))]
+fn mine(_: &std::fs::Metadata) -> bool {
+    true
+}
+
+/// Whether users other than the owner of the file with metadata `m` can write to it.
+#[cfg(unix)]
+fn others_can_write(m: &std::fs::Metadata) -> bool {
+    std::os::unix::fs::MetadataExt::mode(m) & 0o022 != 0
+}
+
+/// Whether users other than the owner of the file with metadata `m` can write to it: always false
+/// outside unix.
+#[cfg(all(not(unix), not(target_arch = "wasm32")))]
+fn others_can_write(_: &std::fs::Metadata) -> bool {
+    false
+}
+
+/// Whether `name` is a preview folder's name: `prefix`, then digits, `-` and digits.
+#[cfg(not(target_arch = "wasm32"))]
+fn is_preview_name(name: &std::ffi::OsStr, prefix: &str) -> bool {
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    name.to_str().and_then(|n| n.strip_prefix(prefix)).and_then(|n| n.split_once('-')).is_some_and(|(a, b)| digits(a) && digits(b))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -214,8 +381,9 @@ struct Cache {
     shots: Vec<(String, Result<Shot, String>)>,
 }
 
+/// Temp-memory key for the Save for Web preview render, original image and optimised shot textures.
 fn cache_id() -> egui::Id {
-    egui::Id::new("save-for-web-previews")
+    egui::Id::unique("save-for-web-previews")
 }
 
 /// The texture of straight RGBA pixels.
@@ -350,7 +518,7 @@ fn preview_area(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, set
     }
     ui.add_space(4.0);
     let (area, resp) = ui.allocate_exact_size(egui::vec2(PREVIEW_W, PREVIEW_H), egui::Sense::click_and_drag());
-    let pan_id = egui::Id::new("save-for-web-pan");
+    let pan_id = egui::Id::unique("save-for-web-pan");
     let mut pan: egui::Vec2 = ui.ctx().data(|m| m.get_temp(pan_id)).unwrap_or_default();
     if resp.dragged() {
         pan += resp.drag_delta();
@@ -396,21 +564,23 @@ fn preview_area(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, set
     let mut browser = false;
     ui.horizontal(|ui| {
         let z = ZOOMS.iter().position(|z| *z == d.str("__zoom")).unwrap_or(2);
-        if let Some(i) = widgets::dropdown(ui, "sfw-zoom", ZOOM_LABELS[z], &ZOOM_LABELS, 110.0) {
+        let zoom = ui.name_inputs(tl!("Zoom"), |ui| widgets::dropdown(ui, "sfw-zoom", ZOOM_LABELS[z], &ZOOM_LABELS, 110.0));
+        if let Some(i) = zoom {
             d.fields.insert("__zoom".into(), json!(ZOOMS[i]));
             ui.ctx().data_mut(|m| m.insert_temp(pan_id, egui::Vec2::ZERO));
         }
         let kbps = d.f64("__kbps", 56.6);
         let labels: Vec<String> = SPEEDS.iter().map(|s| speed_label(*s)).collect();
         let names: Vec<&str> = labels.iter().map(String::as_str).collect();
-        if let Some(i) = widgets::dropdown(ui, "sfw-speed", &speed_label(kbps), &names, 110.0)
+        let speed = ui.name_inputs(tl!("Download:"), |ui| widgets::dropdown(ui, "sfw-speed", &speed_label(kbps), &names, 110.0));
+        if let Some(i) = speed
             && let Some(s) = SPEEDS.get(i)
         {
             d.fields.insert("__kbps".into(), json!(s));
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let b = ui.add_enabled(!io::is_web(app), |ui: &mut egui::Ui| widgets::secondary_button(ui, "Preview in Browser"));
-            browser = b.on_disabled_hover_text("Needs the desktop app").clicked();
+            let b = ui.add_enabled(!io::is_web(app), |ui: &mut egui::Ui| widgets::secondary_button(ui, tl!("Preview in Browser")));
+            browser = b.on_disabled_hover_text(tl!("Needs the desktop app")).clicked();
         });
     });
     browser
@@ -484,15 +654,16 @@ fn draw_pane(
             match (settings, shot.bytes) {
                 (Some(s), Some(bytes)) => {
                     let secs = download_seconds(bytes, kbps);
-                    let time = if secs < 1.0 { "< 1 sec".into() } else { format!("{} sec", secs.ceil()) };
+                    let time =
+                        if secs < 1.0 { tl!("< 1 sec").into() } else { crate::i18n::fmt(tl!("{secs} sec"), &[("secs", &secs.ceil().to_string())]) };
                     let detail = match s.format {
-                        WebFormat::Jpg => format!("Quality {}", s.quality),
+                        WebFormat::Jpg => crate::i18n::fmt(tl!("Quality {quality}"), &[("quality", &s.quality.to_string())]),
                         WebFormat::Png24 => String::new(),
-                        _ => format!("{} colors", shot.colors.len()),
+                        _ => crate::i18n::tn(shot.colors.len() as u64, "{n} color", "{n} colors"),
                     };
                     (s.format.label().to_string(), format!("{}  {time} @ {}", size_label(bytes), speed_label(kbps)), detail)
                 }
-                _ => ("Original".into(), format!("{} × {} px", shot.size[0], shot.size[1]), String::new()),
+                _ => (tl!("Original").into(), format!("{} × {} px", shot.size[0], shot.size[1]), String::new()),
             }
         }
     };
@@ -519,36 +690,36 @@ fn side(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&
         let choice = |ui: &mut egui::Ui, d: &mut Dialog, key: &str, label: &str, options: &[(&str, &str)]| {
             form::choice(ui, d, key, label, (LABEL_W, FIELD_W), options);
         };
-        choice(ui, d, "format", "Format:", &pairs(&WebFormat::ALL, WebFormat::id, WebFormat::label));
+        choice(ui, d, "format", tl!("Format:"), &pairs(&WebFormat::ALL, WebFormat::id, WebFormat::label));
         let format = s.map_or(WebFormat::Gif, |s| s.format);
         match format {
             WebFormat::Gif | WebFormat::Png8 => {
-                choice(ui, d, "reduction", "Reduction:", &pairs(&Reduction::ALL, Reduction::id, Reduction::label));
+                choice(ui, d, "reduction", tl!("Reduction:"), &pairs(&Reduction::ALL, Reduction::id, Reduction::label));
                 colors_row(ui, d);
-                choice(ui, d, "dither", "Dither:", &pairs(&Dither::ALL, Dither::id, Dither::label));
+                choice(ui, d, "dither", tl!("Dither:"), &pairs(&Dither::ALL, Dither::id, Dither::label));
                 if Dither::from_id(&d.str("dither")).is_some_and(|x| x != Dither::None) {
-                    slider_row(ui, d, "ditherAmount", "Amount:", "%");
+                    slider_row(ui, d, "ditherAmount", tl!("Amount:"), "%");
                 }
-                check_pair(ui, d, ("transparency", "Transparency"), ("interlaced", "Interlaced"));
+                check_pair(ui, d, ("transparency", tl!("Transparency")), ("interlaced", tl!("Interlaced")));
                 matte_row(ui, d);
-                slider_row(ui, d, "webSnap", "Web Snap:", "%");
+                slider_row(ui, d, "webSnap", tl!("Web Snap:"), "%");
                 if format == WebFormat::Gif {
-                    slider_row(ui, d, "lossy", "Lossy:", "%");
+                    slider_row(ui, d, "lossy", tl!("Lossy:"), "%");
                 }
             }
             WebFormat::Jpg => {
                 quality_row(ui, d);
-                check_pair(ui, d, ("progressive", "Progressive"), ("optimized", "Optimized"));
-                widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "embedProfile", "ICC Profile"));
+                check_pair(ui, d, ("progressive", tl!("Progressive")), ("optimized", tl!("Optimized")));
+                widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "embedProfile", tl!("ICC Profile")));
                 matte_row(ui, d);
             }
             WebFormat::Png24 => {
-                check_pair(ui, d, ("transparency", "Transparency"), ("interlaced", "Interlaced"));
+                check_pair(ui, d, ("transparency", tl!("Transparency")), ("interlaced", tl!("Interlaced")));
                 matte_row(ui, d);
             }
         }
-        widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "convertToSrgb", "Convert to sRGB"));
-        choice(ui, d, "metadata", "Metadata:", &pairs(&WebMetadata::ALL, WebMetadata::key, WebMetadata::label));
+        widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "convertToSrgb", tl!("Convert to sRGB")));
+        choice(ui, d, "metadata", tl!("Metadata:"), &pairs(&WebMetadata::ALL, WebMetadata::key, WebMetadata::label));
         if format.palette() {
             widgets::divider(ui);
             color_table(ui, d, s);
@@ -557,9 +728,9 @@ fn side(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&
         image_size(app, ui, d, s);
         widgets::divider(ui);
         if d.bool("__hasSlices") {
-            choice(ui, d, "slices", "Slices:", &pairs(&SliceScope::ALL, SliceScope::key, SliceScope::label));
+            choice(ui, d, "slices", tl!("Slices:"), &pairs(&SliceScope::ALL, SliceScope::key, SliceScope::label));
         }
-        choice(ui, d, "output", "Output:", &pairs(&WebOutput::ALL, WebOutput::key, WebOutput::label));
+        choice(ui, d, "output", tl!("Output:"), &pairs(&WebOutput::ALL, WebOutput::key, WebOutput::label));
     });
 }
 
@@ -569,23 +740,27 @@ fn presets_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: O
     let saved = app.session.prefs.web_export_presets.len();
     let current = s.and_then(|s| presets.iter().rposition(|p| p.settings == *s));
     let names: Vec<&str> = presets.iter().map(|p| p.name.as_str()).collect();
+    // The built-in presets come first (translated); the saved ones are names.
+    let builtins = presets.len().saturating_sub(saved);
+    let labels = super::shown_names(crate::i18n::current(), &names, |k| k < builtins);
     let mut run: Option<(&str, Value)> = None;
-    widgets::label_row(ui, "Preset:", LABEL_W, |ui| {
-        let shown = current.and_then(|i| names.get(i).copied()).unwrap_or("[Unnamed]");
-        if let Some(i) = widgets::dropdown(ui, "sfw-preset", shown, &names, FIELD_W - 60.0)
+    widgets::label_row(ui, tl!("Preset:"), LABEL_W, |ui| {
+        let shown = current.and_then(|i| labels.get(i).copied()).unwrap_or(tl!("[Unnamed]"));
+        if let Some(i) = widgets::dropdown_names(ui, "sfw-preset", shown, &labels, FIELD_W - 60.0)
             && let Some(p) = presets.get(i)
         {
             d.fields.extend(settings_fields(&p.settings));
         }
         let editing = d.fields.contains_key("__presetName");
-        if widgets::icon_button(ui, "save", "Save the settings as a preset", editing, 24.0).clicked() {
+        if widgets::icon_button(ui, "save", tl!("Save the settings as a preset"), editing, 24.0).clicked() {
             match editing {
                 true => _ = d.fields.remove("__presetName"),
                 false => _ = d.fields.insert("__presetName".into(), json!("")),
             }
         }
         let user = current.filter(|i| *i + saved >= presets.len());
-        let del = ui.add_enabled(user.is_some(), |ui: &mut egui::Ui| widgets::icon_button(ui, "trash-2", "Delete this saved preset", false, 24.0));
+        let del =
+            ui.add_enabled(user.is_some(), |ui: &mut egui::Ui| widgets::icon_button(ui, "trash-2", tl!("Delete this saved preset"), false, 24.0));
         if del.clicked()
             && let Some(name) = user.and_then(|i| names.get(i))
         {
@@ -593,10 +768,10 @@ fn presets_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: O
         }
     });
     if d.fields.contains_key("__presetName") {
-        widgets::label_row(ui, "Name:", LABEL_W, |ui| {
+        widgets::label_row(ui, tl!("Name:"), LABEL_W, |ui| {
             form::text(ui, d, "__presetName", FIELD_W - 70.0);
             let name = d.str("__presetName");
-            if ui.add_enabled(!name.trim().is_empty(), |ui: &mut egui::Ui| widgets::flat_button(ui, "Save", 52.0)).clicked() {
+            if ui.add_enabled(!name.trim().is_empty(), |ui: &mut egui::Ui| widgets::flat_button(ui, tl!("Save"), 52.0)).clicked() {
                 let mut p = params(d);
                 p["name"] = json!(name.trim());
                 run = Some(("webExport.presets.save", p));
@@ -627,7 +802,7 @@ fn slider_row(ui: &mut egui::Ui, d: &mut Dialog, key: &str, label: &str, suffix:
     widgets::label_row(ui, label, LABEL_W, |ui| {
         let mut v = d.f64(key, 0.0).round().clamp(0.0, 100.0) as u8;
         ui.spacing_mut().slider_width = FIELD_W - 60.0;
-        if ui.add(egui::Slider::new(&mut v, 0..=100).suffix(suffix)).changed() {
+        if widgets::slider(ui, egui::Slider::new(&mut v, 0..=100).suffix(suffix)).changed() {
             d.fields.insert(key.into(), json!(v));
         }
     });
@@ -635,14 +810,14 @@ fn slider_row(ui: &mut egui::Ui, d: &mut Dialog, key: &str, label: &str, suffix:
 
 /// The palette size: the usual counts, or any 2–256.
 fn colors_row(ui: &mut egui::Ui, d: &mut Dialog) {
-    widgets::label_row(ui, "Colors:", LABEL_W, |ui| {
+    widgets::label_row(ui, tl!("Colors:"), LABEL_W, |ui| {
         let mut n = d.f64("colors", 128.0).round().clamp(2.0, 256.0) as u16;
         if let Some(c) = widgets::dropdown(ui, "sfw-colors", &n.to_string(), &COLOR_COUNTS, 80.0).and_then(|i| COLOR_COUNTS.get(i)) {
             n = c.parse().unwrap_or(n);
             d.fields.insert("colors".into(), json!(n));
         }
-        if ui.add(egui::DragValue::new(&mut n).range(2..=256)).changed() {
-            d.fields.insert("colors".into(), json!(n));
+        if let Some(n) = widgets::range_field(ui, "sfw-colors-n", f64::from(n), 2.0..=256.0, "", 0, 52.0) {
+            d.fields.insert("colors".into(), json!(n as u16));
         }
     });
 }
@@ -651,7 +826,7 @@ fn colors_row(ui: &mut egui::Ui, d: &mut Dialog) {
 fn quality_row(ui: &mut egui::Ui, d: &mut Dialog) {
     let q = d.f64("quality", 60.0).round().clamp(0.0, 100.0) as u8;
     let step = QUALITIES.iter().rev().find(|(_, v)| q >= *v).map_or("Low", |(l, _)| *l);
-    widgets::label_row(ui, "Quality:", LABEL_W, |ui| {
+    widgets::label_row(ui, tl!("Quality:"), LABEL_W, |ui| {
         let labels = QUALITIES.map(|(l, _)| l);
         if let Some((_, v)) = widgets::dropdown(ui, "sfw-quality", step, &labels, FIELD_W).and_then(|i| QUALITIES.get(i)) {
             d.fields.insert("quality".into(), json!(v));
@@ -664,7 +839,7 @@ fn quality_row(ui: &mut egui::Ui, d: &mut Dialog) {
 fn matte_row(ui: &mut egui::Ui, d: &mut Dialog) {
     let matte = d.str("matte");
     let at = MATTES.iter().position(|v| matte.eq_ignore_ascii_case(v)).unwrap_or(3);
-    widgets::label_row(ui, "Matte:", LABEL_W, |ui| {
+    widgets::label_row(ui, tl!("Matte:"), LABEL_W, |ui| {
         if let Some(i) = widgets::dropdown(ui, "sfw-matte", MATTE_LABELS[at], &MATTE_LABELS, 120.0) {
             d.fields.insert("matte".into(), json!(MATTES.get(i).copied().unwrap_or("#808080")));
         }
@@ -683,11 +858,11 @@ fn color_table(ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
     let key = s.map(|s| s.to_json().to_string());
     let shot = cache.and_then(|c| c.shots.into_iter().find(|(k, _)| Some(k) == key.as_ref())).and_then(|(_, s)| s.ok());
     let Some(shot) = shot else {
-        widgets::subheader(ui, "Color Table");
-        widgets::dim_label(ui, "Shown with the optimised preview.");
+        widgets::subheader(ui, tl!("Color Table"));
+        widgets::dim_label(ui, tl!("Shown with the optimised preview."));
         return;
     };
-    widgets::subheader(ui, &format!("Color Table ({} colors)", shot.colors.len()));
+    widgets::subheader(ui, &crate::i18n::tn(shot.colors.len() as u64, "Color Table ({n} color)", "Color Table ({n} colors)"));
     let selected = d.str("__color");
     // (colour shown, source, transparent, locked, web-safe, mapped by hand)
     let rows: Vec<(TableColor, bool)> = shot
@@ -744,9 +919,11 @@ fn color_table(ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
     let on = |list: &[String]| list.iter().any(|h| h.eq_ignore_ascii_case(&selected));
     ui.horizontal(|ui| {
         ui.add_enabled_ui(!selected.is_empty(), |ui| {
-            for (list, on_label, off_label) in
-                [("transparent", "Restore", "Transparent"), ("webShift", "Unshift", "Web Shift"), ("locked", "Unlock", "Lock")]
-            {
+            for (list, on_label, off_label) in [
+                ("transparent", tl!("Restore"), tl!("Transparent")),
+                ("webShift", tl!("Unshift"), tl!("Web Shift")),
+                ("locked", tl!("Unlock"), tl!("Lock")),
+            ] {
                 let current = match list {
                     "transparent" => &table.transparent,
                     "webShift" => &table.web_shift,
@@ -760,7 +937,7 @@ fn color_table(ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
         });
     });
     let sort = table.sort;
-    widgets::label_row(ui, "Order:", LABEL_W, |ui| {
+    widgets::label_row(ui, tl!("Order:"), LABEL_W, |ui| {
         let labels = ColorSort::ALL.map(ColorSort::label);
         if let Some(i) = widgets::dropdown(ui, "sfw-sort", sort.label(), &labels, FIELD_W)
             && let Some(o) = ColorSort::ALL.get(i)
@@ -792,7 +969,7 @@ pub(super) fn set_table(d: &mut Dialog, key: &str, value: Value) {
 /// Image Size: width and height in pixels (proportional) or a percentage, anti-aliasing, Clip to
 /// Artboard and which artboard.
 fn image_size(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
-    widgets::subheader(ui, "Image Size");
+    widgets::subheader(ui, tl!("Image Size"));
     let Some(st) = app.session.active() else { return };
     let region = s.and_then(|s| webexport::region(&st.doc, s).ok());
     let (w, h) = region.map_or((0, 0), |(r, scale)| vectorcraft_render::region_pixels(r, scale));
@@ -802,29 +979,29 @@ fn image_size(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option
         }
         d.fields.insert(key.into(), v);
     };
-    widgets::label_row(ui, "W:", LABEL_W, |ui| {
-        if let Some(v) = widgets::plain_field(ui, "sfw-w", f64::from(w), " px", 0, 80.0) {
-            set(d, "width", json!(v.round().max(1.0)));
+    widgets::label_row(ui, tl!("W:"), LABEL_W, |ui| {
+        if let Some(v) = widgets::range_field(ui, "sfw-w", f64::from(w), 1.0..=f64::INFINITY, " px", 0, 80.0) {
+            set(d, "width", json!(v));
         }
-        ui.label("H:");
-        if let Some(v) = widgets::plain_field(ui, "sfw-h", f64::from(h), " px", 0, 80.0) {
-            set(d, "height", json!(v.round().max(1.0)));
+        widgets::field_label(ui, tl!("H:"));
+        if let Some(v) = widgets::range_field(ui, "sfw-h", f64::from(h), 1.0..=f64::INFINITY, " px", 0, 80.0) {
+            set(d, "height", json!(v));
         }
     });
     let percent = region.map_or(100.0, |(_, scale)| (scale * 100.0 * 100.0).round() / 100.0);
-    widgets::label_row(ui, "Percent:", LABEL_W, |ui| {
+    widgets::label_row(ui, tl!("Percent:"), LABEL_W, |ui| {
         if let Some(v) = widgets::plain_field(ui, "sfw-pct", percent, "%", 2, 80.0) {
             set(d, "percent", json!(v));
         }
     });
-    form::choice(ui, d, "antiAlias", "Anti-aliasing:", (LABEL_W, FIELD_W), &pairs(&AntiAlias::ALL, AntiAlias::id, AntiAlias::label));
-    widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "clipToArtboard", "Clip to Artboard"));
+    form::choice(ui, d, "antiAlias", tl!("Anti-aliasing:"), (LABEL_W, FIELD_W), &pairs(&AntiAlias::ALL, AntiAlias::id, AntiAlias::label));
+    widgets::label_row(ui, "", LABEL_W, |ui| form::check(ui, d, "clipToArtboard", tl!("Clip to Artboard")));
     let boards = &st.doc.artboards;
     if boards.len() > 1 && d.bool("clipToArtboard") {
         let names: Vec<&str> = boards.iter().map(|a| a.name.as_str()).collect();
         let at = s.and_then(|s| s.artboard).unwrap_or(0).min(names.len() - 1);
-        widgets::label_row(ui, "Artboard:", LABEL_W, |ui| {
-            if let Some(i) = widgets::dropdown(ui, "sfw-artboard", names.get(at).copied().unwrap_or_default(), &names, FIELD_W) {
+        widgets::label_row(ui, tl!("Artboard:"), LABEL_W, |ui| {
+            if let Some(i) = widgets::dropdown_names(ui, "sfw-artboard", names.get(at).copied().unwrap_or_default(), &names, FIELD_W) {
                 d.fields.insert("artboard".into(), json!(i));
             }
         });

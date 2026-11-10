@@ -1,0 +1,39 @@
+name: Desktop printing
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "apps/vectorcraft/Cargo.toml"
+      - "apps/vectorcraft/src/printing.rs"
+      - "apps/vectorcraft/src/printing/**"
+      - "crates/ui-egui/src/print.rs"
+      - "crates/ui-egui/src/tests/printps.rs"
+      - ".github/workflows/print.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+# A newer push to a PR branch cancels its older run.
+concurrency:
+  group: print-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  # Desktop printing on Windows, through the suite's shared gate. Pull requests restore the cache
+  # but never save one; a manual run on main saves the cache they restore.
+  windows:
+    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
+    uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
+    with:
+      os: '["windows-2022"]'
+      timeout-minutes: 90
+      # As before: printing builds and tests without craft-fonts, nextest or the wasm target.
+      craft-fonts-ref: ""
+      tools: ""
+      targets: ""
+      # A filter that matches nothing still passes, so the printps run fails unless some test ran.
+      command: |
+        cargo clippy --locked -p vectorcraft --all-targets -- -D warnings
+        cargo test --locked -p vectorcraft
+        log="$RUNNER_TEMP/printps.log"
+        cargo test --locked -p vectorcraft-ui-egui --lib -- tests::printps | tee "$log"
+        grep -Eq 'test result: ok\. [1-9][0-9]* passed' "$log" || { echo "::error::tests::printps matched no tests"; exit 1; }

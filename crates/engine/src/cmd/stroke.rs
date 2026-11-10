@@ -3,13 +3,15 @@
 
 use serde_json::{Value, json};
 use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{ArrowAlign, Arrowhead, CharStyle, Dash, LineCap, LineJoin, Node, NodeKind, SavedProfile, StrokeLayer, Unit, WidthProfile};
+use vectorcraft_doc::{
+    ArrowAlign, Arrowhead, CharStyle, Dash, LineCap, LineJoin, Node, NodeKind, SavedProfile, Scaling, StrokeAlign, StrokeLayer, Unit, WidthProfile,
+};
 
 use super::appearance::{ItemTarget, edit_items, item_target};
 use super::paint::painted;
-use super::*;
+use super::{CommandSpec, Result, Session, always, bad, bool_or, cmd, has_doc, ok, str_param};
 use crate::DocState;
-use crate::inspect::{ALIGNS, CAPS, JOINS, StrokeMixed, node_stroke};
+use crate::inspect::{ALIGNS, CAPS, JOINS, StrokeMixed, node_stroke, scale_layer};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -18,16 +20,34 @@ pub fn specs() -> Vec<CommandSpec> {
             "Stroke Options",
             ["Window", "Stroke"],
             None,
-            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?} Without a stroke item, type takes weight, cap, join, miterLimit and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does)",
+            "{weight?: pt, cap?: butt|round|square, join?: miter|round|bevel, miterLimit?, align?: center|inside|outside, dash?: [d,g,…]|null (a 0 dash with a round or projecting cap draws dots or squares; a new pattern keeps the current offset and alignment), dashOffset? (exact dashes only), alignDashes?: bool (true: dashes fitted to corners and path ends, every run between them holding whole periods with a dash centred on each corner and end; false, the default for a new pattern: exact lengths), startArrow?, endArrow?: Arrow|ArrowOpen|LineArrow|Barbed|Concave|DoubleArrow|HalfArrowLeft|HalfArrowRight|Chevron|Feather|Swallowtail|Triangle|TriangleOpen|TriangleReverse|TriangleBar|Kite|Leaf|Drop|Circle|CircleOpen|HalfCircle|Oval|Target|Square|SquareOpen|Tag|TagOpen|Diamond|DiamondOpen|Hexagon|HexagonOpen|Star|Cross|Plus|Bar|DoubleBar|DotOnBar|Slash|DoubleSlash|Bracket|Fork|null (HalfArrowLeft/Right: one barb, left or right of the direction the head points), arrowAlign?: \"extend\" (tip past the end point, default)|\"tip\" (tip on the end point; the stroke is shortened), profile?: \"uniform\"|\"lens\"|\"taperStart\"|\"taperEnd\"|\"pinch\"|\"teardrop\"|\"wave\"|a saved profile's name (stroke.widthProfile.list), widthPoints?, gradientMode? (as document.inspect reports them in strokeOptions, so those read back unchanged; ignored here: a custom profile is set with the Width tool, gradientMode with paint.editGradient), item?: stroke item index|null (omitted: the Appearance panel's active item if it is a stroke, else the top stroke, created when missing), ids?|id?, target?: \"object\"|\"contents\", aligned?: bool (index and item are rows of the first target's stack: each other target edits its equal one, as the Appearance panel does for a mixed selection)} Without a stroke item, type takes weight, cap, join, miterLimit, align (around its glyph outlines; the type stays live) and the dash options as its characters' stroke (every run; text.setRangeStyle `strokeOptions` styles a range), and images and symbol instances (also in groups) are left alone. With nothing selected (and no ids) they set up the next object drawn (appearance.newArt; weight always does) → {objects: how many objects took the stroke options}",
             has_doc,
             stroke_set
+        ),
+        cmd!(
+            "stroke.weightUp",
+            "Stroke Weight Up",
+            [],
+            Some("Cmd+Alt+."),
+            "{ids?|id?} raise each selected stroke's weight by one step of Units › Stroke (a quarter unit below one unit, then whole units; up to 1000 pt), each from its own weight: the selected objects' active or top stroke, type's stroked characters; objects without a stroke are left alone. With nothing selected (and no ids), the weight of the next object drawn → {objects}",
+            has_doc,
+            |s, p| stroke_step(s, p, true)
+        ),
+        cmd!(
+            "stroke.weightDown",
+            "Stroke Weight Down",
+            [],
+            Some("Cmd+Alt+,"),
+            "{ids?|id?} lower each selected stroke's weight by one step, as stroke.weightUp raises it, down to a quarter unit (a thinner weight is kept) → {objects}",
+            has_doc,
+            |s, p| stroke_step(s, p, false)
         ),
         cmd!(
             "stroke.setAdvanced",
             "Stroke Options",
             [],
             None,
-            "{arrowScale?: [start %, end %], swapArrows?: bool, flipProfile?: \"along\"|\"across\", brush?: name|null, item?: stroke item index|null, ids?} Stroke panel extras (with nothing selected, all but brush set up the next object drawn)",
+            "{arrowScale?: [start %, end %], swapArrows?: bool, flipProfile?: \"along\"|\"across\", brush?: name|null, item?: stroke item index|null, ids?|id?, target?: \"object\"|\"contents\"} Stroke panel extras (with nothing selected, all but brush set up the next object drawn)",
             has_doc,
             stroke_advanced
         ),
@@ -82,6 +102,8 @@ pub(crate) struct StrokeChange {
     dash: Option<Option<Vec<f64>>>,
     dash_offset: Option<f64>,
     align_dashes: Option<bool>,
+    /// Align Stroke: centred, inside or outside the shape (or the glyphs, on type).
+    align: Option<StrokeAlign>,
 }
 
 /// The value param `key` names in `table` (see [`crate::inspect::CAPS`]); `None` when absent.
@@ -100,7 +122,12 @@ impl StrokeChange {
         let dash = match p.get("dash") {
             None => None,
             Some(Value::Null) => Some(None),
-            Some(Value::Array(a)) => Some(Some(a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()).filter(|d| !d.is_empty())),
+            Some(Value::Array(a)) => {
+                // Do not silently omit malformed segments and change the user's dash pattern.
+                let values: Vec<f64> =
+                    a.iter().map(|v| v.as_f64().ok_or_else(|| bad(cmd, format!("dash lengths must be numbers, got {v}")))).collect::<Result<_>>()?;
+                Some(Some(values).filter(|d| !d.is_empty()))
+            }
             Some(v) => return Err(bad(cmd, format!("dash must be a list of lengths or null, got {v}"))),
         };
         Ok(Self {
@@ -111,6 +138,7 @@ impl StrokeChange {
             dash,
             dash_offset: num("dashOffset"),
             align_dashes: p.get("alignDashes").and_then(Value::as_bool),
+            align: named(&ALIGNS, p, "align", cmd)?,
         })
     }
 
@@ -122,11 +150,15 @@ impl StrokeChange {
             && self.dash.is_none()
             && self.dash_offset.is_none()
             && self.align_dashes.is_none()
+            && self.align.is_none()
     }
 
     pub(crate) fn apply(&self, st: &mut StrokeLayer) {
         if let Some(w) = self.weight {
             st.width = w;
+        }
+        if let Some(a) = self.align {
+            st.align = a;
         }
         if let Some(c) = self.cap {
             st.cap = c;
@@ -157,6 +189,16 @@ impl StrokeChange {
         self.apply(&mut st);
         style.set_stroke_layer(&st);
     }
+
+    /// [`Self::apply_char`] to type drawn at mean scale `k` (its `xf`'s): the weight and dash
+    /// lengths are document-space, the character stroke is drawn in text space.
+    pub(crate) fn apply_char_scaled(&self, style: &mut CharStyle, k: f64) {
+        let mut st = style.stroke_layer();
+        scale_layer(&mut st, k);
+        self.apply(&mut st);
+        scale_layer(&mut st, 1.0 / k);
+        style.set_stroke_layer(&st);
+    }
 }
 
 /// Does a Stroke panel edit find nothing selected (and no `ids`)? It then sets up new art.
@@ -167,9 +209,6 @@ fn no_targets(ids: &[vectorcraft_doc::NodeId], p: &Value) -> bool {
 fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "stroke.set";
     let change = StrokeChange::parse(p, C)?;
-    if let Some(w) = change.weight {
-        s.paint.stroke_width = w;
-    }
     let item = item_target(s, p, C)?.of_kind(s, false);
     let mut ids = item.targets(s, p)?;
     let new_art = no_targets(&ids, p);
@@ -187,7 +226,6 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
         }
     };
     let (sa, ea) = (arrow("startArrow")?, arrow("endArrow")?);
-    let align = named(&ALIGNS, p, "align", C)?;
     let arrow_align = match str_param(p, "arrowAlign") {
         None => None,
         Some("extend") => Some(ArrowAlign::Extend),
@@ -200,9 +238,6 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let set = |st: &mut StrokeLayer| {
         change.apply(st);
-        if let Some(a) = align {
-            st.align = a;
-        }
         if let Some(a) = sa {
             st.start_arrow = a;
         }
@@ -216,15 +251,13 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
             st.profile = pr.clone();
         }
     };
-    // With nothing selected the Stroke panel sets up the next object drawn.
-    if new_art && let Some(st) = s.new_art_stroke_mut() {
-        set(st);
-    }
     edit_items(s, &ids, item, C, "Stroke", false, |n, index| {
         if index.is_none()
             && let NodeKind::Text(t) = &mut n.kind
         {
-            t.runs.iter_mut().for_each(|r| change.apply_char(&mut r.style));
+            // Character strokes are drawn in text space, scaled by the type's transform.
+            let k = Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0);
+            t.runs.iter_mut().for_each(|r| change.apply_char_scaled(&mut r.style, k));
             return Ok(());
         }
         if index.is_none() && n.appearance.stroke().is_none() {
@@ -233,9 +266,74 @@ fn stroke_set(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some(st) = n.appearance.stroke_at_mut(index) {
             set(st);
         }
+        super::object::snap_if_aligned(n);
         Ok(())
     })?;
-    ok()
+    // Commit the new-art template only after the complete request is validated
+    // and the selected artwork edit has succeeded.
+    if let Some(w) = change.weight {
+        s.paint.stroke_width = w;
+    }
+    if new_art && let Some(st) = s.new_art_stroke_mut() {
+        set(st);
+    }
+    Ok(json!({"objects": ids.iter().collect::<std::collections::BTreeSet<_>>().len()}))
+}
+
+/// `w` (pt) one step up or down in `unit` (Units › Stroke): a quarter unit up to one unit,
+/// whole units above it, from 0.25 unit to 1000 pt. A weight between steps goes to the next step
+/// in that direction (0.6 pt up is 0.75 pt); a weight below a quarter unit doesn't go down.
+pub(crate) fn step_weight(w: f64, unit: Unit, up: bool) -> f64 {
+    const EPS: f64 = 1e-9;
+    let k = Some(unit.to_pt(1.0)).filter(|k| k.is_finite() && *k > 0.0).unwrap_or(1.0);
+    let w = if w.is_finite() { w.max(0.0) } else { 0.0 };
+    let v = w / k;
+    let next = if up {
+        if v < 1.0 - EPS { ((v * 4.0 + EPS).floor() + 1.0) / 4.0 } else { (v + EPS).floor() + 1.0 }
+    } else if v <= 1.0 + EPS {
+        (((v * 4.0 - EPS).ceil() - 1.0) / 4.0).max(0.25)
+    } else {
+        (v - EPS).ceil() - 1.0
+    };
+    let r = (next * k).min(1000.0);
+    // Never a step the wrong way: past 1000 pt up stays, below a quarter unit down stays.
+    if up { r.max(w) } else { r.min(w) }
+}
+
+/// `stroke.weightUp` / `stroke.weightDown`: each target stroke stepped from its own weight.
+fn stroke_step(s: &mut Session, p: &Value, up: bool) -> Result<Value> {
+    let c = if up { "stroke.weightUp" } else { "stroke.weightDown" };
+    let unit = s.stroke_unit();
+    let item = item_target(s, p, c)?.of_kind(s, false);
+    let ids = item.targets(s, p)?;
+    if no_targets(&ids, p) {
+        let w = step_weight(s.paint.stroke_width, unit, up);
+        s.paint.stroke_width = w;
+        if let Some(st) = s.new_art_stroke_mut() {
+            st.width = w;
+        }
+        return Ok(json!({"objects": 0}));
+    }
+    let label = if up { "Stroke Weight Up" } else { "Stroke Weight Down" };
+    edit_items(s, &ids, item, c, label, false, |n, index| {
+        if index.is_none()
+            && let NodeKind::Text(t) = &mut n.kind
+        {
+            // Character strokes are drawn in text space, scaled by the type's transform.
+            let k = Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0);
+            for r in t.runs.iter_mut().filter(|r| !matches!(r.style.stroke, Paint::None)) {
+                let change = StrokeChange { weight: Some(step_weight(r.style.stroke_width * k, unit, up)), ..StrokeChange::default() };
+                change.apply_char_scaled(&mut r.style, k);
+            }
+            return Ok(());
+        }
+        if let Some(st) = n.appearance.stroke_at_mut(index) {
+            st.width = step_weight(st.width, unit, up);
+        }
+        super::object::snap_if_aligned(n);
+        Ok(())
+    })?;
+    Ok(json!({"objects": ids.iter().collect::<std::collections::BTreeSet<_>>().len()}))
 }
 
 impl Session {
@@ -247,10 +345,15 @@ impl Session {
     /// The stroke the Stroke panel, the Control bar and the Properties panel show, picked as the
     /// Stroke proxy picks its paint: the Appearance panel's active item when it is a stroke, else
     /// the first selected object's (a group's first painted object's) top stroke, type's first
-    /// run's character stroke; with nothing selected, the next object drawn's
-    /// ([`Session::new_art_stroke`]). None without a document or the selection's stroke.
+    /// run's character stroke; with an object of a dynamic symbol instance selected
+    /// ([`DocState::selected_symbol_part`]), that object's as the instance draws it; with nothing
+    /// selected, the next object drawn's ([`Session::new_art_stroke`]). None without a document or
+    /// the selection's stroke.
     pub fn shown_stroke(&self) -> Option<StrokeLayer> {
         let st = self.active()?;
+        if let Some(part) = st.selected_symbol_part() {
+            return node_stroke(&part);
+        }
         let Some(first) = st.selection.objects.first() else { return Some(self.new_art_stroke()) };
         let first = st.doc.node(*first)?;
         if let Some(i) = first.appearance.item_of_kind(self.appearance_item(), false) {
@@ -264,13 +367,19 @@ impl Session {
 
 impl DocState {
     /// Which Stroke panel values the selected objects' strokes (type: every run's) don't share,
-    /// and whether Align Stroke applies to them. One walk of the selection, so callers that ask
-    /// every frame cache it by revision.
+    /// and whether Align Stroke applies to them (no open path among them). With an object of a
+    /// dynamic symbol instance selected ([`DocState::selected_symbol_part`]), that object alone is
+    /// read. One walk of the selection, so callers that ask every frame cache it by revision.
     pub fn stroke_mixed(&self) -> StrokeMixed {
+        let part = self.selected_symbol_part();
         let mut nodes = vec![];
-        for id in &self.selection.objects {
-            if let Some(n) = self.doc.node(*id) {
-                painted(n, true, &mut nodes);
+        if let Some(part) = &part {
+            painted(part, true, &mut nodes);
+        } else {
+            for id in &self.selection.objects {
+                if let Some(n) = self.doc.node(*id) {
+                    painted(n, true, &mut nodes);
+                }
             }
         }
         let mut strokes = vec![];
@@ -278,7 +387,7 @@ impl DocState {
         for n in &nodes {
             match &n.kind {
                 NodeKind::Text(t) => {
-                    can_align = false;
+                    // The characters' stroke aligns to the glyph outlines, which are closed.
                     strokes.extend(t.runs.iter().map(|r| r.style.stroke_layer()));
                 }
                 _ => {
@@ -490,4 +599,24 @@ fn profile_list(s: &mut Session, _: &Value) -> Result<Value> {
         .collect();
     let current = s.shown_stroke().map(|st| s.profile_entry(st.profile.as_ref()).map_or("custom", |e| e.id).to_string());
     Ok(json!({ "profiles": profiles, "current": current }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn weight_steps_follow_units_and_stop_at_their_bounds() {
+        assert_eq!(step_weight(0.6, Unit::Points, true), 0.75);
+        assert_eq!(step_weight(0.6, Unit::Points, false), 0.5);
+        assert_eq!(step_weight(2.5, Unit::Points, true), 3.0);
+        assert_eq!(step_weight(2.5, Unit::Points, false), 2.0);
+        assert_eq!(step_weight(0.1, Unit::Points, false), 0.1, "below a quarter point a step down keeps it");
+        assert_eq!(step_weight(1000.0, Unit::Points, true), 1000.0);
+        assert_eq!(step_weight(2000.0, Unit::Points, true), 2000.0, "a step up never lowers a weight");
+        assert_eq!(step_weight(f64::NAN, Unit::Points, true), 0.25);
+        let mm = Unit::Millimeters.to_pt(1.0);
+        assert!((step_weight(mm, Unit::Millimeters, true) - 2.0 * mm).abs() < 1e-9);
+        assert!((step_weight(mm, Unit::Millimeters, false) - 0.75 * mm).abs() < 1e-9);
+    }
 }
