@@ -1,32 +1,23 @@
-# VectorCraft app icon
+# Pluma app icon
 
-**Creature:** a regal engraved dragon, VectorCraft's mascot.
+**Figure:** René Descartes. He gave geometry its coordinates, the basis of vector drawing.
 
-**Style:** an engraving-style portrait in the Crafting Apps owl template (the FilmCraft owl): a tight
-head-and-shoulders portrait on a full-bleed field, no frame or roundel, with the body running off the tile.
+**Style:** a black-and-white portrait cut out over a full-bleed colour field, head and shoulders, in
+the Nodalia icon family (one historical figure per app, one colour per app).
 
-**Palette** (exactly three colours):
+**Tile:** 512 × 512 viewBox, rounded square `rx=112`, clipped; no border or roundel.
 
-| Colour | Hex | Used for |
-|---|---|---|
-| Ink | `#0b0b0c` | line work and contour |
-| Paper | `#efe9dc` | the figure |
-| VectorCraft colour | `#e8573f` | the full-bleed field |
-
-**Tile:** `viewBox="0 0 512 512"`, a rounded square with `rx=112`, clipped. The macOS files add Apple's
-transparent margin (tile = 824/1024 of the canvas); Windows and Linux use the tile edge to edge.
-
-**Provenance:** the owner's original ArtCraft drawing (2880 px, keyed to the palette), vectorised with
-craftrules `assets/logo-options/_tools/vectorize_tile.py`. The drawing is kept in craftrules at
-`craftrules/assets/app-icons/vectorcraft/source.png`, not here. `vectorcraft.svg` is the canonical
-artwork. Licence: see `LICENSE.txt`.
+**Provenance:** the portrait is "Portret van René Descartes René Descartes (titel op object), RP-P-1910-4588.jpg" from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Portret_van_René_Descartes_René_Descartes_(titel_op_object),_RP-P-1910-4588.jpg) (CC0). The figure was separated from its
+background, converted to black and white and placed over the app colour.
+Licence: see [LICENSE.txt](LICENSE.txt).
 
 ## Files
 
 | File | What | Used by |
 |---|---|---|
-| `vectorcraft.svg` | master vector (traced at 2048 px, about 700 KB) | source for everything below |
-| `vectorcraft-small.svg` | lighter vector (traced at 1024 px, about 370 KB) | `hicolor/scalable` |
+| `vectorcraft.svg` | master: the portrait as a 1024 px image embedded in an SVG with the tile clip (canonical) |
+| `vectorcraft-small.svg` | lighter 512 px version; also the scalable Linux icon and the web favicon where there is one |
 | `vectorcraft-1024.png` | full tile, 1024 px | docs, store listings |
 | `vectorcraft-macos-512.png` | tile with Apple margin, 512 px | runtime Dock icon (`apps/vectorcraft/src/main.rs`) |
 | `vectorcraft.icns` | macOS icon set, 16 to 1024 px | `cargo xtask bundle` (`CFBundleIconFile`) |
@@ -46,6 +37,7 @@ artwork. Licence: see `LICENSE.txt`.
 
 ## Regenerate
 
-Edit or replace `vectorcraft.svg` (and `vectorcraft-small.svg`), then run `packaging/icons.sh`
-(needs `resvg`; `iconutil` on macOS for the `.icns`). It writes every PNG, the `.ico` (via
-`cargo xtask ico`) and the `.icns`.
+The icon is a raster portrait, so the SVG files embed an image instead of traced paths. The
+derived files in this directory were rendered directly from the portrait. `packaging/icons.sh`
+still works on `vectorcraft.svg` (resvg renders embedded images), but its output will differ slightly
+from the committed files in resampling.
