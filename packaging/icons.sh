@@ -27,13 +27,14 @@ render "$SVG" 1024 "$DIR/vectorcraft-1024.png"
 # Runtime window/Dock icon on macOS (embedded by apps/vectorcraft/src/main.rs).
 render "$MAC" 512 "$DIR/vectorcraft-macos-512.png"
 
-# Linux hicolor theme (the 256 one is also the runtime icon on Windows and Linux).
+# Linux hicolor theme: the scalable icon sits on the Nodalix/Colloid app grid (224/256 tile,
+# 16 px margin, 51.5 px radius, soft shadow). It is made by tools/nodalia-app-icon.py in
+# nodalix-icon-theme and committed; every hicolor size is rendered from it.
+LINUX="$DIR/hicolor/scalable/apps/$ID.svg"
 for s in 16 24 32 48 64 128 256 512; do
   mkdir -p "$DIR/hicolor/${s}x${s}/apps"
-  render "$SVG" "$s" "$DIR/hicolor/${s}x${s}/apps/$ID.png"
+  render "$LINUX" "$s" "$DIR/hicolor/${s}x${s}/apps/$ID.png"
 done
-mkdir -p "$DIR/hicolor/scalable/apps"
-cp "$DIR/vectorcraft-small.svg" "$DIR/hicolor/scalable/apps/$ID.svg"
 
 # Windows .ico.
 ICO_PNGS=()

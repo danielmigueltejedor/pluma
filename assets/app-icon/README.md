@@ -12,12 +12,20 @@ the Nodalia icon family (one historical figure per app, one colour per app).
 background, converted to black and white and placed over the app colour.
 Licence: see [LICENSE.txt](LICENSE.txt).
 
+**Linux:** the hicolor icons (`hicolor/scalable` and every PNG size) put the tile on the Nodalix
+app grid, like the Colloid icons around it: a 224 px tile inside a 256 px canvas (16 px margin),
+a 51.5 px corner radius and a soft shadow. The scalable SVG is made by `tools/nodalia-app-icon.py`
+in [nodalix-icon-theme](https://github.com/danielmigueltejedor/nodalix-icon-theme) and
+`packaging/icons.sh` renders the PNG sizes from it. macOS, the Windows `.ico` and the
+1024 px render keep the full-bleed tile. The window and taskbar icon on Windows is the 256 px
+hicolor PNG, so it has the Linux margin and shadow.
+
 ## Files
 
 | File | What | Used by |
 |---|---|---|
 | `vectorcraft.svg` | master: the portrait as a 1024 px image embedded in an SVG with the tile clip (canonical) |
-| `vectorcraft-small.svg` | lighter 512 px version; also the scalable Linux icon and the web favicon where there is one |
+| `vectorcraft-small.svg` | lighter 512 px version; also the web favicon where there is one |
 | `vectorcraft-1024.png` | full tile, 1024 px | docs, store listings |
 | `vectorcraft-macos-512.png` | tile with Apple margin, 512 px | runtime Dock icon (`apps/vectorcraft/src/main.rs`) |
 | `vectorcraft.icns` | macOS icon set, 16 to 1024 px | `cargo xtask bundle` (`CFBundleIconFile`) |
@@ -32,7 +40,8 @@ Licence: see [LICENSE.txt](LICENSE.txt).
 - **Windows:** `build.rs` embeds `vectorcraft.ico` and VERSIONINFO with `winresource` (taskbar, Start
   menu, Explorer, Alt-Tab); the runtime icon covers the title bar.
 - **Linux:** install `packaging/linux/ai.storyteller.vectorcraft.desktop` to `share/applications/` and
-  `hicolor/` to `share/icons/`. The app sets its Wayland app ID / X11 class to
+  `hicolor/` to `share/icons/`, with a copy of each `ai.storyteller.vectorcraft.*` icon named
+  `dev.danielmiguelt.Pluma.*`: the `.desktop` file's `Icon=` is that name (`packaging/linux/package.sh` does both). The app sets its Wayland app ID / X11 class to
   `ai.storyteller.vectorcraft`, so the dock matches the window to the launcher.
 
 ## Regenerate
