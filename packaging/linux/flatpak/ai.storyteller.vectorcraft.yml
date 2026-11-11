@@ -100,6 +100,8 @@ modules:
       - install -Dm755 target/release/vectorcraft /app/bin/vectorcraft
       - install -Dm644 NOTICE /app/share/doc/vectorcraft/NOTICE
       - install -Dm644 packaging/linux/ai.storyteller.vectorcraft.desktop /app/share/applications/ai.storyteller.vectorcraft.desktop
+      # Flatpak only exports icons named after the app ID, so the sandbox keeps the Craft icon name.
+      - sed -i "s/^Icon=.*/Icon=ai.storyteller.vectorcraft/" /app/share/applications/ai.storyteller.vectorcraft.desktop
       - install -Dm644 packaging/linux/ai.storyteller.vectorcraft.mime.xml /app/share/mime/packages/ai.storyteller.vectorcraft.xml
       - mkdir -p /app/share/icons && cp -R assets/app-icon/hicolor /app/share/icons/
       - >-
