@@ -72,7 +72,7 @@ cp -R "$ROOT/assets/app-icon/hicolor" "$STAGE/usr/share/icons/"
 
 # The .desktop names the icon dev.danielmiguelt.Pluma, the Nodalia name, so an icon theme can
 # tell this app from the Craft app that shares its ID.
-for f in "$STAGE"/usr/share/icons/hicolor/*/apps/"$APP_ID".*; do cp "$f" "${f%/*}/dev.danielmiguelt.Pluma.${f##*.}"; done
+for f in "$STAGE"/usr/share/icons/hicolor/*/apps/"$APP_ID".{png,svg}; do cp "$f" "${f%/*}/dev.danielmiguelt.Pluma.${f##*.}"; done
 mkdir -p "$STAGE/usr/share/doc/vectorcraft"
 copy_docs "$STAGE/usr/share/doc/vectorcraft"
 
