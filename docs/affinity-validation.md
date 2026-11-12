@@ -89,7 +89,7 @@ art, Affinity version, platform, import settings, profile, resolution, fonts,
 export preset and each expected semantic loss. Keep an original `.af`, a native
 Affinity-rendered PNG per board at full resolution, an Affinity-exported PSD and
 a human-readable object/layout inventory. Do not run Photoshop or another Adobe
-application to generate or validate the comparison. A PSD written by VectorCraft
+application to generate or validate the comparison. A PSD written by Pluma
 after import tests our writer/round trip; it is not an independent Affinity oracle.
 
 Compare board dimensions and names, object counts/ordering/visibility, text and
@@ -135,10 +135,10 @@ The pinned corpus contains 51 documents, including 33 current `.af` files with
 images, text runs, fonts, bounds and warnings. Every current board is saved and
 reloaded in `.vectorcraft`, then exported through SVG, PDF and PSD. SVG/PDF
 dimensions and reimport are checked; a test-only decoder written from the public
-PSD specification compares merged pixels and alpha with VectorCraft's PNG output.
+PSD specification compares merged pixels and alpha with Pluma's PNG output.
 These export checks establish internal consistency, not independent Affinity fidelity.
 
-A headless VectorCraft MCP session also opens the real two-board `.af`, saves
+A headless Pluma MCP session also opens the real two-board `.af`, saves
 and reopens `.vectorcraft` with the complete saved model unchanged, exports both
 boards as SVG/PSD, then reopens and exports the two-page PDF again with embedded
 editing data disabled, exercising the PDF reader rather than native restoration. The normal
@@ -149,6 +149,6 @@ in the Affinity 3 artboard probe match exactly; the embedded JPEG probe has a me
 difference of 0.50/255. Per-file ceilings preserve measured regression limits;
 unsupported text layout and effects are tested structurally and through warnings.
 
-No check reopens VectorCraft's output in Affinity yet, and no `.af` export is
+No check reopens Pluma's output in Affinity yet, and no `.af` export is
 claimed by this change: the independent reopen procedure above needs Affinity on a
 supported desktop.

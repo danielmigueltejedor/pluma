@@ -7,13 +7,8 @@
 
 /// Where this app's releases live, for the in-app updates (`updates_ui`).
 #[cfg(not(target_arch = "wasm32"))]
-pub const UPDATE_APP: nodalia_update::App = nodalia_update::App {
-    name: "Pluma",
-    repo: "danielmigueltejedor/pluma",
-    bundle: "VectorCraft.app",
-    version: env!("CARGO_PKG_VERSION"),
-    edition: None,
-};
+pub const UPDATE_APP: nodalia_update::App =
+    nodalia_update::App { name: "Pluma", repo: "getnodalia/pluma", bundle: "VectorCraft.app", version: env!("CARGO_PKG_VERSION"), edition: None };
 
 /// Translate a UI string literal into the language the UI is drawn in (see [`i18n`]).
 #[macro_export]

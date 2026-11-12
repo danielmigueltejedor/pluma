@@ -9,9 +9,9 @@ PDF test fixtures enable `simple-text` through a dev dependency.
 The PDF crate explicitly retains the `flate2` `zlib-rs` feature previously supplied
 by the registry reader, preserving compressed export bytes and their derived document IDs.
 
-VectorCraft owns document traversal, drawing, font selection and embedding policy, colour
+Pluma owns document traversal, drawing, font selection and embedding policy, colour
 conversion, presets, page boxes, layers, editing data, postprocessing and print composition.
-Editable import keeps its VectorCraft adapter, layer routing, colour policy and text decisions.
+Editable import keeps its Pluma adapter, layer routing, colour policy and text decisions.
 Desktop printer submission remains in `craft-print`.
 
 The shared writer vendors Krilla 0.8.2 with an unwind-safe cleanup and poisoning patch.
@@ -25,10 +25,10 @@ its upstream provenance and authored patch are recorded in the shared repository
 
 Export and print construction, drawing and postprocessing run inside the shared native
 unwind guard. These guards do not catch WASM aborts or process-wide allocation failures.
-VectorCraft retains its finite-coordinate checks and the existing behavior that omits art
+Pluma retains its finite-coordinate checks and the existing behavior that omits art
 outside the writer's supported coordinate range. Font preparation checks the shared
 512 MiB per-font copy limit and variation coordinates before allocation; failure preserves
-VectorCraft's reported outline fallback. The writer is not a peak-memory or runtime budget.
+Pluma's reported outline fallback. The writer is not a peak-memory or runtime budget.
 
 PDF reading uses the same shared revision's patched Hayro syntax 0.7.2, interpreter 0.7.0
 and JBIG2 0.3.0. This snapshot also retains CCITT 0.3.0 and JPEG 2000 0.3.5.

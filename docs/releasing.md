@@ -1,13 +1,13 @@
-# Releasing VectorCraft
+# Releasing Pluma
 
 > **Last updated:** 2026-10-12 · **Change:** minor (RPM runtime capabilities and metadata checks, #1275)
 
 Every push to the `release` branch runs `.github/workflows/release.yml`. The workflow builds
 installers for macOS, Windows, Linux (including Flatpak bundles and a RISC-V tarball) and FreeBSD, plus the web build, and creates or updates a
-**draft** GitHub Release named `VectorCraft v<version>`. Nobody sees a draft until a maintainer
+**draft** GitHub Release named `Pluma v<version>`. Nobody sees a draft until a maintainer
 publishes it.
 
-User-facing names say **VectorCraft**. Files, binaries and ids stay lowercase
+User-facing names say **Pluma**. Files, binaries and ids stay lowercase
 (`vectorcraft-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.vectorcraft`).
 
 ## Cutting a release
@@ -21,10 +21,10 @@ User-facing names say **VectorCraft**. Files, binaries and ids stay lowercase
    ```
 
    Commit the change (`Cargo.toml` + `Cargo.lock`) through the normal review flow, as a
-   `Release: VectorCraft v0.4.0` commit whose message says what changed for users.
+   `Release: Pluma v0.4.0` commit whose message says what changed for users.
 2. **Merge `main` into `release`** (or fast-forward it) and push. The workflow starts by itself.
 3. **Wait for the draft.** When every job is done (macOS notarization is the slow part), the
-   Releases page has a draft `VectorCraft v0.4.0`, targeting the pushed commit, with every
+   Releases page has a draft `Pluma v0.4.0`, targeting the pushed commit, with every
    artifact and `SHA256SUMS.txt`. The notes are generated from the merged pull requests.
 4. **Check it.** Download an installer or two and read the job summaries. A `::warning::` there
    means a signing secret was missing and that artifact is unsigned.
@@ -71,14 +71,14 @@ The build option is in
 ### macOS
 
 `packaging/macos/package.sh` builds `aarch64-apple-darwin` and `x86_64-apple-darwin` with
-`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo` and assembles `VectorCraft.app`:
+`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo` and assembles `Pluma.app`:
 
 - `Info.plist` is generated from `Info.plist.in` (bundle id `ai.storyteller.vectorcraft`,
   `LSMinimumSystemVersion` 11.0, the version and the build commit). The icon is
   `assets/app-icon/vectorcraft.icns`. `cargo xtask bundle` fills in the same template for its
   development app.
 - **Document types:** `Info.plist.in` declares every format File › Open reads, so Finder opens
-  them with VectorCraft (double-click, Open With, a drop on the Dock icon). VectorCraft owns its own
+  them with Pluma (double-click, Open With, a drop on the Dock icon). Pluma owns its own
   formats and is an alternate for the others. A test keeps the list in step with the engine's
   `OPEN_EXTS`. AppKit hands the files to the app as open-document events, which
   `apps/vectorcraft/src/open_documents.rs` opens like files named on the command line.
@@ -90,7 +90,7 @@ The build option is in
   (`hdiutil create -srcfolder`, retried when a CI runner's device is busy, with an `Applications` link
   to drag onto), which is signed, notarized and stapled too; the app mounted from it must pass
   `codesign --verify --strict --deep` (#1085). Its Finder window (background, icon size and positions) comes from
-  [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `VectorCraft`
+  [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `Pluma`
   without the version, which the window's background needs; the DMG file name keeps the version.
 - **CLI:** the universal `vectorcraft-cli` is signed the same way, zipped, and the zip is
   notarized. A bare executable can't hold a stapled ticket, so Gatekeeper looks the CLI's ticket up
@@ -114,31 +114,31 @@ to the target triple, so host build scripts aren't affected.
   can never ship labelled arm64), that `vectorcraft.exe` is a GUI program (no console window) and
   that `vectorcraft-cli.exe` is a console program.
 - **Portable zip:** it ships `packaging/windows/portable.txt` beside `vectorcraft.exe`. That
-  marker (or a `VectorCraft.portable` file) switches on portable mode, as in PhotoCraft: `ui.json`
+  marker (or a `Pluma.portable` file) switches on portable mode, as in Lienzo: `ui.json`
   and the folders next to it (Swatches, Graphic Styles, Fonts, Data Recovery, logs…) go to
-  `VectorCraftData\` next to the exe instead of `%APPDATA%\VectorCraft`. The first time
-  `VectorCraftData` is created, the settings already in `%APPDATA%\VectorCraft` are copied into it
+  `VectorCraftData\` next to the exe instead of `%APPDATA%\Pluma`. The first time
+  `VectorCraftData` is created, the settings already in `%APPDATA%\Pluma` are copied into it
   (the originals stay), so someone updating a portable zip from before the marker keeps their
   settings. If that folder isn't writable the app logs a warning and uses `%APPDATA%`. Deleting
   `portable.txt` returns settings to the user profile (the `VectorCraftData` folder is left as it
   is). The MSI has no marker. `VECTORCRAFT_CONFIG_DIR` still wins, `VECTORCRAFT_NO_PREFS` never
-  looks for the marker, and a portable copy skips the one-time read of the old DrawCraft settings.
+  looks for the marker, and a portable copy skips the one-time read of the old Pluma settings.
   The logic is in `apps/vectorcraft/src/profile.rs`. On the other platforms the marker goes where
-  the user sees the app, never inside it: on macOS next to `VectorCraft.app` (nothing is written
+  the user sees the app, never inside it: on macOS next to `Pluma.app` (nothing is written
   inside the signed bundle), for an AppImage next to the `.AppImage` file (`$APPIMAGE`; the mounted
   executable's own folder is read-only). Flatpak isn't supported: `/app` is read-only and the
   sandbox has no folder "beside the app", so a Flatpak install always uses its own config folder.
 - `vectorcraft.wxs` (WiX) is a dual-scope package (per-user by default into
-  `%LOCALAPPDATA%\Programs\ArtCraft\VectorCraft`, per-machine into `Program Files\ArtCraft\VectorCraft` (`Program Files (x86)` for the 32-bit build),
+  `%LOCALAPPDATA%\Programs\ArtCraft\Pluma`, per-machine into `Program Files\ArtCraft\Pluma` (`Program Files (x86)` for the 32-bit build),
   see `packaging/windows/INSTALLATION.md`) with a Start Menu shortcut
   and an App Paths entry (Win+R `vectorcraft`). Same-version upgrades are allowed, so release
   candidates replace each other.
 - Double-clicking the MSI opens a setup wizard (WixUI_InstallDir without the licence page; the scope page appears only for a new full-UI install, not for
   maintenance, uninstall or reduced and silent runs):
   a scope page ("Only for me" or "Everyone on this computer"), Welcome, install folder (remembered for
-  upgrades in `HKLM` or `HKCU\Software\VectorCraft\InstallDir` according to scope),
+  upgrades in `HKLM` or `HKCU\Software\Pluma\InstallDir` according to scope),
   Shortcuts (a ticked "Create a desktop shortcut" box), Ready, a progress page, and a Finish page
-  that says where to find the app, with a ticked "Launch VectorCraft" box. The pages name the full
+  that says where to find the app, with a ticked "Launch Pluma" box. The pages name the full
   version (`vectorcraft.en-us.wxl`). `package.ps1` draws the wizard's banner and side bitmaps from
   the app icon, so no WiX stock art ships. `msiexec /qn` still installs silently, with the desktop
   shortcut unless `INSTALLDESKTOPSHORTCUT=""` is passed. Building needs the WiX UI and Util
@@ -161,11 +161,11 @@ to the target triple, so host build scripts aren't affected.
 `packaging/linux/package.sh` builds the release binaries and packages them as an AppImage, a
 `.deb` and an `.rpm` (with [nfpm](https://nfpm.goreleaser.com), from `nfpm.yaml`) and a plain
 `.tar.gz` tree (`bin/`, `share/`). The packages install both programs, the desktop entry, the
-AppStream metainfo, the MIME type for VectorCraft documents, the icons and the licence files.
+AppStream metainfo, the MIME type for Pluma documents, the icons and the licence files.
 
 **Document types.** The desktop entry's `MimeType` lists every format File › Open reads but PSD,
-PSB, `.ps` PostScript, Targa, PCX, Pixar, JPEG 2000 and HEIC/HEIF, so file managers list VectorCraft under Open With for them.
-`ai.storyteller.vectorcraft.mime.xml` declares the types that shared-mime-info lacks: VectorCraft
+PSB, `.ps` PostScript, Targa, PCX, Pixar, JPEG 2000 and HEIC/HEIF, so file managers list Pluma under Open With for them.
+`ai.storyteller.vectorcraft.mime.xml` declares the types that shared-mime-info lacks: Pluma
 documents and templates, `.ait` templates and Affinity files (`application/x-affinity`). An `.af`
 file gets the Affinity type by its content, and `.afdesign` and `.afpub` files by their extension.
 A test keeps both files in step with the engine's `OPEN_EXTS`.
@@ -230,7 +230,7 @@ files for common hosts.
 ## The draft release
 
 The last job waits for every build, downloads their artifacts, writes `SHA256SUMS.txt` and creates
-the draft `VectorCraft v<version>` with notes generated from the merged pull requests. If the draft
+the draft `Pluma v<version>` with notes generated from the merged pull requests. If the draft
 already exists, it replaces its assets and keeps it a draft. If that version is already published,
 the job fails and asks for a version bump (`cargo xtask version set`).
 

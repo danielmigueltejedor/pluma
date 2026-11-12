@@ -1,8 +1,8 @@
 # Plug-ins: the WebAssembly plug-in API (ABI v1)
 
-VectorCraft does not host native plug-ins built for other illustration apps: that needs unsafe FFI into
+Pluma does not host native plug-ins built for other illustration apps: that needs unsafe FFI into
 arbitrary machine code and cannot work in the browser build. Instead, plug-ins are **WebAssembly modules**
-run in a sandbox. One `.wasm` file works on macOS, Windows, Linux and the web. The design follows PhotoCraft's
+run in a sandbox. One `.wasm` file works on macOS, Windows, Linux and the web. The design follows Lienzo's
 plug-in API (same sandbox, same manifest and parameter schema), extended for vector documents.
 
 There are four kinds of plug-in:
@@ -51,7 +51,7 @@ which must list the file's extension, also one a built-in format reads (an impor
 only this way). A damaged file of a built-in format reports that format's error, and the file is not handed to an
 importer. The importer's objects become a new document whose artboard is their bounds (at least 1 pt wide and high,
 and within ±4,000,000 pt); the document keeps no path, so Save asks for a name. File › Place reads only the built-in formats, and a file only an importer reads opens as a new document when it is dropped on the canvas. These rules are
-VectorCraft's own.
+Pluma's own.
 
 In the app, installed filters appear under **Object › Plug-ins**, next to **Install Plug-in…** and **Reload
 Plug-ins**; live effects under **Effect › Plug-ins** and in the Appearance panel's effect menu. A plug-in with
@@ -164,8 +164,8 @@ much there is only once the run has ended.
 ### Permissions
 
 A manifest may list what the plug-in may do in `permissions`. `doc.read`, `doc.write` and `state` follow the
-capability model proposed for PhotoCraft plug-ins
-([storytold/photocraft#662](https://github.com/storytold/photocraft/issues/662)); the other names are VectorCraft's own:
+capability model proposed for Lienzo plug-ins
+([storytold/photocraft#662](https://github.com/storytold/photocraft/issues/662)); the other names are Pluma's own:
 
 | Permission | Kinds | What it allows |
 |---|---|---|
@@ -182,7 +182,7 @@ capability model proposed for PhotoCraft plug-ins
 - A manifest without `permissions` gets the ones its kind implies, as plug-ins did before the key existed: a filter
   `doc.read`, `doc.write` and `state`; an effect `doc.read` and `effect.render`, and also `doc.write` and `state`
   when it declares [commands](#commands); an exporter `doc.read` and `export.write`; an importer `import.read`. Such a
-  plug-in installs without a prompt. This rule is VectorCraft's own. A filter whose list is empty may do none of
+  plug-in installs without a prompt. This rule is Pluma's own. A filter whose list is empty may do none of
   these, and also installs without a prompt.
 - An effect, an exporter or an importer that lists permissions lists all of its implied ones (`doc.read` and
   `effect.render`; `doc.read` and `export.write`; `import.read`). An effect with commands may add `doc.write` and
@@ -237,12 +237,12 @@ capability model proposed for PhotoCraft plug-ins
   for that id. A
   `grants.json` larger than 1 MiB, or one that is not a JSON list, grants nothing: the new module stays in the folder,
   and `plugin.remove` removes the plug-in. A `grants.json` that can't be opened or read counts as a grant that can't be
-  removed. When VectorCraft loads the `Plug-ins` folder, it forgets any grant for an id whose stored module lists no
+  removed. When Pluma loads the `Plug-ins` folder, it forgets any grant for an id whose stored module lists no
   permissions. When it can't remove that grant from `grants.json`, or can't read the file, the grant does not count for
   the rest of the session, or until the plug-in is granted again, including for the next load, which tries the removal
   again. In Safe Mode, and for
   a stored module that the user disabled,
-  VectorCraft does not read the module, and `grants.json` keeps the grant for its id. The Additional Plug-ins Folder
+  Pluma does not read the module, and `grants.json` keeps the grant for its id. The Additional Plug-ins Folder
   and `plugin.reload` do not change the `Plug-ins` folder: when they leave a module that lists no permissions under an
   id, the process forgets its own grant for that id, and a grant kept in `grants.json` stays with the stored module it
   covers. An entry of `grants.json` that this version can't use (a permission it doesn't know, an invalid id) is
@@ -365,7 +365,7 @@ A live effect runs while the art draws, so keep the entries it uses small.
 
 - A key is 1 to 64 characters from `A-Z`, `a-z`, `0-9`, `_` and `-`, and is not a Windows device name (`CON`, `PRN`,
   `AUX`, `NUL`, `COM0` to `COM9`, `LPT0` to `LPT9`, in any case). Keys differ in case: `tile` and `Tile` are two.
-- These caps are VectorCraft's own values: at most 256 settings of at most 64 KiB each, in a settings file of at most
+- These caps are Pluma's own values: at most 256 settings of at most 64 KiB each, in a settings file of at most
   1 MiB; cache entries of at most 64 MiB each, at most 4,096 entries and 512 MiB per plug-in. The cache has no
   automatic eviction: a write past a cap fails with `-4`, and the plug-in or the user clears entries. A cache write
   also fails with `-4` when the `cache` folder holds more than 8,192 items; clearing the cache removes every file in
@@ -510,7 +510,7 @@ An **importer** gets the bytes of the file being opened, as they are (not JSON),
 ```
 
 - `type`: `"path"` or `"compound"` (a compound path: `path` holds its members' subpaths, painted as one).
-- `path`: VectorCraft's own path form. Each subpath is a run of anchors; `p` is the anchor, `in` / `out` its handles
+- `path`: Pluma's own path form. Each subpath is a run of anchors; `p` is the anchor, `in` / `out` its handles
   (absent: no handle), `kind` `"Smooth"` when the handles stay collinear. Coordinates are points, y down.
 - `fills`, `strokes`: the object's fills and strokes in paint order (bottom first); `null` is no paint. A stroke has its
   `paint`, `width` in points, `join` (`"miter"`, `"round"` or `"bevel"`), `cap` (`"butt"`, `"round"` or `"square"`)

@@ -2,7 +2,7 @@
 
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-11-06 · **Change:** minor (Hindi catalog draft complete under the translation tests; contributor loanword terminology reviewed; wider proofreading welcome; Brazilian Portuguese: 154 rows for the strings the sibling catalogs translate — smart-filter and print presets, dimension lines, swatches, canvas messages; previously minor: Bosnian (`bs`): complete catalog; previously minor: Vietnamese text: stacked diacritics tested and attach in every form, #4491; previously: Catalan (`ca`) catalog added, complete under the tests)
 
-Per-language status of VectorCraft's interface. How the catalogs work and how to add a language:
+Per-language status of Pluma's interface. How the catalogs work and how to add a language:
 [`development.md` › Localisation](development.md#localisation). Part of
 [target-app-parity.md](target-app-parity.md).
 
