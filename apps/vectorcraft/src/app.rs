@@ -92,9 +92,6 @@ impl eframe::App for App {
     }
     fn on_exit(&mut self) {
         file_access::unconfined(|| save_prefs(&self.app));
-        // A ready update installs once the process has exited. The macOS exit below skips
-        // dropping the app, so the helper is started here.
-        self.app.start_pending_update();
         #[cfg(target_os = "macos")]
         super::mac_cursor::release();
         end_before_teardown(self.frames);
