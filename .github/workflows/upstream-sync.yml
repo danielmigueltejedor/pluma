@@ -99,6 +99,7 @@ jobs:
             fi
             kept=""
             if [ -f .github/upstream-keep ]; then
+              # shellcheck disable=SC2016 # These dollar fields belong to awk, not the shell.
               kept="$(git diff --name-only "${ours}...${up}" 2>/dev/null | git check-attr --stdin merge | awk -F': ' '$3=="ours"{print "- `"$1"`"}' | head -40 || true)"
             fi
             kept_text=""
