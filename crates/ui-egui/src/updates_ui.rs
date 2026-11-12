@@ -223,7 +223,7 @@ mod tests {
             tag: "v99.0.0".into(),
             version: "99.0.0".into(),
             notes: String::new(),
-            page: "https://github.com/danielmigueltejedor/pluma/releases/tag/v99.0.0".into(),
+            page: "https://github.com/getnodalia/pluma/releases/tag/v99.0.0".into(),
             asset: None,
         }
     }
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn the_releases_are_this_apps_own() {
-        assert_eq!(crate::UPDATE_APP.repo, "danielmigueltejedor/pluma");
+        assert_eq!(crate::UPDATE_APP.repo, "getnodalia/pluma");
         assert_eq!(crate::UPDATE_APP.version, env!("CARGO_PKG_VERSION"));
     }
 

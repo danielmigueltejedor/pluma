@@ -9,7 +9,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub const UPDATE_APP: nodalia_update::App = nodalia_update::App {
     name: "Pluma",
-    repo: "danielmigueltejedor/pluma",
+    repo: "getnodalia/pluma",
     bundle: "VectorCraft.app",
     version: env!("CARGO_PKG_VERSION"),
     edition: None,
