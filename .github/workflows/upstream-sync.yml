@@ -123,7 +123,7 @@ jobs:
 
           **Result: conflicts.** The automatic merge stopped and changed nothing in \`${base}\`. These files need a decision:
 
-          $(printf '%s\n' "$conflicts" | sed 's/^/- `/; s/$/`/')
+          $(while IFS= read -r file; do printf '%s\n' "- \`$file\`"; done <<< "$conflicts")
 
           This branch holds upstream's commits unchanged. Resolve the conflicts on it (keeping this project's changes) and merge."
           fi
