@@ -1,7 +1,7 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const BIN: &str = env!("CARGO_BIN_EXE_vectorcraft");
+const BIN: &str = env!("CARGO_BIN_EXE_pluma");
 
 /// Invalid roots must exit before desktop initialization on every platform, including a CI
 /// machine with no display. A regression must fail rather than hang with a window open.
