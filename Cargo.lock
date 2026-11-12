@@ -970,17 +970,17 @@ dependencies = [
 [[package]]
 name = "craft-docpath"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 
 [[package]]
 name = "craft-fonts-build"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
+source = "git+https://github.com/getnodalia/foundation?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
 
 [[package]]
 name = "craft-i18n"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
+source = "git+https://github.com/getnodalia/foundation?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
 dependencies = [
  "fixed_decimal",
  "icu_decimal",
@@ -1003,7 +1003,7 @@ dependencies = [
 [[package]]
 name = "craft-keymap"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "egui",
  "serde",
@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "craft-pdf"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "hayro-interpret",
  "hayro-syntax",
@@ -1024,7 +1024,7 @@ dependencies = [
 [[package]]
 name = "craft-print"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "craft-winprint-gdi",
  "log",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "craft-proof"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "log",
  "miniz_oxide 0.9.1",
@@ -1049,7 +1049,7 @@ dependencies = [
 [[package]]
 name = "craft-ui"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
+source = "git+https://github.com/getnodalia/foundation?rev=bb8320f5fa5d20fa78a026d0de06fe4e2f08a099#bb8320f5fa5d20fa78a026d0de06fe4e2f08a099"
 dependencies = [
  "craft-fonts-build",
  "craft-i18n",
@@ -1070,7 +1070,7 @@ dependencies = [
 [[package]]
 name = "craft-vectorcraft-format"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "flate2",
  "serde",
@@ -1081,7 +1081,7 @@ dependencies = [
 [[package]]
 name = "craft-web-api"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=fd5e2feff6ea25bed371a99cc732b3968d621505#fd5e2feff6ea25bed371a99cc732b3968d621505"
+source = "git+https://github.com/getnodalia/foundation?rev=fd5e2feff6ea25bed371a99cc732b3968d621505#fd5e2feff6ea25bed371a99cc732b3968d621505"
 dependencies = [
  "js-sys",
  "serde_json",
@@ -1092,7 +1092,7 @@ dependencies = [
 [[package]]
 name = "craft-window"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "egui",
  "objc2 0.6.5",
@@ -1103,7 +1103,7 @@ dependencies = [
 [[package]]
 name = "craft-winprint-gdi"
 version = "0.1.0"
-source = "git+https://github.com/storytold/winprint.rs?rev=417ac3c4d14d3da5485a99c7d5ce8f05664ec312#417ac3c4d14d3da5485a99c7d5ce8f05664ec312"
+source = "git+https://github.com/getnodalia/foundation?rev=417ac3c4d14d3da5485a99c7d5ce8f05664ec312#417ac3c4d14d3da5485a99c7d5ce8f05664ec312"
 dependencies = [
  "windows-sys 0.61.2",
 ]
@@ -1306,7 +1306,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 [[package]]
 name = "ecolor"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1315,7 +1315,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1350,7 +1350,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1369,7 +1369,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1388,7 +1388,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1413,7 +1413,7 @@ dependencies = [
 [[package]]
 name = "egui_extras"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "ahash",
  "egui",
@@ -1427,7 +1427,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "bytemuck",
  "egui",
@@ -1440,7 +1440,7 @@ dependencies = [
 [[package]]
 name = "egui_kittest"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "dify",
  "eframe",
@@ -1466,7 +1466,7 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 [[package]]
 name = "emath"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "bytemuck",
 ]
@@ -1535,7 +1535,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1561,7 +1561,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 
 [[package]]
 name = "equivalent"
@@ -2196,7 +2196,7 @@ checksum = "9f4d0e94ddd48749f06bbe4e5389fb9799a0c45bcaf00495042076ef05e3241a"
 [[package]]
 name = "hayro-cmap"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "brotli",
  "hayro-postscript",
@@ -2205,7 +2205,7 @@ dependencies = [
 [[package]]
 name = "hayro-interpret"
 version = "0.7.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "bitflags 2.13.2",
  "hayro-cmap",
@@ -2223,7 +2223,7 @@ dependencies = [
 [[package]]
 name = "hayro-jbig2"
 version = "0.3.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "fearless_simd",
  "hayro-ccitt",
@@ -2241,12 +2241,12 @@ dependencies = [
 [[package]]
 name = "hayro-postscript"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 
 [[package]]
 name = "hayro-syntax"
 version = "0.7.2"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "flate2",
  "hayro-ccitt",
@@ -3039,7 +3039,7 @@ dependencies = [
 [[package]]
 name = "krilla"
 version = "0.8.2"
-source = "git+https://github.com/storytold/craft-libs?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
+source = "git+https://github.com/getnodalia/foundation?rev=9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb#9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb"
 dependencies = [
  "base64 0.22.1",
  "bumpalo",
@@ -3142,7 +3142,7 @@ checksum = "d4a5ff6bcca6c4867b1c4fd4ef63e4db7436ef363e0ad7531d1558856bae64f4"
 [[package]]
 name = "linesweeper"
 version = "0.5.0"
-source = "git+https://github.com/storytold/craft-libs?rev=481f66d287b2a06845f3667a19daf35f0fe958ed#481f66d287b2a06845f3667a19daf35f0fe958ed"
+source = "git+https://github.com/getnodalia/foundation?rev=481f66d287b2a06845f3667a19daf35f0fe958ed#481f66d287b2a06845f3667a19daf35f0fe958ed"
 dependencies = [
  "arrayvec",
  "kurbo 0.13.1",
@@ -7610,7 +7610,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winit"
 version = "0.30.13"
-source = "git+https://github.com/storytold/winit.git?rev=a517b3846ee8457d84ee4975110bfda6797c44dc#a517b3846ee8457d84ee4975110bfda6797c44dc"
+source = "git+https://github.com/getnodalia/foundation?rev=a517b3846ee8457d84ee4975110bfda6797c44dc#a517b3846ee8457d84ee4975110bfda6797c44dc"
 dependencies = [
  "ahash",
  "android-activity",
@@ -7670,7 +7670,7 @@ dependencies = [
 [[package]]
 name = "winprint"
 version = "0.2.1"
-source = "git+https://github.com/storytold/winprint.rs?rev=5f80b9baf6b58937c401656634e42d33f00ddf49#5f80b9baf6b58937c401656634e42d33f00ddf49"
+source = "git+https://github.com/getnodalia/foundation?rev=5f80b9baf6b58937c401656634e42d33f00ddf49#5f80b9baf6b58937c401656634e42d33f00ddf49"
 dependencies = [
  "flate2",
  "fmt-derive",
@@ -8201,14 +8201,14 @@ dependencies = [
 [[patch.unused]]
 name = "egui_demo_lib"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 
 [[patch.unused]]
 name = "egui_inspection"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
 
 [[patch.unused]]
 name = "egui_system_font_provider"
 version = "0.37.0"
-source = "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+source = "git+https://github.com/getnodalia/foundation?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"

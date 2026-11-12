@@ -11,17 +11,17 @@ rust-version = "1.95"
 repository = "https://github.com/storytold/vectorcraft"
 
 [workspace.dependencies]
-craft-pdf = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", default-features = false, features = ["interpret", "write"] }
-craft-print = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "bb8320f5fa5d20fa78a026d0de06fe4e2f08a099", features = ["serde"] }
-craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-craft-proof = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+craft-pdf = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", default-features = false, features = ["interpret", "write"] }
+craft-print = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+craft-docpath = { version = "0.1.0", git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+craft-ui = { git = "https://github.com/getnodalia/foundation", rev = "bb8320f5fa5d20fa78a026d0de06fe4e2f08a099", features = ["serde"] }
+craft-keymap = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+craft-proof = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # Decides who draws the window frame (desktop vs. app) so the suite shares one native titlebar per
 # desktop. The `egui` feature adds `craft_window::decorate`. (craft-libs#217.)
-craft-window = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", features = ["egui"] }
+craft-window = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", features = ["egui"] }
 # The `.vectorcraft` envelope: its members, version, embedded images and the data after the JSON.
-craft-vectorcraft-format = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+craft-vectorcraft-format = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # In-app updates from this app's GitHub releases, with the update windows for egui.
 nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "3b2f529f10dd549b9fcbc15794419c26ba8460ab", features = ["egui"] }
 # internal
@@ -163,25 +163,30 @@ lto = "thin"
 codegen-units = 1
 
 [patch.crates-io]
-hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-hayro-cmap = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-hayro-postscript = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-krilla = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-linesweeper = { git = "https://github.com/storytold/craft-libs", rev = "481f66d287b2a06845f3667a19daf35f0fe958ed" }
-ecolor = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-emath = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-epaint = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-epaint_default_fonts = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui-winit = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui-wgpu = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_glow = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_extras = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_system_font_provider = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-eframe = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_demo_lib = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-egui_inspection = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
-winit = { git = "https://github.com/storytold/winit.git", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }
+hayro-syntax = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-interpret = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-jbig2 = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-cmap = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+hayro-postscript = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+krilla = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
+linesweeper = { git = "https://github.com/getnodalia/foundation", rev = "481f66d287b2a06845f3667a19daf35f0fe958ed" }
+ecolor = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+emath = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint_default_fonts = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui-winit = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui-wgpu = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_glow = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_extras = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_kittest = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_system_font_provider = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+eframe = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_demo_lib = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_inspection = { git = "https://github.com/getnodalia/foundation", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+winit = { git = "https://github.com/getnodalia/foundation", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }
+
+# A vendored library still names this by its old home; the same commits are kept in foundation.
+[patch."https://github.com/storytold/winprint.rs"]
+craft-winprint-gdi = { git = "https://github.com/getnodalia/foundation", rev = "417ac3c4d14d3da5485a99c7d5ce8f05664ec312" }
+winprint = { git = "https://github.com/getnodalia/foundation", rev = "5f80b9baf6b58937c401656634e42d33f00ddf49" }
