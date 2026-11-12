@@ -22,8 +22,8 @@ craft-proof = { git = "https://github.com/storytold/craft-libs", rev = "9be9a637
 craft-window = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", features = ["egui"] }
 # The `.vectorcraft` envelope: its members, version, embedded images and the data after the JSON.
 craft-vectorcraft-format = { git = "https://github.com/storytold/craft-libs", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
-# craft-update: app-specific pretend versions apply to startup and manual checks.
-craft-update = { git = "https://github.com/storytold/craft-libs", version = "=0.1.0", rev = "1b34eba41e62138fc2438d2734523b302840b45d", features = ["egui"] }
+# In-app updates from this app's GitHub releases, with the update windows for egui.
+nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "3b2f529f10dd549b9fcbc15794419c26ba8460ab", features = ["egui"] }
 # internal
 vectorcraft-geom = { path = "crates/geom" }
 vectorcraft-color = { path = "crates/color" }
