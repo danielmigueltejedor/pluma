@@ -6,7 +6,7 @@
     </picture>
   </a>
   <br><br>
-  <img src="https://raw.githubusercontent.com/danielmigueltejedor/pluma/master/assets/app-icon/hicolor/512x512/apps/ai.storyteller.vectorcraft.png" width="160" alt="Pluma">
+  <img src="https://raw.githubusercontent.com/danielmigueltejedor/pluma/master/assets/app-icon/hicolor/512x512/apps/ai.storyteller.vectorcraft.png" width="192" alt="Pluma">
   <h1>Pluma</h1>
   <p><strong>A vector editor for the Nodalia suite, built on the VectorCraft engine.</strong></p>
 
