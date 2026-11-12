@@ -1,8 +1,8 @@
-# VectorCraft MCP server
+# Pluma MCP server
 
 `vectorcraft-cli mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio
 (newline-delimited JSON-RPC 2.0; see [Protocol](#protocol) for version negotiation). Agents use it to
-draw, inspect and look at VectorCraft documents.
+draw, inspect and look at Pluma documents.
 
 It has two backends:
 
@@ -58,13 +58,13 @@ The release packages ship `vectorcraft-cli` alongside the desktop app, so no bui
 
 | Install | CLI |
 |---|---|
-| Windows (MSI) | `%LOCALAPPDATA%\Programs\ArtCraft\VectorCraft\vectorcraft-cli.exe` by default (`C:\Program Files\ArtCraft\VectorCraft\vectorcraft-cli.exe` for an all-users install, under `Program Files (x86)` instead for the 32-bit build, or wherever you installed it otherwise), not on `PATH` |
+| Windows (MSI) | `%LOCALAPPDATA%\Programs\ArtCraft\Pluma\vectorcraft-cli.exe` by default (`C:\Program Files\ArtCraft\Pluma\vectorcraft-cli.exe` for an all-users install, under `Program Files (x86)` instead for the 32-bit build, or wherever you installed it otherwise), not on `PATH` |
 | Linux (deb, rpm) | `/usr/bin/vectorcraft-cli` |
 | macOS | the separate `vectorcraft-cli-<version>-macos-<arch>.zip` release asset (the `.app` holds only the desktop app) |
 
 ```sh
 # Windows (PowerShell), default install folder
-claude mcp add vectorcraft -- "$env:LOCALAPPDATA\Programs\ArtCraft\VectorCraft\vectorcraft-cli.exe" mcp
+claude mcp add vectorcraft -- "$env:LOCALAPPDATA\Programs\ArtCraft\Pluma\vectorcraft-cli.exe" mcp
 # Linux, or macOS with the CLI unzipped onto PATH
 claude mcp add vectorcraft -- vectorcraft-cli mcp
 ```
@@ -72,10 +72,10 @@ claude mcp add vectorcraft -- vectorcraft-cli mcp
 For a live session, start the installed app with the control port before the MCP client starts the server:
 
 ```sh
-# macOS: quit VectorCraft first, since `open -a` passes no arguments to an app that is already running
-open -a VectorCraft --args --control 7979
+# macOS: quit Pluma first, since `open -a` passes no arguments to an app that is already running
+open -a Pluma --args --control 7979
 # Windows (PowerShell), default install folder
-& "$env:LOCALAPPDATA\Programs\ArtCraft\VectorCraft\vectorcraft.exe" --control 7979
+& "$env:LOCALAPPDATA\Programs\ArtCraft\Pluma\vectorcraft.exe" --control 7979
 # Linux (deb, rpm)
 vectorcraft --control 7979
 ```
@@ -83,7 +83,7 @@ vectorcraft --control 7979
 The Dock, Start menu and desktop launchers start the app without `--control`, so the app opens no control
 port unless `VECTORCRAFT_CONTROL_PORT` is set. `vectorcraft-cli mcp` with no flag tries `127.0.0.1:7979`
 once, when it starts: a server that started before the app stays headless until the MCP client restarts
-it. `open -a` and PowerShell's `&` return before the app opens the port, so wait until the VectorCraft
+it. `open -a` and PowerShell's `&` return before the app opens the port, so wait until the Pluma
 window is open before you start the MCP client. With `--connect`, a server that finds no app stops and
 prints `vectorcraft-cli: cannot connect to 127.0.0.1:7979: ` followed by the system's connection error, for
 example `connection timed out`.
@@ -101,7 +101,7 @@ vectorcraft-cli mcp --automation-read-root /work/project --automation-read-root 
   "args": ["mcp", "--automation-read-root", "/work/project", "--automation-write-root", "/work/project/out"]}}}
 ```
 
-The two flags (PhotoCraft and the other Craft apps take the same ones, so one client config works across
+The two flags (Lienzo and the other Nodalia apps take the same ones, so one client config works across
 the suite) keep the agent to the folders you give it:
 
 - Every file a command reads must lie inside a **read root**: `open_file`, `file.place`, relinking and
@@ -138,7 +138,7 @@ the suite) keep the agent to the folders you give it:
   Links in an opened document that point outside the read roots show as missing.
 - The preferences that move folders the app reads or writes on its own (`fontsFolder`,
   `pluginsFolder`, `recoveryFolder`, `templatesFolder`) can only be set inside the roots. The app's own folders
-  (preferences, Data Recovery, the User Defined library folders, VectorCraft's Fonts folder) are not
+  (preferences, Data Recovery, the User Defined library folders, Pluma's Fonts folder) are not
   confined: no agent names a path there.
 - The roots must be existing folders; a missing one stops the server with an error. Each flag takes one
   folder per use (`--flag <dir>` or `--flag=<dir>`) and may be used again for more.
@@ -366,7 +366,7 @@ is here and subscriptions are not.
 
 ### Common command tools
 
-These names match the conventions in [FilmCraft #28](https://github.com/storytold/filmcraft/pull/28).
+These names match the conventions in [Toma #28](https://github.com/storytold/filmcraft/pull/28).
 The older names below remain listed because existing workflows use them.
 
 | Tool | Arguments and result |
@@ -414,7 +414,7 @@ Paint values (`fill`, `stroke`) accept `"#rrggbb"`, `"none"`, `[r,g,b]` (0..1), 
 or a full `paint.setFill` params object (`{"gradient": …}`, `{"swatch": "name"}`).
 A color read this way (a fill or stroke color, a swatch's, an artboard's or new type's color, and the other colors
 commands read in these forms) that is given as a hex color with an alpha part (`#rrggbbaa` or `#rgba`, with or without
-the `#`) is an error and changes nothing, as VectorCraft's own rule. The `color` of Drop Shadow, Inner Glow, Outer Glow
+the `#`) is an error and changes nothing, as Pluma's own rule. The `color` of Drop Shadow, Inner Glow, Outer Glow
 and Shift to Color is read differently and takes `#rrggbbaa`, as described below.
 For `draw_shape` and `draw_path`, omitted paint fields inherit the current [new-art appearance](#new-art). Both
 also style the new object in the same call: `dash` (lengths, or null for solid), `cap`
@@ -465,7 +465,7 @@ opens the picker through `run_command` with the remote backend.
 | `open_panel` | `{panel}` | Remote only. `panel` is a panel id (`layers`, `swatches`, `colorGuide`, …, as `window.panel` takes) or its display label (`"Color Guide"`), in any case. |
 | `screenshot` | `{path?, scale?, artboard?, window?, max_side?, traceViews?}` | Returns MCP image content (`image/png`, base64) plus a text block. Renders the artboard with the pixels of a PNG `export` with `background: "white"` at the same scale; `traceViews:true` draws Image Trace objects in the view set with `imageTrace.setView`, as in the app's window; `window:true` captures the app window (remote only), as `ui_screenshot` does, and `max_side` (1–4096, window captures only) scales the returned image down as described for `ui_screenshot`. With `path` the backend (the headless session or the app) writes the PNG there too; a window capture written there keeps its full size with `max_side`. |
 | `open_file` | `{path, importer?, params?}` | Opens any readable file as a new active document: `.vectorcraft`/`.drawcraft`, `.vctemplate`, `.svg`/`.svgz`, `.pdf`/`.ai`, `.ait`, `.eps`/`.epsf`, `.ps`, `.dxf`, `.emf`, `.wmf`, PNG (`.png`/`.pns`), JPEG, GIF, WebP, TIFF, BMP (`.bmp`/`.dib`/`.rle`), Targa (`.tga`/`.vda`/`.icb`/`.vst`), PCX, Pixar (`.pxr`), JPEG 2000 (`.jpf`/`.jpx`/`.jp2`/`.j2k`/`.j2c`/`.jpc`), HEIC/HEIF (`.heic`/`.heif`), JPEG XL (`.jxl`), PSD (`.psd`/`.pdd`)/PSB (an image opens as a document of its pixel size; a Photoshop file as its merged image; a JPEG XL file as its first frame). Templates (`.vctemplate`, `.ait`) open as a new untitled document. PDF, `.ai` and SVG files saved with Preserve Editing reopen as the document they carry. The reply is `document.open`'s: its `warnings` say what didn't come in as it was (an EPS whose PostScript can't be read opens as its preview, and the warning names the PostScript error, the operator and the procedure). A file of an extension only an installed importer plug-in lists opens with that importer ([Plug-ins](#plug-ins)); `importer: "plugin.<id>"` opens the file with the importer it names, which must list the file's extension, also one a built-in format reads (in the app, as File › Open With does), and `params` gives that importer's parameters (their defaults when omitted). `run_command document.formats` lists the formats. |
-| `save_file` | `{path?, compress?, version?, preview?, precision?, options?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). For a native file, `compress: true` gzips it (default: the `useCompression` preference, Preferences › File Handling › Use Compression), `version` (1 to 4) writes it for an older VectorCraft (1 and 2 are never compressed, and `version: 2` with `compress: true` is an error), `preview: true` embeds a PNG of the first artboard, and `precision` (0 to 9) rounds path anchors and handles to that many decimal places for that save only (colors, transforms and type stay exact). `options` passes the format's save options as `run_command document.formats` lists them. When `compress`, `version`, `preview` or `precision` is given both at the top level and in `options` with different values, the call is an error (`` `compress: true` and `options.compress: false` disagree: give the option once ``) and nothing is written. A key in `options` that no save format takes is an error, and nothing is written (see Parameter keys). The save drops each option the written format doesn't read. The reply's `warnings` then name each such option given (for example `` `compress` was not used: SVG files don't read it `` for an `.svg` path, and `` `options.preview` was not used: … `` for a key in `options`; a `.ai` file reads `compress` but not `version`, `preview` or `precision`). For a `.ai` file, these warnings name the kind of `.ai` written: a legacy .ai (version 7) for `aiVersion: "7"`, a non-PDF-compatible .ai for `pdfCompatible: false`, and a PDF-compatible .ai otherwise, including a save that reuses the options the document was last saved with. `run_command document.save` and the other save commands refuse any option given beside the path and in `options` with different values, and give the same warnings for a top-level `compress`, `version`, `preview` or `precision` and for each key in `options` that the format doesn't read. The headless session and the app receive the same `app.save` params, and the app is also sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
+| `save_file` | `{path?, compress?, version?, preview?, precision?, options?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). For a native file, `compress: true` gzips it (default: the `useCompression` preference, Preferences › File Handling › Use Compression), `version` (1 to 4) writes it for an older Pluma (1 and 2 are never compressed, and `version: 2` with `compress: true` is an error), `preview: true` embeds a PNG of the first artboard, and `precision` (0 to 9) rounds path anchors and handles to that many decimal places for that save only (colors, transforms and type stay exact). `options` passes the format's save options as `run_command document.formats` lists them. When `compress`, `version`, `preview` or `precision` is given both at the top level and in `options` with different values, the call is an error (`` `compress: true` and `options.compress: false` disagree: give the option once ``) and nothing is written. A key in `options` that no save format takes is an error, and nothing is written (see Parameter keys). The save drops each option the written format doesn't read. The reply's `warnings` then name each such option given (for example `` `compress` was not used: SVG files don't read it `` for an `.svg` path, and `` `options.preview` was not used: … `` for a key in `options`; a `.ai` file reads `compress` but not `version`, `preview` or `precision`). For a `.ai` file, these warnings name the kind of `.ai` written: a legacy .ai (version 7) for `aiVersion: "7"`, a non-PDF-compatible .ai for `pdfCompatible: false`, and a PDF-compatible .ai otherwise, including a save that reuses the options the document was last saved with. `run_command document.save` and the other save commands refuse any option given beside the path and in `options` with different values, and give the same warnings for a top-level `compress`, `version`, `preview` or `precision` and for each key in `options` that the format doesn't read. The headless session and the app receive the same `app.save` params, and the app is also sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
 | `export` | `{path?, format?, scale?, artboard?, range?, selection?, outlineText?, options?}` | `svg`, `svgz`, `pdf`, `ai` (the PDF-compatible `.ai` that Save writes, which carries the document when every artboard is written in order), `eps`, `dxf`, `emf`, `wmf`, `png`, `jpg`, `webp`, `gif`, `png8` (an indexed `.png`), `tiff`, `bmp`, `tga`, `psd` (layered), `txt` (the document's text), `vectorcraft` or `template` (a native template). The tool's `format` enum and `document.formats` list them, generated from the engine's format table. When `format` is omitted, it comes from the path's extension. PDF and `.ai` write one page per artboard: all of them, or `artboard` (0-based) / `range` (`"1-3, 5"`, 1-based). SVG and SVGZ write one file per chosen artboard. EPS writes one file of the visible art; with `artboard`, `range`, `options.artboards` or `options: {"useArtboards": true}` it writes one file per chosen artboard, after a central file of the visible art when there are two or more, and `useArtboards: false` keeps the one file. Rasters, DXF, EMF and WMF write one artboard, or one file per chosen artboard with `options: {"useArtboards": true}`. Rasters also take `options: {"rect": [x, y, width, height]}` (page points, y down): that area of the page at the given `ppi`/`scale`, without an artboard and without changing the document; it is refused with `artboard`, `artboards`, `range` or `useArtboards`, with a non-positive or non-finite size, and for non-raster formats. `options` carries more format options (e.g. `{"quality": 80}` for JPEG). `selection: true` exports the selected objects cropped to their bounds (the reply adds their `bounds`, and reports `format` and the encoder's `warnings` as a whole-document export does); `outlineText: true` writes SVG text as paths. Template layers are left out, live effects are kept, and exporting `vectorcraft` never changes the document's path. Without `path` the bytes come back as `dataBase64`. Both backends run the same `document.export` call. |
 | `add_text` | `{text, x?, y?, width?, height?, fit?, fitMinPercent?, path?, mode?, pathEffect?, size?, font?, color?, justify?, vertical?}` | Point type at (x, y) (`justify`: `left`, `center` or `right` starts, centres or ends each line on x); area type with `width`/`height` (`fit`: `none`, `autoHeight`, `shrinkText`, as `text.areaOptions`); or `path` + `mode` (`area`/`onPath`) to flow text in or along a path, with `pathEffect` (`rainbow`, `skew`, `3dRibbon`, `stairStep`, `gravity`; SVG export writes type on a path with any effect other than `rainbow` as outlines, with a warning); `justify` (also `auto`, `justifyAll`) aligns the paragraphs of every kind, as `text.setStyle` does later. `vertical: true` uses the existing vertical writing mode for every kind (default `false`, horizontal). Returns `{id}`, with `overflow: true` when the text doesn't fit its frame or path. |
 | `apply_effect` | `{effect?, params?, ids?}` | Appends a live effect. Without `effect`, returns the effect catalogue with parameters and defaults. |
@@ -693,7 +693,7 @@ it replaced by the template's extension, and any other path that does not end in
 come back without a path), `file.newFromTemplate {path}`, `file.revert` and `file.formatOptions {format?}` (a format's options
 with the values a save would use). Without a path the save commands return `{dataBase64, name, folder?, warnings}`. A document saved as SVG or PDF
 remembers its options, so the next save reuses them; a document not yet saved as a native file is offered the
-VectorCraft Options the last native Save or Save As used (not its artboards, nor Use Compression). A PDF opened with `pages`, `cropTo` or `password` is only part
+Pluma Options the last native Save or Save As used (not its artboards, nor Use Compression). A PDF opened with `pages`, `cropTo` or `password` is only part
 of the file, so Save asks for a new name instead of writing it back.
 `file.documentColorMode {mode, convert?, intent?, grays?}` switches the document color mode, converting the colors of
 the art (opacity masks, effect colors and the series paints and label styles that graphs keep included), symbols,
@@ -727,7 +727,7 @@ can't be read becomes a placeholder in its box, named in `warnings` and `missing
 
 Native files: `run_command document.save {compress: true}` writes a gzip-compressed `.vectorcraft` (the
 `useCompression` preference makes that the default for saves; compressed files open like any other, told apart by
-their content). `version: 2` or `1` writes a file older VectorCraft versions open (format name `drawcraft`, never
+their content). `version: 2` or `1` writes a file older Pluma versions open (format name `pluma`, never
 compressed), and `preview: true` embeds a PNG of the first artboard, at most 256 px on its longer side.
 `precision: 4` (0 to 9) rounds the anchors and handles of paths to that many decimal places (in the layers, symbols,
 graph designs, patterns, opacity masks and brushes); colors, transforms, opacity and type are written exactly.
@@ -945,7 +945,7 @@ paints under its layers, which isn't art). `layers: false` gives one layer per p
 {"name":"run_command","arguments":{"command":"document.open","params":{"path":"/tmp/map.pdf","textAs":"outlines","layers":false}}}
 ```
 
-Preserve Editing (`preserveEditing`, on in the `VectorCraft Default` preset) embeds the native document in the PDF as
+Preserve Editing (`preserveEditing`, on in the `Pluma Default` preset) embeds the native document in the PDF as
 an embedded file (`vectorcraft-editing.vectorcraft`; files named `drawcraft-editing.drawcraft` are read too) with a
 hash of the pages it was written with. `open_file` / `document.open` of such a PDF, `.ai` or `.ait` (no `pages` picked) restores the
 document exactly (`restored: true`); when another app changed the pages, or the data can't be read, the artwork is
@@ -1396,7 +1396,7 @@ command has a summary, and `deprecated: true` when the command is deprecated. Th
 `enum` for a list of names; `items` for the values of a list; `prefixItems`, `items: false` and `minItems: 2` for a
 point; `anyOf` and `minItems: 3` for a color, which is a string, a list of at least three numbers or an object;
 `description` for a parameter's doc text; `default` for a default the engine fills in; and `deprecated: true` for a
-deprecated parameter. VectorCraft's own fields are `x-since` (the API level that added the command or the parameter), `x-deprecatedSince`, `x-lenient`,
+deprecated parameter. Pluma's own fields are `x-since` (the API level that added the command or the parameter), `x-deprecatedSince`, `x-lenient`,
 `x-unit`, `x-kind` (`id`, `color` or `point`), `x-default` (a default the command works out, such as `toggle`),
 `x-cost`, `x-writes` (`nothing`, `session`, `preferences` or `document`) and `x-returns`. A parameter that reads null
 as left out is an `anyOf` with `{"type": "null"}`. Null params read as `{}`, so a schema with no required parameter has
@@ -1560,7 +1560,7 @@ change anything outside the documents: `script.*` except `script.check`, `plugin
 an error. With Data Recovery off for complex documents, a run in the web build does not start while a complex document
 has unsaved changes.
 
-VectorCraft sets these limits itself:
+Pluma sets these limits itself:
 
 | Limit | Value |
 |-------|-------|
@@ -1881,7 +1881,7 @@ dropped.
 The Navigator panel menu's Panel Options… opens the `navigatorPanelOptions` dialog (fields `color`, `solidDashes`),
 and `ui.navigatorPanelOptions {color?, solidDashes?}` sets the options without it → `{color, solidDashes}`; with
 neither key it opens the dialog. `color` is the color the panel's view box is drawn in: `#rrggbb` or a preset name.
-The presets are VectorCraft's own list: Light Red (`#ff3030`, the default), then the layer colors ("Light Blue",
+The presets are Pluma's own list: Light Red (`#ff3030`, the default), then the layer colors ("Light Blue",
 "Red", "Green" and the rest). `solidDashes` (Draw Dashed Lines as Solid Lines, off by default) makes the panel's
 thumbnail draw dashed strokes without their dashes; the canvas, printing and exports keep the dashes. Both are kept
 with the UI state. A `color` that is not a color, or a `solidDashes` that is not true or false, is an error and
@@ -1899,7 +1899,7 @@ docks it between those panels and the canvas instead (`on: true`), back at the w
 toggles it (`on` omitted or null), and answers the new state. Any other value of `on` is an error and changes
 nothing. With the setting on, a floating Tools panel docks when it is dropped on the canvas's left edge as well as
 on the window's left edge, and `window.panel.dock {panel: "tools"}` docks it beside the canvas. A floating Tools
-panel stays floating when the setting changes. The setting is VectorCraft's own layout option, off by default; it is
+panel stays floating when the setting changes. The setting is Pluma's own layout option, off by default; it is
 kept with the workspace, and built-in workspaces and workspaces saved without it keep Tools at the window's edge.
 
 ```json
@@ -1982,7 +1982,7 @@ already walks Image Trace. Short agent entry points:
   name they are given, as `symbol.options` trims `newName`; a blank one gives "New Symbol" or "<name> copy".
 - Reset Transformation (the Symbols panel menu, and Reset on the Control bar while symbol instances are selected):
   `symbol.instance.resetTransform {ids?}` gives the selected symbol instances, in groups too, their symbol's own
-  scale again, without rotation, shear or reflection, as one undo step. VectorCraft's own rules: each instance keeps
+  scale again, without rotation, shear or reflection, as one undo step. Pluma's own rules: each instance keeps
   the center of its bounding box in place; other objects, instances in perspective and instances already at their
   symbol's scale are left as they are, and no undo step is added when nothing changes; an id that names no object, or
   objects without a symbol instance, is an error. It returns `{ids}`, the instances it changed. The menu item and the
@@ -1995,10 +1995,10 @@ already walks Image Trace. Short agent entry points:
   compound paths, type, groups and layers take both. A symbol instance takes a solid color or `none` as its fill,
   which stains its art, and no gradient or pattern fill and no stroke. An image takes a fill or stroke only when that
   fill or stroke has a Convert to Shape or Outline Object effect. A guide, blend, envelope, Repeat, Intertwine group,
-  gradient mesh or placed document takes neither. A refused fill or stroke (VectorCraft's own rule) gives an error
+  gradient mesh or placed document takes neither. A refused fill or stroke (Pluma's own rule) gives an error
   that names the key and the object, and nothing of the call is applied; `opacity`, `blend` and `null` are taken for
   every object, so a stored change can be taken back. `opacity` is 0..100 and `blend` a blend mode name; `null` gives
-  one back to the symbol. It is refused for a static symbol and for a path that names no object. On the canvas (VectorCraft's own rule), a Direct Selection click on an instance of a
+  one back to the symbol. It is refused for a static symbol and for a path that names no object. On the canvas (Pluma's own rule), a Direct Selection click on an instance of a
   dynamic symbol selects the path, compound path or type object of its art under the pointer and outlines it
   (`symbol.instance.selectPart {id, path}`; Alt or Shift selects the instance whole). While it is selected,
   `paint.setFill` and `paint.setStroke` (solid, none, gradient or pattern) and `paint.invert` and `paint.complement`
@@ -2103,7 +2103,7 @@ already walks Image Trace. Short agent entry points:
   `variable.loadLibrary` that would delete or define a variable (below) fail with "variables are locked";
   `variable.bind`, `variable.unbind` and the `dataset.*` commands still run (except a `dataset.import` whose header
   would define a variable, below), and `variable.list` reports `locked`. A variable that an opened `.ai` declares
-  without a kind VectorCraft reads is listed with `kind: "unknown"`: it takes no values, and `variable.bind`
+  without a kind Pluma reads is listed with `kind: "unknown"`: it takes no values, and `variable.bind`
   refuses it. When an opened `.ai`'s layers are read, the objects it binds to its text, visibility and image
   variables come in bound when they are of the variable's kind, locked and hidden objects included, and
   `variable.list` counts them in `bindings`.
@@ -2252,7 +2252,7 @@ already walks Image Trace. Short agent entry points:
   `{set, action, step}`. Without them it goes into the recording in progress, after the steps recorded so far, and
   returns `{recording: true}`. `message` is the text playback shows (default: none), and `allowContinue` (default:
   false) offers Continue in the message box. An action with an empty message still waits at the stop, which is
-  VectorCraft's own rule. A stop in an action becomes the panel's selected step, and its action and set become the
+  Pluma's own rule. A stop in an action becomes the panel's selected step, and its action and set become the
   selected ones. An index past the last set, action or step, a param of another type, params that are not an
   object, or no action and no recording is an error, and then nothing changes. The panel menu's Insert Stop… opens the `actionStopRecord` dialog
   (`message`, `allowContinue`, `set`, `action`, `step`), whose OK runs this.
@@ -2269,7 +2269,7 @@ already walks Image Trace. Short agent entry points:
 - Actions: `ui.action.playbackOptions {speed?, seconds?}` sets how the Actions panel plays actions and returns
   `{speed, seconds}`. `speed` is `accelerated` (the default: every step at once), `step` (one step at a time, with the
   window drawn after each step before the next runs) or `pause` (a pause of `seconds` between steps). `seconds` is a
-  whole number from 1 to 60, VectorCraft's own range, and stays set while another speed is chosen. A param left out
+  whole number from 1 to 60, Pluma's own range, and stays set while another speed is chosen. A param left out
   keeps its value. Any other `speed` or `seconds` is an error, and then nothing changes. The setting is kept with the UI
   preferences. The panel menu's Playback Options… opens the `actionPlayback` dialog (`speed`, `seconds`), whose OK runs
   this. Batch… (`action.batch`) plays every step at once whatever the setting.
@@ -2599,7 +2599,7 @@ is tall), `bevelInside` (false adds the bevel around the shape, true carves it i
   paint is kept and only the highlight lightens it). `drawHiddenFaces` also draws the faces turned away from the
   viewer, behind the others.
 
-The defaults are VectorCraft's own. An unknown parameter, a number out of range, a flag that is not true or false, or
+The defaults are Pluma's own. An unknown parameter, a number out of range, a flag that is not true or false, or
 an unknown surface or shading color is refused with an error and the document is not changed.
 
 ```json
@@ -2833,7 +2833,7 @@ what dragging a symbol out of the library panel onto the canvas does.
 `symbol.saveLibrary {path?, names?, name?, user?}` writes the document's symbols as a symbol library: a `.vectorcraft`
 document holding only them and what they use; without `path` it returns `{dataBase64}`, and `user: true` saves into
 the user library folder (category `user`, User Defined). `symbol.loadLibrary {path? | data? | dataBase64?, name?}`
-loads the symbols of any document VectorCraft opens as a library to add from (a `.ai` or EPS whose editing data holds
+loads the symbols of any document Pluma opens as a library to add from (a `.ai` or EPS whose editing data holds
 symbols and no layers gives the symbols it defines, in the order of its symbol list); a file it can't read is an
 error.
 
@@ -2859,7 +2859,7 @@ path, does.
 `brush.saveLibrary {path?, names?, name?, user?}` writes the document's brushes as a brush library: a `.vectorcraft`
 document holding only them and what their art uses; without `path` it returns `{dataBase64}`, and `user: true`
 saves into the user library folder (category `user`, User Defined). `brush.loadLibrary {path? | data? |
-dataBase64?, name?}` loads the brushes of any document VectorCraft opens as a library to add from; a file it can't
+dataBase64?, name?}` loads the brushes of any document Pluma opens as a library to add from; a file it can't
 read is an error.
 
 ## Library panels
@@ -3493,7 +3493,7 @@ filter is drawn and written rebuilt from its filter elements and their filter at
 text, descriptions or other attributes. An image in a filter is drawn only when its bytes are a PNG, JPEG, GIF or WebP
 within the pixel limit. A filter region in user space given in percentages is measured against the object's box (x
 and y from its top-left corner), and one in em or ex or left out takes the default region of that box (10% beyond
-each side); these are VectorCraft's own rules. Scale Strokes & Effects scales
+each side); these are Pluma's own rules. Scale Strokes & Effects scales
 `scale`. SVG export writes the filter as a `<filter>` element when it is the object's last effect, its only pixel
 effect and `scale` is 1 (with a region measured against the object's box, its only raster effect), with the object in a
 group that places the filter's user space and such a region written in user units. The filter is written in SVG 1.1
@@ -3732,7 +3732,7 @@ copies would number more than 10,000 or take more than 20,000,000 bytes of docum
 effect is written as outlines.
 
 ```json
-{"name":"run_command","arguments":{"command":"document.exportPdf","params":{"path":"/tmp/press.pdf","output":{"conversion":"preserveNumbers","destination":"VectorCraft Generic CMYK (SWOP-like)","profiles":"destination","outputIntent":"VectorCraft Generic CMYK (SWOP-like)","trapped":true},"advanced":{"outlineText":false}}}}
+{"name":"run_command","arguments":{"command":"document.exportPdf","params":{"path":"/tmp/press.pdf","output":{"conversion":"preserveNumbers","destination":"Pluma Generic CMYK (SWOP-like)","profiles":"destination","outputIntent":"Pluma Generic CMYK (SWOP-like)","trapped":true},"advanced":{"outlineText":false}}}}
 ```
 
 ## Scale Strokes & Effects
@@ -3809,7 +3809,7 @@ It returns `{ids}`, the objects whose property changed. While the property is on
   Release Compound Path gives each released path the property of the compound path. A path pasted into a compound
   path, alone or from a pasted compound path, drops its own property and snaps with the compound path.
 
-Turning the property on snaps the objects at once; turning it off keeps their geometry. These rules are VectorCraft's
+Turning the property on snaps the objects at once; turning it off keeps their geometry. These rules are Pluma's
 own: only paths and compound paths can be aligned, and type, images, groups, guides and other objects are an error
 that leaves the document as it was. The change is one undo step, and when every object already has the value nothing
 changes and no undo step is made. The property is saved in the native file (`pixel_aligned` in `document.node`), and
@@ -3950,7 +3950,7 @@ and a "Set:" line with the set's name, followed by a Tools section and a Menu Co
 rows Edit › Keyboard Shortcuts lists, in its order and with names as it shows them: one line per row, with the name, a
 tab and the shortcuts as the dialog shows them on the current platform. A row with no shortcut ends after the tab.
 Without `path` a save dialog asks for the file. A `path` that is not a string, or a file that cannot be written,
-returns an error, and nothing is written. The layout is VectorCraft's own. The reference app's [Export keyboard
+returns an error, and nothing is written. The layout is Pluma's own. The reference app's [Export keyboard
 shortcuts list as a text document](https://helpx.adobe.com/illustrator/desktop/get-started/preferences-and-settings/export-keyboard-shortcuts-list.html)
 page describes saving the list from the Keyboard Shortcuts dialog as a text file, and does not describe its layout.
 
@@ -3986,11 +3986,11 @@ destination and overridden Save/Export paths use the chosen stem with the output
 set name under Data Set Name falls back to the document stem plus its three-digit ordinal. Batch writes `/`, `\`,
 `:`, `<`, `>`, `"`, `|`, `?`, `*` and control characters in the data set's name as `-`, and adds the next free `-2`,
 `-3` suffix to a stem already used in the batch (compared without case). An output already in a destination folder
-gets the next free suffix only when the batch may read and write that folder before it starts. A save in VectorCraft,
+gets the next free suffix only when the batch may read and write that folder before it starts. A save in Pluma,
 template, AI or AIT format counts artboard file names when the document has any artboard; a per-artboard export
 counts them when the document has several artboards.
-Under Data Set Name, VectorCraft makes Windows device names safe (`CON` becomes `CON-`). This is
-VectorCraft's naming behavior. Caps: 500
+Under Data Set Name, Pluma makes Windows device names safe (`CON` becomes `CON-`). This is
+Pluma's naming behavior. Caps: 500
 files or data sets, 8 folder levels, 256 steps. An action recorded in the Actions panel leaves the artboard out,
 and its steps of these commands get the artboard that is active when the action plays. A press with the Selection,
 Direct Selection or Group Selection tool inside an artboard makes that artboard the active one; with the Selection
@@ -4079,7 +4079,7 @@ bounding box and its handles, the Transform panel's, Control bar's and Propertie
 `object.setBounds`, the Scale, Rotate and Reflect tools' reference point, and Swap Objects, Replace with Top Object,
 Set Size of Each and Sort Objects measure point type, horizontal or vertical, by the ink of its glyphs: its glyph
 outlines and its underline and strikethrough bars. This applies to each point type object that is selected as an object
-(not inside a selected group), in a selection with other objects too. The option is VectorCraft's own and is off by
+(not inside a selected group), in a selection with other objects too. The option is Pluma's own and is off by
 default.
 
 A width or height typed with the option on scales the type until its ink has that size. The type stays live type: its
@@ -4561,7 +4561,7 @@ be one of top, bottom" and leaves the bar where it is.
 `file.place` puts another file's art into the active document as one undo step without touching the clipboard:
 a raster image at 100% of its physical size (the resolution its file declares, else 72 ppi; linked to its `path`
 unless `link: false`; a Photoshop document as its merged image), an SVG as one group (fitted by its art's bounds; with `crop: "crop"` given, framed and clipped by its viewBox, #788), a PDF/.ai page as one clipped group, with the images, symbols, patterns
-and swatches it uses. A VectorCraft document read from `path` is a placed document: one locked object showing its
+and swatches it uses. A Pluma document read from `path` is a placed document: one locked object showing its
 artboard `page` (or, with `crop: "bounding"`, its art's bounds), linked to the file and read again when it changes
 (see Linked images), and vectors in every output; with `link: false` (or from `dataBase64`) it is an editable copy
 of its art, as one clipped group. A PDF, `.ai` or `.ait` page read from `path` (with neither `password` nor
@@ -4712,7 +4712,7 @@ records no undo step → `{renamed: [index…]}`. With no params, a menu click o
 
 Switch Orientation: `artboard.switchOrientation {index? | indices?, scaleArt?, patterns?, lockedAndHidden?}` swaps the width and height of each
 artboard in one undo step, by default those the Artboard tool has selected, else its active one. Each top-left corner
-stays put, as with the Properties panel's Portrait and Landscape buttons. This rule for several artboards is VectorCraft's
+stays put, as with the Properties panel's Portrait and Landscape buttons. This rule for several artboards is Pluma's
 own. A square artboard and a locked one stay as they are, and the call fails with `the artboard is locked` when every
 artboard it names is locked. When no artboard changes, the command records no undo step → `{switched: [index…]}`.
 `scaleArt` scales the art with each artboard and defaults to the Artboard tool's Scale Artwork with Artboard option.
@@ -4812,7 +4812,7 @@ Artboard Options' Global checkboxes are application preferences, not artboard pr
 (Fade Region Outside Artboard) and `artboardUpdateWhileDragging` (Update While Dragging), both on by default
 (`prefs.set {values: {fadeRegionOutsideArtboard: false}}`; also Edit › Preferences › General › Artboard Options). With
 the first on, the canvas draws everything outside the artboards darker while the Artboard tool is active, the pasteboard
-and the art on it: each color channel at 60% of its value, VectorCraft's own amount. With the second off, that area
+and the art on it: each color channel at 60% of its value, Pluma's own amount. With the second off, that area
 draws as usual while the Artboard tool moves or resizes an artboard and darker again when the drag ends. When crossing
 artboards would leave more than 4,096 separate rectangles in view, only the area outside the box around all the
 artboards draws darker. Presentation Mode, exports and print do not change. The user guide describes both checkboxes under Artboard options
@@ -4995,7 +4995,7 @@ Placed documents (a `.vectorcraft` file, or a PDF or `.ai` page, placed linked)
 work the same way: the document keeps the file's bytes and a preview (JPEG or PNG, 1 px per point, at most 1024 px
 a side), and a save writes the preview (Include Linked Files: the file); output reads the file again, or uses the
 preview with a warning when it is gone or changed.
-`links.list` and `links.info` give them `document: true`, the file's `format` (`VectorCraft`, `PDF`,
+`links.list` and `links.info` give them `document: true`, the file's `format` (`Pluma`, `PDF`,
 `PDF-compatible .ai`) and the artboard's or page's `pageWidth` and `pageHeight` (pt). A relinked PDF shows the same
 page and box of the new file. File › Package copies a placed PDF or `.ai` file as it is. For a `.ai` file read from
 its editing data, Package also copies the files its art places into the same folder. That file finds them by name,
@@ -5060,7 +5060,7 @@ other in a loop.
 
 ## PDF presets
 
-`pdf.preset.list` lists the built-in presets (`VectorCraft Default`, which preserves editing, then High Quality Print,
+`pdf.preset.list` lists the built-in presets (`Pluma Default`, which preserves editing, then High Quality Print,
 Press Quality, Smallest File Size and the PDF/X presets, `builtIn: true`; `supported` says the writer produces the
 preset's standard) and the saved ones, each with its `description` and `settings`. `pdf.preset.save {name?,
 newName?, description?, preset?, …document.exportPdf options}` creates or changes a saved preset (a change starts from
@@ -5106,7 +5106,7 @@ Cut publish the formats to the system clipboard, and a Paste outside text editin
 copied (SVG, then PDF, then text, then a bitmap; SVG markup in text counts as SVG). A background thread makes the
 formats and they are published when they are ready. While that thread has a save, an export, a print or a recovery
 copy to finish, Copy and Cut make and publish them at once. When another Copy or Cut, or a copy of text in
-VectorCraft, comes first, they are dropped. Pasting what VectorCraft copied keeps the lossless internal clipboard,
+Pluma, comes first, they are dropped. Pasting what Pluma copied keeps the lossless internal clipboard,
 also before its formats are published. While a text field or the Type tool has the keyboard, the app waits for
 them. Windows carries every format both ways and pastes a bitmap from PNG, else
 from the device-independent bitmap screenshots copy (`CF_DIBV5`, then `CF_DIB`; alpha kept, opaque when it is zero
@@ -5214,7 +5214,7 @@ bounds; `clip` puts it in a clip group of the old bounds when it is larger). The
 `links.reveal` open the linked file in its app or show it in its folder (desktop). Edit Original runs only from the app's window,
 except for a placed document, which opens in a tab. With the preference `editOriginalSystemDefaults` (Preferences ›
 File Handling › Use System Defaults for Edit Original, on by default) off, Edit Original opens a raster image in the app
-that made it, PhotoCraft, where it is installed, and anything else in the system's default app (#5236).
+that made it, Lienzo, where it is installed, and anything else in the system's default app (#5236).
 
 ```json
 {"name":"run_command","arguments":{"command":"links.list","params":{"show":"missing"}}}
@@ -5475,7 +5475,7 @@ again. Several apps running at once (agents' instances included) never see each 
 and an area being restored or discarded is held, so two apps launched together never both take it.
 
 `file.recovery.list` → `{copies: [{file, title, path, format, saved, open, running}], location}` (`open`: the copy of a
-document open here; `running`: kept by another VectorCraft that is running). `file.recovery.restore {file?}` opens
+document open here; `running`: kept by another Pluma that is running). `file.recovery.restore {file?}` opens
 copies left behind (default: all) as `"<name> [Recovered]"`: modified, and Save asks where to save them (suggesting
 their original file); the copy moves into this app's area. `file.recovery.discard {file?}` deletes them. Without a
 folder or browser storage the commands are disabled and say how to set one.
@@ -5509,7 +5509,7 @@ or in `options` (`file.formatOptions {format}` lists them with their values):
   active artboard of the `.ai` file it was opened from), else the first. A `.ai` file read from its editing copy
   opens on that artboard, and so does a `.ai` file restored from the native document it carries.
 
-File → Save As asks for these in the save options dialog (VectorCraft Options) after the save panel, and Save a Copy
+File → Save As asks for these in the save options dialog (Pluma Options) after the save panel, and Save a Copy
 does too for a `.ai` file; Save, Save a Copy to a native file and Save as Template reuse the options as last saved (or Use Compression).
 
 ```json
@@ -5533,7 +5533,7 @@ and is missing from the picture" once for all such images.
 
 `document.open` and `file.place` read `.emf` and `.wmf` (placeable or not) into one artboard, the picture's frame, and
 one layer: paths with their fills and strokes (pens become strokes with caps, joins and dashes), clipping groups,
-images and point type in the font the file names. Records VectorCraft doesn't read (EMF+ drawing among them) are
+images and point type in the font the file names. Records Pluma doesn't read (EMF+ drawing among them) are
 skipped with one warning. `clipboard.importEmf {dataBase64, center?}` loads an EMF or WMF picture into the clipboard
 for `edit.paste`; the app pastes `image/emf` from the system clipboard ahead of text and bitmaps when the platform's
 clipboard service offers it (the Windows desktop service doesn't read metafiles yet).
@@ -5646,7 +5646,7 @@ With `zip`, the files go into one ZIP named after the document with `-3D` added 
 `3D Assets.zip` when the document's title gives no file name.
 An object whose face has a hole that crosses the face's outline or another hole is refused, by `assets.add3D` and
 `assets.export3D` alike, rather than exported with the hole filled. So is an object whose meshes would hold more than
-2,000,000 triangles together, VectorCraft's own limit.
+2,000,000 triangles together, Pluma's own limit.
 `assets.export` leaves 3D assets out and refuses one named in its `assets`. On the 3D export page
 (<https://helpx.adobe.com/illustrator/desktop/special-effects-styles/create-3d-graphics/export-3d-vector-artwork.html>)
 the 3D asset's Format is picked in Asset Export, with USDA first; the file layouts follow the glTF 2.0 specification
@@ -5704,7 +5704,7 @@ orientation their header gives, decoded with jxl-oxide and stored as PNG. 16-bit
 bits, and alpha is kept. Colors are converted to sRGB in XYB-encoded images and when the header names the color space
 or the embedded ICC profile describes one the decoder knows; other images with an embedded ICC profile keep their
 samples as stored. CMYK files are refused, and an image past the pixel allowance is refused from its header, before
-its pixels are decoded. `file.place {path}` links the file like any image. VectorCraft doesn't write JPEG XL.
+its pixels are decoded. `file.place {path}` links the file like any image. Pluma doesn't write JPEG XL.
 
 ```json
 {"name":"export","arguments":{"path":"/tmp/poster.psd","options":{"ppi":300,"maxEditability":true}}}
@@ -5752,7 +5752,7 @@ refused with the list of presets.
 
 `document.open` and `file.place` read `.eps`, `.epsf` and `.ps` files, and PostScript by any name (an `.ai` saved
 without PDF compatibility opens as artwork; an `.ait` one as a new untitled document). A `.ps` file reports the format
-`ps`, which `document.export` doesn't write (`file.print` writes PostScript). An EPS file VectorCraft wrote restores the
+`ps`, which `document.export` doesn't write (`file.print` writes PostScript). An EPS file Pluma wrote restores the
 document it carries (`restored: true`, as Preserve Editing does for PDF and SVG); when that document can't be read the
 PostScript is read instead and the first warning says why.
 
@@ -5802,7 +5802,7 @@ its standard: what it still breaks (transparency, RGB in PDF/X-1a, a font not em
 writing a file that only claims the standard.
 
 ```json
-{"name":"run_command","arguments":{"command":"document.exportPdf","params":{"path":"/tmp/press.pdf","preset":"PDF/X-1a:2001","output":{"outputIntent":"VectorCraft Generic CMYK (SWOP-like)","outputCondition":"Coated","trapped":false}}}}
+{"name":"run_command","arguments":{"command":"document.exportPdf","params":{"path":"/tmp/press.pdf","preset":"PDF/X-1a:2001","output":{"outputIntent":"Pluma Generic CMYK (SWOP-like)","outputCondition":"Coated","trapped":false}}}}
 ```
 
 ## Print tiling
@@ -5844,7 +5844,7 @@ colours keep their numbers with `preserveNumbers`), so a CMYK profile writes dev
 CMYK one. Settings saved before these options load with their defaults.
 
 ```json
-{"name":"run_command","arguments":{"command":"file.print","params":{"path":"/tmp/proof.pdf","settings":{"advanced":{"overprints":"simulate","flattenerPreset":"High Resolution"},"color":{"profile":"VectorCraft Generic CMYK (SWOP-like)","intent":"perceptual"}}}}}
+{"name":"run_command","arguments":{"command":"file.print","params":{"path":"/tmp/proof.pdf","settings":{"advanced":{"overprints":"simulate","flattenerPreset":"High Resolution"},"color":{"profile":"Pluma Generic CMYK (SWOP-like)","intent":"perceptual"}}}}}
 ```
 
 ### Rotated bounding boxes
@@ -6135,7 +6135,7 @@ closes. `text.spelling.ignoreAll {word}` is Ignore All: the active document's ch
 any case, while the document is open. It is not saved and not an undo step.
 
 ```json
-{"name":"run_command","arguments":{"command":"text.spelling.addWord","params":{"word":"VectorCraft"}}}
+{"name":"run_command","arguments":{"command":"text.spelling.addWord","params":{"word":"Pluma"}}}
 {"name":"run_command","arguments":{"command":"text.spelling.ignoreAll","params":{"word":"Zqvwkx"}}}
 ```
 
@@ -6271,13 +6271,13 @@ A composite font sets each class of character in a font of its own
 `type.compositeFonts.set {fonts: [{name, parts}]}` replaces the active document's composite fonts as one undo step,
 and adds no step when nothing changes. `parts` holds `kanji` (the base font), `kana`, `punctuation`, `symbols`, `roman`
 and `numerals`, each `{font, style?, size?, baseline?, hScale?, vScale?, scaleAtCenter?}`; a part left out copies the
-`kanji` part. Which characters fall in each class is VectorCraft's own rule: Kanji takes ideographs, full-width
+`kanji` part. Which characters fall in each class is Pluma's own rule: Kanji takes ideographs, full-width
 letters and digits and every character no other class takes; Kana takes hiragana and katakana of both widths;
 Punctuation takes East Asian and full-width punctuation, quotes and dashes; Symbols takes arrows, math, shapes and
 other symbols; Roman takes half-width letters, their punctuation and spaces; Numerals takes the digits 0 to 9.
 
 `size` (10 to 400, 100 by default) and `baseline` (-100 to 100, 0 by default; positive raises) are percentages of the
-type's size, VectorCraft's own ranges. `hScale` and `vScale` (10 to 400, 100 by default) scale Kana, Roman and
+type's size, Pluma's own ranges. `hScale` and `vScale` (10 to 400, 100 by default) scale Kana, Roman and
 Numerals only, and `scaleAtCenter` (Kana only) scales kana from the center of the em box instead of the baseline. A
 value out of range, a scale on another class, an unknown class or key, a name that is empty, longer than 255
 characters, shared by two fonts (in any case) or the name of an installed font, and a part set in a composite font are
@@ -6551,7 +6551,7 @@ Anti-aliasing Method, which decides how the edges of the characters are drawn as
 (Export As PNG, JPEG and the other raster formats, Export for Screens, Save for Web) and when Object › Rasterize or
 Effect › Rasterize draws the type. The method belongs to the whole type object, and each frame of a thread keeps its
 own method: a `start`/`end` range sets the whole frame, and threading frames or opening a file keeps each frame's
-method. VectorCraft defines what each method does, on the pixels of the picture being drawn (the canvas at its zoom,
+method. Pluma defines what each method does, on the pixels of the picture being drawn (the canvas at its zoom,
 an export at its resolution):
 
 - `sharp`, the default, draws each edge pixel with the share of it the type covers, as before.
@@ -6567,7 +6567,7 @@ stroke or a blend mode other than Normal, when it overprints while Overprint Pre
 shows a substitution highlight.
 With Preferences › General › Anti-aliased Artwork off, the canvas draws all its art with hard edges, type included, and
 so does an export whose own Anti-aliasing option is None. SVG, PDF and EPS export draw the type unchanged. The native
-document such a file carries (an EPS VectorCraft wrote, or an SVG or PDF saved with Preserve Editing) keeps each frame's
+document such a file carries (an EPS Pluma wrote, or an SVG or PDF saved with Preserve Editing) keeps each frame's
 method, and opening the file restores it.
 Reset Panel sets Sharp. Saved as `antiAlias` only when not `sharp`. One undo step.
 
@@ -6805,7 +6805,7 @@ the layers, opacity masks, symbols, graph designs, pattern tiles and the art of 
 uses, in panel order and never the Normal style, and the panel highlights them; `charStyle.delete` and
 `paraStyle.delete` take `{names}` to delete several styles in one undo step. `charStyle.load` and `paraStyle.load`
 (Load Character Styles… and Load Paragraph Styles… in the panel menus, where `ui.loadCharStyles` and
-`ui.loadParaStyles` pick the file) copy the styles of that kind from another document VectorCraft opens (`path`, `data`
+`ui.loadParaStyles` pick the file) copy the styles of that kind from another document Pluma opens (`path`, `data`
 or `dataBase64`), and `textStyle.loadAll` (Load All Styles…, `ui.loadAllStyles`) copies both kinds, each in one undo
 step. The swatches and patterns the styles paint with, the symbols and brushes those patterns use, and the styles of
 either kind that type in those patterns and symbols is set in, come along as Paste brings those of pasted type; a global or spot color whose name the document gives another color
@@ -6980,7 +6980,7 @@ filter without `doc.write` or `state` that returns output needing them gets an e
 A plug-in of API level 2 (`api: 2` in its entry) that lists `progress` may report its progress, see Cancel and write
 log lines: `notifications/cancelled` makes its `vc_cancelled` return 1, and its log lines go to the server's log
 under its id. One that lists `settings` or `cache` keeps settings or a cache of its own in the `Plug-ins` folder
-(VectorCraft's own caps: 256 settings and 1 MiB, 512 MiB of cache): `plugin.list` and `plugin.info` give the cache's
+(Pluma's own caps: 256 settings and 1 MiB, 512 MiB of cache): `plugin.list` and `plugin.info` give the cache's
 size as `cacheBytes`, `plugin.clearCache {id?}` empties the cache of one plug-in or of all of them and returns
 `{cleared: [id], bytesFreed}`, replacing a plug-in keeps both, and `plugin.remove` deletes both (also for an id that
 isn't installed but still has them). Files it can't delete stay in the plug-in's folder renamed with `.removed`, where
@@ -7006,7 +7006,7 @@ command, and a run that traps or runs out of its instruction budget returns an e
 name and the command's label and leaves the document and the undo history as they were. For `plugin.run` and plug-in
 commands, `ids` left out or null means the selection, and an `ids` that is not a list of object ids is an error.
 
-Safe Mode starts VectorCraft without plug-ins: `vectorcraft --safe-mode`, `vectorcraft-cli --safe-mode <subcommand>`, or
+Safe Mode starts Pluma without plug-ins: `vectorcraft --safe-mode`, `vectorcraft-cli --safe-mode <subcommand>`, or
 the choice the desktop app offers when the last launch stopped while a plug-in was loading (Disable and Continue, Start
 Normally, Start in Safe Mode). It names that plug-in without saying it caused the stop. Until the user picks Disable and
 Continue or Start Normally, the next launch asks again, also after a `--safe-mode` launch, which asks nothing.
@@ -7080,10 +7080,10 @@ the fonts CoreText's font manager lists outside them, such as those apps and fon
 folders; Linux and BSD: `/usr/share/fonts`,
 `/usr/local/share/fonts`, `~/.fonts` and the XDG data folders' `fonts`, `~/.local/share/fonts` among them, in a
 Flatpak sandbox the host's fonts, and the folders fontconfig's configuration lists (`<dir>` in `/etc/fonts/fonts.conf`
-and the files it includes: where packages add theirs, such as TeX fonts under `/usr/share/texmf/fonts`)). Faces without outlines VectorCraft draws (no `glyf`, `CFF`, `CFF2` or `VARC` table, such
+and the files it includes: where packages add theirs, such as TeX fonts under `/usr/share/texmf/fonts`)). Faces without outlines Pluma draws (no `glyf`, `CFF`, `CFF2` or `VARC` table, such
 as bitmap-only fonts) are left out. The scan also reads the folder the `fontsFolder` preference names (Preferences › Type ›
-Additional Fonts Folder) with its subfolders and, in the desktop app and `vectorcraft-cli`, VectorCraft's own `Fonts` folder
-next to the preferences: `~/Library/Application Support/VectorCraft/Fonts` on macOS, `%APPDATA%\VectorCraft\Fonts` on
+Additional Fonts Folder) with its subfolders and, in the desktop app and `vectorcraft-cli`, Pluma's own `Fonts` folder
+next to the preferences: `~/Library/Application Support/Pluma/Fonts` on macOS, `%APPDATA%\Pluma\Fonts` on
 Windows, and `$XDG_CONFIG_HOME/vectorcraft/Fonts` or `~/.config/vectorcraft/Fonts` on Linux and BSD. `text.addFontFiles`
 copies fonts into that folder. The installed fonts are cataloged once per session (in the background when the app starts, else on the first lookup
 by family name), so opening, placing, pasting and importing files find them whatever ran before. `text.fontList`
@@ -7135,7 +7135,7 @@ folders whose contents are in the cloud, and it follows no links; a picked folde
 that goes through a link is searched at its target. Programs installed in other folders, such as a folder on another
 drive, are searched as any other folder is.
 
-`text.addFontFiles {files}` copies files that the session's last search found into VectorCraft's `Fonts` folder, then
+`text.addFontFiles {files}` copies files that the session's last search found into Pluma's `Fonts` folder, then
 scans the fonts again, and type set in them redraws. It copies only regular `.ttf`, `.otf`, `.ttc`, `.otc`, `.woff`
 and `.woff2` files and suitcase fonts (with their resource fork), at most 256 MB a file and 1 GB in all, and lists any
 other file in `skipped`. It never replaces a file: the names `Name.otf`, `Name 2.otf` up to `Name 99.otf` are tried in
@@ -7318,7 +7318,7 @@ its segment when within 0.5% of the segment's parameter. Each piece of a side be
 share of the content's width or height in proportion to the length of its control polygon, spread along the piece by
 its curve parameter, so content spreads evenly along a segment without handles. An envelope opened from an `.ai` file
 keeps the corners the file saves, and they stay on the same anchors when the envelope is moved, rotated or
-reflected. These are VectorCraft's own rules, and existing top-object envelopes redraw by them.
+reflected. These are Pluma's own rules, and existing top-object envelopes redraw by them.
 `object.envelope.info` reads the selected envelope's settings (`type`, the warp's or mesh's values, `fidelity` and
 the options, `editing`), or with no envelope selected the options new envelopes get. With an envelope selected,
 `object.envelope.resetWithWarp` and `object.envelope.resetWithMesh` (`rows`, `cols`, `maintainShape`: true keeps
@@ -7351,7 +7351,7 @@ path. Inline graphics in the type count by their boxes. Rotated type and type in
 their outlines as they are drawn. `object.envelope.makeWithMesh`, `object.envelope.makeWithTopObject` and
 `object.envelope.resetWithMesh` with `maintainShape: false` use those bounds. Type that draws nothing keeps its
 laid-out box, and so does type inside any other object, such as a blend, a repeat or a symbol instance. This is
-VectorCraft's own rule, and envelopes of type in saved files redraw by it.
+Pluma's own rule, and envelopes of type in saved files redraw by it.
 Everything inside bends with the envelope: images as a raster mesh warp (cut into pieces by Fidelity, each a clipped
 image under its own affine map; SVG shares the pixels between the pieces), symbol instances as their symbol's art,
 and with Distort Appearance strokes (as their filled outlines) and geometry effects; with it, Distort Linear Gradients
@@ -7475,7 +7475,7 @@ shows, and so do the click-to-size dialogs (`perspective.draw` with `at`: the cl
 `object.blend.make` blends the selected objects (or `ids`) into a live blend. Spacing and orientation default to
 what `object.blend.options` set with no blend selected (`object.blend.info` reads them: `target: "defaults"`),
 else Smooth Color and Align to Page. Smooth Color counts the steps between each pair of keys on its own, from the
-keys' colors and visible bounds rather than along the spine. The counts below are VectorCraft's own values. The
+keys' colors and visible bounds rather than along the spine. The counts below are Pluma's own values. The
 colors compared are each key's solid fill and stroke, the fills and strokes of two text objects' runs at the same fraction of their characters, and
 those of two groups' members paired in order. When they differ, the count is 255 times the largest change of one
 channel as a fraction of its range, a half step rounding down, from 1 to 254. An RGB channel's range is 256 values,
@@ -7667,9 +7667,9 @@ entry, listed with its `name`, its `section` (the names of the blocks around it)
 (`key`, `modifiers`, `context`, `represent`) and its `line`. `codes` counts the entries that use each key and modifier
 code, and `unread` lists the tokens the reader skipped, with their lines. The reader stops at 4 MiB, 16 open blocks,
 20,000 entries and 8 MiB of names over the entries and their sections, cuts names at 1,024 bytes, and sets `truncated` when it reaches one of these limits. An XML shortcut
-file fails with "This shortcut file is in a form VectorCraft can't read."
+file fails with "This shortcut file is in a form Pluma can't read."
 
-The import matches record what the names and codes in such files stand for in VectorCraft. They are kept with the
+The import matches record what the names and codes in such files stand for in Pluma. They are kept with the
 preferences, and resetting the preferences keeps them. `importMatches.set {matches: [{kind, name, target, label?}]}`
 records them: kind `name` maps an entry name to a command id, `tool:<id>` or `panel:<id>`, and kinds `key` and
 `modifiers` map a code, written in decimal, to a key or to modifiers as Edit › Keyboard Shortcuts writes them (`K`,
@@ -7680,7 +7680,7 @@ the saved `key` or `mods` to each code.
 
 In the desktop app, Edit › Keyboard Shortcuts › Import… and File › Open show such a file in Import Shortcut Set
 (`ui.shortcutImportDialog {path? | dataBase64?, name?}` over the control channel). The dialog proposes targets from
-the entry names and decodes the codes that VectorCraft's default shortcuts agree on.
+the entry names and decodes the codes that Pluma's default shortcuts agree on.
 
 ```json
 {"name":"run_command","arguments":{"command":"shortcutSet.read","params":{"path":"/Users/me/Studio.kys"}}}
@@ -7704,7 +7704,7 @@ number is an error.
 
 `ui.actionSet.load` (the Actions panel menu's Load Actions…) reads such a file too, from `path`, a picked file or
 `data`, and adds its set after the other sets with all its actions. The set's name is the file's `/name`, else the
-file's name, else `Actions`. A step with a label and no recorded values comes in as the VectorCraft command with that
+file's name, else `Actions`. A step with a label and no recorded values comes in as the Pluma command with that
 label, in English or in the interface language, in any case and without a final `…`, when exactly one menu command has
 that label and that command is directly in a top menu, can be recorded in actions, is what its menu bar item runs with
 no values and opens no dialog (Group, Ungroup). A submenu's items, file and document commands, Paste, Undo, Redo and
@@ -8428,7 +8428,7 @@ default values, and the seed starts new whenever the document has changed.
 
 `addon.type.releasePath` splits each type on a path (`text.createInPath` with `mode: "onPath"`) into point type that
 holds the same text and the plain path it was set on (#5532). The reference app has no command for this, so it is a
-VectorCraft addition and changes no parity score.
+Pluma addition and changes no parity score.
 
 - **The path** keeps its exact shape (open or closed, every anchor and handle, the object's transform) and goes in the
   type's layer at its place in the stacking order. Type paths carry no paint of their own (making type on a path drops
