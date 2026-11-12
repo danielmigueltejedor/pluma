@@ -165,7 +165,7 @@ remain available; the list shows **Custom** whenever the effective lighting matc
 presets, including when there is more than one light. An equivalent explicit single light is
 recognized too. Reset all returns to Standard. Preview, Cancel and Undo work as for other options.
 
-These are original VectorCraft settings based on the public preset names and directions. Adobe's
+These are original Pluma settings based on the public preset names and directions. Adobe's
 documentation does not publish numeric rigs; the values are not copied from its software or files
 and are not claimed to reproduce its presets exactly. Standard retains the existing default.
 

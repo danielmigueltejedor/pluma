@@ -1,7 +1,7 @@
 # Hindi interface terminology and verification
 
-The `hi` catalog is a machine-assisted Hindi draft written from VectorCraft's English strings.
-It starts from matching entries in PhotoCraft's clean-room Hindi catalog. VectorCraft's current
+The `hi` catalog is a machine-assisted Hindi draft written from Pluma's English strings.
+It starts from matching entries in Lienzo's clean-room Hindi catalog. Pluma's current
 loanword preferences below take precedence over that starting vocabulary.
 The remaining drafts used the local Argos English–Hindi 1.1 model, followed by an agent wording
 pass on commands, vector vocabulary, counted messages, warnings and diagnostic identifiers.
