@@ -18,7 +18,7 @@ const PACKAGES: &[(&str, &str, &str)] = &[
 
 /// The resolved source of a craft-libs package at `rev`.
 fn source(rev: &str) -> String {
-    format!("git+https://github.com/storytold/craft-libs?rev={rev}#{rev}")
+    format!("git+https://github.com/getnodalia/foundation?rev={rev}#{rev}")
 }
 
 pub fn run(root: &Path) -> Result<(), String> {
@@ -68,7 +68,7 @@ mod tests {
         m["packages"]
             .as_array_mut()
             .unwrap()
-            .push(json!({"name":"craft-print", "version":"0.1.0", "source":"git+https://github.com/storytold/craft-libs?rev=d991bf6792f8ade99c51358bf3c1d902c8cd96b5#d991bf6792f8ade99c51358bf3c1d902c8cd96b5"}));
+            .push(json!({"name":"craft-print", "version":"0.1.0", "source":"git+https://github.com/getnodalia/foundation?rev=d991bf6792f8ade99c51358bf3c1d902c8cd96b5#d991bf6792f8ade99c51358bf3c1d902c8cd96b5"}));
         assert!(validate(&m).is_ok());
     }
 
@@ -91,7 +91,7 @@ mod tests {
             for (field, value) in [
                 ("source", Value::Null),
                 ("source", json!("registry+https://github.com/rust-lang/crates.io-index")),
-                ("source", json!("git+https://github.com/storytold/craft-libs?branch=main#other")),
+                ("source", json!("git+https://github.com/getnodalia/foundation?branch=main#other")),
                 ("source", json!(source("92d392cff132eaf53e13afff77f38b5c11b73aa0"))),
                 ("version", json!("0.99.0")),
             ] {
