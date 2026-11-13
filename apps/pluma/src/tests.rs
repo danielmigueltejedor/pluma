@@ -256,7 +256,10 @@ fn the_titlebar_variable_takes_precedence_over_system_title_bar() {
     assert!(!super::system_title_bar_applies(false, true));
     // PLUMA_TITLEBAR=app with System Title Bar on: Pluma draws its own title bar.
     let frame = super::start_frame(Frame::Desktop, Some(true), false, false);
-    assert_eq!(super::custom_titlebar_from(&frame, super::system_title_bar_applies(true, true)), !cfg!(target_os = "macos"));
+    assert_eq!(
+        super::custom_titlebar_from(&frame, super::system_title_bar_applies(true, true)),
+        !cfg!(any(target_os = "macos", target_os = "windows"))
+    );
     // PLUMA_TITLEBAR=desktop with System Title Bar off keeps the desktop's frame.
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
@@ -304,7 +307,8 @@ fn the_titlebar_variable_decides_the_frame_before_the_window_opens() {
     for (saved, opted_into_system) in [(None, false), (Some(&off), false), (Some(&on), true)] {
         let custom = super::custom_titlebar(saved);
         let expected = match value.as_str() {
-            _ if not_read => !cfg!(target_os = "macos") && !opted_into_system,
+            // macOS and Windows always keep the native frame.
+            _ if not_read => false,
             "app" => true,
             "system" | "desktop" => false,
             // Not a value the variable takes: System Title Bar decides when it is on. Otherwise the
