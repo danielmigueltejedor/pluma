@@ -1,7 +1,9 @@
 <div align="center">
   <a href="https://getnodalia.com">
-    <img src="https://raw.githubusercontent.com/danielmigueltejedor/nodalia-web/main/assets/brand/nodalia-wordmark-black.svg#gh-light-mode-only" width="150" alt="Nodalia">
-    <img src="https://raw.githubusercontent.com/danielmigueltejedor/nodalia-web/main/assets/brand/nodalia-wordmark-white.svg#gh-dark-mode-only" width="150" alt="Nodalia">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielmigueltejedor/nodalia-web/main/assets/brand/nodalia-wordmark-white.svg">
+      <img src="https://raw.githubusercontent.com/danielmigueltejedor/nodalia-web/main/assets/brand/nodalia-wordmark-black.svg" width="150" alt="Nodalia">
+    </picture>
   </a>
   <br><br>
   <img src="assets/app-icon/hicolor/512x512/apps/dev.danielmiguelt.Pluma.png" width="192" alt="Pluma">
@@ -9,7 +11,6 @@
   <p><strong>The vector illustration app of the Nodalia suite.</strong></p>
 
   <p>
-    <a href="https://github.com/getnodalia/pluma/releases/latest"><img src="https://img.shields.io/github/v/release/getnodalia/pluma?label=version&color=E8692C" alt="Latest version"></a>
     <img src="https://img.shields.io/badge/status-early%20stage-orange" alt="Early stage">
     <img src="https://img.shields.io/badge/Rust-native-dea584?logo=rust&logoColor=black" alt="Native Rust">
     <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2ea44f" alt="MIT OR Apache-2.0">
