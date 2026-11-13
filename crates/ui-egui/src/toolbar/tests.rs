@@ -1,17 +1,17 @@
 use egui::accesskit::{Role, Toggled};
 use egui::{Event, PointerButton, Pos2};
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::widgets::accessibility_tests::{role_and_state, tree};
 
 /// One headless frame of the toolbar; returns the tool buttons' rects, top to bottom.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> Vec<egui::Rect> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> Vec<egui::Rect> {
     frame_in(app, ctx, time, events, 1200.0)
 }
 
 /// [`frame`] in a window `height` points tall.
-fn frame_in(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, events: Vec<Event>, height: f32) -> Vec<egui::Rect> {
+fn frame_in(app: &mut PlumaApp, ctx: &egui::Context, time: f64, events: Vec<Event>, height: f32) -> Vec<egui::Rect> {
     let input = egui::RawInput {
         time: Some(time),
         events,
@@ -48,7 +48,7 @@ pub(crate) fn wheel(at: Pos2, dy: f32) -> Vec<Event> {
 
 #[test]
 fn the_toolbar_scrolls_in_a_short_window() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     // 500 pt: even two columns don't fit, so Edit Toolbar (the last button) starts below the window.
@@ -72,7 +72,7 @@ fn the_toolbar_scrolls_in_a_short_window() {
 /// line, docked and floating, in one or two columns (docked, they sat 2½ pt right of centre).
 #[test]
 fn the_tool_buttons_are_centred_in_the_panel() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     for (double, floating) in [(false, None), (true, None), (false, Some([100.0, 100.0])), (true, Some([100.0, 100.0]))] {
@@ -100,9 +100,9 @@ fn the_tool_buttons_are_centred_in_the_panel() {
 
 #[test]
 fn saved_flyout_choices_must_still_belong_to_the_slot() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
-    for (saved, shown) in [(vectorcraft_tools::addons::enclosing_lasso::ID, "lasso"), ("magicWand", "magicWand")] {
+    for (saved, shown) in [(pluma_tools::addons::enclosing_lasso::ID, "lasso"), ("magicWand", "magicWand")] {
         app.ui.slot_tool.insert("lasso".into(), saved.into());
         let tree = tree(|ui| show(&mut app, ui));
         assert_eq!(role_and_state(&tree, &tip(tool_info(shown).unwrap())), (Role::Button, Some(Toggled::False)));
@@ -113,7 +113,7 @@ fn saved_flyout_choices_must_still_belong_to_the_slot() {
 /// the title bar's column toggle and grip and the paint buttons under the tools.
 #[test]
 fn screen_readers_name_the_tool_buttons_and_the_active_tool() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.select_tool("pen");
     let tree = tree(|ui| show(&mut app, ui));
@@ -129,7 +129,7 @@ fn screen_readers_name_the_tool_buttons_and_the_active_tool() {
 /// graph tool Graph Type for the selected graph, and the Magic Wand tool its panel.
 #[test]
 fn more_tools_open_their_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     // Without the Artboard tool, the window's artboard.
     assert_eq!(open_options(&mut app, "artboard").unwrap()["dialog"], "artboardOptions");
@@ -158,7 +158,7 @@ fn more_tools_open_their_options() {
 }
 
 /// A double-click at `at`, `time` seconds in (a second apart from the last).
-fn double_click(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, at: Pos2) {
+fn double_click(app: &mut PlumaApp, ctx: &egui::Context, time: f64, at: Pos2) {
     let b = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
     frame(app, ctx, time, vec![Event::PointerMoved(at), b(true), b(false), b(true), b(false)]);
     frame(app, ctx, time + 0.1, vec![]);
@@ -166,7 +166,7 @@ fn double_click(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, at: Po
 
 #[test]
 fn double_clicking_a_tool_button_opens_its_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     let buttons = frame(&mut app, &ctx, 0.0, vec![]);
@@ -193,7 +193,7 @@ fn double_clicking_a_tool_button_opens_its_options() {
 /// instead of blending with the first.
 #[test]
 fn clicking_the_active_blend_tool_button_finishes_the_blend() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.ui.toolbar_advanced = true;
     app.run("file.new", json!({"width": 600, "height": 300})).unwrap();
     for x in [0, 200] {
@@ -203,7 +203,7 @@ fn clicking_the_active_blend_tool_button_finishes_the_blend() {
     let index = slots(&app).iter().position(|(_, tools)| tools.contains(&"blend")).expect("a toolbar slot");
     let ctx = egui::Context::default();
     let at = frame_in(&mut app, &ctx, 0.0, vec![], 2000.0)[index].center();
-    let down = |x, y| vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::Down, x, y);
+    let down = |x, y| pluma_tools::PointerEvent::new(pluma_tools::PointerKind::Down, x, y);
     let view = app.view_info();
     app.session.pointer(&down(20.0, 20.0), view).unwrap();
     assert!(app.session.tool_busy(), "the first rectangle is picked");
@@ -222,14 +222,14 @@ fn clicking_the_active_blend_tool_button_finishes_the_blend() {
 #[test]
 fn double_clicking_a_type_on_a_path_tool_opens_type_on_a_path_options() {
     for tool in ["typeOnPath", "verticalTypeOnPath"] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui.toolbar_advanced = true;
         app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
         app.select_tool(tool);
         let index = slots(&app).iter().position(|(_, tools)| tools.contains(&tool)).expect("a toolbar slot");
         let ctx = egui::Context::default();
         let at = frame_in(&mut app, &ctx, 0.0, vec![], 2000.0)[index].center();
-        let double_click = |app: &mut VectorcraftApp, time: f64| {
+        let double_click = |app: &mut PlumaApp, time: f64| {
             let b = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
             frame_in(app, &ctx, time, vec![Event::PointerMoved(at), b(true), b(false), b(true), b(false)], 2000.0);
             frame_in(app, &ctx, time + 0.1, vec![], 2000.0);
@@ -266,13 +266,12 @@ fn double_clicking_a_type_on_a_path_tool_opens_type_on_a_path_options() {
 #[test]
 fn polygon_and_star_canvas_counts_persist_without_new_toolbar_dialogs() {
     for (tool, key, count) in [("polygon", "sides", 3), ("star", "points", 7)] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width":300,"height":300})).unwrap();
         app.select_tool(tool);
         assert!(open_options(&mut app, tool).is_err(), "upstream toolbar opening behavior stays unchanged");
         assert!(app.ui.dialog.is_none());
-        let objects =
-            |app: &VectorcraftApp| app.session.active().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
+        let objects = |app: &PlumaApp| app.session.active().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
         crate::dialogs::open_tool_dialog(&mut app, tool, json!({"x":120,"y":130}));
         let d = app.ui.dialog.as_mut().unwrap();
         assert!(d.fields.contains_key(if tool == "polygon" { "radius" } else { "radius1" }));
@@ -287,11 +286,11 @@ fn polygon_and_star_canvas_counts_persist_without_new_toolbar_dialogs() {
             }
             let view = app.view_info();
             for (kind, x, y) in [
-                (vectorcraft_tools::PointerKind::Down, 50.0, 50.0),
-                (vectorcraft_tools::PointerKind::Drag, 90.0, 90.0),
-                (vectorcraft_tools::PointerKind::Up, 90.0, 90.0),
+                (pluma_tools::PointerKind::Down, 50.0, 50.0),
+                (pluma_tools::PointerKind::Drag, 90.0, 90.0),
+                (pluma_tools::PointerKind::Up, 90.0, 90.0),
             ] {
-                app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, x, y), view).unwrap();
+                app.session.pointer(&pluma_tools::PointerEvent::new(kind, x, y), view).unwrap();
             }
             assert_eq!(objects(&app), round + 2);
             let st = app.session.active().unwrap();
@@ -320,20 +319,20 @@ fn double_clicking_the_line_arc_and_grid_tools_opens_their_tool_options() {
         ("rectangularGrid", "rows", json!(2), "shape.rectangularGrid", "rows"),
         ("polarGrid", "radial", json!(3), "shape.polarGrid", "radial"),
     ];
-    let objects = |app: &VectorcraftApp| app.session.active().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
-    let drag = |app: &mut VectorcraftApp| {
+    let objects = |app: &PlumaApp| app.session.active().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
+    let drag = |app: &mut PlumaApp| {
         let view = app.view_info();
         for (kind, x, y) in [
-            (vectorcraft_tools::PointerKind::Down, 50.0, 50.0),
-            (vectorcraft_tools::PointerKind::Drag, 150.0, 120.0),
-            (vectorcraft_tools::PointerKind::Up, 150.0, 120.0),
+            (pluma_tools::PointerKind::Down, 50.0, 50.0),
+            (pluma_tools::PointerKind::Drag, 150.0, 120.0),
+            (pluma_tools::PointerKind::Up, 150.0, 120.0),
         ] {
-            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, x, y), view).unwrap();
+            app.session.pointer(&pluma_tools::PointerEvent::new(kind, x, y), view).unwrap();
         }
         app.session.journal.last().cloned().expect("the drag's command")
     };
     for (tool, key, value, cmd, param) in cases {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui.toolbar_advanced = true;
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.select_tool(tool);
@@ -383,7 +382,7 @@ fn double_clicking_the_line_arc_and_grid_tools_opens_their_tool_options() {
 
 #[test]
 fn double_clicking_the_hand_zoom_and_transform_tools() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.canvas_rect = Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(660.0, 460.0)));
     app.run("view.setZoom", json!({"zoom": 333, "center": [10, 10]})).unwrap();
@@ -405,13 +404,13 @@ fn double_clicking_the_hand_zoom_and_transform_tools() {
     app.run("tool.options", json!({"tool": "rotate"})).unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("angle".into(), json!(90));
     crate::dialogs::confirm(&mut app).unwrap();
-    let b = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let b = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert!((b.x0 - 20.0).abs() < 1e-9 && (b.y0 - 0.0).abs() < 1e-9 && (b.width() - 20.0).abs() < 1e-9, "{b:?}");
 }
 
 #[test]
 fn double_clicking_a_selection_tool_opens_the_move_dialog() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     // The Selection tool's button is the first one.
@@ -432,7 +431,7 @@ fn double_clicking_a_selection_tool_opens_the_move_dialog() {
     app.run("tool.options", json!({"tool": "selection"})).unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("dx".into(), json!("25 pt"));
     crate::dialogs::confirm(&mut app).unwrap();
-    let b = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let b = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert_eq!((b.x0, b.y0), (35.0, 10.0));
 }
 
@@ -468,7 +467,7 @@ fn a_flyout_is_as_wide_as_its_longest_translated_row() {
 
 #[test]
 fn right_clicking_a_tool_group_opens_its_flyout() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     let buttons = frame(&mut app, &ctx, 0.0, vec![]);
@@ -505,7 +504,7 @@ fn right_clicking_a_tool_group_opens_its_flyout() {
 }
 
 /// The Shapes group's button (Selection, Direct Selection, Lasso, then Rectangle).
-fn shapes_button(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::Rect {
+fn shapes_button(app: &mut PlumaApp, ctx: &egui::Context) -> egui::Rect {
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     frame(app, ctx, 0.0, vec![])[3]
 }
@@ -513,7 +512,7 @@ fn shapes_button(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::Rect {
 #[test]
 fn a_held_press_asks_for_the_frame_that_opens_the_flyout() {
     // egui draws only on input: a still press must schedule the frame where it becomes long.
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let at = shapes_button(&mut app, &ctx).center();
     let p = Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() };
@@ -530,7 +529,7 @@ fn a_held_press_asks_for_the_frame_that_opens_the_flyout() {
 
 #[test]
 fn pressing_the_corner_triangle_opens_the_flyout_at_once() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let button = shapes_button(&mut app, &ctx);
     let at = button.right_bottom() - vec2(4.0, 4.0);
@@ -550,7 +549,7 @@ fn pressing_the_corner_triangle_opens_the_flyout_at_once() {
 
 #[test]
 fn the_flyout_opens_on_the_right_press_even_when_its_tool_is_active() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let at = shapes_button(&mut app, &ctx).center();
     app.select_tool("rectangle");
@@ -578,7 +577,7 @@ fn the_flyout_opens_on_the_right_press_even_when_its_tool_is_active() {
 #[test]
 fn type_button_long_press_selects_vertical_type_in_both_layouts() {
     for advanced in [false, true] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui.toolbar_advanced = advanced;
         let all = slots(&app);
         let index = all.iter().position(|(_, tools)| tools.contains(&"type")).unwrap();
@@ -606,7 +605,7 @@ fn type_button_long_press_selects_vertical_type_in_both_layouts() {
 }
 
 /// A press at `from`, dragged through `to` (one frame each), then released.
-fn drag(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, from: Pos2, to: &[Pos2]) {
+fn drag(app: &mut PlumaApp, ctx: &egui::Context, time: f64, from: Pos2, to: &[Pos2]) {
     let b = |pos, pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Default::default() };
     frame(app, ctx, time, vec![Event::PointerMoved(from), b(from, true)]);
     for (k, p) in to.iter().enumerate() {
@@ -618,12 +617,12 @@ fn drag(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, from: Pos2, to
 }
 
 /// A click at `at`.
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, at: Pos2, button: PointerButton) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, time: f64, at: Pos2, button: PointerButton) {
     click_in(app, ctx, time, at, button, 1200.0);
 }
 
 /// [`click`] in a window `height` points tall; returns the tool buttons' rects after it.
-fn click_in(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, at: Pos2, button: PointerButton, height: f32) -> Vec<egui::Rect> {
+fn click_in(app: &mut PlumaApp, ctx: &egui::Context, time: f64, at: Pos2, button: PointerButton, height: f32) -> Vec<egui::Rect> {
     let b = |pressed| Event::PointerButton { pos: at, button, pressed, modifiers: Default::default() };
     frame_in(app, ctx, time, vec![Event::PointerMoved(at), b(true)], height);
     frame_in(app, ctx, time + 0.05, vec![b(false)], height);
@@ -634,7 +633,7 @@ fn click_in(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, at: Pos2, 
 /// drawing modes sit side by side, each setting its mode (#1129).
 #[test]
 fn the_paint_and_drawing_mode_buttons_fit_the_toolbar_width() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", serde_json::json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     frame_in(&mut app, &ctx, 0.0, vec![], 900.0);
@@ -646,20 +645,20 @@ fn the_paint_and_drawing_mode_buttons_fit_the_toolbar_width() {
     assert_eq!(modes.len(), 3, "the three drawing modes side by side");
     assert!(modes.iter().all(|r| (r.top() - modes[0].top()).abs() < 0.5), "{modes:?}");
     click_in(&mut app, &ctx, 2.0, modes[1].center(), PointerButton::Primary, 900.0);
-    assert_eq!(app.session.draw_mode, vectorcraft_engine::DrawMode::Behind);
+    assert_eq!(app.session.draw_mode, pluma_engine::DrawMode::Behind);
 }
 
 /// A click on the Gradient button applies the last gradient; Cmd/Ctrl-click resets the active
 /// proxy's gradient to the linear White, Black gradient instead, as one undo step.
 #[test]
 fn cmd_click_on_the_gradient_button_resets_to_the_linear_white_black_gradient() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
     let stops = json!([{"offset": 0, "color": "#ff0000"}, {"offset": 1, "color": "#0000ff"}]);
     app.run("paint.setFill", json!({"gradient": {"kind": "radial", "stops": stops}})).unwrap();
     app.run("paint.setFill", json!({"color": "#336699"})).unwrap();
-    let fill = |app: &VectorcraftApp| match crate::panels::current_paints(app).0 {
+    let fill = |app: &PlumaApp| match crate::panels::current_paints(app).0 {
         Paint::Gradient(g) => (g.gradient.kind, g.gradient.stops.iter().map(|s| s.color.to_hex()).collect::<Vec<_>>()),
         p => panic!("expected a gradient fill, got {p:?}"),
     };
@@ -667,15 +666,15 @@ fn cmd_click_on_the_gradient_button_resets_to_the_linear_white_black_gradient() 
     frame_in(&mut app, &ctx, 0.0, vec![], 900.0);
     let gradient = widget_rects(&ctx, vec2(11.0, 11.0))[1].center();
     click_in(&mut app, &ctx, 1.0, gradient, PointerButton::Primary, 900.0);
-    assert_eq!(fill(&app), (vectorcraft_color::GradientKind::Radial, vec!["#ff0000".into(), "#0000ff".into()]), "the last gradient");
+    assert_eq!(fill(&app), (pluma_color::GradientKind::Radial, vec!["#ff0000".into(), "#0000ff".into()]), "the last gradient");
     let m = egui::Modifiers::COMMAND;
     let b = |pressed| Event::PointerButton { pos: gradient, button: PointerButton::Primary, pressed, modifiers: m };
     frame_in(&mut app, &ctx, 2.0, vec![Event::ModifiersChanged(m), Event::PointerMoved(gradient), b(true)], 900.0);
     frame_in(&mut app, &ctx, 2.05, vec![b(false)], 900.0);
     frame_in(&mut app, &ctx, 2.1, vec![Event::ModifiersChanged(egui::Modifiers::NONE)], 900.0);
-    assert_eq!(fill(&app), (vectorcraft_color::GradientKind::Linear, vec!["#ffffff".into(), "#000000".into()]));
+    assert_eq!(fill(&app), (pluma_color::GradientKind::Linear, vec!["#ffffff".into(), "#000000".into()]));
     app.run("edit.undo", json!({})).unwrap();
-    assert_eq!(fill(&app).0, vectorcraft_color::GradientKind::Radial, "one undo step");
+    assert_eq!(fill(&app).0, pluma_color::GradientKind::Radial, "one undo step");
 }
 
 /// How many columns of tool buttons `rects` make.
@@ -704,7 +703,7 @@ fn row_sizes(rects: &[egui::Rect]) -> Vec<usize> {
 /// the last. With the labels, each group starts its own row under its name.
 #[test]
 fn the_tools_run_on_without_group_labels() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     let one = frame_in(&mut app, &ctx, 0.0, vec![], 1600.0);
@@ -724,7 +723,7 @@ fn the_tools_run_on_without_group_labels() {
 
 #[test]
 fn the_double_arrow_toggles_one_and_two_columns_in_a_short_window() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     // 700 pt: too short for the single column, which scrolls instead of turning into two.
     assert_eq!(columns(&frame_in(&mut app, &ctx, 0.0, vec![], 700.0)), 1);
@@ -737,7 +736,7 @@ fn the_double_arrow_toggles_one_and_two_columns_in_a_short_window() {
 
 #[test]
 fn the_columns_command_toggles_or_sets_the_toolbar_columns() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     assert_eq!(app.run("window.toolbarColumns", json!({})).unwrap(), json!(true));
     assert_eq!(columns(&frame_in(&mut app, &ctx, 0.0, vec![], 700.0)), 2);
@@ -753,7 +752,7 @@ fn the_columns_command_toggles_or_sets_the_toolbar_columns() {
 
 #[test]
 fn a_flyout_dragged_by_its_bar_floats_until_its_close_box_puts_it_back() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let at = shapes_button(&mut app, &ctx).center();
     click(&mut app, &ctx, 1.0, at, PointerButton::Secondary);
@@ -795,7 +794,7 @@ fn a_flyout_dragged_by_its_bar_floats_until_its_close_box_puts_it_back() {
 
 #[test]
 fn a_click_on_a_flyouts_bar_tears_it_off() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let at = shapes_button(&mut app, &ctx).center();
     click(&mut app, &ctx, 1.0, at, PointerButton::Secondary);
@@ -812,7 +811,7 @@ fn a_click_on_a_flyouts_bar_tears_it_off() {
 
 #[test]
 fn releasing_a_long_press_over_the_flyouts_bar_tears_it_off() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     let at = shapes_button(&mut app, &ctx).center();
     let b = |pos, pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -829,8 +828,8 @@ fn releasing_a_long_press_over_the_flyouts_bar_tears_it_off() {
 
 #[test]
 fn window_float_tools_floats_and_puts_back_a_group() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    let check = |app: &VectorcraftApp| crate::menus::checked(app, "window.floatTools", &json!({"tool": "star"}));
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    let check = |app: &PlumaApp| crate::menus::checked(app, "window.floatTools", &json!({"tool": "star"}));
     assert_eq!(app.run("window.floatTools", json!({"tool": "star"})).unwrap(), json!(true));
     let [f] = app.ui.floating_flyouts.as_slice() else { panic!("one strip: {:?}", app.ui.floating_flyouts) };
     assert_eq!(f.tools.first().map(String::as_str), Some("rectangle"), "the Basic toolbar's Shapes group");
@@ -853,7 +852,7 @@ fn window_float_tools_floats_and_puts_back_a_group() {
 
 #[test]
 fn workspaces_keep_floating_flyouts_and_reset_puts_them_back() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("window.floatTools", json!({"tool": "pen"})).unwrap();
     app.run("window.workspace.new", json!({"name": "Strips"})).unwrap();
     app.run("window.workspace", json!({"name": "Essentials"})).unwrap();
@@ -879,7 +878,7 @@ fn loaded_floating_flyouts_keep_known_tools_one_strip_per_group() {
 
 #[test]
 fn floating_flyouts_survive_saved_preferences_and_stay_on_screen() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.ui.floating_flyouts.push(crate::state::FloatingFlyout { tools: vec!["pen".into(), "addAnchor".into()], pos: [5000.0, 10.0] });
     let saved = serde_json::to_value(&app.ui).unwrap();
     let back: crate::state::UiState = serde_json::from_value(saved.clone()).unwrap();
@@ -911,10 +910,10 @@ fn tool_group_labels_can_be_hidden() {
             _ => {}
         }
     }
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let draw = |app: &mut VectorcraftApp| {
+    let draw = |app: &mut PlumaApp| {
         let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(400.0, 1600.0))), ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| show(app, ui));
         out.textures_delta.clear();
@@ -930,7 +929,7 @@ fn tool_group_labels_can_be_hidden() {
 }
 
 /// Hover `at` for two seconds, coming from elsewhere: the texts painted meanwhile.
-fn hovered_texts(app: &mut VectorcraftApp, ctx: &egui::Context, t0: f64, at: Pos2) -> Vec<String> {
+fn hovered_texts(app: &mut PlumaApp, ctx: &egui::Context, t0: f64, at: Pos2) -> Vec<String> {
     fn texts(s: &egui::Shape, out: &mut Vec<String>) {
         match s {
             egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -964,7 +963,7 @@ fn hovered_texts(app: &mut VectorcraftApp, ctx: &egui::Context, t0: f64, at: Pos
 
 #[test]
 fn a_floating_flyouts_buttons_have_tool_tips_when_tool_tips_are_on() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let tools: Vec<String> = ["rectangle", "roundedRectangle", "star"].map(String::from).to_vec();
     app.ui.floating_flyouts.push(crate::state::FloatingFlyout { tools, pos: [150.0, 600.0] });
     let ctx = egui::Context::default();
@@ -985,7 +984,7 @@ fn a_floating_flyouts_buttons_have_tool_tips_when_tool_tips_are_on() {
 #[test]
 fn screen_readers_name_a_flyouts_rows_and_a_floating_strips_buttons() {
     let name = |id| tool_info(id).map(tip).unwrap_or_default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let group: Vec<String> = ["rectangle", "roundedRectangle", "ellipse"].map(String::from).to_vec();
     let flyout = tree(|ui| {
@@ -1011,7 +1010,7 @@ fn screen_readers_name_a_flyouts_rows_and_a_floating_strips_buttons() {
 /// tear-off bar or a floating strip's bar, which only the pointer drags.
 #[test]
 fn tab_skips_the_grip_and_the_tear_off_bars() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let group: Vec<String> = ["rectangle", "roundedRectangle", "ellipse"].map(String::from).to_vec();
     let tools: Vec<String> = ["polygon", "star"].map(String::from).to_vec();

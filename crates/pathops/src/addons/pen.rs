@@ -3,7 +3,7 @@
 //! without refitting the handles beside it.
 
 use kurbo::Vec2;
-use vectorcraft_geom::{AnchorKind, SubPath};
+use pluma_geom::{AnchorKind, SubPath};
 
 use super::pathtools::{auto_smooth, make_corner, neighbours};
 
@@ -110,7 +110,7 @@ pub fn delete_anchor(sp: &mut SubPath, i: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use kurbo::Point;
-    use vectorcraft_geom::{Anchor, AnchorKind, SubPath};
+    use pluma_geom::{Anchor, AnchorKind, SubPath};
 
     use super::*;
     use crate::addons::pathtools::SMOOTH_RATIO;

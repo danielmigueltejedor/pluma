@@ -1,11 +1,11 @@
 //! Model-based / stateful property tests: random command sequences drawn from the registry, with
 //! structural invariants checked after every step and history/serialization invariants at the end.
 
+use pluma_testkit::fixtures::{self, exec};
+use pluma_testkit::invariants::{self, check_all, check_session, doc_json, first_diff, redo_all, undo_all};
+use pluma_testkit::strategies::{Op, arb_ops};
 use proptest::prelude::*;
 use serde_json::json;
-use vectorcraft_testkit::fixtures::{self, exec};
-use vectorcraft_testkit::invariants::{self, check_all, check_session, doc_json, first_diff, redo_all, undo_all};
-use vectorcraft_testkit::strategies::{Op, arb_ops};
 
 fn run_sequence(ops: &[Op], full_checks_every: usize) -> Result<(), TestCaseError> {
     let mut s = fixtures::session();
@@ -58,7 +58,7 @@ proptest! {
         }
         let want = doc_json(&s.doc().unwrap().doc);
         let journal = s.journal.clone();
-        let mut r = vectorcraft_engine::Session::new();
+        let mut r = pluma_engine::Session::new();
         for (id, p) in &journal {
             let _ = r.execute(id, p);
         }
@@ -129,12 +129,12 @@ fn a_failed_batch_restores_the_file_the_history_and_a_drag_in_progress() {
     let fail = json!({"command": "no.such.command", "params": {}});
     exec(&mut s, "shape.rectangle", json!({"x": 50, "y": 0, "width": 10, "height": 10}));
     let before = (doc_json(&s.doc().unwrap().doc), s.doc().unwrap().history.undo.len(), s.doc().unwrap().history.redo.len());
-    let state = |s: &vectorcraft_engine::Session| {
+    let state = |s: &pluma_engine::Session| {
         let st = s.doc().unwrap();
         (doc_json(&st.doc), st.history.undo.len(), st.history.redo.len())
     };
     // Save As, then a failing step: the document keeps no file and stays modified.
-    let path = vectorcraft_testkit::temp_dir("batch-rollback").join("named.vectorcraft").to_string_lossy().to_string();
+    let path = pluma_testkit::temp_dir("batch-rollback").join("named.pluma").to_string_lossy().to_string();
     let save = json!({"command": "file.saveAs", "params": {"path": path}});
     assert!(s.execute("command.batch", &json!({"commands": [rect(0), save, fail]})).is_err());
     assert_eq!(state(&s), before);
@@ -170,8 +170,8 @@ fn empty_batch_is_harmless() {
 #[test]
 fn save_open_via_commands_roundtrips() {
     let mut s = fixtures::rich_session();
-    let dir = vectorcraft_testkit::temp_dir("engine-save");
-    let path = dir.join("rich.vectorcraft");
+    let dir = pluma_testkit::temp_dir("engine-save");
+    let path = dir.join("rich.pluma");
     exec(&mut s, "document.save", json!({"path": path.to_str().unwrap()}));
     let want = doc_json(&s.doc().unwrap().doc);
     exec(&mut s, "document.open", json!({"path": path.to_str().unwrap()}));
@@ -194,8 +194,8 @@ fn serialize_all_formats_on_rich_doc() {
     let text = svg["text"]
         .as_str()
         .map(str::to_string)
-        .unwrap_or_else(|| String::from_utf8(vectorcraft_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap());
-    let back = vectorcraft_svg::import(&text).unwrap();
+        .unwrap_or_else(|| String::from_utf8(pluma_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap());
+    let back = pluma_svg::import(&text).unwrap();
     invariants::check_document(&back).unwrap();
     assert!(back.node_count() >= 5);
 }

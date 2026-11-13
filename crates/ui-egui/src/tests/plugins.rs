@@ -2,24 +2,24 @@
 //! filter dialog with its live preview, plug-in effects in the effect dialog, and installing
 //! `.wasm` files through File › Open.
 
+use pluma_engine::Session;
+use pluma_plugins::wat as tpl;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::wat as tpl;
 
 use crate::state::Dialog;
-use crate::{VectorcraftApp, dialogs, io, menus, theme};
+use crate::{PlumaApp, dialogs, io, menus, theme};
 
 const DESATURATE: &[u8] = include_bytes!("../../../plugins/tests/fixtures/desaturate.wasm");
-const DESATURATE_ID: &str = "org.vectorcraft.example.desaturate";
+const DESATURATE_ID: &str = "org.pluma.example.desaturate";
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app
 }
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -27,13 +27,13 @@ fn frame(app: &mut VectorcraftApp) {
     out.textures_delta.clear();
 }
 
-fn red_rect(app: &mut VectorcraftApp) -> vectorcraft_doc::NodeId {
+fn red_rect(app: &mut PlumaApp) -> pluma_doc::NodeId {
     let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap()["id"].as_u64().unwrap();
     app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
-    vectorcraft_doc::NodeId(id)
+    pluma_doc::NodeId(id)
 }
 
-fn fill_rgb(app: &VectorcraftApp, id: vectorcraft_doc::NodeId) -> [f32; 3] {
+fn fill_rgb(app: &PlumaApp, id: pluma_doc::NodeId) -> [f32; 3] {
     app.session.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint().color().unwrap().to_rgb_uncalibrated()
 }
 
@@ -47,7 +47,7 @@ fn plugins_are_listed_in_the_object_and_effect_menus() {
     let before = menus::plugin_revision();
     io::open_bytes(&mut app, "desaturate.wasm", DESATURATE, None).unwrap();
     let effect = tpl::module(&tpl::manifest("test.ui.echo", "effect", r#"{"wiggle":{"type":"bool"}}"#), tpl::ECHO, "", 1);
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(effect).unwrap())})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(effect).unwrap())})).unwrap();
     assert_ne!(menus::plugin_revision(), before, "the native menu is rebuilt");
     let entries = menus::menu_entries(&app);
     let filter = entry(&entries, &["Object", "Plug-ins"], "Desaturate…").expect("filter listed");
@@ -69,7 +69,7 @@ fn plugins_are_listed_in_the_object_and_effect_menus() {
 #[test]
 fn filter_dialog_previews_and_commits_one_undo_step() {
     let mut app = app();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(DESATURATE)})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(DESATURATE)})).unwrap();
     let id = red_rect(&mut app);
     let undo = app.session.doc().unwrap().history.undo.len();
     menus::invoke(&mut app, "plugin.dialog", json!({"id": DESATURATE_ID}));
@@ -105,7 +105,7 @@ fn plugin_effects_open_the_effect_dialog_with_their_schema() {
     let mut app = app();
     let src =
         tpl::module(&tpl::manifest("test.ui.fx", "effect", r#"{"mode":{"type":"choice","options":["a","b"],"default":"b"}}"#), tpl::ECHO, "", 1);
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
     let id = red_rect(&mut app);
     app.run("effect.dialog", json!({"effect": "plugin.test.ui.fx"})).unwrap();
     let d: &Dialog = app.ui.dialog.as_ref().unwrap();
@@ -141,12 +141,12 @@ fn installing_a_plugin_that_lists_permissions_asks_first() {
     // hold them, though not control characters, which its version may.
     let name = "Tidy\u{202E}fdp.exe\u{2066}";
     let bytes = asking(id, name, r#"["doc.read","doc.write"]"#);
-    let data = vectorcraft_format::base64_encode(&bytes);
+    let data = pluma_format::base64_encode(&bytes);
     let r = app.run("ui.installPlugin", json!({"dataBase64": data, "name": "tidy.wasm"})).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND);
     let pending = app.pending_plugin_install.as_ref().unwrap();
     assert_eq!(pending.message, "Install “Tidy\\u{202E}fdp.exe\\u{2066}”, which asks for these permissions?");
-    let hash = vectorcraft_plugins::permissions::sha256_hex(&bytes);
+    let hash = pluma_plugins::permissions::sha256_hex(&bytes);
     assert_eq!(pending.params["hash"], json!(hash), "OK installs the module shown");
     let detail = pending.detail.clone();
     assert_eq!(
@@ -156,34 +156,34 @@ fn installing_a_plugin_that_lists_permissions_asks_first() {
         )
     );
     assert!(!detail.chars().chain(pending.message.chars()).any(|c| matches!(c, '\u{202E}' | '\u{2066}' | '\t' | '\u{0007}')));
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "not before the user agrees");
+    assert!(pluma_plugins::registry::get(id).is_none(), "not before the user agrees");
     dialogs::cancel(&mut app);
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "Cancel installs nothing");
+    assert!(pluma_plugins::registry::get(id).is_none(), "Cancel installs nothing");
     assert!(app.pending_plugin_install.is_none(), "Cancel drops what it asked about");
     // File › Open asks too, and OK installs it with what it lists granted.
     io::open_bytes(&mut app, "tidy.wasm", &bytes, None).unwrap();
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some(dialogs::plugin::INSTALL_KIND));
     dialogs::confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
-    assert!(vectorcraft_plugins::registry::get(id).is_some());
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(hash));
+    assert!(pluma_plugins::registry::get(id).is_some());
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(hash));
     // The same module again: installed without asking.
     app.run("ui.installPlugin", json!({"dataBase64": data})).unwrap();
     assert!(app.ui.dialog.is_none(), "the same bytes don't ask again");
     // Other bytes with the same permissions ask for them, from both ways in; Cancel keeps the one
     // installed.
     let again = asking(id, "Tidy 2", r#"["doc.write","doc.read"]"#);
-    let r = app.run("ui.installPlugin", json!({"dataBase64": vectorcraft_format::base64_encode(&again)})).unwrap();
+    let r = app.run("ui.installPlugin", json!({"dataBase64": pluma_format::base64_encode(&again)})).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND, "other bytes ask again");
     assert_eq!(app.pending_plugin_install.as_ref().unwrap().message, "Install “Tidy 2”, which asks for these permissions?");
     dialogs::cancel(&mut app);
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some(name.into()), "Cancel keeps the one installed");
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some(name.into()), "Cancel keeps the one installed");
     io::open_bytes(&mut app, "tidy2.wasm", &again, None).unwrap();
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some(dialogs::plugin::INSTALL_KIND), "File › Open asks too");
     // The same dialog says it takes the installed one's place, and OK replaces it; Cancel keeps the
     // one installed and records no grant.
     let pending = app.pending_plugin_install.as_ref().unwrap();
-    let again_hash = vectorcraft_plugins::permissions::sha256_hex(&again);
+    let again_hash = pluma_plugins::permissions::sha256_hex(&again);
     assert!(pending.detail.contains(&format!("File SHA-256: {again_hash}")), "{}", pending.detail);
     assert!(
         pending.detail.ends_with("\n\nThis file is not the plug-in installed before with this ID. It gets the settings and cache kept for that ID."),
@@ -192,25 +192,25 @@ fn installing_a_plugin_that_lists_permissions_asks_first() {
     );
     assert_eq!(pending.params["replace"], json!(true), "OK replaces the one installed");
     dialogs::cancel(&mut app);
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some(name.into()), "Cancel keeps the one installed");
-    assert_ne!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(again_hash), "Cancel records no grant");
-    app.run("ui.installPlugin", json!({"dataBase64": vectorcraft_format::base64_encode(&again)})).unwrap();
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some(name.into()), "Cancel keeps the one installed");
+    assert_ne!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(again_hash), "Cancel records no grant");
+    app.run("ui.installPlugin", json!({"dataBase64": pluma_format::base64_encode(&again)})).unwrap();
     dialogs::confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none(), "one question");
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()));
-    let new_hash = vectorcraft_plugins::permissions::sha256_hex(&again);
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(new_hash), "OK records the new module's hash");
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()));
+    let new_hash = pluma_plugins::permissions::sha256_hex(&again);
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(new_hash), "OK records the new module's hash");
     // One that asks for another permission asks again.
     let more = asking(id, "Tidy 3", r#"["doc.read","doc.write","state"]"#);
-    let r = app.run("ui.installPlugin", json!({"dataBase64": vectorcraft_format::base64_encode(&more)})).unwrap();
+    let r = app.run("ui.installPlugin", json!({"dataBase64": pluma_format::base64_encode(&more)})).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND);
     assert!(app.pending_plugin_install.as_ref().unwrap().detail.contains("• Keep data of its own with the document"));
     dialogs::cancel(&mut app);
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()), "Cancel keeps the one installed");
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()), "Cancel keeps the one installed");
     // OK keeps the `replace` it was asked with: `false` leaves the installed one in place.
-    app.run("ui.installPlugin", json!({"dataBase64": vectorcraft_format::base64_encode(&more), "replace": false})).unwrap();
+    app.run("ui.installPlugin", json!({"dataBase64": pluma_format::base64_encode(&more), "replace": false})).unwrap();
     let _ = dialogs::confirm(&mut app);
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()), "replace: false is kept");
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.manifest().name.clone()), Some("Tidy 2".into()), "replace: false is kept");
     app.run("plugin.remove", json!({"id": id})).unwrap();
 }
 
@@ -222,13 +222,13 @@ fn installing_a_plugin_over_another_module_asks_first() {
     let mut app = app();
     let id = "test.ui.replaces";
     let plain = |output: &str| wat::parse_str(tpl::returning(&format!(r#"{{"id":"{id}","name":"Plain","kind":"filter"}}"#), output)).unwrap();
-    let module = |wasm: &[u8]| json!({"dataBase64": vectorcraft_format::base64_encode(wasm)});
+    let module = |wasm: &[u8]| json!({"dataBase64": pluma_format::base64_encode(wasm)});
     let takes_place = "This file is not the plug-in installed before with this ID. It gets the settings and cache kept for that ID.";
     app.run("ui.installPlugin", module(&plain(r#"{"objects":[]}"#))).unwrap();
     assert!(app.ui.dialog.is_none(), "nothing to take the place of");
 
     let other = plain(r#"{"objects":[],"error":null}"#);
-    let other_hash = vectorcraft_plugins::permissions::sha256_hex(&other);
+    let other_hash = pluma_plugins::permissions::sha256_hex(&other);
     let r = app.run("ui.installPlugin", module(&other)).unwrap();
     assert_eq!(r["pending"], dialogs::confirm::KIND);
     let d = app.ui.dialog.as_ref().unwrap();
@@ -236,18 +236,18 @@ fn installing_a_plugin_over_another_module_asks_first() {
     assert_eq!(d.str("detail"), format!("ID: {id}\nFile SHA-256: {other_hash}\n\n{takes_place}"));
     dialogs::confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(other_hash));
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(other_hash));
 
     let manifest = format!(r#"{{"id":"{id}","name":"Heavy","kind":"filter","budget":"heavy"}}"#);
     let heavy = wat::parse_str(tpl::spinning(&manifest, 1, r#"{"objects":[]}"#)).unwrap();
-    let heavy_hash = vectorcraft_plugins::permissions::sha256_hex(&heavy);
+    let heavy_hash = pluma_plugins::permissions::sha256_hex(&heavy);
     let r = app.run("ui.installPlugin", module(&heavy)).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND);
     let pending = app.pending_plugin_install.as_ref().unwrap();
     assert!(pending.detail.ends_with(&format!("\n\nID: {id}\nFile SHA-256: {heavy_hash}\n\n{takes_place}")), "{}", pending.detail);
     assert_eq!(pending.params["replace"], json!(true), "OK replaces the one installed");
     dialogs::confirm(&mut app).unwrap();
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(heavy_hash));
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(heavy_hash));
     app.run("plugin.remove", json!({"id": id})).unwrap();
 }
 
@@ -262,7 +262,7 @@ fn commands_plugin(id: &str) -> Vec<u8> {
     wat::parse_str(tpl::when_given(&manifest, tpl::Given::Params, r#""command":"grow""#, triangle)).unwrap()
 }
 
-fn objects(app: &VectorcraftApp) -> usize {
+fn objects(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum()
 }
 
@@ -274,7 +274,7 @@ fn plugin_commands_are_menu_items_and_shortcut_entries() {
     let mut app = app();
     let id = "test.ui.cmds";
     let (grow, size) = ("plugin.test.ui.cmds.grow", "plugin.test.ui.cmds.size");
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&commands_plugin(id))})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&commands_plugin(id))})).unwrap();
     let entries = menus::menu_entries(&app);
     let under = ["Object", "Plug-ins", "Cmd Test"];
     let item = entry(&entries, &under, "Grow").expect("Grow is listed");
@@ -313,8 +313,8 @@ fn plugin_commands_are_menu_items_and_shortcut_entries() {
 fn a_shortcut_runs_a_plugin_command() {
     let mut app = app();
     let id = "test.ui.cmds.keys";
-    let grow = vectorcraft_engine::cmd::plugin::command_id(id, "grow");
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&commands_plugin(id))})).unwrap();
+    let grow = pluma_engine::cmd::plugin::command_id(id, "grow");
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&commands_plugin(id))})).unwrap();
     crate::keymap::set_override(&mut app.ui.shortcut_overrides, &grow, "Cmd+Alt+Shift+F9");
     crate::shortcut_editor::sync(&app.ui);
     assert_eq!(crate::shortcut_editor::command_for_key("Cmd+Alt+Shift+F9"), Some(grow.as_str()));
@@ -345,23 +345,23 @@ fn ui_install_plugin_takes_no_grant_or_heavy_budget_from_its_params() {
     let id = "test.ui.approval.params";
     let manifest = format!(r#"{{"id":"{id}","name":"Asks","kind":"filter","permissions":["doc.read"]}}"#);
     let asks = wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
-    let given = |wasm: &[u8]| json!({"dataBase64": vectorcraft_format::base64_encode(wasm), "grant": ["doc.read", "doc.write"], "allowHeavy": true});
+    let given = |wasm: &[u8]| json!({"dataBase64": pluma_format::base64_encode(wasm), "grant": ["doc.read", "doc.write"], "allowHeavy": true});
     let r = app.run("ui.installPlugin", given(&asks)).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND);
-    assert!(vectorcraft_plugins::registry::get(id).is_none() && vectorcraft_plugins::registry::granted(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none() && pluma_plugins::registry::granted(id).is_none());
     let pending = app.pending_plugin_install.as_ref().unwrap();
     assert_eq!(pending.approval.permissions, ["doc.read"], "the permissions the manifest lists");
     assert_eq!(pending.params["grant"], json!(["doc.read"]));
     assert!(!pending.approval.heavy && pending.params.get("allowHeavy").is_none(), "no heavy budget was asked about");
     dialogs::cancel(&mut app);
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
 
     let heavy_id = "test.ui.approval.params.heavy";
     let manifest = format!(r#"{{"id":"{heavy_id}","name":"Heavy","kind":"filter","budget":"heavy"}}"#);
     let heavy = wat::parse_str(tpl::spinning(&manifest, 1, r#"{"objects":[]}"#)).unwrap();
     let r = app.run("ui.installPlugin", given(&heavy)).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND, "allowHeavy skips no question");
-    assert!(vectorcraft_plugins::registry::get(heavy_id).is_none());
+    assert!(pluma_plugins::registry::get(heavy_id).is_none());
     dialogs::cancel(&mut app);
 
     let plain_id = "test.ui.approval.params.plain";
@@ -369,8 +369,8 @@ fn ui_install_plugin_takes_no_grant_or_heavy_budget_from_its_params() {
     let plain = wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
     let r = app.run("ui.installPlugin", given(&plain)).unwrap();
     assert!(r.get("pending").is_none() && app.ui.dialog.is_none(), "{r}");
-    assert!(vectorcraft_plugins::registry::get(plain_id).is_some());
-    assert!(vectorcraft_plugins::registry::granted(plain_id).is_none(), "the grant it was given isn't recorded");
+    assert!(pluma_plugins::registry::get(plain_id).is_some());
+    assert!(pluma_plugins::registry::granted(plain_id).is_none(), "the grant it was given isn't recorded");
     app.run("plugin.remove", json!({"id": plain_id})).unwrap();
 }
 
@@ -383,13 +383,13 @@ fn an_action_step_cannot_grant_a_plugin_its_permissions() {
     let id = "test.ui.approval.action";
     let manifest = format!(r#"{{"id":"{id}","name":"Asks","kind":"filter","permissions":["doc.read"]}}"#);
     let wasm = wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
-    let step = json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read"]});
+    let step = json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read"]});
     app.ui.action_sets = vec![ActionSet::new("Test", vec![Action::new("Install", vec![("plugin.install".into(), step)])])];
     for speed in [PlaybackSpeed::Accelerated, PlaybackSpeed::Step] {
         app.ui.action_playback.speed = speed;
         let e = play(&mut app, 0, 0).unwrap_err();
         assert!(e.contains("take effect only in a session started with --allow-plugin-grants"), "{e}");
-        assert!(vectorcraft_plugins::registry::get(id).is_none() && vectorcraft_plugins::registry::granted(id).is_none());
+        assert!(pluma_plugins::registry::get(id).is_none() && pluma_plugins::registry::granted(id).is_none());
     }
 }
 
@@ -400,11 +400,11 @@ fn installing_a_plugin_that_reports_progress_says_so() {
     let id = "test.ui.permissions.progress";
     let manifest = format!(r#"{{"id":"{id}","name":"Count","kind":"filter","api":2,"permissions":["doc.read","progress"]}}"#);
     let bytes = wat::parse_str(tpl::reporting(&manifest, "(call $vc_progress (i64.const 1) (i64.const 2))", r#"{"objects":[]}"#)).unwrap();
-    let r = app.run("ui.installPlugin", json!({"dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    let r = app.run("ui.installPlugin", json!({"dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
     assert_eq!(r["pending"], dialogs::plugin::INSTALL_KIND);
     let detail = app.pending_plugin_install.as_ref().unwrap().detail.clone();
     assert!(detail.ends_with("• Read the objects it is given\n• Show its progress, see Cancel and write log lines"), "{detail}");
     dialogs::confirm(&mut app).unwrap();
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.permissions.len()), Some(2));
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.permissions.len()), Some(2));
     app.run("plugin.remove", json!({"id": id})).unwrap();
 }

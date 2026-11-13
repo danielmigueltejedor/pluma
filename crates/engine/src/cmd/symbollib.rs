@@ -1,19 +1,19 @@
 //! Symbol libraries (Window → Symbol Libraries, the Symbols panel's library button): read-only sets
 //! of symbols the library panel shows. A library is a document holding the symbols with the
 //! resources they use (nested symbols, patterns, swatches, brushes, graphic styles, images) and
-//! their Symbol Options; saved, it is a native `.vectorcraft` file, which File › Open also opens.
-//! The built-in libraries are generated here ([`BUILTIN`]); User Defined ones are the `.vectorcraft`
+//! their Symbol Options; saved, it is a native `.pluma` file, which File › Open also opens.
+//! The built-in libraries are generated here ([`BUILTIN`]); User Defined ones are the `.pluma`
 //! files in the user library folder ([`Libraries`]), and Other Library… loads the symbols of any
-//! document VectorCraft opens. `symbol.addFromLibrary` copies symbols into the document;
+//! document Pluma opens. `symbol.addFromLibrary` copies symbols into the document;
 //! `symbol.saveLibrary` writes the document's.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node, NodeId, NodeKind, Symbol, SymbolNineSlice};
+use pluma_geom::{Affine, Point, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, Symbol, SymbolNineSlice};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
 
 use super::brushsym::{CURRENT_SYMBOL, natural_size, normalize, place_xf, set_natural_size};
 use super::clipboard::Clipboard;
@@ -23,7 +23,7 @@ use super::swatchlib::{FileData, LibraryFile, LibraryInfo, stem};
 use super::{CommandSpec, Result, Session, always, bad, bool_or, cmd, has_doc, number_or, str_param};
 
 /// The extension of saved symbol libraries: native documents.
-pub const SYMBOLS_EXT: &str = vectorcraft_format::EXTENSION;
+pub const SYMBOLS_EXT: &str = pluma_format::EXTENSION;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -32,7 +32,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Symbol Libraries",
             [],
             None,
-            "{} → {libraries: [{id, name, category: \"builtIn\"|\"user\" (User Defined: the .vectorcraft files in the user library folder, rescanned now)|\"loaded\" (symbol.loadLibrary), count, path?}], userFolder} every symbol library the library panel opens, in menu order",
+            "{} → {libraries: [{id, name, category: \"builtIn\"|\"user\" (User Defined: the .pluma files in the user library folder, rescanned now)|\"loaded\" (symbol.loadLibrary), count, path?}], userFolder} every symbol library the library panel opens, in menu order",
             always,
             list
         ),
@@ -59,7 +59,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Save Symbol Library…",
             ["Window", "Symbols"],
             None,
-            "{path?, names?: [symbol names] (default: all), name?: library name (default: the document's), user?: false (save into the user library folder, listed under User Defined)} save the document's symbols, with their Symbol Options and the resources they use, as a symbol library: a .vectorcraft document holding only them → {path, count, library?: id when saved to the user folder}; without path or user → {dataBase64: the file's bytes, count}",
+            "{path?, names?: [symbol names] (default: all), name?: library name (default: the document's), user?: false (save into the user library folder, listed under User Defined)} save the document's symbols, with their Symbol Options and the resources they use, as a symbol library: a .pluma document holding only them → {path, count, library?: id when saved to the user folder}; without path or user → {dataBase64: the file's bytes, count}",
             has_doc,
             save
         ),
@@ -68,7 +68,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Other Library…",
             ["Window", "Symbol Libraries"],
             None,
-            "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} load the symbols of any document VectorCraft opens (see document.formats), a saved symbol library included, for the library panel (Window → Symbol Libraries lists it until the app quits; a file of the user library folder, or a file with the same bytes as one there, opens as that User Defined library) → {library: id, name, count}",
+            "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} load the symbols of any document Pluma opens (see document.formats), a saved symbol library included, for the library panel (Window → Symbol Libraries lists it until the app quits; a file of the user library folder, or a file with the same bytes as one there, opens as that User Defined library) → {library: id, name, count}",
             always,
             load
         ),
@@ -135,7 +135,7 @@ impl SymbolLibrary {
 impl LibraryFile for SymbolLibrary {
     const EXTS: &[&str] = &[SYMBOLS_EXT];
     fn read(bytes: &[u8], stem: &str) -> std::result::Result<Self, String> {
-        let doc = vectorcraft_format::load(bytes).map_err(|e| e.to_string())?;
+        let doc = pluma_format::load(bytes).map_err(|e| e.to_string())?;
         SymbolLibrary::from_document(&doc, &[], stem.to_string())
     }
     fn name(&self) -> &str {
@@ -181,7 +181,7 @@ fn basic_shapes() -> SymbolLibrary {
         ("Hexagon", shapes::polygon(c, 20.0, 6, 0.0), "#1fa39b"),
         ("Star", shapes::star(c, 21.0, 9.0, 5, 0.0), "#f2c233"),
         ("Burst", shapes::star(c, 21.0, 15.0, 12, 0.0), "#e8743b"),
-        ("Arrow", vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&arrow, true)), "#4a5a6a"),
+        ("Arrow", pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&arrow, true)), "#4a5a6a"),
     ];
     let mut doc = Document::new(100.0, 100.0);
     for (name, path, hex) in shapes {
@@ -230,8 +230,8 @@ fn map_markers() -> SymbolLibrary {
     let pin: Vec<Point> = pin.iter().map(|&(x, y)| Point::new(x, y)).collect();
     let flag: Vec<Point> = flag.iter().map(|&(x, y)| Point::new(x, y)).collect();
     let markers = [
-        ("Pin", vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&pin, true)), "#e74c3c"),
-        ("Flag", vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&flag, true)), "#3498db"),
+        ("Pin", pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&pin, true)), "#e74c3c"),
+        ("Flag", pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&flag, true)), "#3498db"),
         ("Crosshair", shapes::star(c, 20.0, 5.0, 4, 0.0), "#2c3e50"),
         ("Checkpoint", shapes::polygon(c, 18.0, 4, 0.0), "#27ae60"),
     ];
@@ -389,7 +389,7 @@ fn save(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, "the document has no symbols to save"));
     }
     let mut out = json!({ "count": lib.len() });
-    let bytes = vectorcraft_format::save_file(&lib.doc);
+    let bytes = pluma_format::save_file(&lib.doc);
     s.symbol_libraries.write(p, &lib.name, SYMBOLS_EXT, FileData::Binary(bytes), &mut out, C)?;
     Ok(out)
 }

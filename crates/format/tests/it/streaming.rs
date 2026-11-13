@@ -6,9 +6,9 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_format::{BLOB_MAGIC, FormatError, INLINE_MAX, MAX_BLOB, SaveOptions, load, load_file, pdf_content, preview, save_to, save_with};
-use vectorcraft_geom::Affine;
+use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_format::{BLOB_MAGIC, FormatError, INLINE_MAX, MAX_BLOB, SaveOptions, load, load_file, pdf_content, preview, save_to, save_with};
+use pluma_geom::Affine;
 
 /// A document showing images `(key, mime, len)`.
 fn doc_with(images: &[(&str, &str, usize)]) -> Document {

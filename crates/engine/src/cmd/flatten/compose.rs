@@ -61,7 +61,7 @@ impl Builder {
     /// What colour `c` composites as ([`Fill::planes`]).
     fn planes(&self, c: &Color) -> [[f32; 3]; 2] {
         if self.cmyk {
-            let cms = vectorcraft_color::cms::active();
+            let cms = pluma_color::cms::active();
             cmyk_planes(cms.to_cmyk(c, cms.settings().intent))
         } else {
             [c.to_rgb(); 2]

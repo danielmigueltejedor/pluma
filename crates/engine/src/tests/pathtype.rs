@@ -1,10 +1,10 @@
 //! Type on a path (#429): Type on a Path Options keep its brackets, flip it, align it to the path
 //! and space it; the selection tools drag its brackets to move it along the path and across it.
 
+use pluma_doc::{NodeKind, PathAlign, TextKind, TextObject};
+use pluma_geom::{Point, Rect, Shape};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, PathAlign, TextKind, TextObject};
-use vectorcraft_geom::{Point, Rect, Shape};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -46,7 +46,7 @@ fn brackets(s: &Session, id: NodeId) -> (f64, Option<f64>) {
 /// The glyphs' ink bounds in the document.
 fn ink(s: &Session, id: NodeId) -> Rect {
     let t = text(s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     lay.glyphs
         .iter()
         .filter(|g| !g.outline.elements().is_empty())
@@ -58,7 +58,7 @@ fn ink(s: &Session, id: NodeId) -> Rect {
 /// The glyph origins along the path, in reading order.
 fn origins(s: &Session, id: NodeId) -> Vec<Point> {
     let t = text(s, id);
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).glyphs.iter().map(|g| t.xf * g.origin).collect()
+    pluma_text::layout(pluma_text::FontDb::global(), &t).glyphs.iter().map(|g| t.xf * g.origin).collect()
 }
 
 fn undo_len(s: &Session) -> usize {
@@ -116,7 +116,7 @@ fn options_keep_the_brackets() {
     // So does a new effect.
     s.execute("type.pathOptions", &json!({"effect": "skew"})).unwrap();
     assert_eq!(brackets(&s, id), (start, None));
-    assert_eq!(text(&s, id).path_effect, vectorcraft_doc::PathEffect::Skew);
+    assert_eq!(text(&s, id).path_effect, pluma_doc::PathEffect::Skew);
     // The end bracket is set, and put back at the end of the path.
     s.execute("type.pathOptions", &json!({"end": 0.9})).unwrap();
     assert_eq!(brackets(&s, id), (start, Some(0.9)));
@@ -266,7 +266,7 @@ fn direct_selection_drags_an_anchor_of_the_path_and_the_type_reflows() {
     let path = |s: &Session| text(s, id).type_path().unwrap();
     let (first, middle) = (path(&s).subpaths[0].anchors[0].p, path(&s).subpaths[0].anchors[1].p);
     let (glyphs, n) = (origins(&s, id), undo_len(&s));
-    drag(&mut s, "directSelection", middle, middle + vectorcraft_geom::Vec2::new(40.0, 0.0), Mods::default());
+    drag(&mut s, "directSelection", middle, middle + pluma_geom::Vec2::new(40.0, 0.0), Mods::default());
     let after = path(&s);
     let moved = after.subpaths[0].anchors[1].p;
     assert!(near(moved.x, middle.x + 40.0) && near(moved.y, middle.y), "{middle:?} → {moved:?}");
@@ -299,7 +299,7 @@ fn type_on_a_path_made_with_the_type_tool_has_brackets_at_once() {
         assert!(matches!(text(&s, id).kind, TextKind::OnPath { .. }), "{tool} {d}");
         s.execute("text.setText", &json!({"ids": [id.0], "text": "Slide"})).unwrap();
         s.select_tool(tool, v).unwrap();
-        let lines = s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Line { .. })).count();
+        let lines = s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Line { .. })).count();
         assert!(lines >= 5, "{tool} {d}: the brackets are drawn at once ({lines} lines)");
         if d.ends_with('Z') {
             continue;
@@ -308,7 +308,7 @@ fn type_on_a_path_made_with_the_type_tool_has_brackets_at_once() {
         let (start, end) = brackets(&s, id);
         assert!(near(start, 0.5) && end.is_none(), "{start} {end:?}");
         let centre = Point::new(400.0, 295.0);
-        assert_eq!(s.cursor(centre, Mods::default(), v), vectorcraft_tools::Cursor::PathBracket, "{tool}");
+        assert_eq!(s.cursor(centre, Mods::default(), v), pluma_tools::Cursor::PathBracket, "{tool}");
         drag(&mut s, tool, centre, Point::new(400.0, 330.0), Mods::default());
         let (start, end) = brackets(&s, id);
         assert!(near(start, 0.0) && end.is_some_and(|e| near(e, 0.5)), "{tool}: flipped, {start} {end:?}");

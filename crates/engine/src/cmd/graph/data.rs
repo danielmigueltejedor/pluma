@@ -148,9 +148,9 @@ fn drop_empty_rows(g: &mut GraphSpec) {
     let mut cells: Vec<Vec<Option<f64>>> = g
         .rows
         .iter()
-        .take(vectorcraft_doc::MAX_GRAPH_CATEGORIES)
+        .take(pluma_doc::MAX_GRAPH_CATEGORIES)
         .enumerate()
-        .map(|(c, r)| r.iter().take(vectorcraft_doc::MAX_GRAPH_SERIES).enumerate().map(|(s, v)| (!blank.contains(&[c, s])).then_some(*v)).collect())
+        .map(|(c, r)| r.iter().take(pluma_doc::MAX_GRAPH_SERIES).enumerate().map(|(s, v)| (!blank.contains(&[c, s])).then_some(*v)).collect())
         .collect();
     let keep: Vec<bool> = (0..cells.len())
         .map(|c| cells.get(c).is_some_and(|r| r.iter().any(Option::is_some)) || g.categories.get(c).is_some_and(|l| !l.is_empty()))
@@ -189,10 +189,10 @@ pub(super) fn set_data(s: &mut Session, p: &Value) -> Result<Value> {
     let changed = apply_data(&mut spec, p);
     if flip {
         // The categories become series: at most as many as a graph has series.
-        if spec.cells().len() > vectorcraft_doc::MAX_GRAPH_SERIES {
+        if spec.cells().len() > pluma_doc::MAX_GRAPH_SERIES {
             return Err(bad(
                 C,
-                format!("a graph has at most {} series, so it transposes with at most that many categories", vectorcraft_doc::MAX_GRAPH_SERIES),
+                format!("a graph has at most {} series, so it transposes with at most that many categories", pluma_doc::MAX_GRAPH_SERIES),
             ));
         }
         transpose(&mut spec);

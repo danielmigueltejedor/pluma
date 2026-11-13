@@ -1,9 +1,9 @@
 //! Align panel menu › Align to Glyph Bounds (#4231): with Point Text or Area Text on, Align and
 //! Distribute measure that kind of type by the ink of its glyphs instead of its em box or frame.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -36,7 +36,7 @@ fn em(s: &Session, id: NodeId) -> Rect {
 /// The ink of the type's glyphs on the page.
 fn ink(s: &Session, id: NodeId) -> Rect {
     let NodeKind::Text(t) = &s.doc().unwrap().doc.node(id).unwrap().kind else { panic!("type") };
-    t.xf.transform_rect_bbox(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).ink_bounds().unwrap())
+    t.xf.transform_rect_bbox(pluma_text::layout(pluma_text::FontDb::global(), t).ink_bounds().unwrap())
 }
 
 fn close(a: f64, b: f64) -> bool {

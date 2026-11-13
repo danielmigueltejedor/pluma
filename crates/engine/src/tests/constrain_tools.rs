@@ -2,10 +2,10 @@
 //! Rectangle, Rounded Rectangle and Ellipse tools work along, and General › Corner Radius is the
 //! Rounded Rectangle tool's radius (G12, #394, first batch).
 
+use pluma_doc::{LiveShape, NodeKind};
+use pluma_geom::{Point, Vec2};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveShape, NodeKind};
-use vectorcraft_geom::{Point, Vec2};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 

@@ -18,7 +18,7 @@
 
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 mod views;
 pub(crate) use views::{
@@ -42,7 +42,7 @@ const MIN_SIZE: egui::Vec2 = egui::vec2(240.0, 180.0);
 /// A document's view in a floating window.
 #[derive(Clone, Debug)]
 pub struct DocWindow {
-    /// The document ([`vectorcraft_engine::DocState::uid`]).
+    /// The document ([`pluma_engine::DocState::uid`]).
     pub uid: u64,
     /// The view's number ([`views`]).
     pub view: u32,
@@ -69,7 +69,7 @@ pub struct DocWindow {
 }
 
 /// [`DocWindow::fit`]: a body size, and a view's zoom and center.
-type Fit = (egui::Vec2, f64, vectorcraft_geom::Point);
+type Fit = (egui::Vec2, f64, pluma_geom::Point);
 
 impl DocWindow {
     fn new((uid, view): (u64, u32), place: egui::Rect) -> Self {
@@ -111,24 +111,24 @@ pub(crate) fn torn_off(strip: egui::Rect, p: egui::Pos2) -> bool {
 }
 
 /// Whether window `w` is in a floating window.
-pub(crate) fn floats(app: &VectorcraftApp, w: Win) -> bool {
+pub(crate) fn floats(app: &PlumaApp, w: Win) -> bool {
     key(app, w).is_some_and(|(u, n)| app.ui.floating.iter().any(|x| x.uid == u && x.view == n))
 }
 
 /// Whether document `i`'s shown view is in a floating window.
 #[cfg(test)]
-pub(crate) fn is_floating(app: &VectorcraftApp, i: usize) -> bool {
+pub(crate) fn is_floating(app: &PlumaApp, i: usize) -> bool {
     floats(app, (i, views::shown(app, i)))
 }
 
 /// The windows under the tab strip, in tab order.
-pub(crate) fn docked_windows(app: &VectorcraftApp) -> Vec<Win> {
+pub(crate) fn docked_windows(app: &PlumaApp) -> Vec<Win> {
     windows(app).into_iter().filter(|w| !floats(app, *w)).collect()
 }
 
 /// The documents with a window under the tab strip, by index, in tab order.
 #[cfg(test)]
-pub(crate) fn docked(app: &VectorcraftApp) -> Vec<usize> {
+pub(crate) fn docked(app: &PlumaApp) -> Vec<usize> {
     let mut docs: Vec<usize> = docked_windows(app).into_iter().map(|(i, _)| i).collect();
     docs.dedup();
     docs
@@ -136,7 +136,7 @@ pub(crate) fn docked(app: &VectorcraftApp) -> Vec<usize> {
 
 /// The window the tab strip shows: the current one when it is under the tabs, else the tabbed
 /// window that was current last, else the first tabbed one.
-pub(crate) fn tab_window(app: &VectorcraftApp) -> Option<Win> {
+pub(crate) fn tab_window(app: &PlumaApp) -> Option<Win> {
     let docked = docked_windows(app);
     if let Some(c) = current(app).filter(|c| docked.contains(c)) {
         return Some(c);
@@ -147,19 +147,19 @@ pub(crate) fn tab_window(app: &VectorcraftApp) -> Option<Win> {
 
 /// The document of the window the tab strip shows ([`tab_window`]).
 #[cfg(test)]
-pub(crate) fn tab_document(app: &VectorcraftApp) -> Option<usize> {
+pub(crate) fn tab_document(app: &PlumaApp) -> Option<usize> {
     tab_window(app).map(|(i, _)| i)
 }
 
 /// Whether the current window is a floating one, outside the Home screen and Presentation Mode:
 /// the main window's canvas then draws the tab strip's window as a pane.
-pub(crate) fn current_floats(app: &VectorcraftApp) -> bool {
+pub(crate) fn current_floats(app: &PlumaApp) -> bool {
     current(app).is_some_and(|w| floats(app, w)) && !crate::menus::home_showing(app) && !presenting(app)
 }
 
 /// Whether Presentation Mode is on: the main window shows the current document, and the floating
 /// windows are hidden until it ends.
-fn presenting(app: &VectorcraftApp) -> bool {
+fn presenting(app: &PlumaApp) -> bool {
     app.ui.screen_mode >= 3
 }
 
@@ -179,22 +179,22 @@ pub(crate) fn cascade_places(area: egui::Rect, n: usize) -> Vec<egui::Rect> {
 }
 
 /// The document area windows open in: the main window's last one, else a 1200 × 800 area.
-fn area(app: &VectorcraftApp) -> egui::Rect {
+fn area(app: &PlumaApp) -> egui::Rect {
     app.canvas.windows.area.filter(|r| r.is_positive()).unwrap_or(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 800.0)))
 }
 
 /// Float windows `wins`, each at the next cascade place after the windows already open. Each fits
 /// its window.
-fn float(app: &mut VectorcraftApp, wins: &[Win]) {
+fn float(app: &mut PlumaApp, wins: &[Win]) {
     app.sync_views();
     place(app, wins);
 }
 
 /// The documents opened or created since the last call: each one opened while Preferences › User
-/// Interface › Open Documents As Tabs was cleared ([`vectorcraft_engine::DocState::opened_as_tab`])
+/// Interface › Open Documents As Tabs was cleared ([`pluma_engine::DocState::opened_as_tab`])
 /// opens in a floating window of its own, at the next cascade place. Documents already open stay
-/// where they are. Called by [`VectorcraftApp::sync_views`].
-pub(crate) fn opened(app: &mut VectorcraftApp) {
+/// where they are. Called by [`PlumaApp::sync_views`].
+pub(crate) fn opened(app: &mut PlumaApp) {
     let docs = app.session.documents();
     let known = &app.canvas.windows.known;
     if known.len() == docs.len() && known.iter().zip(docs).all(|(u, d)| *u == d.uid) {
@@ -208,7 +208,7 @@ pub(crate) fn opened(app: &mut VectorcraftApp) {
 }
 
 /// [`float`] for windows whose views exist.
-fn place(app: &mut VectorcraftApp, wins: &[Win]) {
+fn place(app: &mut PlumaApp, wins: &[Win]) {
     let first = app.ui.floating.len();
     let places = cascade_places(area(app), first + wins.len());
     for (k, w) in wins.iter().enumerate() {
@@ -231,12 +231,12 @@ fn place(app: &mut VectorcraftApp, wins: &[Win]) {
 }
 
 /// The floating windows' document indices, in the order the windows opened.
-fn floating_indices(app: &VectorcraftApp) -> Vec<usize> {
+fn floating_indices(app: &PlumaApp) -> Vec<usize> {
     floating_windows(app).into_iter().map(|(i, _)| i).collect()
 }
 
 /// The floating windows, in the order they opened.
-pub(crate) fn floating_windows(app: &VectorcraftApp) -> Vec<Win> {
+pub(crate) fn floating_windows(app: &PlumaApp) -> Vec<Win> {
     app.ui.floating.iter().filter_map(|w| find(app, (w.uid, w.view))).collect()
 }
 
@@ -245,7 +245,7 @@ pub(crate) fn floating_windows(app: &VectorcraftApp) -> Vec<Win> {
 /// top-left corner at `at` (`[x, y]` in the main window's points) when given, else at the next
 /// cascade place. A window already floating stays where it is. The window `index` names becomes
 /// the current one. Returns `{floating}`, the floating windows' document indices.
-pub(crate) fn float_in_window(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn float_in_window(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let named = window_param(app, p)?;
     let at = p
         .get("at")
@@ -267,7 +267,7 @@ pub(crate) fn float_in_window(app: &mut VectorcraftApp, p: &Value) -> Result<Val
 /// `window.arrange.consolidateAllWindows` with an `index`: document `index`'s view `view` (its
 /// shown view without one), floating or not, goes back under its tab, fitted there, and becomes
 /// the current window; the other windows and Tile stay as they are. Returns `{tiled, floating}`.
-pub(crate) fn dock(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn dock(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let Some(w) = window_param(app, p)? else {
         return Err("no such document".into());
     };
@@ -283,7 +283,7 @@ pub(crate) fn dock(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String>
 
 /// `window.arrange.floatAllInWindows`: every window under the tab strip goes to a floating window
 /// of its own. Returns `{floating}`.
-pub(crate) fn float_all(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn float_all(app: &mut PlumaApp) -> Result<Value, String> {
     let docked = docked_windows(app);
     float(app, &docked);
     Ok(json!({ "floating": floating_indices(app) }))
@@ -292,7 +292,7 @@ pub(crate) fn float_all(app: &mut VectorcraftApp) -> Result<Value, String> {
 /// `window.arrange.cascade`: every window floating, stacked from the document area's upper left to
 /// its lower right in tab order, each fitted to its window, the current window in front. Returns
 /// `{floating}`.
-pub(crate) fn cascade(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn cascade(app: &mut PlumaApp) -> Result<Value, String> {
     app.ui.tiled = false;
     let docked = docked_windows(app);
     float(app, &docked);
@@ -311,7 +311,7 @@ pub(crate) fn cascade(app: &mut VectorcraftApp) -> Result<Value, String> {
 
 /// Every floating window back under the tab strip ([`crate::canvas::consolidate`], Tile), each
 /// fitted to where it shows.
-pub(crate) fn dock_all(app: &mut VectorcraftApp) {
+pub(crate) fn dock_all(app: &mut PlumaApp) {
     for w in floating_windows(app) {
         if let Some(v) = view_mut(app, w) {
             v.fitted = false;
@@ -325,7 +325,7 @@ pub(crate) fn dock_all(app: &mut VectorcraftApp) {
 /// floats panels by the same rule), and no control channel is attached. With a control channel the
 /// windows stay inside the main window, where `ui.click`, `ui.drag` and `ui.screenshot` reach them
 /// and `canvasRect` is in the main window's coordinates.
-fn native(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+fn native(app: &PlumaApp, ctx: &egui::Context) -> bool {
     if ctx.embed_viewports() || app.control_rx.is_some() {
         return false;
     }
@@ -342,7 +342,7 @@ fn native(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
 
 /// Gives the main window the keyboard when a floating document's OS window has it.
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn focus_main_window(app: &VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn focus_main_window(app: &PlumaApp, ctx: &egui::Context) {
     if native(app, ctx) && app.ui.floating.iter().any(|w| w.focused) {
         ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Focus);
     }
@@ -350,13 +350,13 @@ pub(crate) fn focus_main_window(app: &VectorcraftApp, ctx: &egui::Context) {
 
 /// The OS window of document window `w`.
 fn viewport_id(w: &DocWindow) -> egui::ViewportId {
-    egui::ViewportId::from_hash_of(("vectorcraft-document-window", w.uid, w.number))
+    egui::ViewportId::from_hash_of(("pluma-document-window", w.uid, w.number))
 }
 
 /// The id of document window `w` inside the main window: a new one for each window and each
 /// Cascade move, so egui opens it at its new place and size.
 fn window_id(w: &DocWindow) -> egui::Id {
-    egui::Id::unique(("vectorcraft-document-window", w.uid, w.number, w.generation))
+    egui::Id::unique(("pluma-document-window", w.uid, w.number, w.generation))
 }
 
 /// What happened in a document window this frame.
@@ -380,11 +380,11 @@ struct Shown {
 
 /// Draw the floating document windows, after the main window's canvas. Call once per frame from
 /// the main window.
-pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let live: Vec<(u64, u32)> = windows(app).into_iter().filter_map(|w| key(app, w)).collect();
     app.ui.floating.retain(|w| live.contains(&(w.uid, w.view)));
     let current = current(app).and_then(|w| key(app, w));
-    let floating = |app: &VectorcraftApp, k: &(u64, u32)| app.ui.floating.iter().any(|w| (w.uid, w.view) == *k);
+    let floating = |app: &PlumaApp, k: &(u64, u32)| app.ui.floating.iter().any(|w| (w.uid, w.view) == *k);
     if let Some(k) = current.filter(|k| !floating(app, k)) {
         app.ui.tab_document = Some(k);
     }
@@ -472,7 +472,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     // The tab strip a dragged window would go back under shows where it lands.
     if let Some(strip) = app.canvas.windows.strip.filter(|_| over_strip) {
         let t = crate::theme::Tokens::get(ctx);
-        let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::unique("vectorcraft-document-dock")));
+        let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::unique("pluma-document-dock")));
         painter.rect_filled(strip, 0.0, t.accent.gamma_multiply(0.12));
         painter.rect_stroke(strip, 0.0, egui::Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
     }
@@ -501,7 +501,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// modal) a pane. The view fits the body again when the body changed size since `fit` and the view
 /// has not moved. → whether a press in the pane asks for its window to become the current one, the
 /// body's rect and the fit after this frame.
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, (win, blocked): (Win, bool), fit: Option<Fit>) -> (bool, egui::Rect, Option<Fit>) {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, (win, blocked): (Win, bool), fit: Option<Fit>) -> (bool, egui::Rect, Option<Fit>) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let rect = ui.available_rect_before_wrap();
     ui.painter().rect_filled(rect, 0.0, t.pasteboard);
@@ -529,7 +529,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, (win, blocked): (Win, bool)
 
 /// Window `win`'s floating window `w` as an OS window of its own, `blocked` by a modal or not;
 /// `raise` brings it to the front. Its tab is at the top of the window, above its body.
-fn os_window(app: &mut VectorcraftApp, ctx: &egui::Context, w: &DocWindow, (win, blocked): (Win, bool), raise: bool) -> Shown {
+fn os_window(app: &mut PlumaApp, ctx: &egui::Context, w: &DocWindow, (win, blocked): (Win, bool), raise: bool) -> Shown {
     let vid = viewport_id(w);
     let origin = ctx.input(|inp| inp.viewport().inner_rect.map(|r| r.min)).filter(|p| p.is_finite()).unwrap_or(egui::Pos2::ZERO);
     let screen = match w.screen {
@@ -594,7 +594,7 @@ fn os_window(app: &mut VectorcraftApp, ctx: &egui::Context, w: &DocWindow, (win,
 /// main window's tab `strip` (on the screen). `origin` is the main window's top-left corner on the
 /// screen. → whether the pointer is over the strip, and whether the tab was released there.
 fn drag_tab(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ui: &egui::Ui,
     ((uid, view), origin): ((u64, u32), egui::Pos2),
     tab: &egui::Response,
@@ -630,7 +630,7 @@ fn drag_tab(
 
 /// Window `win`'s floating window `w` as a window inside the main window, `blocked` by a modal or
 /// not; `raise` brings it to the front.
-fn app_window(app: &mut VectorcraftApp, ctx: &egui::Context, w: &DocWindow, (win, blocked): (Win, bool), raise: bool) -> Shown {
+fn app_window(app: &mut PlumaApp, ctx: &egui::Context, w: &DocWindow, (win, blocked): (Win, bool), raise: bool) -> Shown {
     let id = window_id(w);
     if raise {
         ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, id));
@@ -682,7 +682,7 @@ mod input {
 
     impl egui::Plugin for DocumentWindowInput {
         fn debug_name(&self) -> &'static str {
-            "vectorcraft document windows input"
+            "pluma document windows input"
         }
 
         fn input_hook(&mut self, ctx: &egui::Context, input: &mut egui::RawInput) {

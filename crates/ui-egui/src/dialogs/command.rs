@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
     heading: |d| tl!(&d.str("__label")).to_string(),
@@ -21,7 +21,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
         // Area Type Options: a Row Gutter still as it opened, on rows without a gutter of their own,
         // follows the Gutter as it is changed.
         let linked = d.fields.get("__rowGutterLinked").is_some() && d.fields.get("__rowGutterLinked") == d.fields.get("rowGutter");
-        let cmyk = app.session.active().is_some_and(|s| s.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk);
+        let cmyk = app.session.active().is_some_and(|s| s.doc.color_mode == pluma_doc::ColorMode::Cmyk);
         let choices = |k: &str| rasterize_color_models(&command, k, cmyk).or_else(|| choices(&command, k));
         form::param_fields(ui, d, &|k| lengths.contains(&k), &choices, &rank, app.session.general_unit());
         if linked
@@ -92,7 +92,7 @@ fn call(d: &Dialog) -> (String, Value) {
 /// Does the dialog's command take parameter `key` (its params description names it)?
 fn takes(d: &Dialog, key: &str) -> bool {
     let id = d.str("__command");
-    vectorcraft_engine::find_command(&id).is_some_and(|c| vectorcraft_engine::check_keys(&id, c.params, &serde_json::json!({ key: null })).is_ok())
+    pluma_engine::find_command(&id).is_some_and(|c| pluma_engine::check_keys(&id, c.params, &serde_json::json!({ key: null })).is_ok())
 }
 
 /// The parameters of the commands this dialog edits that are distances.
@@ -168,7 +168,7 @@ const VERTICAL_ALIGN: form::Choices = &[("Top", "top"), ("Center", "center"), ("
 
 /// Graph Type › Type: the nine graph kinds, in the Graph tool group's order.
 static GRAPH_KINDS: LazyLock<Vec<(&'static str, &'static str)>> =
-    LazyLock::new(|| vectorcraft_doc::GraphKind::ALL.iter().map(|k| (k.label(), k.id())).collect());
+    LazyLock::new(|| pluma_doc::GraphKind::ALL.iter().map(|k| (k.label(), k.id())).collect());
 
 /// Graph Type › Value Axis (series picked on both axes show none, and OK leaves each where it is).
 const GRAPH_VALUE_AXIS: form::Choices = &[("On Left Side", "left"), ("On Right Side", "right"), ("On Both Sides", "both")];
@@ -183,17 +183,15 @@ const GRAPH_TICK_LENGTH: form::Choices = &[("None", "none"), ("Short", "short"),
 
 /// Closes before running, so a dialog the command opens stays open. A previewed one keeps its
 /// preview as the one undo step.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (cmd, params) = call(d);
     if previews(d) {
         return form::commit_preview(app, &cmd, params);
     }
     app.ui.dialog = None;
     // A tool's click-to-size shape (Flare) goes on the active perspective plane while the grid shows.
-    let at = |x: &str, y: &str| Some(vectorcraft_geom::Point::new(params.get(x)?.as_f64()?, params.get(y)?.as_f64()?));
-    if let Some((c, p)) =
-        at("cx", "cy").or_else(|| at("x", "y")).and_then(|pt| vectorcraft_engine::perspective_click(&app.session, &cmd, &params, pt))
-    {
+    let at = |x: &str, y: &str| Some(pluma_geom::Point::new(params.get(x)?.as_f64()?, params.get(y)?.as_f64()?));
+    if let Some((c, p)) = at("cx", "cy").or_else(|| at("x", "y")).and_then(|pt| pluma_engine::perspective_click(&app.session, &cmd, &params, pt)) {
         return app.run(&c, p);
     }
     app.run(&cmd, params)
@@ -201,15 +199,15 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
+    use pluma_doc::{NodeKind, VerticalAlign};
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_doc::{NodeKind, VerticalAlign};
-    use vectorcraft_engine::Session;
 
     use super::*;
 
     #[test]
     fn area_type_options_choices_match_the_params_doc() {
-        let doc = vectorcraft_engine::find_command("text.areaOptions").unwrap().params;
+        let doc = pluma_engine::find_command("text.areaOptions").unwrap().params;
         for key in ["firstBaseline", "verticalAlign"] {
             let values: Vec<&str> = choices("text.areaOptions", key).unwrap().iter().map(|(_, v)| *v).collect();
             assert!(doc.contains(&format!("{key}?: {}", values.join("|"))), "{key}: {values:?}");
@@ -220,7 +218,7 @@ mod tests {
 
     #[test]
     fn area_type_options_dialog_sets_the_vertical_alignment() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 20, "text": "Hello", "area": {"width": 200, "height": 200}})).unwrap()["id"]
             .as_u64()
@@ -234,7 +232,7 @@ mod tests {
         out.textures_delta.clear();
         app.ui.dialog.as_mut().unwrap().fields.insert("verticalAlign".into(), json!("center"));
         crate::dialogs::confirm(&mut app).unwrap();
-        let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind else { panic!("text") };
+        let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind else { panic!("text") };
         assert_eq!(t.area.vertical_align, VerticalAlign::Center);
     }
 
@@ -242,7 +240,7 @@ mod tests {
     /// between rows of its own.
     #[test]
     fn area_type_options_dialog_sets_the_gutter_between_rows() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 20, "text": "Hello", "area": {"width": 200, "height": 200}})).unwrap()["id"]
             .as_u64()
@@ -256,8 +254,8 @@ mod tests {
         out.textures_delta.clear();
         app.ui.dialog.as_mut().unwrap().fields.insert("rowGutter".into(), json!(30.0));
         crate::dialogs::confirm(&mut app).unwrap();
-        let area = |app: &VectorcraftApp| {
-            let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind else { panic!("text") };
+        let area = |app: &PlumaApp| {
+            let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind else { panic!("text") };
             (t.area.gutter, t.area.row_gutter)
         };
         assert_eq!(area(&app), (18.0, Some(30.0)));
@@ -284,7 +282,7 @@ mod tests {
     /// it, and OK fills the cells by rows when By Rows is picked.
     #[test]
     fn area_type_options_dialog_sets_the_text_flow() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 20, "text": "Hello", "area": {"width": 200, "height": 200}})).unwrap()["id"]
             .as_u64()
@@ -298,8 +296,8 @@ mod tests {
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("flow"), "columns", "drawing the radio buttons keeps the value");
         app.ui.dialog.as_mut().unwrap().fields.insert("flow".into(), json!("rows"));
         crate::dialogs::confirm(&mut app).unwrap();
-        let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind else { panic!("text") };
-        assert_eq!(t.area.flow, vectorcraft_doc::TextFlow::Rows);
+        let NodeKind::Text(t) = &app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind else { panic!("text") };
+        assert_eq!(t.area.flow, pluma_doc::TextFlow::Rows);
     }
 
     /// Object › Rasterize › Color Model is a dropdown of the models `object.rasterize` takes, the
@@ -320,7 +318,7 @@ mod tests {
         }
         assert!(rasterize_color_models("object.rasterize", "background", false).is_none());
         assert!(rasterize_color_models("document.rasterEffectsSettings", "colorModel", false).is_none());
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
         app.run("paint.setFill", json!({"color": "#ff0000", "ids": [id]})).unwrap();
@@ -329,7 +327,7 @@ mod tests {
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("colorModel"), "rgb");
         let mut fonts = false;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1100.0, 900.0)).build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !std::mem::replace(&mut fonts, true) {
                     crate::theme::install_fonts(ui.ctx());
                     return;
@@ -361,10 +359,10 @@ mod tests {
     /// value axis on the side picked.
     #[test]
     fn graph_type_value_axis_is_a_dropdown_of_its_sides() {
-        let doc = vectorcraft_engine::find_command("graph.setType").unwrap().params;
+        let doc = pluma_engine::find_command("graph.setType").unwrap().params;
         let values: Vec<&str> = choices("graph.setType", "valueAxis").unwrap().iter().map(|(_, v)| *v).collect();
         assert!(doc.contains(&format!("valueAxis?: {}", values.join("|"))), "{values:?}");
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         app.run("graph.create", json!({"type": "column", "x": 0, "y": 0, "width": 200, "height": 150})).unwrap();
         crate::menus::graph_dialog(&mut app, "graph.setType").unwrap();
@@ -378,9 +376,9 @@ mod tests {
     /// type and keeps its data.
     #[test]
     fn graph_type_is_a_dropdown_of_the_graph_kinds() {
-        let kinds: Vec<(&str, &str)> = vectorcraft_doc::GraphKind::ALL.iter().map(|k| (k.label(), k.id())).collect();
+        let kinds: Vec<(&str, &str)> = pluma_doc::GraphKind::ALL.iter().map(|k| (k.label(), k.id())).collect();
         assert_eq!(choices("graph.setType", "type").unwrap().to_vec(), kinds);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         app.run("graph.create", json!({"type": "column", "x": 0, "y": 0, "width": 200, "height": 150, "csv": ",a,b\nQ1,1,2\nQ2,3,4"})).unwrap();
         let data = app.session.execute("graph.setData", &json!({})).unwrap();
@@ -395,8 +393,8 @@ mod tests {
 
     /// A document with a rectangle made a 2 x 2 Grid Repeat and selected, its Repeat Options
     /// dialog open.
-    fn grid_options_app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn grid_options_app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
         app.run("object.repeat.grid", json!({"ids": [id], "rows": 2, "cols": 2})).unwrap();
@@ -406,14 +404,14 @@ mod tests {
     }
 
     /// One headless frame of the open dialog.
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| crate::dialogs::show(app, ui.ctx()));
         out.textures_delta.clear();
     }
 
-    fn cols(app: &VectorcraftApp) -> u64 {
+    fn cols(app: &PlumaApp) -> u64 {
         crate::panels::pattern_options::repeat_fields(app).unwrap()["cols"].as_u64().unwrap()
     }
 
@@ -458,7 +456,7 @@ mod tests {
     /// fields apply on OK only, and the dialog takes no `preview`.
     #[test]
     fn radial_repeat_options_have_no_preview() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
         app.run("object.repeat.radial", json!({"ids": [id], "instances": 4})).unwrap();

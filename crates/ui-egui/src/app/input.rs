@@ -1,8 +1,8 @@
-use super::{Arc, Ordering, VectorcraftApp, graphics, native_menu, shortcuts, take_frame_once, tools_float};
+use super::{Arc, Ordering, PlumaApp, graphics, native_menu, shortcuts, take_frame_once, tools_float};
 #[cfg(not(target_arch = "wasm32"))]
 use super::{fileio, place};
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// The first UI pass of a host iteration takes the host's input, once per context, viewport and
     /// frame: clipboard formats, native-menu clicks, shortcuts and dropped files. A later pass
     /// (`request_discard` rerun) or an interleaved second viewport pass with the same key draws
@@ -46,7 +46,7 @@ impl VectorcraftApp {
         let mut files = vec![];
         for f in dropped {
             let path = Some(f.path().to_string_lossy().to_string()).filter(|s| !s.is_empty());
-            let name = path.as_deref().map_or_else(|| "dropped".into(), vectorcraft_engine::cmd::fileio::file_name);
+            let name = path.as_deref().map_or_else(|| "dropped".into(), pluma_engine::cmd::fileio::file_name);
             // Native file drops usually carry a path. Use the same file reader as File → Open
             // (and File → Place), even if the drop handle can't supply the bytes itself.
             let bytes = if path.is_some() && self.services.read.is_some() { Ok(vec![]) } else { f.bytes() };
@@ -77,7 +77,7 @@ impl VectorcraftApp {
         }
         let settled = self.injected_settled.clone();
         ctx.on_end_pass(
-            "vectorcraft injected input settlement",
+            "pluma injected input settlement",
             Arc::new(move |ui| {
                 if ui.ctx().viewport_id() == egui::ViewportId::ROOT && !ui.ctx().will_discard() {
                     settled.store(true, Ordering::Relaxed);
@@ -188,7 +188,7 @@ impl VectorcraftApp {
         // follows; it is the iteration boundary, not a UI-phase marker.
         self.begin_host_iteration();
         // The observer lives on the context so it also settles a harness that consumes raw input
-        // without calling `VectorcraftApp::ui`.
+        // without calling `PlumaApp::ui`.
         self.install_injected_settle_hook(ctx);
         // The native menu's key equivalents become the input their keys make, ahead of what came
         // after them (see `native_menu`).

@@ -7,9 +7,9 @@
 #[cfg(test)]
 mod tests;
 
+use pluma_doc::NodeKind;
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_render::effects;
 
 use super::super::edit::{copy_above, selected_roots};
 use super::super::pathops::{len_param, num_param};

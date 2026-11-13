@@ -4,8 +4,8 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, SymbolBoxes};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, SymbolBoxes};
 
 use crate::DocState;
 
@@ -33,21 +33,21 @@ pub(super) fn serialize(s: &mut Session, p: &Value) -> Result<Value> {
     // Text formats come back as text; an SVG in UTF-16 or ISO 8859-1 also as its bytes.
     let data = |bytes: &[u8]| match f.id {
         "svg" => {
-            let text = vectorcraft_svg::text_of(bytes).unwrap_or_else(|_| String::from_utf8_lossy(bytes));
+            let text = pluma_svg::text_of(bytes).unwrap_or_else(|_| String::from_utf8_lossy(bytes));
             let mut v = json!({ "text": text });
             if text.as_bytes() != bytes {
-                v["dataBase64"] = json!(vectorcraft_format::base64_encode(bytes));
+                v["dataBase64"] = json!(pluma_format::base64_encode(bytes));
             }
             v
         }
-        _ => json!({ "dataBase64": vectorcraft_format::base64_encode(bytes) }),
+        _ => json!({ "dataBase64": pluma_format::base64_encode(bytes) }),
     };
     let mut out = merge(data(main.first().map_or(&[][..], |m| &m.1)), json!({ "warnings": enc.warnings }));
     if main.len() > 1 {
         out["files"] = main.iter().map(|(name, bytes)| merge(json!({ "name": name }), data(bytes))).collect();
     }
     if !linked.is_empty() {
-        out["linked"] = linked.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).collect();
+        out["linked"] = linked.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": pluma_format::base64_encode(bytes) })).collect();
     }
     Ok(out)
 }
@@ -155,22 +155,22 @@ fn selected_part(n: &Arc<Node>, keep: &HashSet<NodeId>, holders: &HashSet<NodeId
 
 /// `doc` with only the art over `rect` (an artboard): objects whose visual bounds miss it are left
 /// out, at any depth of layers, sublayers and groups that don't clip, unless what the renderer
-/// draws for them, their effects included ([`vectorcraft_render::effect_bounds`]), reaches it.
+/// draws for them, their effects included ([`pluma_render::effect_bounds`]), reaches it.
 /// Objects that reach it stay whole (the file's bounds clip them), as DXF's crop leaves them.
 /// Symbol instances are measured by their art, and the box of one whose art holds brushed strokes
 /// grows by as far as their brush art can paint ([`SymbolBoxes::with_brush_art`]). An object that
 /// holds a symbol instance also stays when what the canvas paints for it reaches `rect`
-/// ([`vectorcraft_render::painted_bounds`]: the effects in the symbols' art and its own effects). A
+/// ([`pluma_render::painted_bounds`]: the effects in the symbols' art and its own effects). A
 /// clipping layer keeps every object, its clipping path among them. An artboard's file then holds
 /// its own art, not a whole document of artboards. `renderer` measures the 3D art, and keeps it for
 /// the next artboard of the same document.
-pub(super) fn art_over(doc: &Document, rect: vectorcraft_geom::Rect, renderer: &mut vectorcraft_render::Renderer) -> Document {
+pub(super) fn art_over(doc: &Document, rect: pluma_geom::Rect, renderer: &mut pluma_render::Renderer) -> Document {
     fn kept(
         n: &Arc<Node>,
         doc: &Document,
         symbols: &SymbolBoxes,
-        rect: vectorcraft_geom::Rect,
-        renderer: &mut vectorcraft_render::Renderer,
+        rect: pluma_geom::Rect,
+        renderer: &mut pluma_render::Renderer,
     ) -> Option<Arc<Node>> {
         if matches!(n.kind, NodeKind::Layer { clip: false, .. }) {
             let mut layer = Node::clone(n);
@@ -187,10 +187,10 @@ pub(super) fn art_over(doc: &Document, rect: vectorcraft_geom::Rect, renderer: &
             *children = children.iter().filter_map(|c| kept(c, doc, symbols, rect, renderer)).collect();
             return (!children.is_empty()).then(|| Arc::new(group));
         }
-        let over = |b: vectorcraft_geom::Rect| b.x0 <= rect.x1 && rect.x0 <= b.x1 && b.y0 <= rect.y1 && rect.y0 <= b.y1;
+        let over = |b: pluma_geom::Rect| b.x0 <= rect.x1 && rect.x0 <= b.x1 && b.y0 <= rect.y1 && rect.y0 <= b.y1;
         let mut holds_instance = false;
         n.walk(&mut |c| holds_instance |= matches!(c.kind, NodeKind::SymbolInstance { .. }));
-        let painted = || holds_instance && vectorcraft_render::painted_bounds(doc, n).is_some_and(over);
+        let painted = || holds_instance && pluma_render::painted_bounds(doc, n).is_some_and(over);
         (n.visual_bounds_with(symbols).is_none_or(over) || renderer.effect_bounds(symbols, n).is_some_and(over) || painted()).then(|| n.clone())
     }
     let symbols = doc.symbol_boxes().with_brush_art();
@@ -251,12 +251,12 @@ fn source<'a>(s: &'a mut Session, f: &Format, p: &Value, cmd: &str) -> Result<(C
 /// The selected objects (not on template layers) in the layers and groups that hold them
 /// ([`isolated`]), with one artboard: their crop. With `text`, the objects alone on one layer, so a
 /// text export holds the type of the selected objects and not that of a clipping path around them.
-fn selection(s: &mut Session, cmd: &str, text: bool) -> Result<(Document, vectorcraft_geom::Rect)> {
+fn selection(s: &mut Session, cmd: &str, text: bool) -> Result<(Document, pluma_geom::Rect)> {
     let ids = selected_artwork(s)?;
     let doc = &s.doc()?.doc;
     let (mut d, bounds) = isolated(doc, &ids, "Selection").ok_or_else(|| bad(cmd, "select something to export"))?;
     if text {
-        let mut layer = Node::layer(d.alloc_id(), "Selection", vectorcraft_doc::LayerColor::Preset(0));
+        let mut layer = Node::layer(d.alloc_id(), "Selection", pluma_doc::LayerColor::Preset(0));
         if let Some(ch) = layer.children_mut() {
             *ch = ids.iter().filter_map(|id| doc.node(*id).cloned().map(Arc::new)).collect();
         }
@@ -278,25 +278,25 @@ pub(crate) fn selected_artwork(s: &Session) -> Result<Vec<NodeId>> {
 }
 
 /// The crop of an export of objects `ids` of `doc` alone ([`isolated`]): the bounds the renderer
-/// measures for what it draws for them, their effects included ([`vectorcraft_render::effect_bounds`];
+/// measures for what it draws for them, their effects included ([`pluma_render::effect_bounds`];
 /// symbol instances are measured by their art), with what the layers and groups that hold them
 /// apply (a clipping group or layer is measured by its clip), `None` when they have none.
-pub(crate) fn export_crop(doc: &Document, ids: &[NodeId]) -> Option<vectorcraft_geom::Rect> {
+pub(crate) fn export_crop(doc: &Document, ids: &[NodeId]) -> Option<pluma_geom::Rect> {
     isolated_art(doc, ids).1
 }
 
 /// The layers of [`isolated`] and their crop.
-fn isolated_art(doc: &Document, ids: &[NodeId]) -> (Vec<Arc<Node>>, Option<vectorcraft_geom::Rect>) {
+fn isolated_art(doc: &Document, ids: &[NodeId]) -> (Vec<Arc<Node>>, Option<pluma_geom::Rect>) {
     let keep: HashSet<NodeId> = ids.iter().copied().collect();
     let layers = enclosed(doc, &keep, true);
     let symbols = doc.symbol_boxes();
-    let bounds = layers.iter().filter_map(|l| vectorcraft_render::effect_bounds(&symbols, l)).reduce(|a, b| a.union(b));
+    let bounds = layers.iter().filter_map(|l| pluma_render::effect_bounds(&symbols, l)).reduce(|a, b| a.union(b));
     (layers, bounds)
 }
 
 /// Objects `ids` of `doc` alone, each in the layers and groups that hold it ([`enclosed`], made
 /// visible), with one artboard named `name`: their [`export_crop`] (`None` when they have none).
-pub(crate) fn isolated(doc: &Document, ids: &[NodeId], name: &str) -> Option<(Document, vectorcraft_geom::Rect)> {
+pub(crate) fn isolated(doc: &Document, ids: &[NodeId], name: &str) -> Option<(Document, pluma_geom::Rect)> {
     let (layers, bounds) = isolated_art(doc, ids);
     let bounds = bounds?;
     let mut d = single_artboard(doc, bounds, name);

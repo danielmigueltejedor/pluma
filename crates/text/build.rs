@@ -1,4 +1,4 @@
-//! The optional craft-fonts build input (https://github.com/storytold/craft-fonts,
+//! The optional craft-fonts build input (https://github.com/getnodalia/foundation/tree/vendor/craft-fonts/main,
 //! `docs/integration.md`): with `CRAFT_FONTS_DIR=<checkout>` set, every font in its
 //! `fonts/manifest.txt` is embedded as `CRAFT_FONTS`; unset, `CRAFT_FONTS` is empty and the app
 //! uses its own and the installed fonts. `CRAFT_FONTS_REQUIRED=1` turns a bad checkout into a build
@@ -10,7 +10,7 @@
 //!
 //! It also writes `WEB_FONTS`: the faces listed in `web-fonts.txt`, which web builds fetch from
 //! `fonts/<sha16>/` beside the wasm instead of embedding (`cargo xtask web-fonts` copies them
-//! there; `apps/vectorcraft-web/src/fonts.rs` fetches them). A list line the manifest lacks is left
+//! there; `apps/pluma-web/src/fonts.rs` fetches them). A list line the manifest lacks is left
 //! out with a warning, never an error, and never costs the desktop its fonts.
 
 use std::fmt::Write as _;

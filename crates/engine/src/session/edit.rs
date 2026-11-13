@@ -355,7 +355,7 @@ impl Session {
         // `keep_interaction` records no undo step): the last real transformation stands.
         let changed = !Arc::ptr_eq(&it.doc, &st.doc);
         // How far a drag of direct-selected anchors moved them (`path.moveAnchors`).
-        let moved = vectorcraft_geom::Vec2::new(
+        let moved = pluma_geom::Vec2::new(
             preview.1.get("dx").and_then(Value::as_f64).unwrap_or(0.0),
             preview.1.get("dy").and_then(Value::as_f64).unwrap_or(0.0),
         );
@@ -381,7 +381,7 @@ impl Session {
             if let Some(patterns) = preview.1.get("patterns") {
                 options["patterns"] = patterns.clone();
             }
-            st.last_transform = Some(LastTransform::Matrix(vectorcraft_geom::Affine::translate(moved), options));
+            st.last_transform = Some(LastTransform::Matrix(pluma_geom::Affine::translate(moved), options));
             st.last_perspective = None;
         } else if preview.0 == "object.transformEach" && changed {
             // Transform Again repeats it as it stood when OK was pressed.

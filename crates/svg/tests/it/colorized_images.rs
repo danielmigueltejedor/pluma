@@ -1,9 +1,9 @@
 //! Colorized gray and bilevel image export, checked as pixels as well as markup.
 
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, LinkInfo, Node, NodeKind};
-use vectorcraft_geom::Affine;
-use vectorcraft_svg::{ExportOptions, ImageMode, Profile, base64_encode, export_full};
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::{Document, ImageBlob, ImageObject, LinkInfo, Node, NodeKind};
+use pluma_geom::Affine;
+use pluma_svg::{ExportOptions, ImageMode, Profile, base64_encode, export_full};
 
 fn bilevel() -> Vec<u8> {
     let entries: [(u16, u16, u32); 9] =

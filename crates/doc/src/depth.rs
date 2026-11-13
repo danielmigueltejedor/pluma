@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vectorcraft_color::Paint;
+use pluma_color::Paint;
 
 use crate::{Document, Node, NodeKind};
 

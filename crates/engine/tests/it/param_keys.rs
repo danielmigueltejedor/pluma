@@ -1,11 +1,11 @@
 //! `Session::execute` checks params against the command's description, but a journal replays as
 //! it was recorded (#1442).
 
+use pluma_engine::{Session, check_params};
 use serde_json::json;
-use vectorcraft_engine::{Session, check_params};
 
 /// The open document's art and undo history, and the session's journal length.
-fn state(s: &Session) -> (Option<vectorcraft_doc::Document>, usize, usize) {
+fn state(s: &Session) -> (Option<pluma_doc::Document>, usize, usize) {
     let st = s.active();
     (st.map(|st| (*st.doc).clone()), st.map_or(0, |st| st.history.undo.len()), s.journal.len())
 }
@@ -163,8 +163,8 @@ fn effect_params_no_longer_taken_still_replay_and_open() {
         s.replay(id, params).unwrap();
     }
     let doc = &s.active().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(doc, false)).unwrap();
-    let stored = |d: &vectorcraft_doc::Document| d.layers[0].children().unwrap()[0].appearance.effects[0].params.clone();
+    let back = pluma_format::load(&pluma_format::save(doc, false)).unwrap();
+    let stored = |d: &pluma_doc::Document| d.layers[0].children().unwrap()[0].appearance.effects[0].params.clone();
     assert_eq!(stored(&back), stored(doc));
     assert_eq!(stored(&back)["blurr"], json!(3));
 }
@@ -216,8 +216,8 @@ fn an_effect_color_it_cannot_draw_is_refused() {
         assert_eq!(stored(&s), good);
     }
     let mut doc = (*s.active().unwrap().doc).clone();
-    doc.node_mut(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["color"] = json!("not-a-color");
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    doc.node_mut(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["color"] = json!("not-a-color");
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(back.layers[0].children().unwrap()[0].appearance.effects[0].params["color"], json!("not-a-color"));
 }
 
@@ -258,8 +258,8 @@ fn a_tone_curve_channel_it_does_not_have_is_refused() {
         assert_eq!(stored(&s), good);
     }
     let mut doc = (*s.active().unwrap().doc).clone();
-    doc.node_mut(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["channel"] = json!("alpha");
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    doc.node_mut(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["channel"] = json!("alpha");
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(back.layers[0].children().unwrap()[0].appearance.effects[0].params["channel"], json!("alpha"));
 }
 

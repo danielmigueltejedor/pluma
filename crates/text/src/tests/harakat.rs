@@ -5,10 +5,10 @@
 use std::sync::Arc;
 
 use kurbo::{Affine, Point, Rect, Shape};
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::text::Kashida;
-use vectorcraft_doc::{CharStyle, Justify, TextKind, TextObject};
-use vectorcraft_geom::PathData;
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::text::Kashida;
+use pluma_doc::{CharStyle, Justify, TextKind, TextObject};
+use pluma_geom::PathData;
 
 use crate::harakat::{harakat_ranges, is_gdef_mark, is_harakat, own_chars, paint_only, paint_only_mark_boundary};
 use crate::{FontDb, FontFace, PositionedGlyph, TextLayout, layout};
@@ -86,7 +86,7 @@ fn painted(t: &TextObject, l: &TextLayout, fill: &Paint) -> usize {
     l.glyphs.iter().filter(|g| run_of(t, g).style.fill == *fill).count()
 }
 
-fn run_of<'a>(t: &'a TextObject, g: &PositionedGlyph) -> &'a vectorcraft_doc::TextRun {
+fn run_of<'a>(t: &'a TextObject, g: &PositionedGlyph) -> &'a pluma_doc::TextRun {
     t.runs.get(g.run).unwrap_or_else(|| panic!("glyph {} at byte {} names missing run {}", g.gid, g.byte, g.run))
 }
 
@@ -156,7 +156,7 @@ fn paint_only_differences_are_told_apart() {
 /// including attributes that affect layout rather than shaping and non-reflexive file values.
 #[test]
 fn paint_only_keeps_every_nonpaint_attribute_and_partial_equality() {
-    use vectorcraft_doc::{CharAlign, CharPosition, Dash, Digits, FontHeightReference, GlyphChoice, LineCap, LineJoin, ParaDirection, StrokeAlign};
+    use pluma_doc::{CharAlign, CharPosition, Dash, Digits, FontHeightReference, GlyphChoice, LineCap, LineJoin, ParaDirection, StrokeAlign};
 
     fn previous(a: &CharStyle, b: &CharStyle) -> bool {
         let mut b = b.clone();
@@ -517,7 +517,7 @@ fn assert_authored_ownership(t: &TextObject, text: &str, l: &TextLayout, what: &
 #[test]
 fn duplicate_authored_glyphs_keep_occurrence_order() {
     let mut text = TextObject::point(Point::ZERO, "\u{0651}", style(FAMILY));
-    text.runs.push(vectorcraft_doc::TextRun::new("\u{0651}", CharStyle { fill: red(), ..style(FAMILY) }));
+    text.runs.push(pluma_doc::TextRun::new("\u{0651}", CharStyle { fill: red(), ..style(FAMILY) }));
     let glyph = |run| PositionedGlyph {
         outline: Default::default(),
         run,

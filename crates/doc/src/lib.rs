@@ -1,4 +1,4 @@
-//! VectorCraft document model: artboards, layers and objects, appearance, swatches (pure data + serde).
+//! Pluma document model: artboards, layers and objects, appearance, swatches (pure data + serde).
 //!
 //! Documents are persistent trees: children are `Arc<Node>`, and edits go through
 //! [`Document::node_mut`], which clones only the nodes on the path from the root to the edited node.
@@ -106,6 +106,8 @@ pub use orient::OrientedBox;
 pub use pattern::{Overlap, PatternDef, PatternEdit, RepeatKind, RepeatSpec, TileType};
 pub use perspective::PerspectiveAttachment;
 pub use placed_document::{PageBox, PlacedDocument};
+pub use pluma_color as color;
+pub use pluma_geom as geom;
 pub use profiles::ColorProfiles;
 pub use puppet::{PuppetPin, PuppetPins};
 pub use rastersettings::{RasterColorModel, RasterEffectsSettings};
@@ -124,12 +126,10 @@ pub use text::{
 pub use text::{CharClass, CompositeFont, CompositePart, CompositeParts};
 pub use trace::TraceView;
 pub use variables::{DataSet, DataValue, Variable, VariableKind, Variables};
-pub use vectorcraft_color as color;
-pub use vectorcraft_geom as geom;
 
+use pluma_color::{Swatch, SwatchGroup};
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::{Swatch, SwatchGroup};
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 mod artboard;
 mod canvas_range;
@@ -302,7 +302,7 @@ pub struct Document {
     /// them (on, the default); off, auto slices cover the art and the slices.
     #[serde(default = "yes", skip_serializing_if = "skip::is_true")]
     pub slices_clip_to_artboard: bool,
-    /// File → Print: the print settings saved with the document (`vectorcraft_pdf::PrintSettings`
+    /// File → Print: the print settings saved with the document (`pluma_pdf::PrintSettings`
     /// as JSON: the print engine sits above this crate); `None` until they are set up.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub print_setup: Option<serde_json::Value>,

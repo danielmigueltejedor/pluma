@@ -5,15 +5,15 @@
 use std::io::Write as _;
 use std::sync::Arc;
 
+use pluma_doc::{Node, NodeId, NodeKind};
+use pluma_testkit::ai;
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeId, NodeKind};
-use vectorcraft_testkit::ai;
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
 
 use super::*;
 
 fn open(s: &mut Session, name: &str, bytes: &[u8], params: Value) -> Result<Value> {
-    let mut p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)});
+    let mut p = json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)});
     if let (Some(p), Some(extra)) = (p.as_object_mut(), params.as_object()) {
         p.extend(extra.clone());
     }
@@ -36,7 +36,7 @@ fn check_sample(s: &Session) {
     let doc = &s.doc().unwrap().doc;
     assert_eq!(names(&doc.layers), ["Art", "Hidden"]);
     assert_eq!(doc.artboards.len(), 1);
-    assert_eq!(doc.artboards[0].rect, vectorcraft_geom::Rect::new(0.0, 0.0, 200.0, 100.0));
+    assert_eq!(doc.artboards[0].rect, pluma_geom::Rect::new(0.0, 0.0, 200.0, 100.0));
     let art = doc.layers[0].children().unwrap();
     assert_eq!(names(art), ["Pair", "Ring", "Window"]);
     let pair = art[0].children().unwrap();
@@ -48,8 +48,8 @@ fn check_sample(s: &Session) {
     assert!(!hidden.visible);
     let kids = hidden.children().unwrap();
     assert_eq!(names(kids), ["Shaded", "", "Sub", ""]);
-    assert!(matches!(kids[0].appearance.fill().map(|f| &f.paint), Some(vectorcraft_color::Paint::Gradient(_))));
-    assert_eq!((kids[1].opacity, kids[1].blend), (0.5, vectorcraft_color::BlendMode::Screen));
+    assert!(matches!(kids[0].appearance.fill().map(|f| &f.paint), Some(pluma_color::Paint::Gradient(_))));
+    assert_eq!((kids[1].opacity, kids[1].blend), (0.5, pluma_color::BlendMode::Screen));
     assert!(kids[2].locked && matches!(kids[2].kind, NodeKind::Layer { .. }));
     let NodeKind::Image(im) = &kids[3].kind else { panic!("an image") };
     assert_eq!((im.width, im.height), (2, 1));
@@ -63,7 +63,7 @@ fn an_illustrator_eps_opens_with_its_layers() {
     check_sample(&s);
     // Saved as EPS and opened again, it comes back the same.
     let eps = s.execute("document.exportEps", &json!({})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(eps["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(eps["dataBase64"].as_str().unwrap()).unwrap();
     let r = open(&mut s, "again.eps", &bytes, json!({})).unwrap();
     assert_eq!(r["restored"], json!(true), "{r}");
     check_sample(&s);
@@ -92,9 +92,9 @@ fn an_ai_or_pdf_file_is_read_once_when_it_opens() {
     let placeholder = ai::ai(&compressed(&ai::sample_data()), PLACEHOLDER);
     for (name, file) in [("art.ai", &ai_file), ("art.pdf", &pdf_file), ("placeholder.ai", &placeholder)] {
         for opts in [LoadOptions::default(), LoadOptions { pages: Some("1".into()), ..Default::default() }] {
-            let before = vectorcraft_pdf::reads_of(file);
+            let before = pluma_pdf::reads_of(file);
             let loaded = load_with(name, file, &opts).unwrap();
-            assert_eq!(vectorcraft_pdf::reads_of(file) - before, 1, "{name}, pages {:?}", opts.pages);
+            assert_eq!(pluma_pdf::reads_of(file) - before, 1, "{name}, pages {:?}", opts.pages);
             let editing_data = name == "placeholder.ai" || (name == "art.ai" && opts.pages.is_none());
             assert_eq!(loaded.editing_data, editing_data, "{name}, pages {:?}", opts.pages);
         }
@@ -148,15 +148,15 @@ fn an_ai_file_opens_with_its_active_artboard() {
     assert_eq!(d.opened_artboard, Some(d.artboards[1].id), "{r}");
 }
 
-/// A `.ai` or `.ait` file VectorCraft wrote reopens, restored from the document it carries, on the
+/// A `.ai` or `.ait` file Pluma wrote reopens, restored from the document it carries, on the
 /// artboard its editing copy names as active; without the copy, on the first artboard.
 #[test]
 fn a_restored_ai_file_opens_on_the_artboard_active_when_saved() {
-    let mut doc = vectorcraft_doc::Document::new(100.0, 100.0);
+    let mut doc = pluma_doc::Document::new(100.0, 100.0);
     let first = doc.artboards[0].clone();
     for (i, id) in [(1.0, 7), (2.0, 9)] {
         let x0 = i * 150.0;
-        doc.artboards.push(vectorcraft_doc::Artboard { id, rect: vectorcraft_geom::Rect::new(x0, 0.0, x0 + 100.0, 100.0), ..first.clone() });
+        doc.artboards.push(pluma_doc::Artboard { id, rect: pluma_geom::Rect::new(x0, 0.0, x0 + 100.0, 100.0), ..first.clone() });
     }
     let mut s = Session::new();
     // The view's artboard, one the document doesn't have, none, and the first.
@@ -169,7 +169,7 @@ fn a_restored_ai_file_opens_on_the_artboard_active_when_saved() {
             s.add_document(d, None);
             s.doc_mut().unwrap().active_artboard = active;
             let saved = s.execute(cmd, &json!({"format": format})).unwrap();
-            let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+            let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
             let r = open(&mut s, &format!("again.{format}"), &bytes, json!({})).unwrap();
             assert_eq!(r["restored"], json!(true), "{r}");
             let d = &s.doc().unwrap().doc;
@@ -181,7 +181,7 @@ fn a_restored_ai_file_opens_on_the_artboard_active_when_saved() {
     s.add_document(doc.clone(), None);
     s.doc_mut().unwrap().active_artboard = Some(7);
     let saved = s.execute("document.save", &json!({"format": "ai", "options": {"pdfCompatible": false}})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
     let r = open(&mut s, "again.ai", &bytes, json!({})).unwrap();
     assert_eq!(r["restored"], json!(true), "{r}");
     assert_eq!(s.doc().unwrap().doc.opened_artboard, Some(7), "{r}");
@@ -189,7 +189,7 @@ fn a_restored_ai_file_opens_on_the_artboard_active_when_saved() {
     s.add_document(doc.clone(), None);
     s.doc_mut().unwrap().active_artboard = Some(7);
     let saved = s.execute("document.save", &json!({"format": "ai", "options": {"editingData": false}})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
     let r = open(&mut s, "again.ai", &bytes, json!({})).unwrap();
     assert_eq!(r["restored"], json!(true), "{r}");
     assert_eq!(s.doc().unwrap().doc.opened_artboard, None, "{r}");
@@ -207,7 +207,7 @@ fn an_ai_save_names_its_active_artboard() {
     let active = |s: &mut Session, format: &str| {
         let cmd = if format == "ait" { "file.saveAsTemplate" } else { "file.saveCopy" };
         let saved = s.execute(cmd, &json!({"format": format})).unwrap();
-        let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+        let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
         let l = load::load_with(&format!("a.{format}"), &bytes, &opts).unwrap();
         assert!(l.editing_data && !l.restored, "{:?}", l.warnings);
         assert_eq!(l.doc.artboards.len(), 3);
@@ -241,7 +241,7 @@ fn an_ai_export_names_its_active_artboard() {
     let opts = LoadOptions { native: false, ..Default::default() };
     for (cmd, selected) in [("document.serialize", false), ("document.serialize", true), ("document.export", false)] {
         let out = s.execute(cmd, &json!({"format": "ai", "selectedOnly": selected})).unwrap();
-        let bytes = vectorcraft_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
+        let bytes = pluma_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
         let l = load::load_with("a.ai", &bytes, &opts).unwrap();
         assert!(l.editing_data && !l.restored, "{cmd}: {:?}", l.warnings);
         let active = l.doc.opened_artboard.and_then(|id| l.doc.artboards.iter().position(|a| a.id == id));
@@ -265,8 +265,8 @@ fn an_ai_unread_group_keeps_its_layers_and_live_neighbor() {
     assert_eq!(doc.layers[1].children().unwrap()[0].name.as_deref(), Some("Unread"), "{result}");
     let replacement = &doc.layers[1].children().unwrap()[0].children().unwrap()[0];
     assert!(
-        matches!(replacement.appearance.items.first(), Some(vectorcraft_doc::AppearanceItem::Fill(fill))
-        if fill.paint == vectorcraft_color::Paint::solid(vectorcraft_color::Color::cmyk(1.0, 0.0, 0.0, 0.0))),
+        matches!(replacement.appearance.items.first(), Some(pluma_doc::AppearanceItem::Fill(fill))
+        if fill.paint == pluma_color::Paint::solid(pluma_color::Color::cmyk(1.0, 0.0, 0.0, 0.0))),
         "{result}"
     );
     assert!(result["warnings"].to_string().contains("`ZZ` (1)"), "{result}");
@@ -286,8 +286,8 @@ fn a_differing_object_keeps_the_layers_with_a_note() {
     assert!(matches!(front[0].kind, NodeKind::Group { .. }) && matches!(front[1].kind, NodeKind::Path { .. }), "{result}");
     let replacement = &front[0].children().unwrap()[0];
     assert!(
-        matches!(replacement.appearance.items.first(), Some(vectorcraft_doc::AppearanceItem::Fill(fill))
-        if fill.paint == vectorcraft_color::Paint::solid(vectorcraft_color::Color::cmyk(1.0, 0.0, 0.0, 0.0))),
+        matches!(replacement.appearance.items.first(), Some(pluma_doc::AppearanceItem::Fill(fill))
+        if fill.paint == pluma_color::Paint::solid(pluma_color::Color::cmyk(1.0, 0.0, 0.0, 0.0))),
         "{result}"
     );
     assert!(
@@ -332,13 +332,13 @@ fn an_ai_file_opens_with_the_swatches_of_its_palette() {
     assert_eq!(swatches, ["[None]", "White", "Pink ink", "Red ink"]);
     let pink = doc.swatch("Pink ink").unwrap();
     assert!(pink.spot && pink.global);
-    assert_eq!(pink.paint.color(), Some(vectorcraft_color::Color::lab(81.96, 21.0, -8.0)), "a Lab ink keeps its Lab values");
+    assert_eq!(pink.paint.color(), Some(pluma_color::Color::lab(81.96, 21.0, -8.0)), "a Lab ink keeps its Lab values");
     let groups: Vec<&str> = doc.swatch_groups.iter().map(|g| g.name.as_str()).collect();
     assert_eq!(groups, ["Inks"]);
     assert!(doc.swatch("Yellow ink").is_some_and(|s| s.spot), "an ink the art doesn't use");
     let red = &doc.layers[0].children().unwrap()[0];
     assert!(
-        matches!(red.appearance.fill().map(|f| &f.paint), Some(vectorcraft_color::Paint::Solid { swatch: Some(n), .. }) if n == "Red ink"),
+        matches!(red.appearance.fill().map(|f| &f.paint), Some(pluma_color::Paint::Solid { swatch: Some(n), .. }) if n == "Red ink"),
         "{:?}",
         red.appearance.fill()
     );
@@ -400,7 +400,7 @@ fn a_swatch_library_in_a_ai_file_without_layers_loads_its_palette() {
     let data = ai::editing_data(200.0, 100.0, &format!("{gradient}{palette}"));
     let file = ai::ai(&compressed(data.as_bytes()), "1 0 0 rg 10 50 30 40 re f");
     let mut s = Session::new();
-    let p = json!({"dataBase64": vectorcraft_format::base64_encode(&file), "name": "inks.ai"});
+    let p = json!({"dataBase64": pluma_format::base64_encode(&file), "name": "inks.ai"});
     let r = s.execute("swatch.library.load", &p).unwrap();
     assert_eq!(r["count"], json!(5), "{r}");
     let lib = s.execute("swatch.library.get", &json!({"library": r["library"]})).unwrap();
@@ -410,7 +410,7 @@ fn a_swatch_library_in_a_ai_file_without_layers_loads_its_palette() {
     let doc = s.execute("document.open", &json!({"name": "inks.ai", "dataBase64": p["dataBase64"]}));
     assert!(doc.is_ok(), "{doc:?}");
     let sky = s.doc().unwrap().doc.swatch("Sky").map(|w| w.paint.clone());
-    assert!(matches!(sky, Some(vectorcraft_color::Paint::Gradient(_))), "{sky:?}");
+    assert!(matches!(sky, Some(pluma_color::Paint::Gradient(_))), "{sky:?}");
 }
 
 /// Other Library… on a `.ai` graphic style library (art styles, their list and no layers) gives the
@@ -433,7 +433,7 @@ fn a_graphic_style_library_in_a_ai_file_without_layers_loads_its_styles() {
     let data = ai::editing_data(200.0, 100.0, &styles);
     let file = ai::ai(&compressed(data.as_bytes()), "1 0 0 rg 10 50 30 40 re f");
     let mut s = Session::new();
-    let p = json!({"dataBase64": vectorcraft_format::base64_encode(&file), "name": "fills.ai"});
+    let p = json!({"dataBase64": pluma_format::base64_encode(&file), "name": "fills.ai"});
     let r = s.execute("graphicStyle.loadLibrary", &p).unwrap();
     assert_eq!((&r["name"], &r["count"]), (&json!("fills"), &json!(3)), "{r}");
     let lib = s.execute("graphicStyle.library", &json!({"library": r["library"]})).unwrap();
@@ -466,7 +466,7 @@ fn a_symbol_library_in_a_ai_file_without_layers_loads_its_symbols() {
     let data = ai::editing_data(200.0, 100.0, &symbols);
     let file = ai::ai(&compressed(data.as_bytes()), "1 0 0 rg 10 50 30 40 re f");
     let mut s = Session::new();
-    let p = json!({"dataBase64": vectorcraft_format::base64_encode(&file), "name": "shapes.ai"});
+    let p = json!({"dataBase64": pluma_format::base64_encode(&file), "name": "shapes.ai"});
     let r = s.execute("symbol.loadLibrary", &p).unwrap();
     assert_eq!((&r["name"], &r["count"]), (&json!("shapes"), &json!(3)), "{r}");
     let lib = s.execute("symbol.library", &json!({"library": r["library"]})).unwrap();
@@ -510,7 +510,7 @@ fn a_zero_width_stroke_in_the_editing_data_draws_a_hairline() {
         let r = open(&mut s, "zero.ai", &file, json!({})).unwrap();
         assert_eq!(names(&s.doc().unwrap().doc.layers), ["Art"], "{r}");
         let v = s.execute("document.export", &json!({"format": "png", "background": "transparent"})).unwrap();
-        let png = vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
+        let png = pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
         image::load_from_memory(&png).unwrap().to_rgba8().pixels().filter(|p| p.0[3] > 0).count()
     };
     assert!(drawn("0 1 1 0 1 0 0 XA\n0 w\n20 20 m\n180 80 L\nS\n") > 0, "the hairline draws");
@@ -523,7 +523,7 @@ const SQUARE_AND_TYPE: &str = "0 g 10 10 40 40 re f BT /F1 12 Tf 100 50 Td (Hi) 
 /// `file` loaded with `clipboard.importPdf` (`editingData` as given) and pasted → the command's
 /// reply and the objects the paste selected, in stacking order.
 fn paste(s: &mut Session, file: &[u8], editing_data: bool) -> (Value, Vec<Node>) {
-    let p = json!({"dataBase64": vectorcraft_format::base64_encode(file), "editingData": editing_data});
+    let p = json!({"dataBase64": pluma_format::base64_encode(file), "editingData": editing_data});
     let r = s.execute("clipboard.importPdf", &p).unwrap();
     s.execute("edit.paste", &json!({})).unwrap();
     let st = s.doc().unwrap();
@@ -559,7 +559,7 @@ fn a_copied_ai_file_pastes_from_its_editing_data() {
     assert!(pasted.iter().all(|n| layers[0].children().unwrap().iter().any(|c| c.id == n.id)), "into the active layer");
     // The same editing data in an EPS: the same objects, the hidden layer's objects hidden.
     let eps = ai::eps(&ai::sample_data(), ai::page_ps());
-    s.execute("clipboard.importEps", &json!({"dataBase64": vectorcraft_format::base64_encode(&eps)})).unwrap();
+    s.execute("clipboard.importEps", &json!({"dataBase64": pluma_format::base64_encode(&eps)})).unwrap();
     s.execute("edit.paste", &json!({})).unwrap();
     let st = s.doc().unwrap();
     let shown = |nodes: Vec<&Node>| nodes.iter().map(|n| (n.name.clone().unwrap_or_default(), n.visible)).collect::<Vec<_>>();
@@ -583,7 +583,7 @@ fn a_copied_ai_file_pastes_from_its_editing_data() {
     // (The page's type comes in as type too now that PDF import keeps it, so only this side is told apart.)
     let (r, pasted) = paste(&mut s, &typed, true);
     assert!(has_type(&pasted), "{r}: {pasted:?}");
-    // A `.ai` VectorCraft wrote: the document it carries, its hidden square too.
+    // A `.ai` Pluma wrote: the document it carries, its hidden square too.
     let mut other = Session::new();
     other.execute("file.new", &json!({"width": 200, "height": 100})).unwrap();
     for x in [10, 100] {
@@ -591,7 +591,7 @@ fn a_copied_ai_file_pastes_from_its_editing_data() {
     }
     other.execute("object.hide", &json!({})).unwrap();
     let saved = other.execute("document.export", &json!({"format": "ai"})).unwrap();
-    let saved = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    let saved = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
     let (r, pasted) = paste(&mut s, &saved, true);
     assert_eq!(pasted.iter().map(|n| n.visible).collect::<Vec<_>>(), [true, false], "{r}");
     let (r, page) = paste(&mut s, &saved, false);
@@ -626,7 +626,7 @@ fn a_pdfs_art_past_the_page_opens_whole_from_its_editing_data() {
     assert_eq!(names(&doc.layers), ["Art"]);
     assert!(doc.art_bounds().is_some_and(|b| b.x1 > 200.5), "{:?}", doc.art_bounds());
     let r = open(&mut s, "past.pdf", &file, json!({"editingData": false})).unwrap();
-    assert_eq!(r["warnings"], json!([vectorcraft_pdf::PAST_PAGE_NOTE]), "{r}");
+    assert_eq!(r["warnings"], json!([pluma_pdf::PAST_PAGE_NOTE]), "{r}");
     assert!(s.doc().unwrap().doc.art_bounds().is_some_and(|b| b.x1 < 200.5));
 }
 
@@ -663,9 +663,9 @@ fn editing_data_that_cant_be_read_keeps_the_pdf_parts_notes() {
     let unread = "the file's layers weren't read from its editing data (its zlib compression is damaged): they come from its PDF part";
     let mut s = Session::new();
     let r = open(&mut s, "damaged.ai", &ai::ai(damaged, ai::page_pdf()), json!({})).unwrap();
-    assert_eq!(r["warnings"], json!([vectorcraft_pdf::OFF_ARTBOARD_NOTE, unread]), "{r}");
+    assert_eq!(r["warnings"], json!([pluma_pdf::OFF_ARTBOARD_NOTE, unread]), "{r}");
     let r = open(&mut s, "damaged.pdf", &ai::pdf(damaged, "0 g 150 20 100 60 re f"), json!({})).unwrap();
-    assert_eq!(r["warnings"], json!([vectorcraft_pdf::PAST_PAGE_NOTE, unread]), "{r}");
+    assert_eq!(r["warnings"], json!([pluma_pdf::PAST_PAGE_NOTE, unread]), "{r}");
 }
 
 /// Decode parameters the import refuses, for the page's content stream (#4366).
@@ -713,7 +713,7 @@ fn a_file_whose_pdf_part_cant_be_read_opens_from_its_editing_data() {
 fn a_file_whose_pdf_part_cant_be_read_opens_at_its_size_in_points() {
     let data = ai::editing_data(200.0, 100.0, &ai::layer("Art", &format!("0 1 1 0 1 0 0 Xa\n{}f\n", ai::rect(20.0, 20.0, 60.0, 50.0))));
     let file = ai::ai_with_entries_and_content(&compressed(data.as_bytes()), "1 0 0 rg 20 20 40 30 re f", "/UserUnit 10", REFUSED_CONTENT);
-    let near = |r: vectorcraft_geom::Rect, want: [f64; 4]| [r.x0, r.y0, r.x1, r.y1].iter().zip(want).all(|(a, b)| (a - b).abs() < 0.01);
+    let near = |r: pluma_geom::Rect, want: [f64; 4]| [r.x0, r.y0, r.x1, r.y1].iter().zip(want).all(|(a, b)| (a - b).abs() < 0.01);
     let mut s = Session::new();
     let r = open(&mut s, "large.ai", &file, json!({})).unwrap();
     assert!(r["warnings"][0].as_str().unwrap().starts_with("the PDF part couldn't be read ("), "{r}");
@@ -777,7 +777,7 @@ fn a_copied_file_whose_pdf_part_cant_be_read_pastes_from_its_editing_data() {
         let pasted: Vec<String> = pasted.iter().map(|n| n.name.clone().unwrap_or_default()).collect();
         assert_eq!(pasted, ["Pair", "Ring", "Window", "Shaded", "", "Sub", ""], "{name}");
         assert!(r["warnings"][0].as_str().unwrap().starts_with("the PDF part couldn't be read (cannot read PDF: "), "{name}: {r}");
-        let p = json!({"dataBase64": vectorcraft_format::base64_encode(&file)});
+        let p = json!({"dataBase64": pluma_format::base64_encode(&file)});
         let e = s.execute("clipboard.importPdf", &p).unwrap_err().to_string();
         assert!(e.contains("decode parameters"), "{name}: {e}");
     }
@@ -790,7 +790,7 @@ fn a_file_whose_pdf_part_cant_be_read_places_from_its_editing_data() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     for (name, file) in refused_files(&compressed(&ai::sample_data()), ai::page_pdf()) {
-        let data = vectorcraft_format::base64_encode(&file);
+        let data = pluma_format::base64_encode(&file);
         let r = s.execute("file.place", &json!({"name": name, "dataBase64": data, "link": false})).unwrap();
         assert_eq!((r["width"].as_f64(), r["height"].as_f64()), (Some(200.0), Some(100.0)), "{name}: {r}");
         assert!(r["warnings"][0].as_str().unwrap().starts_with("the PDF part couldn't be read ("), "{name}: {r}");
@@ -804,7 +804,7 @@ fn a_file_whose_pdf_part_cant_be_read_places_from_its_editing_data() {
         }
     }
     let [(name, file), _] = refused_files(&typed_data(), "");
-    let data = vectorcraft_format::base64_encode(&file);
+    let data = pluma_format::base64_encode(&file);
     let r = s.execute("file.place", &json!({"name": name, "dataBase64": data, "link": false, "textAs": "outlines", "crop": "bounding"})).unwrap();
     assert!(r["warnings"][0].as_str().unwrap().starts_with("the PDF part couldn't be read ("), "{r}");
     let placed = s.doc().unwrap().doc.layers[0].children().unwrap().last().unwrap().clone();
@@ -819,7 +819,7 @@ fn a_file_whose_pdf_part_cant_be_read_places_from_its_editing_data() {
     let art = format!("0 g\n{}f\n{}f\n", ai::rect(10.0, 10.0, 50.0, 50.0), ai::rect(10.0, -140.0, 70.0, -100.0));
     let paged = ai::editing_data(100.0, 100.0, &(boards.to_string() + &ai::layer("Art", &art)));
     let [(name, file), _] = refused_files(&compressed(paged.as_bytes()), ai::page_pdf());
-    let data = vectorcraft_format::base64_encode(&file);
+    let data = pluma_format::base64_encode(&file);
     let size = |s: &mut Session, page: u64| {
         let r = s.execute("file.place.info", &json!({"name": name, "dataBase64": data, "page": page, "crop": "bounding"}));
         r.map(|r| (r["width"].as_f64(), r["height"].as_f64())).map_err(|e| e.to_string())
@@ -1000,7 +1000,7 @@ fn an_ai_file_saved_without_its_pdf_part_opens_with_pages_naming_every_page() {
 /// and none.
 fn placeholder_files() -> [String; 3] {
     [compressed(&ai::sample_data()), b"%AI12_CompressedData not zlib".to_vec(), vec![]]
-        .map(|private| vectorcraft_format::base64_encode(&ai::ai(&private, PLACEHOLDER)))
+        .map(|private| pluma_format::base64_encode(&ai::ai(&private, PLACEHOLDER)))
 }
 
 #[test]
@@ -1029,7 +1029,7 @@ fn an_ai_file_saved_without_its_pdf_part_places_in_the_encoding_picked() {
     let at = data.windows(4).position(|w| w == b"Pair").unwrap();
     // 빨강 in code page 949.
     data.splice(at..at + 4, br"\273\241\260\255".iter().copied());
-    let file = vectorcraft_format::base64_encode(&ai::ai(&compressed(&data), PLACEHOLDER));
+    let file = pluma_format::base64_encode(&ai::ai(&compressed(&data), PLACEHOLDER));
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     let r = s.execute("file.place", &json!({"name": "art.ai", "dataBase64": file, "link": false, "legacyNameEncoding": "windows-949"})).unwrap();
@@ -1056,7 +1056,7 @@ fn an_ai_file_saved_without_its_pdf_part_places_from_its_editing_data() {
     // The place takes the art of both layers that show.
     let square = |x: f64| format!("0 g\n{}f\n", ai::rect(x, 10.0, x + 40.0, 50.0));
     let two = ai::editing_data(200.0, 100.0, &[ai::layer("Back", &square(10.0)), ai::layer("Front", &square(110.0))].concat());
-    let two = vectorcraft_format::base64_encode(&ai::ai(&compressed(two.as_bytes()), PLACEHOLDER));
+    let two = pluma_format::base64_encode(&ai::ai(&compressed(two.as_bytes()), PLACEHOLDER));
     let r = s.execute("file.place.info", &json!({"name": "two.ai", "dataBase64": two, "crop": "bounding"})).unwrap();
     assert_eq!((r["width"].as_f64(), r["height"].as_f64()), (Some(140.0), Some(40.0)), "{r}");
     // The file has two 100-point artboards and one placeholder page. The second artboard lies 50
@@ -1067,7 +1067,7 @@ fn an_ai_file_saved_without_its_pdf_part_places_from_its_editing_data() {
         %_; (ArtboardArray) ,\n%_; /NotRecorded ,\n%_;\n";
     let art = format!("0 g\n{}f\n{}f\n", ai::rect(10.0, 10.0, 50.0, 50.0), ai::rect(10.0, -140.0, 70.0, -100.0));
     let paged = ai::editing_data(100.0, 100.0, &(boards.to_string() + &ai::layer("Art", &art)));
-    let paged = vectorcraft_format::base64_encode(&ai::ai(&compressed(paged.as_bytes()), PLACEHOLDER));
+    let paged = pluma_format::base64_encode(&ai::ai(&compressed(paged.as_bytes()), PLACEHOLDER));
     let mut size = |page: u64| {
         let r = s.execute("file.place.info", &json!({"name": "boards.ai", "dataBase64": paged, "page": page, "crop": "bounding"}));
         r.map(|r| (r["width"].as_f64(), r["height"].as_f64())).map_err(|e| e.to_string())
@@ -1101,7 +1101,7 @@ fn an_ai_file_whose_pdf_part_is_only_text_opens_from_it_when_its_editing_data_ca
         let mut s = Session::new();
         let r = open(&mut s, "text.ai", &ai::ai_with(unreadable, TEXT_ART, boxed), json!({})).unwrap();
         // Then a note on the font, where the machine lacks it.
-        assert_eq!(r["warnings"][0], json!(vectorcraft_pdf::OFF_ARTBOARD_NOTE), "{boxed}: {r}");
+        assert_eq!(r["warnings"][0], json!(pluma_pdf::OFF_ARTBOARD_NOTE), "{boxed}: {r}");
         assert_eq!(text_and_others(&s), (1, 0), "{boxed}");
         // The PDF part alone, as asked.
         open(&mut s, "text.ai", &ai::ai_with(unreadable, TEXT_ART, boxed), json!({"editingData": false})).unwrap();
@@ -1115,7 +1115,7 @@ fn an_ai_file_whose_pdf_part_is_only_text_opens_from_it_when_its_editing_data_ca
     assert!(e.contains("placeholder"), "{e}");
     // Placed, it is read as its page too.
     let r = s.execute("file.new", &json!({})).and_then(|_| {
-        let data = vectorcraft_format::base64_encode(&ai::ai_with(unreadable, TEXT_ART, "/ArtBox [0 0 200 100]"));
+        let data = pluma_format::base64_encode(&ai::ai_with(unreadable, TEXT_ART, "/ArtBox [0 0 200 100]"));
         s.execute("file.place", &json!({"name": "text.ai", "dataBase64": data, "link": false}))
     });
     assert!(r.is_ok(), "{r:?}");
@@ -1142,7 +1142,7 @@ fn an_ai_file_whose_pdf_part_is_cropped_to_its_art_opens_from_its_layers() {
     let doc = &s.doc().unwrap().doc;
     assert_eq!(names(&doc.layers), ["Art"]);
     assert_eq!(doc.artboards.len(), 1);
-    assert_eq!(doc.artboards[0].rect, vectorcraft_geom::Rect::new(0.0, 0.0, 400.0, 200.0), "the file's artboard, not its page");
+    assert_eq!(doc.artboards[0].rect, pluma_geom::Rect::new(0.0, 0.0, 400.0, 200.0), "the file's artboard, not its page");
     let bars = doc.layers[0].children().unwrap();
     assert_eq!(bars.len(), 2);
     let b = bars[0].geometric_bounds().unwrap();
@@ -1265,7 +1265,7 @@ fn an_ai_story_without_runs_takes_the_normal_styles() {
     assert_eq!(t.plain_text(), "Hi");
     let style = &t.runs[0].style;
     assert_eq!(style.size, 9.0, "{r}");
-    assert_eq!(style.fill, vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0)));
+    assert_eq!(style.fill, pluma_color::Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0)));
     assert_eq!((t.para.first_line_indent, t.para.hyphenate), (6.0, false));
 }
 
@@ -1292,17 +1292,17 @@ fn outlined_type_of_the_editing_data_keeps_its_transparency_and_effects() {
     s.execute("file.new", &json!({"width": 200, "height": 100})).unwrap();
     let id = NodeId(s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap());
     let mut doc = s.doc().unwrap().doc.as_ref().clone();
-    let shadow = vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: json!({}), visible: true };
+    let shadow = pluma_doc::Effect { id: "stylize.dropShadow".into(), params: json!({}), visible: true };
     {
         let t = doc.node_mut(id).unwrap();
         t.opacity = 0.5;
-        t.blend = vectorcraft_color::BlendMode::Multiply;
+        t.blend = pluma_color::BlendMode::Multiply;
         t.isolate = true;
         t.locked = true;
         t.name = Some("Title".into());
         t.appearance.effects = vec![shadow.clone()];
     }
-    let opts = LoadOptions { text_as: vectorcraft_pdf::TextAs::Outlines, ..Default::default() };
+    let opts = LoadOptions { text_as: pluma_pdf::TextAs::Outlines, ..Default::default() };
     let (doc, _) = load::outlined_if_asked(doc, vec![], &opts);
     let mut outlines = vec![];
     doc.walk(|n| {
@@ -1311,7 +1311,7 @@ fn outlined_type_of_the_editing_data_keeps_its_transparency_and_effects() {
         }
     });
     let [o] = &outlines[..] else { panic!("one group of outlines: {outlines:?}") };
-    assert_eq!((o.opacity, o.blend, o.isolate), (0.5, vectorcraft_color::BlendMode::Multiply, true));
+    assert_eq!((o.opacity, o.blend, o.isolate), (0.5, pluma_color::BlendMode::Multiply, true));
     assert_eq!(o.appearance.effects, [shadow]);
     assert!(o.locked && o.visible);
     assert_eq!(o.name.as_deref(), Some("Title"));
@@ -1336,7 +1336,7 @@ fn outlined_threaded_type_of_the_editing_data_shows_the_text_of_every_frame() {
         _ => panic!("area type"),
     };
     let (shown, flowed) = (runs(a), runs(b));
-    let empty: Vec<_> = flowed.iter().take(1).map(|r| vectorcraft_doc::TextRun { text: String::new(), ..r.clone() }).collect();
+    let empty: Vec<_> = flowed.iter().take(1).map(|r| pluma_doc::TextRun { text: String::new(), ..r.clone() }).collect();
     for (id, put) in [(a, [shown, flowed].concat()), (b, empty)] {
         if let NodeKind::Text(t) = &mut doc.node_mut(NodeId(id)).unwrap().kind {
             t.runs = put;
@@ -1344,7 +1344,7 @@ fn outlined_threaded_type_of_the_editing_data_shows_the_text_of_every_frame() {
             t.cached_baselines.clear();
         }
     }
-    let opts = LoadOptions { text_as: vectorcraft_pdf::TextAs::Outlines, ..Default::default() };
+    let opts = LoadOptions { text_as: pluma_pdf::TextAs::Outlines, ..Default::default() };
     let (doc, _) = load::outlined_if_asked(doc, vec![], &opts);
     let mut right = 0;
     doc.walk(|n| {
@@ -1420,7 +1420,7 @@ fn fit_to_artwork_bounds_leaves_out_the_hidden_art_and_guides_the_editing_data_h
     assert!(!kids[1].visible && matches!(kids[2].kind, NodeKind::Path { guide: true, .. }));
     s.execute("artboard.fitToArt", &json!({})).unwrap();
     // The square, 50 to 90 down the 100-point page.
-    assert_eq!(s.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(10.0, 50.0, 50.0, 90.0));
+    assert_eq!(s.doc().unwrap().doc.artboards[0].rect, pluma_geom::Rect::new(10.0, 50.0, 50.0, 90.0));
 }
 
 #[test]
@@ -1499,7 +1499,7 @@ fn half_outlined_ai_on(story: Option<&str>, more: usize, type_content: &str, hea
     let page = PdfPage {
         resources: format!(
             "/Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> \
-             /F2 << /Type /Font /Subtype /Type1 /BaseFont /VectorCraftTestUnnamed /ToUnicode {} 0 R >> >>",
+             /F2 << /Type /Font /Subtype /Type1 /BaseFont /PlumaTestUnnamed /ToUnicode {} 0 R >> >>",
             first_extra(1) + 1
         ),
         entries: format!("/PieceInfo << /Illustrator << /Private << /AIPrivateData1 {} 0 R /NumBlock 1 >> >> >>", first_extra(1)),
@@ -1515,12 +1515,12 @@ fn half_outlined_ai_on(story: Option<&str>, more: usize, type_content: &str, hea
 
 fn outlines_notes(r: &Value) -> Vec<String> {
     let notes = r["warnings"].as_array().unwrap().iter().filter_map(Value::as_str);
-    notes.filter(|w| vectorcraft_pdf::is_outlines_note(w)).map(String::from).collect()
+    notes.filter(|w| pluma_pdf::is_outlines_note(w)).map(String::from).collect()
 }
 
 /// The notes the PDF part of [`half_outlined_ai`] reads with: its glyph of U+FFFD, kept as outlines.
 fn pdf_part_outlines_notes() -> [String; 2] {
-    [format!("text in Vector Craft Test Unnamed {}", vectorcraft_pdf::UNNAMED_CHARACTERS_NOTE), vectorcraft_pdf::OUTLINED_TEXT_NOTE.into()]
+    [format!("text in Pluma Test Unnamed {}", pluma_pdf::UNNAMED_CHARACTERS_NOTE), pluma_pdf::OUTLINED_TEXT_NOTE.into()]
 }
 
 /// The note on text objects that hold the page's type without some of its characters, for `n` of
@@ -1577,7 +1577,7 @@ fn wrapped_thread_data(offset: Option<f64>) -> Vec<u8> {
 }
 
 /// The wrap offset of the first frame of `doc`'s threaded type, as its text resolves it.
-fn first_frame_wrap_offset(doc: &vectorcraft_doc::Document) -> f64 {
+fn first_frame_wrap_offset(doc: &pluma_doc::Document) -> f64 {
     match &doc.node(doc.text_threads[0][0]).unwrap().kind {
         NodeKind::Text(t) => t.wrap[0].wrap.offset,
         _ => panic!("area type"),
@@ -1593,7 +1593,7 @@ fn wrapped_type_in_units_of_ten_points_flows_round_the_wrap_at_its_size_in_point
     let page = "0.5 g 10 30 80 40 re f";
     let refused = ai::ai_with_entries_and_content(&private, page, "/UserUnit 10", REFUSED_CONTENT);
     // On the trim boxes the PDF part is imported, and the refused stream stops it.
-    let trim = LoadOptions { crop: vectorcraft_pdf::CropTo::Trim, ..Default::default() };
+    let trim = LoadOptions { crop: pluma_pdf::CropTo::Trim, ..Default::default() };
     let files = [(ai::ai_with(&private, page, "/UserUnit 10"), LoadOptions::default()), (refused, trim)];
     for (file, opts) in &files {
         let loaded = load_with("thread.ai", file, opts).unwrap();
@@ -1661,9 +1661,9 @@ fn type_all_from_the_text_document_opens_without_importing_the_pdf_part() {
     // The page draws a red square the layers don't have.
     let differs = half_outlined_ai(Some("first draft"), 0, &format!("{line} 1 0 0 rg 20 20 30 30 re f"));
     let mut s = Session::new();
-    let before = vectorcraft_pdf::imports_of(&differs);
+    let before = pluma_pdf::imports_of(&differs);
     let loaded = load_with("draft.ai", &differs, &LoadOptions::default()).unwrap();
-    assert_eq!(vectorcraft_pdf::imports_of(&differs), before, "{:?}", loaded.warnings);
+    assert_eq!(pluma_pdf::imports_of(&differs), before, "{:?}", loaded.warnings);
     assert!(loaded.editing_data, "{:?}", loaded.warnings);
     assert!(!loaded.warnings.iter().any(|w| w.contains("differently")), "{:?}", loaded.warnings);
     let r = open(&mut s, "draft.ai", &differs, json!({})).unwrap();
@@ -1678,24 +1678,24 @@ fn type_all_from_the_text_document_opens_without_importing_the_pdf_part() {
         content: format!("1 0 0 1 10 10 cm {}", p.content),
         ..p
     });
-    let before = vectorcraft_pdf::imports_of(&bled);
+    let before = pluma_pdf::imports_of(&bled);
     let loaded = load_with("bled.ai", &bled, &LoadOptions::default()).unwrap();
-    assert_eq!(vectorcraft_pdf::imports_of(&bled), before);
+    assert_eq!(pluma_pdf::imports_of(&bled), before);
     assert_eq!(loaded.doc.setup.bleed, [10.0; 4]);
     // Pages of 10 pt units.
     let large = half_outlined_ai_on(Some("first draft"), 0, &line, "", |p| PdfPage { entries: format!("{} /UserUnit 10", p.entries), ..p });
-    let before = vectorcraft_pdf::imports_of(&large);
+    let before = pluma_pdf::imports_of(&large);
     let loaded = load_with("large.ai", &large, &LoadOptions::default()).unwrap();
-    assert_eq!(vectorcraft_pdf::imports_of(&large), before);
+    assert_eq!(pluma_pdf::imports_of(&large), before);
     let board = loaded.doc.artboards[0].rect;
     assert!((board.width() - 2000.0).abs() < 0.01 && (board.height() - 1000.0).abs() < 0.01, "{board:?}");
     // Opened on the trim boxes with the PDF part imported and compared, as before, both files have
     // the same artboards and bleed.
     for file in [&bled, &large] {
         let alone = load_with("draft.ai", file, &LoadOptions::default()).unwrap();
-        let compared = load_with("draft.ai", file, &LoadOptions { crop: vectorcraft_pdf::CropTo::Trim, ..Default::default() }).unwrap();
+        let compared = load_with("draft.ai", file, &LoadOptions { crop: pluma_pdf::CropTo::Trim, ..Default::default() }).unwrap();
         assert!(compared.editing_data, "{:?}", compared.warnings);
-        let boards = |d: &vectorcraft_doc::Document| d.artboards.iter().map(|a| a.rect).collect::<Vec<_>>();
+        let boards = |d: &pluma_doc::Document| d.artboards.iter().map(|a| a.rect).collect::<Vec<_>>();
         assert_eq!(boards(&alone.doc), boards(&compared.doc));
         assert_eq!(alone.doc.setup.bleed, compared.doc.setup.bleed);
         assert_eq!(names(&alone.doc.layers), names(&compared.doc.layers));
@@ -1709,14 +1709,14 @@ fn type_all_from_the_text_document_opens_without_importing_the_pdf_part() {
     let cases = [
         (&unmade, LoadOptions::default()),
         (&canvas, LoadOptions::default()),
-        (&differs, LoadOptions { text_as: vectorcraft_pdf::TextAs::Outlines, ..Default::default() }),
-        (&differs, LoadOptions { crop: vectorcraft_pdf::CropTo::Trim, ..Default::default() }),
+        (&differs, LoadOptions { text_as: pluma_pdf::TextAs::Outlines, ..Default::default() }),
+        (&differs, LoadOptions { crop: pluma_pdf::CropTo::Trim, ..Default::default() }),
         (&differs, LoadOptions { pages: Some("1".into()), ..Default::default() }),
     ];
     for (file, opts) in cases {
-        let before = vectorcraft_pdf::imports_of(file);
+        let before = pluma_pdf::imports_of(file);
         load_with("draft.ai", file, &opts).unwrap();
-        assert_eq!(vectorcraft_pdf::imports_of(file) - before, 1, "{opts:?}");
+        assert_eq!(pluma_pdf::imports_of(file) - before, 1, "{opts:?}");
     }
 }
 
@@ -1729,13 +1729,13 @@ fn type_from_the_page_opens_with_a_note_on_the_characters_it_has_only_as_outline
     let r = open(&mut s, "draft.ai", &half_outlined_ai(None, 0, &half_outlined_line(65.0, "rst draft", 0)), json!({})).unwrap();
     assert_eq!(names(&s.doc().unwrap().doc.layers), ["Art"], "{r}");
     assert_eq!(texts(&s), ["rst draft"], "{r}");
-    assert!(!vectorcraft_pdf::holds_outlines(&s.doc().unwrap().doc), "{r}");
+    assert!(!pluma_pdf::holds_outlines(&s.doc().unwrap().doc), "{r}");
     assert_eq!(outlines_notes(&r), Vec::<String>::new(), "{r}");
     assert!(r["warnings"].as_array().unwrap().contains(&without_outlines_note(1)), "{r}");
     // Stroked: the glyph comes in with the type.
     let r = open(&mut s, "draft.ai", &half_outlined_ai(None, 0, &half_outlined_line(65.0, "rst draft", 1)), json!({})).unwrap();
     assert_eq!(names(&s.doc().unwrap().doc.layers), ["Art"], "{r}");
-    assert!(vectorcraft_pdf::holds_outlines(&s.doc().unwrap().doc), "{r}");
+    assert!(pluma_pdf::holds_outlines(&s.doc().unwrap().doc), "{r}");
     assert_eq!(outlines_notes(&r), pdf_part_outlines_notes(), "{r}");
     assert!(!r["warnings"].to_string().contains("without the characters"), "{r}");
     // A stroked line whose glyph comes in, and a filled one whose glyph doesn't.
@@ -1754,7 +1754,7 @@ fn type_from_the_page_opens_with_a_note_on_the_characters_it_has_only_as_outline
 fn an_ai_file_with_a_user_unit_opens_at_its_size_in_points() {
     let data = ai::editing_data(200.0, 100.0, &ai::layer("Art", &format!("0 1 1 0 1 0 0 Xa\n{}f\n", ai::rect(20.0, 20.0, 60.0, 50.0))));
     let file = ai::ai_with(&compressed(data.as_bytes()), "1 0 0 rg 20 20 40 30 re f", "/UserUnit 10");
-    let near = |r: vectorcraft_geom::Rect, want: [f64; 4]| [r.x0, r.y0, r.x1, r.y1].iter().zip(want).all(|(a, b)| (a - b).abs() < 0.01);
+    let near = |r: pluma_geom::Rect, want: [f64; 4]| [r.x0, r.y0, r.x1, r.y1].iter().zip(want).all(|(a, b)| (a - b).abs() < 0.01);
     let mut s = Session::new();
     for (params, layers) in [(json!({}), ["Art"]), (json!({"editingData": false}), ["Page 1"])] {
         let r = open(&mut s, "large.ai", &file, params.clone()).unwrap();
@@ -1764,7 +1764,7 @@ fn an_ai_file_with_a_user_unit_opens_at_its_size_in_points() {
         let art = doc.art_bounds().unwrap();
         assert!(near(art, [200.0, 500.0, 600.0, 800.0]), "{params}: {art:?}");
     }
-    let v = s.execute("document.pdfInfo", &json!({"dataBase64": vectorcraft_format::base64_encode(&file)})).unwrap();
+    let v = s.execute("document.pdfInfo", &json!({"dataBase64": pluma_format::base64_encode(&file)})).unwrap();
     let page = &v["pageInfo"][0];
     assert_eq!((page["width"].as_f64(), page["height"].as_f64()), (Some(2000.0), Some(1000.0)), "{v}");
     assert_eq!(page["boxes"]["media"], json!([0.0, 0.0, 2000.0, 1000.0]), "{v}");
@@ -1834,8 +1834,8 @@ fn open_rows(s: &Session) -> (Vec<String>, Vec<String>) {
     (rows, open)
 }
 
-/// #1475: a `.ai` another app wrote keeps no open rows VectorCraft reads, so it opens with every
-/// row closed, its top-level layers as its groups; a `.ai` VectorCraft wrote, and other formats,
+/// #1475: a `.ai` another app wrote keeps no open rows Pluma reads, so it opens with every
+/// row closed, its top-level layers as its groups; a `.ai` Pluma wrote, and other formats,
 /// open as before (with their top-level layers open unless the file says otherwise).
 #[test]
 fn an_illustrator_ai_file_opens_with_its_layers_closed() {
@@ -1850,9 +1850,9 @@ fn an_illustrator_ai_file_opens_with_its_layers_closed() {
     // The same art as an EPS: its top-level layers open.
     open(&mut s, "art.eps", &ai::eps(&ai::sample_data(), ai::page_ps()), json!({})).unwrap();
     assert_eq!(open_rows(&s).1, ["Art", "Hidden"]);
-    // Saved as .ai by VectorCraft, it opens with the rows it was saved with.
+    // Saved as .ai by Pluma, it opens with the rows it was saved with.
     let saved = s.execute("document.save", &json!({"format": "ai"})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
     let r = open(&mut s, "again.ai", &bytes, json!({})).unwrap();
     assert_eq!(r["restored"], json!(true), "{r}");
     assert_eq!(open_rows(&s).1, ["Art", "Hidden"]);

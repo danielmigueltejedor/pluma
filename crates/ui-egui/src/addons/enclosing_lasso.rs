@@ -1,5 +1,5 @@
+use pluma_tools::addons::enclosing_lasso;
 use serde_json::json;
-use vectorcraft_tools::addons::enclosing_lasso;
 
 use crate::menus::Item;
 

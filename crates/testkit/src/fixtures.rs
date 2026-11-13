@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node, NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_geom::{PathData, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::{PathData, Rect, shapes};
 
 /// Execute a command and panic with context on error.
 #[track_caller]
@@ -58,7 +58,7 @@ pub fn select(s: &mut Session, ids: &[NodeId]) {
 /// decode the image and draws nothing. Place refuses such a file, so tests cut a placed one. The
 /// image is stored under the key of its new bytes. → `file.place`'s reply.
 pub fn place_cut_png(s: &mut Session, png: &[u8], params: Value) -> Value {
-    let mut p = json!({"name": "cut.png", "dataBase64": vectorcraft_format::base64_encode(png)});
+    let mut p = json!({"name": "cut.png", "dataBase64": pluma_format::base64_encode(png)});
     if let (Some(o), Value::Object(extra)) = (p.as_object_mut(), params) {
         o.extend(extra);
     }
@@ -70,7 +70,7 @@ pub fn place_cut_png(s: &mut Session, png: &[u8], params: Value) -> Value {
     let mut bytes = doc.images[&old].bytes.to_vec();
     let idat = bytes.windows(4).position(|w| w == b"IDAT").unwrap();
     bytes.truncate(idat + 8);
-    let cut = vectorcraft_doc::ImageBlob::new("image/png", bytes);
+    let cut = pluma_doc::ImageBlob::new("image/png", bytes);
     let key = cut.content_key();
     doc.images.insert(key.clone(), cut);
     if let Some(Node { kind: NodeKind::Image(im), .. }) = doc.node_mut(id) {
@@ -144,7 +144,7 @@ pub fn rich_session() -> Session {
     exec(&mut s, "effect.apply", json!({"effect": "distort.roughen", "params": {"size": 3, "detail": 5, "seed": 7}}));
     let l = id_of(&exec(&mut s, "shape.line", json!({"x1": 20, "y1": 300, "x2": 200, "y2": 350})));
     exec(&mut s, "stroke.set", json!({"weight": 3, "endArrow": "Arrow"}));
-    let tx = id_of(&exec(&mut s, "text.create", json!({"x": 250, "y": 300, "text": "VectorCraft", "size": 30})));
+    let tx = id_of(&exec(&mut s, "text.create", json!({"x": 250, "y": 300, "text": "Pluma", "size": 30})));
     // A non-default paragraph composer, so format round trips cover it.
     exec(&mut s, "text.setFormat", json!({"ids": [tx.0], "composer": "singleLine"}));
     // Area type with non-default Area Type Options (vertical alignment, inset).

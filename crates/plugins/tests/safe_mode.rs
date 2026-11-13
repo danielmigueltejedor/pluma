@@ -5,10 +5,10 @@
 
 use std::sync::Mutex;
 
+use pluma_geom::{FillRule, PathData, Rect};
+use pluma_plugins::safe_mode::{self, Item, Source};
+use pluma_plugins::{Error, Limits, Plugin, effect, registry, wat as tpl};
 use serde_json::json;
-use vectorcraft_geom::{FillRule, PathData, Rect};
-use vectorcraft_plugins::safe_mode::{self, Item, Source};
-use vectorcraft_plugins::{Error, Limits, Plugin, effect, registry, wat as tpl};
 
 static LOCK: Mutex<()> = Mutex::new(());
 
@@ -75,7 +75,7 @@ fn in_safe_mode_nothing_loads_or_runs() {
         effect::apply("test.safe.effect", &json!({}), &path, Rect::new(0.0, 0.0, 1.0, 1.0), FillRule::NonZero, effect::Paints::default(), None);
     assert_eq!(drawn, None, "the geometry is drawn unchanged");
     assert_eq!(effect::last_error("test.safe.effect"), None, "not a failure of the plug-in");
-    assert_eq!(Error::SafeMode.to_string(), "Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally");
+    assert_eq!(Error::SafeMode.to_string(), "Safe Mode is on: plug-ins don't load or run until Pluma starts normally");
 
     safe_mode::set_active(None);
     assert!(before.run(br#"{"objects":[]}"#, b"{}").is_ok(), "nothing was uninstalled");

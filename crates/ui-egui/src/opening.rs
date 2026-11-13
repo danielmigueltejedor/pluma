@@ -10,12 +10,12 @@
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError, channel};
 
+use pluma_engine::cancel::{self, CancelToken};
+use pluma_engine::cmd::fileio::{self, ReadFile};
+use pluma_engine::file_access::ScopeHandle;
 use serde_json::{Value, json};
-use vectorcraft_engine::cancel::{self, CancelToken};
-use vectorcraft_engine::cmd::fileio::{self, ReadFile};
-use vectorcraft_engine::file_access::ScopeHandle;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::export_progress::{self, Pressed};
 
 pub use crate::export_progress::DELAY;
@@ -25,7 +25,7 @@ pub struct Pending {
     id: u64,
     /// Where it is.
     pub path: String,
-    /// What the status bar shows ("Opening Poster.vectorcraft").
+    /// What the status bar shows ("Opening Poster.pluma").
     pub label: String,
     done: Receiver<Result<ReadFile, String>>,
     /// The automation roots in force where the open started: the document is installed under
@@ -50,7 +50,7 @@ pub struct Opening {
 /// Is a long operation running that should show the busy cursor and status spinner (background
 /// save/export with a label, a file opening or being read for Place off the UI thread, a heavy plug-in filter, or an
 /// Image Trace)?
-pub fn long_operation_busy(app: &VectorcraftApp) -> bool {
+pub fn long_operation_busy(app: &PlumaApp) -> bool {
     app.background.jobs.iter().any(|j| !j.label.is_empty() && !j.cancelled())
         || !app.opening.pending.is_empty()
         || !app.plugin_runs.running.is_empty()
@@ -59,20 +59,20 @@ pub fn long_operation_busy(app: &VectorcraftApp) -> bool {
 }
 
 /// Does opening happen off the UI thread here? Not on wasm (no threads), in unit tests (they look
-/// at the document right after asking for it), or with `VECTORCRAFT_SYNC_OPEN` set.
+/// at the document right after asking for it), or with `PLUMA_SYNC_OPEN` set.
 pub fn available() -> bool {
-    !(cfg!(target_arch = "wasm32") || cfg!(test) || std::env::var_os("VECTORCRAFT_SYNC_OPEN").is_some())
+    !(cfg!(target_arch = "wasm32") || cfg!(test) || std::env::var_os("PLUMA_SYNC_OPEN").is_some())
 }
 
 /// Decode `bytes`, the file at `path`, read its linked files and lay out its type on a thread of its
 /// own ([`fileio::read_for_open`]) → `{background: true, status}`, or the bytes back when no thread
 /// could start (the caller opens the file at once).
-pub fn start(app: &mut VectorcraftApp, path: &str, bytes: Vec<u8>) -> Result<Value, Vec<u8>> {
+pub fn start(app: &mut PlumaApp, path: &str, bytes: Vec<u8>) -> Result<Value, Vec<u8>> {
     start_with(app, path, bytes, Value::Null)
 }
 
 /// [`start`] with the `document.open` options in `params` (`importer` and its `params`).
-pub fn start_with(app: &mut VectorcraftApp, path: &str, bytes: Vec<u8>, params: Value) -> Result<Value, Vec<u8>> {
+pub fn start_with(app: &mut PlumaApp, path: &str, bytes: Vec<u8>, params: Value) -> Result<Value, Vec<u8>> {
     let (tx, done) = channel();
     let bytes = Arc::new(bytes);
     let (name, file) = (path.to_string(), bytes.clone());
@@ -84,10 +84,10 @@ pub fn start_with(app: &mut VectorcraftApp, path: &str, bytes: Vec<u8>, params: 
     let opener = scope.clone();
     let token = CancelToken::new();
     let raised = token.clone();
-    let spawned = std::thread::Builder::new().name("vectorcraft-open".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("pluma-open".into()).spawn(move || {
         let r = scope
             .run(|| {
-                vectorcraft_engine::guard::catch_panic(|| {
+                pluma_engine::guard::catch_panic(|| {
                     cancel::scope(&raised, None, || {
                         fileio::read_for_open(&name, &file, Some(name.clone()), &params, update_links, low_res_proxy_eps).map_err(|e| e.to_string())
                     })
@@ -112,7 +112,7 @@ pub fn start_with(app: &mut VectorcraftApp, path: &str, bytes: Vec<u8>, params: 
 }
 
 /// May the active document change now ([`poll`])?
-pub(crate) fn may_switch(app: &VectorcraftApp) -> bool {
+pub(crate) fn may_switch(app: &PlumaApp) -> bool {
     let s = &app.session;
     !(app.ui.dialog.is_some() || s.in_interaction() || (s.tool_busy() && s.pointer_held()))
 }
@@ -126,7 +126,7 @@ pub(crate) fn may_switch(app: &VectorcraftApp) -> bool {
 /// cancels it. A tool that is busy while the button is not held and no interaction is open is
 /// waiting between its clicks (the Dimension tool after its first point): the file opens, and the
 /// tool starts afresh, as when the user switches documents.
-pub fn poll(app: &mut VectorcraftApp) {
+pub fn poll(app: &mut PlumaApp) {
     // One at a time: a document that opens again (closed meanwhile) may ask about its links or
     // fonts, and the rest wait for that dialog too.
     loop {
@@ -166,7 +166,7 @@ pub fn poll(app: &mut VectorcraftApp) {
 /// The progress window's Cancel: the files being read don't open. An importer plug-in stops
 /// between two slices of its budget; a built-in reader finishes reading and the result is dropped
 /// → `{cancelled: n}`.
-pub fn cancel_all(app: &mut VectorcraftApp) -> Value {
+pub fn cancel_all(app: &mut PlumaApp) -> Value {
     let cancelled = std::mem::take(&mut app.opening.pending);
     for p in &cancelled {
         p.token.cancel();
@@ -180,7 +180,7 @@ pub fn cancel_all(app: &mut VectorcraftApp) -> Value {
 
 /// The progress window's Continue in Background: the files go on being read, shown in the status
 /// bar only → `{hidden: n}`.
-pub fn hide_all(app: &mut VectorcraftApp) -> Value {
+pub fn hide_all(app: &mut PlumaApp) -> Value {
     let mut n = 0;
     for p in app.opening.pending.iter_mut().filter(|p| !p.hidden) {
         p.hidden = true;
@@ -190,14 +190,14 @@ pub fn hide_all(app: &mut VectorcraftApp) -> Value {
 }
 
 /// Is a file being read that the progress window shows?
-pub fn any_shown(app: &VectorcraftApp) -> bool {
+pub fn any_shown(app: &PlumaApp) -> bool {
     app.opening.pending.iter().any(|p| !p.hidden)
 }
 
 /// The progress window of the first file being read it shows, once that has been read for
 /// [`DELAY`]: a quick open doesn't flash it. Not while a dialog or another progress window (an
 /// export, a heavy plug-in filter, an Image Trace) is open: never two modals at once.
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let shown: Vec<&Pending> = app.opening.pending.iter().filter(|p| !p.hidden).collect();
     let Some(first) = shown.first() else { return };
     let now = ctx.input(|i| i.time);
@@ -235,7 +235,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
 }
 
 /// Open a file read off the UI thread, as [`crate::io::open_reporting`] opens one read at once.
-fn finish(app: &mut VectorcraftApp, path: &str, r: Result<ReadFile, String>) {
+fn finish(app: &mut PlumaApp, path: &str, r: Result<ReadFile, String>) {
     let opened = r.and_then(|file| fileio::open_read(&mut app.session, file).map_err(|e| e.to_string()));
     match opened {
         Ok(r) => {

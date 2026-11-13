@@ -3,7 +3,7 @@
 //! linear light, which a document gradient (mixed in display RGB) shows through extra stops.
 
 use super::{Color, GradientStop, HashMap, HashSet, css, roxmltree};
-use vectorcraft_color::cms::lab::{linear_to_srgb, srgb_to_linear};
+use pluma_color::cms::lab::{linear_to_srgb, srgb_to_linear};
 
 /// How far (display RGB, 0..1) the straight line between neighbouring baked stops may stray from
 /// the linear-light mix: under half a colour level.
@@ -130,7 +130,7 @@ mod tests {
     use super::*;
 
     fn sample(stops: &[GradientStop], x: f32) -> [f32; 3] {
-        vectorcraft_color::Gradient::new(vectorcraft_color::GradientKind::Linear, stops.to_vec()).sample(x).0.to_rgb()
+        pluma_color::Gradient::new(pluma_color::GradientKind::Linear, stops.to_vec()).sample(x).0.to_rgb()
     }
 
     #[test]

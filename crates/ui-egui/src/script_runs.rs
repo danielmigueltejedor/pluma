@@ -4,12 +4,12 @@
 
 use serde_json::json;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::script_run;
 use crate::state::Dialog;
 
 /// Advances the running script by one slice, or asks what its growth needs asked.
-pub fn poll(app: &mut VectorcraftApp) {
+pub fn poll(app: &mut PlumaApp) {
     script_run::drain(app);
     if !app.session.script_running() {
         return;
@@ -38,7 +38,7 @@ pub fn poll(app: &mut VectorcraftApp) {
 
 /// Shows why a run ended without its changes. A stopped run that wrote no file says only that it
 /// was stopped; any other failure shows its error, which names the files left written.
-pub(crate) fn failed(app: &mut VectorcraftApp, error: String) {
+pub(crate) fn failed(app: &mut PlumaApp, error: String) {
     let stopped = app.session.script_report().is_some_and(|r| r["kind"] == "stopped" && r["written"].as_array().is_none_or(Vec::is_empty));
     if stopped {
         app.status("The script was stopped and its changes were undone");

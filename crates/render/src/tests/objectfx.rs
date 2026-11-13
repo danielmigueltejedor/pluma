@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::pattern::{PatternDef, pattern_paint};
+use pluma_doc::text::{CharStyle, TextObject};
+use pluma_doc::{Appearance, AppearanceItem, Effect, FillLayer, ImageBlob, ImageObject, Node, NodeKind, StrokeLayer, Symbol};
+use pluma_geom::{Point, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::pattern::{PatternDef, pattern_paint};
-use vectorcraft_doc::text::{CharStyle, TextObject};
-use vectorcraft_doc::{Appearance, AppearanceItem, Effect, FillLayer, ImageBlob, ImageObject, Node, NodeKind, StrokeLayer, Symbol};
-use vectorcraft_geom::{Point, shapes};
 
 use crate::*;
 
@@ -43,7 +43,7 @@ const WHITE: u32 = 765;
 
 #[test]
 fn revolve_caps_cover_the_opening_and_match_export_and_visible_only_expansion() {
-    let path = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
+    let path = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
     let mut n = Node::path(NodeId(0), path, Appearance::basic(Paint::solid(Color::rgb(0.9, 0.2, 0.1)), Paint::None, 0.0));
     for (angle, opacity) in [(360.0, 1.0), (90.0, 1.0), (360.0, 0.5)] {
         n.opacity = opacity;
@@ -61,12 +61,12 @@ fn revolve_caps_cover_the_opening_and_match_export_and_visible_only_expansion() 
             let pixel = (34 * 100 + 50) * 4;
             assert!(live.pixels[pixel] as u16 > open.pixels[pixel] as u16 + 30, "the lit cap covers the visible interior");
         }
-        assert_eq!(live.pixels, render(&vectorcraft_effects::bake_document(&d).unwrap()).pixels);
+        assert_eq!(live.pixels, render(&pluma_effects::bake_document(&d).unwrap()).pixels);
         let mut expanded = d.clone();
         let id = expanded.layers[0].children().unwrap()[0].id;
         let source = expanded.node(id).unwrap().clone();
-        let mut stroke = |_: &mut Document, _: &vectorcraft_geom::PathData, _: vectorcraft_geom::FillRule, _: &vectorcraft_doc::StrokeLayer| None;
-        let art = vectorcraft_effects::expand_leaf(&mut expanded, &source, &mut stroke).unwrap();
+        let mut stroke = |_: &mut Document, _: &pluma_geom::PathData, _: pluma_geom::FillRule, _: &pluma_doc::StrokeLayer| None;
+        let art = pluma_effects::expand_leaf(&mut expanded, &source, &mut stroke).unwrap();
         *expanded.node_mut(id).unwrap() = art;
         let flat = render(&expanded);
         let difference: u64 = live.pixels.iter().zip(&flat.pixels).map(|(a, b)| a.abs_diff(*b) as u64).sum();
@@ -79,20 +79,17 @@ fn revolve_caps_cover_the_opening_and_match_export_and_visible_only_expansion() 
 
 #[test]
 fn revolve_canvas_matches_baked_art_and_shades_its_surface() {
-    let mut bp = vectorcraft_geom::BezPath::new();
+    let mut bp = pluma_geom::BezPath::new();
     bp.move_to((50.0, 15.0));
     bp.line_to((75.0, 30.0));
     bp.line_to((75.0, 75.0));
     bp.line_to((50.0, 90.0));
-    let mut n = Node::path(
-        NodeId(0),
-        vectorcraft_geom::PathData::from_bezpath(&bp),
-        Appearance::basic(Paint::solid(Color::rgb(0.9, 0.2, 0.1)), Paint::None, 0.0),
-    );
+    let mut n =
+        Node::path(NodeId(0), pluma_geom::PathData::from_bezpath(&bp), Appearance::basic(Paint::solid(Color::rgb(0.9, 0.2, 0.1)), Paint::None, 0.0));
     n.appearance.effects.push(fx("threeD.revolve", json!({"rotationX":0,"rotationY":0})));
     let d = doc_with(Document::new(100.0, 100.0), n);
     let live = render(&d);
-    let baked = vectorcraft_effects::bake_document(&d).unwrap();
+    let baked = pluma_effects::bake_document(&d).unwrap();
     let exported = render(&baked);
     assert_eq!(live.pixels, exported.pixels, "canvas and baked/exported faces agree");
     let reds: Vec<_> =
@@ -115,13 +112,13 @@ fn solid_effects_canvas_matches_baked_art_and_shades_their_faces() {
     ] {
         let mut n = Node::path(
             NodeId(0),
-            shapes::rectangle(vectorcraft_geom::Rect::new(30.0, 30.0, 70.0, 70.0)),
+            shapes::rectangle(pluma_geom::Rect::new(30.0, 30.0, 70.0, 70.0)),
             Appearance::basic(Paint::solid(Color::rgb(0.9, 0.2, 0.1)), Paint::None, 0.0),
         );
         n.appearance.effects.push(fx(effect, params));
         let d = doc_with(Document::new(100.0, 100.0), n);
         let live = render(&d);
-        let exported = render(&vectorcraft_effects::bake_document(&d).unwrap());
+        let exported = render(&pluma_effects::bake_document(&d).unwrap());
         assert_eq!(live.pixels, exported.pixels, "{effect}: canvas and baked/exported faces agree");
         assert_eq!(live.pixels, render_threads(&d, 4).pixels, "{effect}");
         let reds: Vec<_> =
@@ -148,7 +145,7 @@ fn solid_effects_on_a_group_draw_as_exported_within_their_drawn_bounds() {
         let square = |id: u64, x: f64, c: Color| {
             Arc::new(Node::path(
                 NodeId(id),
-                shapes::rectangle(vectorcraft_geom::Rect::new(x, 35.0, x + 25.0, 60.0)),
+                shapes::rectangle(pluma_geom::Rect::new(x, 35.0, x + 25.0, 60.0)),
                 Appearance::basic(Paint::solid(c), Paint::None, 0.0),
             ))
         };
@@ -156,10 +153,10 @@ fn solid_effects_on_a_group_draw_as_exported_within_their_drawn_bounds() {
         g.appearance.effects.push(fx(effect, params));
         let d = doc_with(Document::new(100.0, 100.0), g);
         let live = render(&d);
-        let exported = render(&vectorcraft_effects::bake_document(&d).unwrap());
+        let exported = render(&pluma_effects::bake_document(&d).unwrap());
         assert_eq!(live.pixels, exported.pixels, "{effect}: canvas and baked/exported faces agree");
         let g = &d.layers[0].children().unwrap()[0];
-        let art = vectorcraft_effects::solid_art(g).unwrap().visual_bounds().unwrap();
+        let art = pluma_effects::solid_art(g).unwrap().visual_bounds().unwrap();
         let drawn = drawn_bounds(&d, g).unwrap();
         assert_eq!(drawn.union(art), drawn, "{effect}: the drawn bounds hold the art");
         let blues = live.pixels.as_chunks::<4>().0.iter().filter(|p| p[2] as u16 > p[0] as u16 * 2).count();
@@ -170,7 +167,7 @@ fn solid_effects_on_a_group_draw_as_exported_within_their_drawn_bounds() {
 
 #[test]
 fn smooth_revolve_reduces_banding_without_changing_radial_resolution() {
-    let path = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_svg("M70 20 L70 80").unwrap());
+    let path = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_svg("M70 20 L70 80").unwrap());
     let mut n = Node::path(NodeId(0), path, Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0));
     n.appearance
         .effects
@@ -182,18 +179,18 @@ fn smooth_revolve_reduces_banding_without_changing_radial_resolution() {
     assert!(levels(&smooth) > 16, "default rendering interpolates lighting: {} blue levels", levels(&smooth));
     let jump = |r: &Rendered| (15..66).map(|x| r.pixels[(50 * 100 + x) * 4 + 2].abs_diff(r.pixels[(50 * 100 + x - 1) * 4 + 2])).max().unwrap();
     assert!(jump(&smooth) < 20, "default lighting has no abrupt changes between face colours");
-    assert_eq!(smooth.pixels, render(&vectorcraft_effects::bake_document(&d).unwrap()).pixels);
+    assert_eq!(smooth.pixels, render(&pluma_effects::bake_document(&d).unwrap()).pixels);
     assert_eq!(smooth.pixels, render_threads(&d, 4).pixels);
 }
 
 #[test]
 fn revolve_rim_has_no_spikes_at_high_zoom_and_keeps_seams_covered() {
-    use vectorcraft_doc::AppearanceItem;
-    let path = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
+    use pluma_doc::AppearanceItem;
+    let path = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
     let mut n = Node::path(NodeId(0), path, Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0));
     n.appearance.effects.push(fx("threeD.revolve", json!({"offset":20,"rotationX":-18,"segments":24,"cap":true})));
     let d = doc_with(Document::new(100.0, 100.0), n);
-    let baked = vectorcraft_effects::bake_document(&d).unwrap();
+    let baked = pluma_effects::bake_document(&d).unwrap();
     let mut fills = baked.clone();
     fn remove_edges(n: &mut Node) {
         n.appearance.items.retain(|i| matches!(i, AppearanceItem::Fill(_)));
@@ -226,7 +223,7 @@ fn revolve_rim_has_no_spikes_at_high_zoom_and_keeps_seams_covered() {
 
 #[test]
 fn continuous_revolve_caps_keep_one_colour_along_the_curved_rim_at_high_zoom() {
-    let path = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
+    let path = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_svg("M70 30 L70 70").unwrap());
     for rotation in [-18.0f64, 18.0] {
         for shade in [false, true] {
             let mut n = Node::path(NodeId(0), path.clone(), Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0));
@@ -252,21 +249,18 @@ fn continuous_revolve_caps_keep_one_colour_along_the_curved_rim_at_high_zoom() {
                     "cap rim is continuous: rotation {rotation}, shade {shade}, theta {theta}, {pixel:?} vs {color:?}"
                 );
             }
-            assert_eq!(live.pixels, draw(&vectorcraft_effects::bake_document(&d).unwrap()).pixels);
+            assert_eq!(live.pixels, draw(&pluma_effects::bake_document(&d).unwrap()).pixels);
         }
     }
 }
 
 #[test]
 fn revolve_visible_surface_expansion_preserves_the_view_and_transparent_art() {
-    let mut bp = vectorcraft_geom::BezPath::new();
+    let mut bp = pluma_geom::BezPath::new();
     bp.move_to((50.0, 15.0));
     bp.curve_to((80.0, 25.0), (80.0, 75.0), (50.0, 90.0));
-    let mut n = Node::path(
-        NodeId(0),
-        vectorcraft_geom::PathData::from_bezpath(&bp),
-        Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0),
-    );
+    let mut n =
+        Node::path(NodeId(0), pluma_geom::PathData::from_bezpath(&bp), Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0));
     for (angle, rotation, perspective, opacity, shade) in [
         (360.0, 0.0, 0.0, 1.0, false),
         (360.0, -35.0, 55.0, 1.0, false),
@@ -286,8 +280,8 @@ fn revolve_visible_surface_expansion_preserves_the_view_and_transparent_art() {
         let mut expanded = d.clone();
         let id = expanded.layers[0].children().unwrap()[0].id;
         let source = expanded.node(id).unwrap().clone();
-        let mut stroke = |_: &mut Document, _: &vectorcraft_geom::PathData, _: vectorcraft_geom::FillRule, _: &vectorcraft_doc::StrokeLayer| None;
-        let art = vectorcraft_effects::expand_leaf(&mut expanded, &source, &mut stroke).unwrap();
+        let mut stroke = |_: &mut Document, _: &pluma_geom::PathData, _: pluma_geom::FillRule, _: &pluma_doc::StrokeLayer| None;
+        let art = pluma_effects::expand_leaf(&mut expanded, &source, &mut stroke).unwrap();
         *expanded.node_mut(id).unwrap() = art;
         let flat = render(&expanded);
         let difference: u64 = live.pixels.iter().zip(&flat.pixels).map(|(a, b)| a.abs_diff(*b) as u64).sum();
@@ -297,7 +291,7 @@ fn revolve_visible_surface_expansion_preserves_the_view_and_transparent_art() {
             assert_eq!(live.pixels, flat.pixels);
         }
         // Export baking keeps every face, even when the expansion checkbox is checked.
-        assert_eq!(live.pixels, render(&vectorcraft_effects::bake_document(&d).unwrap()).pixels);
+        assert_eq!(live.pixels, render(&pluma_effects::bake_document(&d).unwrap()).pixels);
     }
 }
 
@@ -428,7 +422,7 @@ fn gradient_text_doc(angle: f64) -> Document {
 /// The Transform effects the gradient tests apply, each with the transform that does the same to
 /// type `t`: 30 pt right, 20 pt down, and 50 % about the middle of its outlines.
 fn transforms_of(t: &Node) -> [(Value, Affine); 3] {
-    let middle = vectorcraft_effects::outline_text(t).unwrap().geometric_bounds().unwrap().center().to_vec2();
+    let middle = pluma_effects::outline_text(t).unwrap().geometric_bounds().unwrap().center().to_vec2();
     [
         (json!({"moveH": 30}), Affine::translate((30.0, 0.0))),
         (json!({"moveV": 20}), Affine::translate((0.0, 20.0))),
@@ -439,8 +433,8 @@ fn transforms_of(t: &Node) -> [(Value, Affine); 3] {
 /// A 100×100 document holding `content` in an envelope that leaves it as it is (an arc with no
 /// bend), with Distort Appearance on or off.
 fn envelope_doc(content: Node, distort_appearance: bool) -> Document {
-    let kind = vectorcraft_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 0.0, h: 0.0, v: 0.0, horizontal: true };
-    let options = vectorcraft_doc::live::EnvelopeOptions { distort_appearance, ..Default::default() };
+    let kind = pluma_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 0.0, h: 0.0, v: 0.0, horizontal: true };
+    let options = pluma_doc::live::EnvelopeOptions { distort_appearance, ..Default::default() };
     let envelope = NodeKind::Envelope {
         content: vec![Arc::new(content)],
         kind: Box::new(kind),
@@ -480,7 +474,7 @@ fn a_transform_effect_that_scales_type_out_of_proportion_scales_its_radial_and_d
         g.angle = angle;
         let d = styled_text_doc(CharStyle { size: 40.0, fill: Paint::Gradient(Box::new(g)), ..Default::default() }, Affine::IDENTITY);
         let id = d.layers[0].children().unwrap()[0].id;
-        let middle = vectorcraft_effects::outline_text(d.node(id).unwrap()).unwrap().geometric_bounds().unwrap().center().to_vec2();
+        let middle = pluma_effects::outline_text(d.node(id).unwrap()).unwrap().geometric_bounds().unwrap().center().to_vec2();
         // 50 % across and 150 % up and down, about the middle of the outlines.
         let xf = Affine::translate(middle) * Affine::scale_non_uniform(0.5, 1.5) * Affine::translate(-middle);
         let (mut effect, mut own) = (d.clone(), d.clone());
@@ -626,7 +620,7 @@ fn geometry_effects_reshape_type_through_its_outlines() {
     assert!(changed > 100, "{changed} pixels changed");
     // The reshaped art is plain paths painted with the text's fill.
     let n = &d.layers[0].children().unwrap()[0];
-    let art = vectorcraft_effects::reshape(None, n, None).unwrap();
+    let art = pluma_effects::reshape(None, n, None).unwrap();
     let (mut text, mut black) = (0, 0);
     art.walk(&mut |m| {
         text += usize::from(matches!(m.kind, NodeKind::Text(_)));
@@ -649,7 +643,7 @@ fn outline_object_draws_type_as_its_outlines_and_leaves_its_look() {
     // The type is drawn through its outlines: plain paths painted with the text's fill.
     let d = text_doc(vec![fx("path.outlineObject", json!({}))]);
     let n = &d.layers[0].children().unwrap()[0];
-    let art = vectorcraft_effects::reshape(None, n, None).unwrap();
+    let art = pluma_effects::reshape(None, n, None).unwrap();
     let (mut text, mut black) = (0, 0);
     art.walk(&mut |m| {
         text += usize::from(matches!(m.kind, NodeKind::Text(_)));
@@ -682,7 +676,7 @@ fn outline_object_leaves_paths_and_images_as_they_are() {
     assert!(changed.iter().all(|&n| n < 10), "pixels changed: {changed:?}");
     // The image is drawn through its frame, as under any geometry effect.
     let d = image_doc(vec![fx("path.outlineObject", json!({}))]);
-    assert!(vectorcraft_effects::reshape(None, &d.layers[0].children().unwrap()[0], None).is_some());
+    assert!(pluma_effects::reshape(None, &d.layers[0].children().unwrap()[0], None).is_some());
 }
 
 #[test]
@@ -704,7 +698,7 @@ fn a_rectangle_on_a_fill_below_type_with_outline_object_fits_the_glyphs() {
     assert_eq!(img.pixel(gap, 50), [255, 0, 0, 255], "column {gap}");
     assert_eq!(lum(img.pixel(inked[0] + 1, 50)), 0);
     // It reaches 9 pt past the glyph outlines on each side.
-    let glyphs = vectorcraft_effects::outline_text(d.node(id).unwrap()).unwrap().geometric_bounds().unwrap();
+    let glyphs = pluma_effects::outline_text(d.node(id).unwrap()).unwrap().geometric_bounds().unwrap();
     let (x, y) = (glyphs.center().x as u32, glyphs.center().y as u32);
     assert_eq!(img.pixel(glyphs.x1 as u32 + 6, y), [255, 0, 0, 255]);
     assert_eq!(lum(img.pixel(glyphs.x1 as u32 + 12, y)), WHITE);
@@ -850,13 +844,13 @@ fn a_strokes_own_glow_paints_around_that_stroke_only() {
 
 #[test]
 fn a_path_with_its_own_transform_paints_each_copy_with_its_own_gradient() {
-    use vectorcraft_color::GradientGeom;
+    use pluma_color::GradientGeom;
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let geom = GradientGeom { start: Point::new(0.0, 50.0), end: Point::new(20.0, 50.0), aspect: 1.0, focal: None };
     // Fitted to the box on each render, and placed on the object.
     for paint in [ramp.clone(), GradientPaint { geom: Some(geom), ..ramp }] {
-        let square = shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 40.0, 20.0, 60.0));
+        let square = shapes::rectangle(pluma_geom::Rect::new(0.0, 40.0, 20.0, 60.0));
         let mut n = Node::path(NodeId(0), square, Appearance::basic(Paint::Gradient(Box::new(paint)), Paint::None, 0.0));
         n.appearance.effects = vec![fx("distort.transform", json!({"moveH": 40, "copies": 1}))];
         let img = render(&doc_with(Document::new(100.0, 100.0), n));
@@ -871,13 +865,13 @@ fn a_path_with_its_own_transform_paints_each_copy_with_its_own_gradient() {
 
 #[test]
 fn a_paths_gradient_moves_with_its_transform_and_free_distort() {
-    use vectorcraft_color::GradientGeom;
+    use pluma_color::GradientGeom;
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     // Placed across the square from its left edge (red) to its right edge (blue).
     let geom = GradientGeom { start: Point::new(10.0, 50.0), end: Point::new(40.0, 50.0), aspect: 1.0, focal: None };
     let draw = |paint: &GradientPaint, e: Option<Effect>| {
-        let square = shapes::rectangle(vectorcraft_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
+        let square = shapes::rectangle(pluma_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
         let mut n = Node::path(NodeId(0), square, Appearance::basic(Paint::Gradient(Box::new(paint.clone())), Paint::None, 0.0));
         n.appearance.effects = e.into_iter().collect();
         render(&doc_with(Document::new(100.0, 100.0), n))
@@ -908,7 +902,7 @@ fn a_paths_gradient_moves_with_its_transform_and_free_distort() {
     let img = draw(&placed, Some(fx("distort.transform", json!({"scaleH": 50}))));
     assert!(red(rb(&img, 18, 50)) && blue(rb(&img, 31, 50)), "{:?} {:?}", rb(&img, 18, 50), rb(&img, 31, 50));
     // The fill's own Transform moves its gradient too.
-    let square = shapes::rectangle(vectorcraft_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
+    let square = shapes::rectangle(pluma_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
     let mut n = Node::path(NodeId(0), square, Appearance::basic(Paint::Gradient(Box::new(placed.clone())), Paint::None, 0.0));
     n.appearance.items[0].effects_mut().push(fx("distort.transform", json!({"moveH": 40})));
     let img = render(&doc_with(Document::new(100.0, 100.0), n));
@@ -922,7 +916,7 @@ fn a_fitted_gradient_turns_and_reflects_with_its_transform_on_the_canvas() {
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let fitted = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
     let draw = |e: Effect, own: bool| {
-        let square = shapes::rectangle(vectorcraft_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
+        let square = shapes::rectangle(pluma_geom::Rect::new(10.0, 35.0, 40.0, 65.0));
         let mut n = Node::path(NodeId(0), square, Appearance::basic(fitted.clone(), Paint::None, 0.0));
         if own {
             n.appearance.items[0].effects_mut().push(e);
@@ -952,11 +946,11 @@ fn a_fitted_gradient_turns_and_reflects_with_its_transform_on_the_canvas() {
 
 #[test]
 fn a_paths_gradient_moves_and_scales_with_its_warped_bounds() {
-    use vectorcraft_color::GradientGeom;
+    use pluma_color::GradientGeom;
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let draw = |paint: &GradientPaint, e: Effect| {
-        let square = shapes::rectangle(vectorcraft_geom::Rect::new(30.0, 35.0, 60.0, 65.0));
+        let square = shapes::rectangle(pluma_geom::Rect::new(30.0, 35.0, 60.0, 65.0));
         let mut n = Node::path(NodeId(0), square, Appearance::basic(Paint::Gradient(Box::new(paint.clone())), Paint::None, 0.0));
         n.appearance.effects = vec![e];
         render(&doc_with(Document::new(100.0, 100.0), n))
@@ -977,9 +971,9 @@ fn a_paths_gradient_moves_and_scales_with_its_warped_bounds() {
         let (got, want) = (draw(&placed, e.clone()), draw(&ramp, e));
         // The warp moves the outline's left or right edge, so a gradient left in place would not
         // run from edge to edge.
-        let square = vectorcraft_geom::Rect::new(30.0, 35.0, 60.0, 65.0);
+        let square = pluma_geom::Rect::new(30.0, 35.0, 60.0, 65.0);
         let path = shapes::rectangle(square);
-        let b = vectorcraft_effects::apply_geometry(&[fx(&format!("warp.{style}"), params.clone())], &path, square).bounds().unwrap();
+        let b = pluma_effects::apply_geometry(&[fx(&format!("warp.{style}"), params.clone())], &path, square).bounds().unwrap();
         assert!((b.x0 - 30.0).abs() > 0.5 || (b.x1 - 60.0).abs() > 0.5, "warp.{style}: the outline spans {b:?}");
         let mut worst = 0;
         for y in 0..100 {
@@ -994,8 +988,8 @@ fn a_paths_gradient_moves_and_scales_with_its_warped_bounds() {
     // bounds before the warp to those after it, as on the warped path with that gradient.
     let geom = GradientGeom { start: Point::new(35.0, 50.0), end: Point::new(55.0, 50.0), aspect: 1.0, focal: None };
     let stroked = Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..ramp.clone() }));
-    let square = vectorcraft_geom::Rect::new(30.0, 35.0, 60.0, 65.0);
-    let follow = |p: Point, from: vectorcraft_geom::Rect, to: vectorcraft_geom::Rect| {
+    let square = pluma_geom::Rect::new(30.0, 35.0, 60.0, 65.0);
+    let follow = |p: Point, from: pluma_geom::Rect, to: pluma_geom::Rect| {
         Point::new(to.x0 + (p.x - from.x0) / from.width() * to.width(), to.y0 + (p.y - from.y0) / from.height() * to.height())
     };
     for (style, params) in styles {
@@ -1007,7 +1001,7 @@ fn a_paths_gradient_moves_and_scales_with_its_warped_bounds() {
         item.effects_mut().push(fx(&format!("warp.{style}"), params));
         let d = doc_with(Document::new(100.0, 100.0), n);
         let live = render(&d);
-        let baked = vectorcraft_effects::bake_document(&d).unwrap();
+        let baked = pluma_effects::bake_document(&d).unwrap();
         let mut warped = None;
         for l in &baked.layers {
             l.walk(&mut |c: &Node| {
@@ -1017,7 +1011,7 @@ fn a_paths_gradient_moves_and_scales_with_its_warped_bounds() {
             });
         }
         let path = warped.unwrap();
-        let b = vectorcraft_geom::Shape::bounding_box(&path.to_bezpath());
+        let b = pluma_geom::Shape::bounding_box(&path.to_bezpath());
         assert_ne!(b, square, "warp.{style}: the warp changes the bounds");
         let (from, to) = (layer.paint_bounds(square), layer.paint_bounds(b));
         let moved = GradientGeom { start: follow(geom.start, from, to), end: follow(geom.end, from, to), ..geom };
@@ -1069,7 +1063,7 @@ fn darkness_adds_black_without_changing_cmy_inks() {
         .effects
         .push(fx("stylize.dropShadow", json!({"shade":"darkness", "darkness":25, "x":40, "y":0, "blur":0, "opacity":100, "mode":"normal"})));
     let mut d = Document::new(100.0, 100.0);
-    d.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    d.color_mode = pluma_doc::ColorMode::Cmyk;
     let d = doc_with(d, n);
     let want = Color::cmyk(0.15, 0.3, 0.4, 0.45).to_rgba8(1.0);
     for threads in [0, 2] {
@@ -1081,8 +1075,8 @@ fn darkness_adds_black_without_changing_cmy_inks() {
 #[test]
 fn darkness_uses_the_source_color_model_before_document_conversion() {
     for (mode, source, dark) in [
-        (vectorcraft_doc::ColorMode::Rgb, Color::cmyk(0.15, 0.3, 0.4, 0.2), Color::cmyk(0.15, 0.3, 0.4, 0.45)),
-        (vectorcraft_doc::ColorMode::Cmyk, Color::rgb(0.8, 0.4, 0.2), Color::rgb(0.55, 0.15, 0.0)),
+        (pluma_doc::ColorMode::Rgb, Color::cmyk(0.15, 0.3, 0.4, 0.2), Color::cmyk(0.15, 0.3, 0.4, 0.45)),
+        (pluma_doc::ColorMode::Cmyk, Color::rgb(0.8, 0.4, 0.2), Color::rgb(0.55, 0.15, 0.0)),
     ] {
         let mut d = Document::new(100.0, 100.0);
         d.color_mode = mode;
@@ -1107,7 +1101,7 @@ fn darkness_uses_the_source_color_model_before_document_conversion() {
 
 #[test]
 fn darkness_adjusts_gradient_stop_colors_before_interpolation() {
-    use vectorcraft_color::GradientMethod;
+    use pluma_color::GradientMethod;
     for method in [GradientMethod::Classic, GradientMethod::Perceptual] {
         for dither in [false, true] {
             let ramp = |end: Color| {
@@ -1151,9 +1145,9 @@ fn symbol_instances_with_effects_are_charged_to_the_symbol_budget() {
     let d = symbol_doc(vec![fx("distort.roughen", json!({}))]);
     let inst = d.layers[0].children().unwrap()[0].clone();
     let mut r = Renderer::new();
-    r.symbol_nodes = vectorcraft_doc::MAX_SYMBOL_NODES - 1;
+    r.symbol_nodes = pluma_doc::MAX_SYMBOL_NODES - 1;
     assert!(r.charge_fx_instance(&d, &inst), "one object fits");
-    assert_eq!(r.symbol_nodes, vectorcraft_doc::MAX_SYMBOL_NODES);
+    assert_eq!(r.symbol_nodes, pluma_doc::MAX_SYMBOL_NODES);
     assert!(!r.charge_fx_instance(&d, &inst), "the next does not");
-    assert_eq!(r.symbol_nodes, vectorcraft_doc::MAX_SYMBOL_NODES);
+    assert_eq!(r.symbol_nodes, pluma_doc::MAX_SYMBOL_NODES);
 }

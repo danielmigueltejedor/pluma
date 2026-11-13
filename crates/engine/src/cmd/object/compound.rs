@@ -70,7 +70,7 @@ pub(super) fn compound_make(s: &mut Session, _: &Value) -> Result<Value> {
 /// the backmost found so far: the path's own, or its compound path's, which is what painted it. A
 /// group has no paint of its own to give: a group of outlined type made a compound path that drew
 /// nothing.
-fn compound_members(n: &Node, paint: &mut Option<vectorcraft_doc::Shared<Appearance>>, out: &mut Vec<Vec<Arc<Node>>>) {
+fn compound_members(n: &Node, paint: &mut Option<pluma_doc::Shared<Appearance>>, out: &mut Vec<Vec<Arc<Node>>>) {
     match (&n.kind, n.children()) {
         (NodeKind::Path { .. }, _) => out.push(vec![Arc::new(n.clone())]),
         (NodeKind::Compound { .. }, Some(paths)) if !paths.is_empty() => out.push(paths.clone()),

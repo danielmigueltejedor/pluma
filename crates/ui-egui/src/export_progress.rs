@@ -14,7 +14,7 @@ use serde_json::json;
 
 use crate::dialogs::modal;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// Seconds an export runs before the dialog opens.
 pub const DELAY: f64 = 0.4;
@@ -26,7 +26,7 @@ fn seen_id() -> egui::Id {
 
 /// What the dialog shows: (label, steps done, steps in all, share done, exports after this one,
 /// what the steps are).
-fn shown(app: &VectorcraftApp, now: f64, ctx: &egui::Context) -> Option<(String, u64, u64, f32, usize, Steps)> {
+fn shown(app: &PlumaApp, now: f64, ctx: &egui::Context) -> Option<(String, u64, u64, f32, usize, Steps)> {
     let jobs: Vec<_> = app.background.jobs.iter().filter(|j| !j.hidden && !j.cancelled()).filter(|j| j.progress.is_some()).collect();
     let first = jobs.first()?;
     let since = ctx.data_mut(|m| {
@@ -62,7 +62,7 @@ enum Steps {
 /// Draws the window for the first export running in the background that wasn't hidden or
 /// cancelled, once it has run [`DELAY`] seconds and no other dialog is open, and runs the command
 /// of the button pressed.
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let now = ctx.input(|i| i.time);
     let Some((label, done, total, frac, more, steps)) = shown(app, now, ctx) else { return };
     if app.ui.dialog.is_some() {
@@ -207,14 +207,14 @@ pub fn indeterminate(ui: &mut egui::Ui, what: &str) {
 mod tests {
     use std::sync::Arc;
 
+    use pluma_engine::Session;
+    use pluma_engine::cmd::fileio::progress::Progress;
     use serde_json::json;
-    use vectorcraft_engine::Session;
-    use vectorcraft_engine::cmd::fileio::progress::Progress;
 
-    use crate::{Services, VectorcraftApp, background};
+    use crate::{PlumaApp, Services, background};
 
     /// An app whose background writer waits until `go` is set.
-    fn app(go: Arc<std::sync::atomic::AtomicBool>) -> VectorcraftApp {
+    fn app(go: Arc<std::sync::atomic::AtomicBool>) -> PlumaApp {
         let services = Services {
             write_shared: Some(Arc::new(move |_: &str, _: &[u8]| {
                 while !go.load(std::sync::atomic::Ordering::SeqCst) {
@@ -224,11 +224,11 @@ mod tests {
             })),
             ..Default::default()
         };
-        VectorcraftApp::new(Session::new(), services)
+        PlumaApp::new(Session::new(), services)
     }
 
     /// Draws one frame of the dialog at `time` seconds → the texts it drew.
-    fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64) -> String {
+    fn frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64) -> String {
         let mut out = ctx.run_ui(egui::RawInput { time: Some(time), ..Default::default() }, |ui| super::show(app, ui.ctx()));
         out.textures_delta.clear();
         let mut texts = String::new();
@@ -311,8 +311,8 @@ mod tests {
             None,
             Some(p.clone()),
             move |w| {
-                vectorcraft_engine::cmd::fileio::progress::scope(&reporting, || {
-                    vectorcraft_doc::cancel::progress(1, 3, "file 2 of 3");
+                pluma_engine::cmd::fileio::progress::scope(&reporting, || {
+                    pluma_doc::cancel::progress(1, 3, "file 2 of 3");
                     w("/icons/b.png", b"x").map(|()| json!({}))
                 })
             },

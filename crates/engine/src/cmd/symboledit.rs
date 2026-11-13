@@ -14,10 +14,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use pluma_doc::symbol_overrides::SymbolOverride;
+use pluma_doc::{Document, Node, NodeId, NodeKind, Selection, SymbolEdit, SymbolRegistration};
+use pluma_geom::{Affine, Point};
 use serde_json::{Value, json};
-use vectorcraft_doc::symbol_overrides::SymbolOverride;
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, Selection, SymbolEdit, SymbolRegistration};
-use vectorcraft_geom::{Affine, Point};
 
 use super::brushsym::{natural_size, place_xf};
 use super::{EngineError, Result, Session, bad, number_or, object_param, ok, str_param};
@@ -375,7 +375,7 @@ fn path_of(nodes: &[Arc<Node>], id: NodeId, depth: usize) -> Option<Vec<u32>> {
 /// symbol's art is a group of them (else it is the one object). A change to an object the edit
 /// removed is dropped.
 fn follow_paths(overrides: &mut Vec<SymbolOverride>, old: (&[Arc<Node>], bool), new: (&[Arc<Node>], bool)) {
-    let depth = vectorcraft_doc::symbol_overrides::MAX_PATH_DEPTH + 1;
+    let depth = pluma_doc::symbol_overrides::MAX_PATH_DEPTH + 1;
     overrides.retain_mut(|o| {
         // The art's own group stays the art's root.
         if old.1 && o.path.is_empty() {
@@ -400,7 +400,7 @@ fn follow_paths(overrides: &mut Vec<SymbolOverride>, old: (&[Arc<Node>], bool), 
 /// appearance changes.
 fn holds_changed_instance(n: &Node, name: &str) -> bool {
     let mut found = false;
-    vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| {
+    pluma_doc::swatches::walk_with_masks(n, &mut |m| {
         found |= matches!(&m.kind, NodeKind::SymbolInstance { symbol, .. } if symbol == name) && !m.extras().symbol_overrides.is_empty();
     });
     found
@@ -435,7 +435,7 @@ fn follow_objects(d: &mut Document, name: &str, old: (&[Arc<Node>], bool), new: 
     let mut follow = |o: &mut Vec<SymbolOverride>| {
         follow_paths(o, old, new);
         match &art {
-            Some(art) => vectorcraft_doc::symbol_overrides::retain_parts(o, art),
+            Some(art) => pluma_doc::symbol_overrides::retain_parts(o, art),
             None => o.clear(),
         }
     };
@@ -450,12 +450,12 @@ fn follow_objects(d: &mut Document, name: &str, old: (&[Arc<Node>], bool), new: 
     // The default brushes hold no instances, so only a stored library can change. A stored entry
     // whose art holds no changed instance, or that does not parse, is stored again as it was read;
     // a changed one is merged into its entry, which keeps the fields the brush definition does not read.
-    let Some(stored) = d.unknown.get(vectorcraft_brush::DOC_KEY).and_then(Value::as_array).cloned() else { return };
+    let Some(stored) = d.unknown.get(pluma_brush::DOC_KEY).and_then(Value::as_array).cloned() else { return };
     let mut changed = false;
     let lib: Vec<Value> = stored
         .into_iter()
         .map(|raw| {
-            let Ok(mut b) = vectorcraft_brush::Brush::from_json(raw.clone()) else { return raw };
+            let Ok(mut b) = pluma_brush::Brush::from_json(raw.clone()) else { return raw };
             if !b.art().into_iter().any(|n| holds_changed_instance(n, name)) {
                 return raw;
             }
@@ -470,7 +470,7 @@ fn follow_objects(d: &mut Document, name: &str, old: (&[Arc<Node>], bool), new: 
         })
         .collect();
     if changed {
-        d.unknown.insert(vectorcraft_brush::DOC_KEY.into(), Value::Array(lib));
+        d.unknown.insert(pluma_brush::DOC_KEY.into(), Value::Array(lib));
     }
 }
 

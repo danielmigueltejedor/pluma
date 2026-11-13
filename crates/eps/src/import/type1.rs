@@ -9,13 +9,13 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use pluma_geom::BezPath;
 use skrifa::GlyphId;
 use skrifa::outline::OutlinePen;
 use skrifa::raw::ps::cs::{self, CharstringContext, CharstringKind, CommandSink, NopFilterSink, TransformSink};
 use skrifa::raw::ps::error::Error as CsError;
 use skrifa::raw::ps::type1::Type1Font;
 use skrifa::raw::types::Fixed;
-use vectorcraft_geom::BezPath;
 
 use super::type42;
 

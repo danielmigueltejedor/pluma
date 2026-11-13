@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Effect, Node};
+use pluma_geom::{Affine, Point, Rect, shapes};
 use serde_json::json;
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Effect, Node};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
 
 use super::{DRAG_PIXEL_BUDGET, Drawn, PIXEL_BUDGET, drag_scale, filter_region, filter_region_within, pan_margin};
 use crate::tests_fontchange::{fonts_steady, with_fonts_unchanged};
@@ -14,12 +14,7 @@ use crate::{RenderOptions, Rendered, Renderer};
 #[test]
 fn paint_names_follow_global_swatch_colors_and_spot_flags() {
     let mut d = Document::new(100.0, 100.0);
-    d.swatches.push(vectorcraft_doc::color::Swatch {
-        name: "Brand".into(),
-        paint: Paint::solid(Color::rgb(1.0, 0.0, 0.0)),
-        global: true,
-        spot: false,
-    });
+    d.swatches.push(pluma_doc::color::Swatch { name: "Brand".into(), paint: Paint::solid(Color::rgb(1.0, 0.0, 0.0)), global: true, spot: false });
     let last = d.swatches.len() - 1;
     let first = super::paint_names(&d);
     d.swatches[last].spot = true;
@@ -282,9 +277,7 @@ fn per_stroke_raster_effects_use_the_single_threaded_pipeline() {
     let id = d.layers[0].children().unwrap()[0].id;
     let mut n = (*d.node(id).unwrap()).clone();
     n.appearance = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 4.0).into();
-    if let Some(vectorcraft_doc::AppearanceItem::Stroke(s)) =
-        n.appearance.items.iter_mut().find(|i| matches!(i, vectorcraft_doc::AppearanceItem::Stroke(_)))
-    {
+    if let Some(pluma_doc::AppearanceItem::Stroke(s)) = n.appearance.items.iter_mut().find(|i| matches!(i, pluma_doc::AppearanceItem::Stroke(_))) {
         s.effects = vec![Effect { id: "stylize.outerGlow".into(), params: json!({"color": "#ff0000", "opacity": 100, "blur": 6}), visible: true }];
     }
     d.remove(id).unwrap();
@@ -309,7 +302,7 @@ fn drop_shadow_darkens_outside_the_shape() {
 
 /// A red square's drop shadow at Darkness `darkness` (%), opaque and sharp, 10 pt down and
 /// right; `shade` "color" or "darkness".
-fn shaded_doc(mode: vectorcraft_doc::ColorMode, fill: Color, shade: &str, darkness: f64) -> Document {
+fn shaded_doc(mode: pluma_doc::ColorMode, fill: Color, shade: &str, darkness: f64) -> Document {
     let mut d = doc_with(
         Rect::new(20.0, 20.0, 60.0, 60.0),
         fill,
@@ -325,7 +318,7 @@ fn shaded_doc(mode: vectorcraft_doc::ColorMode, fill: Color, shade: &str, darkne
 /// raster and, at 6000 %, in the filter layer that a raster too large to cache is drawn with.
 #[test]
 fn drop_shadow_darkness_darkens_the_objects_own_color() {
-    let rgb = vectorcraft_doc::ColorMode::Rgb;
+    let rgb = pluma_doc::ColorMode::Rgb;
     let red = Color::rgb(1.0, 0.0, 0.0);
     // At 6000 %, the view's center is (65, 65), where only the shadow lies.
     let zoomed = Affine::translate((50.0, 50.0)) * Affine::scale(60.0) * Affine::translate((-65.0, -65.0));
@@ -343,7 +336,7 @@ fn drop_shadow_darkness_darkens_the_objects_own_color() {
 /// gray black before ink conversion; its output below uses this application's gray-color model.
 #[test]
 fn drop_shadow_darkness_adds_black_in_a_cmyk_document() {
-    let cmyk = vectorcraft_doc::ColorMode::Cmyk;
+    let cmyk = pluma_doc::ColorMode::Cmyk;
     let inks = |d: &Document| {
         let i = Renderer::new().render_region_inks(d, Rect::new(0.0, 0.0, 100.0, 100.0), 1.0, &RenderOptions::default());
         let at = (66 * 100 + 66) * 4;
@@ -365,7 +358,7 @@ fn drop_shadow_darkness_adds_black_in_a_cmyk_document() {
 /// The top endpoint is gray black before document/profile conversion, independently of source model.
 #[test]
 fn darkness_black_endpoint_and_gray_source_follow_their_stored_models() {
-    for mode in [vectorcraft_doc::ColorMode::Rgb, vectorcraft_doc::ColorMode::Cmyk] {
+    for mode in [pluma_doc::ColorMode::Rgb, pluma_doc::ColorMode::Cmyk] {
         for source in [Color::rgb(0.8, 0.4, 0.2), Color::cmyk(0.1, 0.3, 0.4, 0.2), Color::gray(0.2)] {
             let got = render(&shaded_doc(mode, source, "darkness", 100.0)).pixel(66, 66);
             let want = render(&shaded_doc(mode, Color::gray(1.0), "darkness", 0.0)).pixel(66, 66);
@@ -381,7 +374,7 @@ fn darkness_black_endpoint_and_gray_source_follow_their_stored_models() {
 /// Darkness value, draw the same pixels, which a shadow with Darkness does not.
 #[test]
 fn a_drop_shadow_with_color_draws_as_before() {
-    let rgb = vectorcraft_doc::ColorMode::Rgb;
+    let rgb = pluma_doc::ColorMode::Rgb;
     let red = Color::rgb(1.0, 0.0, 0.0);
     let old = doc_with(
         Rect::new(20.0, 20.0, 60.0, 60.0),
@@ -521,9 +514,9 @@ fn thirty_stacked_glows_draw_thirty_silhouettes_cached_or_not() {
         shapes::rectangle(Rect::new(0.0, 0.0, 40.0, 40.0)),
         Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
     );
-    instanced.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Square".into(), art: std::sync::Arc::new(art) });
+    instanced.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Square".into(), art: std::sync::Arc::new(art) });
     let mut instance =
-        Node::new(instanced.alloc_id(), vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Square".into(), xf: Affine::translate((30.0, 30.0)) });
+        Node::new(instanced.alloc_id(), pluma_doc::NodeKind::SymbolInstance { symbol: "Square".into(), xf: Affine::translate((30.0, 30.0)) });
     instance.appearance.effects = glows.into_iter().map(|(id, p)| Effect { id: id.into(), params: p, visible: true }).collect();
     let l = instanced.layers[0].id;
     instanced.insert(Some(l), 0, instance).unwrap();
@@ -576,31 +569,31 @@ fn a_shadow_after_a_3d_effect_reaches_past_the_solid_once() {
 /// Revolve builds no art from type: the type draws its glyphs, and its bounds hold them.
 #[test]
 fn revolved_type_is_measured_by_the_glyphs_it_draws() {
-    use vectorcraft_doc::NodeKind;
-    use vectorcraft_doc::text::{CharStyle, TextObject};
+    use pluma_doc::NodeKind;
+    use pluma_doc::text::{CharStyle, TextObject};
     let _fonts = fonts_steady();
     let mut d = Document::new(100.0, 100.0);
     let style = CharStyle { size: 30.0, fill: Paint::solid(Color::BLACK), ..Default::default() };
-    let mut n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(vectorcraft_geom::Point::new(20.0, 60.0), "KW", style))));
+    let mut n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(pluma_geom::Point::new(20.0, 60.0), "KW", style))));
     n.appearance.effects = vec![Effect { id: "threeD.revolve".into(), params: json!({}), visible: true }];
     let l = d.layers[0].id;
     let id = d.insert(Some(l), 0, n).unwrap();
     let (img, b) = with_fonts_unchanged(|| (render(&d), super::cull_bounds(&d.symbol_boxes(), d.node(id).unwrap()).unwrap()));
     let inked: Vec<(u32, u32)> = (0..100).flat_map(|y| (0..100).map(move |x| (x, y))).filter(|&(x, y)| img.pixel(x, y)[0] < 250).collect();
     assert!(!inked.is_empty());
-    assert!(inked.iter().all(|&(x, y)| b.inflate(1.0, 1.0).contains(vectorcraft_geom::Point::new(f64::from(x), f64::from(y)))), "{b:?}");
+    assert!(inked.iter().all(|&(x, y)| b.inflate(1.0, 1.0).contains(pluma_geom::Point::new(f64::from(x), f64::from(y)))), "{b:?}");
 }
 
 /// An export crops to the solid a 3D effect draws on type, not to the letters, and so does
 /// Object › Rasterize.
 #[test]
 fn an_export_and_rasterize_hold_the_solid_of_3d_type() {
-    use vectorcraft_doc::NodeKind;
-    use vectorcraft_doc::text::{CharStyle, TextObject};
+    use pluma_doc::NodeKind;
+    use pluma_doc::text::{CharStyle, TextObject};
     let _fonts = fonts_steady();
     let mut d = Document::new(100.0, 100.0);
     let style = CharStyle { size: 30.0, fill: Paint::solid(Color::BLACK), ..Default::default() };
-    let mut n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(vectorcraft_geom::Point::new(20.0, 60.0), "K", style))));
+    let mut n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(pluma_geom::Point::new(20.0, 60.0), "K", style))));
     let letters = with_fonts_unchanged(|| crate::encode::art_bounds(&doc_of(&mut d.clone(), n.clone())).unwrap());
     n.appearance.effects = vec![Effect { id: "threeD.extrude".into(), params: json!({"depth": 60.0, "position": "isometricTop"}), visible: true }];
     let solid_doc = doc_of(&mut d, n.clone());
@@ -648,15 +641,15 @@ fn a_brushed_stroke_beside_a_fills_3d_effect_is_measured_with_its_brush() {
     let id = d.layers[0].children().unwrap()[0].id;
     {
         let n = d.node_mut(id).unwrap();
-        n.appearance.items.push(vectorcraft_doc::AppearanceItem::Stroke(vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0)));
-        if let Some(vectorcraft_doc::AppearanceItem::Stroke(s)) = n.appearance.items.last_mut() {
+        n.appearance.items.push(pluma_doc::AppearanceItem::Stroke(pluma_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0)));
+        if let Some(pluma_doc::AppearanceItem::Stroke(s)) = n.appearance.items.last_mut() {
             s.brush = Some("10 pt. Oval".into());
         }
         n.appearance.fill_mut().unwrap().effects =
             vec![Effect { id: "threeD.extrude".into(), params: json!({"depth": 20.0, "position": "isometricTop"}), visible: true }];
     }
     let n = d.node(id).unwrap();
-    let brush = vectorcraft_brush::expand(&d, n).and_then(|art| art.visual_bounds()).unwrap();
+    let brush = pluma_brush::expand(&d, n).and_then(|art| art.visual_bounds()).unwrap();
     let symbols = d.symbol_boxes();
     let rasterized = crate::drawn_bounds(&d, n).unwrap();
     let exported = crate::effect_bounds(&symbols, n).unwrap();
@@ -665,7 +658,7 @@ fn a_brushed_stroke_beside_a_fills_3d_effect_is_measured_with_its_brush() {
     }
     // The solid alone, without the stroke: what else may be measured.
     let mut plain = d.clone();
-    plain.node_mut(id).unwrap().appearance.items.retain(|i| !matches!(i, vectorcraft_doc::AppearanceItem::Stroke(_)));
+    plain.node_mut(id).unwrap().appearance.items.retain(|i| !matches!(i, pluma_doc::AppearanceItem::Stroke(_)));
     let solid = crate::drawn_bounds(&plain, plain.node(id).unwrap()).unwrap();
     let most = solid.union(brush).inflate(1.0, 1.0);
     for (what, b) in [("Rasterize", rasterized), ("exports", exported)] {
@@ -893,9 +886,9 @@ fn the_brush_library_is_checked_only_after_3d_art_is_measured() {
     r.render(&d, 100, 100, Affine::IDENTITY, &RenderOptions::default());
     assert!(r.brush_library.is_some());
     // A library changed: the bounds measured with the old one go, and so does its key.
-    let mut lib = vectorcraft_brush::library(&d);
+    let mut lib = pluma_brush::library(&d);
     lib.retain(|b| b.name != "3 pt. Round");
-    vectorcraft_brush::store(&mut d, &lib);
+    pluma_brush::store(&mut d, &lib);
     r.check_symbols(&d);
     assert_eq!(r.brush_library, None);
 }
@@ -1019,12 +1012,12 @@ fn a_pass_measures_brushed_art_as_exports_do() {
         shapes::rectangle(Rect::new(-10.0, -10.0, 10.0, 10.0)),
         Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
     );
-    art.appearance.items.push(vectorcraft_doc::AppearanceItem::Stroke(vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0)));
-    if let Some(vectorcraft_doc::AppearanceItem::Stroke(s)) = art.appearance.items.last_mut() {
+    art.appearance.items.push(pluma_doc::AppearanceItem::Stroke(pluma_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0)));
+    if let Some(pluma_doc::AppearanceItem::Stroke(s)) = art.appearance.items.last_mut() {
         s.brush = Some("10 pt. Oval".into());
     }
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Brushed".into(), art: Arc::new(art) });
-    let mut n = Node::new(d.alloc_id(), vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Brushed".into(), xf: Affine::translate((50.0, 50.0)) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Brushed".into(), art: Arc::new(art) });
+    let mut n = Node::new(d.alloc_id(), pluma_doc::NodeKind::SymbolInstance { symbol: "Brushed".into(), xf: Affine::translate((50.0, 50.0)) });
     n.appearance.effects = vec![Effect { id: "threeD.extrude".into(), params: json!({"depth": 20.0}), visible: true }];
     let l = d.layers[0].id;
     d.insert(Some(l), 0, n).unwrap();
@@ -1049,12 +1042,12 @@ fn a_3d_objects_wider_brush_is_drawn_where_it_reaches() {
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
     let mut r = Renderer::new();
     r.render(&d, 100, 100, Affine::IDENTITY, &opts);
-    let mut lib = vectorcraft_brush::library(&d);
+    let mut lib = pluma_brush::library(&d);
     let round = lib.iter_mut().find(|b| b.name == "3 pt. Round").unwrap();
-    if let vectorcraft_brush::BrushKind::Calligraphic(c) = &mut round.kind {
+    if let pluma_brush::BrushKind::Calligraphic(c) = &mut round.kind {
         c.size = 30.0;
     }
-    vectorcraft_brush::store(&mut d, &lib);
+    pluma_brush::store(&mut d, &lib);
     let drawn = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     let fresh = Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     assert!(fresh.iter().any(|c| *c < 128), "the wider brush reaches into the view");
@@ -1077,12 +1070,12 @@ fn drawn_after_a_brush_widens(x: f64, size: f64) -> (Vec<u8>, Vec<u8>) {
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
     let mut r = Renderer::new();
     r.render(&d, 100, 100, Affine::IDENTITY, &opts);
-    let mut lib = vectorcraft_brush::library(&d);
+    let mut lib = pluma_brush::library(&d);
     let b = lib.iter_mut().find(|b| b.name == brush).unwrap();
-    if let vectorcraft_brush::BrushKind::Calligraphic(c) = &mut b.kind {
+    if let pluma_brush::BrushKind::Calligraphic(c) = &mut b.kind {
         c.size = size;
     }
-    vectorcraft_brush::store(&mut d, &lib);
+    pluma_brush::store(&mut d, &lib);
     let drawn = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     (drawn, Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts).pixels)
 }
@@ -1230,7 +1223,7 @@ fn photoshop_filters_draw_and_follow_a_pan_from_the_cache() {
 /// ([`crate::paint::decode_failures`]), from a new raster or from the raster kept.
 #[test]
 fn cached_effect_rasters_count_the_images_they_could_not_decode() {
-    use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind};
+    use pluma_doc::{ImageBlob, ImageObject, NodeKind};
     let mut d = Document::new(100.0, 100.0);
     // A PNG signature with nothing after it.
     d.images.insert("cut".into(), ImageBlob::new("image/png", b"\x89PNG\r\n\x1a\n".to_vec()));
@@ -1262,7 +1255,7 @@ fn cached_effect_rasters_count_the_images_they_could_not_decode() {
 /// content are drawn from the rasters kept.
 #[test]
 fn rasters_drawn_from_a_kept_rasterize_image_count_the_images_it_could_not_decode() {
-    use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind};
+    use pluma_doc::{ImageBlob, ImageObject, NodeKind};
     let mut d = Document::new(100.0, 100.0);
     // A PNG signature with nothing after it.
     d.images.insert("cut".into(), ImageBlob::new("image/png", b"\x89PNG\r\n\x1a\n".to_vec()));
@@ -1378,7 +1371,7 @@ fn a_drag_renders_raster_effects_within_the_drag_budget() {
     let shadowed = doc_with(Rect::new(20.0, 20.0, 50.0, 46.0), Color::rgb(0.9, 0.4, 0.1), vec![("stylize.dropShadow", json!({"blur": 2}))]);
     let mut scaled = shadowed.clone();
     let id = scaled.layers[0].children().unwrap()[0].id;
-    scaled.node_mut(id).unwrap().transform(Affine::scale_about(1.05, vectorcraft_geom::Point::new(35.0, 33.0)), false);
+    scaled.node_mut(id).unwrap().transform(Affine::scale_about(1.05, pluma_geom::Point::new(35.0, 33.0)), false);
     let view = Affine::translate((800.0, 500.0)) * Affine::scale(40.0) * Affine::translate((-35.0, -33.0));
     let mut r = threaded();
     let _ = r.render(&shadowed, 1600, 1000, view, &still);
@@ -1399,11 +1392,11 @@ fn a_moved_group_draws_the_shadow_of_the_instance_art_in_it_while_interacting() 
     let mut base = Document::new(100.0, 100.0);
     let orange = Appearance::basic(Paint::solid(Color::rgb(0.9, 0.4, 0.1)), Paint::None, 0.0);
     let art = Node::path(base.alloc_id(), shapes::rectangle(Rect::new(100.0, 100.0, 130.0, 126.0)), orange);
-    base.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Far".into(), art: std::sync::Arc::new(art) });
+    base.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Far".into(), art: std::sync::Arc::new(art) });
     // The instance draws the art from (20, 20) to (50, 46), and the 20 × 20 square around the
     // origin from (-90, -90) to (-70, -70).
     let xf = Affine::translate((-80.0, -80.0));
-    let instance = Node::new(base.alloc_id(), vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Far".into(), xf });
+    let instance = Node::new(base.alloc_id(), pluma_doc::NodeKind::SymbolInstance { symbol: "Far".into(), xf });
     let mut group = Node::group(base.alloc_id(), vec![std::sync::Arc::new(instance)]);
     let shadow = json!({"x": 4, "y": 3, "blur": 2, "opacity": 80});
     group.appearance.effects.push(Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
@@ -1448,16 +1441,16 @@ fn a_moved_group_draws_the_shadow_of_the_instance_art_in_it_while_interacting() 
 fn a_shadow_on_art_across_nine_slice_guides_reaches_past_the_outer_cells() {
     let _fonts = fonts_steady();
     let mut d = Document::new(300.0, 200.0);
-    let gradient = Paint::Gradient(Box::new(vectorcraft_doc::color::GradientPaint::new(Default::default())));
+    let gradient = Paint::Gradient(Box::new(pluma_doc::color::GradientPaint::new(Default::default())));
     let frame = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::default());
     let mut bar = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 40.0, 100.0, 60.0)), Appearance::basic(gradient, Paint::None, 0.0));
     let shadow = json!({"x": 8, "y": 0, "blur": 0, "opacity": 100});
     bar.appearance.effects.push(Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
     let art = Node::group(d.alloc_id(), vec![std::sync::Arc::new(frame), std::sync::Arc::new(bar)]);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Bar".into(), art: std::sync::Arc::new(art) });
-    d.set_symbol_nine_slice("Bar", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Bar".into(), art: std::sync::Arc::new(art) });
+    d.set_symbol_nine_slice("Bar", Some(pluma_doc::SymbolNineSlice::default()));
     let xf = Affine::translate((20.0, 20.0)) * Affine::scale_non_uniform(2.0, 1.0);
-    let instance = Node::new(d.alloc_id(), vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Bar".into(), xf });
+    let instance = Node::new(d.alloc_id(), pluma_doc::NodeKind::SymbolInstance { symbol: "Bar".into(), xf });
     let l = d.layers[0].id;
     d.insert(Some(l), 0, instance).unwrap();
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
@@ -1493,7 +1486,7 @@ fn moved_rasters_need_the_same_content_and_effects() {
         let mut d = d.clone();
         let id = d.layers[0].children().unwrap()[0].id;
         let n = d.node_mut(id).unwrap();
-        n.transform(Affine::translate((5.0, 3.0)), vectorcraft_doc::Scaling { patterns, ..Default::default() });
+        n.transform(Affine::translate((5.0, 3.0)), pluma_doc::Scaling { patterns, ..Default::default() });
         edit(n);
         d
     };
@@ -1504,11 +1497,11 @@ fn moved_rasters_need_the_same_content_and_effects() {
     assert_eq!(drag(&base, &moved(&base, false, &recolor)), (0, true), "recolored");
     let spacing = |n: &mut Node| n.appearance.effects[0].params = json!({"crackSpacing": 9});
     assert_eq!(drag(&base, &moved(&base, false, &spacing)), (0, true), "other effect settings");
-    let resize = |n: &mut Node| n.transform(Affine::scale_about(1.5, vectorcraft_geom::Point::new(25.0, 23.0)), false);
+    let resize = |n: &mut Node| n.transform(Affine::scale_about(1.5, pluma_geom::Point::new(25.0, 23.0)), false);
     assert_eq!(drag(&base, &moved(&base, false, &resize)), (0, true), "resized");
     // A square added beyond the old raster leaves the content inside it as it was.
     let beyond = |n: &mut Node| {
-        if let vectorcraft_doc::NodeKind::Path { path, .. } = &mut n.kind {
+        if let pluma_doc::NodeKind::Path { path, .. } = &mut n.kind {
             path.subpaths.extend(shapes::rectangle(Rect::new(75.0, 30.0, 80.0, 35.0)).subpaths);
         }
     };
@@ -1520,15 +1513,15 @@ fn moved_rasters_need_the_same_content_and_effects() {
     // A pattern fill: its tiles stay on the page unless they move with the object.
     let mut tiled = base.clone();
     let red = Node::path(
-        vectorcraft_doc::NodeId(900),
+        pluma_doc::NodeId(900),
         shapes::rectangle(Rect::new(0.0, 0.0, 3.0, 3.0)),
         Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0),
     );
-    let mut def = vectorcraft_doc::pattern::PatternDef::new("Dots", vec![std::sync::Arc::new(red)]);
+    let mut def = pluma_doc::pattern::PatternDef::new("Dots", vec![std::sync::Arc::new(red)]);
     def.tile = Rect::new(0.0, 0.0, 7.0, 7.0);
     tiled.patterns.push(def);
     let id = tiled.layers[0].children().unwrap()[0].id;
-    tiled.node_mut(id).unwrap().appearance.fill_mut().unwrap().paint = vectorcraft_doc::pattern::pattern_paint("Dots");
+    tiled.node_mut(id).unwrap().appearance.fill_mut().unwrap().paint = pluma_doc::pattern::pattern_paint("Dots");
     assert_eq!(drag(&tiled, &moved(&tiled, false, &|_| {})), (0, true), "tiles that stay on the page");
     assert_eq!(drag(&tiled, &moved(&tiled, true, &|_| {})), (1, true), "tiles that move with the object");
     // Feather clips to the outline: a notch in the top edge where the tiles paint nothing
@@ -1537,14 +1530,14 @@ fn moved_rasters_need_the_same_content_and_effects() {
     feathered.node_mut(id).unwrap().appearance.effects = vec![Effect { id: "stylize.feather".into(), params: json!({"radius": 3}), visible: true }];
     assert_eq!(drag(&feathered, &moved(&feathered, true, &|_| {})), (1, true), "feathered");
     let notch = |n: &mut Node| {
-        let mut bp = vectorcraft_geom::BezPath::new();
+        let mut bp = pluma_geom::BezPath::new();
         bp.move_to((25.0, 23.0));
         for p in [(30.0, 23.0), (30.5, 23.6), (31.5, 23.6), (32.0, 23.0), (55.0, 23.0), (55.0, 49.0), (25.0, 49.0)] {
             bp.line_to(p);
         }
         bp.close_path();
-        if let vectorcraft_doc::NodeKind::Path { path, .. } = &mut n.kind {
-            *path = vectorcraft_geom::PathData::from_bezpath(&bp);
+        if let pluma_doc::NodeKind::Path { path, .. } = &mut n.kind {
+            *path = pluma_geom::PathData::from_bezpath(&bp);
         }
     };
     assert_eq!(drag(&feathered, &moved(&feathered, true, &notch)), (0, true), "a notch in the feathered outline");
@@ -1597,13 +1590,13 @@ fn rasters_made_over_moved_rasters_count_as_moved() {
 /// and the next eight render as the canvas renders a drag's frames (`interacting`). Then the
 /// eighth position renders as the canvas renders the frame after the drag, and that frame
 /// renders once more with every raster cached.
-/// Run with `cargo test -p vectorcraft-render texture_drag_perf -- --ignored --nocapture`.
+/// Run with `cargo test -p pluma-render texture_drag_perf -- --ignored --nocapture`.
 #[test]
 #[ignore = "manual timing probe; wall-clock performance depends on machine load"]
 fn texture_drag_perf() {
     for effect in ["texture.craquelure", "texture.mosaicTiles", "texture.stainedGlass"] {
         let mut base = Document::new(600.0, 500.0);
-        base.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+        base.color_mode = pluma_doc::ColorMode::Cmyk;
         let (layer, id) = (base.layers[0].id, base.alloc_id());
         let mut n = Node::path(
             id,
@@ -1651,7 +1644,7 @@ fn texture_drag_perf() {
 /// render as a drag's frames, once with `interacting` alone and once with `dragging` as well (as
 /// the canvas renders them). Then the eighth position renders as the canvas renders the frame
 /// after the drag. The hashes of that frame and of a fresh renderer's frame compare builds.
-/// Run with `cargo test -p vectorcraft-render zoomed_drag_perf -- --ignored --nocapture`.
+/// Run with `cargo test -p pluma-render zoomed_drag_perf -- --ignored --nocapture`.
 #[test]
 #[ignore = "manual timing probe; wall-clock performance depends on machine load"]
 fn zoomed_drag_perf() {
@@ -1728,7 +1721,7 @@ fn photoshop_filters_on_content_larger_than_the_budget() {
 /// (inside the frame), on the single-threaded and the multithreaded renderer alike.
 #[test]
 fn an_image_inner_glow_follows_its_visible_pixels() {
-    use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind};
+    use pluma_doc::{ImageBlob, ImageObject, NodeKind};
     let rgba: Vec<u8> = (0..40 * 40).flat_map(|i| if i % 40 < 20 { [0, 0, 0, 0] } else { [0, 0, 0, 255] }).collect();
     let png = crate::encode::png::encode(&rgba, 40, 40, &Default::default()).unwrap();
     let mut d = Document::new(100.0, 100.0);
@@ -1779,7 +1772,7 @@ fn a_3d_effect_that_builds_nothing_draws_the_item_as_without_it() {
     let revolve = Effect { id: "threeD.revolve".into(), params: json!({}), visible: true };
     // A gradient of one color with 1,000 stops.
     let ramp = |c: Color| {
-        use vectorcraft_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
+        use pluma_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
         let stops = (0..1000).map(|i| GradientStop::new(i as f32 / 1000.0, c)).collect();
         Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))))
     };

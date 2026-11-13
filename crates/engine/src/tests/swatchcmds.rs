@@ -2,8 +2,8 @@
 //! Colors, Select All Unused, Merge, Ungroup and Sort by Kind, and colours following the
 //! document's colour mode.
 
+use pluma_color::{Color, Paint};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
 
 use crate::*;
 
@@ -17,7 +17,7 @@ fn run(s: &mut Session, id: &str, p: Value) -> Value {
     s.execute(id, &p).unwrap_or_else(|e| panic!("{id} {p}: {e}"))
 }
 
-fn doc(s: &Session) -> &vectorcraft_doc::Document {
+fn doc(s: &Session) -> &pluma_doc::Document {
     &s.doc().unwrap().doc
 }
 
@@ -120,7 +120,7 @@ fn add_used_colors_skips_colours_that_have_swatches() {
     assert_eq!(r, json!({"added": ["R=171 G=205 B=239"], "linked": 1}));
     assert_eq!(
         fill(&s, d),
-        Paint::Solid { color: vectorcraft_color::Color::from_hex("#abcdef").unwrap(), swatch: Some("R=171 G=205 B=239".into()), tint: 1.0 }
+        Paint::Solid { color: pluma_color::Color::from_hex("#abcdef").unwrap(), swatch: Some("R=171 G=205 B=239".into()), tint: 1.0 }
     );
     assert!(doc(&s).swatch("R=171 G=205 B=239").unwrap().global);
 }
@@ -199,7 +199,7 @@ fn add_used_colors_global_links_every_paint_of_a_new_color() {
 #[test]
 fn add_used_colors_global_leaves_registration_links_alone() {
     let mut s = session();
-    let reg_paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint: 1.0 };
+    let reg_paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint: 1.0 };
     let registration = rect_filled(&mut s, json!({"color": "#000000"}));
     set_fill(&mut s, registration, reg_paint.clone());
     let plain = rect_filled(&mut s, json!({"color": "#000000"}));
@@ -237,12 +237,12 @@ fn unused_matches_links_tints_colors_gradients_and_patterns_exactly() {
     let ocean = gradient(&s, "Ocean");
     let (mut moved, mut radial, mut perceptual, mut dither) = (ocean.clone(), ocean.clone(), ocean.clone(), ocean);
     moved.stops[0].offset += 0.25;
-    radial.kind = vectorcraft_color::GradientKind::Radial;
-    perceptual.method = vectorcraft_color::GradientMethod::Perceptual;
+    radial.kind = pluma_color::GradientKind::Radial;
+    perceptual.method = pluma_color::GradientMethod::Perceptual;
     dither.dither = true;
     for g in [midpoint, sunset.clone(), opacity, sunset, moved, radial, perceptual, dither] {
         let id = rect_filled(&mut s, json!({"color": "#000000"}));
-        set_fill(&mut s, id, Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(g))));
+        set_fill(&mut s, id, Paint::Gradient(Box::new(pluma_color::GradientPaint::new(g))));
     }
     let r = rect_filled(&mut s, json!({"color": "#ff0000"}));
     run(&mut s, "select.set", json!({"ids": [r.0]}));
@@ -340,7 +340,7 @@ fn new_color_group_from_artwork_lists_each_color_once_with_free_names() {
         ids.push(id.0);
     }
     let registration = rect_filled(&mut s, json!({"color": "#000000"}));
-    let reg_paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint: 1.0 };
+    let reg_paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint: 1.0 };
     set_fill(&mut s, registration, reg_paint);
     ids.push(registration.0);
     run(&mut s, "select.set", json!({ "ids": ids }));
@@ -461,7 +461,7 @@ fn ungroup_and_sort_by_kind_are_one_undo_step_each() {
     run(&mut s, "swatch.edit", json!({"name": "Orange", "spot": true}));
     run(&mut s, "swatch.sortByKind", json!({}));
     assert_eq!(undo_len(&s), undo + 4);
-    let rank = |w: &vectorcraft_color::Swatch| match &w.paint {
+    let rank = |w: &pluma_color::Swatch| match &w.paint {
         Paint::None => 0,
         Paint::Solid { .. } if !w.spot => 1,
         Paint::Solid { .. } => 2,
@@ -477,15 +477,15 @@ fn ungroup_and_sort_by_kind_are_one_undo_step_each() {
 
 #[test]
 fn a_cmyk_document_starts_with_cmyk_swatches_and_stores_new_colours_as_cmyk() {
-    use vectorcraft_color::Color;
+    use pluma_color::Color;
     let mut s = Session::new();
     run(&mut s, "file.new", json!({"width": 100, "height": 100, "colorMode": "cmyk"}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert!(doc(&s).swatches_iter().filter_map(|w| w.paint.color()).all(|c| !matches!(c, Color::Rgb { .. })));
     assert_eq!(doc(&s).swatch("Black").and_then(|w| w.paint.color()), Some(Color::cmyk(0.0, 0.0, 0.0, 1.0)));
     // RGB colors separate through the color settings (Generic CMYK: red is C0 M97 Y100 K0).
-    let cms = vectorcraft_color::cms::active();
-    let managed = |c: Color| cms.convert(&c, vectorcraft_color::cms::Model::Cmyk, cms.settings().intent);
+    let cms = pluma_color::cms::active();
+    let managed = |c: Color| cms.convert(&c, pluma_color::cms::Model::Cmyk, cms.settings().intent);
     let a = rect_filled(&mut s, json!({"color": "#ff0000"}));
     assert_eq!(fill(&s, a), Paint::solid(managed(Color::rgb(1.0, 0.0, 0.0))));
     // Gray stays Gray; keepModel keeps RGB; gradient stops follow the document too.
@@ -505,7 +505,7 @@ fn a_cmyk_document_starts_with_cmyk_swatches_and_stores_new_colours_as_cmyk() {
     assert_eq!(doc(&s).swatch(&name).and_then(|w| w.paint.color()), Some(managed(Color::rgb(0.0, 1.0, 0.0))));
     assert_eq!(name, "C=65 M=0 Y=100 K=0");
     let json = serde_json::to_string(doc(&s)).unwrap();
-    assert_eq!(serde_json::from_str::<vectorcraft_doc::Document>(&json).unwrap(), *doc(&s));
+    assert_eq!(serde_json::from_str::<pluma_doc::Document>(&json).unwrap(), *doc(&s));
 }
 
 /// The other swatch commands store RGB colors in a CMYK document as `swatch.new {color}` does:
@@ -514,11 +514,11 @@ fn a_cmyk_document_starts_with_cmyk_swatches_and_stores_new_colours_as_cmyk() {
 /// model.
 #[test]
 fn a_cmyk_document_stores_rgb_colors_given_to_the_swatch_commands_as_cmyk() {
-    use vectorcraft_color::Color;
+    use pluma_color::Color;
     let mut s = Session::new();
     run(&mut s, "file.new", json!({"width": 100, "height": 100, "colorMode": "cmyk"}));
-    let cms = vectorcraft_color::cms::active();
-    let managed = |c: Color| cms.convert(&c, vectorcraft_color::cms::Model::Cmyk, cms.settings().intent);
+    let cms = pluma_color::cms::active();
+    let managed = |c: Color| cms.convert(&c, pluma_color::cms::Model::Cmyk, cms.settings().intent);
     let (red, green) = (Color::rgb(1.0, 0.0, 0.0), Color::rgb(0.0, 1.0, 0.0));
     let color = |s: &Session, n: &Value| doc(s).swatch(n.as_str().unwrap()).and_then(|w| w.paint.color());
     let r = run(&mut s, "swatch.new", json!({"colors": ["#ff0000", {"c": 0, "m": 0, "y": 100, "k": 0}]}));
@@ -553,11 +553,11 @@ fn a_cmyk_document_stores_rgb_colors_given_to_the_swatch_commands_as_cmyk() {
 /// as they were. Null is read as `keepModel` left out.
 #[test]
 fn the_swatch_commands_refuse_a_keep_model_given_as_text() {
-    use vectorcraft_color::Color;
+    use pluma_color::Color;
     let mut s = Session::new();
     run(&mut s, "file.new", json!({"width": 100, "height": 100, "colorMode": "cmyk"}));
-    let cms = vectorcraft_color::cms::active();
-    let managed = |c: Color| cms.convert(&c, vectorcraft_color::cms::Model::Cmyk, cms.settings().intent);
+    let cms = pluma_color::cms::active();
+    let managed = |c: Color| cms.convert(&c, pluma_color::cms::Model::Cmyk, cms.settings().intent);
     let name = run(&mut s, "swatch.new", json!({"color": "#000000", "keepModel": true}))["name"].clone();
     run(&mut s, "swatch.newGroup", json!({"name": "G", "colors": ["#00ff00"]}));
     let before = (doc(&s).clone(), undo_len(&s));
@@ -614,7 +614,7 @@ fn the_swatch_commands_refuse_a_boolean_or_number_given_as_text() {
 
 #[test]
 fn rgb_documents_keep_colours_as_given_and_edits_keep_the_source_model() {
-    use vectorcraft_color::Color;
+    use pluma_color::Color;
     let mut s = session();
     assert_eq!(doc(&s).swatch("Black").and_then(|w| w.paint.color()), Some(Color::rgb(0.0, 0.0, 0.0)));
     let a = rect_filled(&mut s, json!({"color": "#ff0000"}));

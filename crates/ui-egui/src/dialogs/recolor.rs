@@ -36,12 +36,12 @@
 //! unset: `smooth`). Changing `colors`, a preserve flag or `limitTo` reduces the rows again.
 
 use egui::{Rect, Sense, Ui, pos2, vec2};
+use pluma_color::harmony::{Harmony, move_on_wheel};
+use pluma_color::recolor::{ColorKey, GlobalAdjust, Method};
+use pluma_color::{Color, keep_model};
+use pluma_engine::cmd::color_value;
+use pluma_engine::cmd::swatchlib;
 use serde_json::{Value, json};
-use vectorcraft_color::harmony::{Harmony, move_on_wheel};
-use vectorcraft_color::recolor::{ColorKey, GlobalAdjust, Method};
-use vectorcraft_color::{Color, keep_model};
-use vectorcraft_engine::cmd::color_value;
-use vectorcraft_engine::cmd::swatchlib;
 
 use super::{DialogSpec, form};
 use crate::panels::c32;
@@ -49,7 +49,7 @@ use crate::panels::color::{Mode, components, from_components, track_color};
 use crate::panels::swatches::{DOCUMENT_SWATCHES, colour_libraries, limit_key};
 use crate::state::Dialog;
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Recolor Artwork.
 pub const KIND: &str = "recolor";
@@ -102,7 +102,7 @@ const COMPS: &str = "__comps";
 /// count (an n-colour job) or the new colours to assign (without art or a group they are the
 /// rows, which OK saves as a new colour group); `library` limits to a library or "document" (""
 /// picks the first library).
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     let art = !st.selection.is_empty();
     let group = p.get("group").and_then(Value::as_str);
@@ -160,7 +160,7 @@ fn key(c: &Color) -> Value {
 /// The name a new colour group (opened on colours alone) starts with.
 const NEW_GROUP: &str = "Color Group";
 
-fn first_library(app: &VectorcraftApp) -> Option<String> {
+fn first_library(app: &PlumaApp) -> Option<String> {
     colour_libraries(app).into_iter().next().map(|l| l.id)
 }
 
@@ -175,7 +175,7 @@ fn reduce_params(d: &Dialog) -> Value {
 
 /// Reduce the art's colours into rows again when the count, preserve flags or library changed
 /// (assigning a group's colours or the opener's colours as the new colours).
-fn sync(app: &mut VectorcraftApp, d: &mut Dialog) {
+fn sync(app: &mut PlumaApp, d: &mut Dialog) {
     const DONE: &str = "__reduced";
     let sig = reduce_params(d);
     if !d.bool("__art") || d.fields.get(DONE) == Some(&sig) {
@@ -206,7 +206,7 @@ fn sync(app: &mut VectorcraftApp, d: &mut Dialog) {
 }
 
 /// With Limit to Library, the rows' new colours snap to the library's nearest colours.
-fn snap(app: &VectorcraftApp, d: &Dialog, rows: &mut [Value]) {
+fn snap(app: &PlumaApp, d: &Dialog, rows: &mut [Value]) {
     let Some(palette) = Some(d.str("limitTo")).filter(|l| !l.is_empty()).and_then(|l| swatchlib::limit_palette(&app.session, &l)) else { return };
     for r in rows {
         if let Some(c) = to_color(r) {
@@ -291,7 +291,7 @@ fn apply_params(d: &Dialog) -> Value {
     p
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     sync(app, d);
     let t = Tokens::get(ui.ctx());
     ui.horizontal(|ui| {
@@ -343,7 +343,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// `d` with row `i`'s new colour set to `c` (the Color Picker's OK), snapped to Limit to Library.
-pub(super) fn with_new_color(app: &VectorcraftApp, mut d: Dialog, i: usize, c: Color) -> Dialog {
+pub(super) fn with_new_color(app: &PlumaApp, mut d: Dialog, i: usize, c: Color) -> Dialog {
     let mut rs = rows(&d);
     if let Some(r) = rs.get_mut(i) {
         set_to(r, &c);
@@ -356,7 +356,7 @@ pub(super) fn with_new_color(app: &VectorcraftApp, mut d: Dialog, i: usize, c: C
 
 /// OK: keep the previewed recolour as one undo step (or apply it, e.g. to a colour group only; or
 /// save colours opened alone as a new colour group).
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut d = d.clone();
     sync(app, &mut d);
     if d.bool("__newGroup") {
@@ -398,7 +398,7 @@ fn preset_of(d: &Dialog) -> usize {
     }
 }
 
-fn set_preset(app: &VectorcraftApp, d: &mut Dialog, i: usize) {
+fn set_preset(app: &PlumaApp, d: &mut Dialog, i: usize) {
     match i {
         1..=3 => {
             d.fields.insert("colors".into(), json!(i));
@@ -421,7 +421,7 @@ fn chip(ui: &Ui, r: Rect, c: Color, dim: bool) {
 
 /// The Assign tab. Returns true when the rows changed, and the row whose new colour was
 /// double-clicked.
-fn assign_tab(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog, rows: &mut Vec<Value>) -> (bool, Option<usize>) {
+fn assign_tab(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog, rows: &mut Vec<Value>) -> (bool, Option<usize>) {
     let t = Tokens::get(ui.ctx());
     let mut changed = false;
     let total: usize = rows.iter().map(|r| r["from"].as_array().map_or(0, Vec::len)).sum();
@@ -604,7 +604,7 @@ fn assign_tab(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog, rows: &mut 
             // Import a library (.ase, .acb, .gpl, .vcswatches or a document's swatches) and limit to it.
             if app.services.pick_open.is_some() && widgets::icon_button(ui, "folder-open", tl!("Other Library…"), false, 24.0).clicked() {
                 let r = crate::picks::in_dialog(app, d, |app, d| {
-                    let filters = crate::FilePick::filters(vectorcraft_engine::cmd::fileio::builtin_open_filters());
+                    let filters = crate::FilePick::filters(pluma_engine::cmd::fileio::builtin_open_filters());
                     let pick = crate::FilePick { filters, ..Default::default() };
                     let Some(path) = crate::picks::open(app, &pick) else { return Ok(()) };
                     let r = app.run("swatch.library.load", json!({ "path": path }))?;
@@ -650,14 +650,14 @@ fn row_tint(row: &Value) -> f32 {
 
 /// Tint `t` (0..1) of spot color `c` as art linked to it shows it: a Lab spot color is the active
 /// document's working-CMYK equivalent while the Spot Colors options use CMYK values
-/// ([`vectorcraft_doc::Document::linked_color`]), and its inks scale.
-fn spot_tinted(app: &VectorcraftApp, c: Color, t: f32) -> Color {
+/// ([`pluma_doc::Document::linked_color`]), and its inks scale.
+fn spot_tinted(app: &PlumaApp, c: Color, t: f32) -> Color {
     app.session.active().map_or(c, |st| st.doc.linked_color(c, true)).tinted(t)
 }
 
 /// The color row `row`'s new color chip shows: what the art takes, at the row's tint (a spot color
 /// of the library as [`spot_tinted`] shows it).
-fn new_shown(app: &VectorcraftApp, d: &Dialog, row: &Value) -> Color {
+fn new_shown(app: &PlumaApp, d: &Dialog, row: &Value) -> Color {
     let to = to_color(row).unwrap_or_default();
     // Only a Lab spot color can show another color; the library lookup is skipped for the rest.
     if matches!(to, Color::Lab { .. }) && d.bool("__art") && spot_of(app, d, &to).is_some() {
@@ -674,7 +674,7 @@ fn mode_id(m: Mode) -> String {
 
 /// The name of the library swatch (Limit to Library) that `recolor.apply` gives new color `c`, when
 /// it is a spot color: the first swatch of the library color nearest `c`.
-fn spot_of(app: &VectorcraftApp, d: &Dialog, c: &Color) -> Option<String> {
+fn spot_of(app: &PlumaApp, d: &Dialog, c: &Color) -> Option<String> {
     let lib = d.str("limitTo");
     if lib.is_empty() {
         return None;
@@ -714,7 +714,7 @@ struct SliderTarget {
 }
 
 impl SliderTarget {
-    fn of(app: &VectorcraftApp, d: &Dialog, rows: &[Value]) -> Self {
+    fn of(app: &PlumaApp, d: &Dialog, rows: &[Value]) -> Self {
         let row = selection(d).into_iter().filter(|i| *i < rows.len()).min();
         let color = row.and_then(|i| to_color(&rows[i]));
         // A row tint acts only on art, so without art a spot color shows the process modes.
@@ -829,7 +829,7 @@ fn slider_cell(
 /// The color sliders under the rows, two to a line: they edit the first selected row's new color
 /// (the others keep theirs) in the mode of [`mode_menu`], or its tint of a spot color of the
 /// library. Without a selected row they are disabled. Returns true when they changed a row.
-fn sliders(app: &VectorcraftApp, ui: &mut Ui, d: &mut Dialog, rows: &mut [Value]) -> bool {
+fn sliders(app: &PlumaApp, ui: &mut Ui, d: &mut Dialog, rows: &mut [Value]) -> bool {
     let target = SliderTarget::of(app, d, rows);
     let mode = target.mode(d);
     let mut changed = false;
@@ -944,7 +944,7 @@ fn move_color(rows: &mut [Value], i: usize, hsb: [f32; 3], linked: bool) {
 const DRAG: &str = "__drag";
 
 /// The Edit tab. Returns true when the rows changed.
-fn edit_tab(app: &VectorcraftApp, ui: &mut Ui, d: &mut Dialog, rows: &mut [Value]) -> bool {
+fn edit_tab(app: &PlumaApp, ui: &mut Ui, d: &mut Dialog, rows: &mut [Value]) -> bool {
     let top = ui.cursor().top();
     let t = Tokens::get(ui.ctx());
     let mut changed = false;
@@ -1160,7 +1160,7 @@ mod tests {
 
     #[test]
     fn recolor_dialog_keeps_the_default_model_without_an_extra_dropdown() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app.run("ui.recolorDialog", json!({"colors": ["#ff8000"]})).unwrap();
         let d = app.ui.dialog.as_ref().unwrap();
@@ -1172,7 +1172,7 @@ mod tests {
     /// mode the sliders show.
     #[test]
     fn apply_params_send_global_adjust_only_when_it_changes_colors() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app.run("ui.recolorDialog", json!({"colors": ["#ff8000"]})).unwrap();
         let d = app.ui.dialog.as_mut().unwrap();
@@ -1256,7 +1256,7 @@ mod tests {
     /// The Color Picker's OK keeps a row's tint when the row's new color stays, and drops it otherwise.
     #[test]
     fn a_picked_color_keeps_the_tint_only_of_the_same_color() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app.run("ui.recolorDialog", json!({"colors": ["#ff0000"]})).unwrap();
         let mut d = app.ui.dialog.clone().unwrap();
@@ -1271,7 +1271,7 @@ mod tests {
     /// library shows the art's color at its tint: the working-CMYK equivalent with its inks scaled.
     #[test]
     fn a_tinted_lab_spot_row_shows_the_cmyk_color_the_art_takes() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         let lab = json!({"l": 50, "a": 60, "b": -20});
         app.run("swatch.new", json!({"name": "Lab Ink", "color": lab, "spot": true})).unwrap();
@@ -1297,7 +1297,7 @@ mod tests {
 
     /// Runs one frame of the open dialog at `time` and returns row `i`'s new color chip, when the
     /// Recolor Artwork dialog drew it.
-    fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, events: Vec<egui::Event>, i: usize) -> Option<Rect> {
+    fn frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64, events: Vec<egui::Event>, i: usize) -> Option<Rect> {
         let input = egui::RawInput { time: Some(time), events, ..Default::default() };
         let mut out = ctx.run_ui(input, |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
@@ -1306,7 +1306,7 @@ mod tests {
 
     /// Runs frames from `time` until the dialog stops moving (it centres itself as it measures its
     /// size) and returns row `i`'s new color chip.
-    fn settled(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, i: usize) -> Option<Rect> {
+    fn settled(app: &mut PlumaApp, ctx: &egui::Context, time: f64, i: usize) -> Option<Rect> {
         let mut last = None;
         for n in 0..10 {
             let r = frame(app, ctx, time + f64::from(n) * 0.001, vec![], i);
@@ -1319,7 +1319,7 @@ mod tests {
     }
 
     /// Double-clicks row `i`'s new color chip, as drawn by the last frame at `rect`.
-    fn double_click(app: &mut VectorcraftApp, ctx: &egui::Context, rect: Rect, time: f64, i: usize) {
+    fn double_click(app: &mut PlumaApp, ctx: &egui::Context, rect: Rect, time: f64, i: usize) {
         let pos = rect.center();
         let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
         frame(app, ctx, time, vec![egui::Event::PointerMoved(pos), button(true)], i);
@@ -1335,7 +1335,7 @@ mod tests {
     /// nothing is committed until Recolor Artwork's own OK.
     #[test]
     fn double_clicking_a_new_color_picks_it_in_its_own_model() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100, "colorMode": "cmyk"})).unwrap();
         let mut ids = vec![];
         for (n, c) in [json!({"c": 0, "m": 100, "y": 100, "k": 0}), json!({"c": 100, "m": 0, "y": 0, "k": 0})].into_iter().enumerate() {
@@ -1349,14 +1349,14 @@ mod tests {
         let assign = json!([{"c": 0, "m": 0, "y": 100, "k": 0}, {"c": 0, "m": 100, "y": 0, "k": 0}]);
         app.run("ui.recolorDialog", json!({"colors": assign})).unwrap();
         app.ui.dialog.as_mut().unwrap().fields.insert("method".into(), json!(Method::Exact.id()));
-        let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+        let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
         // The previewed fill of the rectangle whose color row `row` recolors.
-        let fill = |app: &VectorcraftApp, row: &Value| {
+        let fill = |app: &PlumaApp, row: &Value| {
             let from = from_colors(row);
             let doc = &app.session.doc().unwrap().doc;
             let original = |id: u64| if id == ids[0] { Color::cmyk(0.0, 1.0, 1.0, 0.0) } else { Color::cmyk(1.0, 0.0, 0.0, 0.0) };
             let id = *ids.iter().find(|id| from.contains(&original(**id))).expect("a rectangle for the row");
-            doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.fill().and_then(|f| f.paint.color())
+            doc.node(pluma_doc::NodeId(id)).unwrap().appearance.fill().and_then(|f| f.paint.color())
         };
         let before = undo(&app);
         let ctx = egui::Context::default();
@@ -1411,7 +1411,7 @@ mod tests {
     /// In a CMYK document colors opened alone are saved as a new color group in their own model.
     #[test]
     fn a_new_group_from_colors_keeps_their_model_in_a_cmyk_document() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100, "colorMode": "cmyk"})).unwrap();
         app.run("ui.recolorDialog", json!({"colors": ["#ff8000"]})).unwrap();
         let d = app.ui.dialog.clone().expect("Recolor Artwork opens");

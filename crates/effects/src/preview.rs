@@ -24,9 +24,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vectorcraft_doc::color::Paint;
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind, OrientedBox, Selection, SymbolBoxes};
-use vectorcraft_geom::{Affine, PathData, Rect, Shape, union_opt};
+use pluma_doc::color::Paint;
+use pluma_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind, OrientedBox, Selection, SymbolBoxes};
+use pluma_geom::{Affine, PathData, Rect, Shape, union_opt};
 
 use crate::group::has_own_paint;
 use crate::reshape::{geometry_effects, leaf_geometry};
@@ -90,7 +90,7 @@ impl Measure {
     /// See [`by_glyphs`].
     fn by_glyphs(self, drawn: &Drawn, n: &Node) -> bool {
         self.glyphs
-            && matches!(&n.kind, NodeKind::Text(t) if matches!(t.kind, vectorcraft_doc::TextKind::Point))
+            && matches!(&n.kind, NodeKind::Text(t) if matches!(t.kind, pluma_doc::TextKind::Point))
             && n.projection().is_none()
             && !(self.preview && drawn.draws_geometry(n))
     }
@@ -164,29 +164,29 @@ fn measured_in(drawn: &Drawn, n: &Node, a: Affine, m: Measure) -> Option<Rect> {
 }
 
 /// The box of the ink of type `t`'s glyphs with its text space mapped by `a * t.xf`: the cached
-/// ink ([`vectorcraft_doc::TextObject::ink`]) when that map keeps a rectangle square, else the
+/// ink ([`pluma_doc::TextObject::ink`]) when that map keeps a rectangle square, else the
 /// glyph outlines and the underline and strikethrough bars mapped point by point
-/// ([`vectorcraft_text::envelope_ink`]). `None` when nothing draws (no text, only spaces without
+/// ([`pluma_text::envelope_ink`]). `None` when nothing draws (no text, only spaces without
 /// underline or strikethrough, or glyphs without outlines).
-pub fn text_ink_in(t: &vectorcraft_doc::TextObject, a: Affine) -> Option<Rect> {
+pub fn text_ink_in(t: &pluma_doc::TextObject, a: Affine) -> Option<Rect> {
     let m = a * t.xf;
     let [p, q, r, s, _, _] = m.as_coeffs();
     let square = (q.abs() <= 1e-12 && r.abs() <= 1e-12) || (p.abs() <= 1e-12 && s.abs() <= 1e-12);
     if square {
         let ink = match t.ink() {
             Some(ink) => ink,
-            None => vectorcraft_text::envelope_ink(t, Affine::IDENTITY, None),
+            None => pluma_text::envelope_ink(t, Affine::IDENTITY, None),
         };
         return ink.map(|i| m.transform_rect_bbox(i));
     }
-    vectorcraft_text::envelope_ink(t, m, None)
+    pluma_text::envelope_ink(t, m, None)
 }
 
 /// The ink of type `t` laid out as `layout`, in text space: its glyphs
-/// ([`vectorcraft_text::TextLayout::ink_bounds`]) and its underline and strikethrough bars
-/// ([`vectorcraft_text::decorations`]), what [`text_ink_in`] measures. `None` when nothing draws.
-pub fn laid_out_ink(layout: &vectorcraft_text::TextLayout, t: &vectorcraft_doc::TextObject) -> Option<Rect> {
-    vectorcraft_text::decorations(layout, vectorcraft_text::FontDb::global(), t)
+/// ([`pluma_text::TextLayout::ink_bounds`]) and its underline and strikethrough bars
+/// ([`pluma_text::decorations`]), what [`text_ink_in`] measures. `None` when nothing draws.
+pub fn laid_out_ink(layout: &pluma_text::TextLayout, t: &pluma_doc::TextObject) -> Option<Rect> {
+    pluma_text::decorations(layout, pluma_text::FontDb::global(), t)
         .into_iter()
         .fold(layout.ink_bounds(), |acc, (_, bar)| union_opt(acc, Some(bar.bounding_box())))
 }

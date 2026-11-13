@@ -3,8 +3,8 @@
 //! at the glyph's advance divided equally.
 
 use kurbo::{BezPath, Point, Vec2};
-use vectorcraft_doc::{CharStyle, TextKind, TextObject};
-use vectorcraft_geom::PathData;
+use pluma_doc::{CharStyle, TextKind, TextObject};
+use pluma_geom::PathData;
 
 use crate::test_fonts::{
     LIGATURE_CARET_FAMILY, LIGATURE_CARET_GLYPH, VARIABLE_LIGATURE_CARET_FAMILY, VERTICAL_LIGATURE_CARET_FAMILY, lam_alef_family, lam_alef_font,
@@ -678,7 +678,7 @@ fn an_upright_ligature_on_a_path_takes_its_stop_in_its_turned_cell() {
         slant.line_to((1000.0, 1000.0));
         t.runs[0].style.baseline_shift = 0.0;
         t.kind = TextKind::OnPath { path: PathData::from_bezpath(&slant), start: 0.0, end: None };
-        t.path_effect = vectorcraft_doc::PathEffect::Skew;
+        t.path_effect = pluma_doc::PathEffect::Skew;
         let l = layout(&db, &t);
         let Some(s) = l.glyphs.iter().find(|g| g.len == 2) else { panic!("f + i is one glyph: {:?}", l.glyphs) };
         let tangent = Vec2::new(s.angle.cos(), s.angle.sin());
@@ -696,7 +696,7 @@ fn an_upright_ligature_on_a_path_takes_its_stop_in_its_turned_cell() {
 /// on its side keeps its top toward the path's end.
 #[test]
 fn an_upright_ligature_on_a_path_reads_along_it_in_order() {
-    use vectorcraft_doc::PathEffect;
+    use pluma_doc::PathEffect;
     let db = db_with(vertical_ligature_caret_font(280));
     let mut t = point("fi", VERTICAL_LIGATURE_CARET_FAMILY);
     t.vertical = true;
@@ -759,7 +759,7 @@ fn an_upright_ligature_on_a_path_reads_along_it_in_order() {
 /// 600 / 800 of its width, and the caret stands at the drawn stop.
 #[test]
 fn an_upright_ligature_on_a_path_keeps_its_font_caret_on_a_proportional_cell() {
-    use vectorcraft_doc::PathEffect;
+    use pluma_doc::PathEffect;
     let db = db_with(proportional_vertical_ligature_caret_font(280, -200));
     let mut t = point("fi", VERTICAL_LIGATURE_CARET_FAMILY);
     t.vertical = true;

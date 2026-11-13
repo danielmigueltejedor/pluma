@@ -4,12 +4,12 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 #[test]
 fn a_relative_path_finds_relative_links() {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-relative-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-relative-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let mut png = Vec::new();
     image::RgbaImage::from_pixel(4, 4, image::Rgba([255, 0, 0, 255])).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();

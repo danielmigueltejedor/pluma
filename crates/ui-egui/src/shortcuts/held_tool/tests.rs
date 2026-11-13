@@ -1,5 +1,5 @@
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use super::super::handle;
 use super::*;
@@ -17,12 +17,12 @@ impl Keyboard {
 
     /// One frame at `time` seconds delivering `events`; with `field`, a text field that takes the
     /// keyboard is drawn after the shortcuts.
-    fn frame(&self, app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>, field: Option<&mut String>) {
+    fn frame(&self, app: &mut PlumaApp, time: f64, events: Vec<egui::Event>, field: Option<&mut String>) {
         self.frame_with_focus(app, time, events, field, true);
     }
 
     /// [`Self::frame`], with the window having the keyboard (`focused`) or not.
-    fn frame_with_focus(&self, app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>, mut field: Option<&mut String>, focused: bool) {
+    fn frame_with_focus(&self, app: &mut PlumaApp, time: f64, events: Vec<egui::Event>, mut field: Option<&mut String>, focused: bool) {
         let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
         let mut out = self.ctx.run_ui(egui::RawInput { events, screen_rect, time: Some(time), focused, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -35,7 +35,7 @@ impl Keyboard {
     }
 
     /// One frame at `time` seconds delivering `events`, with the canvas drawn after the shortcuts.
-    fn on_canvas(&self, app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>) {
+    fn on_canvas(&self, app: &mut PlumaApp, time: f64, events: Vec<egui::Event>) {
         let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
         let mut out = self.ctx.run_ui(egui::RawInput { events, screen_rect, time: Some(time), focused: true, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -46,28 +46,28 @@ impl Keyboard {
     }
 
     /// `key` pressed (or repeated while it is down) at `time`, typing `letter`.
-    fn press(&self, app: &mut VectorcraftApp, time: f64, key: Key, letter: &str) {
+    fn press(&self, app: &mut PlumaApp, time: f64, key: Key, letter: &str) {
         let press = egui::Event::Key { key, physical_key: Some(key), pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
         self.frame(app, time, vec![press, egui::Event::Text(letter.into())], None);
     }
 
-    fn release(&self, app: &mut VectorcraftApp, time: f64, key: Key) {
+    fn release(&self, app: &mut PlumaApp, time: f64, key: Key) {
         let release = egui::Event::Key { key, physical_key: Some(key), pressed: false, repeat: false, modifiers: egui::Modifiers::NONE };
         self.frame(app, time, vec![release], None);
     }
 
-    fn press_s(&self, app: &mut VectorcraftApp, time: f64) {
+    fn press_s(&self, app: &mut PlumaApp, time: f64) {
         self.press(app, time, Key::S, "s");
     }
 
-    fn release_s(&self, app: &mut VectorcraftApp, time: f64) {
+    fn release_s(&self, app: &mut PlumaApp, time: f64) {
         self.release(app, time, Key::S);
     }
 }
 
 /// A document with a selected rectangle and the Pen tool chosen.
-fn pen_app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn pen_app() -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     crate::shortcut_editor::sync(&app.ui);
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 50})).unwrap();
@@ -91,7 +91,7 @@ fn a_tool_key_let_go_behind_the_update_prompt_returns_after_it() {
 }
 
 /// S held from 0 s, its repeats at `repeats`, let go at `release`.
-fn hold_s(app: &mut VectorcraftApp, keys: &Keyboard, repeats: &[f64], release: f64) {
+fn hold_s(app: &mut PlumaApp, keys: &Keyboard, repeats: &[f64], release: f64) {
     keys.press_s(app, 0.0);
     assert_eq!(app.session.tool_id(), "scale", "the press chooses Scale");
     for &t in repeats {
@@ -198,7 +198,7 @@ fn a_click_lent_to_a_selection_tool_does_not_use_the_held_tool() {
         let mut app = pen_app();
         let keys = Keyboard::new();
         keys.press_s(&mut app, 0.0);
-        let mods = vectorcraft_tools::Mods { cmd: true, ..Default::default() };
+        let mods = pluma_tools::Mods { cmd: true, ..Default::default() };
         assert!(app.session.lent_tool_id(&mods).is_some(), "Scale lends a selection tool to a Cmd press");
         let view = app.view_info();
         let event = |kind| PointerEvent { mods, ..PointerEvent::new(kind, 150.0, 125.0) };

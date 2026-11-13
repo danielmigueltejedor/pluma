@@ -3,10 +3,10 @@
 //! pattern fills into their tiles inside a clip group, and Create Gradient Mesh taking a gradient
 //! fill's colours.
 
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{AppearanceItem, Node, NodeKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -77,20 +77,20 @@ fn fill_color(n: &Node) -> Color {
     n.appearance.fill_paint().color().unwrap_or_else(|| panic!("solid fill expected on {:?}", n.kind))
 }
 
-fn render(s: &Session) -> vectorcraft_render::Rendered {
+fn render(s: &Session) -> pluma_render::Rendered {
     let doc = s.doc().unwrap().doc.clone();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    vectorcraft_render::Renderer::new().render(&doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts)
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    pluma_render::Renderer::new().render(&doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts)
 }
 
 /// The mean difference of the colour channels of two renders.
-fn mean_diff(a: &vectorcraft_render::Rendered, b: &vectorcraft_render::Rendered) -> f64 {
+fn mean_diff(a: &pluma_render::Rendered, b: &pluma_render::Rendered) -> f64 {
     let sum: u64 = a.pixels.iter().zip(b.pixels.iter()).map(|(x, y)| x.abs_diff(*y) as u64).sum();
     sum as f64 / a.pixels.len() as f64
 }
 
 /// Pixels (of 200×200) whose colour differs by more than `tol` in any channel.
-fn differing(a: &vectorcraft_render::Rendered, b: &vectorcraft_render::Rendered, tol: u8) -> usize {
+fn differing(a: &pluma_render::Rendered, b: &pluma_render::Rendered, tol: u8) -> usize {
     a.pixels
         .as_chunks::<4>()
         .0
@@ -149,7 +149,7 @@ fn a_placed_gradient_moved_by_a_transform_or_free_distort_expands_as_the_canvas_
         // Placed from a quarter of the way across to the right edge.
         run(&mut s, "paint.setGradientGeom", json!({"start": [70, 100], "end": [160, 100], "stroke": false}));
         let placed = s.doc().unwrap().doc.node(id).and_then(|n| match n.appearance.fill_paint() {
-            vectorcraft_color::Paint::Gradient(g) => g.geom,
+            pluma_color::Paint::Gradient(g) => g.geom,
             _ => None,
         });
         assert!(placed.is_some(), "the fill's gradient is placed");
@@ -169,7 +169,7 @@ fn a_placed_gradient_moved_by_a_transform_or_free_distort_expands_as_the_canvas_
 #[test]
 fn a_fitted_gradient_turned_by_a_transform_expands_as_the_canvas_draws_it() {
     // The gray level at (x, y).
-    let gray = |r: &vectorcraft_render::Rendered, x: usize, y: usize| r.pixels[(y * 200 + x) * 4] as i32;
+    let gray = |r: &pluma_render::Rendered, x: usize, y: usize| r.pixels[(y * 200 + x) * 4] as i32;
     // The object's own effect, and the fill's (the first appearance item).
     for (params, item) in
         [(json!({"rotate": 90}), json!(null)), (json!({"rotate": 90}), json!(0)), (json!({"rotate": 30, "scaleH": 60}), json!(null))]
@@ -204,7 +204,7 @@ fn a_placed_gradient_moved_by_a_warp_expands_as_the_canvas_draws_it() {
         // Placed from a quarter of the way across to the right edge.
         run(&mut s, "paint.setGradientGeom", json!({"start": [70, 100], "end": [160, 100], "stroke": false}));
         let placed = s.doc().unwrap().doc.node(id).and_then(|n| match n.appearance.fill_paint() {
-            vectorcraft_color::Paint::Gradient(g) => g.geom,
+            pluma_color::Paint::Gradient(g) => g.geom,
             _ => None,
         });
         assert!(placed.is_some(), "the fill's gradient is placed");
@@ -317,7 +317,7 @@ fn a_radial_gradient_becomes_concentric_ellipses() {
     let (_, rings) = clip_parts(&g);
     let subpaths = |n: &Node| n.path_data().unwrap().subpaths.len();
     assert_eq!(rings.iter().map(|r| subpaths(r)).collect::<Vec<_>>(), [2, 2, 2, 1]);
-    let Some(vectorcraft_doc::AppearanceItem::Fill(f)) = rings[3].appearance.items.first() else { panic!() };
+    let Some(pluma_doc::AppearanceItem::Fill(f)) = rings[3].appearance.items.first() else { panic!() };
     assert!(f.opacity < 1.0 && f.opacity > 0.5, "the centre band is translucent: {}", f.opacity);
 }
 
@@ -602,11 +602,11 @@ fn a_turned_pattern_whose_tiles_have_effects_it_cannot_bake_stays_live() {
         let square = s.doc().unwrap().doc.pattern("Dots").unwrap().art[0].clone();
         let art = if group {
             let mut g = Node::group(NodeId(0), vec![square]);
-            g.appearance.effects.push(vectorcraft_render::effects::new_effect("path.offsetPath", &json!({"offset": 2})).unwrap());
+            g.appearance.effects.push(pluma_render::effects::new_effect("path.offsetPath", &json!({"offset": 2})).unwrap());
             g
         } else {
             let mut a = (*square).clone();
-            a.appearance.effects.push(vectorcraft_render::effects::new_effect("stylize.dropShadow", &json!({"x": 4, "y": 0})).unwrap());
+            a.appearance.effects.push(pluma_render::effects::new_effect("stylize.dropShadow", &json!({"x": 4, "y": 0})).unwrap());
             a
         };
         s.edit("Effect", |d, _| {
@@ -630,7 +630,7 @@ fn a_random_transform_in_the_tile_art_draws_every_tile_alike() {
         let square = s.doc().unwrap().doc.pattern("Dots").unwrap().art[0].clone();
         let mut art = if group { Node::group(NodeId(0), vec![square]) } else { (*square).clone() };
         let fx = json!({"moveH": 4, "rotate": 40, "random": true});
-        art.appearance.effects.push(vectorcraft_render::effects::new_effect("distort.transform", &fx).unwrap());
+        art.appearance.effects.push(pluma_render::effects::new_effect("distort.transform", &fx).unwrap());
         s.edit("Effect", |d, _| {
             d.pattern_mut("Dots").unwrap().art = vec![std::sync::Arc::new(art)];
             Ok(())
@@ -684,7 +684,7 @@ fn roughen_in_the_tile_art_of_a_scaled_pattern_keeps_its_detail() {
     let id = pattern_rect(&mut s, Rect::new(20.0, 20.0, 180.0, 180.0), false);
     let mut art = (*s.doc().unwrap().doc.pattern("Dots").unwrap().art[0]).clone();
     let fx = json!({"size": 2, "relative": false, "detail": 20, "points": "corner", "seed": 3});
-    art.appearance.effects.push(vectorcraft_render::effects::new_effect("distort.roughen", &fx).unwrap());
+    art.appearance.effects.push(pluma_render::effects::new_effect("distort.roughen", &fx).unwrap());
     s.edit("Effect", |d, _| {
         d.pattern_mut("Dots").unwrap().art = vec![std::sync::Arc::new(art)];
         Ok(())

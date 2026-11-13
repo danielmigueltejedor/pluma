@@ -1,15 +1,15 @@
 //! The » list of the document tab strip with more documents than fit in the window (#4017).
 
 use egui::{Event, PointerButton, Pos2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, chrome};
+use crate::{PlumaApp, chrome};
 
 const SIZE: egui::Vec2 = egui::vec2(1000.0, 700.0);
 
 /// Run a tab-strip frame and return the visible texts with their screen rects.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> Vec<(String, egui::Rect)> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> Vec<(String, egui::Rect)> {
     let mut out = ctx.run_ui(
         egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, SIZE)), time: Some(time), events, ..Default::default() },
         |ui| {
@@ -46,7 +46,7 @@ fn click(at: Pos2, pressed: bool) -> Event {
 /// off the bottom of the window.
 #[test]
 fn the_tab_overflow_list_scrolls_to_its_last_document() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     for i in 0..60 {
         app.run("file.new", json!({"width": 100, "height": 100, "name": format!("Doc {i:02}")})).unwrap();
     }

@@ -1,12 +1,12 @@
 use egui::{Pos2, Shape, pos2, vec2};
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::menus::enabled;
 
 /// An app with `n` new 400 × 300 pt documents, the last one current.
-fn app_with(n: usize) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with(n: usize) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     for _ in 0..n {
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     }
@@ -16,7 +16,7 @@ fn app_with(n: usize) -> VectorcraftApp {
 /// One headless frame of the canvas panel's body (the tabs and the canvas or panes) on a
 /// 1200 × 800 window, then the floating document windows, which egui draws inside the window →
 /// the shapes it drew, `Shape::Vec`s flattened.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<Shape> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<Shape> {
     fn flat(s: Shape, out: &mut Vec<Shape>) {
         match s {
             Shape::Vec(v) => v.into_iter().for_each(|s| flat(s, out)),
@@ -44,27 +44,27 @@ fn button(pos: Pos2, pressed: bool) -> egui::Event {
 }
 
 /// A press and release at `pos`, then a frame to settle.
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, pos: Pos2) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, pos: Pos2) {
     frame(app, ctx, vec![egui::Event::PointerMoved(pos), button(pos, true)]);
     frame(app, ctx, vec![button(pos, false)]);
     frame(app, ctx, vec![]);
 }
 
 /// Where the last frame drew document `i`'s window body.
-fn body_of(app: &VectorcraftApp, i: usize) -> egui::Rect {
+fn body_of(app: &PlumaApp, i: usize) -> egui::Rect {
     let uid = app.session.documents()[i].uid;
     app.ui.floating.iter().find(|w| w.uid == uid).and_then(|w| w.body).unwrap()
 }
 
 /// The whole of document `i`'s window inside the main window, title bar included.
-fn window_of(app: &VectorcraftApp, ctx: &egui::Context, i: usize) -> egui::Rect {
+fn window_of(app: &PlumaApp, ctx: &egui::Context, i: usize) -> egui::Rect {
     let uid = app.session.documents()[i].uid;
     let w = app.ui.floating.iter().find(|w| w.uid == uid).unwrap();
     ctx.memory(|m| m.area_rect(window_id(w))).unwrap()
 }
 
 /// A drag with the primary button from `from` to `to`, then a frame to settle.
-fn drag(app: &mut VectorcraftApp, ctx: &egui::Context, from: Pos2, to: Pos2) {
+fn drag(app: &mut PlumaApp, ctx: &egui::Context, from: Pos2, to: Pos2) {
     frame(app, ctx, vec![egui::Event::PointerMoved(from)]);
     frame(app, ctx, vec![button(from, true)]);
     for k in 1..=4 {
@@ -110,7 +110,7 @@ fn a_control_channel_keeps_the_windows_inside_the_main_window() {
         assert!(native(&plain, &ctx), "without a control channel the windows are OS windows");
     }
     let (_tx, rx) = std::sync::mpsc::channel();
-    let controlled = VectorcraftApp::new(Session::new(), Default::default()).with_control(rx);
+    let controlled = PlumaApp::new(Session::new(), Default::default()).with_control(rx);
     assert!(!native(&controlled, &ctx), "with a control channel the windows stay inside the main window");
     ctx.set_embed_viewports(true);
     assert!(!native(&plain, &ctx), "where egui draws every viewport inside the main window");
@@ -276,7 +276,7 @@ fn closing_a_floating_window_closes_its_document_and_asks_to_save_an_unsaved_one
     frame(&mut app, &ctx, vec![]);
     // Document 0's window is behind document 1's: its close button is at the top right of its
     // title bar, clear of document 1's window to the right and below.
-    let close_button = |app: &VectorcraftApp, i: usize| {
+    let close_button = |app: &PlumaApp, i: usize| {
         let uid = app.session.documents()[i].uid;
         let w = app.ui.floating.iter().find(|w| w.uid == uid).unwrap();
         let area = ctx.memory(|m| m.area_rect(window_id(w))).unwrap();
@@ -290,7 +290,7 @@ fn closing_a_floating_window_closes_its_document_and_asks_to_save_an_unsaved_one
     assert!(app.session.documents()[1].is_dirty());
     frame(&mut app, &ctx, vec![]);
     // The close button sits near the right end of the title bar.
-    let press_close = |app: &mut VectorcraftApp, i: usize| {
+    let press_close = |app: &mut PlumaApp, i: usize| {
         let (area, body) = close_button(app, i);
         let bar = (area.top() + body.top()) / 2.0;
         let n = app.session.documents().len();
@@ -360,7 +360,7 @@ fn a_document_made_current_in_presentation_mode_comes_to_the_front_after_it() {
     app.run("window.arrange.floatAllInWindows", json!({})).unwrap();
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![]);
-    let layer = |app: &VectorcraftApp, i: usize| {
+    let layer = |app: &PlumaApp, i: usize| {
         let uid = app.session.documents()[i].uid;
         let w = app.ui.floating.iter().find(|w| w.uid == uid).unwrap();
         egui::LayerId::new(egui::Order::Middle, window_id(w))
@@ -467,7 +467,7 @@ fn the_update_prompt_takes_the_keyboard_from_a_document_window() {
     frame(&mut app, &ctx, vec![]);
     app.run("window.arrange.floatInWindow", json!({})).unwrap();
     frame(&mut app, &ctx, vec![]);
-    let focus_commands = |app: &mut VectorcraftApp| {
+    let focus_commands = |app: &mut PlumaApp| {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| crate::updates_ui::show(app, ui.ctx()));
         out.textures_delta.clear();
         out.viewport_output.get(&egui::ViewportId::ROOT).map_or(0, |v| v.commands.iter().filter(|c| **c == egui::ViewportCommand::Focus).count())
@@ -541,7 +541,7 @@ fn a_window_dragged_by_its_title_bar_onto_the_strip_goes_back_under_the_tabs() {
     app.run("window.arrange.floatAllInWindows", json!({})).unwrap();
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![]);
-    let title_bar = |app: &VectorcraftApp, i: usize| {
+    let title_bar = |app: &PlumaApp, i: usize| {
         let (window, body) = (window_of(app, &ctx, i), body_of(app, i));
         pos2(window.left() + 60.0, (window.top() + body.top()) / 2.0)
     };
@@ -653,7 +653,7 @@ fn documents_open_when_the_app_starts_keep_their_tabs() {
     let mut session = Session::new();
     session.prefs.open_documents_as_tabs = false;
     session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
-    let mut app = VectorcraftApp::new(session, Default::default());
+    let mut app = PlumaApp::new(session, Default::default());
     app.sync_views();
     assert_eq!(docked(&app), [0]);
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
@@ -712,7 +712,7 @@ fn an_os_window_moves_by_its_tab_and_docks_on_the_strip() {
     // The OS window's top-left corner is at (300, 300) on the screen; the main window's at (0, 0).
     host.borrow_mut().origin = pos2(300.0, 300.0);
     frame(&mut app, &ctx, vec![]);
-    let os_drag = |app: &mut VectorcraftApp, from: Pos2, to: Pos2| {
+    let os_drag = |app: &mut PlumaApp, from: Pos2, to: Pos2| {
         let steps = [vec![egui::Event::PointerMoved(from)], vec![button(from, true)]]
             .into_iter()
             .chain((1..=4).map(|k| vec![egui::Event::PointerMoved(from + (to - from) * (k as f32 / 4.0))]))
@@ -745,7 +745,7 @@ fn the_arrange_items_are_enabled_as_the_documents_allow() {
         "window.arrange.floatAllInWindows",
         "window.arrange.consolidateAllWindows",
     ];
-    let states = |app: &VectorcraftApp| ids.map(|id| enabled(app, id));
+    let states = |app: &PlumaApp| ids.map(|id| enabled(app, id));
     let mut app = app_with(0);
     assert_eq!(states(&app), [false; 5], "no document");
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
@@ -762,7 +762,7 @@ fn the_arrange_items_are_enabled_as_the_documents_allow() {
 }
 
 /// The title of window `w`'s tab.
-fn title_of(app: &VectorcraftApp, w: Win) -> String {
+fn title_of(app: &PlumaApp, w: Win) -> String {
     crate::chrome::document_window_title(app, w).unwrap()
 }
 

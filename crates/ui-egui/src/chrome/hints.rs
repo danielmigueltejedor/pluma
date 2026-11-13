@@ -1,5 +1,5 @@
 use super::status_bar::ANIMATED_ZOOM_HINT;
-use super::{Cow, Sense, Stroke, Tokens, Ui, VectorcraftApp, menus, theme, vec2, widgets};
+use super::{Cow, PlumaApp, Sense, Stroke, Tokens, Ui, menus, theme, vec2, widgets};
 
 fn hint_for(tool: &str) -> Option<&'static [(&'static str, bool)]> {
     Some(match tool {
@@ -181,7 +181,7 @@ fn hint_for(tool: &str) -> Option<&'static [(&'static str, bool)]> {
 /// can insist a complete language covers them.
 pub fn hint_strings() -> Vec<&'static str> {
     let mut v = Vec::new();
-    for tool in vectorcraft_tools::catalog::all_tools().map(|t| t.id).chain([ANIMATED_ZOOM_HINT]) {
+    for tool in pluma_tools::catalog::all_tools().map(|t| t.id).chain([ANIMATED_ZOOM_HINT]) {
         for &(text, bold) in hint_for(tool).unwrap_or(&[]) {
             let text = if bold { text.rsplit_once('+').map_or(text, |(_, k)| k) } else { text };
             if !text.is_empty() && !text.chars().all(|c| c.is_ascii_digit()) && !v.contains(&text) {
@@ -224,31 +224,29 @@ pub(super) fn hint_segments(tool: &str) -> Vec<(Cow<'static, str>, bool)> {
         .collect()
 }
 
-pub fn hint_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn hint_bar(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    let panel = egui::Panel::bottom("hint_bar")
-        .exact_size(28.0)
-        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(10, 0)).stroke(Stroke::new(1.0, t.border)))
-        .show(ui, |ui| {
-            ui.horizontal_centered(|ui| {
-                let (r, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
-                ui.painter().circle_stroke(r.center(), 7.0, Stroke::new(1.2, t.text));
-                ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "?", theme::semibold(11.0), t.text);
-                ui.add_space(6.0);
-                let mut job = egui::text::LayoutJob::default();
-                let segments = if let Some(d) = app.ui.dialog.as_ref().filter(|d| crate::dialogs::revolve_gizmo::active(d)) {
-                    vec![(crate::dialogs::revolve_gizmo::hint(d).into(), false)]
-                } else {
-                    let tool = app.session.tool_id();
-                    let hint = if tool == "zoom" && crate::canvas::animated_zoom(&app.session.prefs) { ANIMATED_ZOOM_HINT } else { tool };
-                    hint_segments(hint)
-                };
-                for (txt, bold) in segments {
-                    let font = if bold { theme::semibold(12.5) } else { egui::FontId::proportional(12.5) };
-                    job.append(&txt, 0.0, egui::TextFormat { font_id: font, color: if bold { t.text_strong } else { t.text }, ..Default::default() });
-                }
-                ui.label(job);
-            });
+    let (frame, gap) = theme::bar_frame(&t, egui::Margin::symmetric(if t.nodalia { 12 } else { 10 }, 0), theme::Gap::Top);
+    let panel = egui::Panel::bottom("hint_bar").exact_size(28.0 + gap).show_separator_line(!t.nodalia).frame(frame).show(ui, |ui| {
+        ui.horizontal_centered(|ui| {
+            let (r, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
+            ui.painter().circle_stroke(r.center(), 7.0, Stroke::new(1.2, t.text));
+            ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "?", theme::semibold(11.0), t.text);
+            ui.add_space(6.0);
+            let mut job = egui::text::LayoutJob::default();
+            let segments = if let Some(d) = app.ui.dialog.as_ref().filter(|d| crate::dialogs::revolve_gizmo::active(d)) {
+                vec![(crate::dialogs::revolve_gizmo::hint(d).into(), false)]
+            } else {
+                let tool = app.session.tool_id();
+                let hint = if tool == "zoom" && crate::canvas::animated_zoom(&app.session.prefs) { ANIMATED_ZOOM_HINT } else { tool };
+                hint_segments(hint)
+            };
+            for (txt, bold) in segments {
+                let font = if bold { theme::semibold(12.5) } else { egui::FontId::proportional(12.5) };
+                job.append(&txt, 0.0, egui::TextFormat { font_id: font, color: if bold { t.text_strong } else { t.text }, ..Default::default() });
+            }
+            ui.label(job);
         });
+    });
     widgets::set_menu_floor(ui.ctx(), panel.response.rect.top());
 }

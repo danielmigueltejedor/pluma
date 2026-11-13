@@ -14,10 +14,10 @@
 //!   next solid fill color or Transparency panel opacity goes to just the picked points. Escape
 //!   during a drag cancels it.
 
+use pluma_color::Paint;
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::Point;
 
 use crate::meshedit::{MeshEdit, grid_of};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -33,7 +33,7 @@ pub fn create(id: &str) -> Option<Box<dyn Tool>> {
 }
 
 fn hit_top(cx: &ToolContext, p: Point) -> Option<(NodeId, NodeId)> {
-    let h = vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options())?;
+    let h = pluma_doc::hit::hit_test(cx.doc, p, cx.hit_options())?;
     Some((h.top_object(cx.isolation), h.leaf))
 }
 
@@ -63,7 +63,7 @@ fn anchor_at(cx: &ToolContext, id: NodeId, p: Point) -> Option<usize> {
         _ => return None,
     };
     let tol = cx.tol(5.0);
-    let d = |a: &vectorcraft_geom::Anchor| a.p.distance(p);
+    let d = |a: &pluma_geom::Anchor| a.p.distance(p);
     let (i, a) = path.subpaths.first()?.anchors.iter().enumerate().min_by(|x, y| d(x.1).total_cmp(&d(y.1)))?;
     (d(a) <= tol).then_some(i)
 }
@@ -335,15 +335,15 @@ impl Tool for MeshTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     #[test]
     fn blend_tool_two_clicks_make_blend() {
         let (mut d, a) = doc_with_rect();
         let l = d.layers[0].id;
         let b = d.alloc_id();
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
+        d.insert(Some(l), 1, pluma_doc::Node::path(b, r, pluma_doc::Appearance::default_art())).unwrap();
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);
         let mut t = create("blend").unwrap();
@@ -359,14 +359,14 @@ mod tests {
         let (mut d, a) = doc_with_rect();
         let l = d.layers[0].id;
         let (b, g) = (d.alloc_id(), d.alloc_id());
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
+        d.insert(Some(l), 1, pluma_doc::Node::path(b, r, pluma_doc::Appearance::default_art())).unwrap();
         let (k1, k2) = (d.alloc_id(), d.alloc_id());
         let key = |id: NodeId, x: f64| {
-            let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-            std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+            let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+            std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
         };
-        let blend = vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
+        let blend = pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
         d.insert(Some(l), 2, blend).unwrap();
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);
@@ -419,8 +419,8 @@ mod tests {
         let l = d.layers[0].id;
         let (b, e) = (d.alloc_id(), d.alloc_id());
         for (id, y) in [(b, 100.0), (e, 300.0)] {
-            let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, y, 350.0, y + 50.0));
-            d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+            let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, y, 350.0, y + 50.0));
+            d.insert(Some(l), 1, pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art())).unwrap();
         }
         let (s, p) = (Selection::default(), paint());
         let mut t = BlendTool::default();
@@ -445,8 +445,8 @@ mod tests {
         let (mut d, a) = doc_with_rect();
         let l = d.layers[0].id;
         let b = d.alloc_id();
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
+        d.insert(Some(l), 1, pluma_doc::Node::path(b, r, pluma_doc::Appearance::default_art())).unwrap();
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);
         let mut t = create("blend").unwrap();
@@ -474,11 +474,11 @@ mod tests {
         let l = d.layers[0].id;
         let g = d.alloc_id();
         let key = |id: NodeId, x: f64| {
-            let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-            std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+            let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+            std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
         };
         let (k1, k2) = (d.alloc_id(), d.alloc_id());
-        let blend = vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
+        let blend = pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
         d.insert(Some(l), 1, blend).unwrap();
         let mut s = Selection::default();
         let p = paint();
@@ -499,14 +499,14 @@ mod tests {
         let (mut d, a) = doc_with_rect();
         let l = d.layers[0].id;
         let (b, g) = (d.alloc_id(), d.alloc_id());
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
+        d.insert(Some(l), 1, pluma_doc::Node::path(b, r, pluma_doc::Appearance::default_art())).unwrap();
         let (k1, k2) = (d.alloc_id(), d.alloc_id());
         let key = |id: NodeId, x: f64| {
-            let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-            std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+            let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+            std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
         };
-        let blend = vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
+        let blend = pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
         d.insert(Some(l), 2, blend).unwrap();
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);
@@ -545,14 +545,14 @@ mod tests {
         let (mut d, a) = doc_with_rect();
         let l = d.layers[0].id;
         let (b, g) = (d.alloc_id(), d.alloc_id());
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, r, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(300.0, 100.0, 350.0, 150.0));
+        d.insert(Some(l), 1, pluma_doc::Node::path(b, r, pluma_doc::Appearance::default_art())).unwrap();
         let (k1, k2) = (d.alloc_id(), d.alloc_id());
         let key = |id: NodeId, x: f64| {
-            let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-            std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+            let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+            std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
         };
-        let blend = vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
+        let blend = pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 0.0), key(k2, 100.0)], spec: Default::default() });
         d.insert(Some(l), 2, blend).unwrap();
         let (s, p) = (Selection::default(), paint());
         let c = cx(&d, &s, &p);

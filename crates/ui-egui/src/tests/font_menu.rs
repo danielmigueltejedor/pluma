@@ -1,11 +1,11 @@
 //! The font menu's samples, ↑/↓ highlight with live preview, and applying or undoing the preview.
 
+use pluma_doc::NodeKind;
+use pluma_engine::Session;
+use pluma_text::FontDb;
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::Session;
-use vectorcraft_text::FontDb;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::font_menu::{FontPick, MenuLook, font_menu};
 
 fn key(k: egui::Key) -> Vec<egui::Event> {
@@ -15,7 +15,7 @@ fn key(k: egui::Key) -> Vec<egui::Event> {
 /// Recently used means applied, including an edited character range, never just hovered.
 #[test]
 fn recent_fonts_follow_committed_choices_and_the_count_preference() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Recent fonts", "font": "Inter"})).unwrap()["id"].clone();
     let ctx = egui::Context::default();
@@ -116,15 +116,15 @@ fn samples_show_the_text_in_the_family_or_a_generic_sample() {
 #[test]
 fn preview_changes_the_text_live_and_only_a_choice_is_a_step() {
     let ctx = egui::Context::default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Gagaku", "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let font = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+    let font = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.first_style().font_family,
         _ => String::new(),
     };
-    let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let steps = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     assert_eq!(crate::font_menu::sample_text(&app).as_deref(), Some("Gagaku"));
     let before = steps(&app);
     crate::font_menu::apply(&mut app, &ctx, FontPick::Preview("Source Serif 4".into(), None));
@@ -145,7 +145,7 @@ fn preview_changes_the_text_live_and_only_a_choice_is_a_step() {
 #[test]
 fn a_preview_left_open_by_a_menu_that_is_gone_is_undone() {
     let ctx = egui::Context::default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Gagaku", "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -154,7 +154,7 @@ fn a_preview_left_open_by_a_menu_that_is_gone_is_undone() {
     assert!(app.session.in_interaction());
     crate::font_menu::end_stale_preview(&mut app, &ctx);
     assert!(!app.session.in_interaction(), "no menu drawn: the preview is undone");
-    let font = match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+    let font = match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.first_style().font_family,
         _ => String::new(),
     };
@@ -170,7 +170,7 @@ fn a_preview_left_open_by_a_menu_that_is_gone_is_undone() {
 fn a_press_outside_the_menu_ends_the_preview_at_once() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Gagaku", "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -204,7 +204,7 @@ fn a_press_outside_the_menu_ends_the_preview_at_once() {
 }
 
 /// A document with point type in Inter, selected; its id.
-fn selected_inter(app: &mut VectorcraftApp) -> u64 {
+fn selected_inter(app: &mut PlumaApp) -> u64 {
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     // These tests exercise font picking, including system fonts without Latin glyphs. Missing
     // glyph protection would intentionally keep the sample text in its previous font.
@@ -217,8 +217,8 @@ fn selected_inter(app: &mut VectorcraftApp) -> u64 {
     id
 }
 
-fn first_style(app: &VectorcraftApp, id: u64) -> vectorcraft_doc::CharStyle {
-    match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+fn first_style(app: &PlumaApp, id: u64) -> pluma_doc::CharStyle {
+    match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.first_style(),
         _ => panic!("not type"),
     }
@@ -233,10 +233,10 @@ fn wheel(unit: egui::MouseWheelUnit, dy: f32, modifiers: egui::Modifiers) -> egu
 /// is drawn (the menu is open).
 fn panel_frame(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     events: Vec<egui::Event>,
     family: &str,
-    draw: &dyn Fn(&mut VectorcraftApp, &mut egui::Ui),
+    draw: &dyn Fn(&mut PlumaApp, &mut egui::Ui),
 ) -> (Option<egui::Pos2>, bool) {
     panel_frame_at(ctx, app, None, events, family, draw)
 }
@@ -244,11 +244,11 @@ fn panel_frame(
 /// [`panel_frame`] with the input's clock set to `time` seconds.
 fn panel_frame_at(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     time: Option<f64>,
     events: Vec<egui::Event>,
     family: &str,
-    draw: &dyn Fn(&mut VectorcraftApp, &mut egui::Ui),
+    draw: &dyn Fn(&mut PlumaApp, &mut egui::Ui),
 ) -> (Option<egui::Pos2>, bool) {
     let mut input = egui::RawInput {
         time,
@@ -278,11 +278,11 @@ fn panel_frame_at(
 fn the_wheel_over_the_family_field_steps_the_selected_type_through_the_families() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
-    let font = |app: &VectorcraftApp| first_style(app, id).font_family;
-    let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let font = |app: &PlumaApp| first_style(app, id).font_family;
+    let steps = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -334,9 +334,9 @@ fn the_wheel_over_the_family_field_steps_the_selected_type_through_the_families(
 fn opposite_wheel_notches_in_one_frame_keep_their_undo_steps() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -364,9 +364,9 @@ fn opposite_wheel_notches_in_one_frame_keep_their_undo_steps() {
 fn a_wheel_before_opening_the_family_popup_keeps_its_committed_change() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -394,9 +394,9 @@ fn a_wheel_before_opening_the_family_popup_keeps_its_committed_change() {
 fn wheel_events_use_the_pointer_position_when_they_occurred() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -464,9 +464,9 @@ fn wheel_events_use_the_pointer_position_when_they_occurred() {
 fn a_wheel_queued_for_another_document_is_discarded() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     selected_inter(&mut app);
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -492,7 +492,7 @@ fn a_wheel_queued_for_another_document_is_discarded() {
 fn presentation_mode_leaves_a_transient_font_fields_wheel_available() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     selected_inter(&mut app);
     app.run("window.panel.close", json!({"panel": "character"})).unwrap();
     app.run("window.panel.close", json!({"panel": "properties"})).unwrap();
@@ -501,7 +501,7 @@ fn presentation_mode_leaves_a_transient_font_fields_wheel_available() {
     assert!(!crate::panel_docking::showing(&app.ui, "properties"));
     assert!(crate::panel_docking::showing(&app.ui, "appearance"));
     app.ui.transient_panel = Some("character".into());
-    let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
+    let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| crate::panels::character::show(app, ui);
     let mut field = None;
     for _ in 0..3 {
         field = panel_frame(&ctx, &mut app, vec![], "Inter", &draw).0;
@@ -519,7 +519,7 @@ fn presentation_mode_leaves_a_transient_font_fields_wheel_available() {
 /// the families over it too.
 #[test]
 fn the_wheel_steps_the_families_in_properties_and_the_control_bar() {
-    type Draw = fn(&mut VectorcraftApp, &mut egui::Ui);
+    type Draw = fn(&mut PlumaApp, &mut egui::Ui);
     let places: [(&str, Draw); 2] = [
         ("Properties", |app, ui| crate::panels::properties::type_sections(app, ui)),
         ("Control bar", |app, ui| crate::panels::character::control_bar(app, ui)),
@@ -528,7 +528,7 @@ fn the_wheel_steps_the_families_in_properties_and_the_control_bar() {
     for (place, draw) in places {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let id = selected_inter(&mut app);
         app.ui.control_bar = true;
         let mut field = None;
@@ -546,7 +546,7 @@ fn the_wheel_steps_the_families_in_properties_and_the_control_bar() {
 }
 
 /// The Character panel in a scroll area, its family field near the bottom of the view.
-fn scrolling_character_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn scrolling_character_panel(app: &mut PlumaApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
         ui.add_space(250.0);
         crate::panels::character::show(app, ui);
@@ -560,7 +560,7 @@ fn scrolling_character_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
 fn scrolling_a_panel_past_the_family_field_under_a_still_pointer_keeps_the_font() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
     let draw = scrolling_character_panel;
     let mut field = None;
@@ -590,7 +590,7 @@ fn scrolling_a_panel_past_the_family_field_under_a_still_pointer_keeps_the_font(
 fn a_family_field_scrolled_under_a_still_pointer_takes_the_wheel_after_the_pointer_moves() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
     let draw = scrolling_character_panel;
     let mut time = 100.0;
@@ -642,7 +642,7 @@ fn a_family_field_scrolled_under_a_still_pointer_takes_the_wheel_after_the_point
 #[test]
 fn a_family_stepped_to_keeps_the_style_it_has() {
     let ctx = egui::Context::default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let id = selected_inter(&mut app);
     let db = FontDb::global();
     let bold: Vec<String> = db.menu_family_list().iter().filter(|f| db.styles(f).iter().any(|s| s == "Bold")).take(2).cloned().collect();
@@ -657,7 +657,7 @@ fn a_family_stepped_to_keeps_the_style_it_has() {
 
 #[test]
 fn bundled_families_are_classified() {
-    use vectorcraft_text::FontClass;
+    use pluma_text::FontClass;
     let db = FontDb::global();
     let class = |f: &str| db.family_traits(f).class;
     assert_eq!(class("JetBrains Mono"), FontClass::Monospaced);
@@ -753,7 +753,7 @@ fn styles_listed_above_the_highlight_leave_it_on_its_family() {
 
 #[test]
 fn stars_mark_favourites_and_the_preferences_size_the_rows() {
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     crate::font_menu::apply(&mut app, &ctx, FontPick::Favorite("Inter".into()));
     crate::font_menu::apply(&mut app, &ctx, FontPick::Favorite("Source Serif 4".into()));
@@ -773,15 +773,15 @@ fn stars_mark_favourites_and_the_preferences_size_the_rows() {
 /// previews on the document, a choice is just returned, and a star is still toggled.
 #[test]
 fn menus_that_only_pick_a_font_leave_the_document_alone() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Gagaku", "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let font = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+    let font = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.first_style().font_family,
         _ => String::new(),
     };
-    let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let steps = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     let before = steps(&app);
     use crate::font_menu::picked;
     assert_eq!(picked(&mut app, None), None);
@@ -910,17 +910,17 @@ fn the_menu_grows_back_when_a_search_that_matched_nothing_is_cleared() {
 fn a_preview_stays_put_while_the_menu_is_still() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Gagaku", "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let font = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+    let font = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.first_style().font_family,
         _ => String::new(),
     };
-    let revision = |app: &VectorcraftApp| app.session.active().unwrap().revision;
+    let revision = |app: &PlumaApp| app.session.active().unwrap().revision;
     // A panel's frame: the menu shows the text's font, and what it picks is applied.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let input =
             egui::RawInput { events, screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0))), ..Default::default() };
         let current = font(app);

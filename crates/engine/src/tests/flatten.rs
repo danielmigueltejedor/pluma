@@ -1,11 +1,11 @@
 //! Object → Flatten Transparency (M3.91): atomic regions with the composited colours, rasterized
 //! complex regions, the options and presets, undo and the look of the result.
 
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{AppearanceItem, Node, NodeKind};
+use pluma_geom::{BezPath, Point, Rect, Shape};
+use pluma_render::{Rendered, Renderer};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind};
-use vectorcraft_geom::{BezPath, Point, Rect, Shape};
-use vectorcraft_render::{Rendered, Renderer};
 
 use crate::tests_expand::{RANDOM_CASES, random_transforms};
 use crate::tests_menucmds::{place_undecodable_png, warns_undecoded};
@@ -161,7 +161,7 @@ fn every_blend_mode_flattens_to_its_pixels() {
             // The overlap is the reference formula's colour.
             let [r, g, b] = [0xcc, 0x66, 0x33].map(|v| v as f32 / 255.0);
             let src = [0x4d, 0x99, 0xe6].map(|v| v as f32 / 255.0);
-            let want = vectorcraft_color::blend::composite(mode, [r, g, b, 1.0], [src[0], src[1], src[2], *opacity as f32 / 100.0]);
+            let want = pluma_color::blend::composite(mode, [r, g, b, 1.0], [src[0], src[1], src[2], *opacity as f32 / 100.0]);
             let overlap = regions(&s, ids[0]).into_iter().find(|r| outline(r).winding(Point::new(85.0, 85.0)) != 0).unwrap();
             let got = shown(&overlap);
             assert!((0..3).all(|i| (want[i] * 255.0 - got[i] as f32).abs() <= 0.5 + 1e-3), "{mode:?} at {opacity}%: {got:?} vs {want:?}");
@@ -306,7 +306,7 @@ fn groups_over_the_region_limit_flatten_as_with_every_region_built() {
     };
     let eps = |s: &mut Session, balance: u32| {
         let r = run(s, "document.exportEps", json!({"flattener": {"balance": balance}, "previewFormat": "none", "thumbnails": false}));
-        let bytes = vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
+        let bytes = pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
         String::from_utf8_lossy(&bytes).lines().filter(|l| !l.contains("CreationDate")).collect::<Vec<_>>().join("\n")
     };
     for (balance, vector, rasterized) in [(20, 7, 0), (17, 7, 0), (16, 0, 1), (5, 0, 1)] {
@@ -447,7 +447,7 @@ fn flattening_multiline_transparent_text_gives_one_group_per_line() {
         run(&mut s, "text.create", json!({"x": 10, "y": 40, "text": "First line\nSecond line\nThird line", "size": 24}))["id"].as_u64().unwrap();
     run(&mut s, "transparency.set", json!({"ids": [text], "opacity": 50}));
     let NodeKind::Text(t) = &node(&s, text).kind else { panic!("type") };
-    let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let layout = pluma_text::layout(pluma_text::FontDb::global(), t);
     let baselines: Vec<f64> = layout.baselines().iter().map(|(a, _)| (t.xf * *a).y).collect();
     assert_eq!(baselines.len(), 3, "{baselines:?}");
     let before = picture(&s);
@@ -488,7 +488,7 @@ fn outlined_type_keeps_its_gradient_on_the_outlines_its_transform_effect_moves()
         flatten(&mut s, json!({"ids": [t], "textToOutlines": true}));
         diffs.push(changed(&picture(&s), &reference));
         // The outlines draw the same after the document is saved and opened again.
-        let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
         diffs.push(changed(&Renderer::new().render_region(&back, Rect::new(0.0, 0.0, 200.0, 200.0), 1.0, true), &reference));
     }
     assert!(diffs.iter().all(|&d| d < 0.0002), "shares of the pixels that changed: {diffs:?}");
@@ -507,7 +507,7 @@ fn flattened_art_keeps_the_random_transforms_the_canvas_drew() {
         let id = random_transforms(&mut s, case);
         run(&mut s, "transparency.set", json!({"ids": [id.0], "opacity": 50}));
         let before = picture(&s);
-        let baked = vectorcraft_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
+        let baked = pluma_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
         let baked = Renderer::new().render_region(&baked, Rect::new(0.0, 0.0, 200.0, 200.0), 1.0, true);
         flatten(&mut s, json!({"ids": [id.0]}));
         diffs.push((case, changed(&before, &baked), changed(&before, &picture(&s))));

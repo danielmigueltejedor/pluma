@@ -1,5 +1,5 @@
-use vectorcraft_doc::AnchorRef;
-use vectorcraft_geom::PathData;
+use pluma_doc::AnchorRef;
+use pluma_geom::PathData;
 
 use super::spans::Span;
 use super::{

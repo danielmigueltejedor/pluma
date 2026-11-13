@@ -11,10 +11,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use pluma_doc::Document;
+use pluma_geom::Rect;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::Document;
-use vectorcraft_geom::Rect;
 
 use super::super::{EngineError, NodeId, Result, Session, bad, bool_or, str_param};
 use super::encode::single_artboard;
@@ -218,7 +218,7 @@ impl Row {
         }
         let format = writable(C, Some(str_param(row, "format").unwrap_or("png")), None)?;
         if UNWRITTEN_FORMATS.contains(&format.id) {
-            return Err(bad(C, "Export for Screens writes png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai or vectorcraft"));
+            return Err(bad(C, "Export for Screens writes png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai or pluma"));
         }
         // Vector formats have no pixel size: it doesn't apply and adds no @2x suffix (not even one
         // left over from a raster row switched to SVG or PDF).
@@ -445,7 +445,7 @@ impl Naming {
         let prefix = file_part(o.prefix.as_deref().unwrap_or(""));
         let when = match o.date.as_deref() {
             Some(d) => naming::parse_date(d).ok_or_else(|| bad(C, format!("date `{d}`: YYYY-MM-DD")))?,
-            None => vectorcraft_doc::metadata::output_time().map_or([1970, 1, 1, 0, 0, 0], vectorcraft_doc::metadata::civil),
+            None => pluma_doc::metadata::output_time().map_or([1970, 1, 1, 0, 0, 0], pluma_doc::metadata::civil),
         };
         let per_file = match o.counter_per.as_deref() {
             None | Some("item") => false,
@@ -631,7 +631,7 @@ impl Output {
                 }
                 let path = format!("{dir}/{name}");
                 // A cancel that came while the file was encoded writes nothing more.
-                vectorcraft_doc::cancel::check()?;
+                pluma_doc::cancel::check()?;
                 writer(&path, &bytes)?;
                 self.written.push(path);
             }
@@ -858,7 +858,7 @@ pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
             if b64.bytes().filter(|b| !b.is_ascii_whitespace()).count() > MAX_PRESET_FILE_BYTES.div_ceil(3) * 4 {
                 return Err(bad(IMPORT, format!("export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes")));
             }
-            vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(IMPORT, "bad dataBase64"))?
+            pluma_format::base64_decode(b64).ok_or_else(|| bad(IMPORT, "bad dataBase64"))?
         }
         _ => return Err(bad(IMPORT, "give `path`, `data` or `dataBase64`")),
     };
@@ -1039,7 +1039,7 @@ impl ScreenExport {
     /// Make the export folder, encode the files and write each with `writer` into the folder and
     /// its sub-folders, or keep them to zip (the zip written with `writer` into the folder) or to
     /// return → the reply of `document.exportForScreens`. It reports one progress step per file
-    /// ([`vectorcraft_doc::cancel::progress`]), and a cancel stops it before it encodes or writes
+    /// ([`pluma_doc::cancel::progress`]), and a cancel stops it before it encodes or writes
     /// another file.
     pub fn write(self, writer: &mut dyn FnMut(&str, &[u8]) -> Result<()>) -> Result<Value> {
         let cmd = self.cmd;
@@ -1063,7 +1063,7 @@ fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) ->
     let bleed_on_page = o.include_bleed && o.assets.is_none() && o.layers.is_none() && o.selection.is_none();
     let mut write = |doc: &Document, format: &str, options: &Value| -> Result<Vec<u8>> {
         // The steps are the files: an encoder's own steps (artboards, pages) are not reported.
-        let (bytes, notes) = vectorcraft_doc::cancel::quiet(|| encode_with_warnings(doc, format, options))?;
+        let (bytes, notes) = pluma_doc::cancel::quiet(|| encode_with_warnings(doc, format, options))?;
         for w in notes {
             if !(bleed_on_page && w == super::pdf::BLEED_LEFT_OUT) && !warnings.contains(&w) {
                 warnings.push(w);
@@ -1082,8 +1082,8 @@ fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) ->
     let artboards: Option<Vec<usize>> = items.iter().map(|i| i.artboard).collect::<Option<Vec<_>>>().filter(|a| naming.single_pdf && a.len() > 1);
     for (index, item) in items.iter().enumerate() {
         for r in &rows {
-            vectorcraft_doc::cancel::check()?;
-            vectorcraft_doc::cancel::progress(step, steps, &format!("Exporting file {} of {steps}", step + 1));
+            pluma_doc::cancel::check()?;
+            pluma_doc::cancel::progress(step, steps, &format!("Exporting file {} of {steps}", step + 1));
             step += 1;
             let single = artboards.as_ref().filter(|_| r.format.id == "pdf");
             if single.is_some() && index > 0 {
@@ -1140,13 +1140,13 @@ fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) ->
     // A cancel that came while the last file was encoded returns no files. A folder export
     // without a ZIP has written every file by now, so it returns them.
     if o.zip || folder.is_none() {
-        vectorcraft_doc::cancel::check()?;
+        pluma_doc::cancel::check()?;
     }
     let names: Vec<&str> = out.kept.iter().map(|(n, _)| n.as_str()).collect();
     if o.zip {
-        let zip = super::zip::deflate(&out.kept, super::zip::FIXED_TIME, vectorcraft_doc::cancel::is_cancelled);
+        let zip = super::zip::deflate(&out.kept, super::zip::FIXED_TIME, pluma_doc::cancel::is_cancelled);
         // A cancel that came while the files were deflated returns and writes no archive.
-        vectorcraft_doc::cancel::check()?;
+        pluma_doc::cancel::check()?;
         let zip = zip.map_err(|e| bad(C, e))?;
         let zip_name = safe_file_name(&format!("{}{}.zip", naming.prefix, naming.filename));
         return match folder {
@@ -1156,7 +1156,7 @@ fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) ->
                 Ok(json!({ "path": path, "bytes": zip.len(), "files": names, "warnings": warnings }))
             }
             None => Ok(
-                json!({ "name": zip_name, "dataBase64": vectorcraft_format::base64_encode(&zip), "bytes": zip.len(), "files": names, "warnings": warnings }),
+                json!({ "name": zip_name, "dataBase64": pluma_format::base64_encode(&zip), "bytes": zip.len(), "files": names, "warnings": warnings }),
             ),
         };
     }
@@ -1164,7 +1164,7 @@ fn encode_and_write(export: ScreenExport, writer: &mut dyn FnMut(&str, &[u8]) ->
         Some(_) => json!({ "files": out.written, "warnings": warnings }),
         None => {
             let files: Vec<Value> =
-                out.kept.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).collect();
+                out.kept.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": pluma_format::base64_encode(bytes) })).collect();
             json!({ "files": files, "warnings": warnings })
         }
     })
@@ -1236,7 +1236,7 @@ fn items(
         // SVG of one artboard takes the artboard's name as its title (#3544), and this one stands
         // for the whole document.
         let (whole, region) = if crop {
-            let bounds = vectorcraft_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
+            let bounds = pluma_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
             (Arc::new(single_artboard(doc, bounds, &doc.title)), bounds)
         } else {
             (doc.clone(), Rect::ZERO)

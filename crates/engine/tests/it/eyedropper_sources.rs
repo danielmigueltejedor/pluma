@@ -1,9 +1,9 @@
 //! Visible art is readable by the Eyedropper without making it editable (#1251).
 
+use pluma_doc::NodeId;
+use pluma_engine::{Session, UiRequest, ViewInfo};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::{Session, UiRequest, ViewInfo};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 fn fixture() -> (Session, NodeId, NodeId, NodeId) {
     let mut s = Session::new();
@@ -123,6 +123,6 @@ fn a_gradient_stop_can_read_a_locked_source_and_return_to_the_gradient_tool() {
     assert_eq!(s.tool_options()["stop"], json!(null));
     assert_eq!(json!(s.doc().unwrap().doc.node(source).unwrap()), before);
     let paint = s.doc().unwrap().doc.node(target).unwrap().appearance.fill_paint();
-    let vectorcraft_color::Paint::Gradient(g) = paint else { panic!("gradient retained") };
+    let pluma_color::Paint::Gradient(g) = paint else { panic!("gradient retained") };
     assert_eq!(g.gradient.stops[1].color.to_hex(), "#e23355");
 }

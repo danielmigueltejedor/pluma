@@ -9,10 +9,10 @@
 #[cfg(test)]
 mod tests;
 
+use pluma_doc::{LiveShape, NodeId, NodeKind};
+use pluma_geom::{Affine, FillRule, Point, Rect, shapes};
+use pluma_tools::addons::box3d::CustomShape;
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveShape, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, FillRule, Point, Rect, shapes};
-use vectorcraft_tools::addons::box3d::CustomShape;
 
 use super::super::create::insert_look;
 use super::super::{
@@ -113,7 +113,7 @@ fn rect_xf(r: Rect, rot: f64) -> Affine {
     if rot == 0.0 || !rot.is_finite() {
         Affine::translate(r.origin().to_vec2())
     } else {
-        Affine::translate(r.center().to_vec2()) * vectorcraft_geom::rotate_deg(rot) * Affine::translate((-r.width() / 2.0, -r.height() / 2.0))
+        Affine::translate(r.center().to_vec2()) * pluma_geom::rotate_deg(rot) * Affine::translate((-r.width() / 2.0, -r.height() / 2.0))
     }
 }
 
@@ -179,7 +179,7 @@ fn polygon(s: &mut Session, p: &Value) -> Result<Value> {
     let rounded = f64_or(p, "rounded", 0.0).clamp(-10.0, 10.0);
     let randomized = f64_or(p, "randomized", 0.0).clamp(-10.0, 10.0);
     let (pie, arc_mode) = parse_arc_params(p);
-    let xf = Affine::translate(center.to_vec2()) * vectorcraft_geom::rotate_deg(rot);
+    let xf = Affine::translate(center.to_vec2()) * pluma_geom::rotate_deg(rot);
     let live = LiveShape::Polygon { radius: r, sides, xf, radii: vec![], kinds: vec![], radii_relative: false };
     let cs = CustomShape::Polygon {
         radius: r,
@@ -208,7 +208,7 @@ fn star(s: &mut Session, p: &Value) -> Result<Value> {
     let rounded = f64_or(p, "rounded", 0.0).clamp(-10.0, 10.0);
     let randomized = f64_or(p, "randomized", 0.0).clamp(-10.0, 10.0);
     let (pie, arc_mode) = parse_arc_params(p);
-    let xf = Affine::translate(center.to_vec2()) * vectorcraft_geom::rotate_deg(rot);
+    let xf = Affine::translate(center.to_vec2()) * pluma_geom::rotate_deg(rot);
     let ratio = if r1 > 1e-9 { (r2 / r1).clamp(0.01, 1.0) } else { 0.5 };
     let cs = CustomShape::Polygon {
         radius: r1,

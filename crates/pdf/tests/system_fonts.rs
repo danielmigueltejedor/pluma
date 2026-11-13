@@ -3,10 +3,10 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use vectorcraft_doc::NodeKind;
-use vectorcraft_pdf::{ImportOptions, import_with_report};
-use vectorcraft_testkit::pdf::{PdfPage, pdf_with};
-use vectorcraft_text::{FontDb, system_font_dirs};
+use pluma_doc::NodeKind;
+use pluma_pdf::{ImportOptions, import_with_report};
+use pluma_testkit::pdf::{PdfPage, pdf_with};
+use pluma_text::{FontDb, system_font_dirs};
 
 #[test]
 fn a_fresh_session_resolves_pdf_fonts_to_installed_families() {

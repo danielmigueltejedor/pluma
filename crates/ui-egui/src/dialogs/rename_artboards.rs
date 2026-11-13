@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use super::{DialogResult, DialogSpec, form, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the artboard Rename dialog.
 pub const KIND: &str = "renameArtboards";
@@ -18,7 +18,7 @@ const CMD: &str = "artboard.rename";
 pub(super) const SPEC: DialogSpec = DialogSpec { heading: |_| tl!("Rename").into(), body, confirm, min_width: 320.0, ..DialogSpec::FORM };
 
 /// The fields the menu item opens with, for the selected artboards.
-pub fn open_fields(app: &VectorcraftApp) -> Value {
+pub fn open_fields(app: &PlumaApp) -> Value {
     let Some(st) = app.session.active() else { return json!({"name": "", "indices": []}) };
     let indices = crate::panels::artboards::picked(app, st.doc.artboards.len());
     let name = match indices.as_slice() {
@@ -28,7 +28,7 @@ pub fn open_fields(app: &VectorcraftApp) -> Value {
     json!({ "name": name, "indices": indices })
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::label_row(ui, tl!("Name:"), 56.0, |ui| {
         let r = form::text_edit_named(ui, d, "name", tl!("Name:"), 220.0);
         if ui.memory(|m| m.focused().is_none()) {
@@ -39,7 +39,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// An empty name keeps the names as they are, as the Artboards panel's name field does.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     let name = d.str("name");
     if name.trim().is_empty() {
         app.ui.dialog = None;
@@ -52,16 +52,16 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 50, "artboards": 3})).unwrap();
         app.select_tool("artboard");
         app
     }
 
-    fn names(app: &VectorcraftApp) -> Vec<String> {
+    fn names(app: &PlumaApp) -> Vec<String> {
         app.session.active().unwrap().doc.artboards.iter().map(|a| a.name.clone()).collect()
     }
 

@@ -1,5 +1,5 @@
 use super::{
-    Color32, CornerRadius, NodeKind, Pos2, Rect, Sense, Stroke, StrokeKind, TextKind, Tokens, Ui, Vec2, VectorcraftApp, Xf, json, pos2, vec2, widgets,
+    Color32, CornerRadius, NodeKind, PlumaApp, Pos2, Rect, Sense, Stroke, StrokeKind, TextKind, Tokens, Ui, Vec2, Xf, json, pos2, vec2, widgets,
 };
 
 /// The Contextual Task Bar's area.
@@ -15,16 +15,16 @@ pub(crate) fn task_bar_rect(ctx: &egui::Context) -> Option<egui::Rect> {
 
 /// Whether the objects `ids` (or anything inside them) are painted with a colour: a solid colour,
 /// a gradient's stops or a mesh's points, which Recolor Artwork can change.
-pub(crate) fn has_colors(doc: &vectorcraft_doc::Document, ids: &[vectorcraft_doc::NodeId]) -> bool {
+pub(crate) fn has_colors(doc: &pluma_doc::Document, ids: &[pluma_doc::NodeId]) -> bool {
     ids.iter().filter_map(|id| doc.node(*id)).any(|n| {
         let mut found = false;
-        vectorcraft_doc::swatches::node_colors(n, &mut |_, _| found = true);
+        pluma_doc::swatches::node_colors(n, &mut |_, _| found = true);
         found
     })
 }
 
 /// The bounds of the artboards the Artboard tool has selected ([`crate::panels::artboards::picked`]).
-fn picked_artboards_bounds(app: &VectorcraftApp) -> Option<Rect> {
+fn picked_artboards_bounds(app: &PlumaApp) -> Option<Rect> {
     let st = app.session.active()?;
     let picked = crate::panels::artboards::picked(app, st.doc.artboards.len());
     picked.iter().filter_map(|i| st.doc.artboards.get(*i)).map(|a| a.rect).reduce(|a, b| a.union(b))
@@ -36,7 +36,7 @@ fn picked_artboards_bounds(app: &VectorcraftApp) -> Option<Rect> {
 /// A basic shape selected with the Selection tool shows a Shape Properties button in place of Lock.
 /// Its handle drags it anywhere on the canvas; unpinned it keeps that offset as it follows the
 /// selection, pinned it stays put ([`crate::state::TaskBarPlace`]).
-pub(super) fn task_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
+pub(super) fn task_bar(app: &mut PlumaApp, ui: &mut Ui, xf: &Xf) {
     let t = Tokens::get(ui.ctx());
     let on_artboards = app.session.tool_id() == "artboard";
     if !on_artboards
@@ -71,7 +71,7 @@ pub(super) fn task_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
     // A basic shape (a live rectangle, rounded rectangle, ellipse or polygon) selected whole with the
     // Selection tool: its properties take the place of Lock, as in the reference app
     // (<https://helpx.adobe.com/illustrator/desktop/get-started/learn-the-basics/contextual-task-bar-overview.html>).
-    use vectorcraft_doc::LiveShape;
+    use pluma_doc::LiveShape;
     let shape = first
         .filter(|f| {
             n == 1

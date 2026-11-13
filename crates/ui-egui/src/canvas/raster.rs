@@ -1,9 +1,9 @@
-use super::{Affine, CacheKey, VectorcraftApp, Xf};
+use super::{Affine, CacheKey, PlumaApp, Xf};
 
 /// The rendered raster `img` as an egui image. Both are premultiplied RGBA8, so its bytes are copied
 /// over whole instead of pixel by pixel, which costs milliseconds for a canvas on a large screen.
 /// A raster whose bytes don't match its size gives an empty image of that size.
-pub(crate) fn color_image(img: &vectorcraft_render::Rendered) -> egui::ColorImage {
+pub(crate) fn color_image(img: &pluma_render::Rendered) -> egui::ColorImage {
     let size = [img.width as usize, img.height as usize];
     let expected = size[0].saturating_mul(size[1]).saturating_mul(4);
     if expected == img.pixels.len() {
@@ -14,10 +14,10 @@ pub(crate) fn color_image(img: &vectorcraft_render::Rendered) -> egui::ColorImag
     }
 }
 
-/// Convert an owned [`vectorcraft_render::Rendered`] raster directly into an [`egui::ColorImage`].
+/// Convert an owned [`pluma_render::Rendered`] raster directly into an [`egui::ColorImage`].
 /// Reuses the raster's heap allocation in place via zero-copy buffer casting when size and
 /// alignment permit, eliminating redundant multi-megabyte allocations on texture upload.
-pub(crate) fn color_image_owned(img: vectorcraft_render::Rendered) -> egui::ColorImage {
+pub(crate) fn color_image_owned(img: pluma_render::Rendered) -> egui::ColorImage {
     let size = [img.width as usize, img.height as usize];
     let expected = size[0].saturating_mul(size[1]).saturating_mul(4);
     if expected == img.pixels.len() {
@@ -38,10 +38,10 @@ pub(crate) fn color_image_owned(img: vectorcraft_render::Rendered) -> egui::Colo
 /// What changed is measured by this thread's renderer, which drew the frame shown: it keeps what
 /// it measures (a 3D effect's art) to draw the part again.
 pub(super) fn changed_pixels(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     key: &CacheKey,
-    doc: &vectorcraft_doc::Document,
-    opts: &vectorcraft_render::RenderOptions,
+    doc: &pluma_doc::Document,
+    opts: &pluma_render::RenderOptions,
     view: Affine,
     w: u32,
     h: u32,
@@ -58,20 +58,20 @@ pub(super) fn changed_pixels(
     }
     // The placed documents' files whose bitmaps were made since the frame shown.
     let placed = if shown_key.placed == key.placed {
-        vectorcraft_render::Changed::Nothing
+        pluma_render::Changed::Nothing
     } else {
-        vectorcraft_render::placed_area(doc, &vectorcraft_render::placed_document::made_between(shown_key.placed, key.placed)?)
+        pluma_render::placed_area(doc, &pluma_render::placed_document::made_between(shown_key.placed, key.placed)?)
     };
     match app.canvas.renderer.changed(shown, doc, opts).and(placed) {
-        vectorcraft_render::Changed::Nothing => Some(None),
-        vectorcraft_render::Changed::Area(area) => match vectorcraft_render::view_pixels(area, view, w, h) {
+        pluma_render::Changed::Nothing => Some(None),
+        pluma_render::Changed::Area(area) => match pluma_render::view_pixels(area, view, w, h) {
             None => Some(None),
             Some([x0, y0, x1, y1]) => {
                 let ((x0, x1), (y0, y1)) = (in_steps(x0, x1, w), in_steps(y0, y1, h));
                 (u64::from(x1 - x0) * u64::from(y1 - y0) * 2 <= u64::from(w) * u64::from(h)).then_some(Some([x0, y0, x1, y1]))
             }
         },
-        vectorcraft_render::Changed::Everything => None,
+        pluma_render::Changed::Everything => None,
     }
 }
 
@@ -95,15 +95,15 @@ const WHOLE_PIXEL: f64 = 1e-6;
 /// The render worker's last frame, which its next frame can copy pixels from when it holds them.
 pub(crate) struct KeptFrame {
     key: CacheKey,
-    opts: vectorcraft_render::RenderOptions,
+    opts: pluma_render::RenderOptions,
     view: Affine,
     pub(crate) pixels: Option<Vec<u8>>,
 }
 
 /// A frame the render worker finished.
 pub(crate) struct WorkerFrame {
-    pub(crate) img: vectorcraft_render::Rendered,
-    /// [`vectorcraft_render::FrameStats::moved`] of the renders that made the frame.
+    pub(crate) img: pluma_render::Rendered,
+    /// [`pluma_render::FrameStats::moved`] of the renders that made the frame.
     pub(crate) moved: usize,
     /// The frame holds pixels copied from the last frame.
     pub(crate) reused: bool,
@@ -173,14 +173,14 @@ fn moved_pixels(pixels: &[u8], w: u32, h: u32, (dx, dy): (i64, i64)) -> Vec<u8> 
 }
 
 /// The frame of `job` from `pixels`, the last frame's moved by the pan, and the exposed `parts`
-/// rendered on their own, with its [`vectorcraft_render::FrameStats::moved`]. None when a part draws
-/// art in a way that depends on the frame's size ([`vectorcraft_render::FrameStats::view_sized`]).
+/// rendered on their own, with its [`pluma_render::FrameStats::moved`]. None when a part draws
+/// art in a way that depends on the frame's size ([`pluma_render::FrameStats::view_sized`]).
 fn composed_frame(
-    r: &mut vectorcraft_render::Renderer,
+    r: &mut pluma_render::Renderer,
     mut pixels: Vec<u8>,
     parts: Vec<[u32; 4]>,
     job: &crate::render_worker::Job,
-) -> Option<(vectorcraft_render::Rendered, usize)> {
+) -> Option<(pluma_render::Rendered, usize)> {
     let mut moved = 0;
     let stride = job.w as usize * 4;
     for [x0, y0, x1, y1] in parts {
@@ -196,13 +196,13 @@ fn composed_frame(
             pixels[to..to + row].copy_from_slice(line);
         }
     }
-    Some((vectorcraft_render::Rendered { width: job.w, height: job.h, pixels }, moved))
+    Some((pluma_render::Rendered { width: job.w, height: job.h, pixels }, moved))
 }
 
 /// Render the frame of `job`. A pan by whole device pixels copies the pixels that stay on screen
 /// from `kept`, the frame before it, and renders only the parts it exposes. Any other frame renders
 /// whole, and so does a pan when a part it exposes draws art in a way that depends on the frame's
-/// size ([`vectorcraft_render::FrameStats::view_sized`]). A copied frame can differ from the same
+/// size ([`pluma_render::FrameStats::view_sized`]). A copied frame can differ from the same
 /// frame rendered whole (by at most one level in the tests), so the canvas renders a frame whole
 /// once it has been shown for [`super::STILL_SECS`] with the view unmoved
 /// ([`crate::CanvasCache::reused`]). `kept` becomes this frame when `job` allows keeping it, it is
@@ -211,7 +211,7 @@ fn composed_frame(
 /// pan copies from it. A kept frame holds its pixels only when the worker kept no frame before it or
 /// nothing but the position of the view differs from that frame. A frame after a zoom or an edit
 /// holds none, so it costs no copy, and the first pan step after it renders whole.
-pub(crate) fn render_job(r: &mut vectorcraft_render::Renderer, kept: &mut Option<KeptFrame>, job: &crate::render_worker::Job) -> WorkerFrame {
+pub(crate) fn render_job(r: &mut pluma_render::Renderer, kept: &mut Option<KeptFrame>, job: &crate::render_worker::Job) -> WorkerFrame {
     let holds_pixels = kept.as_ref().is_none_or(|k| only_position_differs(k, job));
     let copied = kept.as_ref().and_then(|k| {
         let pan = whole_pixel_pan(k, job)?;
@@ -233,7 +233,7 @@ pub(crate) fn render_job(r: &mut vectorcraft_render::Renderer, kept: &mut Option
 
 /// Upload the art's raster directly into the canvas texture without reallocating or copying pixels;
 /// Pixel Preview's document pixels keep hard edges when magnified.
-pub(super) fn upload(app: &mut VectorcraftApp, ctx: &egui::Context, img: vectorcraft_render::Rendered, pixel: bool) {
+pub(super) fn upload(app: &mut PlumaApp, ctx: &egui::Context, img: pluma_render::Rendered, pixel: bool) {
     let color = color_image_owned(img);
     let options = if pixel { egui::TextureOptions::NEAREST } else { egui::TextureOptions::LINEAR };
     match &mut app.canvas.texture {

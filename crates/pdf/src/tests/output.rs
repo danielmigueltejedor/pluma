@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use craft_pdf::syntax::Pdf;
 use craft_pdf::syntax::object::{Array, Dict, Name, ObjectIdentifier, Stream};
+use pluma_color::cms::{self, Cms, ColorSettings, DEVICE_CMYK, GENERIC_CMYK, SRGB};
+use pluma_color::{Color, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
+use pluma_doc::{Appearance, ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, Cms, ColorSettings, DEVICE_CMYK, GENERIC_CMYK, SRGB};
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
-use vectorcraft_doc::{Appearance, ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
 
 use crate::*;
 
@@ -189,7 +189,7 @@ fn spot_inks_named_all_or_none_are_written_under_names_of_their_own() {
         }
         // A fill of the spot ink with a Registration stroke, a gradient of the spot ink's tints,
         // and a gradient from Gold to the spot ink.
-        let registration = solid(vectorcraft_color::swatch::REGISTRATION, Color::cmyk(1.0, 1.0, 1.0, 1.0));
+        let registration = solid(pluma_color::swatch::REGISTRATION, Color::cmyk(1.0, 1.0, 1.0, 1.0));
         rect(&mut d, 0, 10.0, solid(name, gold), registration);
         rect(&mut d, 1, 40.0, gradient(vec![stop(0.0, name, 1.0), stop(1.0, name, 0.25)]), Paint::None);
         rect(&mut d, 2, 70.0, gradient(vec![stop(0.0, "Gold", 1.0), stop(1.0, name, 1.0)]), Paint::None);

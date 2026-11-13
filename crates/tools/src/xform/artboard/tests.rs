@@ -1,6 +1,6 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
+use pluma_doc::Selection;
 
 fn ev(kind: PointerKind, x: f64, y: f64) -> PointerEvent {
     PointerEvent::new(kind, x, y)
@@ -8,7 +8,7 @@ fn ev(kind: PointerKind, x: f64, y: f64) -> PointerEvent {
 
 /// [`doc_with_rect`] (artboard 1 at 0–500, a rectangle at 100–200) plus Artboard 2 at x 600–800,
 /// y 0–200.
-fn two_boards() -> vectorcraft_doc::Document {
+fn two_boards() -> pluma_doc::Document {
     let (mut d, _) = doc_with_rect();
     let mut ab = d.artboards[0].clone();
     ab.rect = Rect::new(600.0, 0.0, 800.0, 200.0);
@@ -93,8 +93,8 @@ fn moving_never_snaps_to_itself_or_the_art_it_carries() {
     let mut d = two_boards();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let art = vectorcraft_geom::shapes::rectangle(Rect::new(650.0, 50.0, 660.0, 60.0));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, art, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let art = pluma_geom::shapes::rectangle(Rect::new(650.0, 50.0, 660.0, 60.0));
+    d.insert(Some(l), 0, pluma_doc::Node::path(id, art, pluma_doc::Appearance::default_art())).unwrap();
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
     let mut t = ArtboardTool::default();
@@ -120,8 +120,8 @@ fn moving_snaps_to_the_art_a_locked_artboard_keeps() {
     d.artboards.push(locked);
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let art = vectorcraft_geom::shapes::rectangle(Rect::new(650.0, 50.0, 660.0, 60.0));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, art, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let art = pluma_geom::shapes::rectangle(Rect::new(650.0, 50.0, 660.0, 60.0));
+    d.insert(Some(l), 0, pluma_doc::Node::path(id, art, pluma_doc::Appearance::default_art())).unwrap();
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
     let mut t = ArtboardTool::default();
@@ -419,8 +419,8 @@ fn scale_art_resizes_proportionally_without_snapping_to_its_art() {
     let mut d = two_boards();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let art = vectorcraft_geom::shapes::rectangle(Rect::new(700.0, 50.0, 710.0, 60.0));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, art, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let art = pluma_geom::shapes::rectangle(Rect::new(700.0, 50.0, 710.0, 60.0));
+    d.insert(Some(l), 0, pluma_doc::Node::path(id, art, pluma_doc::Appearance::default_art())).unwrap();
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
     // Off: the right handle 3 pt past the art's right edge (710) lands on it; the height stays.
@@ -586,7 +586,7 @@ fn add_buttons_show_only_on_sides_with_room_for_an_artboard_of_the_same_size() {
     let t2 = ArtboardTool { active: 1, ..Default::default() };
     assert_eq!(button_sides(&t2, &c), vec![ArtboardSide::Top, ArtboardSide::Right, ArtboardSide::Bottom]);
     // At the canvas's edge there is no room past it.
-    let m = vectorcraft_doc::MAX_COORD;
+    let m = pluma_doc::MAX_COORD;
     d.artboards[1].rect = Rect::new(m - 200.0, 0.0, m, 200.0);
     let c = cx(&d, &s, &p);
     assert_eq!(button_sides(&t2, &c), vec![ArtboardSide::Top, ArtboardSide::Bottom, ArtboardSide::Left]);

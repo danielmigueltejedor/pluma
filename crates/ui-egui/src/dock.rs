@@ -4,11 +4,11 @@
 use egui::Ui;
 
 use crate::state::DockTab;
-use crate::{VectorcraftApp, panels, widgets};
+use crate::{PlumaApp, panels, widgets};
 
 /// Panel `id`'s contents in a popped-out or floating panel `width` wide; the tabbed group's panels
 /// fill (Layers) or scroll (Properties) `tall` points.
-pub(crate) fn panel_body(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width: f32, tall: f32) {
+pub(crate) fn panel_body(app: &mut PlumaApp, ui: &mut Ui, id: &str, width: f32, tall: f32) {
     egui::Frame::NONE.inner_margin(egui::Margin::same(10)).show(ui, |ui| {
         ui.set_width(width - 20.0);
         match DockTab::from_id(id) {
@@ -39,8 +39,8 @@ pub(crate) fn panel_body(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, width:
 #[cfg(test)]
 mod tests {
     use egui::vec2;
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
 
     use super::*;
     use crate::theme;
@@ -48,14 +48,14 @@ mod tests {
     /// The main column's width in the default layout.
     const DOCK_WIDTH: f32 = 310.0;
 
-    fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+    fn show(app: &mut PlumaApp, ui: &mut Ui) {
         crate::panel_docking::show(app, ui);
     }
 
     #[test]
     fn the_properties_scroll_bar_covers_no_control() {
         use egui::accesskit::{Action, Role};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
         app.run("object.rasterize", json!({})).unwrap();
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn the_layers_scroll_bar_covers_no_row() {
         use egui::accesskit::Role;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         for k in 0..40 {
             app.run("shape.rectangle", json!({"x": k, "y": k, "width": 20, "height": 20})).unwrap();

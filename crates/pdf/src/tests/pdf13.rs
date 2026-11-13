@@ -1,10 +1,10 @@
 //! Compatibility PDF 1.3: which standards allow it, the header and metadata that say so, the
 //! writer refusing transparency (the app flattens it first) and 40-bit RC4 encryption.
 
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{Appearance, Document, Node};
+use pluma_geom::{Rect, shapes};
 use serde_json::json;
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node};
-use vectorcraft_geom::{Rect, shapes};
 
 use crate::*;
 

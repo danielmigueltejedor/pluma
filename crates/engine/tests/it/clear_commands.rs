@@ -1,8 +1,8 @@
 //! Clear deletes its exact targets, including compound members (#786).
 
+use pluma_doc::NodeId;
+use pluma_engine::{EngineError, Session};
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::{EngineError, Session};
 
 fn compound() -> (Session, NodeId, NodeId, NodeId) {
     let mut s = Session::new();

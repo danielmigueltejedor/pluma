@@ -8,12 +8,12 @@
 //!
 //! Behavior: <https://helpx.adobe.com/illustrator/using/objects-on-path.html>.
 
+use pluma_doc::objects_on_path::CENTER;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::objects_on_path::CENTER;
 
 use super::{DialogSpec, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Objects on Path Tool Options.
 pub const KIND: &str = "objectsOnPathOptions";
@@ -27,12 +27,12 @@ pub(super) const SPEC: DialogSpec = DialogSpec { heading, body, confirm, ok: Som
 const LABEL_W: f32 = 70.0;
 
 fn heading(_: &Dialog) -> String {
-    let label = vectorcraft_tools::tool_info(TOOL).map_or("", |t| t.label);
+    let label = pluma_tools::tool_info(TOOL).map_or("", |t| t.label);
     crate::i18n::fmt(tl!("{tool} Options"), &[("tool", tl!(label))])
 }
 
 /// Open the tool's options with their current values.
-pub fn open(app: &mut VectorcraftApp) -> Value {
+pub fn open(app: &mut PlumaApp) -> Value {
     let o = app.session.tool_options_of(TOOL);
     let fields: Map<String, Value> = ["pivot", "rotate"].iter().filter_map(|key| Some((key.to_string(), o.get(*key)?.clone()))).collect();
     app.ui.dialog = Some(Dialog { kind: KIND.into(), fields });
@@ -40,12 +40,12 @@ pub fn open(app: &mut VectorcraftApp) -> Value {
 }
 
 /// Reset: the center and 0.
-fn reset(_: &VectorcraftApp, d: &mut Dialog) {
+fn reset(_: &PlumaApp, d: &mut Dialog) {
     d.fields.insert("pivot".into(), json!(CENTER));
     d.fields.insert("rotate".into(), json!(0.0));
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::label_row(ui, tl!("Pivot:"), LABEL_W, |ui| {
         let current = d.f64("pivot", f64::from(CENTER)).clamp(0.0, 8.0) as usize;
         if let Some(i) = widgets::reference_point_named(ui, current, tl!("Pivot:")) {
@@ -68,7 +68,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Save: set the tool's Pivot and Rotate.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let values: Map<String, Value> = ["pivot", "rotate"].iter().filter_map(|k| Some((k.to_string(), d.fields.get(*k)?.clone()))).collect();
     run_and_close(app, "tool.setOption", json!({ "tool": TOOL, "values": values }))
 }
@@ -76,22 +76,22 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         app
     }
 
     /// The labels the open dialog paints.
-    fn painted(app: &mut VectorcraftApp) -> String {
+    fn painted(app: &mut PlumaApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
     }
 
     /// The Pivot and Rotate of the Objects on Path group `g`.
-    fn record(app: &VectorcraftApp, g: &Value) -> (u8, f64) {
-        let id = vectorcraft_doc::NodeId(g["id"].as_u64().unwrap());
+    fn record(app: &PlumaApp, g: &Value) -> (u8, f64) {
+        let id = pluma_doc::NodeId(g["id"].as_u64().unwrap());
         let n = app.session.doc().unwrap().doc.node(id).unwrap();
         n.extras().objects_on_path.as_deref().map(|r| (r.pivot, r.rotate)).unwrap()
     }

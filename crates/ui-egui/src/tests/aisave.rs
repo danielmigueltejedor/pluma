@@ -34,15 +34,15 @@ fn save_as_ai_writes_a_pdf_that_reopens_editable() {
 #[test]
 fn save_a_copy_as_ai_keeps_the_path() {
     let (mut app, written) = app("/tmp/copy.ai");
-    app.session.doc_mut().unwrap().path = Some("/tmp/doc.vectorcraft".into());
+    app.session.doc_mut().unwrap().path = Some("/tmp/doc.pluma".into());
     // Save a Copy asks for the .ai options like Save As (#3141), then writes.
     let r = app.run("file.saveCopy", json!({"compression": {"compressText": false}})).unwrap();
     assert_eq!(r["pending"], "saveOptions", "{r}");
     crate::dialogs::confirm(&mut app).unwrap();
     let w = written.borrow();
     assert_eq!(w[0].0, "/tmp/copy.ai");
-    assert!(vectorcraft_pdf::editing(&w[0].1).is_some_and(|e| e.intact));
-    assert_eq!(app.session.active().unwrap().path.as_deref(), Some("/tmp/doc.vectorcraft"));
+    assert!(pluma_pdf::editing(&w[0].1).is_some_and(|e| e.intact));
+    assert_eq!(app.session.active().unwrap().path.as_deref(), Some("/tmp/doc.pluma"));
 }
 
 /// A document last saved as legacy version 7 .ai: Save a Copy as .ai asks for the options (Version

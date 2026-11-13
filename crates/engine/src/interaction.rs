@@ -9,12 +9,12 @@ pub struct Interaction {
     pub selection: Arc<Selection>,
     pub preview: Option<(String, Value)>,
     /// A replaced or canceled preview restores these new-art paints from before the interaction.
-    pub(crate) paint: vectorcraft_tools::PaintDefaults,
+    pub(crate) paint: pluma_tools::PaintDefaults,
     /// An accepted batch preview uses these final paints after changing the document color mode.
-    pub(crate) preview_paint: Option<vectorcraft_tools::PaintDefaults>,
+    pub(crate) preview_paint: Option<pluma_tools::PaintDefaults>,
     /// Conversion of new-art paints waits until a color-mode preview is accepted.
     pub(crate) deferred_color_mode: Option<crate::cmd::colormgmt::DeferredColorMode>,
-    pub(crate) color_mode_paints: Option<(vectorcraft_tools::PaintDefaults, vectorcraft_tools::PaintDefaults)>,
+    pub(crate) color_mode_paints: Option<(pluma_tools::PaintDefaults, pluma_tools::PaintDefaults)>,
     /// Per-document state restored on cancel (current layer, highlighted Layers panel rows,
     /// isolation).
     pub active_layer: Option<NodeId>,
@@ -61,7 +61,7 @@ pub(crate) struct PreviewCopies {
 #[derive(Clone, Debug)]
 pub struct UndoGroup {
     /// The new-art paints from before the group's first command.
-    pub(crate) paint: vectorcraft_tools::PaintDefaults,
+    pub(crate) paint: pluma_tools::PaintDefaults,
     /// The document before the group's first edit, as the undo step that edit recorded keeps it.
     pub(crate) first: Option<Arc<Document>>,
     /// The numbers of the journal entries made in the group's document while it was open: a canceled
@@ -94,6 +94,6 @@ pub struct UndoScope {
     pub(crate) joined: Option<(Arc<Document>, Selection, Option<Arc<Document>>)>,
     /// The new-art colors and the group's color-mode history metadata at the scope's start.
     /// Only used when cancelling a joined scope that converted those colors.
-    pub(crate) paint: vectorcraft_tools::PaintDefaults,
-    pub(crate) color_mode_paints: Option<(vectorcraft_tools::PaintDefaults, vectorcraft_tools::PaintDefaults)>,
+    pub(crate) paint: pluma_tools::PaintDefaults,
+    pub(crate) color_mode_paints: Option<(pluma_tools::PaintDefaults, pluma_tools::PaintDefaults)>,
 }

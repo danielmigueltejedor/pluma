@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{
+use pluma_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
+use pluma_doc::{
     Appearance, AppearanceItem, Artboard, CharStyle, Dash, Document, ImageBlob, ImageObject, LineCap, LineJoin, Node, NodeId, NodeKind, TextObject,
 };
-use vectorcraft_geom::{Affine, FillRule, PathData, Point, Rect, shapes};
+use pluma_geom::{Affine, FillRule, PathData, Point, Rect, shapes};
 
 use crate::*;
 
@@ -114,7 +114,7 @@ fn metadata_creator_and_title() {
     let mut d = doc(100.0, 100.0);
     d.title = "Poster".into();
     let s = uncompressed(&d);
-    assert!(s.contains("VectorCraft"));
+    assert!(s.contains("Pluma"));
     assert!(s.contains("Poster"));
 }
 
@@ -197,7 +197,7 @@ fn an_instance_whose_art_reaches_the_page_is_written() {
     // the 20 × 20 square around the origin, moved to (-60, -60) to (-40, -40), is off it.
     let mut d = doc(200.0, 100.0);
     let red = rect_node(Rect::new(100.0, 50.0, 140.0, 90.0), Color::rgb(1.0, 0.0, 0.0));
-    let far = vectorcraft_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(red) };
+    let far = pluma_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(red) };
     d.symbols.push(far.clone());
     let instance = Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Far".into(), xf: Affine::translate((-50.0, -50.0)) });
     add(&mut d, instance.clone());
@@ -210,7 +210,7 @@ fn an_instance_whose_art_reaches_the_page_is_written() {
     d.symbols.push(far);
     let blue = rect_node(Rect::new(150.0, 10.0, 170.0, 30.0), Color::rgb(0.0, 0.0, 1.0));
     let mut group = Node::group(NodeId(0), vec![Arc::new(instance), Arc::new(blue)]);
-    group.knockout = vectorcraft_doc::Knockout::On;
+    group.knockout = pluma_doc::Knockout::On;
     add(&mut d, group);
     let fills: Vec<[u8; 4]> = leaves(&roundtrip(&d)).iter().filter_map(|n| Some(n.appearance.fill_paint().color()?.to_rgba8(1.0))).collect();
     assert!(fills.contains(&[255, 0, 0, 255]) && fills.contains(&[0, 0, 255, 255]), "{fills:?}");
@@ -222,16 +222,16 @@ fn an_instance_whose_brush_art_reaches_the_page_is_written() {
     // nib. Drawn from (-5, 0), the line lies left of the page, and the nib paints 10 pt either side
     // of it, onto the page.
     let mut d = doc(200.0, 100.0);
-    let mut lib = vectorcraft_brush::library(&d);
-    let Some(vectorcraft_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
+    let mut lib = pluma_brush::library(&d);
+    let Some(pluma_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
         panic!("the 3 pt. Round brush")
     };
     c.size = 20.0;
-    vectorcraft_brush::store(&mut d, &lib);
+    pluma_brush::store(&mut d, &lib);
     let mut stroke = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
     stroke.stroke_mut().unwrap().brush = Some("3 pt. Round".into());
     let line = Node::path(NodeId(0), shapes::line((0.0, 40.0).into(), (0.0, 60.0).into()), stroke);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Nib".into(), art: Arc::new(line) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Nib".into(), art: Arc::new(line) });
     add(&mut d, Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Nib".into(), xf: Affine::translate((-5.0, 0.0)) }));
     let out = roundtrip(&d);
     let l = leaves(&out);
@@ -252,8 +252,8 @@ fn a_scaled_nine_slice_instance_keeps_its_corners() {
             Arc::new(rect_node(Rect::new(45.0, 45.0, 55.0, 55.0), Color::rgb(0.0, 0.0, 1.0))),
         ],
     );
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
-    d.set_symbol_nine_slice("Panel", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
+    d.set_symbol_nine_slice("Panel", Some(pluma_doc::SymbolNineSlice::default()));
     let xf = Affine::translate((20.0, 20.0)) * Affine::scale_non_uniform(2.0, 1.5);
     add(&mut d, Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Panel".into(), xf }));
     let out = roundtrip(&d);
@@ -275,14 +275,14 @@ fn nine_slice_instances_share_one_object_limit_in_an_export() {
         let mut d = doc(300.0, 200.0);
         let leaf = Arc::new(rect_node(Rect::new(0.0, 0.0, 1.0, 1.0), Color::BLACK));
         let inner = Arc::new(Node::group(NodeId(0), vec![leaf; mask_objects]));
-        let mut mask = vectorcraft_doc::OpacityMask::new(Node::group(NodeId(0), vec![inner; mask_objects]), true);
+        let mut mask = pluma_doc::OpacityMask::new(Node::group(NodeId(0), vec![inner; mask_objects]), true);
         (mask.linked, mask.disabled) = (false, true);
         let gradient = Paint::Gradient(Box::new(GradientPaint::new(Gradient::default())));
         let mut square = Node::path(NodeId(0), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::basic(gradient, Paint::None, 0.0));
         square.extras_mut().mask = Some(Box::new(mask));
         let art = Node::group(NodeId(0), vec![Arc::new(square)]);
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
-        d.set_symbol_nine_slice("Panel", Some(vectorcraft_doc::SymbolNineSlice::default()));
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
+        d.set_symbol_nine_slice("Panel", Some(pluma_doc::SymbolNineSlice::default()));
         for x in [20.0, 40.0] {
             let xf = Affine::translate((x, 20.0)) * Affine::scale_non_uniform(2.0, 1.5);
             add(&mut d, Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Panel".into(), xf }));
@@ -338,7 +338,7 @@ fn roundtrip_stroke_params_merge_fill_and_stroke() {
 #[test]
 fn roundtrip_open_path_and_even_odd() {
     let mut d = doc(200.0, 200.0);
-    let mut bp = vectorcraft_geom::BezPath::new();
+    let mut bp = pluma_geom::BezPath::new();
     bp.move_to((10.0, 10.0));
     bp.curve_to((50.0, 0.0), (80.0, 100.0), (150.0, 60.0));
     add(&mut d, Node::path(NodeId(0), PathData::from_bezpath(&bp), Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 2.0)));
@@ -362,7 +362,7 @@ fn roundtrip_open_path_and_even_odd() {
 trait Exact {
     fn bounding_box_exact(&self) -> Rect;
 }
-impl Exact for vectorcraft_geom::BezPath {
+impl Exact for pluma_geom::BezPath {
     fn bounding_box_exact(&self) -> Rect {
         kurbo::Shape::bounding_box(self)
     }
@@ -400,9 +400,9 @@ fn gradients_exported_as_shadings_and_reimported() {
 #[test]
 fn smooth_revolve_exports_axial_vector_shading_without_images_and_keeps_the_source_live() {
     let mut d = doc(200.0, 200.0);
-    let bp = vectorcraft_geom::BezPath::from_svg("M100 30 C140 50 140 120 100 160").unwrap();
+    let bp = pluma_geom::BezPath::from_svg("M100 30 C140 50 140 120 100 160").unwrap();
     let mut n = Node::path(NodeId(0), PathData::from_bezpath(&bp), Appearance::basic(Paint::solid(Color::rgb(0.2, 0.55, 0.9)), Paint::None, 0.0));
-    n.appearance.effects.push(vectorcraft_doc::Effect {
+    n.appearance.effects.push(pluma_doc::Effect {
         id: "threeD.revolve".into(),
         visible: true,
         params: serde_json::json!({"offset":20,"rotationX":-25,"cap":true,"segments":16}),
@@ -456,7 +456,7 @@ fn objects_outside_artboard_are_culled() {
 
 /// A line from (10, `y`) to (90, `y`).
 fn line(y: f64) -> PathData {
-    let mut bp = vectorcraft_geom::BezPath::new();
+    let mut bp = pluma_geom::BezPath::new();
     bp.move_to((10.0, y));
     bp.line_to((90.0, y));
     PathData::from_bezpath(&bp)
@@ -612,7 +612,7 @@ fn text_exported_as_outlines() {
     let l = leaves(&r.document);
     assert!(!l.is_empty());
     assert!(l.iter().all(|n| matches!(n.kind, NodeKind::Path { .. })));
-    let b = l.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, n.geometric_bounds())).unwrap();
+    let b = l.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, n.geometric_bounds())).unwrap();
     assert!(b.x0 >= 9.0 && b.x1 < 120.0 && b.y1 <= 56.0 && b.y0 > 25.0, "{b:?}");
 }
 
@@ -620,9 +620,9 @@ fn text_exported_as_outlines() {
 /// text, else drawn where the glyphs are.
 #[test]
 fn colour_bitmap_glyphs_export_as_images() {
-    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font};
+    use pluma_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font};
     for sbix in [true, false] {
-        vectorcraft_text::FontDb::global().add_font(colour_bitmap_font(sbix).unwrap());
+        pluma_text::FontDb::global().add_font(colour_bitmap_font(sbix).unwrap());
         let mut d = doc(300.0, 100.0);
         let st = CharStyle { font_family: colour_bitmap_family(sbix).into(), size: 24.0, ..CharStyle::default() };
         add(&mut d, Node::new(NodeId(0), NodeKind::Text(Box::new(TextObject::point(Point::new(10.0, 50.0), &format!("{COLOUR_CHAR}F"), st)))));
@@ -767,7 +767,7 @@ fn a_group_transform_effect_exports_its_image_copies() {
     let mut square = rect_node(Rect::new(20.0, 60.0, 30.0, 70.0), Color::BLACK);
     square.id = d.alloc_id();
     let mut g = Node::group(NodeId(0), vec![Arc::new(square), image]);
-    g.appearance.effects.push(vectorcraft_doc::Effect {
+    g.appearance.effects.push(pluma_doc::Effect {
         id: "distort.transform".into(),
         params: serde_json::json!({"moveH": 50, "copies": 2}),
         visible: true,
@@ -963,14 +963,14 @@ fn stroke_alignment_and_arrowheads_export() {
         shapes::rectangle(Rect::new(20.0, 20.0, 120.0, 120.0)),
         Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 6.0),
     );
-    p.appearance.stroke_mut().unwrap().align = vectorcraft_doc::StrokeAlign::Inside;
+    p.appearance.stroke_mut().unwrap().align = pluma_doc::StrokeAlign::Inside;
     add(&mut d, p);
     let mut line = Node::path(
         NodeId(0),
         shapes::line(Point::new(10.0, 150.0), Point::new(150.0, 150.0)),
         Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 2.0),
     );
-    line.appearance.stroke_mut().unwrap().end_arrow = Some(vectorcraft_doc::Arrowhead::Triangle);
+    line.appearance.stroke_mut().unwrap().end_arrow = Some(pluma_doc::Arrowhead::Triangle);
     add(&mut d, line);
     let r = export_with_report(&d, &PdfOptions::default()).unwrap();
     let out = import(&r.bytes).unwrap();
@@ -1022,7 +1022,7 @@ fn opacity_mask_exports_as_luminosity_soft_mask() {
     let mut d = doc(100.0, 100.0);
     let mut n = rect_node(Rect::new(10.0, 10.0, 90.0, 90.0), Color::rgb(1.0, 0.0, 0.0));
     let art = rect_node(Rect::new(10.0, 10.0, 50.0, 90.0), Color::WHITE);
-    n.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(art, true)));
+    n.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(art, true)));
     add(&mut d, n);
     let bytes = export(&d, &PdfOptions::uncompressed()).unwrap();
     let text = String::from_utf8_lossy(&bytes);
@@ -1051,11 +1051,11 @@ fn image_mask_report(colorized: bool, available: bool, nested: bool, unwritable:
     }
     if nested {
         let mut outer_art = rect_node(Rect::new(10.0, 10.0, 50.0, 30.0), Color::WHITE);
-        outer_art.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(art, false)));
+        outer_art.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(art, false)));
         art = outer_art;
     }
     let mut masked = rect_node(Rect::new(10.0, 10.0, 50.0, 30.0), Color::rgb(1.0, 0.0, 0.0));
-    masked.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(art, false)));
+    masked.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(art, false)));
     add(&mut d, masked);
     add(&mut d, rect_node(Rect::new(60.0, 60.0, 80.0, 80.0), Color::BLACK));
     let report = export_with_report(&d, &PdfOptions::uncompressed()).expect("export");
@@ -1126,7 +1126,7 @@ fn empty_and_populated_file_info_preserve_key_presence() {
 /// recursion, with no cap: a stack overflow), and those of real files are read.
 #[test]
 fn functions_and_colour_spaces_built_on_themselves_are_refused() {
-    use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
+    use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
     let first = first_extra(1);
     let (me, next) = (format!("{first} 0 R"), format!("{} 0 R", first + 1));
     let shaded = PdfPage {
@@ -1176,7 +1176,7 @@ fn functions_and_colour_spaces_built_on_themselves_are_refused() {
 /// whose shading has a plain function is read, and one whose function stitches itself is refused.
 #[test]
 fn dictionary_values_the_reader_cannot_parse_are_skipped() {
-    use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
+    use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
     let me = format!("{} 0 R", first_extra(1));
     let shaded = PdfPage {
         resources: format!("/Shading << /S << /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 100 0] /Function {me} >> >>"),
@@ -1225,7 +1225,7 @@ fn dithered_gradient_fills_export_as_images_and_strokes_as_shadings() {
 #[test]
 fn perceptual_gradients_export_as_images_and_classic_ones_as_shadings() {
     let grad = |method| Paint::Gradient(Box::new(GradientPaint::new(Gradient { method, ..Default::default() })));
-    let p = grad(vectorcraft_color::GradientMethod::Perceptual);
+    let p = grad(pluma_color::GradientMethod::Perceptual);
     let shape = shapes::rectangle(Rect::new(10.0, 10.0, 110.0, 60.0));
     let mut d = doc(200.0, 100.0);
     d.raster_effects_ppi = 144.0;
@@ -1236,13 +1236,13 @@ fn perceptual_gradients_export_as_images_and_classic_ones_as_shadings() {
     assert!(!pdf.contains("/ShadingType2"), "no shading");
     let mut along = Appearance::basic(Paint::None, p, 4.0);
     if let Some(AppearanceItem::Stroke(st)) = along.items.get_mut(1) {
-        st.gradient_mode = vectorcraft_doc::StrokeGradientMode::Along;
+        st.gradient_mode = pluma_doc::StrokeGradientMode::Along;
     }
     let mut a = doc(200.0, 100.0);
     add(&mut a, Node::path(NodeId(0), shape.clone(), along));
     let pdf = uncompressed(&a).replace(' ', "");
     assert!(!pdf.contains("/Subtype/Image") && pdf.contains("/ShadingType2"), "along the stroke: slices");
-    let c = grad(vectorcraft_color::GradientMethod::Classic);
+    let c = grad(pluma_color::GradientMethod::Classic);
     let mut plain = doc(200.0, 100.0);
     add(&mut plain, Node::path(NodeId(0), shape, Appearance::basic(c.clone(), c, 4.0)));
     let pdf = uncompressed(&plain).replace(' ', "");
@@ -1254,11 +1254,7 @@ fn perceptual_gradients_export_as_images_and_classic_ones_as_shadings() {
 #[test]
 fn dithered_perceptual_gradients_export_as_images_with_noise_on_the_fill() {
     let grad = |dither| {
-        Paint::Gradient(Box::new(GradientPaint::new(Gradient {
-            dither,
-            method: vectorcraft_color::GradientMethod::Perceptual,
-            ..Default::default()
-        })))
+        Paint::Gradient(Box::new(GradientPaint::new(Gradient { dither, method: pluma_color::GradientMethod::Perceptual, ..Default::default() })))
     };
     let shape = shapes::rectangle(Rect::new(10.0, 10.0, 110.0, 60.0));
     let export_with = |dither, stroke: bool| {
@@ -1280,9 +1276,9 @@ fn dithered_perceptual_gradients_export_as_images_with_noise_on_the_fill() {
 /// the fill); outlined, as vector art, a sweep glyph as an image.
 #[test]
 fn colr_glyphs_export_as_vector_art() {
-    use vectorcraft_text::test_fonts::{COLOUR_CHAR, COLR_SWEEP_CHAR, colr_family, colr_font};
+    use pluma_text::test_fonts::{COLOUR_CHAR, COLR_SWEEP_CHAR, colr_family, colr_font};
     for v1 in [false, true] {
-        vectorcraft_text::FontDb::global().add_font(colr_font(v1).unwrap());
+        pluma_text::FontDb::global().add_font(colr_font(v1).unwrap());
     }
     let page = |v1: bool, ch: char, outline_text: bool| {
         let mut d = doc(300.0, 100.0);

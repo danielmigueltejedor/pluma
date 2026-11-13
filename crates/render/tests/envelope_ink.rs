@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{CharStyle, Node, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::{Point, Rect};
+use pluma_doc::{CharStyle, Node, NodeId, NodeKind, TextObject};
+use pluma_geom::{Point, Rect};
 
 /// The largest distance between the edges of `a` and `b`.
 fn off(a: Rect, b: Rect) -> f64 {
@@ -19,12 +19,12 @@ fn a_new_renderer_measures_type_in_envelopes_by_its_glyphs() {
     let t = TextObject::point(Point::new(10.0, 60.0), "Type", CharStyle { size: 48.0, ..Default::default() });
     let n = Arc::new(Node::new(NodeId(1), NodeKind::Text(Box::new(t.clone()))));
     let laid = n.geometric_bounds().unwrap();
-    let ink = t.xf.transform_rect_bbox(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).ink_bounds().unwrap());
+    let ink = t.xf.transform_rect_bbox(pluma_text::layout(pluma_text::FontDb::global(), &t).ink_bounds().unwrap());
     assert!(laid.height() - ink.height() > 1.0, "the laid-out box {laid:?} reaches past the glyphs {ink:?}");
-    let before = vectorcraft_doc::live::envelope_content_bounds(std::slice::from_ref(&n)).unwrap();
+    let before = pluma_doc::live::envelope_content_bounds(std::slice::from_ref(&n)).unwrap();
     assert!(off(before, laid) < 1e-6, "with nothing registered, type keeps its laid-out box: {before:?} vs {laid:?}");
 
-    let _ = vectorcraft_render::Renderer::new();
-    let after = vectorcraft_doc::live::envelope_content_bounds(&[n]).unwrap();
+    let _ = pluma_render::Renderer::new();
+    let after = pluma_doc::live::envelope_content_bounds(&[n]).unwrap();
     assert!(off(after, ink) < 1e-6, "after a renderer is made, type is measured by its glyphs: {after:?} vs {ink:?}");
 }

@@ -11,11 +11,11 @@ mod tests;
 
 use std::collections::BTreeSet;
 
+use pluma_doc::NodeId;
+use pluma_geom::{Anchor, AnchorKind, Point, SubPath, Vec2};
+use pluma_pathops::addons::{self as po, pathtools as pt, pen};
+use pluma_tools::addons::smart_pen;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::{Anchor, AnchorKind, Point, SubPath, Vec2};
-use vectorcraft_pathops::addons::{self as po, pathtools as pt, pen};
-use vectorcraft_tools::addons::smart_pen;
 
 use super::super::draw2::usize_opt;
 use super::super::path::{compound_or_self, join, path_mut};
@@ -269,7 +269,7 @@ fn remove_point(s: &mut Session, p: &Value) -> Result<Value> {
         true
     } else {
         // An open end takes its segment with it.
-        end && n > 2 && vectorcraft_pathops::remove_anchor(&mut sp, ai)
+        end && n > 2 && pluma_pathops::remove_anchor(&mut sp, ai)
     };
     if !removed {
         return Err(bad(C, "the path is too short to remove a point from"));

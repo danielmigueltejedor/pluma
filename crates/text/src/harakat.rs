@@ -14,9 +14,9 @@
 //! and exporters read the glyph's run as they always did, so they need no change. The text itself
 //! is never changed.
 
+use pluma_doc::CharStyle;
 use skrifa::raw::TableProvider;
 use skrifa::raw::tables::layout::ClassDef;
-use vectorcraft_doc::CharStyle;
 
 use crate::fontdb::FontFace;
 

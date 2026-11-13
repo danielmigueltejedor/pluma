@@ -1,7 +1,7 @@
 use image::ImageFormat::{Bmp, Png, Tiff};
-use vectorcraft_doc::{Document, NodeId};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::clipboard::{BITMAP, Flavour, PNG, TEXT};
+use pluma_doc::{Document, NodeId};
+use pluma_engine::Session;
+use pluma_engine::cmd::clipboard::{BITMAP, Flavour, PNG, TEXT};
 
 use super::*;
 use crate::Services;
@@ -9,9 +9,9 @@ use crate::place::{DropAt, DropTarget};
 
 /// An app reading files from disk, with a 400 × 300 pt document, that reads the files the user
 /// places off the UI thread when `background`.
-fn app(background: bool) -> VectorcraftApp {
+fn app(background: bool) -> PlumaApp {
     let services = Services { read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))), ..Default::default() };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.placing.off_the_ui_thread = background;
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app
@@ -51,11 +51,11 @@ fn pdf() -> Vec<u8> {
     s.execute("file.new", &json!({"width": 100, "height": 50})).unwrap();
     s.execute("shape.rectangle", &json!({"x": 5, "y": 5, "width": 20, "height": 10})).unwrap();
     let v = s.execute("document.serialize", &json!({"format": "pdf"})).unwrap();
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
 }
 
 /// Poll each frame until every file read for Place has been placed (at most 60 s).
-fn placed(app: &mut VectorcraftApp) {
+fn placed(app: &mut PlumaApp) {
     let t0 = std::time::Instant::now();
     while !app.placing.pending.is_empty() && t0.elapsed().as_secs() < 60 {
         poll(app);
@@ -66,7 +66,7 @@ fn placed(app: &mut VectorcraftApp) {
 
 /// What a place changes: the active document (without the second it was made in), its
 /// selection, its undo steps and the last journal entry.
-fn state(app: &VectorcraftApp) -> (Document, Vec<NodeId>, usize, Option<(String, Value)>) {
+fn state(app: &PlumaApp) -> (Document, Vec<NodeId>, usize, Option<(String, Value)>) {
     let st = app.session.doc().unwrap();
     let mut doc = (*st.doc).clone();
     doc.metadata.created = None;
@@ -74,7 +74,7 @@ fn state(app: &VectorcraftApp) -> (Document, Vec<NodeId>, usize, Option<(String,
 }
 
 /// The names of the active document's top-level objects, bottom first.
-fn names(app: &VectorcraftApp) -> Vec<String> {
+fn names(app: &PlumaApp) -> Vec<String> {
     let st = app.session.doc().unwrap();
     st.doc.layers.iter().flat_map(|l| l.children().into_iter().flatten()).filter_map(|n| n.name.clone()).collect()
 }
@@ -164,13 +164,13 @@ impl crate::SystemClipboard for OtherApps {
 
 /// [`app`] with `bitmap` and `text` on the system clipboard ([`OtherApps`]), the view centered
 /// on (250, 180) → the app and the thread the bitmap was converted on.
-fn pasting_app(background: bool, bitmap: Option<Flavour>, text: Option<&str>, converts: bool) -> (VectorcraftApp, Arc<Mutex<Option<String>>>) {
+fn pasting_app(background: bool, bitmap: Option<Flavour>, text: Option<&str>, converts: bool) -> (PlumaApp, Arc<Mutex<Option<String>>>) {
     let thread = Arc::new(Mutex::new(None));
     let mut app = app(background);
     let text = text.map(|t| Flavour { mime: TEXT, data: t.as_bytes().to_vec() });
     app.services.system_clipboard = Some(Box::new(OtherApps { bitmap, text, converts, thread: thread.clone(), holds: vec![] }));
     let v = app.view_mut().unwrap();
-    (v.center, v.fitted) = (vectorcraft_geom::Point::new(250.0, 180.0), true);
+    (v.center, v.fitted) = (pluma_geom::Point::new(250.0, 180.0), true);
     (app, thread)
 }
 
@@ -191,7 +191,7 @@ fn a_bitmap_the_user_pastes_is_read_off_the_ui_thread() {
             let (mut app, _) = pasting_app(true, Some(bitmap.clone()), None, converts);
             crate::menus::invoke(&mut app, id, json!({}));
             // The view moves before the bitmap is read.
-            app.view_mut().unwrap().center = vectorcraft_geom::Point::new(40.0, 30.0);
+            app.view_mut().unwrap().center = pluma_geom::Point::new(40.0, 30.0);
             placed(&mut app);
             assert!(state(&app) == state(&at_once), "{} {id}: pasted where the view was", bitmap.mime);
         }
@@ -211,7 +211,7 @@ fn a_bitmap_the_user_pastes_is_read_off_the_ui_thread() {
         assert!(app.session.clipboard == at_once.session.clipboard, "{}", bitmap.mime);
         assert!(app.ui.status.is_empty(), "{}", app.ui.status);
         if converts {
-            assert_eq!(thread.lock().unwrap().as_deref(), Some("vectorcraft-place"));
+            assert_eq!(thread.lock().unwrap().as_deref(), Some("pluma-place"));
         }
         // From the menu or the keys too.
         crate::menus::invoke(&mut app, "edit.paste", json!({}));
@@ -246,8 +246,8 @@ fn a_pasted_bitmap_that_cant_be_read_off_the_ui_thread_reports_as_at_once() {
         let st = app.session.doc().unwrap();
         let pasted = st.selection.objects.first().and_then(|id| st.doc.node(*id)).map(|n| &n.kind);
         match (text, converts) {
-            (Some(_), _) => assert!(matches!(pasted, Some(vectorcraft_doc::NodeKind::Text(_))), "the address is pasted as text"),
-            (None, true) => assert!(matches!(pasted, Some(vectorcraft_doc::NodeKind::Path { .. })), "the copied square is pasted"),
+            (Some(_), _) => assert!(matches!(pasted, Some(pluma_doc::NodeKind::Text(_))), "the address is pasted as text"),
+            (None, true) => assert!(matches!(pasted, Some(pluma_doc::NodeKind::Path { .. })), "the copied square is pasted"),
             (None, false) => assert!(app.ui.status.starts_with("Couldn't paste from the clipboard: "), "{}", app.ui.status),
         }
     }
@@ -320,7 +320,7 @@ fn a_failed_bitmap_paste_keeps_the_document_the_user_switched_to() {
     let insertion = Insertion::of(&app);
     let clipboard = app.session.clipboard.clone();
     let view = app.view_mut().unwrap();
-    (view.center, view.zoom, view.rotation, view.fitted) = (vectorcraft_geom::Point::new(70.0, 90.0), 2.0, 15.0, true);
+    (view.center, view.zoom, view.rotation, view.fitted) = (pluma_geom::Point::new(70.0, 90.0), 2.0, 15.0, true);
     let view = *app.view().unwrap();
     assert!(go.send(()).is_ok());
     placed(&mut app);
@@ -347,7 +347,7 @@ fn a_paste_queued_after_a_failed_bitmap_uses_the_original_selection() {
         let source = app.run("shape.rectangle", json!({"x": 150, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
         app.run("edit.copy", json!({})).unwrap();
         let clipboard = app.session.clipboard.clone();
-        let rect = |app: &mut VectorcraftApp, x: u32| {
+        let rect = |app: &mut PlumaApp, x: u32| {
             app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap()
         };
         let (a, b, c) = (rect(&mut app, 10), rect(&mut app, 40), rect(&mut app, 70));
@@ -377,7 +377,7 @@ fn a_paste_queued_after_a_failed_bitmap_uses_the_original_selection() {
             vec![NodeId(source), NodeId(a), selected, NodeId(b), NodeId(c)]
         };
         assert_eq!(order, expected, "{id}: the internal paste stays beside the original anchor");
-        assert!(matches!(st.doc.node(selected).map(|n| &n.kind), Some(vectorcraft_doc::NodeKind::Path { .. })), "{id}");
+        assert!(matches!(st.doc.node(selected).map(|n| &n.kind), Some(pluma_doc::NodeKind::Path { .. })), "{id}");
         assert!(app.session.clipboard == clipboard, "{id}: the failed bitmap did not replace the clipboard");
         assert!(app.placing.chains.is_empty() && app.placing.latest_chain.is_empty(), "{id}: the queue was released");
     }
@@ -396,12 +396,12 @@ fn a_copy_or_a_close_while_a_pasted_bitmap_is_read() {
     placed(&mut app);
     let st = app.session.doc().unwrap();
     let pasted = st.doc.node(st.selection.objects[0]).unwrap();
-    assert!(matches!(pasted.kind, vectorcraft_doc::NodeKind::Image(_)), "the bitmap is pasted");
+    assert!(matches!(pasted.kind, pluma_doc::NodeKind::Image(_)), "the bitmap is pasted");
     assert!(app.session.clipboard == copied, "the copy stays on the internal clipboard");
     // A bitmap that can't be converted pastes the internal clipboard as it was when the paste
     // was given, and the later copy stays on it.
     let (mut app, _) = pasting_app(true, None, None, true);
-    let square = |app: &mut VectorcraftApp, x: u32| {
+    let square = |app: &mut PlumaApp, x: u32| {
         app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap();
         app.run("edit.copy", json!({})).unwrap();
     };
@@ -457,7 +457,7 @@ fn deferred_fallback_keeps_its_swatch_dialog_art_and_later_copy() {
             let st = app.session.doc().unwrap();
             let pasted = st.doc.node(st.selection.objects[0]).unwrap();
             assert_eq!(pasted.geometric_bounds().unwrap().x0, 10.0);
-            assert_eq!(pasted.appearance.fill_paint().color(), Some(vectorcraft_color::Color::from_hex("#ff0000").unwrap()));
+            assert_eq!(pasted.appearance.fill_paint().color(), Some(pluma_color::Color::from_hex("#ff0000").unwrap()));
         } else {
             crate::dialogs::cancel(&mut app);
             assert!(app.ui.dialog.is_none());
@@ -553,7 +553,7 @@ fn a_find_font_dialog_releases_a_deferred_swatch_paste_before_queued_work() {
         let pasted_id = st.selection.objects[0];
         let pasted = st.doc.node(pasted_id).unwrap();
         assert_eq!(pasted.geometric_bounds().unwrap().x0, 10.0, "{id}");
-        assert_eq!(pasted.appearance.fill_paint().color(), Some(vectorcraft_color::Color::from_hex("#ff0000").unwrap()));
+        assert_eq!(pasted.appearance.fill_paint().color(), Some(pluma_color::Color::from_hex("#ff0000").unwrap()));
         let order: Vec<_> = st.doc.layers[0].children().unwrap().iter().map(|n| n.id).collect();
         let anchor_pos = order.iter().position(|n| *n == NodeId(anchor)).unwrap();
         let pasted_pos = order.iter().position(|n| *n == pasted_id).unwrap();
@@ -690,8 +690,8 @@ fn a_paste_given_while_a_pasted_bitmap_is_read_waits_for_it() {
             .unwrap()
             .iter()
             .map(|n| match n.kind {
-                vectorcraft_doc::NodeKind::Image(_) => "picture",
-                vectorcraft_doc::NodeKind::Text(_) => "text",
+                pluma_doc::NodeKind::Image(_) => "picture",
+                pluma_doc::NodeKind::Text(_) => "text",
                 _ => "path",
             })
             .collect();
@@ -712,7 +712,7 @@ fn a_paste_in_front_read_off_the_ui_thread_keeps_its_place() {
             let (mut at_once, _) = pasting_app(false, bitmap.clone(), None, true);
             let (mut app, _) = pasting_app(true, bitmap.clone(), None, true);
             for app in [&mut at_once, &mut app] {
-                let rect = |app: &mut VectorcraftApp, x: u32| {
+                let rect = |app: &mut PlumaApp, x: u32| {
                     app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone()
                 };
                 let (a, b, c) = (rect(app, 10), rect(app, 40), rect(app, 70));
@@ -727,11 +727,10 @@ fn a_paste_in_front_read_off_the_ui_thread_keeps_its_place() {
                 placed(app);
             }
             // Each object in paint order: `None` for a square, the paste order for a picture.
-            let order = |app: &VectorcraftApp| {
+            let order = |app: &PlumaApp| {
                 let st = app.session.doc().unwrap();
                 let children = st.doc.layers[0].children().unwrap();
-                let mut pictures: Vec<NodeId> =
-                    children.iter().filter(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))).map(|n| n.id).collect();
+                let mut pictures: Vec<NodeId> = children.iter().filter(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_))).map(|n| n.id).collect();
                 pictures.sort();
                 children.iter().map(|n| pictures.iter().position(|p| *p == n.id)).collect::<Vec<_>>()
             };
@@ -752,7 +751,7 @@ fn a_second_paste_in_front_follows_the_first() {
         let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
         app.services.system_clipboard = Some(Box::new(OtherApps { bitmap, text: None, converts: true, thread, holds: vec![None, Some(hold)] }));
         let rect =
-            |app: &mut VectorcraftApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+            |app: &mut PlumaApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
         let (a, b) = (rect(&mut app, 10), rect(&mut app, 40));
         app.run("select.set", json!({"ids": [b]})).unwrap();
         crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
@@ -772,7 +771,7 @@ fn a_second_paste_in_front_follows_the_first() {
         placed(&mut app);
         let st = app.session.doc().unwrap();
         let kinds: Vec<Option<NodeId>> =
-            st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+            st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_)).then_some(n.id)).collect();
         let pictures: Vec<NodeId> = kinds.iter().flatten().copied().collect();
         assert!(pictures.len() == 2 + usize::from(third) && pictures.is_sorted(), "each picture is above the one before: {kinds:?}");
         assert_eq!(kinds.iter().position(Option::is_some), Some(2), "the pictures are above the square they were pasted on: {kinds:?}");
@@ -788,8 +787,7 @@ fn a_paste_beside_a_finished_picture_does_not_follow_another_chain() {
     let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
     let clip = OtherApps { bitmap, text: None, converts: true, thread: Arc::new(Mutex::new(None)), holds: vec![None, Some(hold)] };
     app.services.system_clipboard = Some(Box::new(clip));
-    let rect =
-        |app: &mut VectorcraftApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+    let rect = |app: &mut PlumaApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     let (x, y) = (rect(&mut app, 10), rect(&mut app, 40));
     app.run("select.set", json!({"ids": [x]})).unwrap();
     crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
@@ -807,7 +805,7 @@ fn a_paste_beside_a_finished_picture_does_not_follow_another_chain() {
     placed(&mut app);
     let st = app.session.doc().unwrap();
     let ids: Vec<Option<NodeId>> =
-        st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+        st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_)).then_some(n.id)).collect();
     let last = ids.iter().flatten().max().copied();
     assert_eq!(ids.iter().position(|id| *id == last && last.is_some()), Some(2), "the third picture is above the first: {ids:?}");
 }
@@ -821,8 +819,7 @@ fn pastes_in_two_documents_follow_their_own() {
     let bitmap = Some(Flavour { mime: PNG, data: picture(Png, 60, 40) });
     let clip = OtherApps { bitmap, text: None, converts: true, thread: Arc::new(Mutex::new(None)), holds: vec![None, Some(hold)] };
     app.services.system_clipboard = Some(Box::new(clip));
-    let rect =
-        |app: &mut VectorcraftApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
+    let rect = |app: &mut PlumaApp, x: u32| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     let (_, b) = (rect(&mut app, 10), rect(&mut app, 40));
     app.run("select.set", json!({"ids": [b]})).unwrap();
     crate::menus::invoke(&mut app, "edit.pasteInFront", json!({}));
@@ -845,7 +842,7 @@ fn pastes_in_two_documents_follow_their_own() {
     placed(&mut app);
     let st = &app.session.documents()[0];
     let kinds: Vec<Option<NodeId>> =
-        st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)).then_some(n.id)).collect();
+        st.doc.layers[0].children().unwrap().iter().map(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_)).then_some(n.id)).collect();
     let pictures: Vec<NodeId> = kinds.iter().flatten().copied().collect();
     assert!(pictures.len() == 3 && pictures.is_sorted(), "each picture is above the one before: {kinds:?}");
     assert_eq!(kinds.iter().position(Option::is_some), Some(2), "the pictures are above the square they were pasted on: {kinds:?}");
@@ -871,7 +868,7 @@ fn a_bitmap_pasted_inside_an_isolated_path_stays_isolated() {
         "pasted inside the path"
     );
     assert_eq!(st.isolation, group, "the clipping group is isolated");
-    assert_eq!(app.session.draw_mode, vectorcraft_engine::DrawMode::Normal, "Draw Normal stays");
+    assert_eq!(app.session.draw_mode, pluma_engine::DrawMode::Normal, "Draw Normal stays");
 }
 
 /// A bitmap decoded off the UI thread is pasted into the layer that was current when the paste
@@ -903,7 +900,7 @@ fn a_bitmap_read_off_the_ui_thread_is_pasted_into_its_layer() {
     let st = app.session.doc().unwrap();
     let tops: Vec<_> = [first, second]
         .iter()
-        .map(|l| st.doc.node(*l).and_then(|n| n.children()).and_then(|c| c.last()).map(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))))
+        .map(|l| st.doc.node(*l).and_then(|n| n.children()).and_then(|c| c.last()).map(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_))))
         .collect();
     assert_eq!(tops, [Some(true), Some(true)], "each layer has a picture on top");
     // A group isolated while the paste waits keeps its isolation, and the paste goes into the
@@ -970,7 +967,7 @@ fn what_the_user_places_is_read_off_the_ui_thread_and_commands_read_at_once() {
     app.select_tool("selection");
     // A drop and bytes placed without a path.
     let doc = app.session.doc().unwrap().uid;
-    let drop = DropTarget::Place(DropAt { doc, at: vectorcraft_geom::Point::new(100.0, 100.0), embed: false });
+    let drop = DropTarget::Place(DropAt { doc, at: pluma_geom::Point::new(100.0, 100.0), embed: false });
     crate::place::drop_files(&mut app, vec![(drop, ("b.bmp".into(), Some(b.clone()), vec![]))]);
     crate::io::place_bytes(&mut app, "c.png", &picture(Png, 10, 10)).unwrap();
     assert_eq!(app.placing.pending.len(), 2);
@@ -982,10 +979,10 @@ fn what_the_user_places_is_read_off_the_ui_thread_and_commands_read_at_once() {
 /// a click and a drag place them when they are read at once.
 #[test]
 fn the_place_cursors_clicks_read_their_files_off_the_ui_thread() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let paths = [saved("cursor", "a.tif", &picture(Tiff, 60, 40)), saved("cursor", "b.bmp", &picture(Bmp, 60, 40))];
-    let view = vectorcraft_engine::ViewInfo::default();
-    let press = |app: &mut VectorcraftApp, from: (f64, f64), to: (f64, f64)| {
+    let view = pluma_engine::ViewInfo::default();
+    let press = |app: &mut PlumaApp, from: (f64, f64), to: (f64, f64)| {
         for (kind, (x, y)) in [(PointerKind::Down, from), (PointerKind::Drag, to), (PointerKind::Up, to)] {
             crate::canvas::dispatch(app, &PointerEvent::new(kind, x, y), view);
         }
@@ -1043,8 +1040,8 @@ fn files_dropped_together_are_placed_in_the_order_dropped() {
     let small = [saved("order", "small1.png", &picture(Png, 8, 8)), saved("order", "small2.png", &picture(Png, 8, 8))];
     let mut app = app(true);
     let doc = app.session.doc().unwrap().uid;
-    let drop = DropTarget::Place(DropAt { doc, at: vectorcraft_geom::Point::new(200.0, 150.0), embed: false });
-    let files = [&large, &small[0], &small[1]].map(|p| (drop, (vectorcraft_engine::cmd::fileio::file_name(p), Some(p.clone()), vec![])));
+    let drop = DropTarget::Place(DropAt { doc, at: pluma_geom::Point::new(200.0, 150.0), embed: false });
+    let files = [&large, &small[0], &small[1]].map(|p| (drop, (pluma_engine::cmd::fileio::file_name(p), Some(p.clone()), vec![])));
     crate::place::drop_files(&mut app, files.into());
     assert_eq!(app.placing.pending.len(), 3);
     placed(&mut app);
@@ -1058,8 +1055,8 @@ fn files_dropped_together_are_read_one_at_a_time() {
     let files: Vec<String> = (0..4).map(|i| saved("one-at-a-time", &format!("large{i}.tif"), &picture(Tiff, 1500, 1500))).collect();
     let mut app = app(true);
     let doc = app.session.doc().unwrap().uid;
-    let drop = DropTarget::Place(DropAt { doc, at: vectorcraft_geom::Point::new(200.0, 150.0), embed: false });
-    let dropped = files.iter().map(|p| (drop, (vectorcraft_engine::cmd::fileio::file_name(p), Some(p.clone()), vec![]))).collect();
+    let drop = DropTarget::Place(DropAt { doc, at: pluma_geom::Point::new(200.0, 150.0), embed: false });
+    let dropped = files.iter().map(|p| (drop, (pluma_engine::cmd::fileio::file_name(p), Some(p.clone()), vec![]))).collect();
     crate::place::drop_files(&mut app, dropped);
     placed(&mut app);
     assert_eq!(names(&app).len(), 4);
@@ -1082,14 +1079,14 @@ fn a_placed_image_is_drawn_without_decoding_it_on_the_ui_thread() {
     assert_eq!(names(&app), ["photo.png"]);
     let st = app.session.doc().unwrap();
     let blob = st.doc.images.values().next().unwrap().clone();
-    assert!(vectorcraft_render::image_cached(&blob), "kept before the canvas draws it");
-    let decodes = vectorcraft_render::image_decodes();
+    assert!(pluma_render::image_cached(&blob), "kept before the canvas draws it");
+    let decodes = pluma_render::image_decodes();
     let ctx = egui::Context::default();
     let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0))), ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| crate::canvas::show(&mut app, ui));
     out.textures_delta.clear();
     assert!(app.canvas_rect.is_some(), "the canvas drew a frame");
-    assert_eq!(vectorcraft_render::image_decodes(), decodes, "no decode on the UI thread");
+    assert_eq!(pluma_render::image_decodes(), decodes, "no decode on the UI thread");
 }
 
 /// A file that can't be read shows the message it shows when read at once, dropped or placed
@@ -1119,10 +1116,10 @@ fn a_file_that_cant_be_read_off_the_ui_thread_reports_as_at_once() {
         assert_eq!(app.ui.status, at_once.ui.status);
         assert!(state(&app) == before, "{path}: nothing placed");
         // Dropped on the canvas.
-        let name = vectorcraft_engine::cmd::fileio::file_name(&path);
+        let name = pluma_engine::cmd::fileio::file_name(&path);
         for app in [&mut at_once, &mut app] {
             let doc = app.session.doc().unwrap().uid;
-            let drop = DropTarget::Place(DropAt { doc, at: vectorcraft_geom::Point::new(100.0, 100.0), embed: false });
+            let drop = DropTarget::Place(DropAt { doc, at: pluma_geom::Point::new(100.0, 100.0), embed: false });
             crate::place::drop_files(app, vec![(drop, (name.clone(), Some(path.clone()), vec![]))]);
             placed(app);
         }
@@ -1170,7 +1167,7 @@ fn a_replace_whose_object_was_deleted_meanwhile_places_nothing() {
 /// as the merge leaves it: the merge is applied first.
 #[test]
 fn a_replace_during_a_merge_on_another_thread_swaps_the_merged_object() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Mods, PointerEvent, PointerKind};
     let path = saved("replace-merge", "photo.tif", &picture(Tiff, 60, 40));
     let mut app = app(true);
     for k in 0..40 {
@@ -1180,14 +1177,7 @@ fn a_replace_during_a_merge_on_another_thread_swaps_the_merged_object() {
     app.run("object.group", json!({})).unwrap();
     app.run("tool.select", json!({"tool": "shapeBuilder"})).unwrap();
     let view = app.view_info();
-    let at = |kind, x| PointerEvent {
-        kind,
-        pos: vectorcraft_geom::Point::new(x, 10.0),
-        mods: Mods::default(),
-        pressure: 1.0,
-        backquote: false,
-        pen: None,
-    };
+    let at = |kind, x| PointerEvent { kind, pos: pluma_geom::Point::new(x, 10.0), mods: Mods::default(), pressure: 1.0, backquote: false, pen: None };
     crate::canvas::dispatch(&mut app, &at(PointerKind::Move, 5.0), view);
     app.session.tool_poll(view, true).unwrap();
     // A drag across the row merges every square into one object, the one Replace swaps.
@@ -1213,7 +1203,7 @@ fn a_file_read_while_a_dialog_is_open_waits_for_it_to_close() {
     let path = saved("dialog", "photo.tif", &picture(Tiff, 60, 40));
     let mut app = app(true);
     start(&mut app, &json!({"path": path}), false).unwrap();
-    app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({"path": "/art/First.vectorcraft"})));
+    app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({"path": "/art/First.pluma"})));
     let t0 = std::time::Instant::now();
     while t0.elapsed().as_millis() < 400 {
         poll(&mut app);
@@ -1229,7 +1219,7 @@ fn a_file_read_while_a_dialog_is_open_waits_for_it_to_close() {
 /// the drag to end: the drag is not canceled, and the placed art stays.
 #[test]
 fn a_file_read_during_a_drag_waits_for_it_to_end() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let path = saved("drag", "photo.tif", &picture(Tiff, 60, 40));
     for other_document in [false, true] {
         let mut app = app(true);
@@ -1240,7 +1230,7 @@ fn a_file_read_during_a_drag_waits_for_it_to_end() {
         let square = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
         let dragged = app.session.active_index();
         app.select_tool("selection");
-        let view = vectorcraft_engine::ViewInfo::default();
+        let view = pluma_engine::ViewInfo::default();
         for (kind, x) in [(PointerKind::Down, 20.0), (PointerKind::Drag, 40.0), (PointerKind::Drag, 60.0)] {
             app.session.pointer(&PointerEvent::new(kind, x, 20.0), view).unwrap();
         }
@@ -1266,14 +1256,14 @@ fn a_file_read_during_a_drag_waits_for_it_to_end() {
 /// to end, which the place cursor keeps to itself: the drag still places its file.
 #[test]
 fn a_file_read_during_a_place_cursor_drag_waits_for_it_to_end() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let path = saved("cursor-drag", "photo.tif", &picture(Tiff, 60, 40));
     let cursor = [saved("cursor-drag", "a.png", &picture(Png, 8, 8)), saved("cursor-drag", "b.png", &picture(Png, 8, 8))];
     let mut app = app(true);
     start(&mut app, &json!({"path": path, "at": [300, 200]}), false).unwrap();
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("file.place.queue", json!({"paths": cursor})).unwrap();
-    let view = vectorcraft_engine::ViewInfo::default();
+    let view = pluma_engine::ViewInfo::default();
     for (kind, x) in [(PointerKind::Down, 20.0), (PointerKind::Drag, 60.0)] {
         crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, x, 20.0), view);
     }
@@ -1286,7 +1276,7 @@ fn a_file_read_during_a_place_cursor_drag_waits_for_it_to_end() {
     assert!(app.placing.pending.len() == 1 && app.session.tool_busy(), "the file waits for the drag");
     crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Up, 60.0, 20.0), view);
     placed(&mut app);
-    let placed_in = |i: usize| -> Vec<(String, Option<vectorcraft_geom::Rect>)> {
+    let placed_in = |i: usize| -> Vec<(String, Option<pluma_geom::Rect>)> {
         let st = &app.session.documents()[i];
         st.doc
             .layers
@@ -1296,7 +1286,7 @@ fn a_file_read_during_a_place_cursor_drag_waits_for_it_to_end() {
             .collect()
     };
     assert_eq!(placed_in(0).iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["photo.tif"]);
-    assert_eq!(placed_in(1), [("a.png".to_string(), Some(vectorcraft_geom::Rect::new(20.0, 20.0, 60.0, 60.0)))], "the drag placed its file");
+    assert_eq!(placed_in(1), [("a.png".to_string(), Some(pluma_geom::Rect::new(20.0, 20.0, 60.0, 60.0)))], "the drag placed its file");
 }
 
 /// A file read while a tool waits between its clicks (the Dimension tool after its first point),
@@ -1305,7 +1295,7 @@ fn a_file_read_during_a_place_cursor_drag_waits_for_it_to_end() {
 /// switches documents.
 #[test]
 fn a_file_read_between_a_tools_clicks_is_placed() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let path = saved("clicks", "photo.tif", &picture(Tiff, 60, 40));
     for other_document in [false, true] {
         let mut app = app(true);
@@ -1314,7 +1304,7 @@ fn a_file_read_between_a_tools_clicks_is_placed() {
             app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         }
         app.select_tool("dimension");
-        let view = vectorcraft_engine::ViewInfo::default();
+        let view = pluma_engine::ViewInfo::default();
         for kind in [PointerKind::Down, PointerKind::Up] {
             crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, 20.0, 20.0), view);
         }
@@ -1334,7 +1324,7 @@ fn a_file_read_again_when_placed_stays_within_the_roots_it_was_read_in() {
     src.execute("file.new", &json!({"width": 100, "height": 50})).unwrap();
     src.execute("shape.rectangle", &json!({"x": 5, "y": 5, "width": 20, "height": 10})).unwrap();
     let v = src.execute("document.serialize", &json!({"format": "dxf"})).unwrap();
-    let dxf = vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
+    let dxf = pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
     let base = std::env::temp_dir().join(format!("vc-placing-reread-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     for d in ["in", "out"] {
@@ -1343,10 +1333,10 @@ fn a_file_read_again_when_placed_stays_within_the_roots_it_was_read_in() {
     }
     let link = base.join("in").join("plan.dxf");
     std::os::unix::fs::symlink(base.join("in").join("real.dxf"), &link).unwrap();
-    let roots = vectorcraft_engine::file_access::AutomationRoots::new(&[&base.join("in")], &[]).unwrap().unwrap();
+    let roots = pluma_engine::file_access::AutomationRoots::new(&[&base.join("in")], &[]).unwrap().unwrap();
     let mut app = app(true);
     let p = json!({"path": link.to_string_lossy(), "dxf": {"fit": true}, "at": [100, 150]});
-    vectorcraft_engine::file_access::confine(Some(&roots), || start(&mut app, &p, false)).unwrap();
+    pluma_engine::file_access::confine(Some(&roots), || start(&mut app, &p, false)).unwrap();
     let t0 = std::time::Instant::now();
     while !(app.placing.reading[1].load(std::sync::atomic::Ordering::SeqCst) == 1
         && app.placing.reading[0].load(std::sync::atomic::Ordering::SeqCst) == 0)

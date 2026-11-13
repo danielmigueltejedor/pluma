@@ -1,9 +1,9 @@
 //! Attributes in other applications' XML namespaces (https://www.w3.org/TR/xml-names/) survive a
-//! round trip through VectorCraft: kept on import, written back on export with their namespaces
+//! round trip through Pluma: kept on import, written back on export with their namespaces
 //! declared on the root.
+use pluma_doc::{Document, ForeignAttribute, Node, NodeKind};
+use pluma_svg::{ExportOptions, MAX_FOREIGN, MAX_FOREIGN_VALUE, export, export_full, import, import_with_report};
 use usvg::roxmltree;
-use vectorcraft_doc::{Document, ForeignAttribute, Node, NodeKind};
-use vectorcraft_svg::{ExportOptions, MAX_FOREIGN, MAX_FOREIGN_VALUE, export, export_full, import, import_with_report};
 
 const PLOTTER: &str = "https://example.org/plotter";
 const CUTTER: &str = "https://example.org/cutter";
@@ -71,7 +71,7 @@ fn other_applications_attributes_survive_a_round_trip() {
     let attrs = named(&doc, "shape").extras().attrs.as_deref().unwrap().clone();
     let json = serde_json::to_value(&attrs).unwrap();
     assert_eq!(json["foreign"][0], serde_json::json!({"ns": PLOTTER, "prefix": "plotter", "name": "pen", "value": "3"}));
-    assert_eq!(serde_json::from_value::<vectorcraft_doc::ObjectAttributes>(json).unwrap(), attrs);
+    assert_eq!(serde_json::from_value::<pluma_doc::ObjectAttributes>(json).unwrap(), attrs);
 }
 
 /// Two namespaces under one prefix, a prefix the export uses itself and one XML keeps for itself

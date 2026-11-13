@@ -3,8 +3,8 @@
 //! settings than the window has room for fits it, its settings scrolling.
 
 use egui::{Event, Pos2, Rect, Vec2, vec2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::*;
 use crate::theme;
@@ -20,7 +20,7 @@ fn ctx() -> egui::Context {
 }
 
 /// One frame of the dialog layer with `events`: every text drawn, with its screen rect.
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<Event>) -> Vec<(String, Rect)> {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<Event>) -> Vec<(String, Rect)> {
     let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)), events, ..Default::default() };
     let mut out = ctx.run_ui(input, |ui| show(app, ui.ctx()));
     out.textures_delta.clear();
@@ -41,7 +41,7 @@ fn button(pos: Pos2, pressed: bool) -> Event {
 }
 
 /// Drag with the mouse from `from` by `by`, in steps, then let go.
-fn drag(ctx: &egui::Context, app: &mut VectorcraftApp, from: Pos2, by: Vec2) {
+fn drag(ctx: &egui::Context, app: &mut PlumaApp, from: Pos2, by: Vec2) {
     frame(ctx, app, vec![Event::PointerMoved(from), button(from, true)]);
     for i in 1..=6 {
         frame(ctx, app, vec![Event::PointerMoved(from + by * (i as f32 / 6.0))]);
@@ -50,14 +50,14 @@ fn drag(ctx: &egui::Context, app: &mut VectorcraftApp, from: Pos2, by: Vec2) {
     frame(ctx, app, vec![]);
 }
 
-fn click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: Pos2) -> Vec<(String, Rect)> {
+fn click(ctx: &egui::Context, app: &mut PlumaApp, pos: Pos2) -> Vec<(String, Rect)> {
     frame(ctx, app, vec![Event::PointerMoved(pos), button(pos, true)]);
     frame(ctx, app, vec![button(pos, false)]);
     frame(ctx, app, vec![])
 }
 
 /// Frames until a window that just opened has measured and placed itself.
-fn settle(ctx: &egui::Context, app: &mut VectorcraftApp) {
+fn settle(ctx: &egui::Context, app: &mut PlumaApp) {
     for _ in 0..6 {
         frame(ctx, app, vec![]);
     }
@@ -67,8 +67,8 @@ fn rect_of(ctx: &egui::Context, id: egui::Id) -> Rect {
     ctx.memory(|m| m.area_rect(id)).expect("the dialog window was shown")
 }
 
-fn app_with_selection() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with_selection() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 80, "height": 60})).unwrap();
     app
@@ -79,7 +79,7 @@ fn close_to(a: Vec2, b: Vec2) -> bool {
 }
 
 /// Opens a dialog.
-type Open = fn(&mut VectorcraftApp);
+type Open = fn(&mut PlumaApp);
 
 /// Every kind of modal window: the shared frame (Offset Path), and the ones drawing their own
 /// window (New Document without a heading, Preferences, Keyboard Shortcuts).
@@ -131,7 +131,7 @@ fn the_band_that_moves_a_dialog_keeps_the_arrow_until_dragged() {
         open(&mut app);
         settle(&ctx, &mut app);
         let at = rect_of(&ctx, id).left_top() + vec2(40.0, 6.0);
-        let cursor = |ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<Event>| {
+        let cursor = |ctx: &egui::Context, app: &mut PlumaApp, events: Vec<Event>| {
             let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)), events, ..Default::default() };
             ctx.run_ui(input, |ui| show(app, ui.ctx())).platform_output.cursor_icon
         };
@@ -176,15 +176,15 @@ fn tab_skips_the_band_that_moves_a_dialog() {
 /// Open the dialog of a plug-in of `kind` (`effect` or `filter`) with `count` number settings over a
 /// selection, settle it and `check` it, given its window and heading. The other tests share the
 /// plug-in registry, and the plug-in is removed after.
-fn check_plugin_dialog(kind: &str, count: usize, check: impl FnOnce(&egui::Context, &mut VectorcraftApp, egui::Id, &str)) {
-    use vectorcraft_plugins::wat as tpl;
+fn check_plugin_dialog(kind: &str, count: usize, check: impl FnOnce(&egui::Context, &mut PlumaApp, egui::Id, &str)) {
+    use pluma_plugins::wat as tpl;
     let params: Vec<String> = (0..count).map(|i| format!(r#""setting{i}":{{"type":"number","min":0,"max":10,"default":1}}"#)).collect();
     let id = format!("test.ui.{kind}{count}");
     let src = tpl::module(&tpl::manifest(&id, kind, &format!("{{{}}}", params.join(","))), tpl::ECHO, "", 1);
     let (ctx, mut app) = (ctx(), app_with_selection());
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
     let (command, params, dialog) = match kind {
-        "effect" => ("effect.dialog", json!({"effect": vectorcraft_plugins::effect::effect_id(&id)}), "effect"),
+        "effect" => ("effect.dialog", json!({"effect": pluma_plugins::effect::effect_id(&id)}), "effect"),
         _ => ("plugin.dialog", json!({"id": id}), plugin::KIND),
     };
     app.run(command, params).unwrap();
@@ -200,7 +200,7 @@ fn check_plugin_dialog(kind: &str, count: usize, check: impl FnOnce(&egui::Conte
 #[test]
 fn a_plug_in_dialog_of_many_settings_fits_the_window() {
     // As many as a plug-in may declare outside groups.
-    use vectorcraft_plugins::manifest::MAX_UNGROUPED;
+    use pluma_plugins::manifest::MAX_UNGROUPED;
     let screen = Rect::from_min_size(Pos2::ZERO, SCREEN);
     let shown = |texts: &[(String, Rect)], text: &str| texts.iter().find(|(t, r)| t == text && screen.contains_rect(*r)).map(|(_, r)| *r);
     for kind in ["effect", "filter"] {
@@ -264,7 +264,7 @@ fn offset_path_joins_is_a_dropdown() {
     // OK: the same result as the command with round joins (not miter).
     confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
-    let made = |app: &VectorcraftApp| {
+    let made = |app: &PlumaApp| {
         let st = app.session.doc().unwrap();
         format!("{:?}", st.doc.node(st.selection.objects[0]).unwrap().kind)
     };
@@ -297,7 +297,7 @@ fn form_dialog_axes_are_dropdowns() {
 fn offset_path_previews() {
     let (ctx, mut app) = (ctx(), app_with_selection());
     app.run("select.all", json!({})).unwrap();
-    let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
+    let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum::<usize>();
     crate::menus::invoke(&mut app, "object.path.offsetPath", json!({}));
     let texts = frame(&ctx, &mut app, vec![]);
     let texts = if texts.is_empty() { frame(&ctx, &mut app, vec![]) } else { texts };
@@ -340,8 +340,8 @@ fn offset_path_remembers_its_last_preview_state() {
     assert!(d.bool("preview"), "the state it was confirmed with");
 }
 
-fn app_with_dense_path() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with_dense_path() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let anchors: Vec<_> = (0..20).map(|i| json!({"x": 30 + i * 15, "y": 100.0 + (i % 2) as f64 * 0.1})).collect();
     let id = app.run("path.create", json!({"anchors": anchors})).unwrap()["id"].as_u64().unwrap();
@@ -350,16 +350,16 @@ fn app_with_dense_path() -> VectorcraftApp {
 }
 
 /// Object › Path › Simplify, then the slider's More Options: the Simplify dialog.
-fn open_simplify_dialog(app: &mut VectorcraftApp) {
+fn open_simplify_dialog(app: &mut PlumaApp) {
     crate::menus::invoke(app, "object.path.simplify", json!({}));
     app.run("ui.simplifyMoreOptions", json!({})).unwrap();
 }
 
 /// The anchors of the paths in `app`'s document.
-fn anchor_count(app: &VectorcraftApp) -> usize {
+fn anchor_count(app: &PlumaApp) -> usize {
     let mut n = 0;
     app.session.doc().unwrap().doc.walk(|node| {
-        if let vectorcraft_doc::NodeKind::Path { path, .. } = &node.kind {
+        if let pluma_doc::NodeKind::Path { path, .. } = &node.kind {
             n += path.anchor_count();
         }
     });
@@ -367,7 +367,7 @@ fn anchor_count(app: &VectorcraftApp) -> usize {
 }
 
 /// The parameters of the Simplify preview on the canvas.
-fn simplify_preview(app: &VectorcraftApp) -> serde_json::Value {
+fn simplify_preview(app: &PlumaApp) -> serde_json::Value {
     app.session.doc().unwrap().interaction.as_ref().and_then(|it| it.preview.clone()).expect("a preview").1
 }
 
@@ -411,8 +411,8 @@ fn simplify_opens_a_slider_whose_drag_previews_fewer_or_more_points() {
 }
 
 /// A wave of 20 anchors `width` pt wide and `width / 5` pt high, selected.
-fn app_with_wave(width: f64) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with_wave(width: f64) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 2000, "height": 2000})).unwrap();
     let anchors: Vec<_> = (0..20)
         .map(|i| {
@@ -476,14 +476,14 @@ fn simplify_slider_escape_puts_the_paths_back() {
 #[test]
 fn simplify_slider_stays_where_it_opened_while_the_preview_changes_the_bounds() {
     let ctx = ctx();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.canvas_rect = Some(Rect::from_min_size(Pos2::ZERO, SCREEN));
     // A hump 20 pt high, which level 0 (32 pt) fits with a lower curve, seen at 400%.
     let anchors: Vec<_> = (0..20).map(|i| json!({"x": 30 + i * 15, "y": 100.0 + 20.0 * (std::f64::consts::PI * i as f64 / 19.0).sin()})).collect();
     app.run("path.create", json!({"anchors": anchors})).unwrap();
     app.run("view.setZoom", json!({"zoom": 400})).unwrap();
-    app.view_mut().unwrap().center = vectorcraft_geom::Point::new(172.5, 60.0);
+    app.view_mut().unwrap().center = pluma_geom::Point::new(172.5, 60.0);
     let before = app.selection_bounds().unwrap();
     crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
     settle(&ctx, &mut app);
@@ -527,18 +527,18 @@ fn simplify_slider_auto_simplify_and_a_click_outside_keep_the_result() {
 #[test]
 fn simplify_slider_and_dialog_simplify_only_the_direct_selected_part_of_a_path() {
     let ctx = ctx();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let anchors: Vec<_> = (0..=40).map(|i| json!({"x": 20 + i * 8, "y": 150.0 + 60.0 * (f64::from(i) / 6.0).sin()})).collect();
     let id = app.run("path.create", json!({"anchors": anchors})).unwrap()["id"].as_u64().unwrap();
-    let path = |app: &VectorcraftApp| {
-        app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).and_then(|n| n.path_data()).expect("a path").subpaths[0].anchors.clone()
+    let path = |app: &PlumaApp| {
+        app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).and_then(|n| n.path_data()).expect("a path").subpaths[0].anchors.clone()
     };
     let original = path(&app);
     let run: Vec<_> = (10..=30).map(|i| json!([0, i])).collect();
     app.run("select.anchors", json!({"id": id, "anchors": run})).unwrap();
     let undo_len = app.session.doc().unwrap().history.undo.len();
-    let kept = |app: &VectorcraftApp, how: &str| {
+    let kept = |app: &PlumaApp, how: &str| {
         let now = path(app);
         assert!(now.len() < 41, "{how}: the run loses anchors");
         assert_eq!(now[..10], original[..10], "{how}: the anchors before the run");
@@ -575,7 +575,7 @@ fn simplify_slider_and_dialog_simplify_only_the_direct_selected_part_of_a_path()
 #[test]
 fn smooth_slider_previews_auto_smooth_and_keeps_the_result() {
     let ctx = ctx();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let anchors: Vec<_> =
         (0..=60).map(|i| json!({"x": 20 + i * 5, "y": 150.0 + 40.0 * (f64::from(i) / 10.0).sin() + f64::from(i % 2) * 3.0})).collect();
@@ -738,10 +738,10 @@ fn simplify_dialog_ok_keeps_exactly_one_undo_with_or_without_preview() {
 }
 
 /// Whether every segment of every path in `app`'s document is straight (false with no segments).
-fn only_straight_segments(app: &VectorcraftApp) -> bool {
+fn only_straight_segments(app: &PlumaApp) -> bool {
     let mut lines = vec![];
     app.session.doc().unwrap().doc.walk(|n| {
-        if let vectorcraft_doc::NodeKind::Path { path, .. } = &n.kind {
+        if let pluma_doc::NodeKind::Path { path, .. } = &n.kind {
             for sp in &path.subpaths {
                 lines.extend((0..sp.segment_count()).map(|i| sp.segment_is_line(i)));
             }
@@ -760,7 +760,7 @@ fn simplify_dialog_sends_corner_angle_and_straight_lines() {
     settle(&ctx, &mut app);
     let texts = frame(&ctx, &mut app, vec![]);
     assert!(texts.iter().any(|(t, _)| t == "Corner Point Angle Threshold:"), "{texts:?}");
-    let previewed = |app: &VectorcraftApp| app.session.doc().unwrap().interaction.as_ref().and_then(|it| it.preview.clone()).expect("a preview").1;
+    let previewed = |app: &PlumaApp| app.session.doc().unwrap().interaction.as_ref().and_then(|it| it.preview.clone()).expect("a preview").1;
     assert_eq!((&previewed(&app)["cornerAngle"], &previewed(&app)["straightLines"]), (&json!(30.0), &json!(false)));
     assert!(!only_straight_segments(&app), "the fit keeps the ellipse's curves");
     let straight = texts.iter().find(|(t, _)| t == "Convert to Straight Lines").map(|(_, r)| *r).expect("a Convert to Straight Lines checkbox");
@@ -798,7 +798,7 @@ fn simplify_dialog_show_original_path_outlines_the_paths_before_the_preview() {
     let (ctx, mut app) = (ctx(), app_with_dense_path());
     let st = app.session.doc().unwrap();
     let (id, original) = match st.doc.node(st.selection.objects[0]).map(|n| (n.id, &n.kind)) {
-        Some((id, vectorcraft_doc::NodeKind::Path { path, .. })) => (id, path.clone()),
+        Some((id, pluma_doc::NodeKind::Path { path, .. })) => (id, path.clone()),
         _ => panic!("a path is selected"),
     };
     open_simplify_dialog(&mut app);
@@ -809,7 +809,7 @@ fn simplify_dialog_show_original_path_outlines_the_paths_before_the_preview() {
     click(&ctx, &mut app, show.center());
     assert_eq!(super::path_ops::original_paths(&app), vec![(id, &original)]);
     let simplified = app.session.doc().unwrap().doc.node(id).map(|n| n.kind.clone());
-    assert!(!matches!(simplified, Some(vectorcraft_doc::NodeKind::Path { path, .. }) if path == original), "the preview changed the path");
+    assert!(!matches!(simplified, Some(pluma_doc::NodeKind::Path { path, .. }) if path == original), "the preview changed the path");
     let preview = frame(&ctx, &mut app, vec![]).into_iter().find(|(t, _)| t == "Preview").map(|(_, r)| r).expect("a Preview checkbox");
     click(&ctx, &mut app, preview.center());
     assert!(super::path_ops::original_paths(&app).is_empty(), "nothing to compare with while Preview is off");
@@ -838,7 +838,7 @@ fn offset_path_takes_a_decimal_comma() {
     frame(&ctx, &mut app, vec![Event::Text("0,1".into())]);
     frame(&ctx, &mut app, vec![Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }]);
     let texts = frame(&ctx, &mut app, vec![]);
-    let mm = vectorcraft_doc::Unit::Millimeters.to_pt(0.1);
+    let mm = pluma_doc::Unit::Millimeters.to_pt(0.1);
     let offset = app.ui.dialog.as_ref().unwrap().f64("offset", 0.0);
     assert!((offset - mm).abs() < 1e-9, "0.1 mm: {offset} pt");
     assert!(texts.iter().any(|(t, _)| t == "0.1 mm"), "the field shows 0.1 mm: {texts:?}");

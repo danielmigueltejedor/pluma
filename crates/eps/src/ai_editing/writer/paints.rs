@@ -3,12 +3,12 @@
 
 use std::fmt::Write;
 
-use vectorcraft_color::gradient::GradientGeom;
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{AppearanceItem, FillLayer, PatternDef, StrokeLayer, TileType};
-use vectorcraft_effects::stroke;
-use vectorcraft_geom::{Affine, BezPath, Rect, Shape, Vec2};
+use pluma_color::gradient::GradientGeom;
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{AppearanceItem, FillLayer, PatternDef, StrokeLayer, TileType};
+use pluma_effects::stroke;
+use pluma_geom::{Affine, BezPath, Rect, Shape, Vec2};
 
 use super::{MAX_NEST, Writer, Xy};
 use crate::ai_ops::{average, unit};
@@ -141,7 +141,7 @@ impl Writer<'_> {
     /// The fills and strokes of `n` that paint (outline `bounds`), their gradients placed
     /// ([`Self::placed`]): a fill's on the shape's bounds, a stroke's on what it paints. A gradient
     /// along or across a stroke is its average color (the stroke is written as its outline).
-    pub(super) fn items(&mut self, n: &vectorcraft_doc::Node, bounds: Rect) -> Vec<AppearanceItem> {
+    pub(super) fn items(&mut self, n: &pluma_doc::Node, bounds: Rect) -> Vec<AppearanceItem> {
         super::visible_items(n)
             .into_iter()
             .map(|i| match i {
@@ -412,7 +412,7 @@ impl Writer<'_> {
         // The tile's box first, unpainted and marked as the box: the tile is that box.
         self.state(false, false);
         self.line("0 XR");
-        if let Some(sp) = vectorcraft_geom::shapes::rectangle(def.tile).subpaths.first() {
+        if let Some(sp) = pluma_geom::shapes::rectangle(def.tile).subpaths.first() {
             crate::ai_ops::subpath(&mut self.body, self.to_art, sp);
         }
         self.line("n\n%_/ArtDictionary :\n%_1 /Bool (AIPattern_Editor_Backing_Tile_Rect) ,\n%_;\n%_");
@@ -497,7 +497,7 @@ impl Writer<'_> {
     /// `0 0 0 0 Bh`, `2 (name) 0 0 0 1 1 0 0 1 0 0 1 Bg`, `0 BB`; a pattern's
     /// `(name) 0 0 1 1 0 0 0 0 0 [1 0 0 1 0 0] p`. False for other paint, and for paint that can't
     /// be written.
-    pub(super) fn swatch_paint(&mut self, s: &mut String, sw: &vectorcraft_color::swatch::Swatch) -> bool {
+    pub(super) fn swatch_paint(&mut self, s: &mut String, sw: &pluma_color::swatch::Swatch) -> bool {
         match &sw.paint {
             Paint::Gradient(g) if writable_gradient(&g.gradient) => {
                 let swatch = Some(sw.name.as_str());

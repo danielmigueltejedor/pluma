@@ -1,12 +1,12 @@
 use super::tiles::{describe, draw_registration, pattern_thumb};
 use super::{
-    Document, Entry, Paint, PanelDrag, REGISTRATION, Rect, Response, Sense, Stroke, StrokeKind, SwatchRows, Tokens, Ui, Value, VectorcraftApp, json,
-    pos2, pstate, set_pstate, swatch_params, swatch_tile, vec2,
+    Document, Entry, Paint, PanelDrag, PlumaApp, REGISTRATION, Rect, Response, Sense, Stroke, StrokeKind, SwatchRows, Tokens, Ui, Value, json, pos2,
+    pstate, set_pstate, swatch_params, swatch_tile, vec2,
 };
 
 /// The swatches and colour groups selected in the panel, in click order, without names that no
 /// longer exist (deleted, renamed or undone).
-pub(super) fn selection(app: &VectorcraftApp, ui: &Ui) -> Vec<String> {
+pub(super) fn selection(app: &PlumaApp, ui: &Ui) -> Vec<String> {
     let Some(st) = app.session.active() else { return vec![] };
     let mut names: Vec<String> = pstate(ui.ctx(), "swatch-selected");
     names.retain(|n| n == REGISTRATION || st.doc.swatch_name_taken(n));
@@ -248,7 +248,7 @@ fn replaces(d: &Document, with: &str, target: &str) -> bool {
 /// Run a drop on the panel: move the swatches, give the paint of a swatch Alt-dropped on another of
 /// its kind to that one, or make a swatch of the proxy's paint (a color dropped on a folder or a
 /// grouped swatch joins that group).
-pub(super) fn apply_drop(app: &mut VectorcraftApp, drop: Drop) {
+pub(super) fn apply_drop(app: &mut PlumaApp, drop: Drop) {
     let Some(d) = app.session.active().map(|st| &st.doc) else { return };
     let (cmd, params) = match drop {
         // Alt: the swatch grabbed replaces the color, gradient or pattern of the swatch of its kind
@@ -282,9 +282,9 @@ pub(super) fn apply_drop(app: &mut VectorcraftApp, drop: Drop) {
 /// a Fill/Stroke proxy, the Gradient panel's thumbnail), the fill of the object whose appearance
 /// the Appearance panel's thumbnail carries (or of the first art dragged off the canvas), or the
 /// thumbnail of a dragged graphic style.
-pub(crate) fn drag_preview(app: &VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn drag_preview(app: &PlumaApp, ctx: &egui::Context) {
     let Some(d) = egui::DragAndDrop::payload::<PanelDrag>(ctx) else { return };
-    let fill_of = |id: &vectorcraft_doc::NodeId| app.session.active().and_then(|st| st.doc.node(*id)).map(|n| n.appearance.fill_paint());
+    let fill_of = |id: &pluma_doc::NodeId| app.session.active().and_then(|st| st.doc.node(*id)).map(|n| n.appearance.fill_paint());
     let (paint, registration) = match &*d {
         // Colour groups paint nothing.
         PanelDrag::Paint { params, .. } if params.is_null() => return,
@@ -304,7 +304,7 @@ pub(crate) fn drag_preview(app: &VectorcraftApp, ctx: &egui::Context) {
             }
             None => return,
         },
-        PanelDrag::LibrarySymbol { library, name } => match vectorcraft_engine::cmd::symbollib::library(&app.session, library) {
+        PanelDrag::LibrarySymbol { library, name } => match pluma_engine::cmd::symbollib::library(&app.session, library) {
             Some((_, lib)) => {
                 return pointer_chip(ctx, |ui, r| {
                     crate::panels::symbols::chip(ui, &lib.doc, &crate::panels::symbols::library_symbols(&lib), r, name)
@@ -316,7 +316,7 @@ pub(crate) fn drag_preview(app: &VectorcraftApp, ctx: &egui::Context) {
             Some(st) => return pointer_chip(ctx, |ui, r| crate::panels::brushes::document_chip(ui, r, st, name)),
             None => return,
         },
-        PanelDrag::LibraryBrush { library, name } => match vectorcraft_engine::cmd::brushlib::library(&app.session, library) {
+        PanelDrag::LibraryBrush { library, name } => match pluma_engine::cmd::brushlib::library(&app.session, library) {
             Some((_, lib)) => return pointer_chip(ctx, |ui, r| crate::panels::brushes::library_chip(ui, r, &lib, name)),
             None => return,
         },

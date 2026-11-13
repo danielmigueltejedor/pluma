@@ -2,13 +2,13 @@
 //! colour field clipped to the shape (or the stroke's outline), and the SVG reads back looking as
 //! the canvas paints it.
 
-use vectorcraft_color::freeform::spread_scale;
-use vectorcraft_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::{Point, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, ImageMode, export_full, import};
-use vectorcraft_testkit::format::base64_decode;
-use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+use pluma_color::freeform::spread_scale;
+use pluma_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind};
+use pluma_geom::{Point, Rect, shapes};
+use pluma_svg::{ExportOptions, ImageMode, export_full, import};
+use pluma_testkit::format::base64_decode;
+use pluma_testkit::raster::{assert_similar, render_artboard};
 
 /// Red at the top left, blue at the bottom right, a half-transparent green at the top right.
 fn freeform() -> Paint {
@@ -119,8 +119,8 @@ fn linked_images_write_the_gradient_next_to_the_svg_and_characters_stay_linear()
     assert_eq!(o.linked.len(), 1);
     assert!(o.linked[0].name.ends_with(".png") && o.svg.contains(&format!("xlink:href=\"{}\"", o.linked[0].name)), "{}", o.svg);
     // Characters keep a (linear) gradient paint, with a warning.
-    let style = vectorcraft_doc::CharStyle { size: 30.0, fill: freeform(), ..Default::default() };
-    let t = vectorcraft_doc::TextObject::point(Point::new(20.0, 60.0), "Hi", style);
+    let style = pluma_doc::CharStyle { size: 30.0, fill: freeform(), ..Default::default() };
+    let t = pluma_doc::TextObject::point(Point::new(20.0, 60.0), "Hi", style);
     let o = export_full(&doc_with(Node::new(NodeId(0), NodeKind::Text(Box::new(t)))), &ExportOptions::default(), None);
     assert!(o.svg.contains("linearGradient") && !o.svg.contains("<image"), "{}", o.svg);
     assert!(o.warnings.iter().any(|w| w.contains("characters")), "{:?}", o.warnings);
@@ -128,10 +128,8 @@ fn linked_images_write_the_gradient_next_to_the_svg_and_characters_stay_linear()
 
 /// A shallow grey ramp, dithered or not.
 fn shallow(dither: bool) -> Paint {
-    let stops = vec![
-        vectorcraft_color::GradientStop::new(0.0, Color::rgb8(0x40, 0x40, 0x40)),
-        vectorcraft_color::GradientStop::new(1.0, Color::rgb8(0x4a, 0x4a, 0x4a)),
-    ];
+    let stops =
+        vec![pluma_color::GradientStop::new(0.0, Color::rgb8(0x40, 0x40, 0x40)), pluma_color::GradientStop::new(1.0, Color::rgb8(0x4a, 0x4a, 0x4a))];
     let mut g = Gradient::new(GradientKind::Linear, stops);
     g.dither = dither;
     Paint::Gradient(Box::new(GradientPaint::new(g)))
@@ -166,11 +164,8 @@ fn a_dithered_fill_is_an_image_at_the_raster_effects_resolution() {
 }
 
 /// Blue to yellow, left to right, mixed `method`'s way.
-fn blue_yellow(method: vectorcraft_color::GradientMethod) -> Paint {
-    let stops = vec![
-        vectorcraft_color::GradientStop::new(0.0, Color::rgb(0.0, 0.0, 1.0)),
-        vectorcraft_color::GradientStop::new(1.0, Color::rgb(1.0, 1.0, 0.0)),
-    ];
+fn blue_yellow(method: pluma_color::GradientMethod) -> Paint {
+    let stops = vec![pluma_color::GradientStop::new(0.0, Color::rgb(0.0, 0.0, 1.0)), pluma_color::GradientStop::new(1.0, Color::rgb(1.0, 1.0, 0.0))];
     let mut g = Gradient::new(GradientKind::Linear, stops);
     g.method = method;
     Paint::Gradient(Box::new(GradientPaint::new(g)))
@@ -184,7 +179,7 @@ fn blue_yellow(method: vectorcraft_color::GradientMethod) -> Paint {
 /// Classic gradient stays a vector gradient.
 #[test]
 fn perceptual_gradients_are_images_and_classic_ones_stay_vector() {
-    use vectorcraft_color::GradientMethod;
+    use pluma_color::GradientMethod;
     let shape = shapes::rectangle(Rect::new(20.0, 20.0, 180.0, 140.0));
     let p = blue_yellow(GradientMethod::Perceptual);
     let mut d = doc_with(Node::path(NodeId(0), shape.clone(), Appearance::basic(p.clone(), p, 4.0)));
@@ -219,7 +214,7 @@ fn perceptual_gradients_are_images_and_classic_ones_stay_vector() {
 /// the perceptual mix without noise (dither applies to fills only).
 #[test]
 fn a_dithered_perceptual_fill_is_the_perceptual_mix_with_noise() {
-    use vectorcraft_color::GradientMethod;
+    use pluma_color::GradientMethod;
     let paint = |dither| {
         let Paint::Gradient(mut g) = blue_yellow(GradientMethod::Perceptual) else { panic!("a gradient") };
         g.gradient.dither = dither;

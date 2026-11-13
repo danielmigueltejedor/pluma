@@ -278,7 +278,7 @@ fn use_palette(data: &[u8], doc: &mut Document, names: &mut ai::Names) -> bool {
     }
     let named = |name: &str| swatches.iter().chain(groups.iter().flat_map(|g| &g.swatches)).any(|s| s.name == name);
     let art: Vec<_> =
-        doc.swatches.iter().filter(|s| (s.spot || matches!(s.paint, vectorcraft_color::Paint::Pattern { .. })) && !named(&s.name)).cloned().collect();
+        doc.swatches.iter().filter(|s| (s.spot || matches!(s.paint, pluma_color::Paint::Pattern { .. })) && !named(&s.name)).cloned().collect();
     let mut swatches = swatches;
     swatches.extend(art);
     (doc.swatches, doc.swatch_groups) = (swatches.into(), groups.into());
@@ -314,7 +314,7 @@ fn use_brushes(data: &[u8], doc: &mut Document, have: usize, warnings: &mut Vec<
         p.art = p.art.iter().map(|n| Arc::new(reid_page_art(doc, n))).collect();
         doc.patterns.push(p);
     }
-    vectorcraft_brush::store(doc, &brushes);
+    pluma_brush::store(doc, &brushes);
     warnings.extend(note.filter(|n| !warnings.contains(n)));
 }
 
@@ -345,7 +345,7 @@ fn use_styles(data: &[u8], doc: &mut Document, large_canvas: bool, unit: f64, bo
         if let Some(k) = k.filter(|k| *k != 1.0) {
             for g in &mut styles {
                 g.appearance.scale_strokes(k);
-                g.appearance.scale_effects(k, vectorcraft_effects::scale_effect);
+                g.appearance.scale_effects(k, pluma_effects::scale_effect);
             }
         }
     }
@@ -374,9 +374,8 @@ fn use_symbols(data: &[u8], doc: &mut Document, own_palette: bool, warnings: &mu
     }
     // A color whose name a swatch of another color has takes that swatch's place when it is a
     // default swatch, and else a free variant of the name, as does one whose name a color group has.
-    let (defaults, groups) = vectorcraft_color::default_swatches(doc.color_mode.model());
-    let is_default =
-        |have: &vectorcraft_color::Swatch| !own_palette && defaults.iter().chain(groups.iter().flat_map(|g| &g.swatches)).any(|d| d == have);
+    let (defaults, groups) = pluma_color::default_swatches(doc.color_mode.model());
+    let is_default = |have: &pluma_color::Swatch| !own_palette && defaults.iter().chain(groups.iter().flat_map(|g| &g.swatches)).any(|d| d == have);
     let mut renamed = std::collections::HashMap::new();
     for s in swatches {
         match doc.swatch(&s.name) {
@@ -390,11 +389,11 @@ fn use_symbols(data: &[u8], doc: &mut Document, own_palette: bool, warnings: &mu
             _ => {
                 let name = doc.free_swatch_name(&s.name);
                 renamed.insert(s.name.clone(), name.clone());
-                doc.swatches.push(vectorcraft_color::Swatch { name, ..s });
+                doc.swatches.push(pluma_color::Swatch { name, ..s });
             }
         }
     }
-    let mut follow = |_: &mut vectorcraft_color::Color, link: &mut Option<String>, _: &mut f32| {
+    let mut follow = |_: &mut pluma_color::Color, link: &mut Option<String>, _: &mut f32| {
         let Some(new) = link.as_ref().and_then(|l| renamed.get(l)) else { return false };
         *link = Some(new.clone());
         true
@@ -402,7 +401,7 @@ fn use_symbols(data: &[u8], doc: &mut Document, own_palette: bool, warnings: &mu
     for (mut symbol, registration) in symbols {
         let mut art = reid_page_art(doc, &symbol.art);
         if !renamed.is_empty() {
-            vectorcraft_doc::swatches::map_node_solid_paints(&mut art, &mut follow);
+            pluma_doc::swatches::map_node_solid_paints(&mut art, &mut follow);
         }
         symbol.art = Arc::new(art);
         doc.set_symbol_registration(&symbol.name, registration);
@@ -588,7 +587,7 @@ pub(super) fn closed_where_ends_meet(mut path: PathData) -> PathData {
 #[cfg(test)]
 mod closed_ends_tests {
     use super::{PathData, closed_where_ends_meet};
-    use vectorcraft_geom::Point;
+    use pluma_geom::Point;
 
     /// A path drawn round to its start (the last anchor on the first) is closed there, its first
     /// anchor taking the last one's incoming handle; one whose ends are apart stays open.

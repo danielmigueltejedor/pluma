@@ -1,9 +1,9 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::{choose_shown, click, row_clicked, row_double_clicked, shown};
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 fn names(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
@@ -54,7 +54,7 @@ fn clicks_choose_toggle_and_extend_rows() {
 
 #[test]
 fn select_by_artboards_lists_the_artboards_and_selects_on_ok() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("artboard.new", json!({"x": 150, "y": 0, "width": 200, "height": 50, "name": "Banner"})).unwrap();
     let inside = app.run("shape.rectangle", json!({"x": 160, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
@@ -79,12 +79,12 @@ fn select_by_artboards_lists_the_artboards_and_selects_on_ok() {
     d.fields.insert("relation".into(), json!("inside"));
     crate::dialogs::confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
-    assert_eq!(app.session.active().unwrap().selection.objects, vec![vectorcraft_doc::NodeId(inside)]);
+    assert_eq!(app.session.active().unwrap().selection.objects, vec![pluma_doc::NodeId(inside)]);
 }
 
 #[test]
 fn double_clicking_a_row_fits_its_artboard_and_keeps_the_choice() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     for x in [150, 300] {
         app.run("artboard.new", json!({"x": x, "y": 0, "width": 100, "height": 100})).unwrap();

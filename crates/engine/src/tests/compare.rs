@@ -36,7 +36,7 @@ fn error(s: &mut Session, p: Value) -> String {
 
 #[test]
 fn an_export_compares_equal_and_a_moved_square_counts_the_pixels_it_changed() {
-    let dir = vectorcraft_testkit::temp_dir("compare-moved");
+    let dir = pluma_testkit::temp_dir("compare-moved");
     let png = path_in(&dir, "art.png");
     let (mut s, id) = session();
     export(&mut s, &png);
@@ -59,7 +59,7 @@ fn an_export_compares_equal_and_a_moved_square_counts_the_pixels_it_changed() {
 
 #[test]
 fn the_image_and_the_render_are_flattened_on_the_background() {
-    let dir = vectorcraft_testkit::temp_dir("compare-background");
+    let dir = pluma_testkit::temp_dir("compare-background");
     let png = path_in(&dir, "clear.png");
     // Transparent everywhere, with red in the color channels that the alpha hides.
     image::RgbaImage::from_pixel(80, 40, image::Rgba([255, 0, 0, 0])).save(&png).unwrap();
@@ -86,7 +86,7 @@ fn the_image_and_the_render_are_flattened_on_the_background() {
 
 #[test]
 fn an_image_of_other_proportions_is_refused_and_one_pixel_is_allowed() {
-    let dir = vectorcraft_testkit::temp_dir("compare-size");
+    let dir = pluma_testkit::temp_dir("compare-size");
     let (mut s, _) = session();
     let square = path_in(&dir, "square.png");
     image::RgbaImage::from_pixel(30, 30, image::Rgba([255; 4])).save(&square).unwrap();
@@ -101,7 +101,7 @@ fn an_image_of_other_proportions_is_refused_and_one_pixel_is_allowed() {
 
 #[test]
 fn an_export_whose_height_was_rounded_compares_equal() {
-    let dir = vectorcraft_testkit::temp_dir("compare-rounded");
+    let dir = pluma_testkit::temp_dir("compare-rounded");
     let png = path_in(&dir, "art.png");
     // 20.25 pt at 2 pixels a point is 40.5 rows, which the export rounds to 41.
     let mut s = Session::new();
@@ -123,7 +123,7 @@ fn a_linked_image_is_drawn_from_its_file_as_a_png_export_draws_it() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     place(&mut s, &pic);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     // The file changes after the save: the reopened document shows the red preview saved for it,
     // and a PNG export reads the blue file.
@@ -151,7 +151,7 @@ fn a_linked_image_is_drawn_from_its_file_as_a_png_export_draws_it() {
 
 #[test]
 fn an_image_that_cannot_be_decoded_and_a_missing_font_warn_as_a_png_export_does() {
-    let dir = vectorcraft_testkit::temp_dir("compare-warnings");
+    let dir = pluma_testkit::temp_dir("compare-warnings");
     let png = path_in(&dir, "art.png");
     let (mut s, _) = session();
     export(&mut s, &png);
@@ -172,7 +172,7 @@ fn an_image_that_cannot_be_decoded_and_a_missing_font_warn_as_a_png_export_does(
 
 #[test]
 fn diff_path_writes_each_pixels_differences() {
-    let dir = vectorcraft_testkit::temp_dir("compare-diff");
+    let dir = pluma_testkit::temp_dir("compare-diff");
     let png = path_in(&dir, "art.png");
     let diff = path_in(&dir, "diff.png");
     let (mut s, id) = session();
@@ -193,7 +193,7 @@ fn diff_path_writes_each_pixels_differences() {
 
 #[test]
 fn missing_unreadable_and_malformed_inputs_are_errors() {
-    let dir = vectorcraft_testkit::temp_dir("compare-errors");
+    let dir = pluma_testkit::temp_dir("compare-errors");
     let (mut s, _) = session();
     let png = path_in(&dir, "art.png");
     export(&mut s, &png);
@@ -223,26 +223,18 @@ fn missing_unreadable_and_malformed_inputs_are_errors() {
 /// each, times 5 planes) is refused as too large to draw, without a panic.
 #[test]
 fn a_tiff_with_more_strips_than_can_be_counted_is_too_large() {
-    let dir = vectorcraft_testkit::temp_dir("compare-strips");
+    let dir = pluma_testkit::temp_dir("compare-strips");
     let (mut s, _) = session();
     let plane = |v: u16| vec![v; 6];
     let channels = [plane(200), plane(40), plane(10), plane(0), plane(90)];
-    let t = vectorcraft_testkit::tiff::Tiff {
-        width: 3,
-        height: 2,
-        photometric: 5,
-        bits: 8,
-        extra: &[0],
-        planar: true,
-        ppi: Some(150),
-        channels: &channels,
-    };
-    let mut file = vectorcraft_testkit::tiff::tiff(&t);
+    let t =
+        pluma_testkit::tiff::Tiff { width: 3, height: 2, photometric: 5, bits: 8, extra: &[0], planar: true, ppi: Some(150), channels: &channels };
+    let mut file = pluma_testkit::tiff::tiff(&t);
     // ImageLength (the directory's second entry, its value at offset 30) and RowsPerStrip (the
     // eighth, at offset 102).
     file[30..34].copy_from_slice(&(1u32 << 31 | 1).to_le_bytes());
     file[102..106].copy_from_slice(&1u32.to_le_bytes());
-    assert_eq!(vectorcraft_doc::cmyk::oversized_tiff(&file), Some((3, 1 << 31 | 1)));
+    assert_eq!(pluma_doc::cmyk::oversized_tiff(&file), Some((3, 1 << 31 | 1)));
     let tif = path_in(&dir, "strips.tif");
     std::fs::write(&tif, &file).unwrap();
     let e = error(&mut s, json!({"path": tif}));
@@ -252,7 +244,7 @@ fn a_tiff_with_more_strips_than_can_be_counted_is_too_large() {
 
 #[test]
 fn the_image_and_the_difference_image_stay_inside_the_automation_roots() {
-    let dir = vectorcraft_testkit::temp_dir("compare-roots");
+    let dir = pluma_testkit::temp_dir("compare-roots");
     for d in ["in", "out", "elsewhere"] {
         std::fs::create_dir_all(dir.join(d)).unwrap();
     }

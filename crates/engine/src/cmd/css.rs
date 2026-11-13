@@ -1,11 +1,11 @@
-//! Window → CSS Properties: the CSS web pages style objects with ([`vectorcraft_svg::css_rules`],
+//! Window → CSS Properties: the CSS web pages style objects with ([`pluma_svg::css_rules`],
 //! which writes each property as SVG export writes it), for the selection or the whole document,
 //! and the `.css` file with the pictures of the art it rasterizes.
 
+use pluma_doc::NodeId;
+use pluma_svg::{CssOptions, CssSheet, css_rules};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_svg::{CssOptions, CssSheet, css_rules};
 
 use super::fileio::{default_name, encode_with_warnings, isolated, write_file};
 use super::{CommandSpec, Result, Session, bad, cmd, has_doc, str_param, targets};
@@ -129,7 +129,7 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
         }
         None => {
             let images: Vec<Value> =
-                images.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) })).collect();
+                images.iter().map(|(name, bytes)| json!({ "name": name, "dataBase64": pluma_format::base64_encode(bytes) })).collect();
             Ok(json!({ "data": css, "name": default_name(doc, "css"), "rules": n, "images": images, "warnings": warnings }))
         }
     }

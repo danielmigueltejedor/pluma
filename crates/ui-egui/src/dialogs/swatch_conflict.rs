@@ -8,13 +8,13 @@
 //! answers so far, by swatch name), `__command` and `__params` (the paste to run).
 
 use egui::vec2;
+use pluma_color::{Color, Paint};
 use serde_json::{Map, Value, json};
-use vectorcraft_color::{Color, Paint};
 
 use super::swatch_options::{grid, label};
 use super::{DialogResult, DialogSpec};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Swatch Conflict.
 pub const KIND: &str = "swatchConflict";
@@ -31,7 +31,7 @@ const CHOICES: [(&str, &str, &str); 2] = [
 /// Before running paste `command` with `params`: when the pasted objects' swatches conflict with
 /// the document's and `params` don't say how to resolve them (`swatchConflict`), open the dialog
 /// instead and answer `{dialog}`.
-pub fn ask(app: &mut VectorcraftApp, command: &str, params: &Value) -> Option<DialogResult> {
+pub fn ask(app: &mut PlumaApp, command: &str, params: &Value) -> Option<DialogResult> {
     if params.get("swatchConflict").is_some() {
         return None;
     }
@@ -66,7 +66,7 @@ fn chip(ui: &mut egui::Ui, hex: Option<&str>, caption: &str) {
     });
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let i = index(d);
     let (count, Some(c)) = (conflicts(d).len(), conflicts(d).get(i).cloned()) else { return true };
     let name = c["name"].as_str().unwrap_or_default();
@@ -103,7 +103,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Record the answer; ask about the next conflict, or paste once every one is answered.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     let choice = d.str("choice");
     if !matches!(choice.as_str(), "merge" | "add") {
         return Err(format!("choice must be \"merge\" or \"add\", not `{choice}`"));

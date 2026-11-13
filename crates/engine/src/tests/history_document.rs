@@ -255,7 +255,7 @@ fn a_file_the_source_finds_in_its_folder_is_found_from_the_new_document() {
     write(&pic, &png(60, 30, RED));
     let mut s = session();
     place(&mut s, &pic);
-    s.execute("document.save", &json!({"path": b.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": b.file("poster.pluma")})).unwrap();
     let moved = b.file("photo.png");
     std::fs::rename(&pic, &moved).unwrap();
     let check = |s: &mut Session| s.execute("links.check", &json!({})).unwrap();
@@ -276,14 +276,14 @@ fn a_missing_file_keeps_its_relative_path_in_the_new_document() {
     write(&a.file("art/photo.png"), &png(60, 30, RED));
     let mut s = session();
     place(&mut s, &a.file("art/photo.png"));
-    s.execute("document.save", &json!({"path": a.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": a.file("poster.pluma")})).unwrap();
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
     std::fs::rename(b.0.join("art"), away.0.join("art")).unwrap();
-    let r = s.execute("document.open", &json!({"path": b.file("poster.vectorcraft")})).unwrap();
+    let r = s.execute("document.open", &json!({"path": b.file("poster.pluma")})).unwrap();
     assert_eq!(r["missingLinks"][0]["name"], "photo.png", "{r}");
     s.execute(CMD, &json!({})).unwrap();
-    let copy = b.file("copy.vectorcraft");
+    let copy = b.file("copy.pluma");
     s.execute("document.save", &json!({"path": copy})).unwrap();
     let saved: Value = serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
     let link = &saved["document"]["layers"][0]["kind"]["children"][0]["kind"]["link"];
@@ -300,13 +300,13 @@ fn a_file_back_beside_the_source_it_was_read_from_is_found_from_the_new_document
     write(&a.file("art/photo.png"), &png(60, 30, RED));
     let mut s = session();
     place(&mut s, &a.file("art/photo.png"));
-    s.execute("document.save", &json!({"path": a.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": a.file("poster.pluma")})).unwrap();
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
     std::fs::rename(b.0.join("art"), away.0.join("art")).unwrap();
-    s.execute("document.open", &json!({"path": b.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.open", &json!({"path": b.file("poster.pluma")})).unwrap();
     std::fs::create_dir_all(b.0.join("saved")).unwrap();
-    s.execute("document.save", &json!({"path": b.file("saved/poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": b.file("saved/poster.pluma")})).unwrap();
     std::fs::rename(away.0.join("art"), b.0.join("art")).unwrap();
     let source = s.active_index().unwrap();
     s.execute(CMD, &json!({})).unwrap();
@@ -324,7 +324,7 @@ fn a_file_back_beside_the_source_it_was_read_from_is_found_from_the_new_document
     // Missing again when the new document is saved, the file keeps the place it was found.
     std::fs::rename(&saved, away.file("photo.png")).unwrap();
     std::fs::create_dir_all(b.0.join("new")).unwrap();
-    let copy = b.file("new/copy.vectorcraft");
+    let copy = b.file("new/copy.pluma");
     s.execute("document.save", &json!({"path": copy})).unwrap();
     let file: Value = serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
     let link = &file["document"]["layers"][0]["kind"]["children"][0]["kind"]["link"];
@@ -341,7 +341,7 @@ fn a_file_a_symbol_shows_is_found_from_the_new_document() {
     let mut s = session();
     place(&mut s, &pic);
     s.execute("symbol.new", &json!({"name": "Photo"})).unwrap();
-    s.execute("document.save", &json!({"path": b.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": b.file("poster.pluma")})).unwrap();
     let moved = b.file("photo.png");
     std::fs::rename(&pic, &moved).unwrap();
     s.execute(CMD, &json!({})).unwrap();
@@ -364,7 +364,7 @@ fn a_file_outside_the_callers_roots_is_not_looked_for() {
     write(&pic, &png(60, 30, RED));
     let mut s = session();
     place(&mut s, &pic);
-    s.execute("document.save", &json!({"path": b.file("poster.vectorcraft")})).unwrap();
+    s.execute("document.save", &json!({"path": b.file("poster.pluma")})).unwrap();
     let moved = b.file("photo.png");
     std::fs::rename(&pic, &moved).unwrap();
     let narrow = crate::file_access::AutomationRoots::new(&[&other.0], &[]).unwrap().unwrap();

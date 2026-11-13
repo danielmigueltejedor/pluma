@@ -5,9 +5,9 @@
 //! mark-to-mark), and one that has to borrow the marks from a fallback font.
 
 use kurbo::{Point, Rect, Shape};
+use pluma_doc::{CharStyle, TextObject};
 use skrifa::MetadataProvider;
 use unicode_segmentation::UnicodeSegmentation;
-use vectorcraft_doc::{CharStyle, TextObject};
 use write_fonts::FontBuilder;
 use write_fonts::types::Tag;
 

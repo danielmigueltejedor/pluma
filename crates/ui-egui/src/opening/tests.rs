@@ -1,23 +1,23 @@
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::Services;
 
 #[test]
 fn long_operation_busy_while_a_file_opens_or_a_background_save_runs() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     assert!(!long_operation_busy(&app));
-    start(&mut app, "/art/Wait.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(10.0, 10.0), false)).unwrap();
+    start(&mut app, "/art/Wait.pluma", pluma_format::save(&pluma_doc::Document::new(10.0, 10.0), false)).unwrap();
     assert!(long_operation_busy(&app));
     open_ready(&mut app);
     assert!(!long_operation_busy(&app));
     let (release, held) = std::sync::mpsc::channel::<()>();
     let services = Services { write_shared: Some(std::sync::Arc::new(|_: &str, _: &[u8]| Ok(()))), ..Default::default() };
-    app = VectorcraftApp::new(Session::new(), services);
+    app = PlumaApp::new(Session::new(), services);
     crate::background::run(
         &mut app,
         true,
-        "Saving test.vectorcraft".into(),
+        "Saving test.pluma".into(),
         None,
         move |_| {
             let _ = held.recv();
@@ -33,7 +33,7 @@ fn long_operation_busy_while_a_file_opens_or_a_background_save_runs() {
 }
 
 /// Wait until every file being opened has been read, keeping each result for [`poll`].
-fn wait_read(app: &mut VectorcraftApp) {
+fn wait_read(app: &mut PlumaApp) {
     for p in &mut app.opening.pending {
         let (tx, done) = std::sync::mpsc::channel();
         // A reader that stopped without a result leaves the new channel closed too.
@@ -45,14 +45,14 @@ fn wait_read(app: &mut VectorcraftApp) {
 }
 
 /// Wait until every file being opened has been read, then open the files that may open now.
-fn open_ready(app: &mut VectorcraftApp) {
+fn open_ready(app: &mut PlumaApp) {
     wait_read(app);
     poll(app);
 }
 
-fn install_importer(app: &mut VectorcraftApp, src: &str) {
+fn install_importer(app: &mut PlumaApp, src: &str) {
     let wasm = wat::parse_str(src).unwrap();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap();
 }
 
 /// A file for the importers below, in a folder of its own.
@@ -71,10 +71,10 @@ fn importer_file(tag: &str) -> (std::path::PathBuf, String) {
 /// reported in a dialog.
 #[test]
 fn open_with_runs_the_importer_off_the_ui_thread() {
-    use vectorcraft_plugins::wat::{self as tpl, Given};
+    use pluma_plugins::wat::{self as tpl, Given};
     let rect = r#"{"objects":[{"type":"path","path":{"subpaths":[{"closed":true,"anchors":[{"p":[10,20]},{"p":[110,20]},{"p":[110,70]},{"p":[10,70]}]}]}}]}"#;
     let (dir, file) = importer_file("with");
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
     let params = r#"{"density":{"type":"number","min":0,"max":10,"default":4}}"#;
     install_importer(&mut app, &tpl::when_given(&tpl::importer("test.opening.with", r#"["tob"]"#, params), Given::Params, r#""density":7"#, rect));
@@ -103,9 +103,9 @@ fn open_with_runs_the_importer_off_the_ui_thread() {
 /// Cancel stops an importer that never returns, on the thread reading the file.
 #[test]
 fn cancel_stops_a_running_importer() {
-    use vectorcraft_plugins::wat as tpl;
+    use pluma_plugins::wat as tpl;
     let (dir, file) = importer_file("cancel");
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
     install_importer(&mut app, &tpl::module(&tpl::importer("test.opening.spins", r#"["tob"]"#, "{}"), "(loop $l (br $l)) (i64.const 0)", "", 1));
     crate::io::open_with_on(&mut app, &json!({"importer": "plugin.test.opening.spins", "path": file}), true).unwrap();
@@ -122,11 +122,11 @@ fn cancel_stops_a_running_importer() {
 /// dialog's document stays the active one.
 #[test]
 fn a_file_ready_while_a_dialog_is_open_waits_for_it_to_close() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     let (first, before) = (app.session.doc().unwrap().uid, app.session.documents().len());
-    app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({"path": "/art/First.vectorcraft"})));
-    start(&mut app, "/art/Second.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({"path": "/art/First.pluma"})));
+    start(&mut app, "/art/Second.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     open_ready(&mut app);
     assert_eq!((app.session.documents().len(), app.session.doc().unwrap().uid), (before, first), "still the dialog's document");
     assert_eq!(app.opening.pending.len(), 1);
@@ -134,29 +134,29 @@ fn a_file_ready_while_a_dialog_is_open_waits_for_it_to_close() {
     poll(&mut app);
     assert!(app.opening.pending.is_empty());
     assert_eq!(app.session.documents().len(), before + 1);
-    assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("/art/Second.vectorcraft"));
+    assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("/art/Second.pluma"));
 }
 
 /// A file that finishes opening while an object is being dragged waits for the drag to end, so
 /// the drag is not canceled.
 #[test]
 fn a_file_ready_during_a_drag_waits_for_it_to_end() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let square = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("selection");
-    let view = vectorcraft_engine::ViewInfo::default();
+    let view = pluma_engine::ViewInfo::default();
     for (kind, x) in [(PointerKind::Down, 20.0), (PointerKind::Drag, 40.0), (PointerKind::Drag, 60.0)] {
         app.session.pointer(&PointerEvent::new(kind, x, 20.0), view).unwrap();
     }
-    start(&mut app, "/art/Second.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    start(&mut app, "/art/Second.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     open_ready(&mut app);
     assert!(app.session.documents().len() == 1 && app.session.in_interaction(), "the file waits for the drag");
     app.session.pointer(&PointerEvent::new(PointerKind::Up, 60.0, 20.0), view).unwrap();
     poll(&mut app);
     assert_eq!(app.session.documents().len(), 2);
-    let moved = app.session.documents()[0].doc.node(vectorcraft_doc::NodeId(square)).and_then(|n| n.geometric_bounds());
+    let moved = app.session.documents()[0].doc.node(pluma_doc::NodeId(square)).and_then(|n| n.geometric_bounds());
     assert_eq!(moved.map(|b| (b.x0, b.y0)), Some((50.0, 10.0)), "the drag was not canceled");
 }
 
@@ -164,17 +164,17 @@ fn a_file_ready_during_a_drag_waits_for_it_to_end() {
 /// to itself, waits for the drag to end: the drag still places its file.
 #[test]
 fn a_file_ready_during_a_place_cursor_drag_waits_for_it_to_end() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let mut png = vec![];
     image::RgbImage::new(8, 8).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    app.run("file.place.queue", json!({"files": [{"name": "a.png", "dataBase64": vectorcraft_format::base64_encode(&png)}]})).unwrap();
-    let view = vectorcraft_engine::ViewInfo::default();
+    app.run("file.place.queue", json!({"files": [{"name": "a.png", "dataBase64": pluma_format::base64_encode(&png)}]})).unwrap();
+    let view = pluma_engine::ViewInfo::default();
     for (kind, x) in [(PointerKind::Down, 20.0), (PointerKind::Drag, 60.0)] {
         crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, x, 20.0), view);
     }
-    start(&mut app, "/art/Second.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    start(&mut app, "/art/Second.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     open_ready(&mut app);
     assert!(app.session.documents().len() == 1 && app.session.tool_busy(), "the file waits for the drag");
     crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Up, 60.0, 20.0), view);
@@ -191,15 +191,15 @@ fn a_file_ready_during_a_place_cursor_drag_waits_for_it_to_end() {
 /// pointer after its second point.
 #[test]
 fn a_file_ready_during_a_preview_waits_for_it_to_end() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let view = vectorcraft_engine::ViewInfo::default();
-    let click = |app: &mut VectorcraftApp, x: f64| {
+    use pluma_tools::{PointerEvent, PointerKind};
+    let view = pluma_engine::ViewInfo::default();
+    let click = |app: &mut PlumaApp, x: f64| {
         for kind in [PointerKind::Down, PointerKind::Up] {
             crate::canvas::dispatch(app, &PointerEvent::new(kind, x, 20.0), view);
         }
     };
     for case in ["slider", "slider between clicks", "line"] {
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         if case != "slider" {
             app.select_tool("dimension");
@@ -212,7 +212,7 @@ fn a_file_ready_during_a_preview_waits_for_it_to_end() {
             app.session.begin_interaction("Preview").unwrap();
         }
         assert_eq!(app.session.tool_busy(), case != "slider", "{case}");
-        start(&mut app, "/art/Second.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+        start(&mut app, "/art/Second.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
         open_ready(&mut app);
         assert!(app.session.documents().len() == 1 && app.session.in_interaction(), "the file waits for the preview: {case}");
         if case == "line" {
@@ -231,26 +231,26 @@ fn a_file_ready_during_a_preview_waits_for_it_to_end() {
 /// switches documents.
 #[test]
 fn a_file_ready_between_a_tools_clicks_opens() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.select_tool("dimension");
-    let view = vectorcraft_engine::ViewInfo::default();
-    let click = |app: &mut VectorcraftApp, x: f64| {
+    let view = pluma_engine::ViewInfo::default();
+    let click = |app: &mut PlumaApp, x: f64| {
         for kind in [PointerKind::Down, PointerKind::Up] {
             crate::canvas::dispatch(app, &PointerEvent::new(kind, x, 20.0), view);
         }
     };
     click(&mut app, 20.0);
     assert!(app.session.tool_busy() && !app.session.in_interaction(), "the first point waits for the second");
-    start(&mut app, "/art/Second.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(400.0, 300.0), false)).unwrap();
+    start(&mut app, "/art/Second.pluma", pluma_format::save(&pluma_doc::Document::new(400.0, 300.0), false)).unwrap();
     open_ready(&mut app);
     assert_eq!(app.session.documents().len(), 2, "the file opens after one click");
     assert!(!app.session.tool_busy(), "the tool starts afresh");
     click(&mut app, 20.0);
     click(&mut app, 80.0);
     assert!(app.session.tool_busy() && !app.session.in_interaction(), "the second point waits for the line's place");
-    start(&mut app, "/art/Third.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    start(&mut app, "/art/Third.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     open_ready(&mut app);
     assert_eq!(app.session.documents().len(), 3, "the file opens after two clicks");
     assert!(!app.session.tool_busy() && !app.session.in_interaction(), "the tool starts afresh");
@@ -260,26 +260,26 @@ fn a_file_ready_between_a_tools_clicks_opens() {
 
 #[test]
 fn a_file_read_off_the_ui_thread_opens_as_one_read_at_once() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
-    let mut d = vectorcraft_doc::Document::new(120.0, 80.0);
+    let mut app = PlumaApp::new(Session::new(), Services::default());
+    let mut d = pluma_doc::Document::new(120.0, 80.0);
     d.title = "Poster".into();
-    let bytes = vectorcraft_format::save(&d, false);
+    let bytes = pluma_format::save(&d, false);
     let before = app.session.documents().len();
-    let r = start(&mut app, "/art/Poster.vectorcraft", bytes).unwrap();
+    let r = start(&mut app, "/art/Poster.pluma", bytes).unwrap();
     assert_eq!(r["background"], true);
-    assert_eq!(app.ui.status, "Opening Poster.vectorcraft…");
+    assert_eq!(app.ui.status, "Opening Poster.pluma…");
     open_ready(&mut app);
     assert_eq!(app.session.documents().len(), before + 1);
     assert!(!app.ui.status.starts_with("Opening"), "{}", app.ui.status);
     let st = app.session.doc().unwrap();
-    assert_eq!((st.path.as_deref(), st.doc.artboards[0].rect.width()), (Some("/art/Poster.vectorcraft"), 120.0));
-    assert_eq!(app.ui.recent_files.first().map(String::as_str), Some("/art/Poster.vectorcraft"));
+    assert_eq!((st.path.as_deref(), st.doc.artboards[0].rect.width()), (Some("/art/Poster.pluma"), 120.0));
+    assert_eq!(app.ui.recent_files.first().map(String::as_str), Some("/art/Poster.pluma"));
     // A file that can't be read: reported, nothing opened, not a recent file.
-    start(&mut app, "/art/Broken.vectorcraft", b"{\"format\":\"vectorcraft\"".to_vec()).unwrap();
+    start(&mut app, "/art/Broken.pluma", b"{\"format\":\"vectorcraft\"".to_vec()).unwrap();
     open_ready(&mut app);
     assert_eq!(app.session.documents().len(), before + 1);
-    assert!(app.ui.status.starts_with("Couldn't open Broken.vectorcraft"), "{}", app.ui.status);
-    assert_ne!(app.ui.recent_files.first().map(String::as_str), Some("/art/Broken.vectorcraft"));
+    assert!(app.ui.status.starts_with("Couldn't open Broken.pluma"), "{}", app.ui.status);
+    assert_ne!(app.ui.recent_files.first().map(String::as_str), Some("/art/Broken.pluma"));
 }
 
 /// A file read off the UI thread opens as the document read at once. Its linked TIFF, BMP and JPEG
@@ -299,7 +299,7 @@ fn a_file_read_off_the_ui_thread_has_its_links_and_type_as_one_read_at_once() {
         image::RgbImage::from_pixel(60, 40, image::Rgb(rgb)).write_to(&mut std::io::Cursor::new(&mut out), format).unwrap();
         out
     };
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     for (name, format) in [("a.tif", Tiff), ("b.bmp", Bmp), ("c.jpg", Jpeg), ("gone.png", Png), ("changed.png", Png)] {
         std::fs::write(file(&before, name), picture(format, [200, 40, 40])).unwrap();
@@ -308,7 +308,7 @@ fn a_file_read_off_the_ui_thread_has_its_links_and_type_as_one_read_at_once() {
     let area = json!({"width": 150, "height": 20, "fit": "autoHeight"});
     let t = app.session.execute("text.create", &json!({"x": 20, "y": 40, "text": "Type in two columns. ".repeat(12), "area": area})).unwrap();
     app.session.execute("text.areaOptions", &json!({"ids": [t["id"]], "columns": 2})).unwrap();
-    app.session.execute("document.save", &json!({"path": file(&before, "poster.vectorcraft")})).unwrap();
+    app.session.execute("document.save", &json!({"path": file(&before, "poster.pluma")})).unwrap();
     std::fs::remove_file(file(&before, "gone.png")).unwrap();
     let changed = file(&before, "changed.png");
     let stamp = std::fs::metadata(&changed).unwrap().modified().unwrap();
@@ -318,9 +318,9 @@ fn a_file_read_off_the_ui_thread_has_its_links_and_type_as_one_read_at_once() {
     std::fs::OpenOptions::new().write(true).open(&changed).unwrap().set_times(later).unwrap();
     // The folder moves: the linked files are found beside the document.
     std::fs::rename(&before, &after).unwrap();
-    let path = file(&after, "poster.vectorcraft");
+    let path = file(&after, "poster.pluma");
     let bytes = std::fs::read(&path).unwrap();
-    let asked = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone()));
+    let asked = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone()));
     for update in ["askWhenModified", "automatically"] {
         app.session.prefs.update_links = update.into();
         let r = crate::io::open_bytes(&mut app, &path, &bytes, Some(path.clone())).unwrap();
@@ -343,20 +343,18 @@ fn a_file_read_off_the_ui_thread_has_its_links_and_type_as_one_read_at_once() {
 /// started in, not the desktop's access of the frame it finishes in.
 #[test]
 fn a_file_opened_under_automation_roots_finishes_under_them() {
-    use vectorcraft_engine::file_access;
+    use pluma_engine::file_access;
     let dir = scope_dir();
     let roots = file_access::AutomationRoots::new(&[dir.as_path()], &[]).unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
-    file_access::confine(roots.as_ref(), || {
-        start(&mut app, "/art/Scoped.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(10.0, 10.0), false))
-    })
-    .unwrap();
+    let mut app = PlumaApp::new(Session::new(), Services::default());
+    file_access::confine(roots.as_ref(), || start(&mut app, "/art/Scoped.pluma", pluma_format::save(&pluma_doc::Document::new(10.0, 10.0), false)))
+        .unwrap();
     let scope = app.opening.pending[0].scope.clone();
     assert!(scope.run(file_access::current).is_some(), "the roots go with the open");
 }
 
 fn scope_dir() -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-opening-scope-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-opening-scope-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -364,10 +362,10 @@ fn scope_dir() -> std::path::PathBuf {
 /// A file asked for again while it is still being read is not read a second time (#3455).
 #[test]
 fn a_file_asked_for_again_while_it_is_read_opens_once() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
-    let bytes = vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false);
-    start(&mut app, "/art/Poster.vectorcraft", bytes).unwrap();
-    assert_eq!(crate::io::open_file(&mut app, "/art/Poster.vectorcraft", true).unwrap(), Value::Null);
+    let mut app = PlumaApp::new(Session::new(), Services::default());
+    let bytes = pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false);
+    start(&mut app, "/art/Poster.pluma", bytes).unwrap();
+    assert_eq!(crate::io::open_file(&mut app, "/art/Poster.pluma", true).unwrap(), Value::Null);
     assert_eq!(app.opening.pending.len(), 1);
     open_ready(&mut app);
     assert_eq!(app.session.documents().len(), 1);
@@ -378,12 +376,12 @@ fn a_file_asked_for_again_while_it_is_read_opens_once() {
 /// the dialog acts on its own document (#5369).
 #[test]
 fn a_queued_reopen_that_asks_holds_back_files_ready_to_open() {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-opening-queued-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-opening-queued-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
-    let (doc, other) = (dir.join("doc.vectorcraft"), dir.join("other.vectorcraft"));
+    let (doc, other) = (dir.join("doc.pluma"), dir.join("other.pluma"));
     let (doc, other) = (doc.to_string_lossy().into_owned(), other.to_string_lossy().into_owned());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 40, "text": "Type", "font": "No Such Font Family"})).unwrap();
@@ -397,7 +395,7 @@ fn a_queued_reopen_that_asks_holds_back_files_ready_to_open() {
     assert_eq!(app.opening.activate.len(), 2);
     app.session.execute("file.close", &json!({"index": 1})).unwrap();
     app.session.execute("file.close", &json!({"index": 0})).unwrap();
-    start(&mut app, "/art/Other.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    start(&mut app, "/art/Other.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     // The other file is read; it waits for the dialog meanwhile.
     open_ready(&mut app);
     assert_eq!(app.opening.pending.len(), 1);
@@ -414,26 +412,26 @@ fn a_queued_reopen_that_asks_holds_back_files_ready_to_open() {
 /// about its fonts holds back the second, so the question acts on its own document (#5369).
 #[test]
 fn a_file_that_opens_and_asks_holds_back_the_next_one_ready() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 40, "text": "Type", "font": "No Such Font Family"})).unwrap();
-    let asks = vectorcraft_format::save(&app.session.doc().unwrap().doc, false);
+    let asks = pluma_format::save(&app.session.doc().unwrap().doc, false);
     app.session.execute("file.close", &json!({})).unwrap();
     app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({})));
-    start(&mut app, "/art/Asks.vectorcraft", asks).unwrap();
-    start(&mut app, "/art/Plain.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(120.0, 80.0), false)).unwrap();
+    start(&mut app, "/art/Asks.pluma", asks).unwrap();
+    start(&mut app, "/art/Plain.pluma", pluma_format::save(&pluma_doc::Document::new(120.0, 80.0), false)).unwrap();
     // Both files are read; they wait for the dialog meanwhile.
     open_ready(&mut app);
     assert_eq!(app.opening.pending.len(), 2);
     app.ui.dialog = None;
     poll(&mut app);
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some(crate::dialogs::missing_fonts::KIND));
-    assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("/art/Asks.vectorcraft"), "the dialog's document stays active");
+    assert_eq!(app.session.doc().unwrap().path.as_deref(), Some("/art/Asks.pluma"), "the dialog's document stays active");
     assert_eq!(app.opening.pending.len(), 1, "the next file waits");
 }
 
 /// Draws the opening progress window at `time` seconds → the texts it drew.
-fn progress(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64) -> String {
+fn progress(app: &mut PlumaApp, ctx: &egui::Context, time: f64) -> String {
     let mut out = ctx.run_ui(egui::RawInput { time: Some(time), ..Default::default() }, |ui| show(app, ui.ctx()));
     out.textures_delta.clear();
     let mut texts = String::new();
@@ -448,9 +446,9 @@ fn progress(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64) -> String 
 
 /// A document's bytes, `title` naming it.
 fn bytes(title: &str) -> Vec<u8> {
-    let mut d = vectorcraft_doc::Document::new(120.0, 80.0);
+    let mut d = pluma_doc::Document::new(120.0, 80.0);
     d.title = title.into();
-    vectorcraft_format::save(&d, false)
+    pluma_format::save(&d, false)
 }
 
 /// #5930: a file that takes a while to open shows a progress window with its name and a moving
@@ -458,21 +456,21 @@ fn bytes(title: &str) -> Vec<u8> {
 /// window waits for a dialog to close.
 #[test]
 fn a_file_that_takes_a_while_to_open_shows_a_progress_window() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     assert_eq!(progress(&mut app, &ctx, 0.0), "", "nothing opening");
-    start(&mut app, "/art/Big.vectorcraft", bytes("Big")).unwrap();
+    start(&mut app, "/art/Big.pluma", bytes("Big")).unwrap();
     assert_eq!(progress(&mut app, &ctx, 1.0), "", "not at once");
     progress(&mut app, &ctx, 1.0 + DELAY + 0.05); // a new window measures itself unseen first
     let texts = progress(&mut app, &ctx, 1.0 + DELAY + 0.1);
-    for want in ["Opening Big.vectorcraft…", "Reading the file…", "Cancel", "Continue in Background"] {
+    for want in ["Opening Big.pluma…", "Reading the file…", "Cancel", "Continue in Background"] {
         assert!(texts.contains(want), "{want} in {texts}");
     }
     assert!(!texts.contains("waiting"), "{texts}");
-    start(&mut app, "/art/Next.vectorcraft", bytes("Next")).unwrap();
+    start(&mut app, "/art/Next.pluma", bytes("Next")).unwrap();
     let texts = progress(&mut app, &ctx, 2.0);
-    assert!(texts.contains("Opening Big.vectorcraft…") && texts.contains("1 more file waiting"), "{texts}");
+    assert!(texts.contains("Opening Big.pluma…") && texts.contains("1 more file waiting"), "{texts}");
     app.ui.dialog = Some(crate::state::Dialog::new(crate::dialogs::save_options::KIND, json!({})));
     assert_eq!(progress(&mut app, &ctx, 3.0), "", "never two modals at once");
     app.ui.dialog = None;
@@ -491,10 +489,10 @@ fn a_file_that_takes_a_while_to_open_shows_a_progress_window() {
 /// has been read, and the status bar no longer says it is opening.
 #[test]
 fn cancelling_an_open_opens_nothing() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     assert!(!crate::menus::enabled(&app, "file.cancelOpen"));
     let before = app.session.documents().len();
-    start(&mut app, "/art/Big.vectorcraft", bytes("Big")).unwrap();
+    start(&mut app, "/art/Big.pluma", bytes("Big")).unwrap();
     assert!(crate::menus::enabled(&app, "file.cancelOpen"));
     assert_eq!(app.run("file.cancelOpen", json!({})).unwrap()["cancelled"], 1);
     assert!(app.opening.pending.is_empty() && !long_operation_busy(&app));
@@ -502,7 +500,7 @@ fn cancelling_an_open_opens_nothing() {
     std::thread::sleep(std::time::Duration::from_millis(50));
     poll(&mut app);
     assert_eq!(app.session.documents().len(), before);
-    assert_ne!(app.ui.recent_files.first().map(String::as_str), Some("/art/Big.vectorcraft"));
+    assert_ne!(app.ui.recent_files.first().map(String::as_str), Some("/art/Big.pluma"));
 }
 
 /// The moving bar's segment enters at the left, crosses the track and leaves at the right, and a

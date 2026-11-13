@@ -4,12 +4,12 @@
 
 mod region;
 
+use pluma_doc::hit::enclosure_candidates;
+use pluma_doc::{AppearanceItem, Node, NodeKind, SymbolBoxes};
+use pluma_geom::kurbo::{ParamCurve, PathEl};
+use pluma_geom::{BezPath, FillRule, PathData, Point, Rect, Shape};
+use pluma_pathops::{BoolOp, DEFAULT_PRECISION, try_boolean};
 use serde_json::json;
-use vectorcraft_doc::hit::enclosure_candidates;
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind, SymbolBoxes};
-use vectorcraft_geom::kurbo::{ParamCurve, PathEl};
-use vectorcraft_geom::{BezPath, FillRule, PathData, Point, Rect, Shape};
-use vectorcraft_pathops::{BoolOp, DEFAULT_PRECISION, try_boolean};
 
 use self::region::Region;
 use crate::xform::{BLUE, polygon};

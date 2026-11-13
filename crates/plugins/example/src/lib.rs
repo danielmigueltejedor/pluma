@@ -1,4 +1,4 @@
-//! Desaturate: an example VectorCraft object filter plug-in (plug-in ABI v1, see
+//! Desaturate: an example Pluma object filter plug-in (plug-in ABI v1, see
 //! `docs/plugins.md`).
 //!
 //! It reads the selected paths as JSON, moves every colour (solid fills and strokes, gradient
@@ -8,7 +8,7 @@
 use serde_json::{Value, json};
 
 const MANIFEST: &str = r#"{
-  "id": "org.vectorcraft.example.desaturate",
+  "id": "org.pluma.example.desaturate",
   "name": "Desaturate",
   "version": "1.0.0",
   "kind": "filter",

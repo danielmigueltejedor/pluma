@@ -4,12 +4,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use vectorcraft_color::Color;
-use vectorcraft_color::cms::{self, Cms, Model, ProfileKind};
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_doc::inks::{Link, inks, plates, visit_node_colors};
-use vectorcraft_doc::overprint::darken_overprints;
-use vectorcraft_doc::{ColorMode, Document, ImageBlob, Node, NodeKind};
+use pluma_color::Color;
+use pluma_color::cms::{self, Cms, Model, ProfileKind};
+use pluma_color::swatch::REGISTRATION;
+use pluma_doc::inks::{Link, inks, plates, visit_node_colors};
+use pluma_doc::overprint::darken_overprints;
+use pluma_doc::{ColorMode, Document, ImageBlob, Node, NodeKind};
 
 use super::{DEFAULT_FREQUENCY, PrintInk, PrintSettings};
 

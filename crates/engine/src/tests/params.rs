@@ -163,7 +163,7 @@ fn export_options_pass_every_listed_key() {
         let prose = if id == "document.exportPdf" { vec!["BleedBox", "MediaBox"] } else { vec![] };
         assert_eq!(refused, prose, "{id} names and refuses these");
     }
-    let settings = serde_json::to_value(vectorcraft_pdf::PdfSettings::default()).unwrap();
+    let settings = serde_json::to_value(pluma_pdf::PdfSettings::default()).unwrap();
     for key in settings.as_object().unwrap().keys() {
         assert!(OPTIONS.iter().any(|o| o.name == key), "document.formats doesn't list the PDF option `{key}`");
     }
@@ -212,7 +212,7 @@ fn save_options_refuse_a_key_no_save_format_reads() {
         for given in [
             json!({"path": "a.svg", "compress": true}),
             json!({"path": "a.pdf", "options": {"preview": true, "styling": "style"}}),
-            json!({"path": "a.vectorcraft", "standard": "pdfX4", "marks": {"trim": true}}),
+            json!({"path": "a.pluma", "standard": "pdfX4", "marks": {"trim": true}}),
             json!({"path": "a.ai", "acknowledgeLoss": true, "modified": null, "svg": {"minify": true}}),
             json!({"path": "a.svg", "svg": {"styling": "css", "artboard": 0, "useArtboards": true}}),
         ] {
@@ -425,7 +425,7 @@ fn a_batch_checks_its_steps() {
 /// is named (`effect.apply`) and where the document says which it is (`effect.setParams`).
 #[test]
 fn effect_params_are_the_effects_own() {
-    use vectorcraft_render::effects::effect_catalog;
+    use pluma_render::effects::effect_catalog;
     for e in effect_catalog() {
         doc_keys(e.params).unwrap_or_else(|why| panic!("{}: {why}", e.id));
         check_effect_params("effect.apply", e.id, &e.defaults).unwrap_or_else(|why| panic!("{}'s defaults: {why}", e.id));
@@ -472,7 +472,7 @@ fn effect_params_are_the_effects_own() {
 /// an option the effect gains is checked too.
 #[test]
 fn transform_effect_refuses_a_boolean_or_number_given_as_text() {
-    let info = vectorcraft_render::effects::effect_info("distort.transform").unwrap();
+    let info = pluma_render::effects::effect_info("distort.transform").unwrap();
     let one = |key: &str, v: serde_json::Value| serde_json::Value::Object([(key.to_string(), v)].into_iter().collect());
     let apply = |params| json!({"effect": "distort.transform", "params": params});
     let mut s = Session::new();

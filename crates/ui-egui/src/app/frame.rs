@@ -1,6 +1,6 @@
-use super::{GeometryStamp, InputGeneration, VectorcraftApp, canvas};
+use super::{GeometryStamp, InputGeneration, PlumaApp, canvas};
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// The host iteration count: one increment per `App::logic`/`App::ui` iteration (or a
     /// logic-only one), for panel state that asks "was this drawn in the last iteration?".
     pub(crate) fn frame_iteration(&self) -> u64 {
@@ -8,11 +8,11 @@ impl VectorcraftApp {
     }
 
     /// The canvas on screen in document coordinates (none before it is laid out).
-    pub fn screen_frame(&self) -> Option<vectorcraft_tools::ScreenFrame> {
+    pub fn screen_frame(&self) -> Option<pluma_tools::ScreenFrame> {
         let (rect, view) = (self.canvas_rect?, self.view()?);
         let xf = canvas::Xf::new(rect, view);
         let px = |x: f32, y: f32| xf.delta_to_doc(egui::vec2(x, y));
-        Some(vectorcraft_tools::ScreenFrame {
+        Some(pluma_tools::ScreenFrame {
             origin: xf.to_doc(rect.left_top()),
             right: px(1.0, 0.0),
             down: px(0.0, 1.0),
@@ -21,7 +21,7 @@ impl VectorcraftApp {
     }
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Is the window minimized or fully occluded (as far as the host reports)?
     pub(crate) fn viewport_hidden(&self, ctx: &egui::Context) -> bool {
         ctx.input(|i| {

@@ -1,6 +1,6 @@
 use super::*;
 use crate::stroke::outline as raster_stroke_outline;
-use vectorcraft_doc::StrokeLayer;
+use pluma_doc::StrokeLayer;
 
 /// Independently integrate coverage in radial/angle bins of an original notched ring. Checking
 /// only the outline geometry misses raster flattening that cancels its two nearby contours.
@@ -16,7 +16,7 @@ fn fractional_curved_strokes_retain_coverage_between_notches() {
             let mut previous = 0.0;
             path.move_to((950.0, 500.0));
             let mut arcs = Vec::new();
-            let point = |r: f64, a: f64| vectorcraft_geom::Point::new(500.0 + r * a.cos(), 500.0 + r * a.sin());
+            let point = |r: f64, a: f64| pluma_geom::Point::new(500.0 + r * a.cos(), 500.0 + r * a.sin());
             for degrees in [17.0_f64, 64.0, 119.0, 147.0, 201.0, 242.0, 313.0, 360.0] {
                 let a = degrees.to_radians();
                 let k = 4.0 / 3.0 * ((a - previous) / 4.0).tan();
@@ -72,7 +72,7 @@ fn fractional_curved_strokes_retain_coverage_between_notches() {
             }
             let mut node = Node::path(
                 d.alloc_id(),
-                vectorcraft_geom::PathData::from_bezpath(&path),
+                pluma_geom::PathData::from_bezpath(&path),
                 Appearance::basic(Paint::None, Paint::solid(Color::BLACK), weight),
             );
             node.opacity = opacity;

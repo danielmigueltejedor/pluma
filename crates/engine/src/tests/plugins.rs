@@ -2,16 +2,16 @@
 //! transactional), live-effect plug-ins in appearance stacks, and the `plugin.*` management
 //! commands.
 
+use pluma_color::{Color, Paint};
+use pluma_geom::{PathData, Point, SubPath};
+use pluma_plugins::wat as tpl;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_geom::{PathData, Point, SubPath};
-use vectorcraft_plugins::wat as tpl;
 
 use crate::*;
 
 /// The example Desaturate plug-in (built from `crates/plugins/example`).
 const DESATURATE: &[u8] = include_bytes!("../../../plugins/tests/fixtures/desaturate.wasm");
-const DESATURATE_ID: &str = "org.vectorcraft.example.desaturate";
+const DESATURATE_ID: &str = "org.pluma.example.desaturate";
 
 fn run(s: &mut Session, cmd: &str, p: Value) -> Value {
     s.execute(cmd, &p).unwrap_or_else(|e| panic!("{cmd}: {e}"))
@@ -19,7 +19,7 @@ fn run(s: &mut Session, cmd: &str, p: Value) -> Value {
 
 /// Installs `wasm`, in place of any module installed with its id (`replace: true`).
 fn install(s: &mut Session, wasm: &[u8]) -> Value {
-    run(s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(wasm), "replace": true}))
+    run(s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(wasm), "replace": true}))
 }
 
 fn install_wat(s: &mut Session, src: &str) -> Value {
@@ -48,7 +48,7 @@ fn rect(s: &mut Session, x: f64, fill: &str) -> NodeId {
     id
 }
 
-fn node(s: &Session, id: NodeId) -> vectorcraft_doc::Node {
+fn node(s: &Session, id: NodeId) -> pluma_doc::Node {
     s.doc().unwrap().doc.node(id).unwrap().clone()
 }
 
@@ -170,7 +170,7 @@ fn filters_make_guides_and_locked_objects_left_unselected() {
     let undo = s.doc().unwrap().history.undo.len();
     let r = run(&mut s, "plugin.run", json!({"id": "test.engine.guides"}));
     let ids: Vec<NodeId> = r["ids"].as_array().unwrap().iter().map(|v| NodeId(v.as_u64().unwrap())).collect();
-    assert!(matches!(node(&s, ids[0]).kind, vectorcraft_doc::NodeKind::Path { guide: true, .. }));
+    assert!(matches!(node(&s, ids[0]).kind, pluma_doc::NodeKind::Path { guide: true, .. }));
     assert!(node(&s, ids[1]).locked);
     let st = s.doc().unwrap();
     assert_eq!(st.selection.objects, [ids[2]]);
@@ -222,7 +222,7 @@ fn live_effect_plugins_reshape_editable_art_and_expand() {
         let n = node(s, a);
         let path = n.path_data().unwrap().clone();
         let b = path.bounds().unwrap();
-        vectorcraft_render::effects::apply_geometry(&n.appearance.effects, &path, b)
+        pluma_render::effects::apply_geometry(&n.appearance.effects, &path, b)
     };
     run(&mut s, "effect.apply", json!({"ids": [a.0], "effect": "plugin.test.engine.echo"}));
     assert_eq!(effected(&s), *node(&s, a).path_data().unwrap(), "identity");
@@ -268,15 +268,15 @@ fn live_effects_are_given_their_object_s_paints() {
     let effected = |s: &Session, item: Option<usize>| {
         let n = node(s, id);
         let path = n.path_data().unwrap().clone();
-        let ctx = vectorcraft_render::effects::GeomContext::of(&n);
+        let ctx = pluma_render::effects::GeomContext::of(&n);
         let (effects, ctx) = match item {
             Some(i) => match &n.appearance.items[i] {
-                vectorcraft_doc::AppearanceItem::Stroke(st) => (st.effects.clone(), ctx.item(&n.appearance.items[i])),
+                pluma_doc::AppearanceItem::Stroke(st) => (st.effects.clone(), ctx.item(&n.appearance.items[i])),
                 other => panic!("not a stroke: {other:?}"),
             },
             None => (n.appearance.effects.clone(), ctx),
         };
-        vectorcraft_render::effects::apply_geometry_with(&effects, &path, path.bounds().unwrap(), &ctx)
+        pluma_render::effects::apply_geometry_with(&effects, &path, path.bounds().unwrap(), &ctx)
     };
     let own = node(&s, id).path_data().unwrap().clone();
     let remove = |s: &mut Session| run(s, "effect.remove", json!({"ids": [id.0], "index": 0, "item": null}));
@@ -313,8 +313,8 @@ fn expanding_a_fill_gives_its_plug_in_effect_the_fill_it_sits_on() {
     let fill = node(&s, id).appearance.items.iter().position(|i| i.is_fill()).unwrap();
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.onfill", "item": fill}));
     // Drawn, the gradient fills the triangle: a point of it outside the rectangle is painted.
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    let drawn = vectorcraft_render::Renderer::new().render(&s.doc().unwrap().doc, 40, 40, vectorcraft_geom::Affine::IDENTITY, &opts);
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let drawn = pluma_render::Renderer::new().render(&s.doc().unwrap().doc, 40, 40, pluma_geom::Affine::IDENTITY, &opts);
     assert_ne!(drawn.pixel(15, 1), [255, 255, 255, 255], "drawn as a triangle");
     run(&mut s, "select.set", json!({"ids": [id.0]}));
     run(&mut s, "object.expand", json!({"steps": 2}));
@@ -341,9 +341,9 @@ fn solid(hex: &str) -> Value {
 }
 
 /// The 200 × 200 top left of the document, drawn on white.
-fn drawn(s: &Session) -> vectorcraft_render::Rendered {
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    vectorcraft_render::Renderer::new().render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts)
+fn drawn(s: &Session) -> pluma_render::Rendered {
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    pluma_render::Renderer::new().render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts)
 }
 
 const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -381,7 +381,7 @@ fn a_painted_live_effect_draws_its_pieces_with_their_own_paints() {
     assert_eq!(drawn(&s).pixel(90, 50), BLUE);
     run(&mut s, "edit.undo", json!({}));
     let svg = s.execute("document.export", &json!({"format": "svg"})).unwrap();
-    let svg = String::from_utf8(vectorcraft_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+    let svg = String::from_utf8(pluma_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
     assert!(svg.contains("#00ff00") && svg.contains("#ff0000"), "{svg}");
     assert_eq!(s.doc().unwrap().doc, before, "drawing and export don't change the document");
     assert_eq!(s.doc().unwrap().history.undo.len(), undo);
@@ -528,7 +528,7 @@ fn pathfinder_and_baked_appearance_take_painted_pieces_with_swatch_links() {
     let id = rect(&mut s, 120.0, "#ff0000");
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.leafpaint"}));
     let st = s.doc().unwrap();
-    let baked = vectorcraft_render::effects::bake_appearance(Some(&st.doc), st.doc.node(id).unwrap()).unwrap();
+    let baked = pluma_render::effects::bake_appearance(Some(&st.doc), st.doc.node(id).unwrap()).unwrap();
     let mut fills = vec![];
     baked.walk(&mut |n| {
         if let Some(p) = n.path_data() {
@@ -565,7 +565,7 @@ fn a_piece_s_own_stroke_counts_in_the_bounds_of_what_is_drawn() {
     let id = rect(&mut s, -300.0, "#ff0000");
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.widestroke"}));
     assert_eq!(drawn(&s).pixel(30, 50), GREEN, "only the piece's stroke is on screen");
-    let bounds = |s: &Session, id: NodeId| vectorcraft_render::drawn_bounds(&s.doc().unwrap().doc, &node(s, id)).unwrap();
+    let bounds = |s: &Session, id: NodeId| pluma_render::drawn_bounds(&s.doc().unwrap().doc, &node(s, id)).unwrap();
     assert!(bounds(&s, id).x1 >= 50.0, "{:?}", bounds(&s, id));
 
     let blurred = rect(&mut s, -300.0, "#ff0000");
@@ -584,11 +584,10 @@ fn a_retained_renderer_shows_a_piece_once_its_swatch_exists() {
     let id = rect(&mut s, 500.0, "#ff0000");
     install_wat(&mut s, &tpl::returning(&painting("test.engine.lateleaf", true), &leaf_square()));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.lateleaf"}));
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    let mut r = vectorcraft_render::Renderer::new();
-    let at_piece = |r: &mut vectorcraft_render::Renderer, s: &Session| {
-        r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(50, 50)
-    };
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let mut r = pluma_render::Renderer::new();
+    let at_piece =
+        |r: &mut pluma_render::Renderer, s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts).pixel(50, 50);
     assert_eq!(at_piece(&mut r, &s), WHITE, "the piece is refused");
     run(&mut s, "select.none", json!({}));
     run(&mut s, "swatch.new", json!({"name": "Leaf", "color": "#00ff00"}));
@@ -676,7 +675,7 @@ fn a_second_painted_effect_on_a_fill_keeps_the_piece_s_other_fills() {
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.onefill", "item": fill}));
     assert_eq!(drawn(&s).pixel(50, 50), GREEN, "the other fill paints over the replaced one");
     let st = s.doc().unwrap();
-    let art = vectorcraft_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
+    let art = pluma_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
     let mut paints = vec![];
     art.walk(&mut |n| {
         if n.path_data().is_some() {
@@ -711,7 +710,7 @@ fn a_painted_effect_on_a_fill_keeps_a_placed_gradient_with_its_moved_shape() {
         run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "distort.transform", "params": {"moveH": 100}, "item": fill}));
         run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": format!("plugin.{plugin}"), "item": fill}));
         let st = s.doc().unwrap();
-        let art = vectorcraft_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
+        let art = pluma_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
         let mut seen = vec![];
         art.walk(&mut |n| {
             if let (Some(p), Some(Paint::Gradient(g))) = (n.path_data(), n.appearance.items.iter().find(|i| i.is_fill()).map(|i| i.paint())) {
@@ -726,7 +725,7 @@ fn a_painted_effect_on_a_fill_keeps_a_placed_gradient_with_its_moved_shape() {
 /// swatch: without a document, and with one that lacks it, the effect keeps its input.
 #[test]
 fn painted_geometry_is_used_only_when_its_references_are_in_the_document() {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_with};
+    use pluma_render::effects::{GeomContext, apply_geometry_with};
     let mut s = session();
     let id = rect(&mut s, 10.0, "#ff0000");
     install_wat(&mut s, &tpl::returning(&painting("test.engine.geomref", true), &leaf_square()));
@@ -734,7 +733,7 @@ fn painted_geometry_is_used_only_when_its_references_are_in_the_document() {
     let n = node(&s, id);
     let path = n.path_data().unwrap().clone();
     let input = path.bounds().unwrap();
-    let geometry = |doc: Option<&vectorcraft_doc::Document>| {
+    let geometry = |doc: Option<&pluma_doc::Document>| {
         apply_geometry_with(&n.appearance.effects, &path, input, &GeomContext { doc, ..GeomContext::of(&n) }).bounds()
     };
     assert_eq!(geometry(None), Some(input), "no document");
@@ -786,7 +785,7 @@ fn an_image_s_painted_fill_is_hit_and_measured_as_drawn() {
     image::RgbaImage::from_pixel(30, 30, image::Rgba([255, 0, 0, 255]))
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
-    let r = run(&mut s, "file.place", json!({"name": "red.png", "dataBase64": vectorcraft_format::base64_encode(&png), "at": [65, 65]}));
+    let r = run(&mut s, "file.place", json!({"name": "red.png", "dataBase64": pluma_format::base64_encode(&png), "at": [65, 65]}));
     let im = NodeId(r["ids"][0].as_u64().unwrap());
     run(&mut s, "swatch.new", json!({"name": "Leaf", "color": "#00ff00"}));
     let mut leaf = solid("#00ff00");
@@ -800,7 +799,7 @@ fn an_image_s_painted_fill_is_hit_and_measured_as_drawn() {
     run(&mut s, "effect.apply", json!({"effect": "plugin.test.engine.imagepaint", "item": 0}));
     assert_eq!(drawn(&s).pixel(130, 50), GREEN, "the canvas draws the piece");
     let doc = &s.doc().unwrap().doc;
-    assert!(vectorcraft_doc::hit::hit_test(doc, Point::new(130.0, 50.0), Default::default()).is_some(), "a click on the piece hits the image");
+    assert!(pluma_doc::hit::hit_test(doc, Point::new(130.0, 50.0), Default::default()).is_some(), "a click on the piece hits the image");
     let boxes = doc.symbol_boxes();
     assert!(doc.node(im).unwrap().reach_bounds_with(&boxes).unwrap().x1 >= 140.0, "the bounds take in the piece");
 }
@@ -824,8 +823,8 @@ fn a_path_with_a_painted_effect_takes_part_in_pathfinder_as_its_pieces() {
     run(&mut s, "select.set", json!({"ids": [id.0]}));
     run(&mut s, "transparency.set", json!({"item": null, "opacity": 50}));
     let st = s.doc().unwrap();
-    let hook = |c: &vectorcraft_doc::Node| vectorcraft_render::effects::outline_object(Some(&st.doc), c);
-    let faces = vectorcraft_render::effects::pathfinder_children(Some(&st.doc), st.doc.node(g).unwrap(), Some(&hook)).unwrap();
+    let hook = |c: &pluma_doc::Node| pluma_render::effects::outline_object(Some(&st.doc), c);
+    let faces = pluma_render::effects::pathfinder_children(Some(&st.doc), st.doc.node(g).unwrap(), Some(&hook)).unwrap();
     let faces: Vec<_> = faces.iter().map(|f| (f.appearance.fill().map(|f| f.paint.clone()), f.opacity)).collect();
     let fill = |hex: &str| Some(Paint::solid(Color::from_hex(hex).unwrap()));
     assert_eq!(faces, [(fill("#0000ff"), 0.5), (fill("#00ff00"), 0.5)]);
@@ -841,10 +840,10 @@ fn kept_art_follows_the_swatches_painted_pieces_name() {
     run(&mut s, "swatch.new", json!({"name": "Leaf", "color": "#00ff00"}));
     install_wat(&mut s, &tpl::returning(&painting("test.engine.keptpaint", true), &leaf_square()));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.keptpaint"}));
-    let mut r = vectorcraft_render::Renderer::new();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let mut r = pluma_render::Renderer::new();
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
     let mut draw = |s: &Session| {
-        let img = r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts);
+        let img = r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts);
         (img.pixel(50, 50), img.pixel(15, 15))
     };
     assert_eq!(draw(&s), (GREEN, WHITE), "the piece, green");
@@ -868,9 +867,9 @@ fn a_piece_linked_to_a_global_swatch_takes_its_edited_color() {
         }
         run(&mut s, "select.none", json!({}));
         run(&mut s, "swatch.new", json!({"name": "Leaf", "color": "#00ff00", "global": true}));
-        let mut r = vectorcraft_render::Renderer::new();
-        let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-        let mut at_piece = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(50, 50);
+        let mut r = pluma_render::Renderer::new();
+        let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+        let mut at_piece = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts).pixel(50, 50);
         assert!(near(at_piece(&s), GREEN), "the piece, in the swatch's color (blur {blur})");
         run(&mut s, "swatch.edit", json!({"name": "Leaf", "color": "#0000ff"}));
         let px = at_piece(&s);
@@ -889,10 +888,10 @@ fn kept_art_follows_the_swatches_once_a_replaced_plugin_paints() {
     run(&mut s, "swatch.new", json!({"name": "Leaf", "color": "#00ff00"}));
     install_wat(&mut s, &tpl::returning(&painting("test.engine.laterpaint", false), &leaf_square()));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.laterpaint"}));
-    let mut r = vectorcraft_render::Renderer::new();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let mut r = pluma_render::Renderer::new();
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
     let mut draw = |s: &Session| {
-        let img = r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts);
+        let img = r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts);
         (img.pixel(50, 50), img.pixel(15, 15))
     };
     assert_eq!(draw(&s), (RED, WHITE), "the square in the object's paint");
@@ -919,9 +918,9 @@ fn a_kept_raster_follows_the_swatches_painted_pieces_name() {
     install_wat(&mut s, &tpl::returning(&painting("test.engine.blurpaint", true), &leaf_square()));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.blurpaint"}));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "blur.gaussian", "params": {"radius": 1}}));
-    let mut r = vectorcraft_render::Renderer::new();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    let mut draw = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts);
+    let mut r = pluma_render::Renderer::new();
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let mut draw = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts);
     let img = draw(&s);
     assert!(near(img.pixel(50, 50), GREEN) && near(img.pixel(15, 15), WHITE), "the piece, green and blurred");
     run(&mut s, "swatch.delete", json!({"name": "Leaf"}));
@@ -940,20 +939,20 @@ fn a_kept_raster_follows_the_tiles_of_patterns_painted_pieces_name() {
     let id = rect(&mut s, 10.0, "#ff0000");
     let green = rect(&mut s, 300.0, "#00ff00");
     let blue = rect(&mut s, 320.0, "#0000ff");
-    let tile = |r: f64, art: vectorcraft_doc::Node| vectorcraft_doc::pattern::PatternDef {
-        tile: vectorcraft_geom::Rect::new(r, 10.0, r + 10.0, 20.0),
-        ..vectorcraft_doc::pattern::PatternDef::new("Tiles", vec![std::sync::Arc::new(art)])
+    let tile = |r: f64, art: pluma_doc::Node| pluma_doc::pattern::PatternDef {
+        tile: pluma_geom::Rect::new(r, 10.0, r + 10.0, 20.0),
+        ..pluma_doc::pattern::PatternDef::new("Tiles", vec![std::sync::Arc::new(art)])
     };
     let (first, second) = (tile(300.0, node(&s, green)), tile(320.0, node(&s, blue)));
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).patterns.push(first);
-    let paint = serde_json::to_value(Paint::Pattern { pattern: "Tiles".into(), xf: vectorcraft_geom::Affine::IDENTITY }).unwrap();
+    let paint = serde_json::to_value(Paint::Pattern { pattern: "Tiles".into(), xf: pluma_geom::Affine::IDENTITY }).unwrap();
     let out = json!({"objects": [{"path": square_at(40.0), "fills": [paint]}]}).to_string();
     install_wat(&mut s, &tpl::returning(&painting("test.engine.tilepaint", true), &out));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.tilepaint"}));
     run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "blur.gaussian", "params": {"radius": 1}}));
-    let mut r = vectorcraft_render::Renderer::new();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    let mut draw = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(50, 50);
+    let mut r = pluma_render::Renderer::new();
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    let mut draw = |s: &Session| r.render(&s.doc().unwrap().doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts).pixel(50, 50);
     assert!(near(draw(&s), GREEN), "the piece in the green tile");
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).patterns[0] = second;
     let px = draw(&s);
@@ -974,9 +973,9 @@ fn painted_pieces_keep_to_the_effects_budget() {
         run(&mut s, "effect.apply", json!({"ids": [id.0], "effect": "plugin.test.engine.many"}));
     }
     let st = s.doc().unwrap();
-    let art = vectorcraft_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
+    let art = pluma_render::effects::reshape(Some(&st.doc), st.doc.node(id).unwrap(), None).unwrap();
     let mut paths = 0;
-    art.walk(&mut |n| paths += usize::from(matches!(n.kind, vectorcraft_doc::NodeKind::Path { .. })));
+    art.walk(&mut |n| paths += usize::from(matches!(n.kind, pluma_doc::NodeKind::Path { .. })));
     assert!((350..=100_000).contains(&paths), "{paths} paths");
 }
 
@@ -1014,10 +1013,10 @@ fn filters_set_effects_and_stroke_styles() {
     filter(&mut s, "test.engine.setfx", fx).unwrap();
     let n = node(&s, id);
     let st = n.appearance.stroke().unwrap();
-    assert_eq!((st.width, st.join, st.cap, st.miter_limit), (4.0, vectorcraft_doc::LineJoin::Round, vectorcraft_doc::LineCap::Square, 4.0));
+    assert_eq!((st.width, st.join, st.cap, st.miter_limit), (4.0, pluma_doc::LineJoin::Round, pluma_doc::LineCap::Square, 4.0));
     let effects = &n.appearance.effects;
     assert_eq!(effects.iter().map(|e| (e.id.as_str(), e.visible)).collect::<Vec<_>>(), [("distort.roughen", true), ("plugin.test.engine.fx", false)]);
-    assert_eq!(effects[0].params, vectorcraft_render::effects::merged_params("distort.roughen", &json!({"size": 3})), "filled in");
+    assert_eq!(effects[0].params, pluma_render::effects::merged_params("distort.roughen", &json!({"size": 3})), "filled in");
     assert_eq!(effects[1].params, json!({"n": 2}));
     // Handed back unchanged (an echo), nothing changes, not even the records' parameters.
     install_wat(&mut s, &tpl::module(&tpl::manifest("test.engine.same", "filter", "{}"), tpl::ECHO, "", 1));
@@ -1093,12 +1092,12 @@ fn filters_keep_their_data_with_the_document() {
     filter(&mut s, other).unwrap();
     assert_eq!(node(&s, id).name.as_deref(), Some("Nothing kept"));
     // Saved with the document, among its foreign data.
-    let saved = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let saved = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(saved.plugin_data(pid), Some(&json!({"pen": 2})));
-    assert_eq!(saved.unknown.get(vectorcraft_doc::plugin_data::PLUGIN_DATA), Some(&json!({pid: {"pen": 2}})));
+    assert_eq!(saved.unknown.get(pluma_doc::plugin_data::PLUGIN_DATA), Some(&json!({pid: {"pen": 2}})));
     // Too much is refused, and the document stays as it was; null removes the data.
     let before = s.doc().unwrap().doc.clone();
-    let big = "x".repeat(vectorcraft_plugins::objects::MAX_DOCUMENT_DATA);
+    let big = "x".repeat(pluma_plugins::objects::MAX_DOCUMENT_DATA);
     install_wat(&mut s, &returning(keep(json!(big))));
     let e = filter(&mut s, pid).unwrap_err().to_string();
     assert!(e.contains("documentData"), "{e}");
@@ -1123,7 +1122,7 @@ fn plugin_management_commands() {
         json!({}),
         json!({"dataBase64": "!!"}),
         json!({"dataBase64": "AGFzbQ=="}),
-        json!({"dataBase64": vectorcraft_format::base64_encode(DESATURATE), "replace": false}),
+        json!({"dataBase64": pluma_format::base64_encode(DESATURATE), "replace": false}),
     ] {
         assert!(s.execute("plugin.install", &bad).is_err(), "{bad}");
     }
@@ -1132,13 +1131,13 @@ fn plugin_management_commands() {
     assert!(s.execute("plugin.reload", &json!({})).is_err(), "no folder set");
 
     // The Additional Plug-ins Folder preference installs what's in it.
-    let dir = std::env::temp_dir().join(format!("vectorcraft-engine-plugins-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-engine-plugins-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let src = tpl::returning(&tpl::manifest("test.engine.folder", "filter", "{}"), r#"{"objects":[]}"#);
     std::fs::write(dir.join("folder.wasm"), wat::parse_str(src).unwrap()).unwrap();
     std::fs::write(dir.join("broken.wasm"), b"\0asm?").unwrap();
     run(&mut s, "prefs.set", json!({"key": "pluginsFolder", "value": dir.display().to_string()}));
-    assert!(vectorcraft_plugins::registry::get("test.engine.folder").is_some());
+    assert!(pluma_plugins::registry::get("test.engine.folder").is_some());
     run(&mut s, "plugin.remove", json!({"id": "test.engine.folder"}));
     let r = run(&mut s, "plugin.reload", json!({}));
     assert_eq!(r["loaded"], json!(["test.engine.folder"]));
@@ -1158,11 +1157,11 @@ fn installed_plugins_are_kept_in_the_store() {
     s.attach_plugin_store(folder.0.clone());
     install_wat(&mut s, &src);
     assert_eq!(std::fs::read_dir(&folder.0).unwrap().count(), 1, "one file in the store");
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
 
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "installed again from the store");
+    assert!(pluma_plugins::registry::get(id).is_some(), "installed again from the store");
     run(&mut next, "plugin.remove", json!({"id": id}));
     assert_eq!(std::fs::read_dir(&folder.0).unwrap().count(), 0, "removed from the store");
 
@@ -1170,7 +1169,7 @@ fn installed_plugins_are_kept_in_the_store() {
     std::fs::write(folder.0.join("broken.wasm"), b"\0asm?").unwrap();
     let mut third = session();
     third.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
 }
 
 /// A heavy test filter `id` that counts `steps` down, then adds a triangle named "Plug-in".
@@ -1186,18 +1185,18 @@ fn heavy(id: &str, steps: u64) -> Vec<u8> {
 fn a_heavy_filter_installs_once_the_user_agrees() {
     let mut s = session();
     let id = "test.engine.heavy";
-    let data = vectorcraft_format::base64_encode(&heavy(id, 1));
+    let data = pluma_format::base64_encode(&heavy(id, 1));
     // With the file's name, as the app passes it.
     let inspected = run(&mut s, "plugin.inspect", json!({"dataBase64": data, "name": "route.wasm"}));
     assert_eq!((inspected["id"].as_str(), inspected["budget"].as_str()), (Some(id), Some("heavy")));
     assert_eq!(inspected["source"], "route.wasm");
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "inspecting installs nothing");
+    assert!(pluma_plugins::registry::get(id).is_none(), "inspecting installs nothing");
     let e = s.execute("plugin.install", &json!({"dataBase64": data})).unwrap_err().to_string();
     assert!(e.contains("heavy budget") && e.contains("5 minutes") && e.contains("allowHeavy"), "{e}");
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     let info = run(&mut s, "plugin.install", json!({"dataBase64": data, "allowHeavy": true}));
     assert_eq!(info["budget"], "heavy");
-    assert_eq!(vectorcraft_plugins::registry::get(id).unwrap().limits().fuel_base, vectorcraft_plugins::HEAVY_FUEL);
+    assert_eq!(pluma_plugins::registry::get(id).unwrap().limits().fuel_base, pluma_plugins::HEAVY_FUEL);
     let listed = run(&mut s, "plugin.list", json!({}));
     assert!(listed["plugins"].as_array().unwrap().iter().any(|p| p["id"] == id && p["budget"] == "heavy"));
     // A light plug-in's entry says nothing of budgets.
@@ -1208,11 +1207,11 @@ fn a_heavy_filter_installs_once_the_user_agrees() {
 fn invalid_install_flags_are_refused() {
     let mut s = session();
     let id = "test.engine.heavy.flags";
-    let data = vectorcraft_format::base64_encode(&heavy(id, 1));
+    let data = pluma_format::base64_encode(&heavy(id, 1));
     for allow in [json!("true"), json!(1)] {
         let e = s.execute("plugin.install", &json!({"dataBase64": data, "allowHeavy": allow})).unwrap_err().to_string();
         assert!(e.contains("`allowHeavy` must be true or false"), "allowHeavy {allow}: {e}");
-        assert!(vectorcraft_plugins::registry::get(id).is_none(), "installed with allowHeavy {allow}");
+        assert!(pluma_plugins::registry::get(id).is_none(), "installed with allowHeavy {allow}");
     }
     // Null, as for every command, is the same as leaving the flag out.
     let e = s.execute("plugin.install", &json!({"dataBase64": data, "allowHeavy": null})).unwrap_err().to_string();
@@ -1223,15 +1222,15 @@ fn invalid_install_flags_are_refused() {
         assert!(e.contains("`replace` must be true or false"), "replace {replace}: {e}");
     }
     run(&mut s, "plugin.install", json!({"dataBase64": data, "allowHeavy": true, "replace": null}));
-    assert!(vectorcraft_plugins::registry::get(id).is_some());
+    assert!(pluma_plugins::registry::get(id).is_some());
     // A plug-in with the usual budget is refused too.
     let light = "test.engine.light.flags";
     let manifest = format!(r#"{{"id":"{light}","name":"Test {light}","version":"1","kind":"filter"}}"#);
     let output = json!({"objects": [{"path": triangle(), "name": "Plug-in"}]});
-    let data = vectorcraft_format::base64_encode(&wat::parse_str(tpl::spinning(&manifest, 1, &output.to_string())).unwrap());
+    let data = pluma_format::base64_encode(&wat::parse_str(tpl::spinning(&manifest, 1, &output.to_string())).unwrap());
     let e = s.execute("plugin.install", &json!({"dataBase64": data, "allowHeavy": "false"})).unwrap_err().to_string();
     assert!(e.contains("`allowHeavy` must be true or false"), "{e}");
-    assert!(vectorcraft_plugins::registry::get(light).is_none());
+    assert!(pluma_plugins::registry::get(light).is_none());
 }
 
 /// A test filter `id` (named "Test `id`") whose manifest lists `permissions` (a JSON list) and that
@@ -1251,13 +1250,13 @@ fn a_plugin_that_lists_permissions_installs_once_they_are_granted() {
     let mut s = session();
     let id = "test.engine.permissions.install";
     let empty = json!({"objects": []});
-    let data = |perms: &str| vectorcraft_format::base64_encode(&asking(id, perms, &empty));
+    let data = |perms: &str| pluma_format::base64_encode(&asking(id, perms, &empty));
     let reads = data(r#"["doc.read"]"#);
     let inspected = run(&mut s, "plugin.inspect", json!({"dataBase64": reads}));
     assert_eq!((&inspected["needsApproval"], &inspected["permissions"]), (&json!(true), &json!(["doc.read"])));
-    let hash = vectorcraft_plugins::permissions::sha256_hex(&asking(id, r#"["doc.read"]"#, &empty));
+    let hash = pluma_plugins::permissions::sha256_hex(&asking(id, r#"["doc.read"]"#, &empty));
     assert_eq!(inspected["hash"], hash);
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "inspecting installs nothing");
+    assert!(pluma_plugins::registry::get(id).is_none(), "inspecting installs nothing");
     // Refused without a grant that holds every permission it lists, naming them.
     for (grant, says) in [
         (Value::Null, "asks for the permissions doc.read"),
@@ -1269,40 +1268,40 @@ fn a_plugin_that_lists_permissions_installs_once_they_are_granted() {
     ] {
         let e = s.execute("plugin.install", &json!({"dataBase64": reads, "grant": grant})).unwrap_err().to_string();
         assert!(e.contains(says), "grant {grant}: {e}");
-        assert!(vectorcraft_plugins::registry::get(id).is_none(), "installed with grant {grant}");
+        assert!(pluma_plugins::registry::get(id).is_none(), "installed with grant {grant}");
     }
     // `hash` pins the module the user was shown.
     for wrong in [json!("0".repeat(64)), json!(1)] {
         let e = s.execute("plugin.install", &json!({"dataBase64": reads, "grant": ["doc.read"], "hash": wrong})).unwrap_err().to_string();
         assert!(e.contains("SHA-256 `hash`"), "hash {wrong}: {e}");
-        assert!(vectorcraft_plugins::registry::get(id).is_none(), "installed with hash {wrong}");
+        assert!(pluma_plugins::registry::get(id).is_none(), "installed with hash {wrong}");
     }
     let installed = run(&mut s, "plugin.install", json!({"dataBase64": reads, "grant": ["doc.read"], "hash": hash}));
     assert_eq!(installed["permissions"], json!(["doc.read"]));
-    let g = vectorcraft_plugins::registry::granted(id).unwrap();
-    assert_eq!((g.hash.as_str(), g.permissions.as_slice()), (hash.as_str(), &[vectorcraft_plugins::permissions::Permission::DocRead][..]));
+    let g = pluma_plugins::registry::granted(id).unwrap();
+    assert_eq!((g.hash.as_str(), g.permissions.as_slice()), (hash.as_str(), &[pluma_plugins::permissions::Permission::DocRead][..]));
     // Replaced with another module that lists the same permissions: granted again, the grant now
     // records the new module's hash.
     let other = asking(id, r#"["doc.read"]"#, &json!({"objects": [], "error": null}));
-    assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": vectorcraft_format::base64_encode(&other)}))["needsApproval"], true);
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&other), "grant": ["doc.read"], "replace": true}));
-    assert_eq!(vectorcraft_plugins::registry::granted(id).unwrap().hash, vectorcraft_plugins::permissions::sha256_hex(&other));
+    assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": pluma_format::base64_encode(&other)}))["needsApproval"], true);
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&other), "grant": ["doc.read"], "replace": true}));
+    assert_eq!(pluma_plugins::registry::granted(id).unwrap().hash, pluma_plugins::permissions::sha256_hex(&other));
     // One that asks for more is refused until it is granted all of them.
     let more = data(r#"["doc.read","doc.write"]"#);
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": more}))["needsApproval"], true);
     let e = s.execute("plugin.install", &json!({"dataBase64": more, "replace": true})).unwrap_err().to_string();
     assert!(e.contains("doc.read, doc.write") && e.contains("`grant`"), "{e}");
-    assert_eq!(vectorcraft_plugins::registry::get(id).unwrap().manifest().permissions().len(), 1, "the one installed stays");
+    assert_eq!(pluma_plugins::registry::get(id).unwrap().manifest().permissions().len(), 1, "the one installed stays");
     run(&mut s, "plugin.install", json!({"dataBase64": more, "grant": ["doc.write", "doc.read", "state"], "replace": true}));
-    assert_eq!(vectorcraft_plugins::registry::granted(id).unwrap().permissions.len(), 2, "only what it lists is recorded");
+    assert_eq!(pluma_plugins::registry::granted(id).unwrap().permissions.len(), 2, "only what it lists is recorded");
     // Removed, it is asked again.
     run(&mut s, "plugin.remove", json!({"id": id}));
-    assert!(vectorcraft_plugins::registry::granted(id).is_none());
+    assert!(pluma_plugins::registry::granted(id).is_none());
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": reads}))["needsApproval"], true);
     // A plug-in without `permissions` installs as before, with its kind's.
     let plain = install(&mut s, DESATURATE);
     assert_eq!(plain["permissions"], json!(["doc.read", "doc.write", "state"]));
-    assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": vectorcraft_format::base64_encode(DESATURATE)}))["needsApproval"], false);
+    assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": pluma_format::base64_encode(DESATURATE)}))["needsApproval"], false);
 }
 
 /// A module with other bytes under an id that was granted is not covered, even when it lists the
@@ -1311,12 +1310,12 @@ fn a_plugin_that_lists_permissions_installs_once_they_are_granted() {
 /// install again without asking, and a module that lists no permissions never asks.
 #[test]
 fn a_grant_covers_only_the_module_that_was_approved() {
-    use vectorcraft_plugins::permissions::sha256_hex;
+    use pluma_plugins::permissions::sha256_hex;
     let mut s = session();
     let id = "test.engine.permissions.bytes";
     let first = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
     let changed = asking(id, r#"["doc.read"]"#, &json!({"objects": [], "error": null}));
-    let (first_data, changed_data) = (vectorcraft_format::base64_encode(&first), vectorcraft_format::base64_encode(&changed));
+    let (first_data, changed_data) = (pluma_format::base64_encode(&first), pluma_format::base64_encode(&changed));
     let (first_hash, changed_hash) = (sha256_hex(&first), sha256_hex(&changed));
     run(&mut s, "plugin.install", json!({"dataBase64": first_data, "grant": ["doc.read"]}));
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": changed_data}))["needsApproval"], true);
@@ -1324,22 +1323,22 @@ fn a_grant_covers_only_the_module_that_was_approved() {
     assert!(e.contains("doc.read") && e.contains("`grant`"), "{e}");
     let e = s.execute("plugin.install", &json!({"dataBase64": changed_data, "replace": true, "hash": changed_hash})).unwrap_err().to_string();
     assert!(e.contains("`grant`"), "`hash` is not an approval: {e}");
-    assert_eq!(vectorcraft_plugins::registry::get(id).unwrap().hash(), first_hash, "the installed module stays");
-    assert_eq!(vectorcraft_plugins::registry::granted(id).unwrap().hash, first_hash, "its grant stays");
+    assert_eq!(pluma_plugins::registry::get(id).unwrap().hash(), first_hash, "the installed module stays");
+    assert_eq!(pluma_plugins::registry::granted(id).unwrap().hash, first_hash, "its grant stays");
     // The same bytes need no new grant.
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": first_data}))["needsApproval"], false);
     run(&mut s, "plugin.install", json!({"dataBase64": first_data}));
     // A new grant installs the changed module, and the old bytes are no longer covered.
     run(&mut s, "plugin.install", json!({"dataBase64": changed_data, "grant": ["doc.read"], "hash": changed_hash, "replace": true}));
-    assert_eq!(vectorcraft_plugins::registry::get(id).unwrap().hash(), changed_hash);
-    assert_eq!(vectorcraft_plugins::registry::granted(id).unwrap().hash, changed_hash);
+    assert_eq!(pluma_plugins::registry::get(id).unwrap().hash(), changed_hash);
+    assert_eq!(pluma_plugins::registry::granted(id).unwrap().hash, changed_hash);
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": first_data}))["needsApproval"], true);
     run(&mut s, "plugin.remove", json!({"id": id}));
 
     // A manifest without a list, or with an empty one, asks for nothing, whatever its bytes.
     let exempt = "test.engine.permissions.exempt";
     for (permissions, out) in [("null", json!({"objects": []})), ("null", json!({"objects": [], "error": null})), ("[]", json!({"objects": []}))] {
-        let data = vectorcraft_format::base64_encode(&asking(exempt, permissions, &out));
+        let data = pluma_format::base64_encode(&asking(exempt, permissions, &out));
         assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": data}))["needsApproval"], false, "{permissions}");
         run(&mut s, "plugin.install", json!({"dataBase64": data, "replace": true}));
     }
@@ -1351,15 +1350,15 @@ fn a_grant_covers_only_the_module_that_was_approved() {
 /// that lists permissions keeps replacing it as before.
 #[test]
 fn a_module_without_permissions_ends_the_grant_of_its_id() {
-    use vectorcraft_plugins::permissions::sha256_hex;
+    use pluma_plugins::permissions::sha256_hex;
     let mut s = session();
     let id = "test.engine.permissions.replaced";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
-    let granted = || vectorcraft_plugins::registry::granted(id).map(|g| g.hash);
+    let approved_data = pluma_format::base64_encode(&approved);
+    let granted = || pluma_plugins::registry::granted(id).map(|g| g.hash);
     for permissions in ["null", "[]"] {
-        let plain = vectorcraft_format::base64_encode(&asking(id, permissions, &empty));
+        let plain = pluma_format::base64_encode(&asking(id, permissions, &empty));
         run(&mut s, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"], "replace": true}));
         // Refused installs change nothing.
         let e = s.execute("plugin.install", &json!({"dataBase64": plain, "hash": "0".repeat(64), "replace": true})).unwrap_err().to_string();
@@ -1375,12 +1374,12 @@ fn a_module_without_permissions_ends_the_grant_of_its_id() {
         assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": approved_data}))["needsApproval"], true, "{permissions}");
         let e = s.execute("plugin.install", &json!({"dataBase64": approved_data, "replace": true})).unwrap_err().to_string();
         assert!(e.contains("`grant`"), "{permissions}: {e}");
-        assert!(!vectorcraft_plugins::registry::get(id).unwrap().manifest().asks_permissions(), "{permissions}: the module installed stays");
+        assert!(!pluma_plugins::registry::get(id).unwrap().manifest().asks_permissions(), "{permissions}: the module installed stays");
     }
     // With no module installed under the id, the grant ends the same way.
     run(&mut s, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"], "replace": true}));
-    vectorcraft_plugins::registry::remove(id);
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&asking(id, "null", &empty))}));
+    pluma_plugins::registry::remove(id);
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&asking(id, "null", &empty))}));
     assert_eq!(granted(), None);
     // A module that lists permissions records its own grant.
     run(&mut s, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"], "replace": true}));
@@ -1393,13 +1392,13 @@ fn a_module_without_permissions_ends_the_grant_of_its_id() {
 /// that holds such a module and a grant for its id has that grant forgotten when it is attached.
 #[test]
 fn a_module_without_permissions_ends_the_grant_kept_in_the_store() {
-    use vectorcraft_plugins::permissions::{Grant, Permission, sha256_hex};
+    use pluma_plugins::permissions::{Grant, Permission, sha256_hex};
     let folder = crate::tests_links::Folder::new("plugin-store-stale-grant");
     let id = "test.engine.permissions.storedstale";
     let other = "test.engine.permissions.storedother";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let plain = asking(id, "null", &empty);
     let other_wasm = asking(other, r#"["doc.read"]"#, &empty);
     let grants = folder.0.join("grants.json");
@@ -1412,15 +1411,15 @@ fn a_module_without_permissions_ends_the_grant_kept_in_the_store() {
     };
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&other_wasm), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&other_wasm), "grant": ["doc.read"]}));
     run(&mut s, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"]}));
     assert_eq!(ids().len(), 2);
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     assert_eq!(ids(), vec![other.to_string()], "only this id's entry goes");
-    assert!(vectorcraft_plugins::registry::granted(id).is_none());
-    assert!(vectorcraft_plugins::registry::granted(other).is_some(), "the other plug-in's grant stays");
+    assert!(pluma_plugins::registry::granted(id).is_none());
+    assert!(pluma_plugins::registry::granted(other).is_some(), "the other plug-in's grant stays");
 
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
     assert_eq!(run(&mut next, "plugin.inspect", json!({"dataBase64": approved_data}))["needsApproval"], true);
@@ -1429,22 +1428,22 @@ fn a_module_without_permissions_ends_the_grant_kept_in_the_store() {
     let entry = json!({"id": id, "hash": sha256_hex(&approved), "permissions": ["doc.read"]});
     let other_entry = json!({"id": other, "hash": sha256_hex(&other_wasm), "permissions": ["doc.read"]});
     std::fs::write(&grants, serde_json::to_vec(&json!([entry, other_entry])).unwrap()).unwrap();
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut third = session();
     third.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "the module that lists nothing still loads");
+    assert!(pluma_plugins::registry::get(id).is_some(), "the module that lists nothing still loads");
     assert_eq!(ids(), vec![other.to_string()]);
-    assert!(vectorcraft_plugins::registry::get(other).is_some());
+    assert!(pluma_plugins::registry::get(other).is_some());
 
     // So does an entry this version can't read, and a grant held only by the process.
     let future = json!({"id": id, "hash": "00", "permissions": ["doc.read", "ui.panel"]});
     std::fs::write(&grants, serde_json::to_vec(&json!([future, other_entry])).unwrap()).unwrap();
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::grant(Grant { id: id.into(), hash: sha256_hex(&approved), permissions: vec![Permission::DocRead] });
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::grant(Grant { id: id.into(), hash: sha256_hex(&approved), permissions: vec![Permission::DocRead] });
     let mut fourth = session();
     fourth.attach_plugin_store(folder.0.clone());
     assert_eq!(ids(), vec![other.to_string()]);
-    assert!(vectorcraft_plugins::registry::granted(id).is_none());
+    assert!(pluma_plugins::registry::granted(id).is_none());
     run(&mut fourth, "plugin.remove", json!({"id": id}));
     run(&mut fourth, "plugin.remove", json!({"id": other}));
 }
@@ -1461,15 +1460,15 @@ fn a_failed_store_write_of_a_module_without_permissions_keeps_the_stored_grant()
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&approved), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&approved), "grant": ["doc.read"]}));
     let before = std::fs::read(&grants).unwrap();
     let file = s.stored_plugin_file(id).unwrap();
     std::fs::remove_file(&file).unwrap();
     std::fs::create_dir(&file).unwrap();
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     assert_eq!(std::fs::read(&grants).unwrap(), before, "the grant stays with the module left in the store");
-    assert!(vectorcraft_plugins::registry::granted(id).is_none(), "the process runs the module that lists nothing");
+    assert!(pluma_plugins::registry::granted(id).is_none(), "the process runs the module that lists nothing");
 
     std::fs::remove_dir(&file).unwrap();
     run(&mut s, "plugin.remove", json!({"id": id}));
@@ -1486,11 +1485,11 @@ fn a_grant_that_cannot_be_removed_keeps_the_stored_module() {
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
     let plain = asking(id, "null", &empty);
-    let replace = json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true});
+    let replace = json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true});
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&approved), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&approved), "grant": ["doc.read"]}));
     let file = s.stored_plugin_file(id).unwrap();
     // An entry this version can't use is written back as it was read: `1e9` as `1000000000.0`, which
     // makes the rewritten file larger than the 1 MiB that is read.
@@ -1501,14 +1500,14 @@ fn a_grant_that_cannot_be_removed_keeps_the_stored_module() {
     run(&mut s, "plugin.install", replace.clone());
     assert_eq!(std::fs::read(&file).unwrap(), approved, "the store gets the module the grant covers back");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
-    assert!(vectorcraft_plugins::registry::granted(id).is_none(), "the process runs the module that lists nothing");
+    assert!(pluma_plugins::registry::granted(id).is_none(), "the process runs the module that lists nothing");
 
-    let oversized = vectorcraft_plugins::Limits::default().max_module_bytes as u64 + 1;
+    let oversized = pluma_plugins::Limits::default().max_module_bytes as u64 + 1;
     std::fs::File::options().write(true).open(&file).unwrap().set_len(oversized).unwrap();
     run(&mut s, "plugin.install", replace.clone());
     assert_eq!(std::fs::read(&file).unwrap(), plain, "a module that can't be read back can't be put back");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
-    let inspect = json!({"dataBase64": vectorcraft_format::base64_encode(&approved)});
+    let inspect = json!({"dataBase64": pluma_format::base64_encode(&approved)});
     assert_eq!(run(&mut s, "plugin.inspect", inspect)["needsApproval"], true, "the grant left behind stops counting");
 
     std::fs::write(&file, &approved).unwrap();
@@ -1534,7 +1533,7 @@ fn a_grant_left_behind_when_its_module_cannot_go_back_stops_counting() {
     let id = "test.engine.permissions.failedputback";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let plain = asking(id, "null", &empty);
     let grants = folder.0.join("grants.json");
     let mut s = session();
@@ -1547,7 +1546,7 @@ fn a_grant_left_behind_when_its_module_cannot_go_back_stops_counting() {
     std::fs::write(&grants, &full).unwrap();
 
     crate::store::PUT_BACK_FAILS.set(true);
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     crate::store::PUT_BACK_FAILS.set(false);
     assert_eq!(std::fs::read(&file).unwrap(), plain, "the store keeps the new module");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
@@ -1571,7 +1570,7 @@ fn an_unusable_entry_that_cannot_be_removed_stops_plugin_remove() {
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&first)}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&first)}));
     let file = s.stored_plugin_file(id).unwrap();
     let entry = json!({"id": id, "hash": "0".repeat(64), "permissions": ["no.such.permission"]});
     // `1e9` is written back as `1000000000.0`, which makes the rewritten file larger than the 1 MiB that is read.
@@ -1580,16 +1579,16 @@ fn an_unusable_entry_that_cannot_be_removed_stops_plugin_remove() {
 
     let refused = s.execute("plugin.remove", &json!({"id": id})).unwrap_err().to_string();
     assert!(refused.contains(crate::store::GRANT_NOT_REMOVED), "{refused}");
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "the plug-in stays installed");
+    assert!(pluma_plugins::registry::get(id).is_some(), "the plug-in stays installed");
     assert_eq!(std::fs::read(&file).unwrap(), first, "the store keeps the module");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&second), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&second), "replace": true}));
     assert_eq!(std::fs::read(&file).unwrap(), first, "the store gets its module back");
 
     std::fs::write(&grants, serde_json::to_vec(&json!([entry])).unwrap()).unwrap();
     run(&mut s, "plugin.remove", json!({"id": id}));
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     assert!(!grants.exists(), "the removal takes the entry out of the file");
 }
 
@@ -1601,7 +1600,7 @@ fn a_grant_that_cannot_be_removed_and_has_no_stored_module_stops_counting() {
     let id = "test.engine.permissions.forgetnomodule";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let plain = asking(id, "null", &empty);
     let grants = folder.0.join("grants.json");
     let mut s = session();
@@ -1613,7 +1612,7 @@ fn a_grant_that_cannot_be_removed_and_has_no_stored_module_stops_counting() {
     std::fs::write(&grants, &full).unwrap();
     std::fs::remove_file(&file).unwrap();
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     assert!(!std::path::Path::new(&file).exists(), "the store keeps no module");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": approved_data}))["needsApproval"], true);
@@ -1627,13 +1626,13 @@ fn a_grant_that_cannot_be_removed_and_has_no_stored_module_stops_counting() {
 /// A grant recorded later counts again, and another store starts with nothing ignored.
 #[test]
 fn a_grant_the_load_cannot_remove_stops_counting_for_the_session() {
-    use vectorcraft_plugins::permissions::sha256_hex;
+    use pluma_plugins::permissions::sha256_hex;
     let folder = crate::tests_links::Folder::new("plugin-store-load-forget");
     let elsewhere = crate::tests_links::Folder::new("plugin-store-load-forget-other");
     let id = "test.engine.permissions.loadforget";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let plain = asking(id, "null", &empty);
     let needs_approval = json!({"dataBase64": approved_data});
     let grants = folder.0.join("grants.json");
@@ -1641,12 +1640,12 @@ fn a_grant_the_load_cannot_remove_stops_counting_for_the_session() {
     let recorded = serde_json::to_vec(&json!([entry])).unwrap();
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain)}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain)}));
 
     // `1e9` is written back as `1000000000.0`, which makes the rewritten file larger than the 1 MiB that is read.
     let full = format!(r#"[{entry},{{"n":[{}]}}]"#, vec!["1e9"; 200_000].join(",")).into_bytes();
     std::fs::write(&grants, &full).unwrap();
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
     assert_eq!(std::fs::read(&grants).unwrap(), full, "the load can't rewrite the file");
@@ -1661,7 +1660,7 @@ fn a_grant_the_load_cannot_remove_stops_counting_for_the_session() {
     // A directory at the file's path gives a read error on every platform.
     std::fs::remove_file(&grants).unwrap();
     std::fs::create_dir(&grants).unwrap();
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut third = session();
     third.attach_plugin_store(folder.0.clone());
     std::fs::remove_dir(&grants).unwrap();
@@ -1676,9 +1675,9 @@ fn a_grant_the_load_cannot_remove_stops_counting_for_the_session() {
 
     // A later load in the session doesn't count it either, for the bytes it covers.
     std::fs::write(&file, &approved).unwrap();
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     third.load_stored_plugins();
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "the formerly approved module isn't loaded");
+    assert!(pluma_plugins::registry::get(id).is_none(), "the formerly approved module isn't loaded");
 
     run(&mut third, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"], "replace": true}));
     assert_eq!(run(&mut third, "plugin.inspect", needs_approval)["needsApproval"], false, "the user granted it again");
@@ -1698,25 +1697,25 @@ fn a_grants_file_that_cannot_be_read_keeps_the_grant_and_the_module_it_covers() 
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&approved), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&approved), "grant": ["doc.read"]}));
     let file = s.stored_plugin_file(id).unwrap();
     let recorded = std::fs::read(&grants).unwrap();
     std::fs::remove_file(&grants).unwrap();
     std::fs::create_dir(&grants).unwrap();
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     assert_eq!(std::fs::read(&file).unwrap(), approved, "the store gets the module the grant covers back");
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&approved), "grant": ["doc.read"], "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&approved), "grant": ["doc.read"], "replace": true}));
     let refused = s.execute("plugin.remove", &json!({"id": id})).unwrap_err().to_string();
     assert!(refused.contains(crate::store::GRANT_NOT_REMOVED), "{refused}");
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "the plug-in stays installed");
+    assert!(pluma_plugins::registry::get(id).is_some(), "the plug-in stays installed");
     assert_eq!(std::fs::read(&file).unwrap(), approved, "the store keeps the module");
 
     std::fs::remove_dir(&grants).unwrap();
     std::fs::write(&grants, &recorded).unwrap();
     run(&mut s, "plugin.remove", json!({"id": id}));
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     assert!(!grants.exists(), "the file reads again and the grant goes");
 }
 
@@ -1727,7 +1726,7 @@ fn a_grant_that_cannot_be_removed_stops_plugin_remove() {
     let folder = crate::tests_links::Folder::new("plugin-store-failed-remove");
     let id = "test.engine.permissions.removefail";
     let approved = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
@@ -1743,8 +1742,8 @@ fn a_grant_that_cannot_be_removed_stops_plugin_remove() {
     std::fs::write(data.join("settings.json"), b"{}").unwrap();
 
     assert!(s.execute("plugin.remove", &json!({"id": id})).is_err());
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "the plug-in stays installed");
-    assert!(vectorcraft_plugins::registry::granted(id).is_some(), "it keeps its grant");
+    assert!(pluma_plugins::registry::get(id).is_some(), "the plug-in stays installed");
+    assert!(pluma_plugins::registry::granted(id).is_some(), "it keeps its grant");
     assert_eq!(std::fs::read(&file).unwrap(), approved, "the store keeps the module the grant covers");
     assert_eq!(std::fs::read(&grants).unwrap(), full);
     assert!(data.join("settings.json").is_file(), "it keeps its settings");
@@ -1765,17 +1764,17 @@ fn a_grant_that_cannot_be_removed_stops_plugin_remove() {
     #[cfg(windows)]
     drop(held);
     assert_eq!(std::fs::read(&grants).unwrap(), recorded, "the grant stays while the settings do");
-    assert!(vectorcraft_plugins::registry::get(id).is_some());
+    assert!(pluma_plugins::registry::get(id).is_some());
     let _ = std::fs::remove_file(&aside);
 
     run(&mut s, "plugin.remove", json!({"id": id}));
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     assert!(!grants.exists(), "the second removal forgets the grant");
 
     run(&mut s, "plugin.install", json!({"dataBase64": approved_data, "grant": ["doc.read"]}));
     std::fs::write(&grants, b"not a list").unwrap();
     run(&mut s, "plugin.remove", json!({"id": id}));
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "a grants file that isn't a list approves nothing");
+    assert!(pluma_plugins::registry::get(id).is_none(), "a grants file that isn't a list approves nothing");
     assert!(!std::path::Path::new(&file).exists());
 }
 
@@ -1794,11 +1793,11 @@ fn a_grants_file_that_cannot_be_deleted_keeps_the_stored_module() {
     let grants = folder.0.join("grants.json");
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&approved), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&approved), "grant": ["doc.read"]}));
     let file = s.stored_plugin_file(id).unwrap();
 
     let held = std::fs::File::options().read(true).share_mode(FILE_SHARE_READ).open(&grants).unwrap();
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&plain), "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&plain), "replace": true}));
     drop(held);
     assert_eq!(std::fs::read(&file).unwrap(), approved, "the store gets the module the grant covers back");
     assert!(grants.exists());
@@ -1815,7 +1814,7 @@ fn a_plugin_folder_ends_the_process_grant_of_an_id_it_replaces() {
     let id = "test.engine.permissions.folderstale";
     let empty = json!({"objects": []});
     let approved = asking(id, r#"["doc.read"]"#, &empty);
-    let approved_data = vectorcraft_format::base64_encode(&approved);
+    let approved_data = pluma_format::base64_encode(&approved);
     let plain = asking(id, "null", &empty);
     let dir = crate::tests_links::Folder::new("plugin-folder-stale-grant");
     std::fs::write(dir.0.join("a-plain.wasm"), &plain).unwrap();
@@ -1825,12 +1824,12 @@ fn a_plugin_folder_ends_the_process_grant_of_an_id_it_replaces() {
 
     let r = run(&mut s, "plugin.reload", path.clone());
     assert_eq!(r["failed"], json!([]), "{r}");
-    assert!(vectorcraft_plugins::registry::granted(id).is_some(), "the granted module is the one left");
+    assert!(pluma_plugins::registry::granted(id).is_some(), "the granted module is the one left");
 
     std::fs::remove_file(dir.0.join("b-approved.wasm")).unwrap();
     let r = run(&mut s, "plugin.reload", path.clone());
     assert_eq!(r["loaded"], json!([id]), "{r}");
-    assert!(vectorcraft_plugins::registry::granted(id).is_none());
+    assert!(pluma_plugins::registry::granted(id).is_none());
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": approved_data}))["needsApproval"], true);
     run(&mut s, "plugin.remove", json!({"id": id}));
 
@@ -1851,14 +1850,14 @@ fn a_plugin_folder_ends_the_process_grant_of_an_id_it_replaces() {
 /// With a store attached, a matching grant held only by the process doesn't count.
 #[test]
 fn a_stored_grant_covers_only_the_stored_module_it_recorded() {
-    use vectorcraft_plugins::permissions::{Grant, Permission, sha256_hex};
+    use pluma_plugins::permissions::{Grant, Permission, sha256_hex};
     let folder = crate::tests_links::Folder::new("plugin-store-recorded-module");
     let id = "test.engine.permissions.storedbytes";
     let first = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
     let changed = asking(id, r#"["doc.read"]"#, &json!({"objects": [], "error": null}));
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&first), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&first), "grant": ["doc.read"]}));
     let grants = folder.0.join("grants.json");
     let recorded = std::fs::read(&grants).unwrap();
     let module = std::fs::read_dir(&folder.0)
@@ -1867,14 +1866,14 @@ fn a_stored_grant_covers_only_the_stored_module_it_recorded() {
         .find(|p| p.extension().is_some_and(|x| x == "wasm"))
         .expect("the stored module");
     let forget = || {
-        vectorcraft_plugins::registry::remove(id);
-        vectorcraft_plugins::registry::revoke(id);
+        pluma_plugins::registry::remove(id);
+        pluma_plugins::registry::revoke(id);
     };
     let starts = || {
         forget();
         let mut next = session();
         next.attach_plugin_store(folder.0.clone());
-        vectorcraft_plugins::registry::get(id).is_some()
+        pluma_plugins::registry::get(id).is_some()
     };
     assert!(starts(), "the module that was approved loads");
     std::fs::write(&module, &changed).unwrap();
@@ -1896,8 +1895,8 @@ fn a_stored_grant_covers_only_the_stored_module_it_recorded() {
     assert!(starts());
     let mut attached = session();
     attached.attach_plugin_store(folder.0.clone());
-    vectorcraft_plugins::registry::grant(Grant { id: id.into(), hash: sha256_hex(&changed), permissions: vec![Permission::DocRead] });
-    let inspected = run(&mut attached, "plugin.inspect", json!({"dataBase64": vectorcraft_format::base64_encode(&changed)}));
+    pluma_plugins::registry::grant(Grant { id: id.into(), hash: sha256_hex(&changed), permissions: vec![Permission::DocRead] });
+    let inspected = run(&mut attached, "plugin.inspect", json!({"dataBase64": pluma_format::base64_encode(&changed)}));
     assert_eq!(inspected["needsApproval"], true, "a grant held only by the process doesn't count with a store attached");
     run(&mut attached, "plugin.remove", json!({"id": id}));
 }
@@ -1908,13 +1907,13 @@ fn a_stored_grant_covers_only_the_stored_module_it_recorded() {
 /// the new module out again.
 #[test]
 fn a_failed_store_write_keeps_the_stored_module_with_its_grant() {
-    use vectorcraft_plugins::permissions::sha256_hex;
+    use pluma_plugins::permissions::sha256_hex;
     let folder = crate::tests_links::Folder::new("plugin-store-failed-write");
     let id = "test.engine.permissions.failedwrite";
     let first = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
     let changed = asking(id, r#"["doc.read","doc.write"]"#, &json!({"objects": []}));
-    let first_data = vectorcraft_format::base64_encode(&first);
-    let update = json!({"dataBase64": vectorcraft_format::base64_encode(&changed), "grant": ["doc.read", "doc.write"], "replace": true});
+    let first_data = pluma_format::base64_encode(&first);
+    let update = json!({"dataBase64": pluma_format::base64_encode(&changed), "grant": ["doc.read", "doc.write"], "replace": true});
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
     run(&mut s, "plugin.install", json!({"dataBase64": first_data, "grant": ["doc.read"]}));
@@ -1922,11 +1921,11 @@ fn a_failed_store_write_keeps_the_stored_module_with_its_grant() {
     let recorded = std::fs::read(&grants).unwrap();
     let module = std::path::PathBuf::from(s.stored_plugin_file(id).unwrap());
     let starts = || {
-        vectorcraft_plugins::registry::remove(id);
-        vectorcraft_plugins::registry::revoke(id);
+        pluma_plugins::registry::remove(id);
+        pluma_plugins::registry::revoke(id);
         let mut next = session();
         next.attach_plugin_store(folder.0.clone());
-        vectorcraft_plugins::registry::get(id).map(|p| p.hash().to_string())
+        pluma_plugins::registry::get(id).map(|p| p.hash().to_string())
     };
     let block = |path: &std::path::Path| {
         std::fs::remove_file(path).unwrap();
@@ -1964,7 +1963,7 @@ fn a_failed_store_write_keeps_the_stored_module_with_its_grant() {
     assert_eq!(starts(), Some(sha256_hex(&first)), "the old module loads once the grants are readable");
 
     // A stored module that can't be read back isn't replaced, so a failed grant write can't lose it.
-    let oversized = vectorcraft_plugins::Limits::default().max_module_bytes as u64 + 1;
+    let oversized = pluma_plugins::Limits::default().max_module_bytes as u64 + 1;
     std::fs::File::options().write(true).open(&module).unwrap().set_len(oversized).unwrap();
     block(&grants);
     run(&mut s, "plugin.install", update);
@@ -1979,8 +1978,8 @@ fn a_failed_store_write_keeps_the_stored_module_with_its_grant() {
     std::fs::create_dir_all(grants.join("block")).unwrap();
     run(&mut s, "plugin.install", json!({"dataBase64": first_data, "grant": ["doc.read"]}));
     assert!(!module.exists(), "the store holds no module its grants don't cover");
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::revoke(id);
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::revoke(id);
 }
 
 /// A plug-in folder reports a changed module as needing approval and still loads the other files;
@@ -1997,7 +1996,7 @@ fn a_plugin_folder_skips_a_changed_module_until_it_is_approved() {
     let file = dir.0.join("asks.wasm");
     std::fs::write(&file, &first).unwrap();
     std::fs::write(dir.0.join("plain.wasm"), asking(plain, "null", &json!({"objects": []}))).unwrap();
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&first), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&first), "grant": ["doc.read"]}));
     let path = json!({"path": dir.0.display().to_string()});
     let r = run(&mut s, "plugin.reload", path.clone());
     assert_eq!((r["loaded"].as_array().unwrap().len(), r["failed"].as_array().unwrap().len()), (2, 0), "{r}");
@@ -2010,10 +2009,10 @@ fn a_plugin_folder_skips_a_changed_module_until_it_is_approved() {
     assert!(failed[0]["file"].as_str().unwrap().ends_with("asks.wasm"), "{r}");
     let why = failed[0]["error"].as_str().unwrap();
     assert!(why.contains("needs approval") && why.contains("doc.read"), "{why}");
-    let hash = vectorcraft_plugins::permissions::sha256_hex(&first);
-    assert_eq!(vectorcraft_plugins::registry::get(id).unwrap().hash(), hash, "the module installed earlier stays");
+    let hash = pluma_plugins::permissions::sha256_hex(&first);
+    assert_eq!(pluma_plugins::registry::get(id).unwrap().hash(), hash, "the module installed earlier stays");
 
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&changed), "grant": ["doc.read"], "replace": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&changed), "grant": ["doc.read"], "replace": true}));
     let r = run(&mut s, "plugin.reload", path);
     assert_eq!(r["failed"], json!([]), "approved on its own, it loads: {r}");
     run(&mut s, "plugin.remove", json!({"id": id}));
@@ -2029,7 +2028,7 @@ fn a_filter_does_only_what_its_permissions_allow() {
     let id = rect(&mut s, 10.0, "#ff0000");
     let filter = |s: &mut Session, pid: &str| s.execute("plugin.run", &json!({"id": pid, "ids": [id.0]}));
     let grant = |s: &mut Session, wasm: &[u8], perms: Value| {
-        run(s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(wasm), "grant": perms, "replace": true}));
+        run(s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(wasm), "grant": perms, "replace": true}));
     };
     // Denied `doc.write`: renaming the object is refused, and the document and history stay.
     let reader = "test.engine.permissions.reader";
@@ -2064,7 +2063,7 @@ fn a_filter_does_only_what_its_permissions_allow() {
     run(
         &mut s,
         "plugin.install",
-        json!({"dataBase64": vectorcraft_format::base64_encode(&asking("test.engine.permissions.keeper", "null", &json!({"objects": [{"id": id.0}], "documentData": {"pen": 1}})))}),
+        json!({"dataBase64": pluma_format::base64_encode(&asking("test.engine.permissions.keeper", "null", &json!({"objects": [{"id": id.0}], "documentData": {"pen": 1}})))}),
     );
     filter(&mut s, "test.engine.permissions.keeper").unwrap();
     let stateless = "test.engine.permissions.keeper";
@@ -2101,12 +2100,12 @@ fn read_only_kind_field_and_omission_refuse_without_undo() {
         |id: &str| format!(r#"{{"id":"{id}","name":"Test {id}","kind":"filter","api":2,"permissions":["doc.read","doc.write"],"inputs":["type"]}}"#);
     // Each case installs another module under the same id, in place of the last (`replace: true`).
     let install_wat = |s: &mut Session, src: &str| {
-        let data = vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap());
+        let data = pluma_format::base64_encode(&wat::parse_str(src).unwrap());
         run(s, "plugin.install", json!({"dataBase64": data, "grant": ["doc.read", "doc.write"], "replace": true}))
     };
     let echo = "test.engine.inputs.echo";
     let module = tpl::module(&reads(echo), tpl::ECHO, "", 1);
-    let data = vectorcraft_format::base64_encode(&wat::parse_str(&module).unwrap());
+    let data = pluma_format::base64_encode(&wat::parse_str(&module).unwrap());
     let e = s.execute("plugin.install", &json!({"dataBase64": data})).unwrap_err().to_string();
     assert!(e.contains("asks for the permissions doc.read, doc.write"), "{e}");
     let listed = install_wat(&mut s, &module);
@@ -2139,10 +2138,10 @@ fn read_only_kind_field_and_omission_refuse_without_undo() {
     install_wat(&mut s, &tpl::returning(&tpl::manifest(legacy, "filter", "{}"), &json!({"objects": [{"id": r.0, "name": "Kept"}]}).to_string()));
     assert_eq!(run(&mut s, "plugin.run", p(legacy))["ids"], json!([r.0]));
     assert_eq!(node(&s, r).name.as_deref(), Some("Kept"));
-    assert!(matches!(node(&s, t).kind, vectorcraft_doc::NodeKind::Text(_)), "the type stays");
+    assert!(matches!(node(&s, t).kind, pluma_doc::NodeKind::Text(_)), "the type stays");
     // A manifest that lists `inputs` below `api` 2 doesn't install.
     let old = format!(r#"{{"id":"{echo}","name":"Old","kind":"filter","inputs":["type"]}}"#);
-    let data = vectorcraft_format::base64_encode(&wat::parse_str(tpl::module(&old, tpl::ECHO, "", 1)).unwrap());
+    let data = pluma_format::base64_encode(&wat::parse_str(tpl::module(&old, tpl::ECHO, "", 1)).unwrap());
     let e = s.execute("plugin.install", &json!({"dataBase64": data})).unwrap_err().to_string();
     assert!(e.contains("`inputs` needs `api` 2"), "{e}");
 }
@@ -2154,10 +2153,10 @@ fn read_only_kind_field_and_omission_refuse_without_undo() {
 /// report that the plug-in ran out of memory instead.
 #[test]
 fn a_run_past_the_memory_budget_fails_before_the_plugin_starts() {
+    use pluma_doc::{Appearance, Node, NodeKind};
+    use pluma_geom::FillRule;
+    use pluma_plugins::{Limits, Plugin, registry};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, NodeKind};
-    use vectorcraft_geom::FillRule;
-    use vectorcraft_plugins::{Limits, Plugin, registry};
     let id = "test.engine.inputs.budget";
     let params: Vec<String> = (0..9).map(|i| format!(r#""p{i}":{{"type":"string","maxLength":4096}}"#)).collect();
     let manifest = format!(
@@ -2221,37 +2220,37 @@ fn granted_permissions_are_kept_and_folders_skip_the_rest() {
     let wasm = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read"]}));
     assert!(folder.0.join("grants.json").is_file());
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::revoke(id);
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::revoke(id);
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "installed again from the store, as granted");
+    assert!(pluma_plugins::registry::get(id).is_some(), "installed again from the store, as granted");
     // Only a store's own grants count: the same module in another store without a grant is
     // skipped, and a grant given elsewhere is not written to that store.
     let other = crate::tests_links::Folder::new("plugin-store-grants-other");
     std::fs::write(other.0.join("copy.wasm"), &wasm).unwrap();
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut elsewhere = session();
     elsewhere.attach_plugin_store(other.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "granted in another store only");
-    let e = elsewhere.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap_err().to_string();
+    assert!(pluma_plugins::registry::get(id).is_none(), "granted in another store only");
+    let e = elsewhere.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap_err().to_string();
     assert!(e.contains("`grant`"), "a grant kept in another store doesn't count here: {e}");
     let lone = "test.engine.permissions.lone";
     let lone_wasm = asking(lone, r#"["doc.read"]"#, &json!({"objects": []}));
-    run(&mut elsewhere, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&lone_wasm), "grant": ["doc.read"]}));
+    run(&mut elsewhere, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&lone_wasm), "grant": ["doc.read"]}));
     let kept = std::fs::read_to_string(other.0.join("grants.json")).unwrap();
     assert!(kept.contains(lone) && !kept.contains(id), "{kept}");
     run(&mut elsewhere, "plugin.remove", json!({"id": lone}));
     assert!(!other.0.join("grants.json").exists(), "the last grant removed takes the file with it");
     // Without the grant it is skipped, and the file stays.
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::revoke(id);
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::revoke(id);
     std::fs::remove_file(folder.0.join("grants.json")).unwrap();
     let mut third = session();
     third.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "nobody granted it");
+    assert!(pluma_plugins::registry::get(id).is_none(), "nobody granted it");
     assert_eq!(std::fs::read_dir(&folder.0).unwrap().count(), 1, "the module stays in the store");
 
     // The Additional Plug-ins Folder skips it with a note until it is granted.
@@ -2261,39 +2260,39 @@ fn granted_permissions_are_kept_and_folders_skip_the_rest() {
     assert_eq!(r["loaded"], json!([]));
     let why = r["failed"][0]["error"].as_str().unwrap();
     assert!(why.contains("needs approval") && why.contains("doc.read"), "{why}");
-    run(&mut third, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read"]}));
+    run(&mut third, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read"]}));
     let r = run(&mut third, "plugin.reload", json!({"path": dir.0.display().to_string()}));
     assert_eq!(r["loaded"], json!([id]));
     run(&mut third, "plugin.remove", json!({"id": id}));
     // With a store attached, only that store's grants load it from the folder: a grant given in a
     // session without a store doesn't count.
     let mut storeless = session();
-    run(&mut storeless, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read"]}));
-    vectorcraft_plugins::registry::remove(id);
-    assert!(vectorcraft_plugins::registry::granted(id).is_some(), "granted in the process");
+    run(&mut storeless, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read"]}));
+    pluma_plugins::registry::remove(id);
+    assert!(pluma_plugins::registry::granted(id).is_some(), "granted in the process");
     let empty = crate::tests_links::Folder::new("plugin-store-grants-empty");
     let mut scoped = session();
     scoped.attach_plugin_store(empty.0.clone());
     let r = run(&mut scoped, "plugin.reload", json!({"path": dir.0.display().to_string()}));
-    vectorcraft_plugins::registry::revoke(id);
+    pluma_plugins::registry::revoke(id);
     assert_eq!(r["loaded"], json!([]), "a grant outside this store doesn't load it");
     let why = r["failed"][0]["error"].as_str().unwrap();
     assert!(why.contains("needs approval"), "{why}");
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "not installed");
+    assert!(pluma_plugins::registry::get(id).is_none(), "not installed");
     // The preference's folder is loaded again for a session whose store holds other grants.
     let pref_dir = crate::tests_links::Folder::new("plugin-folder-pref-grants");
     std::fs::write(pref_dir.0.join("asks.wasm"), &wasm).unwrap();
     let pref = json!({"key": "pluginsFolder", "value": pref_dir.0.display().to_string()});
     run(&mut scoped, "prefs.set", pref.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "nothing granted in this store");
+    assert!(pluma_plugins::registry::get(id).is_none(), "nothing granted in this store");
     let granting = crate::tests_links::Folder::new("plugin-store-grants-pref");
     let mut granted = session();
     granted.attach_plugin_store(granting.0.clone());
-    run(&mut granted, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read"]}));
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::revoke(id);
+    run(&mut granted, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read"]}));
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::revoke(id);
     run(&mut granted, "prefs.set", pref);
-    assert!(vectorcraft_plugins::registry::get(id).is_some(), "loaded under this store's grant");
+    assert!(pluma_plugins::registry::get(id).is_some(), "loaded under this store's grant");
     run(&mut granted, "plugin.remove", json!({"id": id}));
 }
 
@@ -2316,15 +2315,15 @@ fn a_grant_covers_only_the_module_it_was_given_to() {
         std::fs::read_dir(&folder.0).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().is_some_and(|x| x == "wasm")).collect();
     assert_eq!(stored.len(), 1, "{stored:?}");
     std::fs::write(&stored[0], &other).unwrap();
-    vectorcraft_plugins::registry::remove(id);
-    vectorcraft_plugins::registry::revoke(id);
-    vectorcraft_plugins::registry::set_storage(id, None);
+    pluma_plugins::registry::remove(id);
+    pluma_plugins::registry::revoke(id);
+    pluma_plugins::registry::set_storage(id, None);
     let no_storage = |how: &str| {
-        assert!(vectorcraft_plugins::registry::storage(id).is_none(), "{how} gives another module the id's settings and cache");
+        assert!(pluma_plugins::registry::storage(id).is_none(), "{how} gives another module the id's settings and cache");
     };
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(id).is_none(), "another module isn't loaded under the grant");
+    assert!(pluma_plugins::registry::get(id).is_none(), "another module isn't loaded under the grant");
     no_storage("the next start");
     let dir = crate::tests_links::Folder::new("plugin-folder-grant-hash");
     std::fs::write(dir.0.join("other.wasm"), &other).unwrap();
@@ -2333,7 +2332,7 @@ fn a_grant_covers_only_the_module_it_was_given_to() {
     let why = r["failed"][0]["error"].as_str().unwrap();
     assert!(why.contains("needs approval"), "{why}");
     no_storage("a folder load");
-    let data = vectorcraft_format::base64_encode(&other);
+    let data = pluma_format::base64_encode(&other);
     let e = next.execute("plugin.install", &json!({"dataBase64": data, "replace": true})).unwrap_err().to_string();
     assert!(e.contains("`grant`"), "{e}");
     no_storage("a refused install");
@@ -2345,11 +2344,11 @@ fn a_grant_covers_only_the_module_it_was_given_to() {
     // installed at the next start and `plugin.inspect` asks for approval.
     for entry in [json!({"id": id, "permissions": ["settings", "cache"]}), json!({"id": id, "hash": "", "permissions": ["settings", "cache"]})] {
         std::fs::write(folder.0.join("grants.json"), serde_json::to_vec(&json!([entry])).unwrap()).unwrap();
-        vectorcraft_plugins::registry::remove(id);
-        vectorcraft_plugins::registry::revoke(id);
+        pluma_plugins::registry::remove(id);
+        pluma_plugins::registry::revoke(id);
         let mut again = session();
         again.attach_plugin_store(folder.0.clone());
-        assert!(vectorcraft_plugins::registry::get(id).is_none(), "a grant without a hash doesn't load the module: {entry}");
+        assert!(pluma_plugins::registry::get(id).is_none(), "a grant without a hash doesn't load the module: {entry}");
         assert_eq!(run(&mut again, "plugin.inspect", json!({"dataBase64": data}))["needsApproval"], json!(true), "{entry}");
         next = again;
     }
@@ -2373,15 +2372,15 @@ fn grants_this_version_cant_read_are_kept() {
     let later_wasm = asking(later, r#"["doc.read"]"#, &empty);
     let future = json!({"id": later, "hash": "00", "permissions": ["doc.read", "ui.panel"]});
     let invalid = json!({"id": "bad id/", "hash": "00", "permissions": ["doc.read"]});
-    let grant = json!({"id": kept, "hash": vectorcraft_plugins::permissions::sha256_hex(&kept_wasm), "permissions": ["doc.read"]});
+    let grant = json!({"id": kept, "hash": pluma_plugins::permissions::sha256_hex(&kept_wasm), "permissions": ["doc.read"]});
     let grants = folder.0.join("grants.json");
     std::fs::write(&grants, serde_json::to_vec(&json!([future, grant, invalid])).unwrap()).unwrap();
     std::fs::write(folder.0.join("kept.wasm"), &kept_wasm).unwrap();
     let entries = || serde_json::from_slice::<Vec<Value>>(&std::fs::read(&grants).unwrap()).unwrap();
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    assert!(vectorcraft_plugins::registry::get(kept).is_some(), "the entries this version can't read don't drop the grant next to them");
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
+    assert!(pluma_plugins::registry::get(kept).is_some(), "the entries this version can't read don't drop the grant next to them");
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
     let now = entries();
     assert_eq!(now.len(), 4, "{now:?}");
     assert!(now.contains(&future) && now.contains(&invalid), "written back as they were: {now:?}");
@@ -2389,7 +2388,7 @@ fn grants_this_version_cant_read_are_kept() {
     run(&mut s, "plugin.remove", json!({"id": added}));
     assert_eq!(entries().len(), 3);
     // Granting the plug-in an entry names replaces that entry.
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&later_wasm), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&later_wasm), "grant": ["doc.read"]}));
     let now = entries();
     assert!(!now.contains(&future), "{now:?}");
     assert_eq!(now.iter().filter(|e| e["id"] == later).count(), 1, "{now:?}");
@@ -2400,8 +2399,8 @@ fn grants_this_version_cant_read_are_kept() {
     // A file that doesn't hold a list is left as it is: installing still works in this session.
     for broken in [&b"[{\"id\": "[..], &b"{\"id\": \"x\"}"[..]] {
         std::fs::write(&grants, broken).unwrap();
-        run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
-        assert!(vectorcraft_plugins::registry::get(added).is_some());
+        run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
+        assert!(pluma_plugins::registry::get(added).is_some());
         assert_eq!(std::fs::read(&grants).unwrap(), broken, "not overwritten");
         run(&mut s, "plugin.remove", json!({"id": added}));
         assert_eq!(std::fs::read(&grants).unwrap(), broken, "not overwritten by a removal either");
@@ -2414,16 +2413,16 @@ fn grants_this_version_cant_read_are_kept() {
     let compact = serde_json::to_vec(&many).unwrap();
     assert!(compact.len() < cap && serde_json::to_vec_pretty(&many).unwrap().len() > cap);
     std::fs::write(&grants, &compact).unwrap();
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
     let written = std::fs::read(&grants).unwrap();
     assert!(written.len() <= cap, "{}", written.len());
     assert_eq!(entries().len(), many.len() + 1);
-    let inspected = run(&mut s, "plugin.inspect", json!({"dataBase64": vectorcraft_format::base64_encode(&added_wasm)}));
+    let inspected = run(&mut s, "plugin.inspect", json!({"dataBase64": pluma_format::base64_encode(&added_wasm)}));
     assert_eq!(inspected["needsApproval"], json!(false), "the compact file is read back");
     run(&mut s, "plugin.remove", json!({"id": added}));
     let full = serde_json::to_vec(&json!([{"id": "x.full", "hash": "0".repeat(cap - 100), "permissions": ["ui.panel"]}])).unwrap();
     std::fs::write(&grants, &full).unwrap();
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&added_wasm), "grant": ["doc.read"]}));
     assert_eq!(std::fs::read(&grants).unwrap(), full, "not written past the cap");
     run(&mut s, "plugin.remove", json!({"id": added}));
 }
@@ -2436,12 +2435,12 @@ fn a_stored_heavy_filter_keeps_its_budget() {
     let id = "test.engine.storedheavy";
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
-    vectorcraft_plugins::registry::remove(id);
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
+    pluma_plugins::registry::remove(id);
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
-    let plugin = vectorcraft_plugins::registry::get(id).expect("installed again from the store");
-    assert_eq!(plugin.limits().fuel_base, vectorcraft_plugins::HEAVY_FUEL);
+    let plugin = pluma_plugins::registry::get(id).expect("installed again from the store");
+    assert_eq!(plugin.limits().fuel_base, pluma_plugins::HEAVY_FUEL);
     run(&mut next, "plugin.remove", json!({"id": id}));
 }
 
@@ -2454,7 +2453,7 @@ fn a_filter_run_made_elsewhere_is_applied_by_plugin_run() {
     use cmd::plugin::FilterRun;
     let mut s = session();
     let id = "test.engine.handin";
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
     let p = json!({"id": id, "ids": []});
     let named = |s: &Session, ids: &Value| s.doc().unwrap().doc.node(NodeId(ids[0].as_u64().unwrap())).unwrap().name.clone();
     // What it computed, as the app hands it in; here marked, so the test sees which output applied.
@@ -2480,7 +2479,7 @@ fn a_filter_run_made_elsewhere_is_applied_by_plugin_run() {
     assert_eq!(named(&s, &made).as_deref(), Some("Plug-in"), "made for objects that changed since");
     // A plug-in installed again is another one.
     let again = FilterRun::prepare(&s, &p).unwrap();
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&heavy(id, 1)), "allowHeavy": true}));
     assert!(!again.current(&s));
     again.hand_in(&mut s, output.into_bytes());
     let made = run(&mut s, "plugin.run", p)["ids"].clone();
@@ -2497,7 +2496,7 @@ fn a_filter_run_made_elsewhere_keeps_its_document_data() {
     let id = "test.engine.handindata";
     let manifest = format!(r#"{{"id":"{id}","name":"Test {id}","version":"1","kind":"filter","budget":"heavy"}}"#);
     let install = |s: &mut Session, src: String| {
-        let data = vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap());
+        let data = pluma_format::base64_encode(&wat::parse_str(src).unwrap());
         run(s, "plugin.install", json!({"dataBase64": data, "allowHeavy": true, "replace": true}));
     };
     // It first keeps the pens it found with the document.
@@ -2532,7 +2531,7 @@ fn a_level_2_filter_installs_with_progress_granted_and_reports_to_the_caller() {
     let id = "test.engine.level2";
     let manifest = format!(r#"{{"id":"{id}","name":"Test {id}","kind":"filter","api":2,"permissions":["doc.read","doc.write","progress"]}}"#);
     let wasm = wat::parse_str(tpl::cooperating(&manifest, 1000, r#"{"objects":[]}"#, r#"{"objects":[]}"#)).unwrap();
-    let data = vectorcraft_format::base64_encode(&wasm);
+    let data = pluma_format::base64_encode(&wasm);
     let inspected = run(&mut s, "plugin.inspect", json!({"dataBase64": data}));
     assert_eq!((&inspected["needsApproval"], &inspected["permissions"]), (&json!(true), &json!(["doc.read", "doc.write", "progress"])));
     let e = s.execute("plugin.install", &json!({"dataBase64": data, "grant": ["doc.read", "doc.write"]})).unwrap_err().to_string();
@@ -2554,7 +2553,7 @@ fn a_level_2_filter_installs_with_progress_granted_and_reports_to_the_caller() {
 fn approval(id: &str, wasm: &[u8], permissions: &[&str], heavy: bool) -> crate::cmd::plugin::InstallApproval {
     crate::cmd::plugin::InstallApproval {
         id: id.into(),
-        hash: vectorcraft_plugins::permissions::sha256_hex(wasm),
+        hash: pluma_plugins::permissions::sha256_hex(wasm),
         permissions: permissions.iter().map(|p| p.to_string()).collect(),
         heavy,
     }
@@ -2569,7 +2568,7 @@ fn a_request_cannot_grant_what_only_a_person_approves() {
     let mut s = strict_session();
     let id = "test.engine.approval";
     let wasm = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
-    let data = vectorcraft_format::base64_encode(&wasm);
+    let data = pluma_format::base64_encode(&wasm);
     let refused = "take effect only in a session started with --allow-plugin-grants";
     let e = s.execute("plugin.install", &json!({"dataBase64": data, "grant": ["doc.read"]})).unwrap_err().to_string();
     assert!(e.contains(refused), "{e}");
@@ -2578,7 +2577,7 @@ fn a_request_cannot_grant_what_only_a_person_approves() {
     let batch = json!({"commands": [{"command": "plugin.install", "params": {"dataBase64": data, "grant": ["doc.read"]}}]});
     let e = s.execute("command.batch", &batch).unwrap_err().to_string();
     assert!(e.contains(refused), "a batch can't grant: {e}");
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
 
     // Approved for other bytes, for another id or for other permissions: refused, and spent.
     let other = asking(id, r#"["doc.read"]"#, &json!({"objects": [{"name": "x"}]}));
@@ -2591,12 +2590,12 @@ fn a_request_cannot_grant_what_only_a_person_approves() {
         let e = s.execute("plugin.install", &json!({"dataBase64": data, "grant": ["doc.read"]})).unwrap_err().to_string();
         assert!(e.contains(refused), "{e}");
     }
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
 
     // The approval for this module installs it once.
     s.approve_plugin_install(approval(id, &wasm, &["doc.read"], false));
     run(&mut s, "plugin.install", json!({"dataBase64": data, "grant": ["doc.read"]}));
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(vectorcraft_plugins::permissions::sha256_hex(&wasm)));
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(pluma_plugins::permissions::sha256_hex(&wasm)));
     let e = s.execute("plugin.install", &json!({"dataBase64": data, "grant": ["doc.read"]})).unwrap_err().to_string();
     assert!(e.contains(refused), "the approval was spent: {e}");
     // A hash already approved installs without one.
@@ -2618,7 +2617,7 @@ fn a_request_cannot_grant_what_only_a_person_approves() {
     // The heavy budget needs its own agreement.
     let heavy_id = "test.engine.approval.heavy";
     let heavy_wasm = heavy(heavy_id, 1);
-    let heavy_data = vectorcraft_format::base64_encode(&heavy_wasm);
+    let heavy_data = pluma_format::base64_encode(&heavy_wasm);
     let e = s.execute("plugin.install", &json!({"dataBase64": heavy_data, "allowHeavy": true})).unwrap_err().to_string();
     assert!(e.contains(refused), "{e}");
     // Without a `permissions` list it has the ones its kind implies.
@@ -2647,7 +2646,7 @@ fn a_module_approved_in_the_app_installs_from_a_strict_session_with_its_store() 
     let folder = crate::tests_links::Folder::new("plugin-approval-store");
     let id = "test.engine.approval.store";
     let wasm = asking(id, r#"["doc.read"]"#, &json!({"objects": []}));
-    let data = vectorcraft_format::base64_encode(&wasm);
+    let data = pluma_format::base64_encode(&wasm);
     let mut desktop = strict_session();
     desktop.attach_plugin_store(folder.0.clone());
     desktop.approve_plugin_install(approval(id, &wasm, &["doc.read"], false));
@@ -2656,23 +2655,23 @@ fn a_module_approved_in_the_app_installs_from_a_strict_session_with_its_store() 
 
     // Another process starts with an empty registry and the store's grants.
     let forget = || {
-        vectorcraft_plugins::registry::remove(id);
-        vectorcraft_plugins::registry::revoke(id);
+        pluma_plugins::registry::remove(id);
+        pluma_plugins::registry::revoke(id);
     };
     forget();
     let mut headless = strict_session();
     headless.attach_plugin_store(folder.0.clone());
     forget();
     run(&mut headless, "plugin.install", json!({"dataBase64": data}));
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(vectorcraft_plugins::permissions::sha256_hex(&wasm)));
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(pluma_plugins::permissions::sha256_hex(&wasm)));
 
     let other = asking(id, r#"["doc.read"]"#, &json!({"objects": [{"name": "x"}]}));
-    let other_data = vectorcraft_format::base64_encode(&other);
+    let other_data = pluma_format::base64_encode(&other);
     let e = headless.execute("plugin.install", &json!({"dataBase64": other_data, "replace": true})).unwrap_err().to_string();
     assert!(e.contains("approve them in the desktop app"), "{e}");
     let e = headless.execute("plugin.install", &json!({"dataBase64": other_data, "replace": true, "grant": ["doc.read"]})).unwrap_err().to_string();
     assert!(e.contains("take effect only in a session started with --allow-plugin-grants"), "{e}");
-    assert_eq!(vectorcraft_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(vectorcraft_plugins::permissions::sha256_hex(&wasm)));
+    assert_eq!(pluma_plugins::registry::get(id).map(|p| p.hash().to_string()), Some(pluma_plugins::permissions::sha256_hex(&wasm)));
     run(&mut headless, "plugin.remove", json!({"id": id}));
 }
 
@@ -2682,11 +2681,11 @@ fn a_module_approved_in_the_app_installs_from_a_strict_session_with_its_store() 
 fn a_cancelled_filter_run_changes_nothing() {
     let mut s = session();
     let id = "test.engine.cancelled";
-    run(&mut s, "plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&heavy(id, 1 << 40)), "allowHeavy": true}));
+    run(&mut s, "plugin.install", json!({"dataBase64": pluma_format::base64_encode(&heavy(id, 1 << 40)), "allowHeavy": true}));
     let before = s.doc().unwrap().doc.clone();
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || s.execute("plugin.run", &json!({"id": id})));
+    let r = pluma_doc::cancel::scope(&token, None, || s.execute("plugin.run", &json!({"id": id})));
     assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
     assert_eq!(s.doc().unwrap().doc, before);
 }
@@ -2893,8 +2892,8 @@ fn effect_commands_labels_and_malformed_entries() {
         r#"{{"id":"{id}","name":"Cmd Test","version":"1","kind":"effect","permissions":["doc.read","effect.render"],"commands":[{{"id":"flip","label":"Flip"}}]}}"#
     );
     let wasm = wat::parse_str(tpl::returning(&listed, triangle)).unwrap();
-    let hash = vectorcraft_plugins::permissions::sha256_hex(&wasm);
-    let grant = json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": ["doc.read", "effect.render"], "hash": hash});
+    let hash = pluma_plugins::permissions::sha256_hex(&wasm);
+    let grant = json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": ["doc.read", "effect.render"], "hash": hash});
     run(&mut s, "plugin.install", grant);
     let (before, undo) = (s.doc().unwrap().doc.clone(), s.doc().unwrap().history.undo.len());
     let e = s.execute(&crate::cmd::plugin::command_id(id, "flip"), &json!({})).unwrap_err().to_string();
@@ -2905,9 +2904,9 @@ fn effect_commands_labels_and_malformed_entries() {
 
     let bad = id.replace("effect", "bad");
     let wasm = wat::parse_str(tpl::module(&with_commands(&bad, "filter", r#"[{"id":"ok","label":"A"},{"id":"Bad","label":"B"}]"#), tpl::ECHO, "", 1));
-    let e = s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm.unwrap())})).unwrap_err().to_string();
+    let e = s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm.unwrap())})).unwrap_err().to_string();
     assert!(e.contains("command `Bad`"), "{e}");
-    assert!(vectorcraft_plugins::registry::get(&bad).is_none());
+    assert!(pluma_plugins::registry::get(&bad).is_none());
 }
 
 /// A filter `id` of API level 2 that lists `settings` and `cache`, whose `vc_run` runs `first`
@@ -2929,13 +2928,13 @@ const READS: &str =
     (if (i32.ne (i32.load (i32.const 0x3000)) (i32.load (i32.const 0x2100))) (then unreachable))";
 
 fn install_storing(s: &mut Session, id: &str, first: &str) -> Value {
-    let data = vectorcraft_format::base64_encode(&storing(id, first));
+    let data = pluma_format::base64_encode(&storing(id, first));
     run(s, "plugin.install", json!({"dataBase64": data, "grant": ["settings", "cache"]}))
 }
 
 /// [`install_storing`] in place of another module with the same id (`replace: true`).
 fn replace_storing(s: &mut Session, id: &str, first: &str) -> Value {
-    let data = vectorcraft_format::base64_encode(&storing(id, first));
+    let data = pluma_format::base64_encode(&storing(id, first));
     run(s, "plugin.install", json!({"dataBase64": data, "grant": ["settings", "cache"], "replace": true}))
 }
 
@@ -2959,7 +2958,7 @@ fn plugins_keep_settings_and_a_cache_of_their_own_in_the_store() {
     assert_eq!(run(&mut s, "plugin.info", json!({"id": id}))["cacheBytes"], json!(3));
 
     // A restart: installed again from the store, and replaced by a module that reads.
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     let mut next = session();
     next.attach_plugin_store(folder.0.clone());
     let listed = run(&mut next, "plugin.list", json!({}));
@@ -3019,9 +3018,9 @@ fn plugin_storage_behind_a_link_is_left_alone() {
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
     install_storing(&mut s, id, "");
-    let st = vectorcraft_plugins::registry::storage(id).unwrap();
-    let m = &mut vectorcraft_plugins::storage::Meter::unlimited();
-    assert_eq!(st.set_setting("zoom", b"hello", m), Err(vectorcraft_plugins::storage::StorageError::Unavailable));
+    let st = pluma_plugins::registry::storage(id).unwrap();
+    let m = &mut pluma_plugins::storage::Meter::unlimited();
+    assert_eq!(st.set_setting("zoom", b"hello", m), Err(pluma_plugins::storage::StorageError::Unavailable));
     run(&mut s, "plugin.remove", json!({"id": id}));
     assert!(kept.is_file(), "left where the link leads");
 }
@@ -3038,7 +3037,7 @@ fn removing_an_id_that_is_not_installed_deletes_its_storage() {
     std::fs::create_dir_all(dir.join("cache")).unwrap();
     std::fs::write(dir.join("settings.json"), b"{}").unwrap();
     std::fs::write(dir.join("cache").join("tile.bin"), b"abc").unwrap();
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     assert_eq!(run(&mut s, "plugin.remove", json!({"id": id})), json!({"removed": id}));
     assert!(!dir.exists(), "the storage of an id that isn't installed is deleted");
     assert!(s.execute("plugin.remove", &json!({"id": id})).is_err(), "nothing left to remove");
@@ -3048,13 +3047,13 @@ fn removing_an_id_that_is_not_installed_deletes_its_storage() {
 /// settings start empty; a write past a cap fails and changes nothing; cache entries whose names
 /// differ only in case are two files; a removed plug-in's storage takes no more writes.
 fn plugin_storage_is_capped_and_survives_a_damaged_settings_file() {
-    use vectorcraft_plugins::storage::{self, Meter, StorageError};
+    use pluma_plugins::storage::{self, Meter, StorageError};
     let folder = crate::tests_links::Folder::new("plugin-storage-caps");
     let id = "test.engine.storagecaps";
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
     install_storing(&mut s, id, "");
-    let st = vectorcraft_plugins::registry::storage(id).unwrap();
+    let st = pluma_plugins::registry::storage(id).unwrap();
     let dir = crate::store::plugin_data_dir(&folder.0, id);
     std::fs::create_dir_all(&dir).unwrap();
     let m = &mut Meter::unlimited();
@@ -3082,7 +3081,7 @@ fn plugin_storage_is_capped_and_survives_a_damaged_settings_file() {
 
     // At most 1 MiB in all: eleven values of 64 KiB fit, a twelfth doesn't, and nothing changes.
     let big = vec![7_u8; storage::MAX_SETTING_BYTES];
-    let keys: std::collections::BTreeMap<String, String> = (0..11).map(|i| (format!("k{i}"), vectorcraft_format::base64_encode(&big))).collect();
+    let keys: std::collections::BTreeMap<String, String> = (0..11).map(|i| (format!("k{i}"), pluma_format::base64_encode(&big))).collect();
     std::fs::write(dir.join("settings.json"), serde_json::to_vec(&keys).unwrap()).unwrap();
     assert_eq!(st.set_setting("k11", &big, m), Err(StorageError::Full));
     assert_eq!((st.setting("k11", m).unwrap(), st.setting("k0", m).unwrap()), (None, Some(big.clone())));
@@ -3121,7 +3120,7 @@ fn plugin_storage_is_capped_and_survives_a_damaged_settings_file() {
     // An id that differs only in case has storage of its own, which removing this one leaves.
     let upper_id = "test.engine.StorageCaps";
     s.attach_plugin_storage(upper_id);
-    let upper = vectorcraft_plugins::registry::storage(upper_id).unwrap();
+    let upper = pluma_plugins::registry::storage(upper_id).unwrap();
     assert_eq!(upper.setting("k0", m).unwrap(), None);
     upper.set_setting("k0", b"upper", m).unwrap();
     assert_eq!(st.setting("k0", m).unwrap(), Some(big));
@@ -3144,10 +3143,10 @@ fn plugin_storage_is_capped_and_survives_a_damaged_settings_file() {
 /// Files larger than the storage reads are not read: a settings file larger than 1 MiB, although
 /// each of its values would fit, is moved aside and the settings start empty; a cache entry file
 /// larger than an entry may be fails as unavailable. `st` is the storage in `dir`.
-fn plugin_storage_skips_oversize_files(st: &dyn vectorcraft_plugins::storage::Storage, dir: &std::path::Path) {
-    use vectorcraft_plugins::storage::{self, Meter, StorageError};
+fn plugin_storage_skips_oversize_files(st: &dyn pluma_plugins::storage::Storage, dir: &std::path::Path) {
+    use pluma_plugins::storage::{self, Meter, StorageError};
     let m = &mut Meter::unlimited();
-    let value = vectorcraft_format::base64_encode(&vec![7_u8; storage::MAX_SETTING_BYTES]);
+    let value = pluma_format::base64_encode(&vec![7_u8; storage::MAX_SETTING_BYTES]);
     let keys: std::collections::BTreeMap<String, String> = (0..13).map(|i| (format!("k{i}"), value.clone())).collect();
     let oversize = serde_json::to_vec(&keys).unwrap();
     assert!(oversize.len() > storage::MAX_SETTINGS_BYTES);
@@ -3164,8 +3163,8 @@ fn plugin_storage_skips_oversize_files(st: &dyn vectorcraft_plugins::storage::St
 /// Writes are atomic: a new file takes the old one's name, so another name for the old file (a hard
 /// link) keeps its content. `st` is the storage in `dir` and holds the setting "zoom"; `outside` is
 /// a folder outside it.
-fn plugin_storage_writes_are_atomic(st: &dyn vectorcraft_plugins::storage::Storage, dir: &std::path::Path, outside: &std::path::Path) {
-    let m = &mut vectorcraft_plugins::storage::Meter::unlimited();
+fn plugin_storage_writes_are_atomic(st: &dyn pluma_plugins::storage::Storage, dir: &std::path::Path, outside: &std::path::Path) {
+    let m = &mut pluma_plugins::storage::Meter::unlimited();
     let settings_copy = outside.join("settings-copy.json");
     let before = std::fs::read(dir.join("settings.json")).unwrap();
     std::fs::hard_link(dir.join("settings.json"), &settings_copy).unwrap();
@@ -3193,13 +3192,13 @@ fn set_modified(path: &std::path::Path, when: std::time::SystemTime) {
 /// whole settings file when it reads the file and the whole file when it writes it, a cache call the
 /// entry it reads or writes. A call that would pass what its meter has left fails and changes nothing.
 fn plugin_storage_calls_are_charged_the_files_they_read_and_write() {
-    use vectorcraft_plugins::storage::{Meter, StorageError};
+    use pluma_plugins::storage::{Meter, StorageError};
     let folder = crate::tests_links::Folder::new("plugin-storage-meter");
     let id = "test.engine.storagemeter";
     let mut s = session();
     s.attach_plugin_store(folder.0.clone());
     install_storing(&mut s, id, "");
-    let st = vectorcraft_plugins::registry::storage(id).unwrap();
+    let st = pluma_plugins::registry::storage(id).unwrap();
     let file = crate::store::plugin_data_dir(&folder.0, id).join("settings.json");
     let size = || std::fs::metadata(&file).unwrap().len();
     st.set_setting("big", &[7; 60_000], &mut Meter::unlimited()).unwrap();
@@ -3249,10 +3248,10 @@ fn storage_in(
     s: &mut Session,
     folder: &crate::tests_links::Folder,
     id: &str,
-) -> (std::sync::Arc<dyn vectorcraft_plugins::storage::Storage>, std::path::PathBuf) {
+) -> (std::sync::Arc<dyn pluma_plugins::storage::Storage>, std::path::PathBuf) {
     s.attach_plugin_store(folder.0.clone());
     install_storing(s, id, "");
-    (vectorcraft_plugins::registry::storage(id).unwrap(), crate::store::plugin_data_dir(&folder.0, id).join("settings.json"))
+    (pluma_plugins::registry::storage(id).unwrap(), crate::store::plugin_data_dir(&folder.0, id).join("settings.json"))
 }
 
 /// The settings stay in memory while the file keeps its size and modified time: a read doesn't open
@@ -3260,7 +3259,7 @@ fn storage_in(
 /// the call returns, and a file with another time is read again.
 #[test]
 fn plugin_settings_are_read_from_memory_until_the_file_changes() {
-    use vectorcraft_plugins::storage::{Meter, StorageError};
+    use pluma_plugins::storage::{Meter, StorageError};
     let folder = crate::tests_links::Folder::new("plugin-storage-kept");
     let id = "test.engine.storagekept";
     let mut s = session();
@@ -3270,8 +3269,7 @@ fn plugin_settings_are_read_from_memory_until_the_file_changes() {
 
     // Other bytes of the same size and the same time: the storage can't tell, so what it answers
     // shows that it did not read the file.
-    let other =
-        std::fs::read_to_string(&file).unwrap().replace(&vectorcraft_format::base64_encode(b"hello"), &vectorcraft_format::base64_encode(b"world"));
+    let other = std::fs::read_to_string(&file).unwrap().replace(&pluma_format::base64_encode(b"hello"), &pluma_format::base64_encode(b"world"));
     std::fs::write(&file, &other).unwrap();
     set_modified(&file, written);
     let mut m = Meter::unlimited();
@@ -3304,7 +3302,7 @@ fn plugin_settings_are_read_from_memory_until_the_file_changes() {
 /// read from disk by the storage of the id installed again.
 #[test]
 fn removing_a_plugin_drops_its_settings_from_memory() {
-    use vectorcraft_plugins::storage::Meter;
+    use pluma_plugins::storage::Meter;
     let folder = crate::tests_links::Folder::new("plugin-storage-kept-removed");
     let id = "test.engine.storagekeptremoved";
     let mut s = session();
@@ -3317,7 +3315,7 @@ fn removing_a_plugin_drops_its_settings_from_memory() {
     std::fs::write(&file, &bytes).unwrap();
     set_modified(&file, written);
     s.attach_plugin_storage(id);
-    let st = vectorcraft_plugins::registry::storage(id).unwrap();
+    let st = pluma_plugins::registry::storage(id).unwrap();
     let mut m = Meter::unlimited();
     assert_eq!(st.setting("zoom", &mut m).unwrap(), Some(b"hello".to_vec()));
     assert_eq!(m.used(), bytes.len() as u64, "read from the file");
@@ -3329,7 +3327,7 @@ fn removing_a_plugin_drops_its_settings_from_memory() {
 /// the folder's time alone, so the total it reports shows that it did not list the folder.
 #[test]
 fn plugin_cache_total_is_kept_and_follows_writes_removals_and_clears() {
-    use vectorcraft_plugins::storage::Meter;
+    use pluma_plugins::storage::Meter;
     let folder = crate::tests_links::Folder::new("plugin-storage-kept-cache");
     let id = "test.engine.storagekeptcache";
     let mut s = session();
@@ -3374,7 +3372,7 @@ fn another_module_under_an_id_with_settings_needs_replace() {
     // The same module again.
     install_storing(&mut s, id, WRITES);
 
-    let reads = vectorcraft_format::base64_encode(&storing(id, READS));
+    let reads = pluma_format::base64_encode(&storing(id, READS));
     let install = |s: &mut Session, extra: Value| {
         let mut p = json!({"dataBase64": reads, "grant": ["settings", "cache"]});
         p.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
@@ -3396,8 +3394,8 @@ fn another_module_under_an_id_with_settings_needs_replace() {
     assert_eq!(run(&mut s, "plugin.info", json!({"id": id}))["cacheBytes"], json!(3));
 
     // Not installed, but with settings in the store: another module needs `replace` too.
-    vectorcraft_plugins::registry::remove(id);
-    let writes = vectorcraft_format::base64_encode(&storing(id, WRITES));
+    pluma_plugins::registry::remove(id);
+    let writes = pluma_format::base64_encode(&storing(id, WRITES));
     assert_eq!(run(&mut s, "plugin.inspect", json!({"dataBase64": writes}))["needsReplace"], json!(true));
     assert!(s.execute("plugin.install", &json!({"dataBase64": writes, "grant": ["settings", "cache"]})).is_err());
     run(&mut s, "plugin.install", json!({"dataBase64": writes, "grant": ["settings", "cache"], "replace": true}));

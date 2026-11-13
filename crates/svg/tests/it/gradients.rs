@@ -1,10 +1,10 @@
 //! Gradient defs: text gradients span the laid-out text, stroke gradients the stroked area,
 //! identical gradients share a def named after their swatch, and midpoints survive re-import.
 
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Document, Node, NodeKind, TextObject};
-use vectorcraft_geom::{Point, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, export, import};
+use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{Appearance, CharStyle, Document, Node, NodeKind, TextObject};
+use pluma_geom::{Point, Rect, shapes};
+use pluma_svg::{ExportOptions, export, import};
 
 fn black_to_white() -> GradientPaint {
     GradientPaint::new(Gradient::new(GradientKind::Linear, vec![GradientStop::new(0.0, Color::BLACK), GradientStop::new(1.0, Color::WHITE)]))
@@ -32,7 +32,7 @@ fn attr(svg: &str, tag: &str, name: &str) -> f64 {
 fn gradient_text_spans_its_layout() {
     let st = CharStyle { size: 24.0, fill: Paint::Gradient(Box::new(black_to_white())), ..CharStyle::default() };
     let t = TextObject::point(Point::new(30.0, 100.0), "Gradient", st);
-    let bounds = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds;
+    let bounds = pluma_text::layout(pluma_text::FontDb::global(), &t).bounds;
     let d = doc_with(|d| vec![Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)))]);
     let svg = export(&d, &ExportOptions::default());
     assert!(svg.contains("fill=\"url(#linear-gradient-1)\""), "{svg}");

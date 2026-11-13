@@ -15,7 +15,7 @@ use std::ops::RangeInclusive;
 
 use egui::{Context, CursorIcon, Id, Key, Rect, Response, Sense, Ui};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// Points of horizontal drag per step.
 pub const PX_PER_STEP: f32 = 2.0;
@@ -87,9 +87,9 @@ pub(crate) fn phase(ctx: &Context) -> Phase {
 
 /// Before the panels draw: while a field is scrubbed, the edits its values make are one undo step,
 /// or part of the step of an undo group open in the active document
-/// ([`vectorcraft_engine::Session::begin_undo_scope`]). (The drag's first frame applies nothing, so
+/// ([`pluma_engine::Session::begin_undo_scope`]). (The drag's first frame applies nothing, so
 /// the step begins before its first value.)
-pub(crate) fn begin_frame(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn begin_frame(app: &mut PlumaApp, ctx: &Context) {
     if !app.scrub_group && matches!(phase(ctx), Phase::Dragging | Phase::Released) {
         app.scrub_scope = app.session.begin_undo_scope();
         app.scrub_group = true;
@@ -98,7 +98,7 @@ pub(crate) fn begin_frame(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// After the panels: a finished drag ends its undo step in the document it began in, even when
 /// another document is active by then; Escape undoes the drag's edits.
-pub(crate) fn end_frame(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn end_frame(app: &mut PlumaApp, ctx: &Context) {
     let phase = phase(ctx);
     if !app.scrub_group || phase == Phase::Dragging {
         return;

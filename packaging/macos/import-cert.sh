@@ -18,10 +18,10 @@ if [[ -z "${APPLE_CERTIFICATE:-}" ]]; then
 fi
 
 TMP="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
-KEYCHAIN="$TMP/vectorcraft-signing.keychain-db"
+KEYCHAIN="$TMP/pluma-signing.keychain-db"
 # A fresh private directory, so a pre-made symlink in a shared $TMP cannot redirect the secret.
-CERT_DIR="$(mktemp -d "$TMP/vectorcraft-signing.XXXXXX")"
-CERT="$CERT_DIR/vectorcraft-signing.p12"
+CERT_DIR="$(mktemp -d "$TMP/pluma-signing.XXXXXX")"
+CERT="$CERT_DIR/pluma-signing.p12"
 KC_PASS="${KEYCHAIN_PASSWORD:-$(openssl rand -hex 24)}"
 
 trap 'rm -rf "$CERT_DIR"' EXIT

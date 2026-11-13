@@ -1,16 +1,16 @@
 //! Object → Slice, View → Hide/Lock Slices and Select → Object → Slices.
 //!
-//! The model is in [`vectorcraft_doc::slices`]: user slices live in [`Document::slices`], object
+//! The model is in [`pluma_doc::slices`]: user slices live in [`Document::slices`], object
 //! slices are objects with slice options, auto slices are laid out around them. The Object → Slice
 //! commands act on the selected slices: those the Slice Selection tool (or `object.slice.select`)
 //! selected and the selected objects that are object slices. Commands that take slice ids take
 //! user slice ids and the ids of objects with an object slice.
 
+use pluma_color::Paint;
+use pluma_doc::slices::valid_rect;
+use pluma_doc::{Appearance, CellAlign, CellVAlign, Document, Node, NodeKind, Slice, SliceKind, SliceOptions};
+use pluma_geom::{Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::slices::valid_rect;
-use vectorcraft_doc::{Appearance, CellAlign, CellVAlign, Document, Node, NodeKind, Slice, SliceKind, SliceOptions};
-use vectorcraft_geom::{Rect, shapes};
 
 use super::{
     CommandSpec, EngineError, NodeId, Result, Session, bad, bool_or, cmd, f64_or, f64_req, has_doc, has_selection, id_param, ids_param, index,
@@ -220,7 +220,7 @@ fn selected(s: &Session) -> Result<Vec<NodeId>> {
     Ok(selected_slices(&st.doc, &st.selection))
 }
 
-pub(crate) fn selected_slices(d: &Document, sel: &vectorcraft_doc::Selection) -> Vec<NodeId> {
+pub(crate) fn selected_slices(d: &Document, sel: &pluma_doc::Selection) -> Vec<NodeId> {
     let objects = sel.objects.iter().filter(|id| d.node(**id).is_some_and(|n| n.extras().slice.is_some()));
     dedup(sel.slices.iter().chain(objects).copied().collect())
 }
@@ -384,7 +384,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
         let mut out = vec![];
         for id in &targets {
             let (Some(r), Some(o)) = (d.slice_bounds(*id), d.slice_options(*id).cloned()) else { continue };
-            let r = r + vectorcraft_geom::Vec2::new(dx, dy);
+            let r = r + pluma_geom::Vec2::new(dx, dy);
             if !slice_rect_ok(r) {
                 return Err(bad("object.slice.duplicate", "the copy would leave the canvas"));
             }
@@ -512,7 +512,7 @@ impl Edits {
             .map(|b| match b.to_ascii_lowercase().as_str() {
                 "" | "none" => Ok(String::new()),
                 "matte" => Ok("matte".to_string()),
-                _ => vectorcraft_color::Color::from_hex(&b)
+                _ => pluma_color::Color::from_hex(&b)
                     .filter(|_| !super::hex_with_alpha(&b))
                     .map(|c| c.to_hex())
                     .ok_or_else(|| bad(C, "`background` must be \"\", \"matte\" or #rrggbb")),
@@ -696,7 +696,7 @@ fn set_rect(s: &mut Session, p: &Value) -> Result<Value> {
 fn move_slices(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "object.slice.move";
     let targets = slice_targets(s, p, C)?;
-    let v = vectorcraft_geom::Vec2::new(f64_req(p, "dx", C)?, f64_req(p, "dy", C)?);
+    let v = pluma_geom::Vec2::new(f64_req(p, "dx", C)?, f64_req(p, "dy", C)?);
     if !(v.x.is_finite() && v.y.is_finite()) {
         return Err(bad(C, "dx and dy must be numbers"));
     }
@@ -707,10 +707,10 @@ fn move_slices(s: &mut Session, p: &Value) -> Result<Value> {
                 Some(_) => return Err(bad(C, "the slice would leave the canvas")),
                 None => {
                     if let Some(n) = d.node_mut(*id) {
-                        n.transform(vectorcraft_geom::Affine::translate(v), vectorcraft_doc::Scaling::default());
-                        super::object::keep_pixel_aligned(n, vectorcraft_doc::Scaling::default());
+                        n.transform(pluma_geom::Affine::translate(v), pluma_doc::Scaling::default());
+                        super::object::keep_pixel_aligned(n, pluma_doc::Scaling::default());
                     }
-                    super::object::keep_compound_aligned(d, *id, vectorcraft_doc::Scaling::default());
+                    super::object::keep_compound_aligned(d, *id, pluma_doc::Scaling::default());
                 }
             }
         }

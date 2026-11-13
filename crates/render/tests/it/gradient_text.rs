@@ -1,11 +1,11 @@
 //! Gradients on type: a vector across the text, and run strokes fitted like object strokes.
 
+use pluma_color::Paint;
+use pluma_doc::{Document, NodeId, NodeKind, TextObject, appearance::stroke_paint_bounds};
+use pluma_geom::Rect;
+use pluma_testkit::fixtures::{exec, session_with};
+use pluma_testkit::raster::{Image, render_view};
 use serde_json::json;
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Document, NodeId, NodeKind, TextObject, appearance::stroke_paint_bounds};
-use vectorcraft_geom::Rect;
-use vectorcraft_testkit::fixtures::{exec, session_with};
-use vectorcraft_testkit::raster::{Image, render_view};
 
 /// Mean red and blue of the solid ink (no green: the ramp has none, the paper and anti-aliased
 /// edges do) in columns `x0..x1`.

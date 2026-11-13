@@ -1,4 +1,4 @@
-use vectorcraft_geom::Point;
+use pluma_geom::Point;
 
 use super::entry::RgbInCmyk;
 use super::{
@@ -15,7 +15,7 @@ pub(super) const MAX_INLINE_DEPTH: u32 = 4;
 pub(super) const MAX_PATTERN_DEPTH: u32 = 4;
 
 /// The warning for an image left out because it can't be decoded: the note raster exports give
-/// (`vectorcraft-engine`'s `rasterfx::undecoded_warning`).
+/// (`pluma-engine`'s `rasterfx::undecoded_warning`).
 pub(super) const UNDECODED: &str = "an image couldn't be decoded and is missing from the picture";
 
 /// The warning for an image whose placement cannot be written.
@@ -39,7 +39,7 @@ impl<'a> Exporter<'a> {
             sixteen_bit: !matches!(set.compatibility, Compatibility::Pdf13 | Compatibility::Pdf14),
             compression: &set.compression,
             non_printing: false,
-            intent: vectorcraft_color::cms::active().settings().intent,
+            intent: pluma_color::cms::active().settings().intent,
             transparent: None,
             out: Arc::default(),
             convert: true,
@@ -51,7 +51,7 @@ impl<'a> Exporter<'a> {
             in_layer: 0,
             paper: Rect::ZERO,
             symbol_nodes: 0,
-            symbol_limit: vectorcraft_doc::MAX_SYMBOL_NODES,
+            symbol_limit: pluma_doc::MAX_SYMBOL_NODES,
             overprint: false,
             overprinted: false,
             invisible: false,
@@ -178,7 +178,7 @@ pub(super) fn color(c: &Color) -> krilla::color::Color {
         Color::Rgb { r, g, b } => rgb::Color::new(q(r), q(g), q(b)).into(),
         // Inks and grey keep their values: C75 is written as 0.75, not 191/255.
         Color::Cmyk { c, m, y, k } => cmyk::Color::new_f32(c, m, y, k).into(),
-        // VectorCraft grey is ink coverage (0 = white); PDF DeviceGray is lightness.
+        // Pluma grey is ink coverage (0 = white); PDF DeviceGray is lightness.
         Color::Gray { k } => luma::Color::new_f32(1.0 - k).into(),
         Color::Lab { .. } => {
             let [r, g, b] = c.to_rgb();

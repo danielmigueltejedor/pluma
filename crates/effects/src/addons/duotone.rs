@@ -11,9 +11,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pluma_doc::Document;
+use pluma_doc::color::{Color, cms::Model};
 use serde_json::{Value, json};
-use vectorcraft_doc::Document;
-use vectorcraft_doc::color::{Color, cms::Model};
 
 use crate::adjust::{LUT, curve_at, curve_points_on, lookup, sample};
 use crate::raster::color_param;

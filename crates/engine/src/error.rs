@@ -37,8 +37,8 @@ impl From<cancel::Cancelled> for EngineError {
     }
 }
 
-impl From<vectorcraft_doc::DocError> for EngineError {
-    fn from(e: vectorcraft_doc::DocError) -> Self {
+impl From<pluma_doc::DocError> for EngineError {
+    fn from(e: pluma_doc::DocError) -> Self {
         EngineError::Other(e.to_string())
     }
 }

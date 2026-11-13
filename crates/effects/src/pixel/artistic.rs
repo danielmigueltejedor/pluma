@@ -12,7 +12,7 @@ use super::edges::sobel;
 use super::pixelate::{Around, Place, Soft, cell, point_in, rand, value_noise};
 use super::texture::{self, Light, Texture, Tones, luma, premultiply, smooth_noise, straight, texturizer};
 use super::{PixelSpace, blur_plane, pick};
-use vectorcraft_geom::{Point, Vec2};
+use pluma_geom::{Point, Vec2};
 
 const SALT_DRY: u64 = 264;
 const MARGIN: f64 = 1.0;

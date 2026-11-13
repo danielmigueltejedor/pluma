@@ -18,11 +18,11 @@
 
 Every non-code asset in this repository (icons, images, fonts, example art, colour profiles, presets) is listed here with its author, source and licence. `cargo xtask assets` (part of `cargo xtask ci`) fails if an asset file is missing from this table.
 
-**Policy (mandatory):** VectorCraft contains **no Adobe iconography, images, artwork, presets, swatch/brush/symbol/pattern libraries or ICC profiles**. Every asset is either original work by VectorCraft contributors, or third-party material under an open licence (OSI open source, public domain / CC0, or Creative Commons that allows redistribution), and it is attributed below. Screenshots of Adobe software are never committed. The one exception is the ArtCraft name, wordmark and logos in `docs/brand/`: ArtCraft trademarks, not open source, usable only under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+**Policy (mandatory):** Pluma contains **no Adobe iconography, images, artwork, presets, swatch/brush/symbol/pattern libraries or ICC profiles**. Every asset is either original work by VectorCraft contributors, or third-party material under an open licence (OSI open source, public domain / CC0, or Creative Commons that allows redistribution), and it is attributed below. Screenshots of Adobe software are never committed.
 
 Generated-in-code art is original and has no file to list. This covers the default swatches, brushes, symbols, patterns, graphic styles, image-trace presets and the vector tool cursors (`crates/ui-egui/src/cursors.rs`).
 
-**Font files are never committed here.** Fonts shared by the Crafting Apps live in [storytold/craft-fonts](https://github.com/storytold/craft-fonts). The small Latin UI/document fonts below predate that rule and stay.
+**Font files are never committed here.** Fonts shared by the Nodalia apps live in [getnodalia/foundation's `vendor/craft-fonts/main` branch](https://github.com/getnodalia/foundation/tree/vendor/craft-fonts/main). The small Latin UI/document fonts below predate that rule and stay.
 
 **Optional build input: craft-fonts.** Builds made with `CRAFT_FONTS_DIR=<craft-fonts checkout>` (all official releases) embed the Japanese fonts listed in its [`ATTRIBUTION.md`](https://github.com/storytold/craft-fonts/blob/main/ATTRIBUTION.md): BIZ UDPGothic Regular and Bold, Shippori Mincho Regular and BIZ UDMincho Regular (web builds: BIZ UDPGothic Regular only), all under the SIL Open Font License 1.1. They are not files in this repository; release packages carry each one's `OFL-<family>.txt`. Builds without `CRAFT_FONTS_DIR` embed none of them.
 
@@ -30,31 +30,23 @@ Generated-in-code art is original and has no file to list. This covers the defau
 |---|---|---|---|---|
 | `epaint_default_fonts/fonts/egui-icons.ttf` (egui dependency) | John Slegers (emoji-icon-font) | https://github.com/storytold/egui/blob/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/egui-icons.txt; original https://github.com/jslegers/emoji-icon-font | MIT (full text in NOTICE) | Small special-icon subset embedded by default_fonts |
 | `epaint_default_fonts/fonts/emoji-icon-font.ttf` (egui dependency) | John Slegers | https://github.com/storytold/egui/blob/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt; original https://github.com/jslegers/emoji-icon-font | MIT (full text in NOTICE) | Parent face embedded by monochrome_emoji_fonts |
-| `docs/brand/artcraft-logo-white.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-logo-white.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-logo.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-logo.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-mark-black.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-mark-black.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-mark.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `docs/brand/artcraft-mark.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
-| `assets/app-icon/LICENSE.txt` | (licence/readme text) | VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/app-icon/README.md` | (licence/readme text) | VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/app-icon/hicolor/128x128/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/16x16/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/24x24/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/256x256/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/32x32/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/48x48/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/512x512/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/64x64/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/hicolor/scalable/apps/ai.storyteller.vectorcraft.svg` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft-1024.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft-macos-512.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft-small.svg` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft.icns` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft.ico` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
-| `assets/app-icon/vectorcraft.svg` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
+| `assets/app-icon/LICENSE.txt` | (licence/readme text) | Pluma | MIT OR Apache-2.0 |  |
+| `assets/app-icon/README.md` | (licence/readme text) | Pluma | MIT OR Apache-2.0 |  |
+| `assets/app-icon/hicolor/128x128/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/16x16/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/24x24/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/256x256/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/32x32/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/48x48/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/512x512/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/64x64/apps/dev.danielmiguelt.Pluma.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/hicolor/scalable/apps/dev.danielmiguelt.Pluma.svg` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma-1024.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma-macos-512.png` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma-small.svg` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma.icns` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma.ico` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
+| `assets/app-icon/pluma.svg` | Nodalia (portrait: Rijksmuseum print, CC0, Wikimedia Commons) | `assets/app-icon/README.md`, rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (René Descartes portrait) |
 | `packaging/macos/dmg/background.svg` | @danielmigueltejedor | original work for this repository (2026-11-12), drawn by `tools/dmg-background/draw_background.py` in getnodalia/nodalia-design; flat shapes only, text is outlined Sora glyph paths (OFL-1.1); no third-party artwork | MIT OR Apache-2.0 (licensed by the contributor under the project licence) | Pluma macOS DMG window background for the Finder window; `packaging/macos/dmg/generate.py` renders it to `background.tiff` |
 | `packaging/macos/dmg/background.tiff` | @danielmigueltejedor | Rendered from `packaging/macos/dmg/background.svg` by `packaging/macos/dmg/generate.py` | MIT OR Apache-2.0 | 1x + 2x DMG background; includes text outlined from Sora (OFL-1.1) and LittleCMS's built-in sRGB profile ("No copyright, use freely") |
 | `packaging/macos/dmg/DS_Store` | Xus Badia (layout, #493) | Written by `packaging/macos/dmg/generate.py` | MIT OR Apache-2.0 | Finder view settings for the DMG (window, icon size and positions, background alias); no machine data |
@@ -99,163 +91,163 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `assets/icons/cloud.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/combine.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/copy.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
-| `assets/icons/dc-actions.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-bottom.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-center.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-hcenter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-left.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-right.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-top.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-al-vcenter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-align.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-alignto-artboard.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-alignto-key.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-alignto-selection.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-anchor.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-anchor-smooth.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-appearance.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-arc.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-arrow-down.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-arrow-extend.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-arrow-fill.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 | The Selection and Direct Selection arrows' fill, painted black or white under their outline |
-| `assets/icons/dc-arrow-tip.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-arrow-up.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-artboard-options.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-artboards.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-blend.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-bloat.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-cap-butt.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-cap-round.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-cap-square.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-center-hide.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-center-show.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-clear.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-color-guide.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-contour.svg` | VectorCraft contributors | Original work, drawn for VectorCraft (a solid rounded square inside four corner arcs, its offset outline); not derived from any other application's icon | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-crystallize.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-cube.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dash-align.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dash-exact.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dimension.svg` | Osama Amin | Original work, drawn for VectorCraft: a dimension line with arrowheads between two extension lines | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dir-off.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dir-on.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-direct.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-bottom.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-hcenter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-hspace.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-left.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-right.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-top.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-vcenter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-dist-vspace.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-draw-behind.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-draw-inside.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-draw-normal.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-ellipse.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-fill-none.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-filter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-flare.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-folder.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-free-transform.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-fx.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-gamut.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-freeform.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-linear.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-radial.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-stroke-across.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-stroke-along.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grad-stroke-within.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-gradient.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-graphic-styles.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-grid-view.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-group-select.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-join-bevel.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-join-miter.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-join-round.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-join.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-knife.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-line-cut.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-line.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-list-view.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-live-bucket.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-live-select.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-mask-none.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-measure.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-mesh.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-mirror-cut.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-new-fill.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-new-item.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-new-stroke.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-objects-on-path.svg` | VectorCraft contributors | Original work, drawn for VectorCraft: three small squares along a curve | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-options.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-bullets.svg` | VectorCraft contributors | Original work, drawn for VectorCraft: three dots, each before a line | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-center.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-justify-all.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-justify-center.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-justify-left.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-justify-right.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-left.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-ltr.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-numbers.svg` | VectorCraft contributors | Original work, drawn for VectorCraft: the digits 1, 2 and 3, each before a line | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-right.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-para-rtl.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-path-eraser.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pathfinder.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-perspective.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-crop.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-divide.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-exclude.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-intersect.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-merge.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-minus-back.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-minus-front.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-outline.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-trim.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pf-unite.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-place-symbol.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-polar-grid.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-polygon.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-pucker.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-puppet.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rearrange.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rect-cut.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rect-grid.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-reference-point.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-remove-brush.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-reshape.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-reverse.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rotate-view.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rounded-rect.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rule-evenodd.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-rule-nonzero.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-scallop.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-screen-mode.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-selection.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-shape-builder.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-shear.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-smooth.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-stroke-center.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-stroke-inside.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-stroke-outside.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-stroke.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-swap.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-swatch-kinds.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-symbol-sprayer.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-touch-type.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-transform-panel.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-transparency.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-twirl.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type-area.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type-path.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type-vertical.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type-vertical-area.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-type-vertical-path.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-width-profile.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-width.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-wrinkle.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-zoom-large.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
-| `assets/icons/dc-zoom-small.svg` | VectorCraft contributors | Original work, drawn for VectorCraft | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-actions.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-bottom.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-center.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-hcenter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-left.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-right.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-top.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-al-vcenter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-align.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-alignto-artboard.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-alignto-key.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-alignto-selection.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-anchor.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-anchor-smooth.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-appearance.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-arc.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-arrow-down.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-arrow-extend.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-arrow-fill.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 | The Selection and Direct Selection arrows' fill, painted black or white under their outline |
+| `assets/icons/dc-arrow-tip.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-arrow-up.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-artboard-options.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-artboards.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-blend.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-bloat.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-cap-butt.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-cap-round.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-cap-square.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-center-hide.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-center-show.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-clear.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-color-guide.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-contour.svg` | VectorCraft contributors | Original work, drawn for Pluma (a solid rounded square inside four corner arcs, its offset outline); not derived from any other application's icon | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-crystallize.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-cube.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dash-align.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dash-exact.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dimension.svg` | Osama Amin | Original work, drawn for Pluma: a dimension line with arrowheads between two extension lines | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dir-off.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dir-on.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-direct.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-bottom.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-hcenter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-hspace.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-left.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-right.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-top.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-vcenter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-dist-vspace.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-draw-behind.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-draw-inside.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-draw-normal.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-ellipse.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-fill-none.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-filter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-flare.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-folder.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-free-transform.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-fx.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-gamut.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-freeform.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-linear.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-radial.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-stroke-across.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-stroke-along.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grad-stroke-within.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-gradient.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-graphic-styles.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-grid-view.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-group-select.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-join-bevel.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-join-miter.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-join-round.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-join.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-knife.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-line-cut.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-line.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-list-view.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-live-bucket.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-live-select.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-mask-none.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-measure.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-mesh.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-mirror-cut.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-new-fill.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-new-item.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-new-stroke.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-objects-on-path.svg` | VectorCraft contributors | Original work, drawn for Pluma: three small squares along a curve | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-options.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-bullets.svg` | VectorCraft contributors | Original work, drawn for Pluma: three dots, each before a line | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-center.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-justify-all.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-justify-center.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-justify-left.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-justify-right.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-left.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-ltr.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-numbers.svg` | VectorCraft contributors | Original work, drawn for Pluma: the digits 1, 2 and 3, each before a line | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-right.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-para-rtl.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-path-eraser.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pathfinder.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-perspective.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-crop.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-divide.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-exclude.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-intersect.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-merge.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-minus-back.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-minus-front.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-outline.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-trim.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pf-unite.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-place-symbol.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-polar-grid.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-polygon.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-pucker.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-puppet.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rearrange.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rect-cut.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rect-grid.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-reference-point.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-remove-brush.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-reshape.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-reverse.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rotate-view.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rounded-rect.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rule-evenodd.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-rule-nonzero.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-scallop.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-screen-mode.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-selection.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-shape-builder.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-shear.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-smooth.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-stroke-center.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-stroke-inside.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-stroke-outside.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-stroke.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-swap.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-swatch-kinds.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-symbol-sprayer.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-touch-type.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-transform-panel.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-transparency.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-twirl.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type-area.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type-path.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type-vertical.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type-vertical-area.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-type-vertical-path.svg` | VectorCraft contributors (designed by ham9zah) | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-width-profile.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-width.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-wrinkle.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-zoom-large.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
+| `assets/icons/dc-zoom-small.svg` | VectorCraft contributors | Original work, drawn for Pluma | MIT OR Apache-2.0 |  |
 | `assets/icons/ellipsis.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/eraser.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/eye-off.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
@@ -273,6 +265,7 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `assets/icons/house.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/image.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/info.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC; derived from Feather, also MIT (`assets/icons/LICENSE-lucide.txt`) |  |
+| `assets/icons/keyboard.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/lasso.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/layers.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/layout-grid.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
@@ -282,7 +275,7 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `assets/icons/external-link.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC; derived from Feather, also MIT (`assets/icons/LICENSE-lucide.txt`) | Help → app page link |
 | `assets/icons/git-branch.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) | Help → GitHub link |
 | `assets/icons/globe.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) | Help → website link |
-| `assets/icons/message-circle.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) | Discord button and Help → Discord link |
+| `assets/icons/log-out.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/lock-open.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/lock.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC; derived from Feather, also MIT (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/map.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
@@ -342,44 +335,44 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `assets/icons/waves.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/x.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC; derived from Feather, also MIT (`assets/icons/LICENSE-lucide.txt`) |  |
 | `assets/icons/zoom-in.svg` | Lucide Icons and Contributors | https://lucide.dev (lucide-static v1.49.0; header kept in file) | ISC; derived from Feather, also MIT (`assets/icons/LICENSE-lucide.txt`) |  |
-| `docs/images/dusk-poster.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/dusk-poster.vectorcraft` | MIT OR Apache-2.0 |  |
-| `examples/dusk-poster.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
+| `docs/images/dusk-poster.png` | VectorCraft contributors | Rendered by Pluma from `examples/dusk-poster.pluma` | MIT OR Apache-2.0 |  |
+| `examples/dusk-poster.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
 | `examples/dusk-poster.svg` | VectorCraft contributors | SVG export of the above | MIT OR Apache-2.0 |  |
-| `docs/images/shot-1-neon.png` | VectorCraft contributors | Screenshot of VectorCraft itself (VectorCraft/Lucide UI icons only), editing `examples/neon-drive.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-2-ribbons.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/ribbons.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-3-sheet.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/feature-sheet.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-4-bezier.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/feature-sheet.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-5-perspective.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/perspective-city.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-6-revolve.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/still-life.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/shot-7-dimensions.png` | VectorCraft contributors | Screenshot of VectorCraft itself, editing `examples/bracket-drawing.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/art-still-life.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/still-life.vectorcraft` | MIT OR Apache-2.0 |  |
-| `examples/still-life.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `examples/bracket-drawing.vectorcraft` | VectorCraft contributors | Original drawing built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `docs/images/art-neon-drive.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/neon-drive.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/art-ribbons.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/ribbons.vectorcraft` | MIT OR Apache-2.0 |  |
-| `docs/images/art-pathfinder.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/feature-sheet.vectorcraft` (artboard 1) | MIT OR Apache-2.0 |  |
-| `docs/images/art-mesh.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/feature-sheet.vectorcraft` (artboard 2) | MIT OR Apache-2.0 |  |
-| `docs/images/art-repeat.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/feature-sheet.vectorcraft` (artboard 3) | MIT OR Apache-2.0 |  |
-| `docs/images/art-envelope.png` | VectorCraft contributors | Rendered by VectorCraft from `examples/feature-sheet.vectorcraft` (artboard 4) | MIT OR Apache-2.0 |  |
-| `examples/neon-drive.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `examples/ribbons.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `examples/feature-sheet.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `examples/perspective-city.vectorcraft` | VectorCraft contributors | Original artwork built through the VectorCraft command API | MIT OR Apache-2.0 |  |
-| `crates/engine/tests/fixtures/jpeg2000/checker.jp2` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `3de9c2bb5b8aaec241d939b795002a68eb3d50e41d51c43368000804ad3de057` |
-| `crates/engine/tests/fixtures/jpeg2000/checker-raw.j2k` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `76fa51ab8ccbc2534098b26b8e7fe16dd886e2b6298ba52d06a6b1bde9b61d9e` |
-| `crates/engine/tests/fixtures/jpeg2000/checker-300ppi.jp2` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `1b1aeed8975d3cdc832da6ecf5855852d07d0c490105121e61a8aefb31af009b` |
-| `crates/engine/tests/fixtures/heif/quadrants.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | 32 × 32 red, green, blue and white quadrants encoded with libheif's `heif-enc` 1.23.2 (x265); SHA-256 `122d14963fe899daa736cd216902cf4fc8f2192b3a0ba81f94004adcd71a0ff5` |
-| `crates/engine/tests/fixtures/heif/quadrants-alpha.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the quadrants with a transparent right half, encoded with `heif-enc` 1.23.2; SHA-256 `55b5a537401ead742714c3a1bc526559ec8c1ba97cdb7f43ac63f4037167475b` |
-| `crates/engine/tests/fixtures/heif/quadrants-10bit.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the quadrants at 10 bits, encoded with `heif-enc` 1.23.2; SHA-256 `11014848c6a838e5799d87e034eff1b06b816712ed70ba451bd582d72741774f` |
-| `crates/engine/tests/fixtures/heif/quadrants-grid.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | 128 × 128 quadrants as a 2 × 2 grid of 64 × 64 tiles, encoded with `heif-enc` 1.23.2; SHA-256 `5802f8715110954eb9c58d4bdcc10d1200426a48cf726f1b88dfb60da825ba7a` |
-| `crates/engine/tests/fixtures/heif/quadrants-300ppi.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the quadrants with EXIF resolution tags of 300 ppi, encoded with `heif-enc` 1.23.2; SHA-256 `6a344a6de04fc5fceaee46b6e0028b12478c90bdcb6f6f14ed8c86a44cb203d7` |
-| `crates/engine/tests/fixtures/heif/wide-rotated.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | 32 × 16 red and blue halves stored with a quarter-turn rotation, encoded with `heif-enc` 1.23.2; SHA-256 `e3a2c3a9beb4066c13d6deb8e1311805c6aac485fde8784f1ee317dd95b89973` |
-| `crates/engine/tests/fixtures/heif/wide-rotated-300x150.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the rotated halves with EXIF resolution tags of 300 ppi across and 150 ppi down, encoded with `heif-enc` 1.23.2; SHA-256 `79ad7945cd2c1ea9d3e70ac9b93d9a162fd8ce37541a0f3de44e12f04745921d` |
-| `crates/engine/tests/fixtures/heif/tones.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | 32 × 32 quadrants of four mid tones, encoded with `heif-enc` 1.23.2; SHA-256 `29ed7d75fbfbc4c298eb2da3a6b62625a150cd6bfe5b7ff1d847437501b1b4b1` |
-| `crates/engine/tests/fixtures/heif/tones-p3-nclx.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the tones labeled Display P3 in an `nclx` color box, encoded with `heif-enc` 1.23.2; SHA-256 `baeb32ffa58ac1ac29a00c9e388b9281f4acb4695c4681e4933d0ad061447101` |
-| `crates/engine/tests/fixtures/heif/tones-p3-icc.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the tones with VectorCraft's own Display P3 ICC profile (`vectorcraft_color::cms::icc_bytes`), encoded with `heif-enc` 1.23.2; SHA-256 `472e1a123b9515926a8985a04c3f680387e8c410dbf8f7ff0cfb8cb99c89e93b` |
-| `crates/engine/tests/fixtures/heif/tones-p3-icc-only.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | the tones with VectorCraft's own Display P3 ICC profile as their only color box, encoded with `heif-enc` 1.23.2; SHA-256 `2654fdd21e56641107db20b3f4d0a66a86420ac040d42ddf55e20f7e789d5c55` |
-| `crates/engine/tests/fixtures/heif/quadrants-grid16.heic` | VectorCraft contributors | Original test image authored for VectorCraft's tests | MIT OR Apache-2.0 | 32 × 32 quadrants as a 2 × 2 grid of 16 × 16 tiles, each cropped from a 64 × 64 picture, encoded with `heif-enc` 1.23.2; SHA-256 `bd114ee66cdac10142729dc9dddfa1cd96993a5cefa54c2f25b65496652f007f` |
+| `docs/images/shot-1-neon.png` | VectorCraft contributors | Screenshot of Pluma itself (Pluma/Lucide UI icons only), editing `examples/neon-drive.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-2-ribbons.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/ribbons.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-3-sheet.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/feature-sheet.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-4-bezier.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/feature-sheet.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-5-perspective.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/perspective-city.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-6-revolve.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/still-life.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/shot-7-dimensions.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/bracket-drawing.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/art-still-life.png` | VectorCraft contributors | Rendered by Pluma from `examples/still-life.pluma` | MIT OR Apache-2.0 |  |
+| `examples/still-life.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `examples/bracket-drawing.pluma` | VectorCraft contributors | Original drawing built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `docs/images/art-neon-drive.png` | VectorCraft contributors | Rendered by Pluma from `examples/neon-drive.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/art-ribbons.png` | VectorCraft contributors | Rendered by Pluma from `examples/ribbons.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/art-pathfinder.png` | VectorCraft contributors | Rendered by Pluma from `examples/feature-sheet.pluma` (artboard 1) | MIT OR Apache-2.0 |  |
+| `docs/images/art-mesh.png` | VectorCraft contributors | Rendered by Pluma from `examples/feature-sheet.pluma` (artboard 2) | MIT OR Apache-2.0 |  |
+| `docs/images/art-repeat.png` | VectorCraft contributors | Rendered by Pluma from `examples/feature-sheet.pluma` (artboard 3) | MIT OR Apache-2.0 |  |
+| `docs/images/art-envelope.png` | VectorCraft contributors | Rendered by Pluma from `examples/feature-sheet.pluma` (artboard 4) | MIT OR Apache-2.0 |  |
+| `examples/neon-drive.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `examples/ribbons.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `examples/feature-sheet.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `examples/perspective-city.pluma` | VectorCraft contributors | Original artwork built through the Pluma command API | MIT OR Apache-2.0 |  |
+| `crates/engine/tests/fixtures/jpeg2000/checker.jp2` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `3de9c2bb5b8aaec241d939b795002a68eb3d50e41d51c43368000804ad3de057` |
+| `crates/engine/tests/fixtures/jpeg2000/checker-raw.j2k` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `76fa51ab8ccbc2534098b26b8e7fe16dd886e2b6298ba52d06a6b1bde9b61d9e` |
+| `crates/engine/tests/fixtures/jpeg2000/checker-300ppi.jp2` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | a 2 × 2 checker encoded with FFmpeg's JPEG 2000 encoder; SHA-256 `1b1aeed8975d3cdc832da6ecf5855852d07d0c490105121e61a8aefb31af009b` |
+| `crates/engine/tests/fixtures/heif/quadrants.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | 32 × 32 red, green, blue and white quadrants encoded with libheif's `heif-enc` 1.23.2 (x265); SHA-256 `122d14963fe899daa736cd216902cf4fc8f2192b3a0ba81f94004adcd71a0ff5` |
+| `crates/engine/tests/fixtures/heif/quadrants-alpha.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the quadrants with a transparent right half, encoded with `heif-enc` 1.23.2; SHA-256 `55b5a537401ead742714c3a1bc526559ec8c1ba97cdb7f43ac63f4037167475b` |
+| `crates/engine/tests/fixtures/heif/quadrants-10bit.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the quadrants at 10 bits, encoded with `heif-enc` 1.23.2; SHA-256 `11014848c6a838e5799d87e034eff1b06b816712ed70ba451bd582d72741774f` |
+| `crates/engine/tests/fixtures/heif/quadrants-grid.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | 128 × 128 quadrants as a 2 × 2 grid of 64 × 64 tiles, encoded with `heif-enc` 1.23.2; SHA-256 `5802f8715110954eb9c58d4bdcc10d1200426a48cf726f1b88dfb60da825ba7a` |
+| `crates/engine/tests/fixtures/heif/quadrants-300ppi.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the quadrants with EXIF resolution tags of 300 ppi, encoded with `heif-enc` 1.23.2; SHA-256 `6a344a6de04fc5fceaee46b6e0028b12478c90bdcb6f6f14ed8c86a44cb203d7` |
+| `crates/engine/tests/fixtures/heif/wide-rotated.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | 32 × 16 red and blue halves stored with a quarter-turn rotation, encoded with `heif-enc` 1.23.2; SHA-256 `e3a2c3a9beb4066c13d6deb8e1311805c6aac485fde8784f1ee317dd95b89973` |
+| `crates/engine/tests/fixtures/heif/wide-rotated-300x150.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the rotated halves with EXIF resolution tags of 300 ppi across and 150 ppi down, encoded with `heif-enc` 1.23.2; SHA-256 `79ad7945cd2c1ea9d3e70ac9b93d9a162fd8ce37541a0f3de44e12f04745921d` |
+| `crates/engine/tests/fixtures/heif/tones.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | 32 × 32 quadrants of four mid tones, encoded with `heif-enc` 1.23.2; SHA-256 `29ed7d75fbfbc4c298eb2da3a6b62625a150cd6bfe5b7ff1d847437501b1b4b1` |
+| `crates/engine/tests/fixtures/heif/tones-p3-nclx.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the tones labeled Display P3 in an `nclx` color box, encoded with `heif-enc` 1.23.2; SHA-256 `baeb32ffa58ac1ac29a00c9e388b9281f4acb4695c4681e4933d0ad061447101` |
+| `crates/engine/tests/fixtures/heif/tones-p3-icc.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the tones with Pluma's own Display P3 ICC profile (`pluma_color::cms::icc_bytes`), encoded with `heif-enc` 1.23.2; SHA-256 `472e1a123b9515926a8985a04c3f680387e8c410dbf8f7ff0cfb8cb99c89e93b` |
+| `crates/engine/tests/fixtures/heif/tones-p3-icc-only.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | the tones with Pluma's own Display P3 ICC profile as their only color box, encoded with `heif-enc` 1.23.2; SHA-256 `2654fdd21e56641107db20b3f4d0a66a86420ac040d42ddf55e20f7e789d5c55` |
+| `crates/engine/tests/fixtures/heif/quadrants-grid16.heic` | VectorCraft contributors | Original test image authored for Pluma's tests | MIT OR Apache-2.0 | 32 × 32 quadrants as a 2 × 2 grid of 16 × 16 tiles, each cropped from a 64 × 64 picture, encoded with `heif-enc` 1.23.2; SHA-256 `bd114ee66cdac10142729dc9dddfa1cd96993a5cefa54c2f25b65496652f007f` |
 
 ## Assets embedded by the PDF backend
 

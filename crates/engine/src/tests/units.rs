@@ -2,9 +2,9 @@
 //! Setup set it, new documents start in the preference), Stroke and Type are preferences, and the
 //! canvas measurement labels follow them.
 
+use pluma_doc::Unit;
+use pluma_tools::{Mods, Overlay, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::Unit;
-use vectorcraft_tools::{Mods, Overlay, PointerEvent, PointerKind};
 
 use crate::cmd::prefscmds::{EAST_ASIAN_UNITS, PREF_SPECS, PrefKind, UNITS};
 use crate::units::Measure;
@@ -117,7 +117,7 @@ fn canvas_measurement_labels_follow_the_units() {
 fn units_survive_a_native_round_trip() {
     let mut s = session();
     s.execute("document.setUnits", &json!({"units": "Feet & Inches"})).unwrap();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(back.units, Unit::FeetInches);
 }
 
@@ -173,7 +173,7 @@ fn east_asian_type_unit_leaves_the_document_in_points() {
     let after = &s.doc().unwrap().doc;
     assert_eq!(units(&s), Unit::Points);
     assert_eq!(after.units, before.units);
-    let size = |d: &vectorcraft_doc::Document| match &d.node(NodeId(id.as_u64().unwrap())).unwrap().kind {
+    let size = |d: &pluma_doc::Document| match &d.node(NodeId(id.as_u64().unwrap())).unwrap().kind {
         NodeKind::Text(t) => (t.first_style().size, t.first_style().leading),
         _ => panic!("not text"),
     };

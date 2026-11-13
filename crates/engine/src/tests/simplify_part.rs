@@ -5,10 +5,10 @@
 
 use std::collections::BTreeSet;
 
+use pluma_doc::NodeKind;
+use pluma_geom::kurbo::ParamCurveNearest;
+use pluma_geom::{ParamCurve, PathData, SubPath};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_geom::kurbo::ParamCurveNearest;
-use vectorcraft_geom::{ParamCurve, PathData, SubPath};
 
 use crate::*;
 
@@ -177,8 +177,8 @@ fn whole_paths_ignores_the_direct_selection() {
     let original = path_of(&s, id);
     select_anchors(&mut s, id, &[(20, 60)]);
     s.execute("object.path.simplify", &json!({"tolerance": 1, "wholePaths": true})).unwrap();
-    let opts = vectorcraft_pathops::SimplifyOptions { tolerance: 1.0, ..Default::default() };
-    assert_eq!(path_of(&s, id), vectorcraft_pathops::simplify_with(&original, &opts));
+    let opts = pluma_pathops::SimplifyOptions { tolerance: 1.0, ..Default::default() };
+    assert_eq!(path_of(&s, id), pluma_pathops::simplify_with(&original, &opts));
     assert!(s.doc().unwrap().selection.anchors.is_empty());
 }
 

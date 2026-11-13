@@ -1,4 +1,4 @@
-# vectorcraft-affinity
+# pluma-affinity
 
 An independent, bounded Rust reader for native Affinity documents: `.af` from Affinity 3 and
 `.afdesign`, `.afphoto` and `.afpub` from Affinity 1 and 2 (container versions 8 to 12). It reads
@@ -82,7 +82,7 @@ of CC0 sample files.
 * **Read-only.** Nothing is written in Affinity's format; export waits until someone can check
   written files in Affinity itself.
 
-The reader also has independent copies in Lienzo's `photocraft-affinity` and Pliego's
+The reader also has independent copies in Lienzo's `lienzo-affinity` and Pliego's
 `designcraft-affinity`. Tables, paragraph formats, text scale, master pages, layer effects,
 overlays, embedded documents, large pixel layers and HEIC photos were added in Pliego
 ([storytold/designcraft#291](https://github.com/storytold/designcraft/pull/291)) and brought back
@@ -110,7 +110,7 @@ text-frame fixture.
 * `tests/it/real_files.rs` parses every file and freezes the modeled features of all 33 current
   `.af` files. Native raster tests compare decoded pixels with independent embedded images;
   text tests assert Unicode run boundaries, fallback fonts and feature retention.
-* `engine/tests/affinity_corpus.rs` requires editable native import, exact `.vectorcraft`
+* `engine/tests/affinity_corpus.rs` requires editable native import, exact `.pluma`
   save/reload, and SVG/PDF/PSD export of every board in all 33 current files. It checks SVG/PDF
   dimensions and reimport, and independently decodes PSD merged pixels using the published
   specification. These are Pluma consistency checks, not independent Affinity PSD oracles.

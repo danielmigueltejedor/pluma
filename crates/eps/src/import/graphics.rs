@@ -7,12 +7,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use kurbo::{PathEl, Shape};
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::clipnest::{Clip, Drawn, MAX_NEST, deep_clips};
-use vectorcraft_doc::pattern::PatternDef;
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, FillLayer, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::clipnest::{Clip, Drawn, MAX_NEST, deep_clips};
+use pluma_doc::pattern::PatternDef;
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, FillLayer, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer};
+use pluma_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
 
 use super::interp::{Interp, MAX_GSAVE, matrix_obj};
 use super::obj::{DictRef, Key, Obj, Op, PsError, Res, Shared, clamp_between, ps_err};
@@ -65,7 +65,7 @@ const MAX_FUNCTION_VISITS: usize = 1 + MAX_INKS * 8;
 const FUNCTION_OPS: u64 = 8;
 
 pub(super) const FAR_AWAY: &str = "objects far outside the page were left out";
-pub(super) const TOO_MUCH: &str = "the file draws more than VectorCraft reads: the rest was left out";
+pub(super) const TOO_MUCH: &str = "the file draws more than Pluma reads: the rest was left out";
 const NESTED_PATTERNS: &str = "patterns nested too deeply are filled with mid-grey";
 /// Deepest patterns and glyph procedures drawn inside each other's art.
 pub(crate) const MAX_APART: u32 = 8;

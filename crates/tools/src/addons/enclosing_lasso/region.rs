@@ -1,8 +1,8 @@
 //! A freehand loop prepared once for an Enclosing Lasso selection gesture.
 
-use vectorcraft_geom::kurbo::{Line, ParamCurveNearest, PathSeg};
-use vectorcraft_geom::{BezPath, FillRule, PathData, Point, Rect, Shape};
-use vectorcraft_pathops::try_normalize;
+use pluma_geom::kurbo::{Line, ParamCurveNearest, PathSeg};
+use pluma_geom::{BezPath, FillRule, PathData, Point, Rect, Shape};
+use pluma_pathops::try_normalize;
 
 pub(super) struct Region {
     pub(super) path: BezPath,

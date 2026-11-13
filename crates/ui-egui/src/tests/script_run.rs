@@ -1,13 +1,13 @@
 //! File › Scripts › Other Script… (`ui.runScript`): the chooser, the warning and its preference,
 //! a run advanced frame by frame, Stop, and the questions a run and quitting ask.
 
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, dialogs, menus, script_runs};
+use crate::{PlumaApp, dialogs, menus, script_runs};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app
 }
@@ -19,11 +19,11 @@ fn folder(name: &str) -> std::path::PathBuf {
     dir
 }
 
-fn objects(app: &VectorcraftApp) -> usize {
+fn objects(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, Vec::len)).sum()
 }
 
-fn finish(app: &mut VectorcraftApp) {
+fn finish(app: &mut PlumaApp) {
     for _ in 0..10_000 {
         if !app.session.script_running() {
             return;
@@ -35,7 +35,7 @@ fn finish(app: &mut VectorcraftApp) {
 
 const DRAW: &str = "vc.run('shape.rectangle', {x:0,y:0,width:10,height:10}); vc.run('shape.rectangle', {x:20,y:0,width:10,height:10});";
 
-fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp) -> Result<Value, String> {
     dialogs::confirm(app)
 }
 
@@ -124,7 +124,7 @@ fn a_script_error_goes_to_the_status_bar() {
 }
 
 /// An app whose script picker is the web's: picks are counted and files arrive through its inbox.
-fn app_with_picker() -> (VectorcraftApp, dialogs::script_run::ScriptInbox, std::rc::Rc<std::cell::Cell<u32>>) {
+fn app_with_picker() -> (PlumaApp, dialogs::script_run::ScriptInbox, std::rc::Rc<std::cell::Cell<u32>>) {
     let mut app = app();
     let inbox = dialogs::script_run::ScriptInbox::default();
     let picks = std::rc::Rc::new(std::cell::Cell::new(0));
@@ -183,7 +183,7 @@ fn a_web_pick_too_large_to_read_is_reported() {
 }
 
 /// A run that never ends, with the growth question up.
-fn at_the_growth_question(app: &mut VectorcraftApp) {
+fn at_the_growth_question(app: &mut PlumaApp) {
     app.session.prefs.show_external_script_warning = false;
     let source = format!("{DRAW} while (true) {{}}");
     menus::run_ui_command(app, "ui.runScript", &json!({ "source": source })).unwrap().unwrap();
@@ -234,7 +234,7 @@ fn a_stopped_run_closes_its_growth_question() {
 fn finished_background_work_waits_for_the_run_to_end() {
     let mut app = app();
     app.session.prefs.show_external_script_warning = false;
-    app.opening.activate.push(("no such document".to_string(), vectorcraft_engine::file_access::ScopeHandle::capture()));
+    app.opening.activate.push(("no such document".to_string(), pluma_engine::file_access::ScopeHandle::capture()));
     menus::run_ui_command(&mut app, "ui.runScript", &json!({"source": "while (true) {}"})).unwrap().unwrap();
     app.poll_finished_work();
     assert_eq!(app.opening.activate.len(), 1);

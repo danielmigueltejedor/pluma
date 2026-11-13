@@ -1,4 +1,4 @@
-use vectorcraft_pathops::addons::pathtools as pt;
+use pluma_pathops::addons::pathtools as pt;
 
 use super::common::{dist_to_polyline, ids_json, path_mut, path_of, points_param, poly_bounds, subpath_len, target_paths};
 use super::{
@@ -137,7 +137,7 @@ pub(super) fn smooth_region(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "path.smoothRegion";
     let pts = points_param(p, "points", C)?;
     let radius = number_or(p, "radius", 12.0, C)?.max(0.0);
-    let tol = number_or(p, "fidelity", 2.5, C)?.clamp(vectorcraft_tools::draw2::SMOOTH_MIN_FIDELITY, 100.0);
+    let tol = number_or(p, "fidelity", 2.5, C)?.clamp(pluma_tools::draw2::SMOOTH_MIN_FIDELITY, 100.0);
     let st = s.doc()?;
     let near = |q: Point| dist_to_polyline(&pts, q) <= radius;
     let mut plan = vec![];
@@ -232,7 +232,7 @@ struct TrimJoin {
 /// #5844: two open subpaths among `ids` that cross, where the scrub runs over the part of each
 /// that overhangs the crossing, trimmed at the crossing and joined there with a corner. When
 /// several pairs or ends qualify, the one trimming the least wins.
-fn trim_join(d: &vectorcraft_doc::Document, ids: &[NodeId], pts: &[Point], tol: f64) -> Result<Option<TrimJoin>> {
+fn trim_join(d: &pluma_doc::Document, ids: &[NodeId], pts: &[Point], tol: f64) -> Result<Option<TrimJoin>> {
     let mut open = vec![];
     for &id in ids {
         let (pd, _) = path_of(d, id)?;
@@ -261,8 +261,7 @@ fn trim_join(d: &vectorcraft_doc::Document, ids: &[NodeId], pts: &[Point], tol: 
                     let mut rest = y.kept.clone();
                     rest.reverse();
                     let (Some(last), Some(first)) = (joined.anchors.last_mut(), rest.anchors.first()) else { continue };
-                    *last =
-                        Anchor { p: last.p, h_in: last.h_in, h_out: first.h_out + (last.p - first.p), kind: vectorcraft_geom::AnchorKind::Corner };
+                    *last = Anchor { p: last.p, h_in: last.h_in, h_out: first.h_out + (last.p - first.p), kind: pluma_geom::AnchorKind::Corner };
                     joined.anchors.extend(rest.anchors.into_iter().skip(1));
                     best = Some((trimmed, TrimJoin { a: (*ida, *sa), b: (*idb, *sb), joined }));
                 }

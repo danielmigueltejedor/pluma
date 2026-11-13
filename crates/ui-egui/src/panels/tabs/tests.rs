@@ -1,7 +1,7 @@
 use super::*;
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
         show(app, ui);
@@ -12,7 +12,7 @@ fn frame(app: &mut VectorcraftApp) {
 
 #[test]
 fn panel_draws_empty_with_text_and_with_stops() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     frame(&mut app);
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a\tb", "area": {"width": 300, "height": 100}})).unwrap();
@@ -33,7 +33,7 @@ fn panel_draws_empty_with_text_and_with_stops() {
 #[test]
 fn vertical_type_names_the_alignments_top_and_bottom_and_the_position_y() {
     use crate::widgets::accessibility_tests::{role_and_state, tree};
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
@@ -57,7 +57,7 @@ fn vertical_type_names_the_alignments_top_and_bottom_and_the_position_y() {
         ctx.global_style_mut(|s| s.interaction.tooltip_delay = 0.0);
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
         let mut time = 0.0;
-        let mut frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let mut frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             time += 0.5;
             let input = egui::RawInput { time: Some(time), screen_rect: Some(screen), events, ..Default::default() };
             let mut out = ctx.run_ui(input, |ui| show(app, ui));
@@ -85,11 +85,11 @@ fn vertical_type_names_the_alignments_top_and_bottom_and_the_position_y() {
 /// Chinese writes a full-width colon.
 #[test]
 fn position_label_is_translated() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
-    let labels = |app: &mut VectorcraftApp| {
+    let labels = |app: &mut PlumaApp| {
         let text = crate::tests_labels::painted_text(app, show);
         ["X:", "Y:", "X\u{a0}:", "Y\u{a0}:", "X：", "Y："].into_iter().filter(|l| text.lines().any(|t| t.trim() == *l)).collect::<Vec<_>>()
     };
@@ -106,14 +106,14 @@ fn position_label_is_translated() {
 /// (spaces kept, eight characters at most).
 #[test]
 fn leader_and_align_on_keep_what_is_typed_until_enter() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50, "align": "decimal"}]})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(320.0, 400.0));
     // One frame with `events` → the texts painted and where.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
         out.shapes
@@ -133,7 +133,7 @@ fn leader_and_align_on_keep_what_is_typed_until_enter() {
             modifiers: Default::default(),
         })
     };
-    let stop = |app: &VectorcraftApp| current(app).unwrap().1[0].clone();
+    let stop = |app: &PlumaApp| current(app).unwrap().1[0].clone();
     for (label, typed, want) in [("Leader:", [". ", "_", "123456789"], ". _12345"), ("Align On:", [",", "", ""], ",")] {
         let texts = frame(&mut app, vec![]);
         let r = texts.iter().find(|(t, _)| t == label).unwrap_or_else(|| panic!("{label} in {texts:?}")).1;
@@ -162,14 +162,14 @@ fn leader_and_align_on_keep_what_is_typed_until_enter() {
 /// the pointer is past its threshold (farther from the press than the 5 px hit tolerance).
 #[test]
 fn dragging_a_stop_moves_it() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(320.0, 400.0));
     // One frame with `events` → where the ruler's inch labels (9 pt) are painted.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
         out.shapes
@@ -206,7 +206,7 @@ fn dragging_a_stop_moves_it() {
 
 /// One frame of the panel with `events`, Shift held when `shift` → the ruler's labels (9 pt) and
 /// where they are painted, left to right.
-fn ruler_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, shift: bool) -> Vec<(String, egui::Pos2)> {
+fn ruler_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, shift: bool) -> Vec<(String, egui::Pos2)> {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
     let modifiers = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
     let events = std::iter::once(egui::Event::ModifiersChanged(modifiers)).chain(events).collect();
@@ -224,13 +224,13 @@ fn ruler_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::
 }
 
 /// The labels the ruler shows in a frame of [`ruler_frame`].
-fn ruler_labels(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
+fn ruler_labels(ctx: &egui::Context, app: &mut PlumaApp) -> Vec<String> {
     ruler_frame(ctx, app, vec![], false).into_iter().map(|(t, _)| t).collect()
 }
 
 /// Press on the ruler at `from` (points), move to `to` and release there, Shift held when
 /// `shift`. A label sits 2 px right of its tick, so the first two labels give the ruler's scale.
-fn drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f64, to: f64, shift: bool) {
+fn drag_on_ruler(ctx: &egui::Context, app: &mut PlumaApp, from: f64, to: f64, shift: bool) {
     let labels = ruler_frame(ctx, app, vec![], shift);
     let [(zero, a), (next, b), ..] = &labels[..] else { panic!("ruler labels {labels:?}") };
     assert_eq!(zero, "0");
@@ -249,22 +249,22 @@ fn drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f64, to: f
     ruler_frame(ctx, app, vec![], shift);
 }
 
-fn indent_app(left: f64, first: f64) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn indent_app(left: f64, first: f64) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 20, "text": "one\ntwo", "area": {"width": 300, "height": 100}})).unwrap();
     app.run("text.setFormat", json!({"leftIndent": left, "firstLineIndent": first})).unwrap();
     app
 }
 
-fn indent_values(app: &VectorcraftApp, paragraph: usize) -> (f64, f64) {
+fn indent_values(app: &PlumaApp, paragraph: usize) -> (f64, f64) {
     let (node, _, _) = current(app).unwrap();
     let NodeKind::Text(t) = node.kind else { panic!("selected text") };
     let p = t.para_at(paragraph);
     (p.left_indent, p.first_line_indent)
 }
 
-fn marker_event(ctx: &egui::Context, app: &mut VectorcraftApp, from: f64, to: f64, upper: bool, command: bool, shift: bool) {
+fn marker_event(ctx: &egui::Context, app: &mut PlumaApp, from: f64, to: f64, upper: bool, command: bool, shift: bool) {
     let labels = ruler_frame(ctx, app, vec![], shift);
     let [(zero, a), (next, b), ..] = &labels[..] else { panic!("ruler labels {labels:?}") };
     assert_eq!(zero, "0");
@@ -367,7 +367,7 @@ fn mixed_indent_upper_marker_keeps_each_left_indent_in_one_undo_step() {
     marker_event(&ctx, &mut app, 60.0, 60.0, false, false, false);
     assert_ne!(pstate::<Option<IndentMarker>>(&ctx, "tabs-marker-sel"), Some(IndentMarker::Lower));
 
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     let a = app.run("text.create", json!({"x": 10, "y": 20, "text": "one", "area": {"width": 300, "height": 100}})).unwrap()["id"].clone();
     let b = app.run("text.create", json!({"x": 10, "y": 140, "text": "two", "area": {"width": 300, "height": 100}})).unwrap()["id"].clone();
@@ -378,7 +378,7 @@ fn mixed_indent_upper_marker_keeps_each_left_indent_in_one_undo_step() {
     assert_eq!(current_para(&app).unwrap().1.left_indent, 24.0);
     marker_event(&ctx, &mut app, 36.0, 70.0, true, false, false);
     assert_eq!(indent_values(&app, 0), (24.0, 46.0));
-    let second = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(b.as_u64().unwrap())).unwrap();
+    let second = app.session.active().unwrap().doc.node(pluma_doc::NodeId(b.as_u64().unwrap())).unwrap();
     let NodeKind::Text(second) = &second.kind else { panic!("second text") };
     assert_eq!((second.para_at(0).left_indent, second.para_at(0).first_line_indent), (60.0, 10.0));
 }
@@ -409,7 +409,7 @@ fn lower_marker_keeps_each_first_line_position_in_one_undo_step() {
 /// another frame's differ.
 #[test]
 fn indent_markers_after_select_all_keep_each_story_paragraphs_indents() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 300})).unwrap();
     let story = (1..=12).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
     let a = app.run("text.create", json!({"x": 10, "y": 10, "text": story, "size": 12, "area": {"width": 200, "height": 60}})).unwrap()["id"]
@@ -418,11 +418,11 @@ fn indent_markers_after_select_all_keep_each_story_paragraphs_indents() {
     app.run("text.setFormat", json!({"ids": [a], "leftIndent": 24, "firstLineIndent": 12})).unwrap();
     let b = app.run("text.thread.add", json!({"from": a, "rect": [300, 10, 200, 250]})).unwrap()["id"].as_u64().unwrap();
     app.run("text.setFormat", json!({"ids": [b], "leftIndent": 60, "firstLineIndent": -10})).unwrap();
-    let paragraphs = |app: &VectorcraftApp| -> Vec<(u64, f64, f64)> {
+    let paragraphs = |app: &PlumaApp| -> Vec<(u64, f64, f64)> {
         let st = app.session.active().unwrap();
         [a, b]
             .into_iter()
-            .flat_map(|id| match &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+            .flat_map(|id| match &st.doc.node(pluma_doc::NodeId(id)).unwrap().kind {
                 NodeKind::Text(t) => {
                     (0..t.paragraph_count()).map(|i| (id, t.para_at(i).left_indent, t.para_at(i).first_line_indent)).collect::<Vec<_>>()
                 }
@@ -431,12 +431,12 @@ fn indent_markers_after_select_all_keep_each_story_paragraphs_indents() {
             .collect()
     };
     assert!(paragraphs(&app).iter().any(|p| p.1 == 24.0) && paragraphs(&app).iter().any(|p| p.1 == 60.0), "{:?}", paragraphs(&app));
-    let select_all = |app: &mut VectorcraftApp| {
+    let select_all = |app: &mut PlumaApp| {
         app.run("select.set", json!({"ids": [a]})).unwrap();
         app.session.select_tool("type", Default::default()).unwrap();
         app.session.set_tool_option("textSelection", &json!({"editing": a, "anchor": 0, "caret": 0}));
         app.run("select.all", json!({})).unwrap();
-        assert_eq!(super::super::character::text_story(app), Some(vec![vectorcraft_doc::NodeId(a), vectorcraft_doc::NodeId(b)]));
+        assert_eq!(super::super::character::text_story(app), Some(vec![pluma_doc::NodeId(a), pluma_doc::NodeId(b)]));
     };
     select_all(&mut app);
 
@@ -470,7 +470,7 @@ fn indent_markers_after_select_all_keep_each_story_paragraphs_indents() {
 /// left indent, and the lower marker keeps each first-line position.
 #[test]
 fn indent_markers_after_select_all_follow_text_that_reflows_into_the_next_frame() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 1000})).unwrap();
     let story = (1..=12).map(|i| format!("p{i} aaa bbb ccc")).collect::<Vec<_>>().join("\n");
     let a = app.run("text.create", json!({"x": 10, "y": 10, "text": story, "size": 12, "area": {"width": 200, "height": 60}})).unwrap()["id"]
@@ -481,11 +481,11 @@ fn indent_markers_after_select_all_follow_text_that_reflows_into_the_next_frame(
     // Each paragraph of the story by its first word, with its left indent and first-line position;
     // a paragraph continued from the frame before is counted once. No paragraph of the story is
     // empty, so an empty piece (after a frame's last line break) is not one.
-    let paragraphs = |app: &VectorcraftApp| -> Vec<(String, f64, f64)> {
+    let paragraphs = |app: &PlumaApp| -> Vec<(String, f64, f64)> {
         let st = app.session.active().unwrap();
         [a, b]
             .into_iter()
-            .flat_map(|id| match &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+            .flat_map(|id| match &st.doc.node(pluma_doc::NodeId(id)).unwrap().kind {
                 NodeKind::Text(t) => t
                     .plain_text()
                     .split('\n')
@@ -500,13 +500,13 @@ fn indent_markers_after_select_all_follow_text_that_reflows_into_the_next_frame(
             })
             .collect()
     };
-    let in_a = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(a)).unwrap().kind {
+    let in_a = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(a)).unwrap().kind {
         NodeKind::Text(t) => t.plain_text().len(),
         _ => panic!("not text"),
     };
     // Select All in the first frame and move `marker` to `to` → the story's paragraphs before and
     // after.
-    let apply = |app: &mut VectorcraftApp, marker, to| {
+    let apply = |app: &mut PlumaApp, marker, to| {
         let before = paragraphs(app);
         assert_eq!(before.len(), 12, "{before:?}");
         let shown = in_a(app);
@@ -580,7 +580,7 @@ fn hidden_lower_selection_returns_x_field_to_tab_stop() {
     assert_eq!(indent_values(&app, 0), (24.0, 12.0));
     assert_eq!(indent_values(&app, 1), (60.0, 12.0));
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
-    let frame = |app: &mut VectorcraftApp, events| {
+    let frame = |app: &mut PlumaApp, events| {
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
         out.shapes
@@ -611,7 +611,7 @@ fn selected_marker_position_field_sets_its_absolute_position() {
     let ctx = egui::Context::default();
     marker_event(&ctx, &mut app, 36.0, 36.0, true, false, false);
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
-    let field_frame = |app: &mut VectorcraftApp, events| {
+    let field_frame = |app: &mut PlumaApp, events| {
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
         out.shapes
@@ -648,7 +648,7 @@ fn selected_marker_position_field_sets_its_absolute_position() {
 /// apart as on the canvas rulers.
 #[test]
 fn ruler_is_numbered_in_the_general_unit() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     let ctx = egui::Context::default();
@@ -664,10 +664,10 @@ fn ruler_is_numbered_in_the_general_unit() {
 /// Chosen again, it turns off.
 #[test]
 fn snap_to_unit_puts_dragged_and_clicked_stops_on_the_nearest_tick() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     let ctx = egui::Context::default();
-    let row = |app: &mut VectorcraftApp| {
+    let row = |app: &mut PlumaApp| {
         let rows = menu_frame(&ctx, app, vec![]);
         rows.into_iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == "Snap to Unit").unwrap_or_else(|| panic!("Snap to Unit"))
     };
@@ -676,7 +676,7 @@ fn snap_to_unit_puts_dragged_and_clicked_stops_on_the_nearest_tick() {
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
     assert_eq!(ruler_labels(&ctx, &mut app)[..2], ["0", "50"]);
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     drag_on_ruler(&ctx, &mut app, 50.0, 13.4, false);
     assert_eq!(positions(&app), [15.0]);
     // A click at 33.4 pt adds a stop at 35.
@@ -699,7 +699,7 @@ fn snap_to_unit_puts_dragged_and_clicked_stops_on_the_nearest_tick() {
 /// px) apart.
 #[test]
 fn a_snapped_click_onto_a_stop_selects_it() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("document.setUnits", &json!({"units": "mm"})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 224, "height": 100}})).unwrap();
@@ -709,7 +709,7 @@ fn a_snapped_click_onto_a_stop_selects_it() {
     set_pstate(&ctx, "tabs-snap", true);
     let tick = 2.5 * 72.0 / 25.4;
     drag_on_ruler(&ctx, &mut app, 28.4, 28.4, false);
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     assert_eq!(positions(&app).len(), 2);
     assert!((positions(&app)[0] - 4.0 * tick).abs() < 1e-9, "{:?}", positions(&app));
     set_pstate(&ctx, "tabs-sel", 1usize);
@@ -724,12 +724,12 @@ fn a_snapped_click_onto_a_stop_selects_it() {
 /// With Snap to Unit off, Shift held during the drag puts the stop on the ruler's nearest tick.
 #[test]
 fn shift_drag_snaps_a_stop_to_the_nearest_tick() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
-    let position = |app: &VectorcraftApp| current(app).unwrap().1[0].position;
+    let position = |app: &PlumaApp| current(app).unwrap().1[0].position;
     drag_on_ruler(&ctx, &mut app, 50.0, 13.4, false);
     assert!((position(&app) - 13.4).abs() < 1.0, "{}", position(&app));
     let from = position(&app);
@@ -744,7 +744,7 @@ fn shift_drag_snaps_a_stop_to_the_nearest_tick() {
 }
 
 /// One frame of the panel with `events` → the texts painted and where.
-fn panel_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
+fn panel_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
     let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
     out.textures_delta.clear();
@@ -761,7 +761,7 @@ fn panel_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::
 /// where it was dropped.
 #[test]
 fn a_stop_dragged_past_another_stays_selected() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
@@ -778,7 +778,7 @@ fn a_stop_dragged_past_another_stays_selected() {
 
 /// Press on the stop at `from` (points), move to `to` and release there with Ctrl (Command on
 /// macOS) held → the stems' x positions painted in the frame before the release.
-fn command_drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f64, to: f64) -> Vec<f32> {
+fn command_drag_on_ruler(ctx: &egui::Context, app: &mut PlumaApp, from: f64, to: f64) -> Vec<f32> {
     let labels = ruler_frame(ctx, app, vec![], false);
     let [(zero, a), (next, b), ..] = &labels[..] else { panic!("ruler labels {labels:?}") };
     assert_eq!(zero, "0");
@@ -804,7 +804,7 @@ fn command_drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f6
 /// them moving during the drag. A plain drag still moves one stop.
 #[test]
 fn command_drag_moves_all_the_stops_together() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b	c", "area": {"width": 300, "height": 100}})).unwrap();
     app.session
@@ -814,7 +814,7 @@ fn command_drag_moves_all_the_stops_together() {
         )
         .unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     let before = app.session.active().unwrap().history.undo.len();
     let during = command_drag_on_ruler(&ctx, &mut app, 50.0, 70.0);
     assert_eq!(positions(&app), [50.0, 70.0, 100.0]);
@@ -836,7 +836,7 @@ fn command_drag_moves_all_the_stops_together() {
 /// reaches 0, so the stops keep their spacing.
 #[test]
 fn command_drag_stops_at_zero_and_keeps_the_spacing() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
@@ -852,12 +852,12 @@ fn command_drag_stops_at_zero_and_keeps_the_spacing() {
 /// releases it where it started. The dragged stop is still selected.
 #[test]
 fn a_drag_that_moves_no_stop_records_no_undo_step() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 0}, {"position": 20}]})).unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     let before = app.session.active().unwrap().history.undo.len();
     command_drag_on_ruler(&ctx, &mut app, 20.0, 5.0);
     assert_eq!(positions(&app), [0.0, 20.0]);
@@ -885,7 +885,7 @@ fn a_drag_that_moves_no_stop_records_no_undo_step() {
 /// stop reaches 100,000 pt, so the stops move and keep their spacing.
 #[test]
 fn command_drag_stops_at_the_largest_position_and_keeps_the_spacing() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}, {"position": 99_990}]})).unwrap();
@@ -896,7 +896,7 @@ fn command_drag_stops_at_the_largest_position_and_keeps_the_spacing() {
 
 /// Press on the stop at `from` (points), move to `to` and `below` px under the ruler, and release
 /// there in the same frame as Escape, Ctrl (Command on macOS) held when `command`.
-fn escaped_drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f64, to: f64, below: f32, command: bool) {
+fn escaped_drag_on_ruler(ctx: &egui::Context, app: &mut PlumaApp, from: f64, to: f64, below: f32, command: bool) {
     let labels = ruler_frame(ctx, app, vec![], false);
     let [(zero, a), (next, b), ..] = &labels[..] else { panic!("ruler labels {labels:?}") };
     assert_eq!(zero, "0");
@@ -920,12 +920,12 @@ fn escaped_drag_on_ruler(ctx: &egui::Context, app: &mut VectorcraftApp, from: f6
 /// (Command on macOS) and a drag off the ruler all leave the stops where they were.
 #[test]
 fn escape_in_the_release_frame_cancels_a_stop_drag() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     let before = app.session.active().unwrap().history.undo.len();
     for (below, command) in [(0.0, false), (0.0, true), (60.0, false), (60.0, true)] {
         escaped_drag_on_ruler(&ctx, &mut app, 50.0, 70.0, below, command);
@@ -941,12 +941,12 @@ fn escape_in_the_release_frame_cancels_a_stop_drag() {
 /// the moved stop stays selected. A position typed in the X field keeps its hundredths of a point.
 #[test]
 fn the_ruler_places_and_moves_stops_on_whole_points() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     // A click at 33.4 pt adds a stop at 33 pt and selects it.
     drag_on_ruler(&ctx, &mut app, 33.4, 33.4, false);
     assert_eq!(positions(&app), [33.0, 50.0]);
@@ -973,14 +973,14 @@ fn the_ruler_places_and_moves_stops_on_whole_points() {
 /// stops cannot take (past 100,000 pt) leaves the stops and the selection as they were.
 #[test]
 fn an_x_typed_past_the_next_stop_keeps_the_stop_selected() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
     let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
     // Click the X field showing `shown`, type `typed` over it and press Enter → the texts painted next.
-    let type_x = |app: &mut VectorcraftApp, shown: &str, typed: &str| {
+    let type_x = |app: &mut PlumaApp, shown: &str, typed: &str| {
         let texts = panel_frame(&ctx, app, vec![]);
         let at = texts.iter().find(|(t, _)| t == shown).unwrap_or_else(|| panic!("{shown} in {texts:?}")).1.center();
         let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -991,7 +991,7 @@ fn an_x_typed_past_the_next_stop_keeps_the_stop_selected() {
         panel_frame(&ctx, app, vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
         panel_frame(&ctx, app, vec![])
     };
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     set_pstate(&ctx, "tabs-sel", 0usize);
     let texts = type_x(&mut app, "30 pt", "70");
     assert_eq!(positions(&app), [50.0, 70.0]);
@@ -1013,7 +1013,7 @@ fn an_x_typed_past_the_next_stop_keeps_the_stop_selected() {
 
 /// One frame of the panel with `events` → the stops' stems on the ruler, left to right, with
 /// their colors.
-fn stems_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(f32, egui::Color32)> {
+fn stems_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(f32, egui::Color32)> {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 400.0));
     let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
     out.textures_delta.clear();
@@ -1030,7 +1030,7 @@ fn stems_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::
 /// shows the stops and the selected stop as they were.
 #[test]
 fn a_refused_x_leaves_the_ruler_as_it_was() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
@@ -1053,7 +1053,7 @@ fn a_refused_x_leaves_the_ruler_as_it_was() {
 }
 
 /// One frame of the panel menu with `events` → the rows' texts and where they are painted.
-fn menu_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
+fn menu_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(320.0, 400.0));
     let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| menu(app, ui));
     out.textures_delta.clear();
@@ -1067,7 +1067,7 @@ fn menu_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::E
 }
 
 /// Click the panel menu's row `label`, which shows no check mark.
-fn choose(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
+fn choose(ctx: &egui::Context, app: &mut PlumaApp, label: &str) {
     let rows = menu_frame(ctx, app, vec![]);
     let (text, r) = rows.iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == label).unwrap_or_else(|| panic!("{label} in {rows:?}"));
     assert!(!text.contains('✓'), "{label} shows a check mark");
@@ -1082,12 +1082,12 @@ fn choose(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
 /// ruler, and Clear All Tabs removes every stop.
 #[test]
 fn panel_menu_repeats_deletes_and_clears_tab_stops() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50, "leader": "."}]})).unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     // Repeat Tab with the second stop selected: 20 copies of it, 20 pt apart (its distance from
     // the first stop), leader and all.
     set_pstate(&ctx, "tabs-sel", 1usize);
@@ -1127,13 +1127,13 @@ fn panel_menu_does_not_change_stops_while_an_indent_marker_is_selected() {
 /// caret is in while the Type tool edits text.
 #[test]
 fn repeat_tab_measures_the_first_stop_from_the_left_indent() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b\nc	d", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.setFormat", &json!({"leftIndent": 20})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 50}]})).unwrap();
     let ctx = egui::Context::default();
-    let positions = |app: &VectorcraftApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
+    let positions = |app: &PlumaApp| current(app).unwrap().1.iter().map(|s| s.position).collect::<Vec<_>>();
     // 30 pt from the indent at 20: copies at 80, 110, ...
     set_pstate(&ctx, "tabs-sel", 0usize);
     choose(&ctx, &mut app, "Repeat Tab");
@@ -1150,11 +1150,11 @@ fn repeat_tab_measures_the_first_stop_from_the_left_indent() {
     assert_eq!(positions(&app)[..3], [50.0, 62.0, 74.0]);
     // The Type tool's caret in the second paragraph, indented 40 pt: its stop at 50 repeats
     // every 10 pt, and the first paragraph keeps its stop.
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 10, "y": 20, "text": "a	b\nc	d"})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.run("text.setFormat", json!({"id": id, "leftIndent": 20})).unwrap();
     app.run("text.setFormat", json!({"id": id, "start": 4, "end": 7, "leftIndent": 40})).unwrap();
     app.run("text.tabs.set", json!({"id": id, "stops": [{"position": 50}]})).unwrap();
@@ -1169,7 +1169,7 @@ fn repeat_tab_measures_the_first_stop_from_the_left_indent() {
 /// Delete Tab removes that one next.
 #[test]
 fn delete_tab_after_the_last_stop_deletes_the_stop_the_ruler_shows_selected() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({})).unwrap();
     app.session.execute("text.create", &json!({"x": 10, "y": 20, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.session.execute("text.tabs.set", &json!({"stops": [{"position": 30}, {"position": 50}]})).unwrap();
@@ -1187,7 +1187,7 @@ fn delete_tab_after_the_last_stop_deletes_the_stop_the_ruler_shows_selected() {
 /// another document fits the span to its width as before.
 #[test]
 fn above_text_keeps_the_zoom_on_a_ruler_wider_than_asked() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
     app.session.execute("text.create", &json!({"x": 40, "y": 200, "text": "a	b", "area": {"width": 100, "height": 100}})).unwrap();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::pos2(50.0, 40.0), vec2(1000.0, 700.0)));
@@ -1201,7 +1201,7 @@ fn above_text_keeps_the_zoom_on_a_ruler_wider_than_asked() {
     let asked = app.ui.docking.clone().unwrap().floating.iter().find(|w| w.contains(&"tabs".to_string())).unwrap().rect[2];
     assert!((asked - RULER_LEFT * 2.0 - 50.0).abs() < 0.01, "{asked}");
     // Screen points per point of text on a ruler `width` wide, from its first two labels.
-    let scale = |app: &mut VectorcraftApp, width: f32| {
+    let scale = |app: &mut PlumaApp, width: f32| {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(width, 400.0));
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
@@ -1255,7 +1255,7 @@ fn above_text_keeps_the_zoom_on_a_ruler_wider_than_asked() {
 /// edge and a stop's mark over the column it sets, at any zoom (#729).
 #[test]
 fn above_text_puts_the_ruler_over_the_text_at_the_zoom() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
     app.session.execute("text.create", &json!({"x": 40, "y": 200, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     // The canvas starts low enough in the window for the panel to fit above the text at 200%.
@@ -1285,7 +1285,7 @@ fn above_text_puts_the_ruler_over_the_text_at_the_zoom() {
 /// the window's desktop rect goes above the text too, from the main window's top-left (#4995).
 #[test]
 fn above_text_moves_a_panel_floating_in_its_own_window() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
     app.session.execute("text.create", &json!({"x": 40, "y": 200, "text": "a	b", "area": {"width": 300, "height": 100}})).unwrap();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::pos2(50.0, 40.0), vec2(1000.0, 700.0)));
@@ -1319,7 +1319,7 @@ fn above_text_moves_a_panel_floating_in_its_own_window() {
 #[test]
 fn above_text_keeps_the_panel_bar_in_the_window() {
     for (text_height, below) in [(100.0, true), (760.0, false)] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 600, "height": 400})).unwrap();
         app.session.execute("text.create", &json!({"x": 40, "y": 10, "text": "a	b", "area": {"width": 300, "height": text_height}})).unwrap();
         app.canvas_rect = Some(egui::Rect::from_min_size(egui::pos2(50.0, 40.0), vec2(1000.0, 700.0)));
@@ -1357,13 +1357,13 @@ fn above_text_puts_the_panel_at_the_top_when_below_the_text_does_not_fit() {
     // The view's centre and the text's height: panned so the text is above the canvas, and a text
     // whose bottom leaves room for 240 points of panel but not for the 360 it floats at.
     for (center_y, text_height) in [(600.0, 100.0), (350.0, 340.0)] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 600, "height": 800})).unwrap();
         app.session.execute("text.create", &json!({"x": 40, "y": 20, "text": "a	b", "area": {"width": 300, "height": text_height}})).unwrap();
         app.canvas_rect = Some(egui::Rect::from_min_size(egui::pos2(50.0, 40.0), vec2(1000.0, 700.0)));
         if let Some(v) = app.view_mut() {
             v.zoom = 1.0;
-            v.center = vectorcraft_geom::Point::new(300.0, center_y);
+            v.center = pluma_geom::Point::new(300.0, center_y);
         }
         let (node, _, span) = current(&app).unwrap();
         let ctx = egui::Context::default();

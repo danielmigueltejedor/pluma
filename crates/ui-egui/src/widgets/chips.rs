@@ -28,13 +28,13 @@ pub fn paint_chip(ui: &Ui, rect: Rect, paint: &Paint) {
 /// shape: linear along its angle, radial from the centre, freeform from its colour points. The
 /// rect is rounded to whole pixels, as filled rectangles are when drawn, so the chip lines up with
 /// a colour chip beside it (#3826).
-pub fn gradient_chip(ui: &Ui, rect: Rect, gradient: &vectorcraft_color::GradientPaint) {
+pub fn gradient_chip(ui: &Ui, rect: Rect, gradient: &pluma_color::GradientPaint) {
     let rect = egui::emath::GuiRounding::round_to_pixels(rect, ui.pixels_per_point());
     if !(rect.width() > 0.0 && rect.height() > 0.0) {
         return;
     }
     // Freeform sampling is costly per spot, so it gets a coarse grid (the mesh interpolates).
-    let freeform = gradient.gradient.kind == vectorcraft_color::GradientKind::Freeform;
+    let freeform = gradient.gradient.kind == pluma_color::GradientKind::Freeform;
     let max = if freeform { 16 } else { 64 };
     let cols = ((rect.width() / 3.0).ceil() as usize).clamp(1, max);
     let rows = ((rect.height() / 3.0).ceil() as usize).clamp(1, max);
@@ -57,21 +57,21 @@ pub fn gradient_chip(ui: &Ui, rect: Rect, gradient: &vectorcraft_color::Gradient
 
 /// The colours at the `(cols + 1) x (rows + 1)` grid points (row by row) of a `width` x `height`
 /// chip showing `gp` as it would look on an object of that size.
-pub(super) fn gradient_chip_colors(gp: &vectorcraft_color::GradientPaint, width: f32, height: f32, cols: usize, rows: usize) -> Vec<Color32> {
-    use vectorcraft_color::{GradientGeom, GradientKind};
-    let b = vectorcraft_geom::kurbo::Rect::new(0.0, 0.0, width as f64, height as f64);
-    let rgb = |c: vectorcraft_color::Color| {
+pub(super) fn gradient_chip_colors(gp: &pluma_color::GradientPaint, width: f32, height: f32, cols: usize, rows: usize) -> Vec<Color32> {
+    use pluma_color::{GradientGeom, GradientKind};
+    let b = pluma_geom::kurbo::Rect::new(0.0, 0.0, width as f64, height as f64);
+    let rgb = |c: pluma_color::Color| {
         let [r, g, b, _] = c.to_rgba8(1.0);
         Color32::from_rgb(r, g, b)
     };
     let at = |k: usize| {
         let (i, j) = (k % (cols + 1), k / (cols + 1));
-        vectorcraft_geom::kurbo::Point::new(b.width() * i as f64 / cols as f64, b.height() * j as f64 / rows as f64)
+        pluma_geom::kurbo::Point::new(b.width() * i as f64 / cols as f64, b.height() * j as f64 / rows as f64)
     };
     let n = (cols + 1) * (rows + 1);
     if gp.gradient.kind == GradientKind::Freeform {
-        let Some(painted) = vectorcraft_color::freeform::painted_box(b) else { return vec![Color32::TRANSPARENT; n] };
-        let field = gp.freeform_on(painted).model_field(vectorcraft_color::freeform::spread_scale(painted));
+        let Some(painted) = pluma_color::freeform::painted_box(b) else { return vec![Color32::TRANSPARENT; n] };
+        let field = gp.freeform_on(painted).model_field(pluma_color::freeform::spread_scale(painted));
         return (0..n)
             .map(|k| {
                 let ([r, g, b], _) = field.display_sample(at(k));

@@ -1,4 +1,4 @@
-//! VectorCraft's own Fonts folder: a missing font's file, found in a folder, is copied into it
+//! Pluma's own Fonts folder: a missing font's file, found in a folder, is copied into it
 //! without replacing a file there, and type set in the font redraws in it. One test in its own
 //! process, so the process-wide font database and Fonts folder start fresh, as when the app starts.
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
@@ -6,9 +6,9 @@
 
 use std::time::{Duration, Instant};
 
+use pluma_engine::Session;
+use pluma_engine::cmd::findfiles::{Rules, plain};
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::findfiles::{Rules, plain};
 
 /// How long the test waits for a search to end. The wait only ends the test if the search never
 /// ends. A machine busy with other builds can hold a walker for seconds. It is shorter than a search's
@@ -29,15 +29,15 @@ fn finished(s: &mut Session) -> Value {
 
 #[test]
 fn a_found_font_is_copied_without_replacing_a_file_and_its_type_redraws() {
-    let root = vectorcraft_testkit::temp_dir("font-folder");
+    let root = pluma_testkit::temp_dir("font-folder");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("Downloads/Deep")).unwrap();
     let root = plain(std::fs::canonicalize(&root).unwrap());
     let fonts = root.join("App Fonts");
-    vectorcraft_text::set_app_font_dir(fonts.clone());
-    assert!(vectorcraft_text::system_font_dirs().contains(&fonts));
+    pluma_text::set_app_font_dir(fonts.clone());
+    assert!(pluma_text::system_font_dirs().contains(&fonts));
     let file = root.join("Downloads").join("Deep").join("Findme.otf");
-    std::fs::write(&file, vectorcraft_testkit::fonts::renamed("Findme Sans 3")).unwrap();
+    std::fs::write(&file, pluma_testkit::fonts::renamed("Findme Sans 3")).unwrap();
     let serif = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/fonts/SourceSerif4-Regular.ttf");
     std::fs::copy(serif, root.join("other.ttf")).unwrap();
 

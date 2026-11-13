@@ -3,7 +3,7 @@
 //! layout, kept by text edits.
 
 use kurbo::Point;
-use vectorcraft_doc::{CharStyle, GlyphChoice, TextRun};
+use pluma_doc::{CharStyle, GlyphChoice, TextRun};
 
 use crate::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
 use crate::*;

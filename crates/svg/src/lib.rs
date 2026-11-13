@@ -1,4 +1,4 @@
-//! VectorCraft SVG import and export.
+//! Pluma SVG import and export.
 //!
 //! * [`export`] / [`export_full`] write a [`Document`] as SVG 1.1 with our own writer, as set by
 //!   [`ExportOptions`] (presentation attributes, inline styles, style entities or internal CSS
@@ -11,7 +11,7 @@
 //!   document nodes with all transforms baked into the geometry.
 //! * What other software keeps on an object survives the round trip: its `data-*` attributes and
 //!   its attributes in other applications' XML namespaces (`plotter:pen="2"`) are kept with the
-//!   object ([`vectorcraft_doc::ObjectAttributes`]), so they are copied, saved and deleted with it,
+//!   object ([`pluma_doc::ObjectAttributes`]), so they are copied, saved and deleted with it,
 //!   and export writes them back.
 //! * [`css_rules`] writes the CSS web pages style objects with (the CSS Properties panel): shapes'
 //!   paints as backgrounds and borders, type as fonts, shadows as `box-shadow`, each property
@@ -60,7 +60,7 @@
 //!   one is absolute. The document's units follow the unit of the root `width` (pixels when it has
 //!   none).
 //! * `<mask>` imports as a luminance opacity mask; a mask we exported keeps its options and art
-//!   (its `data-vectorcraft-mask="noclip invert"` lists the options that differ from clipping and
+//!   (its `data-pluma-mask="noclip invert"` lists the options that differ from clipping and
 //!   not inverted). Nested clip paths (`<clipPath clip-path>`) are clip groups in clip groups.
 //! * Filters that are a Gaussian blur, a drop shadow (`feDropShadow` or the usual chains of offset,
 //!   blur, flood or colour matrix, composite and merge), a glow or a feather (as we export them)
@@ -104,8 +104,8 @@ pub use css::{CssOptions, CssRule, CssSheet, CssUnits, css_rules};
 
 use serde::{Deserialize, Serialize};
 
-pub use vectorcraft_doc::Document;
-pub use vectorcraft_doc::TextObject;
+pub use pluma_doc::Document;
+pub use pluma_doc::TextObject;
 
 /// How style properties are written (SVG Options → Styling).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -225,7 +225,7 @@ pub struct ExportOptions {
     pub responsive: bool,
     /// Fonts → Convert to Outlines: text becomes paths (portable, no font needed to view it).
     pub outline_text: bool,
-    /// Embed the native document (passed to [`export_full`]) in `<metadata>` so VectorCraft
+    /// Embed the native document (passed to [`export_full`]) in `<metadata>` so Pluma
     /// reopens the SVG with nothing lost (see [`editing`]).
     pub preserve_editing: bool,
     /// Write `<metadata>` with the document's title, format and File Info (Dublin Core).
@@ -368,12 +368,12 @@ pub fn export_with_report(doc: &Document, opts: &ExportOptions) -> (String, Vec<
 /// native format, embedded when [`ExportOptions::preserve_editing`] is on.
 pub fn export_full(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>) -> Output {
     // Type in the document's composite fonts is drawn in them, whether or not an app has the document open.
-    let _lent = vectorcraft_text::FontDb::global().lend_composite_fonts(&doc.composite_fonts);
+    let _lent = pluma_text::FontDb::global().lend_composite_fonts(&doc.composite_fonts);
     export::export(doc, opts, native)
 }
 
 /// The XML namespace of the editing data [`ExportOptions::preserve_editing`] embeds.
-pub const EDITING_NS: &str = "urn:vectorcraft:editing";
+pub const EDITING_NS: &str = "urn:pluma:editing";
 
 /// The native document an SVG carries ([`ExportOptions::preserve_editing`]).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -571,16 +571,16 @@ pub fn import_with(svg: &str, opts: &ImportOptions) -> Result<(Document, Vec<Str
 pub fn import_within(svg: &str, opts: &ImportOptions, max_nodes: usize) -> Result<(Document, Vec<String>), SvgError> {
     // usvg converts the tree by recursion, in large stack frames: the nesting it is given is
     // capped (`import::depth`), and it gets room for that cap whatever thread asks.
-    vectorcraft_doc::depth::with_deep_stack(|| import::import(svg, opts, max_nodes))
+    pluma_doc::depth::with_deep_stack(|| import::import(svg, opts, max_nodes))
 }
 
 /// Reads a linked file: its bytes and the link to it (absolute path, size, time and hash), or
 /// `None` when there is no readable file at the (absolute) path.
-pub type ReadFile<'a> = &'a (dyn Fn(&str) -> Option<(Vec<u8>, vectorcraft_doc::LinkInfo)> + Sync);
+pub type ReadFile<'a> = &'a (dyn Fn(&str) -> Option<(Vec<u8>, pluma_doc::LinkInfo)> + Sync);
 
 /// How [`import_with`] reads the files an SVG's `<image>` elements link to.
 ///
-/// A raster file stays linked ([`vectorcraft_doc::ImageObject::link`]); an SVG file imports as
+/// A raster file stays linked ([`pluma_doc::ImageObject::link`]); an SVG file imports as
 /// vector art. A file that can't be read imports as a placeholder that keeps the link (and a
 /// warning), so it can be relinked.
 #[derive(Clone, Copy, Default)]

@@ -8,7 +8,7 @@ use super::{
     Structure, Swatch, Unit, V, obj,
 };
 use crate::import::ai::NameEncoding;
-use vectorcraft_doc::{DataSet, DataValue, GraphicStyle, Guide, ImageBlob, PatternDef, Symbol, TextWrap, Variable, VariableKind, Variables};
+use pluma_doc::{DataSet, DataValue, GraphicStyle, Guide, ImageBlob, PatternDef, Symbol, TextWrap, Variable, VariableKind, Variables};
 
 /// `%AI5_RulerUnits` → [`Unit`] (Illustrator 7 spec table 3; centimeters is 4; pixels is 6 in later files).
 fn ruler_unit(v: u8) -> Option<Unit> {
@@ -93,8 +93,8 @@ fn display_options(ab: &Obj, board: &mut AiArtboard) {
 /// white, 4 the document's model, transparent, 6 grayscale, transparent). A value of another type,
 /// out of range or not one of these leaves the setting as it is.
 fn raster_settings(r: &Obj, doc: &mut Document) {
-    use vectorcraft_doc::rastersettings::{MAX_ADD_AROUND, RasterColorModel};
-    use vectorcraft_doc::setup::Background;
+    use pluma_doc::rastersettings::{MAX_ADD_AROUND, RasterColorModel};
+    use pluma_doc::setup::Background;
     if let Some(ppi) = typed(r, "dpi.", "Int").filter(|p| (1.0..=2400.0).contains(p)) {
         doc.raster_effects_ppi = ppi;
     }
@@ -254,7 +254,7 @@ fn crop_area_active<'a>(lines: impl Iterator<Item = &'a [u8]>, forward: bool) ->
 /// The palette of a `.ai` file's editing data, as [`palette`] reads it.
 pub struct PaletteSwatches {
     pub swatches: Vec<Swatch>,
-    pub groups: Vec<vectorcraft_color::swatch::SwatchGroup>,
+    pub groups: Vec<pluma_color::swatch::SwatchGroup>,
     /// The patterns the editing data defines that a swatch paints with, named apart from the given
     /// patterns ([`beside`]).
     pub patterns: Vec<PatternDef>,
@@ -311,7 +311,7 @@ fn pattern_names_read<'a>(added: &'a [PatternDef], renamed: &'a std::collections
 
 /// `n` and what it holds painting with the patterns `renamed` renames (old to new) by their new names.
 fn repoint(n: &mut Node, renamed: &std::collections::BTreeMap<String, String>) {
-    for p in vectorcraft_doc::swatches::node_paints_mut(n) {
+    for p in pluma_doc::swatches::node_paints_mut(n) {
         if let Paint::Pattern { pattern, .. } = p
             && let Some(new) = renamed.get(pattern)
         {
@@ -377,7 +377,7 @@ pub fn palette(data: &[u8], patterns: &[PatternDef], names: &mut obj::Names) -> 
 
 /// The brushes of a `.ai` file's editing data, as [`brushes`] reads them.
 pub struct Brushes {
-    pub brushes: Vec<vectorcraft_brush::Brush>,
+    pub brushes: Vec<pluma_brush::Brush>,
     /// The patterns the editing data defines that the brushes' art paints with, named apart from
     /// the given patterns ([`beside`]).
     pub patterns: Vec<PatternDef>,
@@ -406,11 +406,11 @@ pub fn brushes(data: &[u8], patterns: &[PatternDef], names: &mut obj::Names) -> 
         }
     }
     // The patterns the brushes' art paints with, and those their art paints with, and so on.
-    let mut stack: Vec<&vectorcraft_doc::Node> = lib.iter().flat_map(|b| b.art()).collect();
+    let mut stack: Vec<&pluma_doc::Node> = lib.iter().flat_map(|b| b.art()).collect();
     let mut used = std::collections::BTreeSet::new();
     while let Some(n) = stack.pop() {
         stack.extend(n.children().into_iter().flatten().chain(n.extras().mask.as_ref().map(|m| &m.art)).map(|c| &**c));
-        for p in vectorcraft_doc::swatches::node_paints(n) {
+        for p in pluma_doc::swatches::node_paints(n) {
             if let Paint::Pattern { pattern, .. } = p
                 && used.insert(pattern.clone())
                 && let Some(d) = defined.iter().find(|d| &d.name == pattern)
@@ -461,7 +461,7 @@ pub fn graphic_styles(data: &[u8], large_canvas: bool, names: &mut obj::Names) -
 /// The symbols of a `.ai` file's editing data, as [`symbols`] reads them.
 pub struct Symbols {
     /// The symbols in the Symbols panel's order, each with its Symbol Options › Registration.
-    pub symbols: Vec<(Symbol, vectorcraft_doc::SymbolRegistration)>,
+    pub symbols: Vec<(Symbol, pluma_doc::SymbolRegistration)>,
     /// The image blobs the symbols' art shows, by key.
     pub images: std::collections::BTreeMap<String, ImageBlob>,
     /// The global and spot colors the symbols' art is linked to, as swatches, as [`read`] adds
@@ -503,7 +503,7 @@ pub fn symbols(data: &[u8], names: &mut obj::Names) -> Option<Symbols> {
     // The colors the art is linked to that the file defines, once each.
     let mut linked = std::collections::HashSet::new();
     for s in &mut shown.symbols {
-        vectorcraft_doc::swatches::map_node_solid_paints(Arc::make_mut(&mut s.art), &mut |_, link, _| {
+        pluma_doc::swatches::map_node_solid_paints(Arc::make_mut(&mut s.art), &mut |_, link, _| {
             linked.extend(link.clone());
             false
         });
@@ -958,7 +958,7 @@ impl<'a> Reader<'a> {
     /// The swatches of the palette, `[None]` first, in its order, and its color groups; a gradient
     /// swatch only when its gradient was read, and a pattern swatch only for a pattern in
     /// `patterns`. `None` when the palette is empty.
-    fn palette_swatches(&mut self, patterns: &[PatternDef]) -> Option<(Vec<Swatch>, Vec<vectorcraft_color::swatch::SwatchGroup>)> {
+    fn palette_swatches(&mut self, patterns: &[PatternDef]) -> Option<(Vec<Swatch>, Vec<pluma_color::swatch::SwatchGroup>)> {
         if self.palette.is_empty() {
             return None;
         }
@@ -971,7 +971,7 @@ impl<'a> Reader<'a> {
                 // A gradient swatch's own paint does not link to a swatch; art painted with the
                 // gradient links to it.
                 Cell::Gradient(g) => {
-                    let gp = vectorcraft_color::gradient::GradientPaint::new(self.gradients.get(&g)?.clone());
+                    let gp = pluma_color::gradient::GradientPaint::new(self.gradients.get(&g)?.clone());
                     if e.name == g {
                         e.name = self.global_names.get(Global::Gradient, &g).to_string();
                     }
@@ -993,7 +993,7 @@ impl<'a> Reader<'a> {
         let groups: Vec<_> = palette
             .groups
             .into_iter()
-            .map(|(name, s)| vectorcraft_color::swatch::SwatchGroup { name, swatches: s.into_iter().filter_map(swatch).collect() })
+            .map(|(name, s)| pluma_color::swatch::SwatchGroup { name, swatches: s.into_iter().filter_map(swatch).collect() })
             .collect();
         Some((swatches, groups))
     }
@@ -1016,7 +1016,7 @@ impl<'a> Reader<'a> {
         // The swatch names there are, looked up rather than scanned for each name a file defines
         // (`Document::swatch` also knows the registration colour).
         let mut have: std::collections::HashSet<String> = doc.swatches_iter().map(|s| s.name.clone()).collect();
-        have.insert(vectorcraft_color::swatch::REGISTRATION.to_string());
+        have.insert(pluma_color::swatch::REGISTRATION.to_string());
         // The names a swatch of another kind than a gradient or pattern has.
         let mut solid: std::collections::HashSet<String> =
             doc.swatches_iter().filter(|s| !matches!(s.paint, Paint::Gradient(_) | Paint::Pattern { .. })).map(|s| s.name.clone()).collect();
@@ -1054,7 +1054,7 @@ impl<'a> Reader<'a> {
         // names taken and the patterns painted with are looked up rather than scanned for each one.
         let mut taken: std::collections::HashSet<String> = doc.swatches_iter().map(|s| s.name.clone()).collect();
         taken.extend(doc.swatch_groups.iter().map(|g| g.name.clone()));
-        taken.insert(vectorcraft_color::swatch::REGISTRATION.to_string());
+        taken.insert(pluma_color::swatch::REGISTRATION.to_string());
         let mut painted: std::collections::HashSet<String> = doc
             .swatches_iter()
             .filter_map(|s| match &s.paint {
@@ -1081,7 +1081,7 @@ impl<'a> Reader<'a> {
     /// The brushes read ([`brush::finish_brushes`]) and how many weren't; `None` when the file has
     /// no brush objects (the document keeps the default brushes). The objects read as their drawn
     /// look in the art the brushes use count toward the note on drawn looks, once for each art.
-    fn brush_library(&mut self) -> Option<(Vec<vectorcraft_brush::Brush>, usize)> {
+    fn brush_library(&mut self) -> Option<(Vec<pluma_brush::Brush>, usize)> {
         if !self.brush_objects {
             return None;
         }
@@ -1102,7 +1102,7 @@ impl<'a> Reader<'a> {
     /// at most [`brush::MAX_BRUSH_ART_COLORS`] different color names in all, each name's color
     /// operators before its gradient stops, as [`Self::file_swatches`] takes them; its colors past
     /// them still count toward the color mode.
-    fn count_brush_art_colors(&mut self, lib: &[vectorcraft_brush::Brush]) {
+    fn count_brush_art_colors(&mut self, lib: &[pluma_brush::Brush]) {
         let used: std::collections::HashSet<NodeId> = lib.iter().flat_map(|b| b.art()).map(|a| a.id).collect();
         let mut names: Vec<(NodeId, String)> = self.brush_art.iter().filter(|(_, a)| used.contains(&a.id)).map(|(n, a)| (a.id, n.clone())).collect();
         names.sort();
@@ -1147,7 +1147,7 @@ impl<'a> Reader<'a> {
             // A Large Canvas copy's styles are at its art's scale ([`Self::ensure_space`]).
             if let Some(s) = self.large_canvas.filter(|s| *s != 1.0) {
                 appearance.scale_strokes(s);
-                appearance.scale_effects(s, vectorcraft_effects::scale_effect);
+                appearance.scale_effects(s, pluma_effects::scale_effect);
             }
             let id = u32::try_from(styles.len() + 1).unwrap_or(u32::MAX);
             ids.insert(name.clone(), id);
@@ -1171,11 +1171,11 @@ impl<'a> Reader<'a> {
         }
         if !self.unknown.is_empty() {
             let ops: Vec<String> = self.unknown.iter().map(|o| format!("`{o}`")).collect();
-            self.unsupported.insert(format!("operators VectorCraft doesn't know ({})", ops.join(", ")));
+            self.unsupported.insert(format!("operators Pluma doesn't know ({})", ops.join(", ")));
         }
         if !self.unsupported.is_empty() {
             let list: Vec<&str> = self.unsupported.iter().map(String::as_str).collect();
-            return Err(format!("it has {}, which VectorCraft doesn't read from it yet", join_and(&list)));
+            return Err(format!("it has {}, which Pluma doesn't read from it yet", join_and(&list)));
         }
         if self.doc.layers.is_empty() {
             return Err("it has no layers".into());
@@ -1249,7 +1249,7 @@ impl<'a> Reader<'a> {
         }
         if self.color_model.unwrap_or(self.cmyk_colors > self.rgb_colors) {
             doc.color_mode = ColorMode::Cmyk;
-            let (swatches, groups) = vectorcraft_color::default_swatches(ColorMode::Cmyk.model());
+            let (swatches, groups) = pluma_color::default_swatches(ColorMode::Cmyk.model());
             (doc.swatches, doc.swatch_groups) = (swatches.into(), groups.into());
         }
         if let Some(u) = self.ruler_units.and_then(ruler_unit) {
@@ -1285,22 +1285,22 @@ impl<'a> Reader<'a> {
         }
         // The colors linked to a color that took a free name follow it.
         if !renamed.is_empty() {
-            let mut follow = |_: &mut vectorcraft_color::Color, link: &mut Option<String>, _: &mut f32| {
+            let mut follow = |_: &mut pluma_color::Color, link: &mut Option<String>, _: &mut f32| {
                 let Some(new) = link.as_ref().and_then(|l| renamed.get(l)) else { return false };
                 *link = Some(new.clone());
                 true
             };
             doc.map_solid_paints(&mut follow);
             for a in brushes.iter_mut().flat_map(|(lib, _)| lib.iter_mut().flat_map(|b| b.art_mut())) {
-                vectorcraft_doc::swatches::map_node_solid_paints(a, &mut follow);
+                pluma_doc::swatches::map_node_solid_paints(a, &mut follow);
             }
             for w in &mut self.warped_type {
-                vectorcraft_doc::swatches::map_node_solid_paints(&mut w.look, &mut follow);
+                pluma_doc::swatches::map_node_solid_paints(&mut w.look, &mut follow);
             }
         }
         let mut warnings = self.warnings;
         if let Some((lib, unread)) = brushes {
-            vectorcraft_brush::store(&mut doc, &lib);
+            pluma_brush::store(&mut doc, &lib);
             if unread > 0 {
                 warnings.push(brush::left_out_note(unread));
             }
@@ -1900,7 +1900,7 @@ fn read_variable_sets(sets: &Obj) -> VariableRead {
     match walk.children(sets) {
         Some(children) => {
             let (sets, other): (Vec<&Obj>, Vec<&Obj>) = children.into_iter().filter(|c| !is_node(c, 3.0)).partition(|c| is_element(c, "variableSet"));
-            // A node that isn't a variable set, and a second set (VectorCraft keeps one set of
+            // A node that isn't a variable set, and a second set (Pluma keeps one set of
             // variables), are left out.
             walk.skipped += other.len() + sets.len().saturating_sub(1);
             if let Some(first) = sets.first() {

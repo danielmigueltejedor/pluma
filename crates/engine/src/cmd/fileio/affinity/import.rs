@@ -9,7 +9,7 @@ pub(in super::super) struct Imported {
 }
 
 pub(in super::super) fn import(name: &str, bytes: &[u8]) -> Result<Imported> {
-    match vectorcraft_affinity::read(bytes, vectorcraft_affinity::Limits::default()) {
+    match pluma_affinity::read(bytes, pluma_affinity::Limits::default()) {
         Ok(d) => {
             let mut b = Builder::new(72.0 / d.dpi);
             b.document(&d)?;
@@ -26,8 +26,8 @@ pub(in super::super) fn import(name: &str, bytes: &[u8]) -> Result<Imported> {
 }
 
 /// The embedded preview, for files whose native document can't be read.
-fn preview(name: &str, bytes: &[u8], native: &vectorcraft_affinity::Error) -> Result<(Document, String)> {
-    let p = vectorcraft_affinity::preview(bytes).map_err(|e| err(format!("{native}; its embedded preview can't be read either ({e})")))?;
+fn preview(name: &str, bytes: &[u8], native: &pluma_affinity::Error) -> Result<(Document, String)> {
+    let p = pluma_affinity::preview(bytes).map_err(|e| err(format!("{native}; its embedded preview can't be read either ({e})")))?;
     // `raster_doc` normally probes PNG dimensions and keeps its encoded bytes. Verify this
     // untrusted preview's complete pixels first, so corrupt data cannot create a blank image.
     let mut reader = image::ImageReader::with_format(Cursor::new(p.png), image::ImageFormat::Png);

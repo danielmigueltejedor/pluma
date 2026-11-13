@@ -358,8 +358,8 @@ fn bundled_catalogs_are_consistent() {
                 // A command id, or an effect id: Effect menu items share `effect.apply` /
                 // `effect.dialog`, so the effect's own id is what tells them apart.
                 let known = crate::menus::UI_COMMANDS.iter().any(|c| c.0 == src)
-                    || vectorcraft_engine::cmd::command_specs().iter().any(|c| c.id == src)
-                    || vectorcraft_effects::effect_catalog().iter().any(|e| e.id == src);
+                    || pluma_engine::cmd::command_specs().iter().any(|c| c.id == src)
+                    || pluma_effects::effect_catalog().iter().any(|e| e.id == src);
                 assert!(known, "{}: unknown command id {src:?}", l.code);
             }
         }
@@ -383,9 +383,9 @@ fn partial_catalogs_only_translate_strings_the_ui_shows() {
 /// only: the tests running beside it on other threads still draw in English.
 #[test]
 fn the_engine_follows_the_interface_language() {
-    let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
-    let frame = |app: &mut crate::VectorcraftApp| {
+    let frame = |app: &mut crate::PlumaApp| {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).textures_delta.clear();
     };
     frame(&mut app);
@@ -411,7 +411,7 @@ fn the_engine_follows_the_interface_language() {
 #[test]
 fn language_command_sets_the_preference() {
     use crate::menus::{checked, run_ui_command};
-    let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     assert_eq!(checked(&app, "app.language", &serde_json::json!({"lang": "auto"})), Some(true));
     run_ui_command(&mut app, "app.language", &serde_json::json!({"lang": "ja"})).unwrap().unwrap();
     assert_eq!(app.session.prefs.interface_language, "ja");
@@ -428,7 +428,7 @@ fn language_command_sets_the_preference() {
     // Every registered language is in the Mac App menu's Language, by its own name (the in-window
     // bar has no Language menu).
     let layout = crate::native_menu::mac_layout(&app, &crate::native_menu::from_tree(&app, &crate::menus::menu_tree()), Lang::EN);
-    let app_menu = layout.bar.menus.into_iter().find(|m| m.title == "VectorCraft").expect("App menu");
+    let app_menu = layout.bar.menus.into_iter().find(|m| m.title == "Pluma").expect("App menu");
     fn items(nodes: &[crate::native_menu::Node], out: &mut Vec<String>) {
         for n in nodes {
             match n {
@@ -471,9 +471,9 @@ fn is_devanagari(c: char) -> bool {
 #[cfg(feature = "interface-fonts")]
 #[test]
 fn bundled_fonts_cover_the_catalogs() {
-    let japanese_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
-    let georgian_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_georgian());
-    let devanagari_ui_font = vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.scripts.contains(&"Deva"));
+    let japanese_ui_font = pluma_text::CRAFT_FONTS.iter().any(|f| f.is_japanese());
+    let georgian_ui_font = pluma_text::CRAFT_FONTS.iter().any(|f| f.is_georgian());
+    let devanagari_ui_font = pluma_text::CRAFT_FONTS.iter().any(|f| f.scripts.contains(&"Deva"));
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
@@ -1122,12 +1122,12 @@ fn string_literals(e: &str, keep: impl Fn(&str, &str) -> bool) -> Vec<String> {
     out
 }
 
-/// For translators, `cargo test -p vectorcraft-ui-egui dump_source_strings` writes every English
-/// interface string to `VECTORCRAFT_I18N_DUMP=<file>`, and every status and error message as a
-/// catalog template to `VECTORCRAFT_I18N_DUMP_MESSAGES=<file>`, one per line.
+/// For translators, `cargo test -p pluma-ui-egui dump_source_strings` writes every English
+/// interface string to `PLUMA_I18N_DUMP=<file>`, and every status and error message as a
+/// catalog template to `PLUMA_I18N_DUMP_MESSAGES=<file>`, one per line.
 #[test]
 fn dump_source_strings() {
-    if let Ok(path) = std::env::var("VECTORCRAFT_I18N_DUMP") {
+    if let Ok(path) = std::env::var("PLUMA_I18N_DUMP") {
         let mut all = crate::menus::menu_strings();
         all.extend(tl_literals());
         all.extend(undo_labels());
@@ -1135,7 +1135,7 @@ fn dump_source_strings() {
         let text: String = all.iter().map(|s| format!("{}\n", s.replace('\\', "\\\\").replace('\n', "\\n").replace('\t', "\\t"))).collect();
         std::fs::write(path, text).expect("write dump");
     }
-    if let Ok(path) = std::env::var("VECTORCRAFT_I18N_DUMP_MESSAGES") {
+    if let Ok(path) = std::env::var("PLUMA_I18N_DUMP_MESSAGES") {
         std::fs::write(path, message_literals().iter().map(|m| format!("{m}\n")).collect::<String>()).expect("write dump");
     }
 }
@@ -1152,7 +1152,7 @@ const KEEPS_MENU_NAMES: [&str; 20] =
 /// names and the perspective grid presets (names, shown untranslated wherever else they appear).
 /// Each language's own name in the Language menu is left alone too.
 const MENU_KEEP_AS_IS: &[&str] = &[
-    "VectorCraft",
+    "Pluma",
     "OpenType",
     "Essentials",
     "Essentials Classic",
@@ -1203,7 +1203,7 @@ fn menu_labels() -> Vec<(&'static str, &'static str, serde_json::Value)> {
 /// with every toggle flipped.
 fn toggled_labels() -> Vec<String> {
     use serde_json::json;
-    let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app.run("object.envelope.makeWithWarp", json!({})).unwrap();
@@ -1273,20 +1273,20 @@ fn untranslated_report() {
     let scan = undo_scan();
     let mut undo = scan.labels;
     assert!(undo.len() > 300, "scan found only {} undo labels", undo.len());
-    undo.extend(vectorcraft_effects::effect_catalog().iter().map(|e| e.label.trim_end_matches('…').to_string()));
+    undo.extend(pluma_effects::effect_catalog().iter().map(|e| e.label.trim_end_matches('…').to_string()));
     let liquify = ["warp", "twirl", "pucker", "bloat", "scallop", "crystallize", "wrinkle"];
-    undo.extend(liquify.iter().filter_map(|k| vectorcraft_tools::distort::liquify::LiquifyKind::parse(k)).map(|k| format!("{} Tool", k.label())));
+    undo.extend(liquify.iter().filter_map(|k| pluma_tools::distort::liquify::LiquifyKind::parse(k)).map(|k| format!("{} Tool", k.label())));
     assert_eq!(scan.formatted.iter().collect::<Vec<_>>(), ["{} Tool"], "step names built with format! (make them with Session::edit_named)");
     assert!(scan.templates.len() >= 3, "scan found only the templates {:?}", scan.templates);
     let messages = message_literals();
     assert!(messages.len() > 300, "scan found only {} messages", messages.len());
-    let (swatches, groups) = vectorcraft_color::default_swatches(vectorcraft_color::cms::Model::Rgb);
+    let (swatches, groups) = pluma_color::default_swatches(pluma_color::cms::Model::Rgb);
     // The greys' `K=` values read the same in any language.
     let swatch_names: BTreeSet<String> = swatches
         .iter()
         .map(|s| s.name.clone())
         .chain(groups.iter().flat_map(|g| std::iter::once(g.name.clone()).chain(g.swatches.iter().map(|s| s.name.clone()))))
-        .chain([vectorcraft_color::swatch::REGISTRATION.to_string()])
+        .chain([pluma_color::swatch::REGISTRATION.to_string()])
         .filter(|n| !n.starts_with("K="))
         .collect();
 
@@ -1323,7 +1323,7 @@ fn untranslated_report() {
     shown.extend(toggled_labels());
     shown.extend(crate::menus::CONTEXT_LABELS.iter().map(|l| l.to_string()));
     shown.extend(crate::native_menu::MAC_LABELS.iter().map(|l| l.to_string()));
-    shown.extend(vectorcraft_engine::cmd::prefscmds::PREF_CATEGORIES.iter().map(|l| l.to_string()));
+    shown.extend(pluma_engine::cmd::prefscmds::PREF_CATEGORIES.iter().map(|l| l.to_string()));
     for code in KEEPS_MENU_NAMES {
         let lang = Lang::from_code(code).expect("registered");
         // Labels the menu strings above already listed aren't listed twice.
@@ -1336,7 +1336,7 @@ fn untranslated_report() {
         let (entries, _) = parse_entries(lang.0.source);
         let rows: BTreeSet<&str> = entries.iter().filter(|(ctx, _, _)| ctx == "@msg").map(|(_, src, _)| src.as_str()).collect();
         add(code, "messages", messages.iter().filter(|m| !rows.contains(m.as_str())).cloned().collect::<BTreeSet<_>>());
-        let meanings = vectorcraft_eps::POSTSCRIPT_ERRORS.iter().filter(|(_, m)| message(lang, m) == *m).map(|(_, m)| m.to_string());
+        let meanings = pluma_eps::POSTSCRIPT_ERRORS.iter().filter(|(_, m)| message(lang, m) == *m).map(|(_, m)| m.to_string());
         add(code, "PostScript error meanings", meanings.collect());
     }
 
@@ -1553,7 +1553,7 @@ fn cyrillic_glyphs_are_available_without_system_fonts() {
 fn a_language_saved_by_an_older_version_carries_over() {
     for (saved, want) in [("ja", "ja"), ("cs", "cs"), ("pt-br", "pt-br"), ("en", "auto"), ("xx", "auto")] {
         let ui: crate::state::UiState = serde_json::from_value(serde_json::json!({"language": saved})).unwrap();
-        let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         app.ui = ui;
         crate::prefs_dialog::restore(&mut app);
         assert_eq!(app.session.prefs.interface_language, want, "saved {saved}");
@@ -1562,7 +1562,7 @@ fn a_language_saved_by_an_older_version_carries_over() {
     // A preference already set wins over the old field.
     let ui: crate::state::UiState =
         serde_json::from_value(serde_json::json!({"language": "ja", "engine_prefs": {"interfaceLanguage": "cs"}})).unwrap();
-    let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.ui = ui;
     crate::prefs_dialog::restore(&mut app);
     assert_eq!(app.session.prefs.interface_language, "cs");
@@ -1892,7 +1892,7 @@ fn width(p: &Value, cmd: &str, key: &str) -> Result<f64> {
 #[test]
 fn the_keep_colors_trace_warnings_are_translated() {
     use serde_json::json;
-    let mut s = vectorcraft_engine::Session::new();
+    let mut s = pluma_engine::Session::new();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     // A white field with a black square in it.
     let img = image::RgbaImage::from_fn(40, 40, |x, y| {
@@ -1900,7 +1900,7 @@ fn the_keep_colors_trace_warnings_are_translated() {
     });
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     let mut warnings = vec![];
     for (params, shown) in [
         (json!({"mode": "color", "palette": "limited", "colors": 2, "keepColors": ["#ff00ff", "#00ffff"]}), "#ff00ff, #00ffff"),
@@ -1928,8 +1928,8 @@ fn the_keep_colors_trace_warnings_are_translated() {
 /// send) say what is wrong.
 #[test]
 fn blend_spine_param_errors_say_what_is_wrong() {
+    use pluma_engine::{EngineError, Session};
     use serde_json::json;
-    use vectorcraft_engine::{EngineError, Session};
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     let rectangle =
@@ -1983,8 +1983,8 @@ fn blend_spine_param_errors_say_what_is_wrong() {
 /// language that translates every message.
 #[test]
 fn dataset_import_repeated_column_error_is_translated() {
+    use pluma_engine::{EngineError, Session};
     use serde_json::json;
-    use vectorcraft_engine::{EngineError, Session};
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     let e = s.execute("dataset.import", &json!({"csv": "City,City\nParis,Rome"})).unwrap_err();
@@ -2002,8 +2002,8 @@ fn dataset_import_repeated_column_error_is_translated() {
 /// every message, with the parameter's path and the refused value kept.
 #[test]
 fn parameter_schema_errors_are_translated() {
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
     let scanned = message_literals();
     for template in [
         "the params must be an object, not {got}",
@@ -2043,7 +2043,7 @@ fn parameter_schema_errors_are_translated() {
 /// alone and in the status bar's note.
 #[test]
 fn pdfx_bleed_warning_is_translated() {
-    let w = vectorcraft_engine::cmd::fileio::pdf::BLEED_LEFT_OUT;
+    let w = pluma_engine::cmd::fileio::pdf::BLEED_LEFT_OUT;
     let status = format!("Saved /tmp/a.pdf with 1 note: {w}");
     // A catalog's `{a}: {b}` row can translate the colon alone, so the check looks for the English words.
     for lang in Lang::all().filter(|l| l.code() != Lang::EN.code()) {
@@ -2057,8 +2057,8 @@ fn pdfx_bleed_warning_is_translated() {
 /// that translates every message.
 #[test]
 fn saved_tracing_preset_errors_are_translated() {
+    use pluma_engine::{EngineError, Session};
     use serde_json::json;
-    use vectorcraft_engine::{EngineError, Session};
     let mut s = Session::new();
     s.execute("imageTrace.presets.save", &json!({"name": "Mine"})).unwrap();
     s.execute("imageTrace.presets.save", &json!({"name": "Other"})).unwrap();
@@ -2110,8 +2110,8 @@ fn legacy_name_notes_are_translated() {
 /// translated in every language that translates every message.
 #[test]
 fn dataset_export_limit_errors_are_translated() {
+    use pluma_engine::{EngineError, Session};
     use serde_json::json;
-    use vectorcraft_engine::{EngineError, Session};
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     let rows = "x\n".repeat(1000);
@@ -2147,7 +2147,7 @@ fn postscript_errors_keep_their_name_and_meaning() {
     let meaning = "a value has the wrong type for the operator";
     for (body, opens) in [("0 0 10 10 rectfill 1 (a) add", true), ("1 (a) add", false)] {
         let bytes = format!("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n%%EndComments\n{body}\n%%EOF\n").into_bytes();
-        let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         app.services.read = Some(Box::new(move |_: &str| Ok(bytes.clone())));
         assert_eq!(crate::io::open_reporting(&mut app, "/in/a.eps").is_ok(), opens, "{}", app.ui.status);
         let mut shown_texts = vec![app.ui.status.clone()];
@@ -2170,8 +2170,8 @@ fn postscript_errors_keep_their_name_and_meaning() {
 /// every message, with the line and the variable kept.
 #[test]
 fn dataset_import_cell_errors_are_translated() {
+    use pluma_engine::{EngineError, Session};
     use serde_json::json;
-    use vectorcraft_engine::{EngineError, Session};
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     s.execute("variable.define", &json!({"name": "Show", "kind": "visibility"})).unwrap();
@@ -2201,9 +2201,9 @@ fn dataset_import_cell_errors_are_translated() {
 /// quoted `"60 mm"`, as given: in its row's translation, or in English where it has none.
 #[test]
 fn shared_param_check_errors_show_their_values_as_given() {
+    use pluma_engine::EngineError;
     use serde_json::json;
-    use vectorcraft_engine::EngineError;
-    let mut s = vectorcraft_engine::Session::new();
+    let mut s = pluma_engine::Session::new();
     s.execute("file.new", &json!({})).unwrap();
     s.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     s.execute("select.all", &json!({})).unwrap();
@@ -2675,7 +2675,7 @@ fn render_site_labels_fall_back_to_english() {
     for (_, source) in RENDER_SITE_ROWS.iter().filter(|(ctx, _)| *ctx == "file-filter") {
         assert_eq!(tr_ctx(Lang::EN, "file-filter", source), *source);
     }
-    for source in ["SVG", "PNG", "VectorCraft", "unregistered filter"] {
+    for source in ["SVG", "PNG", "Pluma", "unregistered filter"] {
         assert_eq!(tr_ctx(cs(), "file-filter", source), tr(cs(), source));
     }
     assert_eq!(fmt(tr(Lang::EN, "Preset {number}"), &[("number", "12")]), "Preset 12");
@@ -2703,7 +2703,7 @@ const RENDER_SITE_ROWS: &[(&str, &str)] = &[
     ("file-filter", "Export presets"),
     ("file-filter", "SVG Compressed"),
     ("file-filter", "PDF-compatible .ai"),
-    ("file-filter", "VectorCraft Template"),
+    ("file-filter", "Pluma Template"),
     ("file-filter", "Templates"),
     ("anchor", "Points:"),
     ("diagnostics", "render"),

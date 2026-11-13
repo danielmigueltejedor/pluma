@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use vectorcraft_geom::{Point, Rect};
+use pluma_geom::{Point, Rect};
 
 use crate::{Document, MAX_COORD, Node, NodeId, NodeKind};
 
@@ -176,7 +176,7 @@ impl Document {
 mod tests {
     use super::*;
     use crate::{Appearance, Artboard, Guide};
-    use vectorcraft_geom::shapes;
+    use pluma_geom::shapes;
 
     fn rect(id: u64, y: f64) -> Arc<Node> {
         Arc::new(Node::path(NodeId(id), shapes::rectangle(Rect::new(0.0, y, 10.0, y + 10.0)), Appearance::default_art()))
@@ -298,8 +298,8 @@ mod tests {
         let mut d = doc(vec![]);
         let kept = d.artboards[0].id;
         d.artboards.push(Artboard { id: 9, rect: Rect::new(0.0, 1e17, 100.0, 1e17 + 100.0), ..d.artboards[0].clone() });
-        d.artboard_ruler_origins.insert(kept, vectorcraft_geom::Vec2::new(1.0, 2.0));
-        d.artboard_ruler_origins.insert(9, vectorcraft_geom::Vec2::new(3.0, 4.0));
+        d.artboard_ruler_origins.insert(kept, pluma_geom::Vec2::new(1.0, 2.0));
+        d.artboard_ruler_origins.insert(9, pluma_geom::Vec2::new(3.0, 4.0));
         assert_eq!(d.drop_beyond_canvas().artboards, 1);
         assert_eq!(d.artboard_ruler_origins.keys().copied().collect::<Vec<_>>(), [kept]);
         assert!(d.next_artboard_id() > 9, "a new artboard doesn't take the removed one's id");

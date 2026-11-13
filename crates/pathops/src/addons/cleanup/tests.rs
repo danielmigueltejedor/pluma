@@ -1,5 +1,5 @@
 use kurbo::{Point, Vec2};
-use vectorcraft_geom::{Anchor, AnchorKind, SubPath};
+use pluma_geom::{Anchor, AnchorKind, SubPath};
 
 use super::{close_nearly_closed, merge_duplicate_anchors, near_point_groups, rejoin, remove_collinear_anchors, retract_tiny_handles};
 

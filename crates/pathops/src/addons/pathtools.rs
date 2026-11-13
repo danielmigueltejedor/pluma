@@ -18,7 +18,7 @@ mod tests;
 use std::collections::BTreeSet;
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveArclen, ParamCurveNearest, Point, Vec2};
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, SubPath};
+use pluma_geom::{Anchor, AnchorKind, PathData, SubPath};
 
 pub use crossings::{MAX_CROSSING_SEGMENTS, crossings, insert_at};
 pub use dashes::{DashSpec, Piece, divide_dashes};

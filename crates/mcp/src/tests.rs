@@ -46,7 +46,7 @@ fn text_of(result: &Value) -> String {
 }
 
 fn tmp(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-mcp-test-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-mcp-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir.join(name)
 }
@@ -153,7 +153,7 @@ fn serve_loop_writes_one_line_per_request() {
     let lines: Vec<Value> = String::from_utf8(out).unwrap().lines().map(|l| serde_json::from_str(l).unwrap()).collect();
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0]["result"]["protocolVersion"], PROTOCOL_VERSION);
-    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "vectorcraft");
+    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "pluma");
     assert!(lines[0]["result"]["capabilities"]["tools"].is_object());
     assert!(lines[0]["result"]["capabilities"]["resources"].is_object());
     assert!(lines[1]["result"]["tools"].as_array().unwrap().len() >= 19);
@@ -271,7 +271,7 @@ fn headless_end_to_end() {
     assert_eq!(r["isError"], false, "{r}");
     let img = r["content"].as_array().unwrap().iter().find(|c| c["type"] == "image").expect("image content");
     assert_eq!(img["mimeType"], "image/png");
-    let png = vectorcraft_format::base64_decode(img["data"].as_str().unwrap()).unwrap();
+    let png = pluma_format::base64_decode(img["data"].as_str().unwrap()).unwrap();
     assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
     assert_eq!(std::fs::read(&shot_path).unwrap(), png);
 
@@ -283,7 +283,7 @@ fn headless_end_to_end() {
     assert!(svg.contains("<svg") && (svg.contains("<rect") || svg.contains("<path")), "{svg}");
 
     // Save native, open it back.
-    let dc = tmp("out.vectorcraft");
+    let dc = tmp("out.pluma");
     assert_eq!(call(&mut s, 7, "save_file", json!({"path": dc.to_str().unwrap()}))["isError"], false);
     let r = call(&mut s, 8, "open_file", json!({"path": dc.to_str().unwrap()}));
     assert_eq!(r["isError"], false, "{r}");
@@ -305,12 +305,12 @@ fn headless_end_to_end() {
     // Resources.
     let v = rpc(&mut s, 10, "resources/list", json!({}));
     assert_eq!(v["result"]["resources"].as_array().unwrap().len(), 4);
-    let v = rpc(&mut s, 11, "resources/read", json!({"uri": "vectorcraft://document"}));
+    let v = rpc(&mut s, 11, "resources/read", json!({"uri": "pluma://document"}));
     let text = v["result"]["contents"][0]["text"].as_str().unwrap();
     assert!(serde_json::from_str::<Value>(text).unwrap()["layers"].is_array());
-    let v = rpc(&mut s, 12, "resources/read", json!({"uri": "vectorcraft://document/json"}));
+    let v = rpc(&mut s, 12, "resources/read", json!({"uri": "pluma://document/json"}));
     assert!(v["result"]["contents"][0]["text"].as_str().unwrap().len() > 10);
-    let v = rpc(&mut s, 13, "resources/read", json!({"uri": "vectorcraft://nope"}));
+    let v = rpc(&mut s, 13, "resources/read", json!({"uri": "pluma://nope"}));
     assert_eq!(v["error"]["code"], -32002);
 }
 
@@ -391,7 +391,7 @@ fn screenshot_and_render_preview_draw_the_trace_view_with_trace_views() {
     ok(&mut s, 3, "run_command", json!({"command": "imageTrace.make", "params": {"params": {"ignoreWhite": true}}}));
     let pixels = |r: &Value| {
         let data = r["content"].as_array().unwrap().iter().find(|c| c["type"] == "image").unwrap()["data"].as_str().unwrap();
-        image::load_from_memory(&vectorcraft_format::base64_decode(data).unwrap()).unwrap().to_rgba8()
+        image::load_from_memory(&pluma_format::base64_decode(data).unwrap()).unwrap().to_rgba8()
     };
     let dark = |p: &image::Rgba<u8>| p[0] < 60 && p[1] < 60 && p[2] < 60;
     let white = |p: &image::Rgba<u8>| p[0] > 245 && p[1] > 245 && p[2] > 245;
@@ -665,7 +665,7 @@ fn add_text_sets_writing_direction_for_every_kind() {
 fn save_file_describes_the_formats_it_writes() {
     let tools = tool_definitions();
     let d = tools.iter().find(|t| t["name"] == "save_file").and_then(|t| t["description"].as_str()).unwrap();
-    for ext in [".vectorcraft", ".vctemplate", ".pdf", ".svg", ".svgz", ".ai"] {
+    for ext in [".pluma", ".vctemplate", ".pdf", ".svg", ".svgz", ".ai"] {
         assert!(d.contains(ext), "{ext}: {d}");
     }
     assert!(d.contains("its own format"), "{d}");
@@ -922,7 +922,7 @@ fn remote_file_tools_send_absolute_paths() {
     let given = given.to_str().unwrap();
     call(&mut s, 1, "open_file", json!({"path": "rel/in.svg"}));
     call(&mut s, 2, "open_file", json!({"path": given}));
-    call(&mut s, 3, "save_file", json!({"path": "rel/out.vectorcraft"}));
+    call(&mut s, 3, "save_file", json!({"path": "rel/out.pluma"}));
     call(&mut s, 4, "export", json!({"path": "rel/out.png", "scale": 2}));
     call(&mut s, 5, "export", json!({"format": "svg", "options": {"path": "rel/opt.svg"}}));
     call(&mut s, 6, "screenshot", json!({"path": "rel/shot.png"}));
@@ -934,7 +934,7 @@ fn remote_file_tools_send_absolute_paths() {
     assert_eq!(methods, ["app.open", "app.open", "app.save", "engine.execute", "engine.execute", "ui.render", "engine.execute"]);
     assert_eq!(seen[0]["params"]["path"], abs("rel/in.svg"));
     assert_eq!(seen[1]["params"]["path"], given);
-    assert_eq!(seen[2]["params"]["path"], abs("rel/out.vectorcraft"));
+    assert_eq!(seen[2]["params"]["path"], abs("rel/out.pluma"));
     assert_eq!(seen[3]["params"]["params"]["path"], abs("rel/out.png"));
     // The format still comes from the extension the agent gave: a raster export keeps `scale`.
     assert_eq!(seen[3]["params"]["params"]["scale"], 2);
@@ -965,7 +965,7 @@ fn relative_to_cwd(p: &std::path::Path) -> Option<std::path::PathBuf> {
 #[test]
 fn headless_file_tools_take_relative_paths() {
     let mut s = server();
-    let file = tmp("relative.vectorcraft");
+    let file = tmp("relative.pluma");
     let Some(rel) = relative_to_cwd(&file) else { return };
     let rel = rel.to_str().unwrap();
     assert!(std::path::Path::new(rel).is_relative());
@@ -998,14 +998,14 @@ fn headless_file_tools_send_paths_as_given() {
     let seen = Rc::new(RefCell::new(Vec::new()));
     let mut s = Server::new(Box::new(Recording(seen.clone())));
     call(&mut s, 1, "open_file", json!({"path": "rel/in.svg"}));
-    call(&mut s, 2, "save_file", json!({"path": "rel/out.vectorcraft"}));
+    call(&mut s, 2, "save_file", json!({"path": "rel/out.pluma"}));
     call(&mut s, 3, "export", json!({"path": "rel/out.png"}));
     call(&mut s, 4, "export", json!({"format": "svg", "options": {"path": "rel/opt.svg"}}));
     call(&mut s, 5, "screenshot", json!({"path": "rel/shot.png"}));
     let seen = seen.borrow();
     assert_eq!(seen.len(), 5, "{seen:?}");
     assert_eq!(seen[0]["path"], "rel/in.svg");
-    assert_eq!(seen[1]["path"], "rel/out.vectorcraft");
+    assert_eq!(seen[1]["path"], "rel/out.pluma");
     assert_eq!(seen[2]["params"]["path"], "rel/out.png");
     assert_eq!(seen[3]["params"]["path"], "rel/opt.svg");
     assert_eq!(seen[4]["path"], "rel/shot.png");
@@ -1331,7 +1331,7 @@ fn headless_backend_methods() {
     assert!(cmds.as_array().unwrap().iter().any(|c| c["id"] == "file.export"));
     let listed = h.call("ui.tool.list", json!({})).unwrap();
     let groups = listed.as_array().unwrap();
-    for tool in vectorcraft_tools::addons::GROUPS.iter().flat_map(|group| group.iter()) {
+    for tool in pluma_tools::addons::GROUPS.iter().flat_map(|group| group.iter()) {
         let matching: Vec<_> = groups.iter().flat_map(|group| group.as_array().unwrap()).filter(|entry| entry["id"] == tool.id).collect();
         assert_eq!(matching.len(), 1, "{}", tool.id);
         assert_eq!(matching[0]["label"], tool.label);

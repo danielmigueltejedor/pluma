@@ -1,4 +1,4 @@
-use vectorcraft_doc::{Document, Node, Selection};
+use pluma_doc::{Document, Node, Selection};
 
 use super::*;
 use crate::testutil::{cx, paint};
@@ -51,7 +51,7 @@ fn a_click_selects_one_character_and_shows_its_box() {
     assert!(t.overlays(&cx).is_empty(), "no character yet");
     // Somewhere in the second character, the "y".
     let t_object = text_of(&cx, id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t_object);
+    let lay = pluma_text::layout(FontDb::global(), &t_object);
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
     let at = t_object.xf * (y.origin + Vec2::new(y.advance / 2.0, -10.0));
     let acts = drag(&mut t, &cx, at, at);
@@ -86,7 +86,7 @@ fn a_click_selects_one_character_and_shows_its_box() {
 fn the_first_character_of_a_list_item_has_its_own_box_and_drags() {
     let (mut d, id, s) = doc_with_type();
     if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
-        t.para.list = Some(vectorcraft_doc::text::ParaList::bulleted(vectorcraft_doc::text::Bullet::Dot));
+        t.para.list = Some(pluma_doc::text::ParaList::bulleted(pluma_doc::text::Bullet::Dot));
         t.para.left_indent = 18.0;
         t.para.first_line_indent = -18.0;
     }
@@ -94,7 +94,7 @@ fn the_first_character_of_a_list_item_has_its_own_box_and_drags() {
     let cx = cx(&d, &s, &p);
     let mut t = TouchTypeTool::default();
     let t_object = text_of(&cx, id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t_object);
+    let lay = pluma_text::layout(FontDb::global(), &t_object);
     let first = lay.glyphs.iter().find(|g| g.byte == 0 && g.len > 0).unwrap();
     let at = t_object.xf * (first.origin + Vec2::new(first.advance / 2.0, -10.0));
     drag(&mut t, &cx, at, at);
@@ -117,7 +117,7 @@ fn dragging_the_box_moves_the_character_along_its_line_and_up() {
     let p = paint();
     let cx = cx(&d, &s, &p);
     let mut t = TouchTypeTool::default();
-    let lay = vectorcraft_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
+    let lay = pluma_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
     let at = Point::new(100.0, 200.0) + (y.origin.to_vec2() + Vec2::new(y.advance / 2.0, -10.0));
     // 10 pt right and 4 pt up: one preview, one undo step.
@@ -236,7 +236,7 @@ fn a_shifted_character_turns_about_its_shifted_pen_position() {
         let cx = cx(&d, &s, &p);
         let t = TouchTypeTool { target: Some((id, 1)), ..Default::default() };
         let (_, text, b) = t.current(&cx).expect("a character is selected");
-        let lay = vectorcraft_text::layout(FontDb::global(), text);
+        let lay = pluma_text::layout(FontDb::global(), text);
         let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
         let want = y.origin + Vec2::new(0.0, -10.0);
         assert!((b.pivot - want).hypot() < 1e-6, "{rotation}°: {:?}, want {want:?}", b.pivot);
@@ -258,7 +258,7 @@ fn arrow_keys_nudge_the_selected_character() {
     let p = paint();
     let cx = cx(&d, &s, &p);
     let mut t = TouchTypeTool::default();
-    let lay = vectorcraft_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
+    let lay = pluma_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
     let at = Point::new(100.0, 200.0) + (y.origin.to_vec2() + Vec2::new(y.advance / 2.0, -10.0));
     drag(&mut t, &cx, at, at);
@@ -295,7 +295,7 @@ fn the_handles_scale_and_rotate_the_character() {
     let p = paint();
     let cx = cx(&d, &s, &p);
     let mut t = TouchTypeTool::default();
-    let lay = vectorcraft_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
+    let lay = pluma_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
     let at = Point::new(100.0, 200.0) + (y.origin.to_vec2() + Vec2::new(y.advance / 2.0, -10.0));
     t.pointer(&cx, &PointerEvent::new(PointerKind::Down, at.x, at.y));
@@ -349,7 +349,7 @@ fn the_box_of_a_character_drawn_with_two_glyphs_holds_both() {
     s.add(id);
     let p = paint();
     let cx = cx(&d, &s, &p);
-    let lay = vectorcraft_text::layout(FontDb::global(), &text);
+    let lay = pluma_text::layout(FontDb::global(), &text);
     let esses: Vec<_> = lay.glyphs.iter().filter(|g| g.byte == 1).collect();
     assert_eq!(esses.len(), 2);
     // A click on the second S selects the ß, and its box reaches from the first S to the end of the second.
@@ -378,7 +378,7 @@ fn the_box_of_a_character_drawn_with_two_glyphs_holds_both() {
     let q = quad(&t, &cx);
     let (across, down) = (q[1] - q[0], q[3] - q[0]);
     assert!(across.dot(down).abs() < 1e-9, "a rectangle: {q:?}");
-    let lay = vectorcraft_text::layout(FontDb::global(), &text);
+    let lay = pluma_text::layout(FontDb::global(), &text);
     for g in lay.glyphs.iter().filter(|g| g.byte == 1) {
         for c in glyph_quad(g).unwrap() {
             let v = text.xf * c - q[0];
@@ -392,7 +392,7 @@ fn the_box_of_a_character_drawn_with_two_glyphs_holds_both() {
 #[test]
 fn a_skewed_glyph_keeps_its_own_box() {
     let text = TextObject::point(Point::new(100.0, 200.0), "Type", CharStyle { size: 40.0, ..Default::default() });
-    let mut lay = vectorcraft_text::layout(FontDb::global(), &text);
+    let mut lay = pluma_text::layout(FontDb::global(), &text);
     lay.glyphs[1].xf *= Affine::skew(0.5, 0.0);
     let b = char_box(&text, &lay, 1).unwrap();
     let own = glyph_quad(&lay.glyphs[1]).unwrap();
@@ -405,7 +405,7 @@ fn the_tool_is_made_by_its_id() {
     let (d, id, s) = doc_with_type();
     let p = paint();
     let cx = cx(&d, &s, &p);
-    let lay = vectorcraft_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
+    let lay = pluma_text::layout(FontDb::global(), text_of(&cx, id).unwrap());
     let at = Point::new(100.0, 200.0) + Vec2::new(lay.glyphs[0].advance / 2.0, -10.0);
     let mut t = crate::create(ID);
     assert_eq!(t.id(), ID);
@@ -416,7 +416,7 @@ fn the_tool_is_made_by_its_id() {
 
 #[test]
 fn touch_type_rtl_middle_character_can_drag_and_nudge_along_its_line() {
-    use vectorcraft_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
+    use pluma_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
 
     // The process-wide database deduplicates the same synthetic face across tests.
     FontDb::global().add_font(right_to_left_optical_font().unwrap());
@@ -425,7 +425,7 @@ fn touch_type_rtl_middle_character_can_drag_and_nudge_along_its_line() {
     let id = d.alloc_id();
     let style = CharStyle { font_family: RIGHT_TO_LEFT_OPTICAL_FAMILY.into(), size: 100.0, ..Default::default() };
     let text = TextObject::point(Point::new(300.0, 250.0), "אבא", style);
-    let lay = vectorcraft_text::layout(FontDb::global(), &text);
+    let lay = pluma_text::layout(FontDb::global(), &text);
     assert_eq!(lay.glyphs.len(), 3);
     assert!(lay.glyphs.iter().all(|g| g.rtl));
     d.insert(Some(layer), 0, Node::new(id, NodeKind::Text(Box::new(text)))).unwrap();
@@ -450,7 +450,7 @@ fn touch_type_rtl_middle_character_can_drag_and_nudge_along_its_line() {
 #[test]
 fn touch_type_direction_boundary_offers_only_vertical_movement() {
     let text = TextObject::point(Point::new(100.0, 200.0), "abc אבג", CharStyle { size: 40.0, ..Default::default() });
-    let lay = vectorcraft_text::layout(FontDb::global(), &text);
+    let lay = pluma_text::layout(FontDb::global(), &text);
     let at = lay.glyphs.iter().position(|g| g.byte == 4).unwrap();
     let b = char_box(&text, &lay, at).unwrap();
     assert!(!b.kerned, "the previous logical character has a different reading direction");

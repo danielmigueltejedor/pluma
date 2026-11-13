@@ -145,7 +145,7 @@ pub(super) fn set_type(s: &mut Session, p: &Value) -> Result<Value> {
     let mut spec = spec_of(s, id)?;
     // The series to retype: `seriesIndexes`, else, with no `id`, a selection made only of this graph's series (Group
     // Selection). Anything else selected, the graph itself for one, is the whole graph.
-    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(vectorcraft_doc::MAX_GRAPH_SERIES);
+    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(pluma_doc::MAX_GRAPH_SERIES);
     // A file's list of right-axis series, kept to series the graph has, at most once each.
     spec.right_series.retain(|i| *i < count);
     spec.right_series.sort_unstable();
@@ -248,11 +248,10 @@ pub(super) fn set_type(s: &mut Session, p: &Value) -> Result<Value> {
     }
     spec.ticks_between_labels = bool_or(p, "ticksBetweenLabels", spec.ticks_between_labels);
     if let Some(v) = str_param(p, "piePosition") {
-        spec.pie_position =
-            vectorcraft_doc::PiePosition::parse(v).ok_or_else(|| bad(C, format!("unknown piePosition `{v}` (even, ratio or stacked)")))?;
+        spec.pie_position = pluma_doc::PiePosition::parse(v).ok_or_else(|| bad(C, format!("unknown piePosition `{v}` (even, ratio or stacked)")))?;
     }
     if let Some(v) = str_param(p, "pieSort") {
-        spec.pie_sort = vectorcraft_doc::PieSort::parse(v).ok_or_else(|| bad(C, format!("unknown pieSort `{v}` (none, all or first)")))?;
+        spec.pie_sort = pluma_doc::PieSort::parse(v).ok_or_else(|| bad(C, format!("unknown pieSort `{v}` (none, all or first)")))?;
     }
     for (key, slot) in
         [("prefix", &mut spec.prefix), ("suffix", &mut spec.suffix), ("rightPrefix", &mut spec.right_prefix), ("rightSuffix", &mut spec.right_suffix)]

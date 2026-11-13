@@ -1,5 +1,5 @@
 use super::fonts::MAX_RECENT_FONTS;
-use super::{Value, VectorcraftApp, canvas, dialogs, fileio, io, menus, panels, picks, toolbar};
+use super::{PlumaApp, Value, canvas, dialogs, fileio, io, menus, panels, picks, toolbar};
 use crate::placing;
 use crate::state::ReplaceFontWarning;
 
@@ -70,7 +70,7 @@ fn substitute_warnings_follow_current_font_inventory() {
     assert_eq!(substitute_warnings(removed_family.as_array().unwrap(), &styles), (vec!["Source Sans 3".to_string()], Vec::<String>::new()));
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Run a UI or engine command by id. The single entry point for every frontend path.
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
         // A file dialog it shows off the UI thread runs it again with the path picked.
@@ -85,7 +85,7 @@ impl VectorcraftApp {
     }
 
     /// [`Self::run`] for saved steps (an action's): keys their commands no longer read are taken,
-    /// as [`vectorcraft_engine::Session::replay`] takes them, so an action recorded by an older
+    /// as [`pluma_engine::Session::replay`] takes them, so an action recorded by an older
     /// version still plays.
     pub fn replay(&mut self, id: &str, params: Value) -> Result<Value, String> {
         let outer = self.session.set_replaying(true);
@@ -98,8 +98,8 @@ impl VectorcraftApp {
     /// for it waits before the app adds the view's active artboard to its params: a held press
     /// may change it. The app's own commands (its dialogs, panels and view) wait too.
     fn wait_for_tool_edit(&mut self, id: &str) {
-        let ui_command = vectorcraft_engine::find_command(id).is_none();
-        if (ui_command || vectorcraft_engine::waits_for_tool_edit(id)) && self.session.tool_waiting() {
+        let ui_command = pluma_engine::find_command(id).is_none();
+        if (ui_command || pluma_engine::waits_for_tool_edit(id)) && self.session.tool_waiting() {
             let r = self.session.finish_tool_edit();
             canvas::apply_requests(self, r);
         }
@@ -129,7 +129,7 @@ impl VectorcraftApp {
         // Distribute Objects and Distribute Spacing with Align to Artboard, and Edit Symbol from the Symbols
         // panel act on the active artboard, the view's, which the app passes as `artboard`. A batch passes
         // it on to those steps.
-        if (vectorcraft_engine::ON_ACTIVE_ARTBOARD.contains(&id) || id == "command.batch")
+        if (pluma_engine::ON_ACTIVE_ARTBOARD.contains(&id) || id == "command.batch")
             && params.get("artboard").is_none()
             && self.view().is_some()
             && let Some(n) = self.session.active().map(|d| d.doc.artboards.len())
@@ -163,7 +163,7 @@ impl VectorcraftApp {
         // Object › Artboards › Fit to Artwork Bounds resizes the selected artboards (the Artboard
         // tool's, else the active one), which the app passes as its `indices`, and Fit to Selected
         // Art resizes the active artboard, which the app passes as its `index`.
-        if vectorcraft_engine::FIT_ACTIVE_ARTBOARD.contains(&id)
+        if pluma_engine::FIT_ACTIVE_ARTBOARD.contains(&id)
             && params.get("index").is_none()
             && params.get("indices").is_none()
             && self.view().is_some()
@@ -262,7 +262,7 @@ impl VectorcraftApp {
                         let to = &params["to"];
                         to["family"].as_str().and_then(|family| {
                             let style = to["style"].as_str().unwrap_or("Regular");
-                            vectorcraft_text::FontDb::global().stored_family(family, style)
+                            pluma_text::FontDb::global().stored_family(family, style)
                         })
                     }
                     _ => None,
@@ -343,7 +343,7 @@ impl VectorcraftApp {
         if !had_skipped && !had_style {
             return;
         }
-        let scoped_selection = previous.selection.as_ref().map(|selected| selected.iter().copied().map(vectorcraft_doc::NodeId).collect::<Vec<_>>());
+        let scoped_selection = previous.selection.as_ref().map(|selected| selected.iter().copied().map(pluma_doc::NodeId).collect::<Vec<_>>());
         let skipped_remains = if had_skipped {
             self.session.skipped_font_ids(&previous.request, scoped_selection.as_deref()).is_ok_and(|ids| !ids.is_empty())
         } else {
@@ -364,7 +364,7 @@ impl VectorcraftApp {
         if !missing.is_empty() {
             parts.push(format!(
                 "fonts that aren't available are drawn in the fallback font, {}: {} (install them, or replace them with Find Font)",
-                vectorcraft_text::FALLBACK_FAMILY,
+                pluma_text::FALLBACK_FAMILY,
                 missing.join(", ")
             ));
         }
@@ -395,8 +395,8 @@ impl VectorcraftApp {
         self.activate_tool(id, false);
     }
 
-    /// Make tool `id` active: chosen afresh (`fresh`, [`vectorcraft_engine::Session::select_tool`]),
-    /// or back from a tool that stood in for it ([`vectorcraft_engine::Session::switch_tool`]).
+    /// Make tool `id` active: chosen afresh (`fresh`, [`pluma_engine::Session::select_tool`]),
+    /// or back from a tool that stood in for it ([`pluma_engine::Session::switch_tool`]).
     fn activate_tool(&mut self, id: &str, fresh: bool) {
         let v = self.view_info();
         let before = self.session.tool_id();
@@ -415,7 +415,7 @@ impl VectorcraftApp {
         {
             panels::artboards::select(self, panels::artboards::selected(self, n));
         }
-        if let Some(g) = vectorcraft_tools::catalog::group_of(id)
+        if let Some(g) = pluma_tools::catalog::group_of(id)
             && let Some(slot) = self.ui.group_tool.get_mut(g)
         {
             *slot = id.to_string();

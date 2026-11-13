@@ -6,7 +6,7 @@
     </picture>
   </a>
   <br><br>
-  <img src="https://raw.githubusercontent.com/danielmigueltejedor/pluma/master/assets/app-icon/hicolor/512x512/apps/ai.storyteller.vectorcraft.png" width="192" alt="Pluma">
+  <img src="https://raw.githubusercontent.com/danielmigueltejedor/pluma/master/assets/app-icon/hicolor/512x512/apps/dev.danielmiguelt.Pluma.png" width="192" alt="Pluma">
   <h1>Pluma</h1>
   <p><strong>The vector editor of the Nodalia suite.</strong></p>
 
@@ -43,7 +43,7 @@ You need a recent stable Rust toolchain.
 ```bash
 git clone https://github.com/getnodalia/pluma.git
 cd pluma
-cargo run --release -p vectorcraft
+cargo run --release -p pluma
 ```
 
 ## Project status

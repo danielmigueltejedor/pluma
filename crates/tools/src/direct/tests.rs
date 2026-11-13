@@ -1,6 +1,6 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
+use pluma_doc::Selection;
 
 /// Direct Selection and Group Selection grab a selected clipped object (picked in the Layers
 /// panel) where its mask hides it, as on its visible part: a drag moves it. With nothing of it
@@ -40,7 +40,7 @@ fn a_press_where_a_mask_hides_a_selected_object_drags_it() {
 #[test]
 fn direct_and_group_selection_pick_ruler_guides() {
     let (mut d, id) = doc_with_rect();
-    d.guides.push(vectorcraft_doc::Guide::new(true, 100.0));
+    d.guides.push(pluma_doc::Guide::new(true, 100.0));
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
     let down = |t: &mut DirectSelectionTool, y: f64| t.pointer(&c, &PointerEvent::new(PointerKind::Down, 100.0, y));
@@ -62,7 +62,7 @@ fn direct_and_group_selection_pick_ruler_guides() {
 #[test]
 fn a_cmd_shift_double_click_releases_the_guide_under_the_pointer() {
     let (mut d, id) = doc_with_rect();
-    d.guides.push(vectorcraft_doc::Guide::new(false, 300.0));
+    d.guides.push(pluma_doc::Guide::new(false, 300.0));
     let Some(NodeKind::Path { guide, .. }) = d.node_mut(id).map(|n| &mut n.kind) else { panic!("the rectangle is a path") };
     *guide = true;
     let (s, p) = (Selection::default(), paint());
@@ -154,15 +154,15 @@ fn isolation_lets_direct_selection_take_the_art_a_clip_group_hides() {
 }
 
 /// A blend of two 20 pt squares centred on (110, 310) and (210, 310), selected.
-fn blend_doc() -> (vectorcraft_doc::Document, NodeId, NodeId) {
+fn blend_doc() -> (pluma_doc::Document, NodeId, NodeId) {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let key = |id: NodeId, x: f64| {
-        let r = vectorcraft_geom::shapes::rectangle(Rect::new(x, 300.0, x + 20.0, 320.0));
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+        let r = pluma_geom::shapes::rectangle(Rect::new(x, 300.0, x + 20.0, 320.0));
+        std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
     };
     let (g, k1, k2) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-    let b = vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 100.0), key(k2, 200.0)], spec: Default::default() });
+    let b = pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 100.0), key(k2, 200.0)], spec: Default::default() });
     d.insert(Some(l), 1, b).unwrap();
     (d, g, k1)
 }
@@ -212,7 +212,7 @@ fn dragging_a_spine_point_moves_it() {
 #[test]
 fn shift_click_picks_several_spine_points_which_drag_together() {
     let (mut d, g, _) = blend_doc();
-    let sp = vectorcraft_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
+    let sp = pluma_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
     let Some(NodeKind::Blend { spec, .. }) = d.node_mut(g).map(|n| &mut n.kind) else { panic!("blend") };
     (spec.spine, spec.key_anchors) = (Some(PathData::single(sp)), vec![0, 2]);
     let mut s = Selection::default();
@@ -269,8 +269,8 @@ fn spine_segments_bend_with_the_anchor_point_tool_and_direct_selection() {
     let a = drag(&mut DirectSelectionTool::new(false), &straight);
     assert!(!a.iter().any(|x| matches!(x, Action::Preview(c, _) if c == "object.blend.spine.reshapeSegment")), "straight: {a:?}");
     // The spine bent upward: Direct Selection takes it from where it passes.
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(210.0, 310.0)], false);
-    sp.bend_segment(0, 0.5, vectorcraft_geom::Vec2::new(0.0, 20.0));
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(210.0, 310.0)], false);
+    sp.bend_segment(0, 0.5, pluma_geom::Vec2::new(0.0, 20.0));
     let Some(NodeKind::Blend { spec, .. }) = d.node_mut(g).map(|n| &mut n.kind) else { panic!("blend") };
     (spec.spine, spec.key_anchors) = (Some(PathData::single(sp)), vec![0, 1]);
     let mut t = DirectSelectionTool::new(false);
@@ -306,8 +306,8 @@ fn shift_reshapes_a_segment_perpendicular() {
     let s = Selection::default();
     let arch = cx(&d, &s, &p);
     let (mut b, g, _) = blend_doc();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(210.0, 310.0)], false);
-    sp.bend_segment(0, 0.5, vectorcraft_geom::Vec2::new(0.0, 20.0));
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(210.0, 310.0)], false);
+    sp.bend_segment(0, 0.5, pluma_geom::Vec2::new(0.0, 20.0));
     let Some(NodeKind::Blend { spec, .. }) = b.node_mut(g).map(|n| &mut n.kind) else { panic!("blend") };
     (spec.spine, spec.key_anchors) = (Some(PathData::single(sp)), vec![0, 1]);
     let mut bs = Selection::default();
@@ -611,12 +611,12 @@ fn snap_to_last_location_puts_a_path_moved_by_its_anchor_back() {
 /// pixel grid before, on whole pixels and shows no "last location" label.
 #[test]
 fn snap_to_pixel_wins_over_snap_to_last_location_for_a_path_moved_by_its_anchor() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     d.artboards[0].rect = Rect::new(0.0, 0.0, 1000.0, 1000.0);
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let square = vectorcraft_geom::shapes::rectangle(Rect::new(100.3, 100.4, 200.3, 200.4));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, square, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let square = pluma_geom::shapes::rectangle(Rect::new(100.3, 100.4, 200.3, 200.4));
+    d.insert(Some(l), 0, pluma_doc::Node::path(id, square, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -730,8 +730,8 @@ fn crossed_by_pieces(path: &PathData, r: Rect) -> Vec<AnchorRef> {
             if r.contains(a.p) || r.contains(b.p) {
                 continue;
             }
-            let piece = PathData::single(vectorcraft_geom::SubPath::new(vec![*a, *b], false));
-            if vectorcraft_geom::hit::intersects_rect(&piece, r) {
+            let piece = PathData::single(pluma_geom::SubPath::new(vec![*a, *b], false));
+            if pluma_geom::hit::intersects_rect(&piece, r) {
                 out.push((si, seg));
             }
         }
@@ -743,12 +743,12 @@ fn crossed_by_pieces(path: &PathData, r: Rect) -> Vec<AnchorRef> {
 fn curve(p0: (f64, f64), p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)) -> PathData {
     let a = Anchor::with_handles(p0.into(), p0.into(), p1.into());
     let b = Anchor::with_handles(p3.into(), p2.into(), p3.into());
-    PathData::single(vectorcraft_geom::SubPath::new(vec![a, b], false))
+    PathData::single(pluma_geom::SubPath::new(vec![a, b], false))
 }
 
 fn polyline(points: &[(f64, f64)], closed: bool) -> PathData {
     let pts: Vec<Point> = points.iter().map(|p| (*p).into()).collect();
-    PathData::single(vectorcraft_geom::SubPath::polyline(&pts, closed))
+    PathData::single(pluma_geom::SubPath::polyline(&pts, closed))
 }
 
 /// A Direct Selection marquee crosses a segment, with neither of its anchors inside, only where
@@ -848,7 +848,7 @@ fn crossed_segments_match_testing_a_path_for_each_segment() {
 #[test]
 fn marquee_selects_ruler_guides() {
     let (mut d, id) = doc_with_rect();
-    d.guides.push(vectorcraft_doc::Guide::new(false, 80.0));
+    d.guides.push(pluma_doc::Guide::new(false, 80.0));
     let s = Selection::default();
     let p = paint();
     let cx = cx(&d, &s, &p);
@@ -869,20 +869,16 @@ fn marquee_selects_ruler_guides() {
 /// a second click on it adds the compound path, like a group around a member.
 #[test]
 fn group_selection_picks_a_path_of_a_compound_path() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (outer, hole, compound) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-    let rect = |id, a: f64, b: f64| {
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()))
-    };
-    let mut c = vectorcraft_doc::Node::new(
+    let rect =
+        |id, a: f64, b: f64| std::sync::Arc::new(pluma_doc::Node::path(id, pluma_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()));
+    let mut c = pluma_doc::Node::new(
         compound,
-        vectorcraft_doc::NodeKind::Compound {
-            children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)],
-            rule: vectorcraft_geom::FillRule::EvenOdd,
-        },
+        pluma_doc::NodeKind::Compound { children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)], rule: pluma_geom::FillRule::EvenOdd },
     );
-    c.appearance = vectorcraft_doc::Appearance::default_art().into();
+    c.appearance = pluma_doc::Appearance::default_art().into();
     d.insert(Some(l), 0, c).unwrap();
     let p = paint();
     let none = Selection::default();
@@ -905,20 +901,16 @@ fn group_selection_picks_a_path_of_a_compound_path() {
 /// Group Selection Shift-click on a selected compound-path member deselects it on release.
 #[test]
 fn group_selection_shift_click_deselects_a_compound_path_member() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (outer, hole, compound) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-    let rect = |id, a: f64, b: f64| {
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()))
-    };
-    let mut c = vectorcraft_doc::Node::new(
+    let rect =
+        |id, a: f64, b: f64| std::sync::Arc::new(pluma_doc::Node::path(id, pluma_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()));
+    let mut c = pluma_doc::Node::new(
         compound,
-        vectorcraft_doc::NodeKind::Compound {
-            children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)],
-            rule: vectorcraft_geom::FillRule::EvenOdd,
-        },
+        pluma_doc::NodeKind::Compound { children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)], rule: pluma_geom::FillRule::EvenOdd },
     );
-    c.appearance = vectorcraft_doc::Appearance::default_art().into();
+    c.appearance = pluma_doc::Appearance::default_art().into();
     d.insert(Some(l), 0, c).unwrap();
     let p = paint();
     let mut s = Selection::default();
@@ -933,19 +925,19 @@ fn group_selection_shift_click_deselects_a_compound_path_member() {
 
 /// A path inside an inner group, a sibling path outside it, and the groups' ids.
 /// The inside path is the rectangle at (100, 100); the outside one at (300, 300).
-fn nested_group_doc() -> (vectorcraft_doc::Document, NodeId, NodeId, NodeId, NodeId) {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+fn nested_group_doc() -> (pluma_doc::Document, NodeId, NodeId, NodeId, NodeId) {
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (inside, outside, inner, outer) = (d.alloc_id(), d.alloc_id(), d.alloc_id(), d.alloc_id());
     let path = |id, x| {
-        std::sync::Arc::new(vectorcraft_doc::Node::path(
+        std::sync::Arc::new(pluma_doc::Node::path(
             id,
-            vectorcraft_geom::shapes::rectangle(Rect::new(x, x, x + 100.0, x + 100.0)),
-            vectorcraft_doc::Appearance::default_art(),
+            pluma_geom::shapes::rectangle(Rect::new(x, x, x + 100.0, x + 100.0)),
+            pluma_doc::Appearance::default_art(),
         ))
     };
-    let inner_g = vectorcraft_doc::Node::group(inner, vec![path(inside, 100.0)]);
-    let outer_g = vectorcraft_doc::Node::group(outer, vec![std::sync::Arc::new(inner_g), path(outside, 300.0)]);
+    let inner_g = pluma_doc::Node::group(inner, vec![path(inside, 100.0)]);
+    let outer_g = pluma_doc::Node::group(outer, vec![std::sync::Arc::new(inner_g), path(outside, 300.0)]);
     d.insert(Some(l), 0, outer_g).unwrap();
     (d, inside, outside, inner, outer)
 }
@@ -1056,14 +1048,13 @@ fn alt_clicks_on_a_path_selected_whole_add_its_groups() {
 /// and stop there: the sublayer is not added.
 #[test]
 fn group_clicks_in_a_sublayer_stop_below_the_sublayer() {
-    use vectorcraft_doc::{Appearance, Document, LayerColor, Node};
+    use pluma_doc::{Appearance, Document, LayerColor, Node};
     let mut d = Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (sub, g, a) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     d.insert(Some(l), 0, Node::layer(sub, "Sub", LayerColor::Preset(1))).unwrap();
     d.insert(Some(sub), 0, Node::group(g, vec![])).unwrap();
-    d.insert(Some(g), 0, Node::path(a, vectorcraft_geom::shapes::rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Appearance::default_art()))
-        .unwrap();
+    d.insert(Some(g), 0, Node::path(a, pluma_geom::shapes::rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Appearance::default_art())).unwrap();
     let p = paint();
     let alt = Mods { alt: true, ..Default::default() };
     let click = |s: &Selection, group: bool, mods: Mods| {
@@ -1087,15 +1078,14 @@ fn group_clicks_in_a_sublayer_stop_below_the_sublayer() {
 /// nor the group above it.
 #[test]
 fn group_clicks_stop_at_a_sublayer_inside_a_group() {
-    use vectorcraft_doc::{Appearance, Document, LayerColor, Node};
+    use pluma_doc::{Appearance, Document, LayerColor, Node};
     let mut d = Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (outer, sub, g, a) = (d.alloc_id(), d.alloc_id(), d.alloc_id(), d.alloc_id());
     d.insert(Some(l), 0, Node::group(outer, vec![])).unwrap();
     d.insert(Some(outer), 0, Node::layer(sub, "Sub", LayerColor::Preset(1))).unwrap();
     d.insert(Some(sub), 0, Node::group(g, vec![])).unwrap();
-    d.insert(Some(g), 0, Node::path(a, vectorcraft_geom::shapes::rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Appearance::default_art()))
-        .unwrap();
+    d.insert(Some(g), 0, Node::path(a, pluma_geom::shapes::rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Appearance::default_art())).unwrap();
     let p = paint();
     let alt = Mods { alt: true, ..Default::default() };
     let click = |s: &Selection, group: bool, mods: Mods| {
@@ -1168,17 +1158,17 @@ fn marquee_selects_type_it_touches() {
 /// plain group, and not the Intertwine group whole.
 #[test]
 fn marquee_selects_the_anchors_of_intertwine_members() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (a, b, g) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     let path = |id, x| {
-        std::sync::Arc::new(vectorcraft_doc::Node::path(
+        std::sync::Arc::new(pluma_doc::Node::path(
             id,
-            vectorcraft_geom::shapes::rectangle(Rect::new(x, 100.0, x + 100.0, 200.0)),
-            vectorcraft_doc::Appearance::default_art(),
+            pluma_geom::shapes::rectangle(Rect::new(x, 100.0, x + 100.0, 200.0)),
+            pluma_doc::Appearance::default_art(),
         ))
     };
-    let intertwine = vectorcraft_doc::Node::new(g, vectorcraft_doc::NodeKind::Intertwine { children: vec![path(a, 100.0), path(b, 300.0)] });
+    let intertwine = pluma_doc::Node::new(g, pluma_doc::NodeKind::Intertwine { children: vec![path(a, 100.0), path(b, 300.0)] });
     d.insert(Some(l), 0, intertwine).unwrap();
     let s = Selection::default();
     let p = paint();
@@ -1238,7 +1228,7 @@ fn an_alt_marquee_selects_the_paths_it_touches_whole() {
 fn the_centre_point_selects_and_moves_the_object_whole() {
     let (mut d, id) = doc_with_rect();
     let n = d.node_mut(id).unwrap();
-    n.appearance.items.retain(|i| !matches!(i, vectorcraft_doc::AppearanceItem::Fill(_)));
+    n.appearance.items.retain(|i| !matches!(i, pluma_doc::AppearanceItem::Fill(_)));
     n.edit_attrs(|a| a.show_center = Some(true));
     let p = paint();
     // One anchor selected: the square shows its centre, (150, 150).
@@ -1253,7 +1243,7 @@ fn the_centre_point_selects_and_moves_the_object_whole() {
     let c = ToolContext { smart_guides: false, ..cx(&d, &whole, &p) };
     assert!(t.pointer(&c, &PointerEvent::new(PointerKind::Down, 150.0, 150.0)).is_empty());
     let a = t.pointer(&c, &PointerEvent::new(PointerKind::Drag, 170.0, 140.0));
-    let moved = json!({"matrix": matrix_json(vectorcraft_geom::Affine::translate(Vec2::new(20.0, -10.0))), "copy": false});
+    let moved = json!({"matrix": matrix_json(pluma_geom::Affine::translate(Vec2::new(20.0, -10.0))), "copy": false});
     assert_eq!(a, vec![Action::Begin("Move".into()), Action::Preview("object.transform".into(), moved)]);
     assert_eq!(t.pointer(&c, &PointerEvent::new(PointerKind::Up, 170.0, 140.0)), vec![Action::Commit]);
     // Unselected, the centre isn't shown and a press there starts a marquee.
@@ -1269,10 +1259,10 @@ fn the_centre_point_selects_and_moves_the_object_whole() {
 /// it whole, a group's member without its group. Direct Selection does not take E.
 #[test]
 fn e_during_a_group_selection_marquee_selects_the_objects_inside() {
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, id) = doc_with_rect();
     let l = d.layers[0].id;
-    let rect = |id, r| Node::path(id, vectorcraft_geom::shapes::rectangle(r), Appearance::default_art());
+    let rect = |id, r| Node::path(id, pluma_geom::shapes::rectangle(r), Appearance::default_art());
     let (g, a, b) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     d.insert(Some(l), 1, Node::group(g, vec![])).unwrap();
     d.insert(Some(g), 0, rect(a, Rect::new(100.0, 220.0, 120.0, 240.0))).unwrap();
@@ -1303,14 +1293,14 @@ fn e_during_a_group_selection_marquee_selects_the_objects_inside() {
 }
 
 /// An open path from (100, 300) to (200, 300) arching up through (150, 262.5).
-fn arch_doc() -> (vectorcraft_doc::Document, NodeId) {
+fn arch_doc() -> (pluma_doc::Document, NodeId) {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
     sp.anchors[0].h_out = Point::new(100.0, 250.0);
     sp.anchors[1].h_in = Point::new(200.0, 250.0);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, PathData::single(sp), vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, PathData::single(sp), pluma_doc::Appearance::default_art())).unwrap();
     (d, id)
 }
 
@@ -1453,9 +1443,9 @@ fn a_short_handle_leaves_its_anchor_to_be_picked() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
     sp.anchors[0].h_out = Point::new(102.0, 300.0);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, PathData::single(sp), vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, PathData::single(sp), pluma_doc::Appearance::default_art())).unwrap();
     let s = anchors_of(id, &[(0, 0)]);
     let p = paint();
     let c = cx(&d, &s, &p);
@@ -1543,12 +1533,12 @@ fn drags_show_the_filled_arrow_hollow_on_a_snap_and_alt_the_copy_cursor() {
 }
 
 /// [`doc_with_rect`] (A, 100..200) and a second square B, 300..400: (A, B).
-fn two_squares() -> (vectorcraft_doc::Document, NodeId, NodeId) {
+fn two_squares() -> (pluma_doc::Document, NodeId, NodeId) {
     let (mut d, a) = doc_with_rect();
     let l = d.layers[0].id;
     let b = d.alloc_id();
-    let sq = vectorcraft_geom::shapes::rectangle(Rect::new(300.0, 300.0, 400.0, 400.0));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(b, sq, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let sq = pluma_geom::shapes::rectangle(Rect::new(300.0, 300.0, 400.0, 400.0));
+    d.insert(Some(l), 1, pluma_doc::Node::path(b, sq, pluma_doc::Appearance::default_art())).unwrap();
     (d, a, b)
 }
 
@@ -1560,8 +1550,8 @@ fn a_selected_path_s_anchor_is_picked_before_one_above_it() {
     let (mut d, a) = doc_with_rect();
     let top = d.add_layer(None);
     let b = d.alloc_id();
-    let sq = vectorcraft_geom::shapes::rectangle(Rect::new(101.0, 100.0, 201.0, 200.0));
-    d.insert(Some(top), 0, vectorcraft_doc::Node::path(b, sq, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let sq = pluma_geom::shapes::rectangle(Rect::new(101.0, 100.0, 201.0, 200.0));
+    d.insert(Some(top), 0, pluma_doc::Node::path(b, sq, pluma_doc::Appearance::default_art())).unwrap();
     let p = paint();
     let pick = |id: NodeId| vec![Action::Exec("select.anchors".into(), json!({"id": id.0, "anchors": [[0, 0]], "mode": "set"}))];
     let s = anchors_of(a, &[(0, 2)]);
@@ -1615,8 +1605,7 @@ fn alt_dragged_copies_snap_by_the_anchor_pressed() {
     whole.set([b]);
     let c = cx(&d, &whole, &p);
     let mut t = DirectSelectionTool::new(false);
-    let copy =
-        |dx: f64, dy: f64| json!({"matrix": matrix_json(vectorcraft_geom::Affine::translate(vectorcraft_geom::Vec2::new(dx, dy))), "copy": true});
+    let copy = |dx: f64, dy: f64| json!({"matrix": matrix_json(pluma_geom::Affine::translate(pluma_geom::Vec2::new(dx, dy))), "copy": true});
     // B's top-left corner, pressed 1 pt off, onto A's bottom-right one.
     let (v, labels) = drag(&mut t, &c, (301.0, 301.0), (203.0, 199.0), alt);
     assert_eq!((v, labels), (copy(-100.0, -100.0), vec!["anchor".to_string()]));
@@ -1644,7 +1633,7 @@ fn alt_during_a_drag_by_an_anchor_toggles_the_copy() {
     let preview = |dx: f64, dy: f64, copy: bool| {
         Action::Preview(
             "object.transform".into(),
-            json!({"matrix": matrix_json(vectorcraft_geom::Affine::translate(vectorcraft_geom::Vec2::new(dx, dy))), "copy": copy}),
+            json!({"matrix": matrix_json(pluma_geom::Affine::translate(pluma_geom::Vec2::new(dx, dy))), "copy": copy}),
         )
     };
     assert!(t.pointer(&c, &PointerEvent::new(PointerKind::Down, 300.0, 300.0)).is_empty());
@@ -1652,9 +1641,9 @@ fn alt_during_a_drag_by_an_anchor_toggles_the_copy() {
     // The tool sees the document as previewed: B moved along, not where the copy leaves it.
     let (mut moved, _, b2) = two_squares();
     let l = moved.layers[0].id;
-    let sq = vectorcraft_geom::shapes::rectangle(Rect::new(250.0, 250.0, 350.0, 350.0));
+    let sq = pluma_geom::shapes::rectangle(Rect::new(250.0, 250.0, 350.0, 350.0));
     moved.remove(b2).unwrap();
-    moved.insert(Some(l), 1, vectorcraft_doc::Node::path(b, sq, vectorcraft_doc::Appearance::default_art())).unwrap();
+    moved.insert(Some(l), 1, pluma_doc::Node::path(b, sq, pluma_doc::Appearance::default_art())).unwrap();
     let c = cx(&moved, &whole, &p);
     // Alt down mid-drag: a copy, whose pressed corner can land on the original's top-right one.
     assert_eq!(t.pointer(&c, &PointerEvent::new(PointerKind::Drag, 402.0, 301.0).with_mods(alt)), vec![preview(100.0, 0.0, true)]);
@@ -1804,8 +1793,8 @@ fn dragged_end_of_a_slanted_line_stays_on_its_direction() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::shapes::line(Point::new(300.0, 400.0), Point::new(380.0, 340.0));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let line = pluma_geom::shapes::line(Point::new(300.0, 400.0), Point::new(380.0, 340.0));
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let p = paint();
     let end = anchors_of(id, &[(0, 1)]);
     let c = cx(&d, &end, &p);
@@ -1827,7 +1816,7 @@ fn dragged_end_of_a_slanted_line_stays_on_its_direction() {
 /// a Shift drag and an end out of reach do not, nor does Group Selection, which moves the path whole.
 #[test]
 fn dragged_line_ends_snap_perpendicular_to_segments_and_tangent_to_curves() {
-    use vectorcraft_geom::{BezPath, PathData, SubPath, shapes};
+    use pluma_geom::{BezPath, PathData, SubPath, shapes};
     let near = |v: &serde_json::Value, (x, y): (f64, f64), eps: f64| (v["dx"].as_f64().unwrap() - x).hypot(v["dy"].as_f64().unwrap() - y) < eps;
     // The rect's right side (x = 200) and a circle (centre (500, 500), radius 50), with one more
     // path: its id, and the document.
@@ -1835,10 +1824,9 @@ fn dragged_line_ends_snap_perpendicular_to_segments_and_tangent_to_curves() {
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let (circle, id) = (d.alloc_id(), d.alloc_id());
-        let ring =
-            vectorcraft_doc::Node::path(circle, shapes::ellipse(Rect::new(450.0, 450.0, 550.0, 550.0)), vectorcraft_doc::Appearance::default_art());
+        let ring = pluma_doc::Node::path(circle, shapes::ellipse(Rect::new(450.0, 450.0, 550.0, 550.0)), pluma_doc::Appearance::default_art());
         d.insert(Some(l), 1, ring).unwrap();
-        d.insert(Some(l), 2, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+        d.insert(Some(l), 2, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
         (d, id)
     };
     let p = paint();
@@ -1938,11 +1926,11 @@ fn moved_objects_snap_with_smart_guides() {
 /// does not snap.
 #[test]
 fn a_move_of_objects_lands_an_edge_on_the_grid() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let sq = vectorcraft_geom::shapes::rectangle(Rect::new(90.0, 90.0, 135.0, 135.0));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(id, sq, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let sq = pluma_geom::shapes::rectangle(Rect::new(90.0, 90.0, 135.0, 135.0));
+    d.insert(Some(l), 0, pluma_doc::Node::path(id, sq, pluma_doc::Appearance::default_art())).unwrap();
     let p = paint();
     let mut s = Selection::default();
     s.set([id]);
@@ -2028,10 +2016,8 @@ fn double_clicking_type_switches_to_type_tool() {
     // Text inside a group also switches to Type tool with Direct Selection.
     let gid = d.alloc_id();
     let text_id = d.alloc_id();
-    let text_node = Node::new(
-        text_id,
-        vectorcraft_doc::NodeKind::Text(Box::new(vectorcraft_doc::TextObject::point(Point::new(50.0, 50.0), "In group", Default::default()))),
-    );
+    let text_node =
+        Node::new(text_id, pluma_doc::NodeKind::Text(Box::new(pluma_doc::TextObject::point(Point::new(50.0, 50.0), "In group", Default::default()))));
     d.insert(Some(d.layers[0].id), 2, Node::group(gid, vec![Arc::new(text_node)])).unwrap();
     let in_group_b = d.node(gid).unwrap().geometric_bounds().unwrap();
     let c2 = cx(&d, &s, &p);
@@ -2041,20 +2027,16 @@ fn double_clicking_type_switches_to_type_tool() {
 
 #[test]
 fn direct_selection_click_and_drag_member_of_compound_path() {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let (outer, hole, compound) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-    let rect = |id, a: f64, b: f64| {
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()))
-    };
-    let mut c = vectorcraft_doc::Node::new(
+    let rect =
+        |id, a: f64, b: f64| std::sync::Arc::new(pluma_doc::Node::path(id, pluma_geom::shapes::rectangle(Rect::new(a, a, b, b)), Default::default()));
+    let mut c = pluma_doc::Node::new(
         compound,
-        vectorcraft_doc::NodeKind::Compound {
-            children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)],
-            rule: vectorcraft_geom::FillRule::EvenOdd,
-        },
+        pluma_doc::NodeKind::Compound { children: vec![rect(outer, 0.0, 200.0), rect(hole, 50.0, 150.0)], rule: pluma_geom::FillRule::EvenOdd },
     );
-    c.appearance = vectorcraft_doc::Appearance::default_art().into();
+    c.appearance = pluma_doc::Appearance::default_art().into();
     d.insert(Some(l), 0, c).unwrap();
     let p = paint();
     let none = Selection::default();
@@ -2113,7 +2095,7 @@ fn shift_clicking_segment_toggles_segment() {
 /// behind has an anchor directly under the click).
 #[test]
 fn clicking_fill_of_open_path_in_front_never_selects_path_behind() {
-    use vectorcraft_geom::{Anchor, SubPath};
+    use pluma_geom::{Anchor, SubPath};
     let (mut d, _behind) = doc_with_rect();
     // `behind` has an anchor at (100.0, 100.0).
     // Create an open path in front (id `front`), with a fill, covering (100.0, 100.0).
@@ -2123,8 +2105,8 @@ fn clicking_fill_of_open_path_in_front_never_selects_path_behind() {
     // (100.0, 100.0) is inside this filled triangle, but `front` has NO anchor at (100.0, 100.0).
     let anchors = vec![Anchor::corner(Point::new(50.0, 50.0)), Anchor::corner(Point::new(150.0, 50.0)), Anchor::corner(Point::new(150.0, 150.0))];
     let open_path = PathData::single(SubPath::new(anchors, false));
-    let ap = vectorcraft_doc::Appearance::default_art(); // has solid white fill
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(front, open_path, ap)).unwrap();
+    let ap = pluma_doc::Appearance::default_art(); // has solid white fill
+    d.insert(Some(l), 1, pluma_doc::Node::path(front, open_path, ap)).unwrap();
 
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
@@ -2142,13 +2124,13 @@ fn clicking_fill_of_open_path_in_front_never_selects_path_behind() {
 /// can be hit and dragged without being occluded by the background fill.
 #[test]
 fn selected_path_handle_over_background_rect_is_draggable() {
-    use vectorcraft_geom::{Anchor, SubPath};
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    use pluma_geom::{Anchor, SubPath};
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     // Background rectangle covering 0..300 with default white fill
     let bg = d.alloc_id();
-    let bg_rect = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 300.0, 300.0));
-    d.insert(Some(l), 0, vectorcraft_doc::Node::path(bg, bg_rect, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let bg_rect = pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 300.0, 300.0));
+    d.insert(Some(l), 0, pluma_doc::Node::path(bg, bg_rect, pluma_doc::Appearance::default_art())).unwrap();
 
     // Selected path with a Bézier curve whose out-handle is at (150, 150)
     let fg = d.alloc_id();
@@ -2156,7 +2138,7 @@ fn selected_path_handle_over_background_rect_is_draggable() {
     a0.h_out = Point::new(150.0, 150.0); // handle over the background rect
     let a1 = Anchor::corner(Point::new(200.0, 150.0));
     let curve = PathData::single(SubPath::new(vec![a0, a1], false));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(fg, curve, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(fg, curve, pluma_doc::Appearance::default_art())).unwrap();
 
     let mut s = Selection::default();
     s.set([fg]);
@@ -2178,19 +2160,18 @@ fn selected_path_handle_over_background_rect_is_draggable() {
 /// Selection pick the instance whole, as before.
 #[test]
 fn a_click_on_a_dynamic_instance_picks_the_object_under_the_pointer() {
+    use pluma_doc::{Appearance, Node, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, Symbol};
-    let square = |id, x: f64| {
-        Arc::new(Node::path(NodeId(id), vectorcraft_geom::shapes::rectangle(Rect::new(x, 0.0, x + 10.0, 10.0)), Appearance::default_art()))
-    };
+    let square =
+        |id, x: f64| Arc::new(Node::path(NodeId(id), pluma_geom::shapes::rectangle(Rect::new(x, 0.0, x + 10.0, 10.0)), Appearance::default_art()));
     let art = Node::group(NodeId(0), vec![square(0, 0.0), square(0, 20.0)]);
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     d.symbols.push(Symbol { dynamic: true, name: "Pair".into(), art: Arc::new(art) });
     let (l, id) = (d.layers[0].id, d.alloc_id());
-    let xf = vectorcraft_geom::Affine::translate((300.0, 300.0)) * vectorcraft_geom::Affine::scale(2.0);
+    let xf = pluma_geom::Affine::translate((300.0, 300.0)) * pluma_geom::Affine::scale(2.0);
     d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "Pair".into(), xf })).unwrap();
     let (none, p) = (Selection::default(), paint());
-    let down = |d: &vectorcraft_doc::Document, sel: &Selection, group: bool, x: f64, y: f64, m: Mods| {
+    let down = |d: &pluma_doc::Document, sel: &Selection, group: bool, x: f64, y: f64, m: Mods| {
         DirectSelectionTool::new(group).pointer(&cx(d, sel, &p), &PointerEvent::new(PointerKind::Down, x, y).with_mods(m))
     };
     let part = |path: Value| vec![Action::Exec("symbol.instance.selectPart".into(), json!({"id": id.0, "path": path}))];
@@ -2208,7 +2189,7 @@ fn a_click_on_a_dynamic_instance_picks_the_object_under_the_pointer() {
     assert_eq!(down(&d, &sel, false, 350.0, 310.0, Mods::default()), vec![]);
     let outline = DirectSelectionTool::new(false).overlays(&cx(&d, &sel, &p));
     let drawn =
-        outline.iter().find_map(|o| if let Overlay::Path { path, .. } = o { Some(vectorcraft_geom::kurbo::Shape::bounding_box(path)) } else { None });
+        outline.iter().find_map(|o| if let Overlay::Path { path, .. } = o { Some(pluma_geom::kurbo::Shape::bounding_box(path)) } else { None });
     assert_eq!(drawn, Some(Rect::new(340.0, 300.0, 360.0, 320.0)));
     // With the part selected, an Alt-click on the instance, or a press on its center point, picks
     // the instance whole again.
@@ -2225,28 +2206,28 @@ fn a_click_on_a_dynamic_instance_picks_the_object_under_the_pointer() {
 /// instance whole.
 #[test]
 fn a_press_on_a_dynamic_instance_passes_over_locked_objects() {
+    use pluma_doc::{Appearance, Node, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, Symbol};
     let square = |x: f64, locked: bool| {
-        let mut n = Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(Rect::new(x, 0.0, x + 10.0, 10.0)), Appearance::default_art());
+        let mut n = Node::path(NodeId(0), pluma_geom::shapes::rectangle(Rect::new(x, 0.0, x + 10.0, 10.0)), Appearance::default_art());
         n.locked = locked;
         Arc::new(n)
     };
     // The unlocked square at 0..10 has a locked square over it; the square at 20..30 is locked.
     let art = Node::group(NodeId(0), vec![square(0.0, false), square(0.0, true), square(20.0, true)]);
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     d.symbols.push(Symbol { dynamic: true, name: "Locked".into(), art: Arc::new(art) });
     let (l, id) = (d.layers[0].id, d.alloc_id());
-    let xf = vectorcraft_geom::Affine::translate((300.0, 300.0));
+    let xf = pluma_geom::Affine::translate((300.0, 300.0));
     d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "Locked".into(), xf })).unwrap();
     let (none, p) = (Selection::default(), paint());
     let down = |x: f64, y: f64| DirectSelectionTool::new(false).pointer(&cx(&d, &none, &p), &PointerEvent::new(PointerKind::Down, x, y));
     assert_eq!(down(305.0, 305.0), vec![Action::Exec("symbol.instance.selectPart".into(), json!({"id": id.0, "path": [0]}))]);
     assert_eq!(down(325.0, 305.0), vec![Action::Exec("select.set".into(), json!({"ids": [id.0]}))]);
     // A locked clipping path still clips, but a press on its outline picks the art it clips.
-    let mut clip = Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 20.0, 20.0)), Appearance::default_art());
+    let mut clip = Node::path(NodeId(0), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 20.0, 20.0)), Appearance::default_art());
     clip.locked = true;
-    let art = Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(Rect::new(-10.0, -10.0, 30.0, 30.0)), Appearance::default_art());
+    let art = Node::path(NodeId(0), pluma_geom::shapes::rectangle(Rect::new(-10.0, -10.0, 30.0, 30.0)), Appearance::default_art());
     let masked = Node::new(NodeId(0), NodeKind::Group { children: vec![Arc::new(clip), Arc::new(art)], clip: true });
     let mut d = d.clone();
     d.symbols[0].art = Arc::new(masked);
@@ -2259,24 +2240,24 @@ fn a_press_on_a_dynamic_instance_passes_over_locked_objects() {
 /// guide path. The same goes for a press on the edge of a guide used as a clipping path.
 #[test]
 fn a_press_on_a_dynamic_instance_passes_over_guides_while_they_cannot_be_picked() {
+    use pluma_doc::{Appearance, Node, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, Symbol};
     let square = |r: Rect, is_guide: bool| {
-        let mut n = Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(r), Appearance::default_art());
+        let mut n = Node::path(NodeId(0), pluma_geom::shapes::rectangle(r), Appearance::default_art());
         let NodeKind::Path { guide, .. } = &mut n.kind else { panic!("Node::path makes a path") };
         *guide = is_guide;
         Arc::new(n)
     };
     let small = Rect::new(0.0, 0.0, 10.0, 10.0);
     let art = Node::group(NodeId(0), vec![square(small, false), square(small, true)]);
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     d.symbols.push(Symbol { dynamic: true, name: "Guided".into(), art: Arc::new(art) });
     let (l, id) = (d.layers[0].id, d.alloc_id());
-    let xf = vectorcraft_geom::Affine::translate((300.0, 300.0));
+    let xf = pluma_geom::Affine::translate((300.0, 300.0));
     d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "Guided".into(), xf })).unwrap();
     let (none, p) = (Selection::default(), paint());
     let part = |path: Value| vec![Action::Exec("symbol.instance.selectPart".into(), json!({"id": id.0, "path": path}))];
-    let down = |d: &vectorcraft_doc::Document, guides: bool, x: f64, y: f64| {
+    let down = |d: &pluma_doc::Document, guides: bool, x: f64, y: f64| {
         let c = ToolContext { guides, ..cx(d, &none, &p) };
         DirectSelectionTool::new(false).pointer(&c, &PointerEvent::new(PointerKind::Down, x, y))
     };
@@ -2301,17 +2282,17 @@ fn a_press_on_a_dynamic_instance_passes_over_guides_while_they_cannot_be_picked(
 /// mask away from the edge the art is picked.
 #[test]
 fn a_press_on_a_clipping_path_in_a_dynamic_instance_picks_it() {
+    use pluma_doc::{Appearance, Node, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, Symbol};
-    let rect = |r: Rect| Arc::new(Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(r), Appearance::default_art()));
+    let rect = |r: Rect| Arc::new(Node::path(NodeId(0), pluma_geom::shapes::rectangle(r), Appearance::default_art()));
     let art = Node::new(
         NodeId(0),
         NodeKind::Group { children: vec![rect(Rect::new(0.0, 0.0, 20.0, 20.0)), rect(Rect::new(-10.0, -10.0, 30.0, 30.0))], clip: true },
     );
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     d.symbols.push(Symbol { dynamic: true, name: "Masked".into(), art: Arc::new(art) });
     let (l, id) = (d.layers[0].id, d.alloc_id());
-    let xf = vectorcraft_geom::Affine::translate((300.0, 300.0));
+    let xf = pluma_geom::Affine::translate((300.0, 300.0));
     d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "Masked".into(), xf })).unwrap();
     let (none, p) = (Selection::default(), paint());
     let down = |x: f64, y: f64| DirectSelectionTool::new(false).pointer(&cx(&d, &none, &p), &PointerEvent::new(PointerKind::Down, x, y));
@@ -2331,7 +2312,7 @@ fn a_press_on_a_clipping_path_in_a_dynamic_instance_picks_it() {
     sel.set_symbol_part(id, vec![1]);
     let outline = DirectSelectionTool::new(false).overlays(&cx(&d, &sel, &p));
     let drawn =
-        outline.iter().find_map(|o| if let Overlay::Path { path, .. } = o { Some(vectorcraft_geom::kurbo::Shape::bounding_box(path)) } else { None });
+        outline.iter().find_map(|o| if let Overlay::Path { path, .. } = o { Some(pluma_geom::kurbo::Shape::bounding_box(path)) } else { None });
     assert_eq!(drawn, Some(Rect::new(310.0, 310.0, 320.0, 320.0)));
 }
 
@@ -2341,8 +2322,8 @@ fn a_press_on_a_clipping_path_in_a_dynamic_instance_picks_it() {
 #[test]
 fn type_on_a_path_shows_and_drags_its_paths_handles() {
     let (mut d, text) = doc_with_path_type();
-    let Some(vectorcraft_doc::NodeKind::Text(t)) = d.node_mut(text).map(|n| &mut n.kind) else { panic!("type") };
-    let vectorcraft_doc::TextKind::OnPath { path, .. } = &mut t.kind else { panic!("on a path") };
+    let Some(pluma_doc::NodeKind::Text(t)) = d.node_mut(text).map(|n| &mut n.kind) else { panic!("type") };
+    let pluma_doc::TextKind::OnPath { path, .. } = &mut t.kind else { panic!("on a path") };
     path.subpaths[0].anchors[0].h_out = Point::new(100.0, 200.0);
     path.subpaths[0].anchors[1].h_in = Point::new(400.0, 200.0);
     let p = paint();

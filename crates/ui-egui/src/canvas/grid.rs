@@ -1,11 +1,9 @@
 use super::drag::mods;
-use super::{
-    Color32, Point, PointerEvent, PointerKind, Pos2, RULER, Rect, Sense, Shape, Stroke, Tokens, Ui, Unit, VectorcraftApp, Xf, json, pos2, vec2,
-};
+use super::{Color32, PlumaApp, Point, PointerEvent, PointerKind, Pos2, RULER, Rect, Sense, Shape, Stroke, Tokens, Ui, Unit, Xf, json, pos2, vec2};
 
 /// The transparency grid's 2 × 2-cell tile in the document's colours (Document Setup), cached per
 /// look, and its cell size in screen points.
-pub(crate) fn checker_texture(ctx: &egui::Context, setup: &vectorcraft_doc::DocSetup) -> (egui::TextureHandle, f32) {
+pub(crate) fn checker_texture(ctx: &egui::Context, setup: &pluma_doc::DocSetup) -> (egui::TextureHandle, f32) {
     let colors = setup.grid_colors.map(|c| crate::panels::c32(&c));
     let id = egui::Id::unique("transparency-grid-tile");
     let cached = ctx.data(|d| d.get_temp::<([Color32; 2], egui::TextureHandle)>(id)).filter(|(c, _)| *c == colors);
@@ -56,11 +54,11 @@ pub(super) struct LineLook {
 }
 
 impl LineLook {
-    pub(super) fn grid(prefs: &vectorcraft_engine::Prefs) -> Self {
+    pub(super) fn grid(prefs: &pluma_engine::Prefs) -> Self {
         Self { color: pref_color(&prefs.grid_color, Color32::from_gray(200)), dots: prefs.grid_style == "dots" }
     }
 
-    pub(super) fn guides(prefs: &vectorcraft_engine::Prefs, t: &Tokens) -> Self {
+    pub(super) fn guides(prefs: &pluma_engine::Prefs, t: &Tokens) -> Self {
         Self { color: pref_color(&prefs.guide_color, t.guide), dots: prefs.guide_style == "dots" }
     }
 
@@ -76,7 +74,7 @@ impl LineLook {
 
 /// A `#rrggbb` colour preference, `fallback` when it doesn't parse.
 pub(super) fn pref_color(hex: &str, fallback: Color32) -> Color32 {
-    vectorcraft_color::Color::from_hex(hex).map_or(fallback, |c| crate::panels::c32(&c))
+    pluma_color::Color::from_hex(hex).map_or(fallback, |c| crate::panels::c32(&c))
 }
 
 /// The view in document space: the box round the canvas's corners (the view may be rotated).
@@ -179,7 +177,7 @@ pub(super) fn ruler_rects(full: egui::Rect) -> [egui::Rect; 3] {
 /// `Session::ruler_guide`): a horizontal one from the top ruler, a vertical one from the left
 /// ruler, snapped as a moved guide is (with Shift to the ruler's ticks). Released anywhere else,
 /// it makes none. The corner drags the rulers' origin or resets it on a double-click.
-pub(super) fn ruler_input(app: &mut VectorcraftApp, ui: &Ui, full: egui::Rect, canvas: egui::Rect, xf: &Xf) -> Option<Point> {
+pub(super) fn ruler_input(app: &mut PlumaApp, ui: &Ui, full: egui::Rect, canvas: egui::Rect, xf: &Xf) -> Option<Point> {
     let [top, left, corner] = ruler_rects(full);
     // Right-click on a ruler or the origin box: the document units, to swap between them as
     // Preferences ▸ Units ▸ General does ([`crate::menus::ruler_menu_body`]).
@@ -288,21 +286,21 @@ impl RulerScale {
     /// pixel as many points wide as its Video Ruler Pixel Aspect Ratio and one point tall, so the
     /// rulers read the artboard's size in video pixels
     /// (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/set-video-display-options-for-artboards.html).
-    pub(crate) fn video(ab: &vectorcraft_doc::Artboard) -> Self {
+    pub(crate) fn video(ab: &pluma_doc::Artboard) -> Self {
         Self { unit: Unit::Pixels, origin: Point::new(ab.rect.x0, ab.rect.y0), stretch: [ab.video_ruler_pixel_aspect_ratio, 1.0] }
     }
 
     /// How far document point `p` lies from the origin along `axis` (a unit direction in the
     /// document), in points of this scale: each document coordinate divided by its stretch.
     /// Divided by the unit's points, it is the value the ruler reads there.
-    pub(crate) fn along(&self, p: Point, axis: vectorcraft_geom::Vec2) -> f64 {
+    pub(crate) fn along(&self, p: Point, axis: pluma_geom::Vec2) -> f64 {
         let d = p - self.origin;
         d.x / self.stretch[0] * axis.x + d.y / self.stretch[1] * axis.y
     }
 
     /// The screen points one point of this scale spans along `axis` at `zoom` (screen points per
     /// document point): `zoom` itself when nothing is stretched.
-    pub(crate) fn zoom_along(&self, zoom: f64, axis: vectorcraft_geom::Vec2) -> f64 {
+    pub(crate) fn zoom_along(&self, zoom: f64, axis: pluma_geom::Vec2) -> f64 {
         zoom / (axis.x * axis.x / self.stretch[0] + axis.y * axis.y / self.stretch[1])
     }
 }
@@ -322,7 +320,7 @@ pub(super) fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, s
     // Each ruler measures along its own edge, in the canvas's coordinates turned with the view
     // (#826): at 0° the top one reads x and the left one y. `draw` gets each tick's distance
     // (screen points) from `from` along the ruler, its length, and the label of a labelled one.
-    let ticks = |from: Pos2, to: Pos2, axis: vectorcraft_geom::Vec2, draw: &mut dyn FnMut(f32, f32, Option<String>)| {
+    let ticks = |from: Pos2, to: Pos2, axis: pluma_geom::Vec2, draw: &mut dyn FnMut(f32, f32, Option<String>)| {
         // Pick a label step (in the unit) that gives ≥ 50 px between labels on this ruler, at its
         // own scale; positions below are in the unit (`per` points of the scale each).
         let zoom = scale.zoom_along(xf.zoom, axis);
@@ -347,7 +345,7 @@ pub(super) fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, s
     // The canvas's directions along the screen's x and y.
     let (sn, cs) = xf.rot.sin_cos();
     let clip_top = p.with_clip_rect(top);
-    ticks(top.left_top(), top.right_top(), vectorcraft_geom::Vec2::new(cs, -sn), &mut |d, len, label| {
+    ticks(top.left_top(), top.right_top(), pluma_geom::Vec2::new(cs, -sn), &mut |d, len, label| {
         let sx = top.left() + d;
         clip_top.line_segment([pos2(sx, top.bottom() - len), pos2(sx, top.bottom())], Stroke::new(1.0, t.ruler_tick));
         if let Some(text) = label {
@@ -359,7 +357,7 @@ pub(super) fn rulers(ui: &Ui, full: egui::Rect, xf: &Xf, hover: Option<Point>, s
     // "-0.0625" is seven characters, 60 pt of ruler, where a sixteenth-inch step leaves 54 pt at
     // zoom 12. The ticks all stay; a label that would run into the one above it is left out.
     let mut filled_to = f32::NEG_INFINITY;
-    ticks(left.left_top(), left.left_bottom(), vectorcraft_geom::Vec2::new(sn, cs), &mut |d, len, label| {
+    ticks(left.left_top(), left.left_bottom(), pluma_geom::Vec2::new(sn, cs), &mut |d, len, label| {
         let sy = left.top() + d;
         clip_left.line_segment([pos2(left.right() - len, sy), pos2(left.right(), sy)], Stroke::new(1.0, t.ruler_tick));
         if let Some(text) = label {

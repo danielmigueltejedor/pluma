@@ -1,4 +1,4 @@
-use vectorcraft_color::BlendMode;
+use pluma_color::BlendMode;
 
 use super::axis::radar_axis;
 use super::labels::{Role, filled_lines_on, label_style};
@@ -86,7 +86,7 @@ fn series_members(doc: &Document) -> HashMap<NodeId, SeriesRef> {
     let mut out = HashMap::new();
     doc.walk(|n| {
         let Some(spec) = n.extras().graph.as_deref() else { return };
-        let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, vectorcraft_doc::MAX_GRAPH_SERIES);
+        let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, pluma_doc::MAX_GRAPH_SERIES);
         for group in n.children().into_iter().flatten() {
             let Some(index) = group.extras().series_index.and_then(|i| usize::try_from(i).ok()).filter(|i| *i < count) else { continue };
             let r = SeriesRef { graph: n.id, group: group.id, index };
@@ -151,7 +151,7 @@ pub(crate) fn capture_series_paints(doc: &mut Document, ids: &[NodeId], fill: bo
 /// With no such row: no paint.
 pub(crate) fn shown_paint(node: &Node, fill: bool) -> (Paint, f64) {
     match node.appearance.items.iter().rev().find(|it| it.is_fill() == fill && it.visible()) {
-        Some(vectorcraft_doc::AppearanceItem::Stroke(st)) if !st.paint.is_none() => (st.paint.clone(), st.width),
+        Some(pluma_doc::AppearanceItem::Stroke(st)) if !st.paint.is_none() => (st.paint.clone(), st.width),
         Some(it) => (it.paint().clone(), 0.0),
         None => (Paint::None, 0.0),
     }
@@ -191,7 +191,7 @@ pub(crate) fn capture_series_top_paints(doc: &mut Document, edited: &[(NodeId, b
 /// in different places (its index counts pairs of columns), and a radar series two categories with a value plotted away
 /// from the center.
 fn series_draws_bands(g: &GraphSpec, i: usize) -> bool {
-    let series = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, vectorcraft_doc::MAX_GRAPH_SERIES);
+    let series = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, pluma_doc::MAX_GRAPH_SERIES);
     if !g.connect_points || !filled_lines_on(g, series) {
         return false;
     }
@@ -221,7 +221,7 @@ fn store_series_paints(doc: &mut Document, captures: Vec<(NodeId, usize, bool, P
         let was = spec.series_paints.clone();
         // `index` is below the graph's series count (`series_members`).
         if spec.series_paints.len() <= index {
-            spec.series_paints.resize(index + 1, vectorcraft_doc::SeriesPaint::default());
+            spec.series_paints.resize(index + 1, pluma_doc::SeriesPaint::default());
         }
         let Some(slot) = spec.series_paints.get_mut(index) else { continue };
         if fill {
@@ -254,8 +254,8 @@ pub(crate) fn capture_series_opacity(doc: &mut Document, edited: &[(NodeId, bool
             let r = members.get(id).filter(|r| doc.parent_of(*id) == Some(r.group))?;
             let node = doc.node(*id).filter(|n| matches!(n.kind, NodeKind::Path { .. }))?;
             let row = node.appearance.items.iter().rev().find(|it| it.is_fill() == *fill && it.visible());
-            let opacity = row.map_or(1.0, vectorcraft_doc::AppearanceItem::opacity);
-            let blend = row.map_or(BlendMode::Normal, vectorcraft_doc::AppearanceItem::blend);
+            let opacity = row.map_or(1.0, pluma_doc::AppearanceItem::opacity);
+            let blend = row.map_or(BlendMode::Normal, pluma_doc::AppearanceItem::blend);
             Some((r.graph, r.index, *fill, (opacity < 1.0).then_some(opacity), (blend != BlendMode::Normal).then_some(blend)))
         })
         .collect();
@@ -269,7 +269,7 @@ pub(crate) fn capture_series_opacity(doc: &mut Document, edited: &[(NodeId, bool
         let was = spec.series_paints.clone();
         // `index` is below the graph's series count (`series_members`).
         if spec.series_paints.len() <= index {
-            spec.series_paints.resize(index + 1, vectorcraft_doc::SeriesPaint::default());
+            spec.series_paints.resize(index + 1, pluma_doc::SeriesPaint::default());
         }
         let Some(slot) = spec.series_paints.get_mut(index) else { continue };
         if fill {
@@ -296,7 +296,7 @@ pub(crate) fn capture_series_object_opacity(doc: &mut Document, edited: &[NodeId
         let was = spec.series_paints.clone();
         // `index` is below the graph's series count (`series_members`).
         if spec.series_paints.len() <= index {
-            spec.series_paints.resize(index + 1, vectorcraft_doc::SeriesPaint::default());
+            spec.series_paints.resize(index + 1, pluma_doc::SeriesPaint::default());
         }
         let Some(slot) = spec.series_paints.get_mut(index) else { continue };
         (slot.opacity, slot.blend) = (opacity, blend);
@@ -461,7 +461,7 @@ pub(super) fn picked_series(s: &Session, p: &Value, id: NodeId, count: usize, cm
 }
 
 /// Select the series groups `indexes` of graph `id` (they are new nodes after a regeneration).
-pub(super) fn reselect_series(d: &Document, sel: &mut vectorcraft_doc::Selection, id: NodeId, indexes: &[u32]) {
+pub(super) fn reselect_series(d: &Document, sel: &mut pluma_doc::Selection, id: NodeId, indexes: &[u32]) {
     let groups: Vec<NodeId> = d
         .node(id)
         .and_then(Node::children)

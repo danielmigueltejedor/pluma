@@ -1,9 +1,9 @@
-//! VectorCraft renderer: document → premultiplied RGBA pixels.
+//! Pluma renderer: document → premultiplied RGBA pixels.
 //!
 //! The backend is `vello_cpu` (SIMD, sparse strips). Callers give a *view transform* mapping
 //! document points to output pixels; the renderer culls by bounds, evaluates appearance stacks
 //! (multiple fills/strokes, opacity, blend modes, stroke alignment, dashes), clip groups,
-//! gradients, images and text (via `vectorcraft-text` glyph outlines).
+//! gradients, images and text (via `pluma-text` glyph outlines).
 #![forbid(unsafe_code)]
 
 pub mod addons;
@@ -29,9 +29,9 @@ mod stroke;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vectorcraft_doc::text::TypeAntiAlias;
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, StrokeAlign, StrokeLayer, SymbolBoxes, TextObject, TraceView};
-use vectorcraft_geom::{Affine, BezPath, FillRule, Rect, Shape};
+use pluma_doc::text::TypeAntiAlias;
+use pluma_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, StrokeAlign, StrokeLayer, SymbolBoxes, TextObject, TraceView};
+use pluma_geom::{Affine, BezPath, FillRule, Rect, Shape};
 use vello_cpu::kurbo;
 use vello_cpu::peniko::{self, BlendMode, Compose, Mix};
 use vello_cpu::{Pixmap, RenderContext, Resources};
@@ -46,7 +46,7 @@ pub use effects::stroke::width_outline;
 pub use images::{IMAGE_CACHE_MAX, image_cache_bytes, installed_memory, newly_undecodable, set_image_cache_budget};
 pub use live::expand_live;
 pub use pattern::render_pattern_swatch;
-pub use vectorcraft_effects as effects;
+pub use pluma_effects as effects;
 pub use vello_cpu;
 
 /// Art made to measure an object ([`Renderer::measured`]): the object, its art, and the key of
@@ -65,7 +65,7 @@ pub struct Renderer {
     /// The latest cached glyph geometry for each text object id. A move changes the node's Arc
     /// but not its glyphs in text space, so the old geometry can still be used after comparison.
     text_ids: PtrMap<NodeId, usize>,
-    /// The [`vectorcraft_text::FontDb::generation`] `texts` was laid out with: type lays out
+    /// The [`pluma_text::FontDb::generation`] `texts` was laid out with: type lays out
     /// again when fonts are added or rescanned.
     text_fonts: u64,
     /// Clip regions per clipping path (see [`Self::clip_of`]).
@@ -214,7 +214,7 @@ pub struct Renderer {
     /// at the start of every frame.
     offscreen_live: u64,
     offscreen_budget: u64,
-    /// Objects the symbol instances drawn in this frame held, together ([`vectorcraft_doc::MAX_SYMBOL_NODES`]).
+    /// Objects the symbol instances drawn in this frame held, together ([`pluma_doc::MAX_SYMBOL_NODES`]).
     symbol_nodes: u64,
     /// Groups drawn twice (blending with their backdrop) that hold what is being drawn.
     twice_drawn: u32,
@@ -229,7 +229,7 @@ pub struct Renderer {
     moved_slices: PtrMap<frame::MovedSliceKey, frame::SliceKey>,
     /// What the image keys colour adjustments give their recoloured images name: the image
     /// recoloured and the adjustment, with its hash (see [`Self::adjusted_image`]).
-    adjusts: HashMap<String, (String, u64, vectorcraft_effects::ColorMap)>,
+    adjusts: HashMap<String, (String, u64, pluma_effects::ColorMap)>,
     /// Layer Options → Dim Images to, of the layer being drawn (screen views only): images show
     /// faded to this opacity over white.
     dim_images: Option<f32>,

@@ -97,7 +97,7 @@ fn to_srgb(v: f32) -> f32 {
 mod tests {
     use super::*;
     use crate::color_map;
-    use vectorcraft_doc::Effect;
+    use pluma_doc::Effect;
 
     fn map(id: &str, params: Value) -> crate::ColorMap {
         color_map(&[Effect { id: id.into(), params, visible: true }]).unwrap()

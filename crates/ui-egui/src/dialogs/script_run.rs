@@ -7,13 +7,13 @@
 //! General › Show External Script Warning off, the chosen script runs at once. Warning fields:
 //! `name`, `script` (`script.run`'s params) and `dontShow` (true: turn the warning off).
 
+use pluma_engine::cmd::scripts::{RUN_EXTS, TOO_LARGE, runs};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::scripts::{RUN_EXTS, TOO_LARGE, runs};
 
 use super::DialogSpec;
 use crate::state::Dialog;
 use crate::theme::{self, Tokens};
-use crate::{FilePick, VectorcraftApp, widgets};
+use crate::{FilePick, PlumaApp, widgets};
 
 /// The dialog kind of the warning before a script runs.
 pub const KIND: &str = "scriptRun";
@@ -60,12 +60,12 @@ pub(super) const CLOSE_SPEC: DialogSpec = DialogSpec {
 };
 
 /// A file the web's picker delivered: its name and bytes, or `None` for a file over
-/// [`vectorcraft_engine::script::MAX_SOURCE_BYTES`], which is not read.
+/// [`pluma_engine::script::MAX_SOURCE_BYTES`], which is not read.
 pub type ScriptInbox = std::sync::Arc<std::sync::Mutex<Vec<(String, Option<Vec<u8>>)>>>;
 
 /// Shows the warning for the next script the web's picker delivered, once no dialog is open. A
 /// picker that was canceled delivers nothing.
-pub(crate) fn drain(app: &mut VectorcraftApp) {
+pub(crate) fn drain(app: &mut PlumaApp) {
     if app.ui.dialog.is_some() {
         return;
     }
@@ -81,7 +81,7 @@ pub(crate) fn drain(app: &mut VectorcraftApp) {
 }
 
 /// `ui.runScript`: the script at `path` or given as `source`; without either, pick a file.
-pub(crate) fn command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn command(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if p.get("path").is_some() || p.get("source").is_some() {
         return chosen(app, p.clone());
     }
@@ -95,7 +95,7 @@ pub(crate) fn command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, Stri
 }
 
 /// A script was chosen: `params` are `script.run`'s. It runs after the warning, when that is on.
-pub(crate) fn chosen(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub(crate) fn chosen(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let path = params.get("path").and_then(Value::as_str);
     if path.is_some_and(|path| !runs(path)) {
         return Err("Choose a .js or .jsx script".into());
@@ -103,12 +103,12 @@ pub(crate) fn chosen(app: &mut VectorcraftApp, params: Value) -> Result<Value, S
     if !app.session.prefs.show_external_script_warning {
         return app.run("script.run", params);
     }
-    let name = params.get("name").and_then(Value::as_str).or(path).map_or_else(|| "script".to_string(), vectorcraft_engine::cmd::fileio::file_name);
+    let name = params.get("name").and_then(Value::as_str).or(path).map_or_else(|| "script".to_string(), pluma_engine::cmd::fileio::file_name);
     app.ui.dialog = Some(Dialog::new(KIND, json!({"name": name, "script": params, "dontShow": false})));
     Ok(Value::Null)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(d.fields.get("name").and_then(Value::as_str).unwrap_or_default()).font(theme::semibold(12.5)).color(t.text_strong));
     ui.add_space(4.0);
@@ -121,7 +121,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.fields.get("dontShow").and_then(Value::as_bool).unwrap_or(false) {
         app.run("prefs.set", json!({"key": "showExternalScriptWarning", "value": false}))?;
     }
@@ -130,13 +130,13 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     app.run("script.run", script)
 }
 
-fn growth_confirm(app: &mut VectorcraftApp, _: &Dialog) -> Result<Value, String> {
+fn growth_confirm(app: &mut PlumaApp, _: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     app.session.script_continue();
     Ok(Value::Null)
 }
 
-fn close_confirm(app: &mut VectorcraftApp, _: &Dialog) -> Result<Value, String> {
+fn close_confirm(app: &mut PlumaApp, _: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     if app.session.script_abandon() {
         let error = app.session.script_failure_text().unwrap_or_default();

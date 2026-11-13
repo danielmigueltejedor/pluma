@@ -19,10 +19,10 @@ pub struct PaintDefaults {
     /// The appearance new art takes (stroke options, more fills and strokes, effects), its top
     /// fill and stroke repainted with `fill`, `stroke` and `stroke_width`; `None`: one plain fill
     /// and stroke. Its placed gradients are relative to the unit box.
-    pub appearance: Option<vectorcraft_doc::Appearance>,
+    pub appearance: Option<pluma_doc::Appearance>,
     /// New art's opacity and blend mode.
     pub opacity: f32,
-    pub blend: vectorcraft_color::BlendMode,
+    pub blend: pluma_color::BlendMode,
     /// The graphic style the template came from (by name): new art is linked to it.
     pub style: Option<String>,
     /// The template is the last selection's appearance (New Art Has Basic Appearance off): with
@@ -34,8 +34,8 @@ impl Default for PaintDefaults {
     /// White fill, 1 pt black stroke, nothing else.
     fn default() -> Self {
         Self {
-            fill: Paint::solid(vectorcraft_color::Color::WHITE),
-            stroke: Paint::solid(vectorcraft_color::Color::BLACK),
+            fill: Paint::solid(pluma_color::Color::WHITE),
+            stroke: Paint::solid(pluma_color::Color::BLACK),
             stroke_width: 1.0,
             appearance: None,
             opacity: 1.0,
@@ -180,7 +180,7 @@ pub struct ToolContext<'a> {
     pub preview_bounds: bool,
     /// Type › Measure Type by Glyph Bounds: the bounding box measures each point type object
     /// selected as an object (not inside a selected group) by the ink of its glyphs
-    /// ([`vectorcraft_effects::preview::Measure`]).
+    /// ([`pluma_effects::preview::Measure`]).
     pub glyph_bounds: bool,
     /// The session's memo of the selection tools' measurements for the document as it is
     /// ([`select::PreviewMemo`]); without one they measure on every call.
@@ -194,7 +194,7 @@ pub struct ToolContext<'a> {
     pub paste_plain_text: bool,
     /// The text given to [`crate::Tool::text_input`] was typed on the keyboard (a key or an IME
     /// commit), not inserted from the Glyphs panel or a paste: a lone typed `”` may then take the
-    /// document's opening quote ([`vectorcraft_doc::Quotes::typed_as_straight`]).
+    /// document's opening quote ([`pluma_doc::Quotes::typed_as_straight`]).
     pub typed_from_keyboard: bool,
     /// View → Hide Slices: the Slice Selection tool can't pick hidden slices.
     pub slices_hidden: bool,
@@ -284,14 +284,14 @@ pub struct ToolContext<'a> {
     pub precise_cursors: bool,
     /// The objects of the Global Edit in progress (Select › Start Global Edit), the one it started
     /// from first, each with its transform; empty while Global Edit is off.
-    pub global_edit: &'a [(NodeId, vectorcraft_geom::Affine)],
+    pub global_edit: &'a [(NodeId, pluma_geom::Affine)],
 }
 
 impl ToolContext<'_> {
     /// How the bounding box measures the selection: [`Self::preview_bounds`] and
     /// [`Self::glyph_bounds`].
-    pub fn bounds_measure(&self) -> vectorcraft_effects::preview::Measure {
-        vectorcraft_effects::preview::Measure { preview: self.preview_bounds, glyphs: self.glyph_bounds }
+    pub fn bounds_measure(&self) -> pluma_effects::preview::Measure {
+        pluma_effects::preview::Measure { preview: self.preview_bounds, glyphs: self.glyph_bounds }
     }
     /// Tolerance in document units for `px` screen pixels.
     pub fn tol(&self, px: f64) -> f64 {
@@ -331,7 +331,7 @@ impl ToolContext<'_> {
             ToolKey::Down => Point::new(0.0, step),
             _ => return None,
         };
-        Some(vectorcraft_geom::constrain_axes(self.constrain_angle).map_or(d, |axes| axes * d).to_vec2())
+        Some(pluma_geom::constrain_axes(self.constrain_angle).map_or(d, |axes| axes * d).to_vec2())
     }
     /// A move label: `dX: …` over `dY: …`.
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
@@ -358,8 +358,8 @@ impl ToolContext<'_> {
         let half = (5.0 + f64::from(self.anchor_size.clamp(1, 7)) - 3.0) / 2.0;
         self.tol(self.selection_tolerance.max(half + 2.0))
     }
-    pub fn hit_options(&self) -> vectorcraft_doc::hit::HitOptions {
-        vectorcraft_doc::hit::HitOptions {
+    pub fn hit_options(&self) -> pluma_doc::hit::HitOptions {
+        pluma_doc::hit::HitOptions {
             tol: self.pick_tol(),
             outline: self.outline,
             path_only: self.path_only,
@@ -375,8 +375,8 @@ impl ToolContext<'_> {
     /// Only for what a press or a hover selects: a double-click, loaded text or a guide's release
     /// acts on what is drawn and takes [`Self::hit_options`].
     ///
-    /// [`HitOptions::clip_outlines`]: vectorcraft_doc::hit::HitOptions::clip_outlines
-    pub fn selection_hit_options(&self) -> vectorcraft_doc::hit::HitOptions {
-        vectorcraft_doc::hit::HitOptions { clip_outlines: true, ..self.hit_options() }
+    /// [`HitOptions::clip_outlines`]: pluma_doc::hit::HitOptions::clip_outlines
+    pub fn selection_hit_options(&self) -> pluma_doc::hit::HitOptions {
+        pluma_doc::hit::HitOptions { clip_outlines: true, ..self.hit_options() }
     }
 }

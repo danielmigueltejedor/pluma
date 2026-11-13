@@ -3,11 +3,11 @@
 //! rectangles and ellipses whose dashes would start elsewhere, stays `<path>`; the picture and the
 //! reimported geometry don't change.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, FillLayer, Node, StrokeLayer};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, SubPath, shapes};
-use vectorcraft_svg::{ExportOptions, export, import};
-use vectorcraft_testkit::raster::{Image, assert_similar, render_artboard};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, FillLayer, Node, StrokeLayer};
+use pluma_geom::{Affine, PathData, Point, Rect, SubPath, shapes};
+use pluma_svg::{ExportOptions, export, import};
+use pluma_testkit::raster::{Image, assert_similar, render_artboard};
 
 fn painted(dash: bool) -> Appearance {
     let mut st = StrokeLayer::new(Paint::solid(Color::rgb(0.1, 0.2, 0.6)), 3.0);
@@ -195,8 +195,8 @@ fn circles_import_without_changing_ids_or_style_matches() {
     // The file's own ids stay unique: the `<use>` shows the rectangle, not the circle.
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200">
         <circle cx="30" cy="30" r="20" fill="#0000ff"/>
-        <defs><rect id="vectorcraft-id-0" width="40" height="40" fill="#ff0000"/></defs>
-        <use xlink:href="#vectorcraft-id-0" x="120" y="120"/></svg>"##;
+        <defs><rect id="pluma-id-0" width="40" height="40" fill="#ff0000"/></defs>
+        <use xlink:href="#pluma-id-0" x="120" y="120"/></svg>"##;
     let img = render_artboard(&import(svg).unwrap());
     assert_eq!(img.over_white(30, 30), [0, 0, 255]);
     assert_eq!(img.over_white(140, 140), [255, 0, 0]);
@@ -214,7 +214,7 @@ fn circles_import_without_changing_ids_or_style_matches() {
 fn circles_import_without_an_id_the_file_names() {
     // A style sheet's rule for an id no element has does not reach the circle.
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
-        <style>#vectorcraft-id-0 { fill: #ff0000 }</style>
+        <style>#pluma-id-0 { fill: #ff0000 }</style>
         <circle cx="30" cy="30" r="20" fill="#000000"/></svg>"##;
     let img = render_artboard(&import(svg).unwrap());
     assert_eq!(img.over_white(30, 30), [0, 0, 0]);
@@ -224,7 +224,7 @@ fn circles_import_without_an_id_the_file_names() {
 fn circles_import_without_an_id_a_use_names() {
     // A `<use>` of an id no element has does not show the circle, nor does one that writes the
     // id with a character reference.
-    for href in ["#vectorcraft-id-0", "#vectorcraft-id-&#48;"] {
+    for href in ["#pluma-id-0", "#pluma-id-&#48;"] {
         let svg = format!(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200">
             <circle cx="30" cy="30" r="20" fill="#000000"/>

@@ -1,10 +1,10 @@
 //! View → New View… / Edit Views…: saved views stored in the document; per-document view
 //! toggles (Show Transparency Grid); the Character panel's Snap to Glyph options.
 
+use pluma_apischema::{Bound, Param, ParamSchema, Type, Writes};
+use pluma_doc::SavedView;
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_apischema::{Bound, Param, ParamSchema, Type, Writes};
-use vectorcraft_doc::SavedView;
-use vectorcraft_geom::Point;
 
 use super::{CommandSpec, Result, Session, always, bad, bool_or, cmd, f64_req, finite_numbers, has_doc, str_param, switch_or};
 
@@ -279,8 +279,8 @@ mod tests {
         s.execute("view.saved.edit", &json!({"name": "Logo", "delete": true})).unwrap();
         assert_eq!(s.doc().unwrap().doc.views.len(), 1);
         // Views travel with the file.
-        let bytes = vectorcraft_format::save_file(&s.doc().unwrap().doc);
-        assert_eq!(vectorcraft_format::load(&bytes).unwrap().views[0].name, "Overview");
+        let bytes = pluma_format::save_file(&s.doc().unwrap().doc);
+        assert_eq!(pluma_format::load(&bytes).unwrap().views[0].name, "Overview");
     }
 
     fn names(s: &mut Session) -> Vec<String> {
@@ -305,7 +305,7 @@ mod tests {
         s.execute("view.saved.new", &json!({"name": "Overview", "center": [306, 396], "zoom": 0.5})).unwrap();
         s.execute("view.saved.new", &json!({"name": "Logo detail", "center": [40.25, -12.5], "zoom": 8, "rotation": -30})).unwrap();
         let saved = s.doc().unwrap().doc.views.clone();
-        let back = vectorcraft_format::load(&vectorcraft_format::save_file(&s.doc().unwrap().doc)).unwrap();
+        let back = pluma_format::load(&pluma_format::save_file(&s.doc().unwrap().doc)).unwrap();
         assert_eq!(back.views, saved);
         assert_eq!((back.views[1].center.x, back.views[1].center.y, back.views[1].zoom, back.views[1].rotation), (40.25, -12.5, 8.0, -30.0));
     }

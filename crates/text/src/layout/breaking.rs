@@ -168,8 +168,8 @@ impl Pen<'_> {
 /// Advance of a tab at pen position `x`: up to the next stop after it (explicit stops first, then
 /// every ½ inch), and the leader of that stop (default stops have none). Right, centre and decimal
 /// stops align the text that follows (`rest`, up to the next tab) on the stop.
-pub(super) fn tab_advance<'t>(tabs: &'t [vectorcraft_doc::TabStop], origin: f64, x: f64, rest: &[SGlyph]) -> (f64, &'t str) {
-    use vectorcraft_doc::TabAlign;
+pub(super) fn tab_advance<'t>(tabs: &'t [pluma_doc::TabStop], origin: f64, x: f64, rest: &[SGlyph]) -> (f64, &'t str) {
+    use pluma_doc::TabAlign;
     let rel = x - origin;
     let seg: Vec<&SGlyph> = rest.iter().take_while(|g| g.ch != '\t' && g.ch != '\u{2028}').collect();
     let width: f64 = seg.iter().map(|g| g.adv).sum();
@@ -186,7 +186,7 @@ pub(super) fn tab_advance<'t>(tabs: &'t [vectorcraft_doc::TabStop], origin: f64,
     let (at, leader) = explicit.unwrap_or_else(|| {
         let last = tabs.iter().map(|t| t.position).fold(0.0, f64::max).max(0.0);
         let base = rel.max(last);
-        (((base / vectorcraft_doc::text::DEFAULT_TAB_INTERVAL).floor() + 1.0) * vectorcraft_doc::text::DEFAULT_TAB_INTERVAL, "")
+        (((base / pluma_doc::text::DEFAULT_TAB_INTERVAL).floor() + 1.0) * pluma_doc::text::DEFAULT_TAB_INTERVAL, "")
     });
     ((at - rel).max(0.0), leader)
 }
@@ -194,7 +194,7 @@ pub(super) fn tab_advance<'t>(tabs: &'t [vectorcraft_doc::TabStop], origin: f64,
 /// The width of glyphs `from..to` of `sg` set on a line whose content starts `x_start` from the
 /// tab origin: tabs of the text take what [`tab_advance`] gives them, not the width of their
 /// glyph. The tab of a list marker (length 0) keeps its own width.
-pub(super) fn set_width(sg: &[SGlyph], from: usize, to: usize, tabs: &[vectorcraft_doc::TabStop], x_start: f64) -> f64 {
+pub(super) fn set_width(sg: &[SGlyph], from: usize, to: usize, tabs: &[pluma_doc::TabStop], x_start: f64) -> f64 {
     let mut x = x_start;
     for (j, g) in sg.iter().enumerate().take(to).skip(from) {
         x += if g.ch == '\t' && g.len > 0 { tab_advance(tabs, 0.0, x, sg.get(j + 1..to).unwrap_or_default()).0 } else { g.adv };
@@ -280,7 +280,7 @@ pub(super) fn break_line(
     g: &[SGlyph],
     i: usize,
     width: f64,
-    tabs: &[vectorcraft_doc::TabStop],
+    tabs: &[pluma_doc::TabStop],
     x_start: f64,
     hyphenate: Option<(&HyphenationOptions, f64)>,
     burasagari: Burasagari,
@@ -412,7 +412,7 @@ pub(super) fn hangs(g: &SGlyph) -> bool {
 /// `g` starts or ends a line. Quotation marks, hyphens, full stops and commas hang whole, and
 /// asterisks, tildes, ellipses, en and em dashes, colons and semicolons hang by half (the amounts
 /// published for Roman Hanging Punctuation). A, V, W, Y, v, w and y hang by a tenth of their
-/// advance, VectorCraft's own amount for their slanted sides. Other characters, East Asian
+/// advance, Pluma's own amount for their slanted sides. Other characters, East Asian
 /// punctuation (which burasagari hangs) and inline graphics don't hang.
 pub(super) fn optical_share(g: &SGlyph) -> f64 {
     if g.inline.is_some() || g.tcy.is_some() {

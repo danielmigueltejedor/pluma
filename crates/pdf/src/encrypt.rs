@@ -306,7 +306,7 @@ impl Entropy {
         getrandom::fill(&mut os).map_err(|e| failed(&format!("no random numbers ({e})")))?;
         let mut h = Sha256::new();
         h.update(os);
-        h.update(vectorcraft_doc::metadata::now_unix().unwrap_or_default().to_le_bytes());
+        h.update(pluma_doc::metadata::now_unix().unwrap_or_default().to_le_bytes());
         for m in material {
             h.update((m.len() as u64).to_le_bytes());
             h.update(m);

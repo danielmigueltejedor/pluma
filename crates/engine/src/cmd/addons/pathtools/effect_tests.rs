@@ -1,11 +1,11 @@
 //! Path Effects (`addon.path.*`) through the session: live on the canvas, the document's path left
 //! alone, and Expand Appearance and a save keeping what they draw.
 
+use pluma_doc::{Document, Effect, Node, NodeId};
+use pluma_geom::{BezPath, Rect};
+use pluma_render::Renderer;
+use pluma_render::effects::{GeomContext, apply_geometry_bez, effect_catalog, new_effect, preview, scale_effect};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Effect, Node, NodeId};
-use vectorcraft_geom::{BezPath, Rect};
-use vectorcraft_render::Renderer;
-use vectorcraft_render::effects::{GeomContext, apply_geometry_bez, effect_catalog, new_effect, preview, scale_effect};
 
 use crate::Session;
 
@@ -128,7 +128,7 @@ fn path_effects_round_trip_through_a_save_and_scale_their_distances() {
     for (effect, params) in effects() {
         let (mut s, id) = wave();
         s.execute("effect.apply", &json!({"effect": effect, "params": params})).unwrap();
-        let restored = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let restored = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
         assert_eq!(restored.node(id).unwrap().appearance.effects, node(&s, id).appearance.effects, "{effect} {params}");
         assert_eq!(picture_of(&restored), picture(&s), "{effect} {params}");
     }
@@ -169,8 +169,8 @@ fn path_effects_with_junk_params_from_a_file_draw_and_expand() {
         Ok(())
     })
     .unwrap();
-    let saved = vectorcraft_format::save(&s.doc().unwrap().doc, false);
-    picture_of(&vectorcraft_format::load(&saved).unwrap());
+    let saved = pluma_format::save(&s.doc().unwrap().doc, false);
+    picture_of(&pluma_format::load(&saved).unwrap());
     s.execute("effect.expandAppearance", &json!({})).unwrap();
     assert!(node(&s, id).appearance.effects.is_empty());
 }
@@ -180,7 +180,7 @@ fn exports_write_the_dashes_as_paths() {
     let (mut s, _) = wave();
     s.execute("effect.apply", &json!({"effect": "addon.path.dashes", "params": {"dash1": 10, "gap1": 10}})).unwrap();
     let v = s.execute("document.export", &json!({"format": "svg"})).unwrap();
-    let svg = vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
+    let svg = pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
     let moves = svg.iter().filter(|c| **c == b'M').count();
     assert!(moves > 5, "the exported art holds the dashes: {moves}");
 }

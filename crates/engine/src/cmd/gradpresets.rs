@@ -2,16 +2,16 @@
 //! behind the active proxy in one click, and the user's own gradients saved beside them.
 //!
 //! The built-in presets are the gradient swatches of the built-in swatch libraries
-//! ([`vectorcraft_color::libraries`]: the app's own computed palettes), each listed under its
+//! ([`pluma_color::libraries`]: the app's own computed palettes), each listed under its
 //! library's name. Saved presets are kept with the preferences ([`crate::Prefs::gradient_presets`]),
 //! so every document has them. A preset is the colour ramp (type, stops, method, dither), not a
 //! placement: applying one edits the gradient in place, as `paint.editGradient` does.
 
+use pluma_color::libraries::{GRADIENT_LIBRARIES, SWATCH_LIBRARIES, builtin_library};
+use pluma_color::{Gradient, GradientPaint, Paint};
+use pluma_tools::params::{gradient_params, stops_json};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_color::libraries::{GRADIENT_LIBRARIES, SWATCH_LIBRARIES, builtin_library};
-use vectorcraft_color::{Gradient, GradientPaint, Paint};
-use vectorcraft_tools::params::{gradient_params, stops_json};
 
 use super::appearance::{edits_stroke, item_target};
 use super::gradient::active_gradient;
@@ -92,7 +92,7 @@ fn builtin_presets() -> impl Iterator<Item = GradientPresetEntry> {
 
 /// Do `a` and `b` have the same colour ramp (type, method, dither and stops), swatch links aside?
 fn same_ramp(a: &Gradient, b: &Gradient) -> bool {
-    let stop = |x: &vectorcraft_color::GradientStop, y: &vectorcraft_color::GradientStop| {
+    let stop = |x: &pluma_color::GradientStop, y: &pluma_color::GradientStop| {
         (x.offset, x.color, x.opacity, x.midpoint) == (y.offset, y.color, y.opacity, y.midpoint)
     };
     (a.kind, a.method, a.dither) == (b.kind, b.method, b.dither)

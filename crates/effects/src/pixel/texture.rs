@@ -9,7 +9,7 @@
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
 use std::sync::Arc;
 
-use vectorcraft_geom::{Point, Vec2};
+use pluma_geom::{Point, Vec2};
 
 use super::loaded::{LOADED, LoadedTexture, texture};
 use super::pixelate::{AROUND, Around, Place, Soft, cell, gap, point_in, rand, value_noise};

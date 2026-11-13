@@ -215,7 +215,7 @@ pub struct IcfMargins {
 }
 
 /// The heights above the baseline, in ems, that Type on a Path's Align to Path runs along the
-/// path ([`FontFace::path_align_heights`]). These are VectorCraft's own values.
+/// path ([`FontFace::path_align_heights`]). These are Pluma's own values.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct PathAlignHeights {
     /// Ascender: the top of the face's em box ([`FontFace::em_box_top`]).
@@ -594,8 +594,8 @@ impl FontFace {
     /// face ([`Self::icf_margins`]), or across a `vertical` line its width. None for a face whose
     /// font has no such value (an OS/2 table without the heights, no ICF), or one outside 0.1 to
     /// 2 ems.
-    pub fn font_height(&self, reference: vectorcraft_doc::FontHeightReference, vertical: bool) -> Option<f64> {
-        use vectorcraft_doc::FontHeightReference as R;
+    pub fn font_height(&self, reference: pluma_doc::FontHeightReference, vertical: bool) -> Option<f64> {
+        use pluma_doc::FontHeightReference as R;
         let units = |v: Option<f32>| v.map(f64::from).map(|v| v / self.upem);
         let h = match reference {
             R::EmBox => Some(1.0),

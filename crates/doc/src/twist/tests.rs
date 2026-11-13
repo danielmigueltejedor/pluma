@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use pluma_geom::{Point, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Rect, shapes};
 
 use super::*;
 use crate::shaper::{FaceEdit, FaceSelector, ShaperSpec};
@@ -176,10 +176,10 @@ fn a_version_1_style_library_has_its_twist_angles_negated() {
 
 #[test]
 fn releases_from_0_21_turned_twist_clockwise() {
-    for g in ["VectorCraft 0.21.0", "VectorCraft 0.21.4", "VectorCraft 0.22.0-dev", "VectorCraft 1.0.0"] {
+    for g in ["Pluma 0.21.0", "Pluma 0.21.4", "Pluma 0.22.0-dev", "Pluma 1.0.0"] {
         assert!(written_clockwise(Some(g)), "{g}");
     }
-    for g in ["VectorCraft 0.20.0", "VectorCraft 0.9.12", "DrawCraft 0.1.0", "VectorCraft", "VectorCraft x.y", "vectorcraft 0.21.0"] {
+    for g in ["Pluma 0.20.0", "Pluma 0.9.12", "DrawCraft 0.1.0", "Pluma", "Pluma x.y", "pluma 0.21.0"] {
         assert!(!written_clockwise(Some(g)), "{g}");
     }
     assert!(!written_clockwise(None));

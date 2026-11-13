@@ -7,17 +7,17 @@
 //! an error that leaves the document as it was, or as a document that then renders and exports,
 //! without a panic. A bulk memory run traps exactly when a range leaves its region.
 //!
-//! `PROPTEST_CASES=2000 cargo test -p vectorcraft-engine --test plugin_fuzz` runs a deeper search.
+//! `PROPTEST_CASES=2000 cargo test -p pluma-engine --test plugin_fuzz` runs a deeper search.
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_engine::Session;
+use pluma_plugins::wat as tpl;
+use pluma_plugins::{Error, Kind, Limits, Plugin};
+use pluma_testkit::catch_quiet;
+use pluma_testkit::fixtures::rich_session;
 use proptest::prelude::*;
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::wat as tpl;
-use vectorcraft_plugins::{Error, Kind, Limits, Plugin};
-use vectorcraft_testkit::catch_quiet;
-use vectorcraft_testkit::fixtures::rich_session;
 
 const DESATURATE: &[u8] = include_bytes!("../../plugins/tests/fixtures/desaturate.wasm");
 
@@ -32,20 +32,20 @@ fn config() -> ProptestConfig {
 
 /// Installs `wasm`, in place of any module installed with its id before (`replace: true`).
 fn install(s: &mut Session, wasm: &[u8]) -> Result<Value, String> {
-    s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(wasm), "replace": true})).map_err(|e| e.to_string())
+    s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(wasm), "replace": true})).map_err(|e| e.to_string())
 }
 
 /// The document renders and exports without panicking.
 fn renders(s: &Session, what: &str) -> Result<(), TestCaseError> {
     let d = &s.doc().unwrap().doc;
     let r = catch_quiet(|| {
-        let mut r = vectorcraft_render::Renderer::new();
+        let mut r = pluma_render::Renderer::new();
         if let Some(ab) = d.artboards.first() {
             let _ = r.render_region(d, ab.rect, 0.25, true).to_png();
         }
-        let _ = vectorcraft_svg::export(d, &vectorcraft_svg::ExportOptions::default());
-        let _ = vectorcraft_engine::export_pdf(d, &vectorcraft_pdf::PdfOptions::default());
-        let _ = vectorcraft_format::save_file(d);
+        let _ = pluma_svg::export(d, &pluma_svg::ExportOptions::default());
+        let _ = pluma_engine::export_pdf(d, &pluma_pdf::PdfOptions::default());
+        let _ = pluma_format::save_file(d);
     });
     r.map_err(|msg| TestCaseError::fail(format!("{what}: panicked: {msg}")))
 }
@@ -187,7 +187,7 @@ fn arb_paint() -> impl Strategy<Value = Value> {
 /// Bytes in the passive data segment that bulk memory cases initialize memory from.
 const SEGMENT_LEN: u32 = 4096;
 
-/// Fuel the host hands a run per slice (`FUEL_SLICE` in `vectorcraft_plugins`' runtime).
+/// Fuel the host hands a run per slice (`FUEL_SLICE` in `pluma_plugins`' runtime).
 const FUEL_SLICE: u64 = 20_000_000;
 
 /// Where a bulk memory plug-in keeps its output (the manifest sits at 16).
@@ -514,7 +514,7 @@ proptest! {
         let mut s = rich_session();
         s.execute("select.all", &json!({})).unwrap();
         let st = s.doc().unwrap();
-        let inputs: Vec<u64> = vectorcraft_plugins::objects::filter_targets(&st.doc, &st.selection.objects).iter().map(|i| i.0).collect();
+        let inputs: Vec<u64> = pluma_plugins::objects::filter_targets(&st.doc, &st.selection.objects).iter().map(|i| i.0).collect();
         let out = output(&objects, &inputs, junk);
         let id = if effect { "fuzz.effect" } else { "fuzz.filter" };
         let src = tpl::returning(&tpl::manifest(id, if effect { "effect" } else { "filter" }, "{}"), &out);
@@ -678,7 +678,7 @@ proptest! {
             };
         }
         let text = m.to_string();
-        let parsed = catch_quiet(|| vectorcraft_plugins::Manifest::parse(text.as_bytes()));
+        let parsed = catch_quiet(|| pluma_plugins::Manifest::parse(text.as_bytes()));
         let parsed = parsed.map_err(|msg| TestCaseError::fail(format!("panicked on {text}: {msg}")))?;
         if let Ok(man) = &parsed {
             prop_assert!(man.permissions().iter().all(|p| p.applies(man.kind, !man.commands.is_empty())), "{}", text);
@@ -690,22 +690,22 @@ proptest! {
             } else {
                 prop_assert!(exts.is_empty(), "{}", text);
             }
-            let shown = vectorcraft_plugins::permissions::display_text(&man.name, vectorcraft_plugins::permissions::MAX_SHOWN_NAME);
+            let shown = pluma_plugins::permissions::display_text(&man.name, pluma_plugins::permissions::MAX_SHOWN_NAME);
             prop_assert!(!shown.chars().any(|c| c.is_control() || matches!(c, '\u{202E}' | '\u{2066}' | '\u{200F}')), "{}", shown);
-            prop_assert!(shown.chars().count() <= vectorcraft_plugins::permissions::MAX_SHOWN_NAME);
+            prop_assert!(shown.chars().count() <= pluma_plugins::permissions::MAX_SHOWN_NAME);
         }
         let mut s = rich_session();
         s.allow_plugin_grants_from_requests();
         let module = wat::parse_str(tpl::returning(&text, r#"{"objects":[]}"#)).unwrap();
-        let data = vectorcraft_format::base64_encode(&module);
+        let data = pluma_format::base64_encode(&module);
         let r = catch_quiet(|| {
             let _ = s.execute("plugin.inspect", &json!({"dataBase64": data}));
             s.execute("plugin.install", &json!({"dataBase64": data, "grant": grant})).is_ok()
         });
         let installed = r.map_err(|msg| TestCaseError::fail(format!("panicked installing {text}: {msg}")))?;
         prop_assert!(!installed || parsed.is_ok(), "a manifest that doesn't parse installed: {}", text);
-        vectorcraft_plugins::registry::remove("fuzz.permissions");
-        vectorcraft_plugins::registry::revoke("fuzz.permissions");
+        pluma_plugins::registry::remove("fuzz.permissions");
+        pluma_plugins::registry::revoke("fuzz.permissions");
     }
 
     /// Manifests with hostile `commands` (junk of every type, bad and repeated ids, labels with
@@ -751,13 +751,13 @@ proptest! {
         }
         m["commands"] = junk.unwrap_or(json!(entries));
         let text = m.to_string();
-        let parsed = catch_quiet(|| vectorcraft_plugins::Manifest::parse(text.as_bytes()));
+        let parsed = catch_quiet(|| pluma_plugins::Manifest::parse(text.as_bytes()));
         let parsed = parsed.map_err(|msg| TestCaseError::fail(format!("panicked on {text}: {msg}")))?;
         if let Ok(man) = &parsed {
             for c in &man.commands {
                 let shown = c.shown_label();
                 prop_assert!(!shown.chars().any(|ch| ch.is_control() || matches!(ch, '\u{202E}' | '\u{2066}' | '\u{200F}')), "{}", shown);
-                prop_assert!(shown.chars().count() <= vectorcraft_plugins::permissions::MAX_SHOWN_NAME);
+                prop_assert!(shown.chars().count() <= pluma_plugins::permissions::MAX_SHOWN_NAME);
             }
         }
         let mut s = rich_session();
@@ -779,7 +779,7 @@ proptest! {
             prop_assert!(menu.len() == 3 && menu[1] == "Plug-ins" && matches!(menu[0], "Object" | "Effect"), "{id}: {menu:?}");
         }
         renders(&s, "after hostile commands")?;
-        vectorcraft_plugins::registry::remove("fuzz.commands");
+        pluma_plugins::registry::remove("fuzz.commands");
     }
 
     /// A plug-in of API level 2 that calls the host imports with hostile arguments (any progress
@@ -799,7 +799,7 @@ proptest! {
         bytes in prop::collection::vec(any::<u8>(), 0..64),
         effect in any::<bool>(),
     ) {
-        use vectorcraft_plugins::host::{LOG_TRUNCATED, MAX_LOG_BYTES, MAX_LOG_LINE, MAX_LOG_LINES};
+        use pluma_plugins::host::{LOG_TRUNCATED, MAX_LOG_BYTES, MAX_LOG_LINE, MAX_LOG_LINES};
         let manifest = if effect {
             r#"{"id":"fuzz.host","name":"F","kind":"effect","api":2,"permissions":["doc.read","effect.render","progress"]}"#
         } else {
@@ -809,10 +809,10 @@ proptest! {
         let imports = format!(r#"{} (data (i32.const 0x2000) "{text}")"#, tpl::HOST_IMPORTS);
         let wasm = wat::parse_str(tpl::with_imports(manifest, &imports, &calls.concat(), r#"{"objects":[]}"#)).unwrap();
         let r = catch_quiet(|| {
-            let p = vectorcraft_plugins::Plugin::load(&wasm, vectorcraft_plugins::Limits::default())?;
-            let token = vectorcraft_doc::cancel::CancelToken::new();
-            let sink: vectorcraft_doc::cancel::ProgressSink = std::rc::Rc::new(|_, _, _| {});
-            Ok::<_, vectorcraft_plugins::Error>(vectorcraft_doc::cancel::scope(&token, Some(sink), || p.run_reporting(b"{\"objects\":[]}", b"{}", p.limits())))
+            let p = pluma_plugins::Plugin::load(&wasm, pluma_plugins::Limits::default())?;
+            let token = pluma_doc::cancel::CancelToken::new();
+            let sink: pluma_doc::cancel::ProgressSink = std::rc::Rc::new(|_, _, _| {});
+            Ok::<_, pluma_plugins::Error>(pluma_doc::cancel::scope(&token, Some(sink), || p.run_reporting(b"{\"objects\":[]}", b"{}", p.limits())))
         });
         let r = r.map_err(|msg| TestCaseError::fail(format!("panicked on {calls:?}: {msg}")))?;
         let (out, report) = r.map_err(|e| TestCaseError::fail(format!("refused at load: {e}")))?;
@@ -852,20 +852,20 @@ proptest! {
             (Some(junk), None) => junk,
         };
         let text = m.to_string();
-        let parsed = catch_quiet(|| vectorcraft_plugins::Manifest::parse(text.as_bytes()));
+        let parsed = catch_quiet(|| pluma_plugins::Manifest::parse(text.as_bytes()));
         let parsed = parsed.map_err(|msg| TestCaseError::fail(format!("panicked on {text}: {msg}")))?;
         if let Ok(man) = &parsed {
             let kinds = man.input_kinds();
             prop_assert_eq!(kinds.len(), man.inputs.len(), "{}", text);
             prop_assert!(kinds.iter().enumerate().all(|(i, k)| !kinds[..i].contains(k)), "{}", text);
-            prop_assert!(kinds.is_empty() || (man.kind == vectorcraft_plugins::Kind::Filter && man.api >= 2), "{}", text);
+            prop_assert!(kinds.is_empty() || (man.kind == pluma_plugins::Kind::Filter && man.api >= 2), "{}", text);
             let reads = man.permissions.as_ref().is_some_and(|p| p.iter().any(|n| n == "doc.read"));
             prop_assert!(kinds.is_empty() || (man.asks_permissions() && reads), "{}", text);
         }
         let mut s = rich_session();
         s.allow_plugin_grants_from_requests();
         let module = wat::parse_str(tpl::module(&text, tpl::ECHO, "", 1)).unwrap();
-        let data = vectorcraft_format::base64_encode(&module);
+        let data = pluma_format::base64_encode(&module);
         let grant = json!(["doc.read", "doc.write", "state", "effect.render", "export.write"]);
         let before = s.doc().unwrap().doc.clone();
         let r = catch_quiet(|| {
@@ -880,8 +880,8 @@ proptest! {
             prop_assert!(s.doc().unwrap().doc.layers == before.layers, "an echo changed the document: {}", text);
         }
         renders(&s, &text)?;
-        vectorcraft_plugins::registry::remove("fuzz.inputs");
-        vectorcraft_plugins::registry::revoke("fuzz.inputs");
+        pluma_plugins::registry::remove("fuzz.inputs");
+        pluma_plugins::registry::revoke("fuzz.inputs");
     }
 
     /// A plug-in that calls the storage imports with hostile keys (`..`, separators, device names,
@@ -902,8 +902,8 @@ proptest! {
         ),
         key in prop::collection::vec(prop_oneof![Just(b'a'), Just(b'.'), Just(b'/'), Just(b'\\'), Just(b'_'), any::<u8>()], 0..80),
     ) {
-        use vectorcraft_plugins::host::STORAGE_BUDGET;
-        use vectorcraft_plugins::storage::Meter;
+        use pluma_plugins::host::STORAGE_BUDGET;
+        use pluma_plugins::storage::Meter;
         const FUNCS: [&str; 6] = ["vc_settings_get", "vc_settings_set", "vc_cache_read", "vc_cache_write", "vc_settings_delete", "vc_cache_clear"];
         // Each case starts with an empty store, and the store is deleted when the case ends, also
         // when it fails.
@@ -913,7 +913,7 @@ proptest! {
                 let _ = std::fs::remove_dir_all(&self.0);
             }
         }
-        let store = Store(std::env::temp_dir().join(format!("vectorcraft-plugin-fuzz-storage-{}", std::process::id())));
+        let store = Store(std::env::temp_dir().join(format!("pluma-plugin-fuzz-storage-{}", std::process::id())));
         let _ = std::fs::remove_dir_all(&store.0);
         let folder = store.0.clone();
         let mut s = Session::new();
@@ -922,8 +922,8 @@ proptest! {
         let storing = |id: &str| format!(r#"{{"id":"{id}","name":"F","kind":"filter","api":2,"permissions":["settings","cache"]}}"#);
         let grant = json!(["settings", "cache"]);
         let other = wat::parse_str(tpl::returning(&storing("fuzz.storage.other"), r#"{"objects":[]}"#)).unwrap();
-        s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&other), "grant": grant})).unwrap();
-        let theirs = vectorcraft_plugins::registry::storage("fuzz.storage.other").unwrap();
+        s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&other), "grant": grant})).unwrap();
+        let theirs = pluma_plugins::registry::storage("fuzz.storage.other").unwrap();
         let m = &mut Meter::unlimited();
         theirs.set_setting("mine", b"kept", m).unwrap();
         theirs.set_cache_entry("mine", b"kept", m).unwrap();
@@ -942,9 +942,9 @@ proptest! {
         // A failed case leaves its module installed, and the cases that shrink it install others
         // under the same id.
         let r = catch_quiet(|| {
-            s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "grant": grant, "replace": true}))
+            s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm), "grant": grant, "replace": true}))
                 .map_err(|e| e.to_string())?;
-            let p = vectorcraft_plugins::registry::get("fuzz.storage").ok_or("not installed")?;
+            let p = pluma_plugins::registry::get("fuzz.storage").ok_or("not installed")?;
             p.run(b"{\"objects\":[]}", b"{}").map_err(|e| e.to_string())
         });
         let out = r.map_err(|msg| TestCaseError::fail(format!("panicked on {calls:?}: {msg}")))?;

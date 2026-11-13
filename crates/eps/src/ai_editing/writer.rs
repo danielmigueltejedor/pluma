@@ -4,13 +4,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::sync::Arc;
 
-use vectorcraft_color::cms::Cms;
-use vectorcraft_color::swatch::{REGISTRATION, Swatch};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Document, FillLayer, Knockout, LAYER_COLORS, LayerColor, Node, NodeId, NodeKind, OpacityMask, StrokeLayer};
-use vectorcraft_effects::stroke;
-use vectorcraft_geom::{Affine, FillRule, PathData, Shape, SubPath};
-use vectorcraft_pathops::BoolOp;
+use pluma_color::cms::Cms;
+use pluma_color::swatch::{REGISTRATION, Swatch};
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{AppearanceItem, Document, FillLayer, Knockout, LAYER_COLORS, LayerColor, Node, NodeId, NodeKind, OpacityMask, StrokeLayer};
+use pluma_effects::stroke;
+use pluma_geom::{Affine, FillRule, PathData, Shape, SubPath};
+use pluma_pathops::BoolOp;
 
 use crate::ai_ops::{self, unit};
 use crate::ps;
@@ -40,7 +40,7 @@ pub(super) use variables::{ACTIVE, BINDINGS, LIMITS, VALUES};
 
 /// How deep symbols, live objects and pattern tiles may nest in one another (deeper art is left
 /// out). Groups and layers need no limit of their own: a document is never deeper than
-/// [`vectorcraft_doc::MAX_DEPTH`].
+/// [`pluma_doc::MAX_DEPTH`].
 const MAX_NEST: u32 = 8;
 
 pub(super) const TYPE: &str = "type in opacity masks, pattern tiles, symbols and art cut to a clipping object, mirrored type, area type and type on a path that is turned or unevenly scaled or whose frame or path has several parts, area type in an open frame, type on an open path whose ends meet, area type that flows around a text wrap, type of only white space, threads of type on a path, threads whose frames differ in orientation or hold a frame written as outlines, type of sizes past what the reader reads, stories past what the reader reads (1,048,576 bytes a story, 16,777,216 bytes in all, and the size of text document it reads), and type with inline graphics, ruby, gradient or pattern paint, or fills, strokes, effects or an opacity mask of the object's own, is written as its outlines in the editing data for other apps";
@@ -152,8 +152,8 @@ pub(super) struct Writer<'a> {
     /// The number the next object named after each XML id tries first.
     next: HashMap<String, u64>,
     /// The document's brushes, read the first time a brushed stroke is written.
-    brushes: Option<Vec<vectorcraft_brush::Brush>>,
-    /// The objects of the symbol art written so far, within [`vectorcraft_doc::MAX_SYMBOL_NODES`].
+    brushes: Option<Vec<pluma_brush::Brush>>,
+    /// The objects of the symbol art written so far, within [`pluma_doc::MAX_SYMBOL_NODES`].
     symbol_nodes: u64,
     /// The objects written so far, counted as the reader counts the objects it reads.
     objects: usize,
@@ -200,7 +200,7 @@ pub(super) struct Writer<'a> {
     typed: bool,
     /// The objects bound to variables so far, in the order they are written: each one's id, its XML
     /// id and the variables it is bound to ([`Self::bound_variables`]).
-    bound: Vec<(vectorcraft_doc::NodeId, String, Vec<String>)>,
+    bound: Vec<(pluma_doc::NodeId, String, Vec<String>)>,
     /// The text document: the stories of the type written as text.
     pub(super) texts: texts::TextDoc,
     /// Symbol instances on the layers may be written as instances ([`Self::live_instance`]); false
@@ -245,7 +245,7 @@ pub(super) struct Writer<'a> {
     inner_scale: f64,
     symbol_scales: HashMap<String, f64>,
     /// The entries a symbol's dictionary adds to its art's dictionary, and the art's id.
-    root_entries: Option<(vectorcraft_doc::NodeId, String)>,
+    root_entries: Option<(pluma_doc::NodeId, String)>,
     /// The objects that may be written with an art style, as they were before baking, by id
     /// ([`styles::styled_objects`]).
     pub(super) styled: HashMap<NodeId, Arc<Node>>,
@@ -277,7 +277,7 @@ impl<'a> Writer<'a> {
             typed: false,
             bound: vec![],
             texts: texts::TextDoc::default(),
-            cms: vectorcraft_color::cms::active(),
+            cms: pluma_color::cms::active(),
             body: String::new(),
             warnings: vec![],
             state: None,
@@ -392,11 +392,11 @@ impl<'a> Writer<'a> {
     }
 
     /// Whether the art of a symbol, `art`, may be written: the objects of the symbol art written
-    /// so far stay within [`vectorcraft_doc::MAX_SYMBOL_NODES`], as in the PDF part (instances of
+    /// so far stay within [`pluma_doc::MAX_SYMBOL_NODES`], as in the PDF part (instances of
     /// symbols that hold instances multiply). Past it the art is left out, with a warning.
     fn take_symbol(&mut self, art: &Node) -> bool {
         let total = self.symbol_nodes.saturating_add(art.count() as u64);
-        if total > vectorcraft_doc::MAX_SYMBOL_NODES {
+        if total > pluma_doc::MAX_SYMBOL_NODES {
             self.warn(SYMBOL_LIMIT);
             return false;
         }
@@ -653,13 +653,13 @@ impl<'a> Writer<'a> {
                     && self.nest < MAX_NEST
                 {
                     // Stained by the instance's fill, as the canvas draws it.
-                    let stained = vectorcraft_brush::instance_art(&sym.art, n);
+                    let stained = pluma_brush::instance_art(&sym.art, n);
                     // Through the symbol's 9-slice guides when it has them, as the canvas draws it;
                     // placing through them needs room for the most objects it can make, and the
                     // objects it makes count.
                     let map = doc.symbol_slice_map(symbol, *xf);
                     let most = map.map_or(stained.count() as u64, |m| m.most_placed(&stained, doc));
-                    let placed = vectorcraft_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
+                    let placed = pluma_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
                         let art = match map {
                             Some(m) => m.place(&stained, doc),
                             None => {
@@ -695,7 +695,7 @@ impl<'a> Writer<'a> {
                 }
                 self.warn(LIVE);
                 if self.nest < MAX_NEST {
-                    let g = vectorcraft_effects::expand_live_deep(Some(self.doc), n);
+                    let g = pluma_effects::expand_live_deep(Some(self.doc), n);
                     self.nest += 1;
                     for c in g.children().map(Vec::as_slice).unwrap_or_default() {
                         self.node(c);
@@ -776,7 +776,7 @@ impl<'a> Writer<'a> {
     /// `name` as an XML id no layer or object has yet, numbered (`_` and 20 digits, `_`) when one
     /// has it.
     fn take_id(&mut self, name: &str) -> String {
-        let base = vectorcraft_doc::xml_id::from_object_name(name);
+        let base = pluma_doc::xml_id::from_object_name(name);
         let mut id = base.clone();
         let next = self.next.entry(base.clone()).or_insert(0);
         while self.ids.contains(&id) {
@@ -968,7 +968,7 @@ impl<'a> Writer<'a> {
     fn clip_contents(&mut self, children: &[Arc<Node>]) {
         let Some((first, rest)) = children.split_first() else { return };
         // Nothing to clip by hides the clipped art.
-        let Some((outline, rule)) = vectorcraft_effects::clip_outline(first) else { return };
+        let Some((outline, rule)) = pluma_effects::clip_outline(first) else { return };
         let paint = first.clip_paint();
         let outer = self.clip.clone();
         let region = self.cut(&PathData::from_bezpath(&outline), rule);
@@ -988,8 +988,8 @@ impl<'a> Writer<'a> {
     /// `path` (filled by `rule`) cut to the region the art is cut to, as a non-zero path.
     fn cut(&self, path: &PathData, rule: FillRule) -> PathData {
         match &self.clip {
-            Some(clip) => vectorcraft_pathops::boolean(path, rule, clip, FillRule::NonZero, BoolOp::Intersect),
-            None => vectorcraft_pathops::boolean(path, rule, path, rule, BoolOp::Intersect),
+            Some(clip) => pluma_pathops::boolean(path, rule, clip, FillRule::NonZero, BoolOp::Intersect),
+            None => pluma_pathops::boolean(path, rule, path, rule, BoolOp::Intersect),
         }
     }
 
@@ -1045,9 +1045,9 @@ impl<'a> Writer<'a> {
             return false;
         }
         let doc = self.doc;
-        let brushes = self.brushes.get_or_insert_with(|| vectorcraft_brush::library(doc));
+        let brushes = self.brushes.get_or_insert_with(|| pluma_brush::library(doc));
         let Some(b) = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) else { return false };
-        let art = vectorcraft_brush::stroke_pieces(doc, b, &path.to_bezpath(), st);
+        let art = pluma_brush::stroke_pieces(doc, b, &path.to_bezpath(), st);
         let state = self.state;
         if !self.open_group("u") {
             return true;
@@ -1239,7 +1239,7 @@ impl<'a> Writer<'a> {
     }
 
     /// Type `n` as a group of what Type › Create Outlines makes of it
-    /// ([`vectorcraft_effects::outline_text`]): each run's glyphs with their underline and
+    /// ([`pluma_effects::outline_text`]): each run's glyphs with their underline and
     /// strikethrough, its color glyphs, and the object's own fills and strokes; then its inline
     /// graphics as their symbols' art where the layout places them, as the PDF page draws them;
     /// the group has the type's transparency `xy`.
@@ -1258,13 +1258,13 @@ impl<'a> Writer<'a> {
             None => n.clone(),
         };
         let state = self.state;
-        let outlined = vectorcraft_effects::outline_text(&node);
+        let outlined = pluma_effects::outline_text(&node);
         let pieces = outlined.as_ref().and_then(|o| o.children()).map(Vec::as_slice).unwrap_or_default();
         // The object's fills and strokes above the Characters row, when they paint, are the last
         // piece: the inline graphics go under it, as the PDF page draws them.
         let above = !node.appearance.split_contents().1.is_empty() && {
             let bare = Node { appearance: Default::default(), ..node.clone() };
-            let glyphs = vectorcraft_effects::outline_text(&bare).and_then(|o| o.children().map(Vec::len)).unwrap_or_default();
+            let glyphs = pluma_effects::outline_text(&bare).and_then(|o| o.children().map(Vec::len)).unwrap_or_default();
             pieces.len() > glyphs
         };
         let (under, over) = pieces.split_at(pieces.len() - usize::from(above));
@@ -1272,7 +1272,7 @@ impl<'a> Writer<'a> {
             self.node(c);
         }
         if let Some(t) = resolved.as_ref().filter(|_| self.nest < MAX_NEST) {
-            let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+            let layout = pluma_text::layout(pluma_text::FontDb::global(), t);
             for ig in &layout.inlines {
                 let Some(art) = t.runs.get(ig.run).and_then(|r| r.inline.as_ref()) else { continue };
                 let Some(sym) = doc.symbols.iter().find(|x| x.name == art.symbol) else { continue };
@@ -1416,7 +1416,7 @@ impl<'a> Writer<'a> {
     /// `0 0 0 ([Registration]) 0 1 Xz`; then `([Registration]) Pc`.
     fn registration_cell(&self, s: &mut String) {
         let name = ps::bytes(REGISTRATION.as_bytes());
-        if self.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk {
+        if self.doc.color_mode == pluma_doc::ColorMode::Cmyk {
             let _ = writeln!(s, "1 1 1 1 {name} 0 Xs");
         } else {
             let black = Color::rgb(0.0, 0.0, 0.0);
@@ -1471,7 +1471,7 @@ impl<'a> Writer<'a> {
 }
 
 /// The gradient of paint `p`, when it has one.
-fn gradient(p: Option<&Paint>) -> Option<&vectorcraft_color::GradientPaint> {
+fn gradient(p: Option<&Paint>) -> Option<&pluma_color::GradientPaint> {
     match p {
         Some(Paint::Gradient(g)) => Some(g),
         _ => None,

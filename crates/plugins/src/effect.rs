@@ -18,9 +18,9 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
+use pluma_doc::{Appearance, AppearanceItem, Document};
+use pluma_geom::{FillRule, PathData, Rect};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document};
-use vectorcraft_geom::{FillRule, PathData, Rect};
 
 use crate::objects::{decode, output_geometry, paint_lists};
 use crate::painted::{self, Piece, Scope};
@@ -414,9 +414,9 @@ fn run(plugin: &crate::Plugin, mut params: Value, path: &PathData, bounds: Rect,
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_doc::{FillLayer, StrokeLayer};
-    use vectorcraft_geom::{Point, SubPath};
+    use pluma_color::{Color, Paint};
+    use pluma_doc::{FillLayer, StrokeLayer};
+    use pluma_geom::{Point, SubPath};
 
     use super::*;
 
@@ -518,9 +518,9 @@ mod tests {
                 None,
             )
         };
-        let token = vectorcraft_doc::cancel::CancelToken::new();
+        let token = pluma_doc::cancel::CancelToken::new();
         token.cancel();
-        assert_eq!(vectorcraft_doc::cancel::scope(&token, None, draw), None);
+        assert_eq!(pluma_doc::cancel::scope(&token, None, draw), None);
         assert!(!ran_first(), "the cancelled run doesn't count as the first");
         // Runs to its instruction budget and fails: that run was the first.
         assert_eq!(draw(), None);

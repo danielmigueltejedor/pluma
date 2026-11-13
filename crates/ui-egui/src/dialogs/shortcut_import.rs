@@ -4,7 +4,7 @@
 //! Each entry's name is matched against the tools, commands and panels Keyboard Shortcuts lists
 //! ([`craft_keymap::import::namematch`]). Its key and modifier codes are decoded from the user's earlier
 //! answers (`importMatches`), from the two codes the format's public description gives (`/Key 48` is
-//! the 0 key and `/Modifiers 0` is none), and by agreement with VectorCraft's default shortcuts: each
+//! the 0 key and `/Modifiers 0` is none), and by agreement with Pluma's default shortcuts: each
 //! entry whose match has a default votes for what its codes stand for, and a code is proposed when at
 //! least two entries vote for it and four votes in five agree. The user answers the rest in the Keys
 //! section. Apply hands the rows that are ready, in the file's order, to [`craft_keymap::plan`], each
@@ -30,12 +30,12 @@ use serde_json::{Value, json};
 use crate::shortcut_editor::{self, Entry};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{FilePick, VectorcraftApp, menus, widgets};
+use crate::{FilePick, PlumaApp, menus, widgets};
 
 /// The dialog kind.
 pub const KIND: &str = "shortcutImport";
 
-/// The files Keyboard Shortcuts' Import… lists: VectorCraft's own sets and sets another app saved as
+/// The files Keyboard Shortcuts' Import… lists: Pluma's own sets and sets another app saved as
 /// text.
 pub const IMPORT_EXTS: &[&str] = &["json", "kys"];
 
@@ -237,7 +237,7 @@ impl Review {
     }
 
     /// Codes that no earlier import, description or user answered take what agreement with
-    /// VectorCraft's default shortcuts proposes for them now.
+    /// Pluma's default shortcuts proposes for them now.
     pub fn decode(&mut self) {
         let mut defaults: HashMap<&str, Option<(String, String)>> = HashMap::new();
         let mut keys: BTreeMap<i64, HashMap<String, usize>> = BTreeMap::new();
@@ -431,7 +431,7 @@ fn source(c: &Code) -> String {
 
 /// A file named as a shortcut set another app saves (`.kys`).
 pub fn is_kys(path: &str) -> bool {
-    vectorcraft_engine::cmd::shortcutset::EXTS.contains(&vectorcraft_engine::cmd::fileio::extension(path).as_str())
+    pluma_engine::cmd::shortcutset::EXTS.contains(&pluma_engine::cmd::fileio::extension(path).as_str())
 }
 
 /// A set another app saved as text: a `.kys` file, or text that starts with a slash name.
@@ -442,14 +442,14 @@ pub fn is_text_set(path: &str, bytes: &[u8]) -> bool {
 
 /// Open the review of the shortcut set in `bytes`, a file called `name` (a path or a file name) →
 /// `{entries, unread}`. An open Keyboard Shortcuts dialog is kept to go back to.
-pub fn open(app: &mut VectorcraftApp, name: &str, bytes: &[u8]) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, name: &str, bytes: &[u8]) -> Result<Value, String> {
     // Only the part `shortcutSet.read` takes in.
-    let head = bytes.get(..vectorcraft_engine::cmd::shortcutset::READ_LIMIT).unwrap_or(bytes);
-    open_read(app, json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(head) }))
+    let head = bytes.get(..pluma_engine::cmd::shortcutset::READ_LIMIT).unwrap_or(bytes);
+    open_read(app, json!({ "name": name, "dataBase64": pluma_format::base64_encode(head) }))
 }
 
 /// Open the review of the set `shortcutSet.read` reads with `params`.
-fn open_read(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+fn open_read(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let read = app.run("shortcutSet.read", params)?;
     let review = Review::build(&read, &candidates());
     let back = app.ui.dialog.take().filter(|d| d.kind == "shortcuts");
@@ -476,7 +476,7 @@ fn open_read(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
 /// `ui.shortcutImportDialog`: the review of the file at `path`, or in `dataBase64` (called `name`),
 /// else of a picked one. On the web the browser's file picker opens, and File › Open opens the
 /// review of a `.kys`.
-pub fn command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn command(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let s = |k: &str| p.get(k).and_then(Value::as_str).map(str::to_string);
     if let Some(b64) = s("dataBase64") {
         return open_read(app, json!({ "name": s("name").unwrap_or_default(), "dataBase64": b64 }));
@@ -485,19 +485,18 @@ pub fn command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
         Some(path) => path,
         None if app.services.open_async.is_some() => return crate::io::open_dialog(app).map(|_| Value::Null),
         None => {
-            let pick =
-                FilePick { filters: vec![FilePick::filter("Shortcut sets", vectorcraft_engine::cmd::shortcutset::EXTS)], ..Default::default() };
+            let pick = FilePick { filters: vec![FilePick::filter("Shortcut sets", pluma_engine::cmd::shortcutset::EXTS)], ..Default::default() };
             crate::picks::open(app, &pick).ok_or("cancelled")?
         }
     };
     open_read(app, json!({ "path": path }))
 }
 
-/// Apply: the ready rows applied as one set ([`apply_ready`]) over VectorCraft's defaults (or the current
+/// Apply: the ready rows applied as one set ([`apply_ready`]) over Pluma's defaults (or the current
 /// shortcuts), and Keyboard Shortcuts shown with the result as its working set; its OK keeps it. With
 /// Remember My Choices on, the matches and codes used are kept for later imports (`importMatches.set`).
 /// → `{applied, rows}`
-pub fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+pub fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let review = Review::of(d);
     let statuses = review.statuses();
     let back = super::parent(d);
@@ -581,7 +580,7 @@ fn apply_ready(km: &mut Keymap, review: &Review, statuses: &[(Status, Option<Str
 }
 
 /// Keep for later imports the targets and codes the user chose, and those of the rows Apply assigns.
-fn remember(app: &mut VectorcraftApp, review: &Review, statuses: &[(Status, Option<String>)]) -> Result<(), String> {
+fn remember(app: &mut PlumaApp, review: &Review, statuses: &[(Status, Option<String>)]) -> Result<(), String> {
     let mut matches = vec![];
     let (mut used_keys, mut used_mods) = (BTreeSet::new(), BTreeSet::new());
     for (r, (status, _)) in review.rows.iter().zip(statuses) {
@@ -635,7 +634,7 @@ pub fn report(d: &Dialog, review: &Review, statuses: &[(Status, Option<String>)]
 
 // ---------- dialog ----------
 
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let mut review = Review::of(&d);
     let before = review.clone();
@@ -683,7 +682,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         ui.add_space(4.0);
         ui.label(
             egui::RichText::new(tl!(
-                "Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left."
+                "Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left."
             ))
             .color(t.text_dim)
             .size(11.5),
@@ -692,7 +691,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             let current = d.str("start") == "current";
-            if widgets::radio(ui, tl!("Start from VectorCraft Defaults"), !current, true) {
+            if widgets::radio(ui, tl!("Start from Pluma Defaults"), !current, true) {
                 d.fields.insert("start".into(), json!("defaults"));
             }
             ui.add_space(12.0);
@@ -861,7 +860,7 @@ fn code_notes(ui: &mut egui::Ui, c: &Code) {
     ui.add(egui::Label::new(egui::RichText::new(names).color(t.text_dim).size(11.0).italics()).truncate());
 }
 
-/// The rows: a check box, the name as the file writes it, what it stands for in VectorCraft (a
+/// The rows: a check box, the name as the file writes it, what it stands for in Pluma (a
 /// searchable picker), the shortcut and the status, in a list `height` points tall. → the list's
 /// height.
 fn rows_section(ui: &mut egui::Ui, d: &mut Dialog, review: &mut Review, statuses: &[(Status, Option<String>)], height: f32) -> f32 {
@@ -897,7 +896,7 @@ fn rows_section(ui: &mut egui::Ui, d: &mut Dialog, review: &mut Review, statuses
     let list = egui::Frame::NONE.fill(t.input).stroke(egui::Stroke::new(1.0, t.input_border)).inner_margin(egui::Margin::same(4)).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.add_space(22.0);
-            for (label, w) in [(tl!("In the File"), NAME_W), (tl!("In VectorCraft"), TARGET_W), (tl!("Shortcut"), CHORD_W)] {
+            for (label, w) in [(tl!("In the File"), NAME_W), (tl!("In Pluma"), TARGET_W), (tl!("Shortcut"), CHORD_W)] {
                 cell(ui, w, |ui| ui.label(egui::RichText::new(label).color(t.text_dim).size(11.0)));
             }
             ui.label(egui::RichText::new(tl!("Status")).color(t.text_dim).size(11.0));

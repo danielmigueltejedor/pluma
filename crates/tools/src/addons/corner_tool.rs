@@ -10,11 +10,11 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use pluma_doc::{Document, LiveCorners, NodeId, NodeKind};
+use pluma_geom::corners::Corner;
+use pluma_geom::shapes::CornerKind;
+use pluma_geom::{Affine, Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, LiveCorners, NodeId, NodeKind};
-use vectorcraft_geom::corners::Corner;
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_geom::{Affine, Point, Rect};
 
 use crate::builder::HIGHLIGHT_RED;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};

@@ -8,9 +8,9 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-use vectorcraft_doc::{Document, LayerColor, Node, NodeId};
-use vectorcraft_effects::addons::halftone::{Halftone, Samples, art_outline, dot_nodes, split};
-use vectorcraft_geom::Rect;
+use pluma_doc::{Document, LayerColor, Node, NodeId};
+use pluma_effects::addons::halftone::{Halftone, Samples, art_outline, dot_nodes, split};
+use pluma_geom::Rect;
 
 use crate::live::Found;
 use crate::{RenderOptions, Renderer, region_pixels};
@@ -51,7 +51,7 @@ pub fn sample(doc: &Document, nodes: Vec<Node>, region: Rect, scale: f64, mono: 
 }
 
 /// The art of `n`, an object with a visible Vector Halftone effect, in `doc`
-/// ([`vectorcraft_effects::addons::halftone::halftone_art`]): `n`'s dots as the effect's last
+/// ([`pluma_effects::addons::halftone::halftone_art`]): `n`'s dots as the effect's last
 /// visible settings make them from `n` drawn without the effect, over its painted bounds, in a
 /// group that takes `n`'s place. `None` without the effect, or when the art has no area or would
 /// take too many cells: `n` then draws as it is.

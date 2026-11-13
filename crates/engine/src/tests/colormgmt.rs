@@ -3,13 +3,13 @@
 
 use std::sync::Mutex;
 
+use pluma_color::cms::{self, Intent, Lab, delta_e2000};
+use pluma_color::{Color, Paint};
+use pluma_doc::{ColorMode, Document};
+use pluma_geom::Affine;
+use pluma_render::proof::{ProofSetup, ProofTarget};
+use pluma_render::{RenderOptions, Renderer};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, Intent, Lab, delta_e2000};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{ColorMode, Document};
-use vectorcraft_geom::Affine;
-use vectorcraft_render::proof::{ProofSetup, ProofTarget};
-use vectorcraft_render::{RenderOptions, Renderer};
 
 use crate::*;
 
@@ -40,7 +40,7 @@ fn lab_of_rgb(rgb: [f32; 3]) -> Lab {
     cms::lab::srgb_to_lab(rgb)
 }
 
-fn render(doc: &Document, opts: RenderOptions) -> vectorcraft_render::Rendered {
+fn render(doc: &Document, opts: RenderOptions) -> pluma_render::Rendered {
     let mut r = Renderer::new();
     r.threads = 0;
     r.render(doc, 100, 100, Affine::IDENTITY, &RenderOptions { background: Some([255, 255, 255, 255]), ..opts })
@@ -408,11 +408,11 @@ fn spot_colours_get_their_own_plate() {
     assert_eq!(vis, [false, false, false, false, true]);
     let r = s.execute("view.separationsPreview", &json!({"toggle": "Cyan"})).unwrap();
     assert_eq!(r["plates"][0]["visible"], true);
-    assert_eq!(vectorcraft_render::proof::active_proof().unwrap().separations.unwrap().len(), 2);
-    assert!(vectorcraft_render::proof::overprint_preview_on(), "separations imply overprint preview");
+    assert_eq!(pluma_render::proof::active_proof().unwrap().separations.unwrap().len(), 2);
+    assert!(pluma_render::proof::overprint_preview_on(), "separations imply overprint preview");
     assert!(s.execute("view.separationsPreview", &json!({"only": "Mauve"})).is_err());
     s.execute("view.separationsPreview", &json!({"on": false})).unwrap();
-    assert!(vectorcraft_render::proof::active_proof().is_none_or(|p| p.separations.is_none()));
+    assert!(pluma_render::proof::active_proof().is_none_or(|p| p.separations.is_none()));
 }
 
 #[test]
@@ -446,7 +446,7 @@ fn view_toggles_redraw_without_dirtying() {
     assert!(!s.doc().unwrap().is_dirty(), "not marked modified");
     let r = s.execute("view.proofSetup", &json!({"target": "deuteranopia", "intent": "perceptual"})).unwrap();
     assert_eq!(r["target"], "deuteranopia");
-    assert_eq!(vectorcraft_render::proof::active_proof().unwrap().target, ProofTarget::Deuteranopia);
+    assert_eq!(pluma_render::proof::active_proof().unwrap().target, ProofTarget::Deuteranopia);
     assert!(s.execute("view.proofSetup", &json!({"target": "cmyk:Nope"})).is_err());
     assert!(s.execute("view.proofSetup", &json!({"target": format!("cmyk:{}", cms::WIDE_GAMUT_RGB)})).is_err(), "an RGB profile");
     s.execute("view.proofSetup", &json!({"target": format!("cmyk:{}", cms::DEVICE_CMYK)})).unwrap();
@@ -465,7 +465,7 @@ fn proof_setup_simulates_tritanopia() {
     rect(&mut s, 0.0, 0.0, 100.0, 100.0, json!("#0000ff"));
     let r = s.execute("view.proofSetup", &json!({"target": "tritanopia", "proof": true})).unwrap();
     assert_eq!(r["target"], "tritanopia");
-    let setup = vectorcraft_render::proof::active_proof().unwrap();
+    let setup = pluma_render::proof::active_proof().unwrap();
     assert_eq!(setup.target, ProofTarget::Tritanopia);
     let doc = s.doc().unwrap().doc.clone();
     let px = render(&doc, RenderOptions { proof: Some(setup), ..Default::default() }).pixel(50, 50);
@@ -481,8 +481,7 @@ fn has_cmyk_op(pdf: &str) -> bool {
 }
 
 fn pdf_text(doc: &Document) -> String {
-    let bytes =
-        vectorcraft_pdf::export(doc, &vectorcraft_pdf::PdfOptions { created: Some(0), ..vectorcraft_pdf::PdfOptions::uncompressed() }).unwrap();
+    let bytes = pluma_pdf::export(doc, &pluma_pdf::PdfOptions { created: Some(0), ..pluma_pdf::PdfOptions::uncompressed() }).unwrap();
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
@@ -603,7 +602,7 @@ fn document_color_mode_refuses_a_param_of_the_wrong_type() {
 fn proof_views_refuse_a_param_of_the_wrong_type() {
     let _g = GLOBAL.lock().unwrap_or_else(|e| e.into_inner());
     let mut s = session();
-    let view = vectorcraft_render::proof::view();
+    let view = pluma_render::proof::view();
     let rev = s.doc().unwrap().revision;
     refused(&mut s, "view.proofSetup", json!({"simulatePaper": "yes"}), "`simulatePaper` must be true or false");
     refused(&mut s, "view.proofSetup", json!({"proof": 1}), "`proof` must be true or false");
@@ -615,7 +614,7 @@ fn proof_views_refuse_a_param_of_the_wrong_type() {
     refused(&mut s, "view.separationsPreview", json!({"plates": ["Cyan", 2]}), "`plates` must be an array of these names");
     refused(&mut s, "view.separationsPreview", json!({"only": 0}), "`only` must be a string");
     refused(&mut s, "view.separationsPreview", json!({"toggle": ["Cyan"]}), "`toggle` must be a string");
-    assert_eq!(vectorcraft_render::proof::view(), view, "the proof view is unchanged");
+    assert_eq!(pluma_render::proof::view(), view, "the proof view is unchanged");
     assert_eq!(s.doc().unwrap().revision, rev, "nothing redraws");
     // A null `on` toggles, as an omitted one does.
     let r = s.execute("view.proofColors", &json!({"on": null})).unwrap();

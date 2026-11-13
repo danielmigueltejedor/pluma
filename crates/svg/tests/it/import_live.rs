@@ -4,13 +4,13 @@
 
 use std::sync::Arc;
 
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{Appearance, Document, Effect, Node, NodeKind};
+use pluma_effects::RasterFx;
+use pluma_geom::{Point, Rect, shapes};
+use pluma_svg::{ExportOptions, export, import, import_with_report};
+use pluma_testkit::raster::{Image, assert_similar, render_artboard};
 use serde_json::json;
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Effect, Node, NodeKind};
-use vectorcraft_effects::RasterFx;
-use vectorcraft_geom::{Point, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, export, import, import_with_report};
-use vectorcraft_testkit::raster::{Image, assert_similar, render_artboard};
 
 fn svg(body: &str) -> String {
     format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="120">{body}</svg>"#)
@@ -378,7 +378,7 @@ fn a_mask_counts_only_inside_its_region() {
 
 /// The one drop shadow of the only object: (dx, dy, blur, colour, opacity %).
 fn shadow(d: &Document) -> (f64, f64, f64, Color, f32) {
-    let fx = vectorcraft_effects::raster_effects(&effects(d));
+    let fx = pluma_effects::raster_effects(&effects(d));
     match fx.as_slice() {
         [RasterFx::DropShadow { dx, dy, blur, color, opacity, mode, darkness }] => {
             assert_eq!(*mode, BlendMode::Normal, "filters composite normally");
@@ -479,7 +479,7 @@ fn reused_filters_keep_their_own_xml() {
 #[test]
 fn an_svg_images_filter_does_not_take_the_outer_filter_of_its_id() {
     let inner = r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"><filter id="f"><feTurbulence baseFrequency="0.2"/></filter><rect width="10" height="10" filter="url(#f)"/></svg>"##;
-    let data = format!("data:image/svg+xml;base64,{}", vectorcraft_svg::base64_encode(inner.as_bytes()));
+    let data = format!("data:image/svg+xml;base64,{}", pluma_svg::base64_encode(inner.as_bytes()));
     let (d, w) = open(&format!(
         r#"<defs><filter id="f"><feTurbulence baseFrequency="0.05"/></filter></defs><rect width="20" height="20" filter="url(#f)"/><image href="{data}" x="100" width="40" height="20"/>"#
     ));
@@ -576,8 +576,8 @@ fn exported_effects_import_as_the_same_effects() {
         d.insert(Some(l), 0, n).unwrap();
         let (back, w) = import_with_report(&export(&d, &ExportOptions::default())).unwrap();
         assert!(w.is_empty(), "{w:?}");
-        let got = vectorcraft_effects::raster_effects(&art(&back)[0].appearance.effects);
-        assert_eq!(got, vectorcraft_effects::raster_effects(&effects), "{effects:?}");
+        let got = pluma_effects::raster_effects(&art(&back)[0].appearance.effects);
+        assert_eq!(got, pluma_effects::raster_effects(&effects), "{effects:?}");
     }
 }
 
@@ -649,8 +649,8 @@ fn an_exported_filter_image_has_an_xlink_reference() {
     assert!(!svg.contains(" href="), "{svg}");
     let (back, w) = import_with_report(&svg).unwrap();
     assert!(w.is_empty(), "{w:?}");
-    match vectorcraft_effects::raster_effects(&effects(&back)).as_slice() {
-        [RasterFx::Pixel(vectorcraft_effects::PixelFx::Svg(f))] => {
+    match pluma_effects::raster_effects(&effects(&back)).as_slice() {
+        [RasterFx::Pixel(pluma_effects::PixelFx::Svg(f))] => {
             assert!(f.xml().contains(&format!(r#"<feImage href="{data}"/>"#)), "the filter as it is drawn: {}", f.xml())
         }
         other => panic!("{other:?}"),
@@ -663,7 +663,7 @@ fn an_exported_filter_image_has_an_xlink_reference() {
 /// without a filter that import can't read.
 #[test]
 fn an_exported_filter_is_one_import_reads_back() {
-    let max = vectorcraft_doc::SvgFilter::MAX_XML;
+    let max = pluma_doc::SvgFilter::MAX_XML;
     let close = r#""/><feComposite in2="SourceGraphic" operator="in"/></filter>"#;
     let short_id = r##"<filter id="r"><feFlood flood-color="#ff0000" result=""##;
     let measured =
@@ -693,8 +693,8 @@ fn an_exported_filter_is_one_import_reads_back() {
 fn an_exported_filter_counts_the_references_latin1_writes() {
     let open = r##"<filter id="r"><feFlood flood-color="#ff0000" result=""##;
     let close = r#""/><feComposite in2="SourceGraphic" operator="in"/></filter>"#;
-    let max = vectorcraft_doc::SvgFilter::MAX_XML;
-    let latin1 = ExportOptions { encoding: vectorcraft_svg::Encoding::Latin1, ..ExportOptions::default() };
+    let max = pluma_doc::SvgFilter::MAX_XML;
+    let latin1 = ExportOptions { encoding: pluma_svg::Encoding::Latin1, ..ExportOptions::default() };
     // `国` takes three bytes as UTF-8 and eight as `&#x56FD;`.
     let xml = format!("{open}{}{close}", "\u{56FD}".repeat((max / 2 - open.len() - close.len()) / 3));
     let d = filtered_rect(&xml);
@@ -741,21 +741,17 @@ fn symbols_and_effects_export_import_export_is_stable() {
         shapes::ellipse(Rect::new(0.0, 0.0, 20.0, 20.0)),
         Appearance::basic(Paint::solid(Color::rgb8(200, 30, 30)), Paint::None, 0.0),
     );
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Dot".into(), art: Arc::new(dot) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Dot".into(), art: Arc::new(dot) });
     let l = d.layers[0].id;
     for x in [10.0, 60.0] {
         let id = d.alloc_id();
-        d.insert(
-            Some(l),
-            usize::MAX,
-            Node::new(id, NodeKind::SymbolInstance { symbol: "Dot".into(), xf: vectorcraft_geom::Affine::translate((x, 40.0)) }),
-        )
-        .unwrap();
+        d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "Dot".into(), xf: pluma_geom::Affine::translate((x, 40.0)) }))
+            .unwrap();
     }
     let mut blurred = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(120.0, 30.0, 180.0, 90.0)), Appearance::default_art());
     blurred.appearance.effects.push(Effect { id: "stylize.dropShadow".into(), params: json!({"x": 3.0, "y": 3.0, "blur": 2.0}), visible: true });
     d.insert(Some(l), usize::MAX, blurred).unwrap();
-    let opts = ExportOptions { object_ids: vectorcraft_svg::ObjectIds::Minimal, ..Default::default() };
+    let opts = ExportOptions { object_ids: pluma_svg::ObjectIds::Minimal, ..Default::default() };
     let first = export(&d, &opts);
     let second = export(&import(&first).unwrap(), &opts);
     let strip = |s: &str| s.lines().filter(|l| !l.contains("<title>")).collect::<Vec<_>>().join("\n");

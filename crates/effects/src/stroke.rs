@@ -2,7 +2,7 @@
 //! consumer paints the same shapes:
 //!
 //! - [`stroke_pieces`]: the centre line (trimmed under the arrowheads) and the arrowheads as
-//!   filled outlines (hollow kinds are rings), placed by [`ArrowAlign`](vectorcraft_doc::ArrowAlign);
+//!   filled outlines (hollow kinds are rings), placed by [`ArrowAlign`](pluma_doc::ArrowAlign);
 //! - [`dash`]: the dash pattern, exact or fitted to corners and path ends; zero-length dashes
 //!   become [`Dot`]s that a round or projecting cap turns into discs or squares ([`dot_outline`]);
 //! - [`width_outline`]: variable-width (profile) strokes, with the stroke's joins at corners;
@@ -20,8 +20,8 @@ mod width;
 use std::borrow::Cow;
 
 use kurbo::{BezPath, ParamCurve, ParamCurveNearest, PathEl, PathSeg, Rect, Shape};
-use vectorcraft_doc::{LineCap, LineJoin, StrokeAlign, StrokeLayer};
-pub(crate) use vectorcraft_geom::bez::{kink, segments, subpaths, tangent, unit};
+use pluma_doc::{LineCap, LineJoin, StrokeAlign, StrokeLayer};
+pub(crate) use pluma_geom::bez::{kink, segments, subpaths, tangent, unit};
 
 pub use arrow::Arrow;
 pub use dash::{Dashed, Dot, dash, dash_kept, dot_outline};

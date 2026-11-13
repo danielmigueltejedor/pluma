@@ -5,9 +5,9 @@
 
 use std::fmt::Write;
 
-use vectorcraft_color::{Color, Gradient};
-use vectorcraft_doc::{LineCap, LineJoin, StrokeLayer};
-use vectorcraft_geom::{Affine, Anchor, AnchorKind, PathData, Point, SubPath};
+use pluma_color::{Color, Gradient};
+use pluma_doc::{LineCap, LineJoin, StrokeLayer};
+use pluma_geom::{Affine, Anchor, AnchorKind, PathData, Point, SubPath};
 
 use crate::ps;
 

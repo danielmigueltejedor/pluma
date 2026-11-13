@@ -535,13 +535,13 @@ fn invalid_assignment_targets() {
 
 #[test]
 fn preprocessor_lines_are_read_as_directives() {
-    let src = "#target vectorcraft\n  #include \"lib/a.jsxinc\"\n//@includepath \"~/x;~/y\"\n#strict on\n#unknown x\nvar a = 1;\n#targetengine main";
+    let src = "#target pluma\n  #include \"lib/a.jsxinc\"\n//@includepath \"~/x;~/y\"\n#strict on\n#unknown x\nvar a = 1;\n#targetengine main";
     let p = parse(src, &with_preprocessor()).unwrap();
     let names: Vec<(&str, u32, &str)> = p.directives.iter().map(|d| (d.name.as_str(), d.line, d.value.as_str())).collect();
     assert_eq!(
         names,
         [
-            ("target", 1, "vectorcraft"),
+            ("target", 1, "pluma"),
             ("include", 2, "\"lib/a.jsxinc\""),
             ("includepath", 3, "\"~/x;~/y\""),
             ("strict", 4, "on"),

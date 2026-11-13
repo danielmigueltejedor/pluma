@@ -3,7 +3,7 @@
 //! glyphs that stand for no character are drawn from their outlines. The font here is written
 //! from scratch: two square and triangle glyphs in hand-made charstrings.
 
-use vectorcraft_doc::{NodeKind, TextObject};
+use pluma_doc::{NodeKind, TextObject};
 
 use super::tests::{all, bounds, check, program_warnings, read};
 use crate::import::import;
@@ -121,7 +121,7 @@ fn embedded_type1_type_keeps_the_fonts_widths() {
         assert_eq!(t[0].plain_text(), "AB");
         assert_eq!(t[0].runs[0].style.font_family, "Test One");
         // B starts where A's 600 units end, whatever the font laid out.
-        let o: Vec<f64> = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t[0]).glyphs.iter().map(|g| g.origin.x).collect();
+        let o: Vec<f64> = pluma_text::layout(pluma_text::FontDb::global(), &t[0]).glyphs.iter().map(|g| g.origin.x).collect();
         assert!((o[1] - o[0] - 30.0).abs() < 0.05, "{o:?}");
     }
 }

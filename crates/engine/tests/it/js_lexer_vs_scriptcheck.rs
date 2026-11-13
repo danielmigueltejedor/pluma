@@ -1,12 +1,12 @@
-//! The JavaScript parser's lexer (`vectorcraft-js`) and the script checker's (`vectorcraft-scriptcheck`)
+//! The JavaScript parser's lexer (`pluma-js`) and the script checker's (`pluma-scriptcheck`)
 //! read the same scripts the same way: both crates stand alone, so each has its own lexer, and these
 //! tests run both over one set of scripts and fail on any disagreement about the lines a script has,
 //! its preprocessor lines, and where a string, comment or regular expression that is never closed
 //! starts. The scripts stay inside ECMAScript 3, the language both read (no XML literals, which
 //! only the checker reads).
 
-use vectorcraft_js::{Options, TokenKind, parse, tokenize};
-use vectorcraft_scriptcheck::{Limits, check};
+use pluma_js::{Options, TokenKind, parse, tokenize};
+use pluma_scriptcheck::{Limits, check};
 
 /// The problems the checker reports from its lexer, which the parser reports as a `SyntaxError`.
 const LEXICAL: [(&str, &str); 3] = [
@@ -28,7 +28,7 @@ const VALID: &[&str] = &[
     "s = 'line\\\ncontinued';\nu = 1;\n",
     "x = a++ / 2;\ny = (b) / 2;\nz = c[0] / 2;\n",
     "r = /[/]/;\nq = /\\//;\n",
-    "#target vectorcraft\n#include \"lib.jsxinc\"\n//@includepath \"~/x\"\nvar a = 1;\n#targetengine session\n",
+    "#target pluma\n#include \"lib.jsxinc\"\n//@includepath \"~/x\"\nvar a = 1;\n#targetengine session\n",
     "a = 1;\r\nb = 2;\r\nc = 3;",
     "a = 1;\u{2028}b = 2;\u{2029}c = 3;\n",
     "typeof /x/ === 'object';\nvoid /y/;\n",

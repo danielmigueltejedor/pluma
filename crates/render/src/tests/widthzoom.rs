@@ -1,9 +1,9 @@
 //! A stroke with a width profile keeps its shape when the view zooms out (#995): only a stroke too
 //! thin to see is thickened, and then by what its widest point needs, not all of it at once.
 
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Appearance, AppearanceItem, Node, StrokeLayer, WidthProfile};
-use vectorcraft_geom::PathData;
+use pluma_color::Paint;
+use pluma_doc::{Appearance, AppearanceItem, Node, StrokeLayer, WidthProfile};
+use pluma_geom::PathData;
 
 use crate::*;
 
@@ -11,7 +11,7 @@ const SIZE: u32 = 200;
 
 /// A line across a 200×200 page, stroked black `weight` pt with `profile`, drawn at `scale`.
 fn render(weight: f64, profile: Option<WidthProfile>, scale: f64) -> Rendered {
-    let mut st = StrokeLayer::new(Paint::solid(vectorcraft_color::Color::BLACK), weight);
+    let mut st = StrokeLayer::new(Paint::solid(pluma_color::Color::BLACK), weight);
     st.profile = profile;
     let mut p = BezPath::new();
     p.move_to((20.0, 100.0));

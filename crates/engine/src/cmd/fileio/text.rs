@@ -4,9 +4,9 @@
 
 use std::collections::HashSet;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind};
 use serde::Deserialize;
 use serde_json::Value;
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
 
 use super::super::{Result, bad};
 use super::FormatOption;

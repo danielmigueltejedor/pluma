@@ -1,8 +1,8 @@
 use super::export::file_url;
 use super::open::{note_recent, open_options};
 use super::{
-    EngineError, FilePick, Format, SAVE_FORMATS, SaveMode, SavePlan, SavedView, Services, TEMPLATE_FORMATS, Value, VectorcraftApp, Writer,
-    background, dialogs, fileio, json, svg_options,
+    EngineError, FilePick, Format, PlumaApp, SAVE_FORMATS, SaveMode, SavePlan, SavedView, Services, TEMPLATE_FORMATS, Value, Writer, background,
+    dialogs, fileio, json, svg_options,
 };
 
 /// A save or an export that didn't write `path`: say so in a dialog that names the file and the
@@ -10,7 +10,7 @@ use super::{
 /// the caller's error becomes, is replaced by the next message, and a document that wasn't saved
 /// must not look saved: it stays modified, and what was at `path` is as it was. Not for a request
 /// an agent sent and waits on: the error is its reply.
-pub(crate) fn report_write_error(app: &mut VectorcraftApp, export: bool, path: &str, e: &str) {
+pub(crate) fn report_write_error(app: &mut PlumaApp, export: bool, path: &str, e: &str) {
     if app.ui.answering_control {
         return;
     }
@@ -20,7 +20,7 @@ pub(crate) fn report_write_error(app: &mut VectorcraftApp, export: bool, path: &
 }
 
 /// [`write_to`], a failure reported ([`report_write_error`]).
-pub(crate) fn write_reporting(app: &mut VectorcraftApp, path: &str, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn write_reporting(app: &mut PlumaApp, path: &str, bytes: &[u8]) -> Result<(), String> {
     let r = write_to(&mut app.services, path, bytes);
     if let Err(e) = &r {
         report_write_error(app, false, path, e);
@@ -37,14 +37,14 @@ pub(crate) fn write_to(services: &mut Services, path: &str, bytes: &[u8]) -> Res
 }
 
 /// The web saves by downloading: no save panel, no folders.
-pub(crate) fn is_web(app: &VectorcraftApp) -> bool {
+pub(crate) fn is_web(app: &PlumaApp) -> bool {
     app.services.download.is_some()
 }
 
 /// Write `bytes` to `path`, else to a file picked in a save panel that suggests `name` next to the
 /// document and shows its file type, [`file_types`] (the web downloads them as `name`) → where
 /// they went.
-pub(crate) fn write_named(app: &mut VectorcraftApp, path: Option<String>, name: &str, bytes: &[u8]) -> Result<String, String> {
+pub(crate) fn write_named(app: &mut PlumaApp, path: Option<String>, name: &str, bytes: &[u8]) -> Result<String, String> {
     let path = match path {
         Some(p) => p,
         None => {
@@ -60,7 +60,7 @@ pub(crate) fn write_named(app: &mut VectorcraftApp, path: Option<String>, name: 
 /// Where a file goes when no path was given: the suggested name on the web (a download), else the
 /// save panel's choice with the suggested name's extension, [`with_written_extension`]: a name
 /// typed with the extension of a format `keeps` takes stays as typed too.
-fn pick_path(app: &mut VectorcraftApp, pick: &FilePick, keeps: impl Fn(&Format) -> bool) -> Result<String, String> {
+fn pick_path(app: &mut PlumaApp, pick: &FilePick, keeps: impl Fn(&Format) -> bool) -> Result<String, String> {
     let ext = fileio::extension(&pick.name);
     pick_finished(app, pick, |picked, _| with_written_extension(picked, &ext, &keeps))
 }
@@ -84,7 +84,7 @@ fn with_written_extension(path: &str, ext: &str, keeps: impl Fn(&Format) -> bool
 /// replaced) and a file is there, which the panel did not ask about, a question asks before
 /// replacing it ([`crate::picks::ask_to_replace`]) and this answers "cancelled"; the question's OK
 /// runs what asked again.
-fn pick_finished(app: &mut VectorcraftApp, pick: &FilePick, finish: impl Fn(&str, Option<&str>) -> String) -> Result<String, String> {
+fn pick_finished(app: &mut PlumaApp, pick: &FilePick, finish: impl Fn(&str, Option<&str>) -> String) -> Result<String, String> {
     if is_web(app) {
         return Ok(finish(&pick.name, None));
     }
@@ -108,7 +108,7 @@ fn with_extension(path: &str, ext: &str, keeps: impl Fn(&Format) -> bool) -> Str
 }
 
 /// The active document's file name with extension `ext`, and its folder.
-pub(super) fn suggested(app: &VectorcraftApp, ext: &str) -> (String, Option<String>) {
+pub(super) fn suggested(app: &PlumaApp, ext: &str) -> (String, Option<String>) {
     let st = app.session.active();
     let t = st.map(|d| d.path.clone().unwrap_or_else(|| d.doc.title.clone())).unwrap_or_else(|| "Untitled".into());
     let folder = st.and_then(|d| d.path.as_deref()).and_then(|p| std::path::Path::new(p).parent()).map(|p| p.to_string_lossy().to_string());
@@ -121,15 +121,15 @@ const FILE_TYPES: &[(&str, &[&str])] = &[
     ("Swatch libraries", &["vcswatches"]),
     ("Swatch libraries", &["gpl"]),
     ("Swatch libraries", &["ase"]),
-    ("Graphic Style Libraries", &[vectorcraft_doc::style_libs::STYLES_EXT]),
-    ("Libraries", vectorcraft_engine::cmd::library::LIBRARY_EXTS),
-    ("Flattener presets", vectorcraft_engine::cmd::flatten::PRESET_EXTS),
-    ("PDF presets", vectorcraft_engine::cmd::pdfcmds::PRESET_EXTS),
-    ("Perspective grid presets", vectorcraft_engine::cmd::perspgrid::PRESET_EXTS),
-    ("Print presets", vectorcraft_engine::cmd::printpresets::PRESET_EXTS),
+    ("Graphic Style Libraries", &[pluma_doc::style_libs::STYLES_EXT]),
+    ("Libraries", pluma_engine::cmd::library::LIBRARY_EXTS),
+    ("Flattener presets", pluma_engine::cmd::flatten::PRESET_EXTS),
+    ("PDF presets", pluma_engine::cmd::pdfcmds::PRESET_EXTS),
+    ("Perspective grid presets", pluma_engine::cmd::perspgrid::PRESET_EXTS),
+    ("Print presets", pluma_engine::cmd::printpresets::PRESET_EXTS),
     ("Action sets", &[crate::panels::actions::ACTIONS_EXT]),
     ("Export presets", fileio::SCREEN_EXPORT_PRESET_EXTS),
-    ("Composite fonts", vectorcraft_engine::cmd::compositefonts::EXTS),
+    ("Composite fonts", pluma_engine::cmd::compositefonts::EXTS),
     ("CSS", &["css"]),
     ("PostScript", &["ps"]),
 ];
@@ -147,23 +147,18 @@ fn file_types(ext: &str) -> Vec<crate::FileFilter> {
 /// `path`, else one picked in a save panel (the web: the suggested name) for the active document
 /// with extension `ext`, filtered to its file type when it has one ([`file_types`]). A name typed
 /// with another format's extension gets `ext` instead ([`with_written_extension`]).
-pub(crate) fn target_path(app: &mut VectorcraftApp, path: Option<String>, ext: &str) -> Result<String, String> {
+pub(crate) fn target_path(app: &mut PlumaApp, path: Option<String>, ext: &str) -> Result<String, String> {
     target_path_keeping(app, path, ext, |_| false)
 }
 
 /// [`target_path`] for an export in format `f` (Export As's OK and [`export`]): a name typed with
 /// `.svgz` for an SVG stays as typed, and [`export`] writes it compressed.
-pub(crate) fn export_path(app: &mut VectorcraftApp, path: Option<String>, f: &Format) -> Result<String, String> {
+pub(crate) fn export_path(app: &mut PlumaApp, path: Option<String>, f: &Format) -> Result<String, String> {
     target_path_keeping(app, path, f.extensions[0], |g| f.id == "svg" && g.id == "svgz")
 }
 
 /// [`target_path`], keeping a typed extension of a format `keeps` takes.
-pub(super) fn target_path_keeping(
-    app: &mut VectorcraftApp,
-    path: Option<String>,
-    ext: &str,
-    keeps: impl Fn(&Format) -> bool,
-) -> Result<String, String> {
+pub(super) fn target_path_keeping(app: &mut PlumaApp, path: Option<String>, ext: &str, keeps: impl Fn(&Format) -> bool) -> Result<String, String> {
     if let Some(p) = path {
         return Ok(p);
     }
@@ -174,7 +169,7 @@ pub(super) fn target_path_keeping(
 
 /// Keep the active document's saved view current before a save (native files reopen at it), and
 /// each document's active artboard ([`remember_active_artboard`]).
-pub fn remember_view(app: &mut VectorcraftApp) {
+pub fn remember_view(app: &mut PlumaApp) {
     remember_active_artboard(app);
     let Some(v) = app.view().copied().filter(|v| v.fitted) else { return };
     if let Some(st) = app.session.active_mut() {
@@ -185,7 +180,7 @@ pub fn remember_view(app: &mut VectorcraftApp) {
 /// Keep every open document's active artboard current (a `.ai` file saved or exported names it as
 /// its active one, also in Export All Open Documents): its own view's, an index past the last
 /// artboard being the last one as in the Artboards panel; `None` without a view.
-pub fn remember_active_artboard(app: &mut VectorcraftApp) {
+pub fn remember_active_artboard(app: &mut PlumaApp) {
     let uids: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
     for uid in uids {
         let index = app.view_uids.iter().position(|u| *u == uid).and_then(|k| app.views.get(k)).map(|v| v.artboard);
@@ -199,7 +194,7 @@ pub fn remember_active_artboard(app: &mut VectorcraftApp) {
 /// A path typed in a save panel: kept when its extension names one of the panel's file types (a
 /// save format, or a template format for Save as Template, `mode`). An extension that names
 /// another format (`card.png`, or `card.ait` in Save As) is replaced with `f`'s, and `f`'s is
-/// added to any other path (`notes.v2` becomes `notes.v2.vectorcraft`).
+/// added to any other path (`notes.v2` becomes `notes.v2.pluma`).
 fn with_save_extension(path: &str, f: &Format, mode: SaveMode) -> String {
     let formats = if mode == SaveMode::Template { TEMPLATE_FORMATS } else { SAVE_FORMATS };
     if fileio::format_for_name(path).is_some_and(|g| !formats.contains(&g.id)) {
@@ -228,7 +223,7 @@ fn with_picked_type(path: &str, suggested: &str, picked: Option<&str>, f: &Forma
 
 /// Write every file of an export (one per artboard, linked images) for the destination `path`.
 /// → the export's own files (without the linked images).
-pub(super) fn write_encoded(write: Writer, doc: &vectorcraft_doc::Document, path: &str, enc: &fileio::Encoded) -> Result<Vec<String>, String> {
+pub(super) fn write_encoded(write: Writer, doc: &pluma_doc::Document, path: &str, enc: &fileio::Encoded) -> Result<Vec<String>, String> {
     let named = enc.named(doc, path);
     for (p, bytes) in &named {
         write(p, bytes)?;
@@ -236,7 +231,7 @@ pub(super) fn write_encoded(write: Writer, doc: &vectorcraft_doc::Document, path
     Ok(named.into_iter().take(enc.files.len()).map(|(p, _)| p).collect())
 }
 
-fn plan(app: &VectorcraftApp, mode: SaveMode, p: &Value) -> Result<SavePlan, String> {
+fn plan(app: &PlumaApp, mode: SaveMode, p: &Value) -> Result<SavePlan, String> {
     fileio::save_plan(&app.session, mode, p).map_err(|e| e.to_string())
 }
 
@@ -251,7 +246,7 @@ fn plan(app: &VectorcraftApp, mode: SaveMode, p: &Value) -> Result<SavePlan, Str
 /// files on Save As and Save a Copy), and so does Save As or Save a Copy to a given SVG path.
 /// → `{path, format, warnings…}` once written, or `{pending: <dialog kind>,
 /// path?}` while a dialog is open.
-pub fn save(app: &mut VectorcraftApp, mode: SaveMode, p: &Value, ask_options: bool) -> Result<Value, String> {
+pub fn save(app: &mut PlumaApp, mode: SaveMode, p: &Value, ask_options: bool) -> Result<Value, String> {
     remember_view(app);
     // Writing over the file the document was read from is asked about here, not refused.
     let first = plan(app, mode, &acknowledged(p))?;
@@ -311,14 +306,14 @@ fn acknowledged(p: &Value) -> Value {
 }
 
 /// Writing `path` over the file the active document was read from, when reading it left things
-/// out (hidden text, art or layers VectorCraft can't read yet): asks first, and OK runs `command`
+/// out (hidden text, art or layers Pluma can't read yet): asks first, and OK runs `command`
 /// with `params` and `acknowledgeLoss` → `{pending}` while it asks, `None` when nothing is lost.
-pub(super) fn ask_before_losing(app: &mut VectorcraftApp, path: &str, command: &str, params: &Value) -> Option<Value> {
+pub(super) fn ask_before_losing(app: &mut PlumaApp, path: &str, command: &str, params: &Value) -> Option<Value> {
     let what = fileio::losses_summary(fileio::overwrite_losses(app.session.active()?, path, params)?);
     let name = fileio::file_name(path);
     let message = crate::i18n::fmt(tl!("Replace “{name}”, the file this document was opened from?"), &[("name", &name)]);
     let detail = crate::i18n::fmt(
-        tl!("Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it."),
+        tl!("Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it."),
         &[("what", &what)],
     );
     let mut params = acknowledged(params);
@@ -350,7 +345,7 @@ fn has_options(p: &Value) -> bool {
 
 /// Ask for format `f`'s options before a save (`mode`) to `path`: SVG Options for SVG, the Save
 /// PDF dialog for PDF, else the save options dialog. OK finishes the save.
-pub fn ask_format_options(app: &mut VectorcraftApp, mode: SaveMode, f: &Format, path: &str) -> Result<Value, String> {
+pub fn ask_format_options(app: &mut PlumaApp, mode: SaveMode, f: &Format, path: &str) -> Result<Value, String> {
     match f.id {
         "pdf" => ask_pdf_options(app, mode, path),
         "svg" | "svgz" => {
@@ -364,7 +359,7 @@ pub fn ask_format_options(app: &mut VectorcraftApp, mode: SaveMode, f: &Format, 
 
 /// A save as PDF asks with the Save PDF dialog, filled with the PDF options the document was last
 /// saved with; its OK finishes the save ([`save_pdf`]).
-pub fn ask_pdf_options(app: &mut VectorcraftApp, mode: SaveMode, path: &str) -> Result<Value, String> {
+pub fn ask_pdf_options(app: &mut PlumaApp, mode: SaveMode, path: &str) -> Result<Value, String> {
     let mut p = Value::Object(plan(app, mode, &json!({ "path": path, "format": "pdf" }))?.options);
     p["path"] = json!(path);
     dialogs::open_save_pdf(app, &p)?;
@@ -375,7 +370,7 @@ pub fn ask_pdf_options(app: &mut VectorcraftApp, mode: SaveMode, path: &str) -> 
 
 /// The Save PDF dialog's OK during a save (`mode`): `params` are its `document.exportPdf` options
 /// and `path`.
-pub fn save_pdf(app: &mut VectorcraftApp, mode: SaveMode, mut params: Value) -> Result<Value, String> {
+pub fn save_pdf(app: &mut PlumaApp, mode: SaveMode, mut params: Value) -> Result<Value, String> {
     let path = params.as_object_mut().and_then(|o| o.remove("path"));
     let view = params.get("viewAfterSaving").and_then(Value::as_bool).unwrap_or(false);
     let r = save(app, mode, &json!({ "path": path, "format": "pdf", "options": params }), false)?;
@@ -386,7 +381,7 @@ pub fn save_pdf(app: &mut VectorcraftApp, mode: SaveMode, mut params: Value) -> 
 }
 
 /// Open a written file in the system viewer (not on the web, which downloads it).
-pub(super) fn view_file(app: &mut VectorcraftApp, path: &str) {
+pub(super) fn view_file(app: &mut PlumaApp, path: &str) {
     // The viewer is another app: an export automation asked for is written but not opened.
     if !is_web(app) && app.refuse_automation("viewAfterSaving").is_ok() {
         app.open_url(&file_url(path));
@@ -394,7 +389,7 @@ pub(super) fn view_file(app: &mut VectorcraftApp, path: &str) {
 }
 
 /// "Saved <path>", with the first of the result's warnings.
-pub(crate) fn report_saved(app: &mut VectorcraftApp, path: &str, r: &Value) {
+pub(crate) fn report_saved(app: &mut PlumaApp, path: &str, r: &Value) {
     app.status(saved_status(path, r));
 }
 
@@ -417,7 +412,7 @@ pub(crate) fn saved_status(path: &str, r: &Value) -> String {
 /// ([`background`]): this returns `{path, background: true, status, format, warnings}` at once
 /// (`warnings`: what the format loses, then the save's notes on its params, such as an option the format
 /// doesn't read), and the document takes the file (and counts as saved, as of the snapshot) once it is written.
-fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String> {
+fn write_plan(app: &mut PlumaApp, plan: SavePlan) -> Result<Value, String> {
     let uid = app.session.active().ok_or("no document")?.uid;
     // Saves of one document finish in order.
     if app.background.busy_with(uid) {
@@ -453,7 +448,7 @@ fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String>
         .map_err(|e| e.to_string())
     };
     let failed = target.clone().unwrap_or_default();
-    let then = move |app: &mut VectorcraftApp, r: Result<Value, String>| {
+    let then = move |app: &mut PlumaApp, r: Result<Value, String>| {
         // Not written: the document keeps its file, format and modified state, and the user is told.
         let r = r.inspect_err(|e| report_write_error(app, false, &failed, e))?;
         // The document may have closed meanwhile: the file is written all the same.

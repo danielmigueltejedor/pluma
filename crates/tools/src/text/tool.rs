@@ -88,7 +88,7 @@ impl Tool for TypeTool {
                 if self.selecting {
                     if let Some(t) = self.current(cx) {
                         let lay = self.layout(&t);
-                        self.caret = vectorcraft_text::hit_byte(&lay, t.xf.inverse() * ev.pos);
+                        self.caret = pluma_text::hit_byte(&lay, t.xf.inverse() * ev.pos);
                         self.clicks = (None, 0);
                     }
                 } else if self.press.is_some() {
@@ -246,9 +246,7 @@ impl Tool for TypeTool {
             }
             ToolKey::Left => {
                 let to = if a != b && !mods.shift {
-                    if lay.glyphs.iter().any(|g| g.rtl)
-                        && vectorcraft_text::caret_position(&lay, a).0.x > vectorcraft_text::caret_position(&lay, b).0.x
-                    {
+                    if lay.glyphs.iter().any(|g| g.rtl) && pluma_text::caret_position(&lay, a).0.x > pluma_text::caret_position(&lay, b).0.x {
                         b
                     } else {
                         a
@@ -257,7 +255,7 @@ impl Tool for TypeTool {
                     edit::prev_word(&text, self.caret)
                 } else {
                     if lay.glyphs.iter().any(|g| g.rtl) {
-                        vectorcraft_text::caret_horizontal_cluster(&lay, &text, self.caret, false)
+                        pluma_text::caret_horizontal_cluster(&lay, &text, self.caret, false)
                     } else {
                         edit::prev_cluster(&text, self.caret)
                     }
@@ -266,9 +264,7 @@ impl Tool for TypeTool {
             }
             ToolKey::Right => {
                 let to = if a != b && !mods.shift {
-                    if lay.glyphs.iter().any(|g| g.rtl)
-                        && vectorcraft_text::caret_position(&lay, a).0.x > vectorcraft_text::caret_position(&lay, b).0.x
-                    {
+                    if lay.glyphs.iter().any(|g| g.rtl) && pluma_text::caret_position(&lay, a).0.x > pluma_text::caret_position(&lay, b).0.x {
                         a
                     } else {
                         b
@@ -277,7 +273,7 @@ impl Tool for TypeTool {
                     edit::next_word(&text, self.caret)
                 } else {
                     if lay.glyphs.iter().any(|g| g.rtl) {
-                        vectorcraft_text::caret_horizontal_cluster(&lay, &text, self.caret, true)
+                        pluma_text::caret_horizontal_cluster(&lay, &text, self.caret, true)
                     } else {
                         edit::next_cluster(&text, self.caret)
                     }
@@ -287,7 +283,7 @@ impl Tool for TypeTool {
             ToolKey::Up | ToolKey::Down => {
                 let d = if key == ToolKey::Up { -1 } else { 1 };
                 let from = if a != b && !mods.shift { if d < 0 { a } else { b } } else { self.caret };
-                let x = self.goal_x.unwrap_or_else(|| lay.logical_point(vectorcraft_text::caret_position(&lay, from).0).x);
+                let x = self.goal_x.unwrap_or_else(|| lay.logical_point(pluma_text::caret_position(&lay, from).0).x);
                 let to = if mods.cmd {
                     // Cmd+Up/Down: paragraph start / end.
                     let p = edit::paragraph_at(&text, from);
@@ -299,18 +295,18 @@ impl Tool for TypeTool {
                         p.end
                     }
                 } else {
-                    vectorcraft_text::caret_vertical(&lay, from, d, x)
+                    pluma_text::caret_vertical(&lay, from, d, x)
                 };
                 let out = self.move_to(to, mods.shift);
                 self.goal_x = Some(x);
                 out
             }
             ToolKey::Home => {
-                let to = if mods.cmd { 0 } else { vectorcraft_text::line_home(&lay, self.caret) };
+                let to = if mods.cmd { 0 } else { pluma_text::line_home(&lay, self.caret) };
                 self.move_to(to, mods.shift)
             }
             ToolKey::End => {
-                let to = if mods.cmd { len } else { vectorcraft_text::line_end_of(&lay, self.caret) };
+                let to = if mods.cmd { len } else { pluma_text::line_end_of(&lay, self.caret) };
                 self.move_to(to, mods.shift)
             }
             _ => {
@@ -466,7 +462,7 @@ impl Tool for TypeTool {
             Some(p) => p.range.start + p.active.as_ref().map_or(0, |r| r.start),
             None => self.caret.min(self.anchor),
         };
-        let (a, b) = vectorcraft_text::caret_position(&lay, at.min(len));
+        let (a, b) = pluma_text::caret_position(&lay, at.min(len));
         Some((t.xf * a, t.xf * b))
     }
     fn deactivate(&mut self, cx: &ToolContext) -> Vec<Action> {
@@ -613,7 +609,7 @@ impl Tool for TypeTool {
         if let (Some((_, s)), Some(d)) = (self.press, self.drag) {
             // The area being drawn (along the Constrain Angle's axes when one is set, as `on_up`
             // makes it) and its size.
-            let size = match vectorcraft_geom::constrain_axes(cx.constrain_angle) {
+            let size = match pluma_geom::constrain_axes(cx.constrain_angle) {
                 None => {
                     let r = Rect::from_points(s, d);
                     o.push(Overlay::Marquee(r));
@@ -660,9 +656,9 @@ impl Tool for TypeTool {
         if let Some(pe) = &self.preedit {
             // Marked text: a thin underline, a thick one under the clause being converted.
             let under = |o: &mut Vec<Overlay>, r: Range<usize>, width: f32| {
-                for q in vectorcraft_text::selection_quads(&lay, r.start.min(len), r.end.min(len)) {
+                for q in pluma_text::selection_quads(&lay, r.start.min(len), r.end.min(len)) {
                     let (l, rr) = (t.xf * q[3], t.xf * q[2]);
-                    o.push(Overlay::Path { path: vectorcraft_geom::Line::new(l, rr).to_path(0.1), color: [0, 0, 0], width, dashed: false });
+                    o.push(Overlay::Path { path: pluma_geom::Line::new(l, rr).to_path(0.1), color: [0, 0, 0], width, dashed: false });
                 }
             };
             under(&mut o, pe.range.clone(), 1.0);
@@ -670,15 +666,15 @@ impl Tool for TypeTool {
                 Some(r) if !r.is_empty() => under(&mut o, pe.range.start + r.start..pe.range.start + r.end, 2.5),
                 _ => {
                     let at = pe.range.start + pe.active.as_ref().map_or(pe.range.len(), |r| r.start);
-                    let (p, q) = vectorcraft_text::caret_position(&lay, at.min(len));
+                    let (p, q) = pluma_text::caret_position(&lay, at.min(len));
                     o.push(Overlay::Line { a: t.xf * p, b: t.xf * q, color: [0, 0, 0], dashed: false });
                 }
             }
         } else if a == b {
-            let (p, q) = vectorcraft_text::caret_position(&lay, self.caret.min(len));
+            let (p, q) = pluma_text::caret_position(&lay, self.caret.min(len));
             o.push(Overlay::Line { a: t.xf * p, b: t.xf * q, color: [0, 0, 0], dashed: false });
         } else {
-            for q in vectorcraft_text::selection_quads(&lay, a, b) {
+            for q in pluma_text::selection_quads(&lay, a, b) {
                 o.push(Overlay::Highlight { quad: q.map(|p| t.xf * p), color: [60, 120, 255, 90] });
             }
         }
@@ -687,8 +683,8 @@ impl Tool for TypeTool {
         if self.preedit.is_none() {
             for f in self.story_others(cx) {
                 let Some(other) = Self::text(cx, f) else { continue };
-                let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), other);
-                for q in vectorcraft_text::selection_quads(&lay, 0, edit::runs_len(&other.runs)) {
+                let lay = pluma_text::layout(pluma_text::FontDb::global(), other);
+                for q in pluma_text::selection_quads(&lay, 0, edit::runs_len(&other.runs)) {
                     o.push(Overlay::Highlight { quad: q.map(|p| other.xf * p), color: [60, 120, 255, 90] });
                 }
             }
@@ -719,8 +715,8 @@ impl Tool for TypeTool {
 }
 
 /// Is `s` one curly quote that Typographer's Quotes may set like a straight one
-/// ([`vectorcraft_doc::Quotes::typed_as_straight`]: a lone `”`)?
+/// ([`pluma_doc::Quotes::typed_as_straight`]: a lone `”`)?
 fn is_one_typed_curly_quote(s: &str) -> bool {
     let mut chars = s.chars();
-    matches!((chars.next(), chars.next()), (Some(c), None) if vectorcraft_doc::Quotes::typed_as_straight(c).is_some())
+    matches!((chars.next(), chars.next()), (Some(c), None) if pluma_doc::Quotes::typed_as_straight(c).is_some())
 }

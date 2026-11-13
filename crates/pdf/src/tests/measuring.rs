@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vectorcraft_doc::{Knockout, Node, NodeId};
+use pluma_doc::{Knockout, Node, NodeId};
 
 use super::*;
 

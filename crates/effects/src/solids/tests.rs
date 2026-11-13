@@ -1,6 +1,6 @@
+use pluma_doc::{Document, NodeId};
+use pluma_geom::{Affine, BezPath, Point, Shape};
 use serde_json::json;
-use vectorcraft_doc::{Document, NodeId};
-use vectorcraft_geom::{Affine, BezPath, Point, Shape};
 
 use super::*;
 
@@ -213,7 +213,7 @@ fn a_stroke_past_the_limits_is_left_out() {
             Point::new(200.0 + r * c, 200.0 + r * s)
         })
         .collect();
-    let path = PathData::single(vectorcraft_geom::SubPath::polyline(&points, true));
+    let path = PathData::single(pluma_geom::SubPath::polyline(&points, true));
     for id in [EXTRUDE, INFLATE] {
         let mut n = Node::path(NodeId(1), path.clone(), Appearance::basic(Paint::solid(RED), Paint::solid(BLUE), 2.0));
         n.appearance.effects.push(fx(id, json!({})));
@@ -249,7 +249,7 @@ fn a_flat_inflate_draws_the_strokes_front_above_the_fills() {
 fn inflate_sees_the_fill_and_the_stroke_from_one_eye() {
     let mut n = stroked_rect(100.0);
     if let Some(AppearanceItem::Stroke(s)) = n.appearance.items.iter_mut().find(|i| matches!(i, AppearanceItem::Stroke(_))) {
-        s.align = vectorcraft_doc::StrokeAlign::Outside;
+        s.align = pluma_doc::StrokeAlign::Outside;
     }
     let params = json!({"volume": 100, "depth": 100, "perspectiveAngle": 120, "rotationX": 15, "rotationY": 160, "rotationZ": 0});
     n.appearance.effects.push(fx(INFLATE, params));
@@ -288,7 +288,7 @@ fn a_translucent_stroke_is_a_surface_of_its_own() {
 /// own, and the mask stays on the fill's. Under a white light the same object is one surface.
 #[test]
 fn a_masked_surface_under_a_colored_light_stays_whole() {
-    use vectorcraft_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
+    use pluma_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
     let mut half = GradientStop::new(1.0, RED);
     half.opacity = 0.5;
     let gradient = GradientPaint::new(Gradient::new(GradientKind::Linear, vec![GradientStop::new(0.0, RED), half]));
@@ -390,7 +390,7 @@ fn an_earlier_perspective_strength_draws_as_its_angle() {
             n.appearance.effects.push(Effect { id: id.into(), params, visible: true });
             art(&n, id).unwrap().visual_bounds().unwrap()
         };
-        let angle = vectorcraft_three_d::perspective_from_strength(0.6);
+        let angle = pluma_three_d::perspective_from_strength(0.6);
         let old = with(view(json!({"perspective": 60})));
         let new = with(view(json!({"perspectiveAngle": angle})));
         let none = with(view(json!({})));
@@ -432,7 +432,7 @@ fn an_earlier_light_direction_shades_as_its_rotation_and_height() {
                 colours(&art, &mut out);
                 out
             };
-            let (r, h, behind) = vectorcraft_three_d::light_from_azimuth_elevation(azimuth, elevation);
+            let (r, h, behind) = pluma_three_d::light_from_azimuth_elevation(azimuth, elevation);
             let old = with(json!({"lightAzimuth": azimuth, "lightElevation": elevation}));
             let new = with(json!({"lightRotation": r, "lightHeight": h, "lightBehind": behind}));
             assert!(!old.is_empty() && old.len() == new.len(), "{id}");
@@ -506,7 +506,7 @@ fn legacy_white_inflate_keeps_polygon_faces_and_its_seam_range() {
         assert!(matches!(face.kind, NodeKind::Path { .. }));
         let AppearanceItem::Stroke(stroke) = &face.appearance.items[1] else { panic!("seam") };
         assert!((0.05..=0.75).contains(&stroke.width));
-        assert_eq!(stroke.join, vectorcraft_doc::LineJoin::Miter);
+        assert_eq!(stroke.join, pluma_doc::LineJoin::Miter);
     }
     // A tiny shape exercises the lower bound, which otherwise disappears at grazing angles.
     n.transform(Affine::scale(0.001), false);
@@ -704,7 +704,7 @@ fn classic_bevel_height_extent_and_cap_shape_the_solid() {
 /// the shading does not cover the transparent part; an opaque gradient needs no mask.
 #[test]
 fn classic_shading_keeps_a_gradients_transparency() {
-    use vectorcraft_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
+    use pluma_doc::color::{Gradient, GradientKind, GradientPaint, GradientStop};
     for (end, masked) in [(0.25, true), (1.0, false)] {
         let mut stop = GradientStop::new(1.0, RED);
         stop.opacity = end;

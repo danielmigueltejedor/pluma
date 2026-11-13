@@ -13,11 +13,11 @@ pub mod shape;
 pub mod shared_edge;
 
 use egui::Ui;
+use pluma_geom::Point;
+use pluma_tools::addons::{anchor_eraser, extend_path, measure_inspect, parametric_shape, slide_anchor};
 use serde_json::{Map, Value, json};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::addons::{anchor_eraser, extend_path, measure_inspect, parametric_shape, slide_anchor};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::DialogSpec;
 use crate::menus::Item;
 use crate::panels::{empty_state, pstate, set_pstate};
@@ -36,7 +36,7 @@ const LABEL_W: f32 = 64.0;
 
 /// The parameters of the add-on's Path Effects that pick one of some values, as (label, value).
 pub(crate) fn effect_choices(effect: &str, key: &str) -> Option<&'static [(&'static str, &'static str)]> {
-    use vectorcraft_effects::addons::path as fx;
+    use pluma_effects::addons::path as fx;
     match (effect, key) {
         (fx::ADD_ANCHORS, "target") => Some(&[("All", "all"), ("Curved", "curved"), ("Straight", "straight")]),
         (fx::ADD_ANCHORS, "spacing") => Some(&[("By Count", "count"), ("By Distance", "distance")]),
@@ -73,7 +73,7 @@ pub fn menu() -> Vec<Item> {
 }
 
 /// The first direct-selected anchor (path, subpath, anchor) and how many are selected.
-fn first_anchor(app: &VectorcraftApp) -> Option<(vectorcraft_geom::Anchor, usize)> {
+fn first_anchor(app: &PlumaApp) -> Option<(pluma_geom::Anchor, usize)> {
     let st = app.session.active()?;
     let count = st.selection.anchors.values().map(|a| a.len()).sum();
     let (id, set) = st.selection.anchors.iter().find(|(_, a)| !a.is_empty())?;
@@ -88,13 +88,13 @@ fn polar(p: Point, h: Point) -> Option<(f64, f64)> {
     (v.hypot() > 1e-9).then(|| (v.hypot(), (-v.y).atan2(v.x).to_degrees() + 0.0))
 }
 
-fn run(app: &mut VectorcraftApp, id: &str, p: Value) {
+fn run(app: &mut PlumaApp, id: &str, p: Value) {
     if let Err(e) = app.run(id, p) {
         app.status(e);
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else {
         empty_state(ui, "dc-anchor-smooth", tl!("No document"), tl!("Open a document to edit its anchor points."));
         return;
@@ -193,7 +193,7 @@ pub fn has_options(tool: &str) -> bool {
 }
 
 /// Open the options of add-on tool `tool` with its current values.
-pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
+pub fn open_options(app: &mut PlumaApp, tool: &str) -> Result<Value, String> {
     let mut fields: Map<String, Value> = app.session.tool_options_of(tool).as_object().cloned().unwrap_or_default();
     fields.insert("__tool".into(), json!(tool));
     app.ui.dialog = Some(Dialog { kind: KIND.into(), fields });
@@ -203,11 +203,11 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<Value, Strin
 pub(crate) const OPTIONS_SPEC: DialogSpec = DialogSpec { heading, body, confirm, min_width: 280.0, ..DialogSpec::FORM };
 
 fn heading(d: &Dialog) -> String {
-    let label = vectorcraft_tools::tool_info(&d.str("__tool")).map_or("", |t| t.label);
+    let label = pluma_tools::tool_info(&d.str("__tool")).map_or("", |t| t.label);
     crate::i18n::fmt(tl!("{tool} Options"), &[("tool", tl!(label))])
 }
 
-fn body(_app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(_app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     if d.str("__tool") == extend_path::ID {
         let modes = [("straight", "Straight"), ("bezier", "Stretch Curve"), ("arc", "Arc")];
         let labels: Vec<&str> = modes.iter().map(|(_, l)| *l).collect();
@@ -239,7 +239,7 @@ fn body(_app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: set the tool's options.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let tool = d.str("__tool");
     let values: Map<String, Value> = d.fields.iter().filter(|(k, _)| !k.starts_with("__")).map(|(k, v)| (k.clone(), v.clone())).collect();
     let r = app.run("tool.setOption", json!({ "tool": tool, "values": values }));

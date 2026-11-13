@@ -311,7 +311,7 @@ impl Out {
     pub(super) fn clip(&mut self, path: BezPath, rule: FillRule) -> Option<Arc<Clip>> {
         // Only a polygon that really covers the page: a diamond touching its edges has the page as
         // its bounding box but cuts its corners away (#1542).
-        if path.elements().len() <= 6 && vectorcraft_geom::hit::polygon_covers_rect(&path, self.frame, 0.5) {
+        if path.elements().len() <= 6 && pluma_geom::hit::polygon_covers_rect(&path, self.frame, 0.5) {
             return None;
         }
         self.next_clip += 1;

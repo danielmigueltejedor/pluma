@@ -10,19 +10,19 @@
 //! ([`KEY`]) with a fingerprint of the outline they drew. Moved, turned or scaled by any tool it
 //! stays editable ([`ParametricShape::recover`]); once its anchors are edited it is a plain path.
 
+use pluma_doc::hit::hit_test;
+use pluma_doc::{Node, NodeId, NodeKind};
+use pluma_geom::{Affine, BezPath, PathData, Point, Vec2};
+use pluma_pathops::addons::pathtools::shapes::fingerprint;
+pub use pluma_pathops::addons::pathtools::shapes::{MAX_COUNT, MAX_SIZE, MIN_COUNT, MIN_SIZE, ParametricShape, ShapeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::hit_test;
-use vectorcraft_doc::{Node, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Vec2};
-use vectorcraft_pathops::addons::pathtools::shapes::fingerprint;
-pub use vectorcraft_pathops::addons::pathtools::shapes::{MAX_COUNT, MAX_SIZE, MIN_COUNT, MIN_SIZE, ParametricShape, ShapeKind};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
 /// The tool's id.
 pub const ID: &str = "parametricShape";
 /// The object data entry that holds a parametric shape's numbers (JSON). The `vc-` prefix marks it
-/// as VectorCraft's own, which SVG export leaves out of the `data-*` attributes it writes.
+/// as Pluma's own, which SVG export leaves out of the `data-*` attributes it writes.
 pub const KEY: &str = "vc-pathtools-shape";
 /// The longest entry read back (a damaged file's longer one is no shape).
 const MAX_STORED: usize = 4096;
@@ -64,7 +64,7 @@ pub fn apply(mut s: ParametricShape, p: &Value) -> Result<ParametricShape, Strin
         }
     }
     if let Some(r) = num("rotation")? {
-        s.rotation = vectorcraft_geom::normalize_deg(r);
+        s.rotation = pluma_geom::normalize_deg(r);
     }
     if let Some(n) = num("count")? {
         if n.fract() != 0.0 || !(f64::from(MIN_COUNT)..=f64::from(MAX_COUNT)).contains(&n) {
@@ -202,7 +202,7 @@ fn grips(cx: &ToolContext, s: &ParametricShape) -> Vec<(Grip, Point)> {
 fn angle(c: Point, p: Point, shift: bool) -> f64 {
     let d = p - c;
     let deg = d.x.atan2(-d.y).to_degrees();
-    vectorcraft_geom::normalize_deg(if shift { (deg / 45.0).round() * 45.0 } else { deg })
+    pluma_geom::normalize_deg(if shift { (deg / 45.0).round() * 45.0 } else { deg })
 }
 
 /// A drag under way.
@@ -440,7 +440,7 @@ impl Tool for ParametricShapeTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::{Appearance, Document, Selection};
+    use pluma_doc::{Appearance, Document, Selection};
 
     fn ev(kind: PointerKind, x: f64, y: f64) -> PointerEvent {
         PointerEvent::new(kind, x, y)

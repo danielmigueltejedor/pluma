@@ -181,7 +181,7 @@ impl Node {
     }
 
     /// The path a path's or compound path's own strokes follow (a compound's members' together).
-    pub fn stroke_path(&self) -> Option<vectorcraft_geom::BezPath> {
+    pub fn stroke_path(&self) -> Option<pluma_geom::BezPath> {
         match &self.kind {
             NodeKind::Path { path, .. } => Some(path.to_bezpath()),
             NodeKind::Compound { children, .. } => {
@@ -190,7 +190,7 @@ impl Node {
                 // every call.
                 let subpaths = || children.iter().filter_map(|c| c.path_data()).flat_map(|pd| &pd.subpaths);
                 let elements = subpaths().filter(|sp| !sp.anchors.is_empty()).map(|sp| 1 + sp.segment_count() + usize::from(sp.closed)).sum();
-                let mut bp = vectorcraft_geom::BezPath::from_vec(Vec::with_capacity(elements));
+                let mut bp = pluma_geom::BezPath::from_vec(Vec::with_capacity(elements));
                 subpaths().for_each(|sp| sp.to_bezpath_into(&mut bp));
                 Some(bp)
             }
@@ -233,23 +233,21 @@ impl Node {
                 children
                     .iter()
                     .skip(usize::from(self.extras().shaper.is_some()))
-                    .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.reach(symbols)))
+                    .fold(None, |acc, c| pluma_geom::union_opt(acc, c.reach(symbols)))
                     .map(|b| b.inflate(o, o))
             }
-            NodeKind::Intertwine { children } => children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.reach(symbols))),
+            NodeKind::Intertwine { children } => children.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, c.reach(symbols))),
             // The frame and each shape the image's own fills and strokes paint, a stroke's grown by
             // the farthest it can reach from its shape.
             NodeKind::Image(_) => {
                 crate::hit::image_paint(symbols.map(SymbolBoxes::document), self).iter().fold(self.geometric(symbols), |acc, (bp, _, item)| {
                     let o = if let crate::AppearanceItem::Stroke(s) = item { s.reach() } else { 0.0 };
-                    vectorcraft_geom::union_opt(acc, (!bp.elements().is_empty()).then(|| bp.bounding_box().inflate(o, o)))
+                    pluma_geom::union_opt(acc, (!bp.elements().is_empty()).then(|| bp.bounding_box().inflate(o, o)))
                 })
             }
             // Keys and steps placed on a spine, turned to it with Align to Path, can reach past the
             // keys and the spine.
-            NodeKind::Blend { children, spec } => {
-                vectorcraft_geom::union_opt(self.visual(symbols), crate::blend::rail_reach(children, spec, symbols))
-            }
+            NodeKind::Blend { children, spec } => pluma_geom::union_opt(self.visual(symbols), crate::blend::rail_reach(children, spec, symbols)),
             _ => self.visual(symbols),
         }
     }
@@ -284,7 +282,7 @@ impl Node {
     /// The box of [`Node::geometric_bounds`], or of [`Node::geometric_bounds_with`] when `symbols`
     /// is given.
     pub(crate) fn geometric(&self, symbols: Option<&SymbolBoxes>) -> Option<Rect> {
-        let union = |nodes: &[Arc<Node>]| nodes.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.geometric(symbols)));
+        let union = |nodes: &[Arc<Node>]| nodes.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, c.geometric(symbols)));
         match &self.kind {
             NodeKind::Path { path, .. } => path.bounds(),
             NodeKind::Group { children, clip: true } | NodeKind::Layer { children, clip: true, .. } => {
@@ -294,14 +292,14 @@ impl Node {
                 .editing_children()
                 .iter()
                 .filter(|c| c.visible || !matches!(self.kind, NodeKind::Layer { .. }))
-                .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.geometric(symbols))),
+                .fold(None, |acc, c| pluma_geom::union_opt(acc, c.geometric(symbols))),
             NodeKind::Text(t) => self.projected(t.bounds()),
             NodeKind::Image(im) => Some(im.xf.transform_rect_bbox(Rect::new(0.0, 0.0, im.width as f64, im.height as f64))),
             NodeKind::SymbolInstance { symbol, xf } => {
                 let art = symbols.and_then(|s| s.art(symbol)).map_or(SYMBOL_SQUARE, |a| a.geometric);
                 self.projected(Some(xf.transform_rect_bbox(art)))
             }
-            NodeKind::Blend { children, spec } => vectorcraft_geom::union_opt(union(children), spec.spine.as_ref().and_then(|s| s.bounds())),
+            NodeKind::Blend { children, spec } => pluma_geom::union_opt(union(children), spec.spine.as_ref().and_then(|s| s.bounds())),
             NodeKind::Envelope { content, kind, frame, options, .. } => crate::live::envelope_bounds(content, kind, **frame, *options),
             NodeKind::Mesh(m) => m.bounds(),
             // Each copy is measured where the repeat draws it: `RepeatSpec::transforms` lays the
@@ -339,7 +337,7 @@ impl Node {
     pub fn visual_of_members(&self, members: impl Iterator<Item = Option<Rect>>) -> Option<Rect> {
         // The container's own strokes paint around its members.
         let o = self.appearance.outset();
-        members.fold(None, vectorcraft_geom::union_opt).map(|b| b.inflate(o, o))
+        members.fold(None, pluma_geom::union_opt).map(|b| b.inflate(o, o))
     }
 
     /// The box of [`Node::visual_bounds`], or of [`Node::visual_bounds_with`] when `symbols` is
@@ -355,12 +353,12 @@ impl Node {
                     clip.geometric(symbols)
                 }
             }
-            NodeKind::Intertwine { children } => children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.visual(symbols))),
+            NodeKind::Intertwine { children } => children.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, c.visual(symbols))),
             NodeKind::Layer { .. } | NodeKind::Group { .. } => self.visual_of_members(self.editing_children().iter().map(|c| c.visual(symbols))),
             NodeKind::Blend { children, spec } => {
-                let b = children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.visual(symbols)));
+                let b = children.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, c.visual(symbols)));
                 let o = crate::live::max_outset(children, symbols);
-                vectorcraft_geom::union_opt(b, spec.spine.as_ref().and_then(|s| s.bounds()).map(|r| r.inflate(o, o)))
+                pluma_geom::union_opt(b, spec.spine.as_ref().and_then(|s| s.bounds()).map(|r| r.inflate(o, o)))
             }
             NodeKind::Envelope { content, .. } | NodeKind::Repeat(RepeatSpec { source: content, .. }) => {
                 let o = crate::live::max_outset(content, symbols);
@@ -591,7 +589,7 @@ impl Node {
     /// layout bounds; everything else paints its fill or stroke in the document, fitted to the
     /// geometric bounds. Strokes fit the box grown by half their weight. A colorized image shows
     /// its colorize paint as its fill.
-    pub fn proxy_paint(&self, stroke: bool, item: Option<usize>) -> Option<(&vectorcraft_color::Paint, Affine, Rect)> {
+    pub fn proxy_paint(&self, stroke: bool, item: Option<usize>) -> Option<(&pluma_color::Paint, Affine, Rect)> {
         let item = self.appearance.item_of_kind(item, !stroke);
         if item.is_none()
             && !stroke
@@ -617,7 +615,7 @@ impl Node {
 
     /// The paint behind the Fill (or Stroke) proxy, the one [`Node::proxy_paint`] gives, without its
     /// map and box: the object is not measured, so a long path costs no more than a short one.
-    pub fn proxy_paint_only(&self, stroke: bool, item: Option<usize>) -> Option<&vectorcraft_color::Paint> {
+    pub fn proxy_paint_only(&self, stroke: bool, item: Option<usize>) -> Option<&pluma_color::Paint> {
         let item = self.appearance.item_of_kind(item, !stroke);
         if item.is_none()
             && !stroke
@@ -636,9 +634,9 @@ impl Node {
 
     /// The gradient behind the Fill (or Stroke) proxy and its placement in document coordinates
     /// (see [`Node::proxy_paint`]): what the gradient annotator shows and edits.
-    pub fn proxy_gradient(&self, stroke: bool, item: Option<usize>) -> Option<(&vectorcraft_color::GradientPaint, vectorcraft_color::GradientGeom)> {
+    pub fn proxy_gradient(&self, stroke: bool, item: Option<usize>) -> Option<(&pluma_color::GradientPaint, pluma_color::GradientGeom)> {
         let (paint, to_doc, b) = self.proxy_paint(stroke, item)?;
-        let vectorcraft_color::Paint::Gradient(g) = paint else { return None };
+        let pluma_color::Paint::Gradient(g) = paint else { return None };
         let mut geom = g.resolve(b);
         if to_doc != Affine::IDENTITY {
             geom.transform(to_doc, g.gradient.kind);
@@ -649,14 +647,14 @@ impl Node {
     /// The freeform gradient behind the Fill (or Stroke) proxy, its points in document coordinates
     /// (the automatic ones while unplaced), and the length its spreads are fractions of there
     /// (see [`Node::proxy_paint`]): what the Gradient tool's freeform annotator shows and edits.
-    pub fn proxy_freeform(&self, stroke: bool, item: Option<usize>) -> Option<(vectorcraft_color::Freeform, f64)> {
+    pub fn proxy_freeform(&self, stroke: bool, item: Option<usize>) -> Option<(pluma_color::Freeform, f64)> {
         let (paint, to_doc, b) = self.proxy_paint(stroke, item)?;
-        let vectorcraft_color::Paint::Gradient(g) = paint else { return None };
-        if g.gradient.kind != vectorcraft_color::GradientKind::Freeform {
+        let pluma_color::Paint::Gradient(g) = paint else { return None };
+        if g.gradient.kind != pluma_color::GradientKind::Freeform {
             return None;
         }
         let mut f = g.freeform_on(b).into_owned();
-        let mut scale = vectorcraft_color::freeform::spread_scale(b);
+        let mut scale = pluma_color::freeform::spread_scale(b);
         if to_doc != Affine::IDENTITY {
             f.transform(to_doc);
             scale *= to_doc.determinant().abs().sqrt();
@@ -754,7 +752,7 @@ impl Node {
     /// [`Self::shows_transparency`], counting a colorized image by itself only when `colorize`
     /// accepts it, for files that write some colorized images in their colorize paint (EPS).
     pub fn shows_transparency_with(&self, colorize: &dyn Fn(&Node) -> bool) -> bool {
-        use vectorcraft_color::Paint;
+        use pluma_color::Paint;
         let see_through = |p: &Paint| matches!(p, Paint::Gradient(g) if g.gradient.stops.iter().any(|s| s.opacity < 1.0));
         let effects = |fx: &[crate::Effect]| fx.iter().any(|e| e.visible);
         self.visible
@@ -795,6 +793,6 @@ impl Node {
     /// everywhere for objects without them, such as type, whose boxes stand in).
     pub fn contains_fn(&self) -> impl Fn(Point) -> bool + use<> {
         let shapes = self.clip_shapes(None);
-        move |p| shapes.is_empty() || shapes.iter().any(|(bp, rule)| vectorcraft_geom::hit::fill_contains(bp, *rule, p))
+        move |p| shapes.is_empty() || shapes.iter().any(|(bp, rule)| pluma_geom::hit::fill_contains(bp, *rule, p))
     }
 }

@@ -1,10 +1,10 @@
 //! Copy and paste between documents (resources, swatch conflicts) and paste placement (M4.22,
 //! M4.23).
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Document, Node, NodeKind};
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Document, Node, NodeKind};
-use vectorcraft_geom::{Point, Rect};
 
 use crate::*;
 
@@ -65,7 +65,7 @@ fn hex(h: &str) -> Color {
 }
 
 fn render(s: &Session) -> Vec<u8> {
-    vectorcraft_render::Renderer::new().render_region(doc(s), Rect::new(0.0, 0.0, 400.0, 300.0), 1.0, true).pixels
+    pluma_render::Renderer::new().render_region(doc(s), Rect::new(0.0, 0.0, 400.0, 300.0), 1.0, true).pixels
 }
 
 /// A global swatch `name` of `hex` and a rectangle filled with it.
@@ -144,11 +144,8 @@ fn resource_transfer(drag: bool) {
     assert!(d.pattern("Dots").is_some() && d.swatch("Dots").is_some());
     assert!(d.symbols.iter().any(|x| x.name == "Badge"));
     assert_eq!(d.images.len(), 1);
-    let after = if drag {
-        vectorcraft_render::Renderer::new().render_region(doc(&s), Rect::new(13.0, 17.0, 413.0, 317.0), 1.0, true).pixels
-    } else {
-        render(&s)
-    };
+    let after =
+        if drag { pluma_render::Renderer::new().render_region(doc(&s), Rect::new(13.0, 17.0, 413.0, 317.0), 1.0, true).pixels } else { render(&s) };
     assert!(before == after, "the transferred art, its transparency and pattern alignment render as in the source");
 }
 
@@ -159,7 +156,7 @@ fn a_spot_swatch_brings_its_plate() {
     s.execute("swatch.setSpot", &json!({"name": "Spot Teal"})).unwrap();
     copy(&mut s, &[r]);
     new_doc(&mut s);
-    let plates = |s: &Session| vectorcraft_render::proof::plates(doc(s)).iter().filter(|p| p.spot).map(|p| p.name.clone()).collect::<Vec<_>>();
+    let plates = |s: &Session| pluma_render::proof::plates(doc(s)).iter().filter(|p| p.spot).map(|p| p.name.clone()).collect::<Vec<_>>();
     assert!(plates(&s).is_empty());
     s.execute("edit.paste", &json!({})).unwrap();
     assert_eq!(plates(&s), ["Spot Teal"]);
@@ -291,7 +288,7 @@ fn a_gradient_swatch_made_from_another_holds_no_link_to_it() {
     s.execute("paint.setFill", &json!({"ids": [r.0], "swatch": "Glow"})).unwrap();
     let Paint::Gradient(applied) = fill(&s, r) else { panic!("a gradient fill") };
     assert_eq!(applied.swatch.as_deref(), Some("Glow"));
-    let mut by_gradient = vectorcraft_tools::params::gradient_params(&applied);
+    let mut by_gradient = pluma_tools::params::gradient_params(&applied);
     by_gradient["swatch"] = json!("Glow");
     let mut placed = by_gradient.clone();
     placed["start"] = json!([25, 25]);
@@ -506,9 +503,9 @@ fn brushes_travel_with_their_strokes() {
     copy(&mut s, &[r]);
     assert_eq!(s.clipboard.brushes.len(), 1);
     new_doc(&mut s);
-    assert!(vectorcraft_brush::find(doc(&s), &name).is_none());
+    assert!(pluma_brush::find(doc(&s), &name).is_none());
     s.execute("edit.paste", &json!({})).unwrap();
-    assert!(vectorcraft_brush::find(doc(&s), &name).is_some());
+    assert!(pluma_brush::find(doc(&s), &name).is_some());
 }
 
 #[test]
@@ -788,11 +785,11 @@ fn paste_remembers_layers_restores_the_source_layers() {
 fn paste_remembers_layers_survives_save_and_old_files_load_without_it() {
     let mut s = session();
     s.execute("layer.pasteRemembersLayers", &json!({"on": true})).unwrap();
-    let bytes = vectorcraft_format::save(doc(&s), false);
-    assert!(vectorcraft_format::load(&bytes).unwrap().paste_remembers_layers);
-    let v: Value = serde_json::from_slice(&vectorcraft_format::save(&Document::new(10.0, 10.0), false)).unwrap();
+    let bytes = pluma_format::save(doc(&s), false);
+    assert!(pluma_format::load(&bytes).unwrap().paste_remembers_layers);
+    let v: Value = serde_json::from_slice(&pluma_format::save(&Document::new(10.0, 10.0), false)).unwrap();
     assert!(v.get("paste_remembers_layers").is_none(), "off is not written");
-    assert!(!vectorcraft_format::load(v.to_string().as_bytes()).unwrap().paste_remembers_layers);
+    assert!(!pluma_format::load(v.to_string().as_bytes()).unwrap().paste_remembers_layers);
 }
 
 /// Verify document-scoped object IDs, grab-point placement and one destination Undo/Redo step.
@@ -974,18 +971,18 @@ fn a_symbol_without_a_recorded_natural_size_is_pasted_without_one() {
     sel(&mut s, &[r]);
     s.execute("symbol.new", &json!({"name": "Plain"})).unwrap();
     s.edit("Forget size", |d, _| {
-        if let Some(m) = d.unknown.get_mut(vectorcraft_doc::SYMBOL_SIZES).and_then(Value::as_object_mut) {
+        if let Some(m) = d.unknown.get_mut(pluma_doc::SYMBOL_SIZES).and_then(Value::as_object_mut) {
             m.remove("Plain");
         }
         Ok(())
     })
     .unwrap();
-    assert_eq!(doc(&s).unknown.get(vectorcraft_doc::SYMBOL_SIZES).and_then(|m| m.get("Plain")), None);
+    assert_eq!(doc(&s).unknown.get(pluma_doc::SYMBOL_SIZES).and_then(|m| m.get("Plain")), None);
     s.execute("edit.copy", &json!({})).unwrap();
     let before = render(&s);
     new_doc(&mut s);
     s.execute("edit.pasteInPlace", &json!({})).unwrap();
     assert!(doc(&s).symbols.iter().any(|x| x.name == "Plain"));
-    assert_eq!(doc(&s).unknown.get(vectorcraft_doc::SYMBOL_SIZES).and_then(|m| m.get("Plain")), None, "no size is made up for it");
+    assert_eq!(doc(&s).unknown.get(pluma_doc::SYMBOL_SIZES).and_then(|m| m.get("Plain")), None, "no size is made up for it");
     assert!(before == render(&s), "the pasted instance draws as in the source");
 }

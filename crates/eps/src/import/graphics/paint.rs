@@ -265,7 +265,7 @@ impl Interp<'_> {
         (self.out.groups, self.out.too_deep) = (groups, too_deep);
         (self.g, self.saved) = (g, saved);
         r?;
-        let mut nodes = vectorcraft_doc::clipnest::nest(&mut self.out.doc, art);
+        let mut nodes = pluma_doc::clipnest::nest(&mut self.out.doc, art);
         if !self.out.shadings.is_empty() {
             collapse(&mut nodes, &self.out.shadings);
         }

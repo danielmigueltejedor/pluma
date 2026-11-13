@@ -12,7 +12,7 @@ fn session(width: f64, height: f64, artboards: usize) -> Session {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 fn text(v: &Value) -> String {
@@ -75,16 +75,9 @@ fn the_cnc_preset_sets_the_options_that_are_not_given() {
     let o = dxf::options(&json!({"dxfPreset": "CNC", "unit": "in"})).unwrap();
     assert_eq!(
         (o.version, o.unit, o.colors, o.preserve, o.alter_paths, o.outline_text),
-        (
-            vectorcraft_cad::DxfVersion::R2000,
-            vectorcraft_doc::Unit::Inches,
-            vectorcraft_cad::ColorDepth::Aci256,
-            vectorcraft_cad::Preserve::Editability,
-            false,
-            true
-        )
+        (pluma_cad::DxfVersion::R2000, pluma_doc::Unit::Inches, pluma_cad::ColorDepth::Aci256, pluma_cad::Preserve::Editability, false, true)
     );
-    assert_eq!(dxf::options(&json!({})).unwrap().version, vectorcraft_cad::DxfVersion::R2018, "custom by default");
+    assert_eq!(dxf::options(&json!({})).unwrap().version, pluma_cad::DxfVersion::R2018, "custom by default");
     let e = s.execute("document.exportDxf", &json!({"dxfPreset": "laser"})).unwrap_err().to_string();
     assert!(e.contains("custom or cnc"), "{e}");
 }
@@ -127,7 +120,7 @@ fn selected_only_exports_the_selection_in_its_layers() {
     // Other formats take it too.
     s.execute("select.set", &json!({"ids": [line]})).unwrap();
     let svg = s.execute("document.serialize", &json!({"format": "svg", "selectedOnly": true})).unwrap()["text"].as_str().unwrap().to_string();
-    assert_eq!((vectorcraft_testkit::svg_shapes(&svg), svg.matches("<line ").count()), (1, 1), "{svg}");
+    assert_eq!((pluma_testkit::svg_shapes(&svg), svg.matches("<line ").count()), (1, 1), "{svg}");
     assert!(svg.contains("id=\"Top\"") && !svg.contains("Layer"), "{svg}");
 }
 
@@ -225,18 +218,13 @@ fn dwg_and_pict_say_what_to_use_instead() {
     }
     let e = s.execute("document.export", &json!({"format": "pict"})).unwrap_err().to_string();
     assert!(e.contains("PICT is a retired format"), "{e}");
-    let e = s
-        .execute("document.open", &json!({"name": "old.pct", "dataBase64": vectorcraft_format::base64_encode(&[0u8; 600])}))
-        .unwrap_err()
-        .to_string();
+    let e = s.execute("document.open", &json!({"name": "old.pct", "dataBase64": pluma_format::base64_encode(&[0u8; 600])})).unwrap_err().to_string();
     assert!(e.contains("old.pct") && e.contains("PICT"), "{e}");
-    let e = s
-        .execute("document.open", &json!({"name": "site.dwg", "dataBase64": vectorcraft_format::base64_encode(b"AC1032\0\0")}))
-        .unwrap_err()
-        .to_string();
+    let e =
+        s.execute("document.open", &json!({"name": "site.dwg", "dataBase64": pluma_format::base64_encode(b"AC1032\0\0")})).unwrap_err().to_string();
     assert!(e.contains("DWG is not available"), "{e}");
     let e = s
-        .execute("document.open", &json!({"name": "brochure.PMD", "dataBase64": vectorcraft_format::base64_encode(b"PageMaker")}))
+        .execute("document.open", &json!({"name": "brochure.PMD", "dataBase64": pluma_format::base64_encode(b"PageMaker")}))
         .unwrap_err()
         .to_string();
     assert!(e.contains("brochure.PMD") && e.contains("PageMaker"), "{e}");

@@ -74,13 +74,12 @@ fn scale_snap_lands_the_moved_edges_on_targets() {
 #[test]
 fn scale_snap_lands_the_handle_on_anchors() {
     use crate::bbox::scale_for_drag;
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
     // A triangle whose apex (320, 400) lines up with none of the edges or centres on x.
-    let tri =
-        vectorcraft_geom::PathData::single(SubPath::polyline(&[Point::new(300.0, 300.0), Point::new(380.0, 300.0), Point::new(320.0, 400.0)], true));
+    let tri = pluma_geom::PathData::single(SubPath::polyline(&[Point::new(300.0, 300.0), Point::new(380.0, 300.0), Point::new(320.0, 400.0)], true));
     d.insert(Some(l), 1, Node::path(id, tri, Appearance::default_art())).unwrap();
     let t = Targets::collect(&d, &[], None);
     let snap = |r: Rect, h: Handle, p: Point, shift: bool| {
@@ -117,7 +116,7 @@ fn spacing_guides_space_a_moved_selection_evenly() {
         Rect::new(400.0, 80.0, 440.0, 110.0),
     ] {
         let id = d.alloc_id();
-        d.insert(Some(l), 0, Node::path(id, vectorcraft_geom::shapes::rectangle(r), Default::default())).unwrap();
+        d.insert(Some(l), 0, Node::path(id, pluma_geom::shapes::rectangle(r), Default::default())).unwrap();
     }
     let (s, p) = (Selection::default(), paint());
     let lines = |ov: &[Overlay]| ov.iter().filter(|o| matches!(o, Overlay::Line { color, .. } if *color == MAGENTA)).count();
@@ -131,7 +130,7 @@ fn spacing_guides_space_a_moved_selection_evenly() {
     // Halfway between B and a box at 220–260: 50 either side.
     let mut wide = d.clone();
     let id = wide.alloc_id();
-    wide.insert(Some(l), 0, Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(220.0, 300.0, 260.0, 340.0)), Default::default())).unwrap();
+    wide.insert(Some(l), 0, Node::path(id, pluma_geom::shapes::rectangle(Rect::new(220.0, 300.0, 260.0, 340.0)), Default::default())).unwrap();
     let (dv, ov) = Targets::for_move(&cx(&wide, &s, &p), &s.objects).snap_rect(Rect::new(148.0, 305.0, 188.0, 345.0), 4.0);
     assert_eq!(dv, Vec2::new(2.0, 0.0));
     assert!(lines(&ov) >= 6, "{ov:?}");
@@ -153,16 +152,16 @@ fn spacing_guides_space_a_moved_selection_evenly() {
 #[test]
 fn spacing_guides_resize_snaps_the_moving_edge_to_equal_gaps() {
     use crate::bbox::scale_for_drag;
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let mut d = Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     for r in [Rect::new(20.0, 300.0, 60.0, 340.0), Rect::new(80.0, 300.0, 120.0, 340.0)] {
         let id = d.alloc_id();
-        d.insert(Some(l), 0, Node::path(id, vectorcraft_geom::shapes::rectangle(r), Appearance::default_art())).unwrap();
+        d.insert(Some(l), 0, Node::path(id, pluma_geom::shapes::rectangle(r), Appearance::default_art())).unwrap();
     }
     let r = Rect::new(141.0, 305.0, 181.0, 345.0);
     let id = d.alloc_id();
-    d.insert(Some(l), 0, Node::path(id, vectorcraft_geom::shapes::rectangle(r), Appearance::default_art())).unwrap();
+    d.insert(Some(l), 0, Node::path(id, pluma_geom::shapes::rectangle(r), Appearance::default_art())).unwrap();
     let s = Selection { objects: vec![id], ..Default::default() };
     let t = Targets::for_scale(&cx(&d, &s, &paint()));
     let (a, ov) = t.snap_scale(
@@ -265,11 +264,11 @@ fn shaper_sources_are_no_targets() {
 /// shown group around it.
 #[test]
 fn art_in_hidden_groups_and_layers_is_no_target() {
+    use pluma_doc::{Appearance, Node};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node};
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
-    let square = Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(300.0, 300.0, 400.0, 400.0)), Appearance::default_art());
+    let square = Node::path(d.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(300.0, 300.0, 400.0, 400.0)), Appearance::default_art());
     let mut inner = Node::group(d.alloc_id(), vec![Arc::new(square)]);
     inner.visible = false;
     let outer = Node::group(d.alloc_id(), vec![Arc::new(inner)]);
@@ -298,17 +297,13 @@ fn art_in_hidden_groups_and_layers_is_no_target() {
 /// end; with two anchors moving there is none to keep to.
 #[test]
 fn dragged_end_of_a_slanted_line_keeps_to_its_extension() {
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
     // From (300, 400) up to (380, 340): along (4, -3), about 37° up.
-    d.insert(
-        Some(l),
-        1,
-        Node::path(id, vectorcraft_geom::shapes::line(Point::new(300.0, 400.0), Point::new(380.0, 340.0)), Appearance::default_art()),
-    )
-    .unwrap();
+    d.insert(Some(l), 1, Node::path(id, pluma_geom::shapes::line(Point::new(300.0, 400.0), Point::new(380.0, 340.0)), Appearance::default_art()))
+        .unwrap();
     let (mut s, p) = (Selection::default(), paint());
     s.set([id]);
     s.anchors.insert(id, [(0, 1)].into_iter().collect());
@@ -323,7 +318,7 @@ fn dragged_end_of_a_slanted_line_keeps_to_its_extension() {
     // so neither keeps to the extension of its segment.
     let id = d.alloc_id();
     let bent =
-        vectorcraft_geom::PathData::single(SubPath::polyline(&[Point::new(250.0, 450.0), Point::new(300.0, 400.0), Point::new(380.0, 340.0)], false));
+        pluma_geom::PathData::single(SubPath::polyline(&[Point::new(250.0, 450.0), Point::new(300.0, 400.0), Point::new(380.0, 340.0)], false));
     d.insert(Some(l), 1, Node::path(id, bent, Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
@@ -336,16 +331,12 @@ fn dragged_end_of_a_slanted_line_keeps_to_its_extension() {
 /// the other one; along its own direction, farther from level, it keeps to its extension.
 #[test]
 fn a_nearly_level_segment_still_lines_up_with_its_other_end() {
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    d.insert(
-        Some(l),
-        1,
-        Node::path(id, vectorcraft_geom::shapes::line(Point::new(100.0, 300.0), Point::new(300.0, 301.0)), Appearance::default_art()),
-    )
-    .unwrap();
+    d.insert(Some(l), 1, Node::path(id, pluma_geom::shapes::line(Point::new(100.0, 300.0), Point::new(300.0, 301.0)), Appearance::default_art()))
+        .unwrap();
     let (mut s, p) = (Selection::default(), paint());
     s.set([id]);
     s.anchors.insert(id, [(0, 1)].into_iter().collect());
@@ -413,8 +404,8 @@ fn drawn_points_land_on_anchors_paths_alignments_and_construction_guides() {
 /// where two ruler guides cross, labelled "intersect"; an anchor nearby still wins.
 #[test]
 fn drawn_points_land_on_intersections() {
-    use vectorcraft_doc::{Appearance, Node};
-    use vectorcraft_geom::shapes;
+    use pluma_doc::{Appearance, Node};
+    use pluma_geom::shapes;
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     // A slanted line through the rect's top side (y = 100) at x = 150, and a circle across its
@@ -423,9 +414,9 @@ fn drawn_points_land_on_intersections() {
         let id = d.alloc_id();
         d.insert(Some(l), 1, Node::path(id, path, Appearance::default_art())).unwrap();
     }
-    d.guides.push(vectorcraft_doc::Guide::new(true, 400.0));
-    d.guides.push(vectorcraft_doc::Guide::new(false, 300.0));
-    d.guides.push(vectorcraft_doc::Guide::new(false, 150.0));
+    d.guides.push(pluma_doc::Guide::new(true, 400.0));
+    d.guides.push(pluma_doc::Guide::new(false, 300.0));
+    d.guides.push(pluma_doc::Guide::new(false, 150.0));
     let (s, p) = (Selection::default(), paint());
     let c = ToolContext { guides: true, ..cx(&d, &s, &p) };
     let t = Targets::for_drawing(&d, &[], None, None).styled(&c).with_rulers(&c);
@@ -454,11 +445,7 @@ fn perpendicular_snapping_rejects_a_curved_target() {
     d.insert(
         Some(layer),
         1,
-        vectorcraft_doc::Node::path(
-            id,
-            vectorcraft_geom::shapes::ellipse(Rect::new(450.0, 450.0, 550.0, 550.0)),
-            vectorcraft_doc::Appearance::default_art(),
-        ),
+        pluma_doc::Node::path(id, pluma_geom::shapes::ellipse(Rect::new(450.0, 450.0, 550.0, 550.0)), pluma_doc::Appearance::default_art()),
     )
     .unwrap();
     let targets = Targets { tangent: false, perpendicular: true, ..Targets::for_drawing(&d, &[], None, None) };
@@ -471,8 +458,8 @@ fn perpendicular_snapping_rejects_a_curved_target() {
 /// result is the same each time and survives non-finite input.
 #[test]
 fn drawn_lines_land_perpendicular_to_segments_and_tangent_to_curves() {
-    use vectorcraft_doc::{Appearance, Node};
-    use vectorcraft_geom::shapes;
+    use pluma_doc::{Appearance, Node};
+    use pluma_geom::shapes;
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
@@ -520,7 +507,7 @@ fn drawn_lines_land_perpendicular_to_segments_and_tangent_to_curves() {
 /// a busy spot does not hide the contact: every segment in reach is tried.
 #[test]
 fn contact_snaps_only_for_segments_and_in_busy_spots() {
-    use vectorcraft_geom::kurbo::Line;
+    use pluma_geom::kurbo::Line;
     let (d, _) = doc_with_rect();
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
@@ -558,15 +545,13 @@ fn construction_angle_sets() {
 /// gathered them.
 #[test]
 fn bisection_finds_what_a_scan_finds() {
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, id) = doc_with_rect();
     let l = d.layers[0].id;
     for i in 0..60 {
         let (x, y) = ((i * 37 % 450) as f64, (i * 53 % 430) as f64);
-        let tri = vectorcraft_geom::PathData::single(SubPath::polyline(
-            &[Point::new(x, y), Point::new(x + 13.0, y + 3.0), Point::new(x + 5.0, y + 17.0)],
-            true,
-        ));
+        let tri =
+            pluma_geom::PathData::single(SubPath::polyline(&[Point::new(x, y), Point::new(x + 13.0, y + 3.0), Point::new(x + 5.0, y + 17.0)], true));
         let n = d.alloc_id();
         d.insert(Some(l), 1, Node::path(n, tri, Appearance::default_art())).unwrap();
     }
@@ -593,8 +578,8 @@ fn bisection_finds_what_a_scan_finds() {
 #[test]
 fn drawn_points_snap_to_ruler_guides_with_smart_guides_on() {
     let (mut d, _) = doc_with_rect();
-    d.guides.push(vectorcraft_doc::Guide::new(false, 313.0));
-    d.guides.push(vectorcraft_doc::Guide::new(true, 331.0));
+    d.guides.push(pluma_doc::Guide::new(false, 313.0));
+    d.guides.push(pluma_doc::Guide::new(true, 331.0));
     let (s, p) = (Selection::default(), paint());
     let c = cx(&d, &s, &p);
     let mut snap = DrawSnap::default();
@@ -614,7 +599,7 @@ fn drawn_points_snap_to_ruler_guides_with_smart_guides_on() {
 #[test]
 fn draw_snap_gathers_once_per_document_state() {
     let (d, _) = doc_with_rect();
-    let empty = vectorcraft_doc::Document::new(500.0, 500.0);
+    let empty = pluma_doc::Document::new(500.0, 500.0);
     let (s, p) = (Selection::default(), paint());
     let at = Point::new(202.0, 198.0);
     let mut snap = DrawSnap::default();
@@ -644,17 +629,17 @@ fn draw_snap_gathers_once_per_document_state() {
 
 /// A document holding point type `text` at (100, 300), 60 pt, turned `angle` radians about
 /// where it starts, and the type.
-fn glyph_doc(text: &str, angle: f64) -> (vectorcraft_doc::Document, vectorcraft_doc::TextObject) {
-    glyph_doc_with(text, angle, vectorcraft_doc::CharStyle { size: 60.0, ..Default::default() })
+fn glyph_doc(text: &str, angle: f64) -> (pluma_doc::Document, pluma_doc::TextObject) {
+    glyph_doc_with(text, angle, pluma_doc::CharStyle { size: 60.0, ..Default::default() })
 }
 
 /// [`glyph_doc`] with the type in `style`.
-fn glyph_doc_with(text: &str, angle: f64, style: vectorcraft_doc::CharStyle) -> (vectorcraft_doc::Document, vectorcraft_doc::TextObject) {
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+fn glyph_doc_with(text: &str, angle: f64, style: pluma_doc::CharStyle) -> (pluma_doc::Document, pluma_doc::TextObject) {
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let l = d.layers[0].id;
     let id = d.alloc_id();
     let at = Point::new(100.0, 300.0);
-    let mut t = vectorcraft_doc::TextObject::point(at, text, style);
+    let mut t = pluma_doc::TextObject::point(at, text, style);
     t.xf = Affine::rotate_about(angle, at) * t.xf;
     d.insert(Some(l), 0, Node::new(id, NodeKind::Text(Box::new(t.clone())))).unwrap();
     (d, t)
@@ -712,23 +697,22 @@ fn drawn_points_line_up_with_the_x_height_of_a_single_line() {
     let (q, _) = Targets::for_drawing(&d, &[], None, Some(GlyphSnap::default())).snap_point(p, 4.0);
     assert_eq!(q.y, p.y, "a paragraph has no x-height guide");
     // Baseline Shift raises the x-height with the glyphs.
-    let (d, _) = glyph_doc_with("H", 0.0, vectorcraft_doc::CharStyle { size: 60.0, baseline_shift: 10.0, ..Default::default() });
+    let (d, _) = glyph_doc_with("H", 0.0, pluma_doc::CharStyle { size: 60.0, baseline_shift: 10.0, ..Default::default() });
     let (q, _) = Targets::for_drawing(&d, &[], None, Some(GlyphSnap::default())).snap_point(Point::new(400.0, x_height - 10.0 + 2.0), 4.0);
     assert!((q.y - (x_height - 10.0)).abs() < 1e-9, "{q:?}, shifted x-height {}", x_height - 10.0);
     // Character Rotation turns the glyph, not its baseline shift.
-    let style = vectorcraft_doc::CharStyle { size: 60.0, baseline_shift: 10.0, rotation: 30.0, ..Default::default() };
+    let style = pluma_doc::CharStyle { size: 60.0, baseline_shift: 10.0, rotation: 30.0, ..Default::default() };
     let (d, _) = glyph_doc_with("H", 0.0, style);
     let (q, _) = Targets::for_drawing(&d, &[], None, Some(GlyphSnap::default())).snap_point(Point::new(400.0, x_height - 10.0 + 2.0), 4.0);
     assert!((q.y - (x_height - 10.0)).abs() < 1e-9, "{q:?}, shifted x-height {}", x_height - 10.0);
     // Glyph Scaling widens a rotated glyph without raising its x-height.
-    let mut t =
-        vectorcraft_doc::TextObject::point(Point::ZERO, "HH HH", vectorcraft_doc::CharStyle { size: 60.0, rotation: 90.0, ..Default::default() });
+    let mut t = pluma_doc::TextObject::point(Point::ZERO, "HH HH", pluma_doc::CharStyle { size: 60.0, rotation: 90.0, ..Default::default() });
     let frame = kurbo::Shape::to_path(&kurbo::Rect::new(50.0, 100.0, 450.0, 400.0), 0.1);
-    t.kind = vectorcraft_doc::TextKind::Area { frame: vectorcraft_geom::PathData::from_bezpath(&frame) };
+    t.kind = pluma_doc::TextKind::Area { frame: pluma_geom::PathData::from_bezpath(&frame) };
     t.xf = Affine::IDENTITY;
-    t.para.justify = vectorcraft_doc::Justify::JustifyAll;
+    t.para.justify = pluma_doc::Justify::JustifyAll;
     t.para.justification.glyph_scaling = [100.0, 100.0, 200.0];
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let (l, id) = (d.layers[0].id, d.alloc_id());
     d.insert(Some(l), 0, Node::new(id, NodeKind::Text(Box::new(t.clone())))).unwrap();
     let lay = layout_text(FontDb::global(), &t);
@@ -747,11 +731,11 @@ fn the_x_height_guide_of_skewed_path_type_runs_through_the_glyphs_x_height() {
     let mut path = kurbo::BezPath::new();
     path.move_to((100.0, 400.0));
     path.line_to((300.0, 54.0));
-    let mut t = vectorcraft_doc::TextObject::point(Point::ZERO, "H", vectorcraft_doc::CharStyle { size: 60.0, ..Default::default() });
-    t.kind = vectorcraft_doc::TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
+    let mut t = pluma_doc::TextObject::point(Point::ZERO, "H", pluma_doc::CharStyle { size: 60.0, ..Default::default() });
+    t.kind = pluma_doc::TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
     t.xf = Affine::IDENTITY;
-    t.path_effect = vectorcraft_doc::PathEffect::Skew;
-    let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+    t.path_effect = pluma_doc::PathEffect::Skew;
+    let mut d = pluma_doc::Document::new(500.0, 500.0);
     let (l, id) = (d.layers[0].id, d.alloc_id());
     d.insert(Some(l), 0, Node::new(id, NodeKind::Text(Box::new(t.clone())))).unwrap();
     let lay = layout_text(FontDb::global(), &t);
@@ -778,7 +762,7 @@ fn drawn_points_line_up_with_the_edge_of_a_characters_width() {
     let (q, _) = Targets::for_drawing(&d, &[], None, None).snap_point(p, 4.0);
     assert_eq!(q.x, p.x);
     // Character Rotation turns the glyphs, not their widths along the baseline.
-    let (d, t) = glyph_doc_with("HH", 0.0, vectorcraft_doc::CharStyle { size: 60.0, rotation: 30.0, ..Default::default() });
+    let (d, t) = glyph_doc_with("HH", 0.0, pluma_doc::CharStyle { size: 60.0, rotation: 30.0, ..Default::default() });
     let lay = layout_text(FontDb::global(), &t);
     let edge = (t.xf * lay.glyphs[1].origin).x;
     let p = Point::new(edge + 0.3, 450.0);
@@ -821,7 +805,7 @@ fn a_rotated_glyph_has_angular_guides_along_its_strokes() {
 #[test]
 fn each_snap_to_glyph_option_takes_away_only_its_own_guides() {
     // The glyph guides: lines across the page (ys), down it (xs), at an angle, and anchor points.
-    let count = |d: &vectorcraft_doc::Document, o: GlyphSnap| {
+    let count = |d: &pluma_doc::Document, o: GlyphSnap| {
         let t = Targets::for_drawing(d, &[], None, Some(o));
         let glyph = |v: &[(f64, Point, Kind)]| v.iter().filter(|e| e.2 == Kind::Glyph).count();
         [glyph(&t.ys), glyph(&t.xs), t.angled.len(), t.points.iter().filter(|e| e.1 == Kind::Anchor).count()]
@@ -893,7 +877,7 @@ fn a_shift_constrained_point_slides_onto_a_rotated_baseline() {
 }
 
 /// The corners of a glyph's bounds, from its outline in its own frame placed as the glyph is.
-fn glyph_corners(t: &vectorcraft_doc::TextObject) -> [Point; 4] {
+fn glyph_corners(t: &pluma_doc::TextObject) -> [Point; 4] {
     let lay = layout_text(FontDb::global(), t);
     let g = lay.glyphs.iter().find(|g| !g.outline.elements().is_empty()).expect("a glyph with an outline");
     let r = (g.xf.inverse() * g.outline.clone()).bounding_box();
@@ -905,7 +889,7 @@ fn glyph_corners(t: &vectorcraft_doc::TextObject) -> [Point; 4] {
 /// turn with rotated type. Glyph Bounds off, they are gone.
 #[test]
 fn a_drawn_point_lands_on_a_corner_of_a_glyphs_bounds() {
-    let style = vectorcraft_doc::CharStyle { size: 200.0, ..Default::default() };
+    let style = pluma_doc::CharStyle { size: 200.0, ..Default::default() };
     for angle in [0.0, 30f64.to_radians()] {
         let (d, t) = glyph_doc_with("B", angle, style.clone());
         let corners = glyph_corners(&t);

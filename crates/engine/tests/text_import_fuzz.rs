@@ -2,13 +2,13 @@
 //! Options, place as area type or fail with an error, and so do hostile RTF files, Word documents
 //! and Word 97-2003 documents, including ones whose compound file container is damaged.
 //!
-//! `PROPTEST_CASES=20000 cargo test -p vectorcraft-engine --test text_import_fuzz` runs a deeper search.
+//! `PROPTEST_CASES=20000 cargo test -p pluma-engine --test text_import_fuzz` runs a deeper search.
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_testkit::catch_quiet;
 use proptest::prelude::*;
 use serde_json::json;
-use vectorcraft_testkit::catch_quiet;
 
 proptest! {
     #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
@@ -24,11 +24,11 @@ proptest! {
         spaces in prop::option::of(0u64..8),
     ) {
         // Exercise import/options/thumbnails with bundled fonts, independently of host font collections.
-        // Font lookup and fallback have dedicated tests in vectorcraft-text.
-        vectorcraft_text::FontDb::global().set_system_fallback(false);
+        // Font lookup and fallback have dedicated tests in pluma-text.
+        pluma_text::FontDb::global().set_system_fallback(false);
         let data = [bom, &bytes[..]].concat();
         let r = catch_quiet(|| {
-            let mut s = vectorcraft_engine::Session::new();
+            let mut s = pluma_engine::Session::new();
             s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
             let text = json!({
                 "characterSet": if ansi { "ansi" } else { "unicode" },
@@ -37,7 +37,7 @@ proptest! {
                 "removeParagraphReturns": paras,
                 "replaceSpaces": spaces,
             });
-            let p = json!({"name": "fuzz.txt", "dataBase64": vectorcraft_format::base64_encode(&data), "text": text, "thumbnail": 8});
+            let p = json!({"name": "fuzz.txt", "dataBase64": pluma_format::base64_encode(&data), "text": text, "thumbnail": 8});
             let _ = no_panic(s.execute("file.place.info", &p));
             let _ = no_panic(s.execute("file.place", &p));
         });
@@ -49,12 +49,12 @@ proptest! {
         tokens in prop::collection::vec(arb_rtf_token(), 0..200),
         name in prop::sample::select(vec!["fuzz.rtf", "fuzz.doc"]),
     ) {
-        vectorcraft_text::FontDb::global().set_system_fallback(false);
+        pluma_text::FontDb::global().set_system_fallback(false);
         let data = [&b"{\\rtf1"[..], &tokens.concat()].concat();
         let r = catch_quiet(|| {
-            let mut s = vectorcraft_engine::Session::new();
+            let mut s = pluma_engine::Session::new();
             s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-            let p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&data), "thumbnail": 8});
+            let p = json!({"name": name, "dataBase64": pluma_format::base64_encode(&data), "thumbnail": 8});
             let _ = no_panic(s.execute("file.place.info", &p));
             let _ = no_panic(s.execute("file.place", &p));
         });
@@ -71,21 +71,21 @@ proptest! {
         ],
         name in prop::sample::select(vec!["fuzz.docx", "fuzz.bin"]),
     ) {
-        vectorcraft_text::FontDb::global().set_system_fallback(false);
+        pluma_text::FontDb::global().set_system_fallback(false);
         let w = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
         let document = format!("<w:document {w}><w:body>{}</w:body></w:document>", body.concat());
         let styles = format!("<w:styles {w}>{}</w:styles>", styles.concat());
         let files = [("word/document.xml", document.as_bytes()), ("word/styles.xml", styles.as_bytes())];
-        let mut data = vectorcraft_engine::cmd::fileio::zip::store(&files).unwrap();
+        let mut data = pluma_engine::cmd::fileio::zip::store(&files).unwrap();
         // A changed byte anywhere: in a header, a size, the directory or the XML.
         for (at, byte) in changes {
             let i = at.index(data.len());
             data[i] = byte;
         }
         let r = catch_quiet(|| {
-            let mut s = vectorcraft_engine::Session::new();
+            let mut s = pluma_engine::Session::new();
             s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-            let p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&data), "thumbnail": 8});
+            let p = json!({"name": name, "dataBase64": pluma_format::base64_encode(&data), "thumbnail": 8});
             let _ = no_panic(s.execute("file.place.info", &p));
             let _ = no_panic(s.execute("file.place", &p));
         });
@@ -107,7 +107,7 @@ proptest! {
         ],
         name in prop::sample::select(vec!["fuzz.doc", "fuzz.bin"]),
     ) {
-        vectorcraft_text::FontDb::global().set_system_fallback(false);
+        pluma_text::FontDb::global().set_system_fallback(false);
         let text: String = text.into_iter().collect();
         let (mut wd, mut table) = word97(&text, compressed, &chpx, istd, &papx, &stsh, &ffn);
         // A changed byte anywhere in either stream: in the FIB, the text, a property page or a
@@ -119,9 +119,9 @@ proptest! {
         }
         let data = compound_file(&wd, &table, cfb::Version::V4);
         let r = catch_quiet(|| {
-            let mut s = vectorcraft_engine::Session::new();
+            let mut s = pluma_engine::Session::new();
             s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-            let p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&data), "thumbnail": 8});
+            let p = json!({"name": name, "dataBase64": pluma_format::base64_encode(&data), "thumbnail": 8});
             let _ = no_panic(s.execute("file.place.info", &p));
             let _ = no_panic(s.execute("file.place", &p));
         });
@@ -137,7 +137,7 @@ proptest! {
         damage in prop::collection::vec(arb_cfb_damage(), 1..4),
         name in prop::sample::select(vec!["fuzz.doc", "fuzz.bin"]),
     ) {
-        vectorcraft_text::FontDb::global().set_system_fallback(false);
+        pluma_text::FontDb::global().set_system_fallback(false);
         // A letter first, so that the undamaged document has text to place.
         let text: String = std::iter::once('a').chain(text).collect();
         let (mut wd, table) = word97(&text, compressed, &[], 0, &[], &[], &[]);
@@ -147,9 +147,9 @@ proptest! {
             wd.resize(9000, 0);
         }
         let mut data = compound_file(&wd, &table, if v3 { cfb::Version::V3 } else { cfb::Version::V4 });
-        let mut s = vectorcraft_engine::Session::new();
+        let mut s = pluma_engine::Session::new();
         s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-        let p = json!({"name": "fuzz.doc", "dataBase64": vectorcraft_format::base64_encode(&data)});
+        let p = json!({"name": "fuzz.doc", "dataBase64": pluma_format::base64_encode(&data)});
         let placed = s.execute("file.place", &p);
         prop_assert!(placed.is_ok(), "the undamaged document doesn't place: {:?}", placed.err());
         let layout = CfbLayout::of(&data);
@@ -157,9 +157,9 @@ proptest! {
             d.apply(&mut data, &layout);
         }
         let r = catch_quiet(|| {
-            let mut s = vectorcraft_engine::Session::new();
+            let mut s = pluma_engine::Session::new();
             s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-            let p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&data), "thumbnail": 8});
+            let p = json!({"name": name, "dataBase64": pluma_format::base64_encode(&data), "thumbnail": 8});
             let _ = no_panic(s.execute("file.place.info", &p));
             let _ = no_panic(s.execute("file.place", &p));
         });
@@ -169,8 +169,8 @@ proptest! {
 
 /// `r`, after failing the case if the command panicked. The engine's guard reports a panic as
 /// `EngineError::Internal`.
-fn no_panic(r: Result<serde_json::Value, vectorcraft_engine::EngineError>) -> Result<serde_json::Value, vectorcraft_engine::EngineError> {
-    if let Err(vectorcraft_engine::EngineError::Internal { cmd, msg }) = &r {
+fn no_panic(r: Result<serde_json::Value, pluma_engine::EngineError>) -> Result<serde_json::Value, pluma_engine::EngineError> {
+    if let Err(pluma_engine::EngineError::Internal { cmd, msg }) = &r {
         panic!("{cmd} panicked: {msg}");
     }
     r

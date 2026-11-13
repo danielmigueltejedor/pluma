@@ -1,8 +1,8 @@
 //! Stroke panel reach: `stroke.set` on groups, what the panel shows for a selection (mixed values,
 //! Align Stroke), Units > Stroke, and the stroke options `document.inspect` reports.
 
+use pluma_doc::{NodeId, NodeKind, Unit};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind, Unit};
 
 use crate::*;
 
@@ -124,9 +124,8 @@ fn stroke_weight_up_and_down_step_each_selected_stroke() {
     run(&mut s, "stroke.set", json!({"weight": 3}));
     select(&mut s, &[bare]);
     run(&mut s, "paint.setStroke", json!({"none": true}));
-    let has_stroke = |s: &Session| {
-        s.doc().unwrap().doc.node(bare).unwrap().appearance.stroke().is_some_and(|st| !matches!(st.paint, vectorcraft_color::Paint::None))
-    };
+    let has_stroke =
+        |s: &Session| s.doc().unwrap().doc.node(bare).unwrap().appearance.stroke().is_some_and(|st| !matches!(st.paint, pluma_color::Paint::None));
     let bare_before = has_stroke(&s);
     let w = |s: &Session, id| s.doc().unwrap().doc.node(id).unwrap().appearance.stroke_width();
     select(&mut s, &[a, b, bare]);

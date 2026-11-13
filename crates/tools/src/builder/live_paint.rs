@@ -206,7 +206,7 @@ impl Tool for LivePaintBucketTool {
                         });
                     }
                     return crate::xform::eyedropper::sample_source(cx, p).map_or_else(Vec::new, |(source, _)| {
-                        if cx.doc.node(source).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))) {
+                        if cx.doc.node(source).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_))) {
                             return crate::xform::eyedropper::sample_color_at(cx, p).map_or_else(Vec::new, |color| {
                                 vec![Action::Exec(
                                     "paint.sampleColor".into(),
@@ -396,7 +396,7 @@ fn lp_parts_in(cx: &ToolContext, r: Rect, faces: bool, edges: bool) -> Vec<NodeI
             let Some(pd) = c.path_data() else { continue };
             let face = faces && c.name.as_deref() == Some(FACE_NAME);
             let edge = edges && c.name.as_deref() == Some(EDGE_NAME);
-            let touched = vectorcraft_geom::hit::intersects_rect(pd, r) || (face && path_contains(pd, FillRule::NonZero, r.center()));
+            let touched = pluma_geom::hit::intersects_rect(pd, r) || (face && path_contains(pd, FillRule::NonZero, r.center()));
             if (face || edge) && touched {
                 out.push(c.id);
             }
@@ -408,10 +408,10 @@ fn lp_parts_in(cx: &ToolContext, r: Rect, faces: bool, edges: bool) -> Vec<NodeI
 /// A highlight color option: `#rrggbb` or a layer color's name (any case).
 pub(super) fn lp_color(v: &Value) -> Option<[u8; 3]> {
     let s = v.as_str()?.trim();
-    if let Some((_, c)) = vectorcraft_doc::LAYER_COLORS.iter().find(|(name, _)| name.eq_ignore_ascii_case(s)) {
+    if let Some((_, c)) = pluma_doc::LAYER_COLORS.iter().find(|(name, _)| name.eq_ignore_ascii_case(s)) {
         return Some(*c);
     }
-    let [r, g, b, _] = vectorcraft_color::Color::from_hex(s)?.to_rgba8(1.0);
+    let [r, g, b, _] = pluma_color::Color::from_hex(s)?.to_rgba8(1.0);
     Some([r, g, b])
 }
 

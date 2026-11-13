@@ -8,8 +8,8 @@
 use std::sync::Arc;
 
 use kurbo::ParamCurveNearest;
-use vectorcraft_doc::{Appearance, Node, NodeId, NodeKind, PressureProfile, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, CubicBez, ParamCurve, PathData, PathEl, Point, Rect, SubPath, Vec2};
+use pluma_doc::{Appearance, Node, NodeId, NodeKind, PressureProfile, StrokeLayer};
+use pluma_geom::{Affine, BezPath, CubicBez, ParamCurve, PathData, PathEl, Point, Rect, SubPath, Vec2};
 
 use crate::track::{Rng, Track, normal, seed_of, tracks};
 use crate::{ArtBrush, ArtScale, CornerSource, Direction, PatternBrush, PatternFit, PenAt, Scatter, Variation, tolerance};
@@ -103,7 +103,7 @@ fn densified(sp: &SubPath, flat_tol: f64, max_du: f64) -> Option<Vec<Point>> {
     let mut bp = BezPath::new();
     sp.to_bezpath_into(&mut bp);
     let mut pts = vec![];
-    vectorcraft_geom::flatten(bp.iter(), flat_tol.max(1e-4), |e| {
+    pluma_geom::flatten(bp.iter(), flat_tol.max(1e-4), |e| {
         if let PathEl::MoveTo(q) | PathEl::LineTo(q) = e {
             pts.push(q);
         }
@@ -1053,9 +1053,9 @@ mod tests {
             _ => 0,
         };
         let circle = Node::path(
-            vectorcraft_doc::NodeId(0),
-            vectorcraft_geom::shapes::ellipse(b),
-            vectorcraft_doc::Appearance::basic(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), vectorcraft_color::Paint::None, 0.0),
+            pluma_doc::NodeId(0),
+            pluma_geom::shapes::ellipse(b),
+            pluma_doc::Appearance::basic(pluma_color::Paint::solid(pluma_color::Color::BLACK), pluma_color::Paint::None, 0.0),
         );
         assert_eq!(anchors(&circle), 4, "the art is a 4-anchor circle to begin with");
         let bent = bend(&t, &circle, b, along, cross).expect("the zigzag still draws something");
@@ -1068,8 +1068,8 @@ mod tests {
     fn circle_tile(b: Rect) -> Node {
         Node::path(
             NodeId(0),
-            vectorcraft_geom::shapes::ellipse(b),
-            Appearance::basic(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), vectorcraft_color::Paint::None, 0.0),
+            pluma_geom::shapes::ellipse(b),
+            Appearance::basic(pluma_color::Paint::solid(pluma_color::Color::BLACK), pluma_color::Paint::None, 0.0),
         )
     }
 
@@ -1104,7 +1104,7 @@ mod tests {
     /// chords were, in a small fraction of their anchors.
     #[test]
     fn a_circle_tile_bent_round_a_circle_stays_a_few_curves() {
-        let round = vectorcraft_geom::shapes::ellipse(Rect::new(0.0, 0.0, 400.0, 400.0)).to_bezpath();
+        let round = pluma_geom::shapes::ellipse(Rect::new(0.0, 0.0, 400.0, 400.0)).to_bezpath();
         let t = tracks(&round, 0.05).remove(0);
         let b = Rect::new(0.0, -20.0, 40.0, 20.0);
         let along = AlongMap::linear(b.width(), 100.0, 140.0);
@@ -1176,22 +1176,18 @@ mod tests {
         let stroked = |id: u64| {
             Node::path(
                 NodeId(id),
-                vectorcraft_geom::shapes::ellipse(b),
-                Appearance::basic(
-                    vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK),
-                    vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK),
-                    2.0,
-                ),
+                pluma_geom::shapes::ellipse(b),
+                Appearance::basic(pluma_color::Paint::solid(pluma_color::Color::BLACK), pluma_color::Paint::solid(pluma_color::Color::BLACK), 2.0),
             )
         };
         let masked = |linked: bool| {
             let mut n = stroked(0);
-            let mut mask = vectorcraft_doc::OpacityMask::new(stroked(1), true);
+            let mut mask = pluma_doc::OpacityMask::new(stroked(1), true);
             mask.linked = linked;
             n.extras_mut().mask = Some(Box::new(mask));
             n
         };
-        let round = vectorcraft_geom::shapes::ellipse(Rect::new(0.0, 0.0, 400.0, 400.0)).to_bezpath();
+        let round = pluma_geom::shapes::ellipse(Rect::new(0.0, 0.0, 400.0, 400.0)).to_bezpath();
         let bent_track = tracks(&round, 0.05).remove(0);
         let mut line = BezPath::new();
         line.move_to((0.0, 0.0));

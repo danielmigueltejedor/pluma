@@ -3,11 +3,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{
-    Appearance, CharStyle, Dash, Document, ImageBlob, ImageObject, LineCap, LineJoin, Node, NodeId, NodeKind, PatternDef, TextObject,
-};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, shapes};
+use pluma_color::{Color, Gradient, GradientPaint, Paint};
+use pluma_doc::{Appearance, CharStyle, Dash, Document, ImageBlob, ImageObject, LineCap, LineJoin, Node, NodeId, NodeKind, PatternDef, TextObject};
+use pluma_geom::{Affine, PathData, Point, Rect, shapes};
 
 use crate::*;
 
@@ -160,7 +158,7 @@ fn emf_header_frame_is_the_region_in_hundredths_of_a_millimetre() {
     let off = u32_at(b, 64) as usize;
     assert_eq!(off, 108);
     let desc: Vec<u16> = (0..n).map(|i| u16_at(b, off + 2 * i)).collect();
-    assert!(String::from_utf16_lossy(&desc).starts_with("VectorCraft\0"));
+    assert!(String::from_utf16_lossy(&desc).starts_with("Pluma\0"));
     // An empty picture has empty bounds.
     let empty = emf(&doc_with(72.0, 72.0, vec![]));
     assert_eq!([i32_at(&empty.bytes, 8), i32_at(&empty.bytes, 16)], [0, -1]);
@@ -297,14 +295,13 @@ fn ruby_is_written_with_its_type() {
     let typed = |ruby: bool| {
         let mut t = TextObject::point(Point::new(10.0, 60.0), "AB", CharStyle { size: 30.0, fill: red(), ..CharStyle::default() });
         if ruby {
-            t.ruby = vec![vectorcraft_doc::RubySpan::new(0, 2, "xyz")];
+            t.ruby = vec![pluma_doc::RubySpan::new(0, 2, "xyz")];
         }
         t
     };
-    let contours = |gs: &[vectorcraft_text::PositionedGlyph]| {
-        gs.iter().flat_map(|g| g.outline.elements()).filter(|e| matches!(e, kurbo::PathEl::MoveTo(_))).count()
-    };
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &typed(true));
+    let contours =
+        |gs: &[pluma_text::PositionedGlyph]| gs.iter().flat_map(|g| g.outline.elements()).filter(|e| matches!(e, kurbo::PathEl::MoveTo(_))).count();
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &typed(true));
     let reading = contours(&lay.ruby);
     assert!(reading >= 3, "the reading has ink: {reading}");
     let doc = |ruby: bool| doc_with(100.0, 100.0, vec![Node::new(NodeId(0), NodeKind::Text(Box::new(typed(ruby))))]);
@@ -393,7 +390,7 @@ fn an_instance_whose_art_reaches_the_artboard_is_written() {
     let inst = Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Far".into(), xf: Affine::translate((-50.0, -50.0)) });
     let mut d = doc_with(100.0, 100.0, vec![inst]);
     let art = path(shapes::rectangle(Rect::new(100.0, 100.0, 140.0, 140.0)), red(), Paint::None, 0.0);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
     let k = kinds(&emf_records(&emf(&d).bytes));
     assert!(k.contains(&39), "a brush fills the art: {k:?}");
 }
@@ -437,7 +434,7 @@ fn stripes(name: &str, extra: Option<Node>) -> PatternDef {
     let cell = Rect::new(0.0, 0.0, 24.0, 24.0);
     let clip = Node::new(
         NodeId(0),
-        NodeKind::Path { path: shapes::rectangle(cell), rule: vectorcraft_geom::FillRule::NonZero, live: None, clipping: true, guide: false },
+        NodeKind::Path { path: shapes::rectangle(cell), rule: pluma_geom::FillRule::NonZero, live: None, clipping: true, guide: false },
     );
     let mut children = vec![
         Arc::new(clip),
@@ -459,7 +456,7 @@ fn striped_doc(def: PatternDef) -> Document {
     d
 }
 
-fn fills(ops: &[crate::scene::Op]) -> Vec<(&vectorcraft_geom::BezPath, [u8; 3])> {
+fn fills(ops: &[crate::scene::Op]) -> Vec<(&pluma_geom::BezPath, [u8; 3])> {
     ops.iter()
         .filter_map(|op| match op {
             crate::scene::Op::Fill { path, rgb, .. } => Some((path, *rgb)),
@@ -482,7 +479,7 @@ fn pattern_tiles_that_stay_apart_are_one_shape_for_each_part() {
     assert_eq!(f.iter().map(|(_, rgb)| *rgb).collect::<Vec<_>>(), [[255, 0, 0], [255, 255, 255]], "red, then white");
     assert_eq!(clips(&ops), 2, "the page's clip and one to the filled rectangle");
     // Every tile's half is in the merged shape: one figure for each tile, red and white alike.
-    let figures = |bp: &vectorcraft_geom::BezPath| bp.elements().iter().filter(|e| matches!(e, kurbo::PathEl::MoveTo(_))).count();
+    let figures = |bp: &pluma_geom::BezPath| bp.elements().iter().filter(|e| matches!(e, kurbo::PathEl::MoveTo(_))).count();
     let tiles = d.pattern("stripes").unwrap().instances_in(Affine::rotate(std::f64::consts::FRAC_PI_4), Rect::new(20.0, 20.0, 380.0, 280.0)).len();
     assert!(tiles > 200, "{tiles} tiles");
     assert_eq!((figures(f[0].0), figures(f[1].0)), (tiles, tiles));
@@ -512,7 +509,7 @@ fn pattern_art_past_its_tile_keeps_each_tile_apart() {
 #[test]
 fn hex_tilings_and_stroked_tiles_keep_each_tile_apart() {
     let mut hex = stripes("hex", None);
-    hex.tile_type = vectorcraft_doc::TileType::HexByRow;
+    hex.tile_type = pluma_doc::TileType::HexByRow;
     let d = striped_doc(hex);
     let (ops, _) = crate::scene::Scene::new(&d, d.artboards[0].rect, true).run();
     assert!(fills(&ops).len() > 400, "hex: {} fills", fills(&ops).len());

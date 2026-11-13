@@ -43,7 +43,7 @@ pub(crate) fn effect_bounds_with(
         NodeKind::Layer { children, clip: false, .. } | NodeKind::Group { children, clip: false } if !fx::has_object_fx(n) => children
             .iter()
             .skip(usize::from(n.extras().shaper.is_some()))
-            .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, effect_bounds_with(symbols, c, Some(c), renderer.as_deref_mut()))),
+            .fold(None, |acc, c| pluma_geom::union_opt(acc, effect_bounds_with(symbols, c, Some(c), renderer.as_deref_mut()))),
         _ => match (renderer, held) {
             (Some(r), Some(a)) if brush_fx::pad(symbols, a) == 0.0 => r.bounds_of(symbols, a),
             _ => fx::cull_bounds(symbols, n),

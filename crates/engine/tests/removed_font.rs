@@ -5,10 +5,10 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_text::{FALLBACK_FAMILY, FontDb};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_text::{FALLBACK_FAMILY, FontDb};
 
 const FAMILY: &str = "Gonefont Sans";
 
@@ -30,19 +30,19 @@ fn laid_out_in(s: &Session, id: u64) -> Vec<String> {
     let st = s.doc().unwrap();
     let Some(NodeKind::Text(t)) = st.doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("no type object {id}") };
     let db = FontDb::global();
-    let mut families: Vec<String> = vectorcraft_text::layout(db, t).glyphs.iter().map(|g| db.face_by_id(g.font_id).unwrap().family.clone()).collect();
+    let mut families: Vec<String> = pluma_text::layout(db, t).glyphs.iter().map(|g| db.face_by_id(g.font_id).unwrap().family.clone()).collect();
     families.dedup();
     families
 }
 
 #[test]
 fn type_in_a_removed_font_falls_back_after_a_rescan() {
-    let root = vectorcraft_testkit::temp_dir("removed-font");
+    let root = pluma_testkit::temp_dir("removed-font");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    vectorcraft_text::set_user_font_dirs(vec![root.clone()]);
+    pluma_text::set_user_font_dirs(vec![root.clone()]);
     let file = root.join("Gonefont.otf");
-    std::fs::write(&file, vectorcraft_testkit::fonts::renamed(FAMILY)).unwrap();
+    std::fs::write(&file, pluma_testkit::fonts::renamed(FAMILY)).unwrap();
 
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 300, "height": 200})).unwrap();
@@ -67,7 +67,7 @@ fn type_in_a_removed_font_falls_back_after_a_rescan() {
     assert!(st.revision > revision && !st.is_dirty());
 
     // Installed again: the type is set in it again.
-    std::fs::write(&file, vectorcraft_testkit::fonts::renamed(FAMILY)).unwrap();
+    std::fs::write(&file, pluma_testkit::fonts::renamed(FAMILY)).unwrap();
     s.execute("text.rescanFonts", &json!({})).unwrap();
     assert_eq!(status(&mut s), ("exact".into(), FAMILY.into()));
     assert!(listed(&mut s));

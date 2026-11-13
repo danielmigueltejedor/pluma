@@ -2,9 +2,9 @@ use super::artboards::names_an_artboard;
 use super::input::marquee_through;
 use super::outline::{KEY_OUTLINE, c32, node_outline, selection_hit_at, stroke_path, to_screen_path, too_many_anchors};
 use super::selection_marks::{MarkOptions, SelectionMarks};
-use super::{Color32, CornerRadius, NodeKind, Overlay, Pos2, Shape, Stroke, StrokeKind, Tokens, VectorcraftApp, Xf, vec2};
+use super::{Color32, CornerRadius, NodeKind, Overlay, PlumaApp, Pos2, Shape, Stroke, StrokeKind, Tokens, Xf, vec2};
 
-pub(super) fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn hover_highlight(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(h) = app.hover_doc else { return };
     // Smart Guides › Object Highlighting: a Smart Guides display option, so it needs them on and Snap to Grid and Pixel Preview off.
     if !app.ui.view.smart_guides || !app.session.prefs.object_highlighting || app.ui.view.snap_to_grid || app.ui.view.pixel_preview {
@@ -27,8 +27,8 @@ pub(super) fn hover_highlight(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) 
 
 /// Draw Inside (Shift+D): while the mode lasts, a dotted open rectangle round the corners of the
 /// object drawn into, selected or not (#4319).
-pub(super) fn draw_inside_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
-    if app.session.draw_mode != vectorcraft_engine::DrawMode::Inside {
+pub(super) fn draw_inside_overlay(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
+    if app.session.draw_mode != pluma_engine::DrawMode::Inside {
         return;
     }
     let (Some(id), Some(st)) = (app.session.draw_inside, app.session.active()) else { return };
@@ -61,7 +61,7 @@ pub(super) struct HandleLook<'a> {
 }
 
 impl<'a> HandleLook<'a> {
-    pub(super) fn of(prefs: &'a vectorcraft_engine::Prefs) -> Self {
+    pub(super) fn of(prefs: &'a pluma_engine::Prefs) -> Self {
         Self { grow: prefs.anchor_size.clamp(1, 7) as f32 - 3.0, style: &prefs.handle_style }
     }
 
@@ -95,10 +95,10 @@ pub(super) fn curve_point(p: &egui::Painter, c: Pos2, color: Color32, filled: bo
 }
 
 /// How the current tool and preferences draw the selection's marks.
-pub(super) fn mark_options(app: &VectorcraftApp, curve_points_from_tool: bool) -> MarkOptions<'_> {
+pub(super) fn mark_options(app: &PlumaApp, curve_points_from_tool: bool) -> MarkOptions<'_> {
     let tool = app.session.tool_id();
     MarkOptions {
-        direct: vectorcraft_tools::catalog::edits_anchors(tool),
+        direct: pluma_tools::catalog::edits_anchors(tool),
         curvature: tool == "curvature",
         curve_points_from_tool,
         look: HandleLook::of(&app.session.prefs),
@@ -107,7 +107,7 @@ pub(super) fn mark_options(app: &VectorcraftApp, curve_points_from_tool: bool) -
 }
 
 /// Draw selection marks and widgets, keeping the box but hiding dot marks during Halftone Preview.
-pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool, marks: &mut SelectionMarks) {
+pub(super) fn selection_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool, marks: &mut SelectionMarks) {
     // The Selection tool's bounding box (rotated with the objects after a rotation), also shown by
     // the shape tools that keep a shape just drawn ready to adjust while they draw none (#5477). It
     // hides while a drag moves or resizes the selection, so only the art is seen going with the
@@ -116,7 +116,7 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     // with the pointer instead.
     let resizing = app.session.tool_resizing();
     let moved = app.session.deferred_move();
-    let shape_tool = vectorcraft_tools::shape::shows_shape_widgets(app.session.tool_id());
+    let shape_tool = pluma_tools::shape::shows_shape_widgets(app.session.tool_id());
     // A shape tool drawing a shape shows none of this; adjusting a widget, it shows the widgets.
     let drawing = shape_tool && app.session.tool_busy() && !app.session.tool_transforming();
     // Cmd held lends the Selection tool to a press (Direct Selection's included, #3901): its box
@@ -137,7 +137,7 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
         app.selection_box()
     };
     let bbox = bbox.map(|b| match moved {
-        Some(d) => vectorcraft_doc::OrientedBox { rect: b.rect + b.to_local(d.to_point()).to_vec2(), ..b },
+        Some(d) => pluma_doc::OrientedBox { rect: b.rect + b.to_local(d.to_point()).to_vec2(), ..b },
         None => b,
     });
     let st = app.session.active();
@@ -148,7 +148,7 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     let Some(st) = app.session.active() else { return };
     let symbols = st.doc.symbol_boxes();
     let tool = app.session.tool_id();
-    let direct = vectorcraft_tools::catalog::edits_anchors(tool);
+    let direct = pluma_tools::catalog::edits_anchors(tool);
     // Selection & Anchor Display › Size (1–7, 3 the default): anchors, handles and the bounding
     // box's handles a point bigger or smaller per step.
     let options = mark_options(app, curve_points_from_tool);
@@ -158,7 +158,7 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     if show_marks {
         // Too many paths to outline: the selection's bounds stand for them.
         if let Some((b, id)) = big_bounds.zip(st.selection.objects.first()) {
-            stroke_path(p, &vectorcraft_geom::shapes::rectangle(b).to_bezpath(), xf, Stroke::new(1.0, c32(st.doc.layer_color(*id))));
+            stroke_path(p, &pluma_geom::shapes::rectangle(b).to_bezpath(), xf, Stroke::new(1.0, c32(st.doc.layer_color(*id))));
         }
         // The key object (Align to Key Object): its outline drawn thicker, or its bounds when it has
         // too many paths to outline.
@@ -171,18 +171,18 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
         if let Some((k, n)) = key_bounds
             && let Some(b) = n.geometric_bounds_with(&symbols)
         {
-            stroke_path(p, &vectorcraft_geom::shapes::rectangle(b).to_bezpath(), xf, Stroke::new(KEY_OUTLINE, c32(st.doc.layer_color(k))));
+            stroke_path(p, &pluma_geom::shapes::rectangle(b).to_bezpath(), xf, Stroke::new(KEY_OUTLINE, c32(st.doc.layer_color(k))));
         }
         marks.paint(st, p, xf, &options, key_outline, if big { &[] } else { &st.selection.objects });
     }
     // The spine of each selected blend (or of the blend a selected key object belongs to).
     let mut spines = vec![];
     for id in &st.selection.objects {
-        let is_blend = |b: &vectorcraft_doc::NodeId| st.doc.node(*b).is_some_and(|n| matches!(n.kind, NodeKind::Blend { .. }));
+        let is_blend = |b: &pluma_doc::NodeId| st.doc.node(*b).is_some_and(|n| matches!(n.kind, NodeKind::Blend { .. }));
         let Some(b) = [Some(*id), st.doc.parent_of(*id)].into_iter().flatten().find(is_blend).filter(|b| !spines.contains(b)) else { continue };
         spines.push(b);
         let Some(NodeKind::Blend { children, spec }) = st.doc.node(b).map(|n| &n.kind) else { continue };
-        let Some((path, _)) = vectorcraft_doc::live::blend_spine(children, spec) else { continue };
+        let Some((path, _)) = pluma_doc::live::blend_spine(children, spec) else { continue };
         let color = c32(st.doc.layer_color(b));
         stroke_path(p, &path.to_bezpath(), xf, Stroke::new(1.0, color));
         for (_, _, a) in path.anchors() {
@@ -192,7 +192,7 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     // Live Corners widgets (Selection and the shape tools on a live rectangle or polygon, Direct
     // Selection on any path).
     if (matches!(tool, "selection" | "directSelection") || (shape_tool && !drawing))
-        && let Some(w) = vectorcraft_tools::corners::CornerWidgets::showing(
+        && let Some(w) = pluma_tools::corners::CornerWidgets::showing(
             &st.doc,
             &st.selection,
             xf.zoom,
@@ -212,15 +212,15 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     if let Some(b) = bbox {
         let color = c32(st.doc.layer_color(st.selection.objects[0]));
         p.add(Shape::closed_line(b.corners().iter().map(|q| xf.to_screen(*q)).collect(), Stroke::new(1.0, color)));
-        for h in vectorcraft_tools::bbox::Handle::ALL {
+        for h in pluma_tools::bbox::Handle::ALL {
             let c = xf.to_screen(b.to_doc() * h.pos(b.rect));
             let hr = egui::Rect::from_center_size(c, vec2(6.0 + grow, 6.0 + grow));
             p.rect_filled(hr, 0.0, Color32::WHITE);
             p.rect_stroke(hr, 0.0, Stroke::new(1.0, color), StrokeKind::Inside);
         }
         // The type widget beside it: hollow on point type, filled on area type.
-        if let Some(w) = vectorcraft_tools::typewidget::TypeWidget::of(&st.doc, &st.selection, &b, xf.zoom) {
-            let (c, r) = (xf.to_screen(w.at), vectorcraft_tools::typewidget::RADIUS_PX);
+        if let Some(w) = pluma_tools::typewidget::TypeWidget::of(&st.doc, &st.selection, &b, xf.zoom) {
+            let (c, r) = (xf.to_screen(w.at), pluma_tools::typewidget::RADIUS_PX);
             p.circle_filled(c, r, if w.area { color } else { Color32::WHITE });
             p.circle_stroke(c, r, Stroke::new(1.0, color));
         }
@@ -228,8 +228,8 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
     // Pie widgets (Selection tool, with View › Show Bounding Box, on live ellipses): each joined
     // by a line to the outline's point at its angle. They stay while one is dragged.
     if (tool == "selection" || (shape_tool && !drawing)) && app.ui.view.bounding_box {
-        for w in vectorcraft_tools::pie::PieWidget::of(&st.doc, &st.selection, xf.zoom) {
-            let (on, c, r, color) = (xf.to_screen(w.on), xf.to_screen(w.at), vectorcraft_tools::pie::RADIUS_PX, c32(st.doc.layer_color(w.id)));
+        for w in pluma_tools::pie::PieWidget::of(&st.doc, &st.selection, xf.zoom) {
+            let (on, c, r, color) = (xf.to_screen(w.on), xf.to_screen(w.at), pluma_tools::pie::RADIUS_PX, c32(st.doc.layer_color(w.id)));
             p.line_segment([on, c], Stroke::new(1.0, color));
             p.circle_filled(c, r, Color32::WHITE);
             p.circle_stroke(c, r, Stroke::new(1.0, color));
@@ -241,8 +241,8 @@ pub(super) fn selection_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf:
 /// The Rotate All and Space widgets (Selection and Objects on Path tools, one Objects on Path
 /// group selected). The Rotate All widget is joined by a line to the first object's attachment
 /// point. It stays while dragged.
-fn rotate_all_widget(p: &egui::Painter, xf: &Xf, tool: &str, doc: &vectorcraft_doc::Document, selection: &vectorcraft_doc::Selection) {
-    use vectorcraft_tools::objects_on_path::{ROTATE_ALL_RADIUS_PX, RotateAllWidget};
+fn rotate_all_widget(p: &egui::Painter, xf: &Xf, tool: &str, doc: &pluma_doc::Document, selection: &pluma_doc::Selection) {
+    use pluma_tools::objects_on_path::{ROTATE_ALL_RADIUS_PX, RotateAllWidget};
     if !matches!(tool, "selection" | "objectsOnPath") {
         return;
     }
@@ -257,8 +257,8 @@ fn rotate_all_widget(p: &egui::Painter, xf: &Xf, tool: &str, doc: &vectorcraft_d
 
 /// The Space widget (beside the Rotate All widget, with two or more objects on the path): a square
 /// joined by a line to the last object's attachment point. It stays while dragged.
-fn space_widget(p: &egui::Painter, xf: &Xf, doc: &vectorcraft_doc::Document, selection: &vectorcraft_doc::Selection) {
-    use vectorcraft_tools::objects_on_path::{SPACE_HALF_PX, SpaceWidget};
+fn space_widget(p: &egui::Painter, xf: &Xf, doc: &pluma_doc::Document, selection: &pluma_doc::Selection) {
+    use pluma_tools::objects_on_path::{SPACE_HALF_PX, SpaceWidget};
     let Some(w) = SpaceWidget::of(doc, selection, xf.zoom) else { return };
     let (on, c, color) = (xf.to_screen(w.last), xf.to_screen(w.at), c32(doc.layer_color(w.group)));
     let r = egui::Rect::from_center_size(c, vec2(2.0 * SPACE_HALF_PX, 2.0 * SPACE_HALF_PX));
@@ -273,7 +273,7 @@ fn space_widget(p: &egui::Painter, xf: &Xf, doc: &vectorcraft_doc::Document, sel
 /// after dialogs, floating panels, progress windows and the palette draw: any of them can open
 /// over the canvas, take the keyboard or run a command that changes the edited text, so a
 /// descriptor written here would carry a stale owner, surrounding text or cause.
-pub(super) fn ime_geometry(app: &mut VectorcraftApp, ctx: &egui::Context, xf: &Xf) {
+pub(super) fn ime_geometry(app: &mut PlumaApp, ctx: &egui::Context, xf: &Xf) {
     app.ime_caret_rect = None;
     // A hidden viewport cannot compose; the end-of-pass observation clears the owner.
     if !app.session.tool_wants_text() || app.viewport_hidden(ctx) {

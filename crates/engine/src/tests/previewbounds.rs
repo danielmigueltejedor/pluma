@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Effect, Node, NodeId, NodeKind, Symbol};
+use pluma_geom::{Affine, Point, Rect, shapes};
+use pluma_tools::{Cursor, Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Effect, Node, NodeId, NodeKind, Symbol};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
-use vectorcraft_tools::{Cursor, Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -96,7 +96,7 @@ fn outlined_type(s: &mut Session, x: f64, text: &str) -> NodeId {
 /// The box of the glyph outlines that type `id` with Outline Object is drawn as.
 fn glyphs(s: &Session, id: NodeId) -> Rect {
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
-    vectorcraft_render::effects::reshape(None, &n, None).unwrap().geometric_bounds().unwrap()
+    pluma_render::effects::reshape(None, &n, None).unwrap().geometric_bounds().unwrap()
 }
 
 fn near(a: Rect, b: Rect, tolerance: f64) -> bool {
@@ -131,7 +131,7 @@ fn a_stroke_with_offset_path_of_its_own_is_measured_where_it_paints() {
     let id = NodeId(run(&mut s, "shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100}))["id"].as_u64().unwrap());
     run(&mut s, "stroke.set", json!({"weight": 10}));
     let items = s.doc().unwrap().doc.node(id).unwrap().appearance.items.clone();
-    let stroke = items.iter().position(|i| matches!(i, vectorcraft_doc::AppearanceItem::Stroke(_))).unwrap();
+    let stroke = items.iter().position(|i| matches!(i, pluma_doc::AppearanceItem::Stroke(_))).unwrap();
     run(&mut s, "effect.apply", json!({"effect": "path.offsetPath", "params": {"offset": 10}, "ids": [id.0], "item": stroke}));
     preview(&mut s, true);
     assert!(near(s.transform_bounds(&[id]).unwrap(), Rect::new(85.0, 85.0, 215.0, 215.0), 1e-6), "{:?}", s.transform_bounds(&[id]));
@@ -432,8 +432,8 @@ fn objects_selected_whole_with_anchors_turn_about_the_box_of_their_offset_shape(
         geometric(&s, a).center()
     };
     // On, the box runs from (90, 90) to (300, 210); off, from (100, 100) to (300, 200).
-    assert!(center_after(true).distance(vectorcraft_geom::Point::new(240.0, 150.0)) < 1e-6, "{:?}", center_after(true));
-    assert!(center_after(false).distance(vectorcraft_geom::Point::new(250.0, 150.0)) < 1e-6, "{:?}", center_after(false));
+    assert!(center_after(true).distance(pluma_geom::Point::new(240.0, 150.0)) < 1e-6, "{:?}", center_after(true));
+    assert!(center_after(false).distance(pluma_geom::Point::new(250.0, 150.0)) < 1e-6, "{:?}", center_after(false));
 }
 
 #[test]
@@ -515,9 +515,7 @@ fn set_bounds_gives_one_path_sizes_out_of_proportion_when_strokes_scale() {
         preview(&mut s, true);
         run(&mut s, "object.setBounds", json!({"width": width, "height": height, "reference": 0, "strokes": true}));
         let v = s.transform_bounds(&[id]).unwrap();
-        let Some(vectorcraft_doc::LiveShape::Rectangle { xf, .. }) = s.doc().unwrap().doc.node(id).unwrap().live_shape() else {
-            panic!("the rectangle")
-        };
+        let Some(pluma_doc::LiveShape::Rectangle { xf, .. }) = s.doc().unwrap().doc.node(id).unwrap().live_shape() else { panic!("the rectangle") };
         if !close(v, Rect::new(95.0, 95.0, 95.0 + width, 95.0 + height)) || xf.as_coeffs()[0] <= 0.0 {
             wrong.push(format!("{width} × {height}: {v:?}, {xf:?}"));
         }
@@ -827,7 +825,7 @@ fn drag_box(s: &mut Session, id: NodeId, from: (f64, f64), to: (f64, f64), mods:
     for (k, (x, y)) in [(PointerKind::Down, from), (PointerKind::Drag, to), (PointerKind::Up, to)] {
         s.pointer(&PointerEvent { mods, ..PointerEvent::new(k, x, y) }, v).unwrap();
     }
-    let drawn = vectorcraft_render::effects::preview::bounds_of(&s.doc().unwrap().doc, &[id], true).unwrap();
+    let drawn = pluma_render::effects::preview::bounds_of(&s.doc().unwrap().doc, &[id], true).unwrap();
     (drawn, geometric(s, id))
 }
 

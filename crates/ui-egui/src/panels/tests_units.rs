@@ -2,14 +2,14 @@
 //! the Control bar, the Info panel, dialogs, the Preferences dialog itself and New Document; the
 //! Type unit in the Character panel; the change showing in the next frame.
 
+use pluma_doc::Unit;
 use serde_json::json;
-use vectorcraft_doc::Unit;
 
 use super::tests_appearance::{app_with_rect, click, frame_events, run, text_rect};
 use super::*;
 
 /// Every text drawn in the second headless frame of `f` (windows size themselves in the first).
-fn texts(app: &mut VectorcraftApp, mut f: impl FnMut(&mut VectorcraftApp, &mut Ui)) -> Vec<String> {
+fn texts(app: &mut PlumaApp, mut f: impl FnMut(&mut PlumaApp, &mut Ui)) -> Vec<String> {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     frame_events(&ctx, app, vec![], &mut f);
@@ -17,7 +17,7 @@ fn texts(app: &mut VectorcraftApp, mut f: impl FnMut(&mut VectorcraftApp, &mut U
 }
 
 /// Every text drawn by the open dialog in one headless frame.
-fn dialog_texts(app: &mut VectorcraftApp) -> Vec<String> {
+fn dialog_texts(app: &mut PlumaApp) -> Vec<String> {
     texts(app, |app, ui| crate::dialogs::show(app, ui.ctx()))
 }
 
@@ -30,7 +30,7 @@ fn side_mm() -> String {
     Unit::Millimeters.format(100.0)
 }
 
-fn general_mm(app: &mut VectorcraftApp) {
+fn general_mm(app: &mut PlumaApp) {
     app.run("prefs.set", json!({"key": "unitsGeneral", "value": "Millimeters"})).unwrap();
 }
 
@@ -69,7 +69,7 @@ fn dialog_lengths_show_in_the_general_unit() {
     crate::dialogs::open_tool_dialog(&mut app, "rectangle", json!({"x": 0, "y": 0}));
     assert!(shows(&dialog_texts(&mut app), &side_mm()), "Rectangle");
     app.run("effect.dialog", json!({"effect": "stylize.dropShadow"})).unwrap();
-    let x = vectorcraft_effects::default_params("stylize.dropShadow").unwrap()["x"].as_f64().unwrap();
+    let x = pluma_effects::default_params("stylize.dropShadow").unwrap()["x"].as_f64().unwrap();
     let t = dialog_texts(&mut app);
     assert!(shows(&t, &Unit::Millimeters.format(x)), "Drop Shadow: {t:?}");
     crate::dialogs::cancel(&mut app);
@@ -94,7 +94,7 @@ fn the_preferences_dialog_shows_the_documents_units() {
     crate::prefs_dialog::open(&mut app, Some("General"));
     assert_eq!(app.ui.dialog.as_ref().unwrap().fields["unitsGeneral"], json!("millimeters"));
     let inc = app.session.prefs.keyboard_increment;
-    let frame = |app: &mut VectorcraftApp| texts(app, |app, ui| crate::prefs_dialog::show(app, ui.ctx()));
+    let frame = |app: &mut PlumaApp| texts(app, |app, ui| crate::prefs_dialog::show(app, ui.ctx()));
     assert!(shows(&frame(&mut app), &Unit::Millimeters.format(inc)), "Keyboard Increment in mm");
     // Choosing another General unit in the dialog shows at once, and OK applies it.
     app.ui.dialog.as_mut().unwrap().fields.insert("unitsGeneral".into(), json!("inches"));
@@ -106,7 +106,7 @@ fn the_preferences_dialog_shows_the_documents_units() {
 
 #[test]
 fn new_documents_start_in_the_general_preference() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     general_mm(&mut app);
     app.run("file.newDialog", json!({})).unwrap();
     assert_eq!(app.ui.dialog.as_ref().unwrap().fields["units"], json!("Millimeters"));
@@ -123,7 +123,7 @@ fn new_documents_start_in_the_general_preference() {
 #[test]
 fn a_long_vertical_label_does_not_fit_a_sixteenth_inch_step() {
     use crate::canvas::vertical_label_height;
-    use vectorcraft_doc::Unit;
+    use pluma_doc::Unit;
     // One character is one line; each further character adds a line.
     assert_eq!(vertical_label_height(1), 9.5);
     assert_eq!(vertical_label_height(2), 18.0);
@@ -157,7 +157,7 @@ fn ruler_labels_have_the_steps_decimals() {
 
 #[test]
 fn new_document_cards_follow_the_chosen_units() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     general_mm(&mut app);
     app.run("file.newDialog", json!({})).unwrap();
     let d = app.ui.dialog.as_mut().unwrap();
@@ -177,7 +177,7 @@ fn new_document_cards_follow_the_chosen_units() {
 /// other templates as they were; choosing another card brings its units back.
 #[test]
 fn recent_cards_keep_their_own_units() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     // 8.5 × 11 in, then 210 × 297 mm, which Recent lists first and the dialog opens on.
     run(&mut app, "file.new", json!({"width": "8.5 in", "height": "11 in", "units": "Inches"}));
     run(&mut app, "file.new", json!({"width": "210 mm", "height": "297 mm", "units": "Millimeters"}));
@@ -191,7 +191,7 @@ fn recent_cards_keep_their_own_units() {
     // Clicking the inches card makes it the chosen one, in its own units.
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
     frame_events(&ctx, &mut app, vec![], &mut draw); // the window sizes itself here
     let inches = text_rect(&frame_events(&ctx, &mut app, vec![], &mut draw), "8.5 × 11 in").center();
     click(&ctx, &mut app, inches, &mut draw);
@@ -203,7 +203,7 @@ fn recent_cards_keep_their_own_units() {
 /// A saved preset keeps the units it was saved in too, whichever units the dialog is showing.
 #[test]
 fn saved_cards_keep_their_own_units() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     run(&mut app, "file.newPresets.save", json!({"name": "A4 mm", "width": "210 mm", "height": "297 mm", "units": "Millimeters"}));
     app.run("file.newDialog", json!({})).unwrap();
     let d = app.ui.dialog.as_mut().unwrap();
@@ -217,13 +217,13 @@ fn saved_cards_keep_their_own_units() {
 /// the entry's own units still say which card it is.
 #[test]
 fn clicking_the_chosen_recent_card_keeps_it_chosen() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": "8.5 in", "height": "11 in", "units": "Inches"}));
     app.run("file.newDialog", json!({})).unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("units".into(), json!("Points"));
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
     frame_events(&ctx, &mut app, vec![], &mut draw); // the window sizes itself here
     let card = text_rect(&frame_events(&ctx, &mut app, vec![], &mut draw), "612 × 792 pt").center();
     click(&ctx, &mut app, card, &mut draw);
@@ -235,7 +235,7 @@ fn clicking_the_chosen_recent_card_keeps_it_chosen() {
 /// chosen card is the entry the fields were filled from, not every card of that size.
 #[test]
 fn recent_entries_of_one_size_in_two_units_stay_apart() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     // Both are 612 × 792 pt; Recent lists the points one first, which the dialog opens on.
     run(&mut app, "file.new", json!({"width": "8.5 in", "height": "11 in", "units": "Inches"}));
     run(&mut app, "file.new", json!({"width": "612 pt", "height": "792 pt", "units": "Points"}));
@@ -243,7 +243,7 @@ fn recent_entries_of_one_size_in_two_units_stay_apart() {
     app.ui.dialog.as_mut().unwrap().fields.insert("units".into(), json!("Inches"));
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| crate::dialogs::show(app, ui.ctx());
     frame_events(&ctx, &mut app, vec![], &mut draw); // the window sizes itself here
     let texts = frame_events(&ctx, &mut app, vec![], &mut draw);
     let mut cards: Vec<egui::Rect> = texts.iter().filter(|(t, _)| t == "8.5 × 11 in").map(|(_, r)| *r).collect();

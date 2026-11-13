@@ -1,15 +1,15 @@
 //! `theme::install_fonts` on a context the app never ran on, as an embedder that draws the panels
 //! or dialogs itself makes it: every family they draw in is bound, so an effect dialog draws. With
 //! the `interface-fonts` feature the interface's own faces head them; without it
-//! (`cargo test -p vectorcraft-ui-egui --no-default-features --test install_fonts`) they are
+//! (`cargo test -p pluma-ui-egui --no-default-features --test install_fonts`) they are
 //! egui's.
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use egui::{FontFamily, FontId};
+use pluma_engine::Session;
+use pluma_ui_egui::{PlumaApp, dialogs, theme};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_ui_egui::{VectorcraftApp, dialogs, theme};
 
 /// The faces `install_fonts` adds with the `interface-fonts` feature.
 const INTERFACE_FACES: [&str; 5] = ["Inter", "Inter-SemiBold", "SourceSans3", "SourceSans3-Semibold", "JetBrainsMono"];
@@ -69,7 +69,7 @@ fn every_family_the_panels_draw_in_is_bound() {
 /// `install_fonts` prepared.
 #[test]
 fn an_effect_dialog_draws_on_a_context_the_app_never_ran_on() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app.run("select.all", json!({})).unwrap();

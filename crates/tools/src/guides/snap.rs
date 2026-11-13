@@ -69,7 +69,7 @@ pub(super) fn touch_params(seg: &PathSeg, at: Point, perpendicular: bool) -> Vec
 /// when it is within `reach`, and on a straight segment exactly on its line. A path dragged by a
 /// press on its stroke or beside its edge snaps by that point of the path, so it is the path that
 /// lands on a ruler guide or lines up, not the pressed spot a few pixels beside it (#3701).
-pub(crate) fn hold_on_path(path: &vectorcraft_geom::PathData, p: Point, reach: f64) -> Option<Point> {
+pub(crate) fn hold_on_path(path: &pluma_geom::PathData, p: Point, reach: f64) -> Option<Point> {
     let (si, seg, _, q, d) = path.nearest(p)?;
     if d > reach {
         return None;
@@ -132,7 +132,7 @@ impl PointSnap {
             return (keep(Point::new(p.x.round(), p.y.round())), vec![]);
         }
         if cx.snap_to_grid {
-            return (keep(vectorcraft_geom::snap::snap_point_to_grid(p, cx.grid_step())), vec![]);
+            return (keep(pluma_geom::snap::snap_point_to_grid(p, cx.grid_step())), vec![]);
         }
         match &self.targets {
             Some((t, tol)) => t.snap_from(p, from, cx.tol(*tol)),
@@ -430,7 +430,7 @@ impl HandleSnap {
     pub fn snap(&mut self, cx: &ToolContext, (id, si, ai): (NodeId, usize, usize), p: Point, shift: bool) -> (Point, Vec<Overlay>) {
         // A path's anchor, or one of type on a path's path (#3565), in document space.
         let anchor = cx.doc.node(id).and_then(|n| match &n.kind {
-            vectorcraft_doc::NodeKind::Text(t) => t.type_path()?.subpaths.get(si)?.anchors.get(ai).copied(),
+            pluma_doc::NodeKind::Text(t) => t.type_path()?.subpaths.get(si)?.anchors.get(ai).copied(),
             _ => n.path_data()?.subpaths.get(si)?.anchors.get(ai).copied(),
         });
         if shift && let Some(a) = anchor {

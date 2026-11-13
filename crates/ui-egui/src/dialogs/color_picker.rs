@@ -15,11 +15,11 @@
 //! and `swatches`. `stroke`, `artboard`, `keep` and `original` come from the opener.
 
 use egui::{Rect, Sense, Ui, vec2};
+use pluma_color::cms::{self, Lab};
+use pluma_color::{Color, Paint};
+use pluma_doc::ColorMode;
+use pluma_engine::cmd::color_value;
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, Lab};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::ColorMode;
-use vectorcraft_engine::cmd::color_value;
 
 use super::form::PREVIEWED;
 use super::{DialogAction, DialogSpec};
@@ -29,7 +29,7 @@ use crate::panels::color::{
 use crate::panels::{c32, color_json};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub(super) const KIND: &str = "colorPicker";
 
@@ -220,7 +220,7 @@ fn store(d: &mut Dialog, p: &Picked) {
 }
 
 /// The colour the proxy shows (a gradient's first stop; the last colour for None and patterns).
-fn proxy_color(app: &VectorcraftApp, stroke: bool) -> Color {
+fn proxy_color(app: &PlumaApp, stroke: bool) -> Color {
     let (f, s) = crate::panels::current_paints(app);
     match if stroke { s } else { f } {
         Paint::Solid { color, .. } => color,
@@ -232,7 +232,7 @@ fn proxy_color(app: &VectorcraftApp, stroke: bool) -> Color {
 /// `ui.colorPicker {stroke?, artboard?, color?}`: open the picker for the fill (or stroke) proxy,
 /// or for artboard `artboard`'s background color, starting from `color`, else the proxy's color
 /// or the artboard's color (white when it has none).
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let stroke = p.get("stroke").and_then(Value::as_bool).unwrap_or(!app.session.fill_active);
     let artboard = match p.get("artboard") {
         None | Some(Value::Null) => None,
@@ -340,7 +340,7 @@ fn header(ui: &mut Ui, title: &str) {
 
 /// Draws the responsive picker and updates its color fields and live preview.
 /// Returns the requested action for the shared frame to confirm or cancel.
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> DialogAction {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> DialogAction {
     let channel = Channel::parse(&d.str("channel")).unwrap_or_default();
     let web = d.bool("webOnly");
     let swatches = d.bool("swatches");
@@ -468,7 +468,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> DialogAction {
 /// (the colour then only becomes the default paint, on OK).
 /// Opened for an artboard, the picker shows the color on that artboard's paper, with or without a
 /// selection.
-fn preview(app: &mut VectorcraftApp, d: &mut Dialog) {
+fn preview(app: &mut PlumaApp, d: &mut Dialog) {
     // Over Recolor Artwork the art shows that dialog's preview, which this one must not replace;
     // over a command dialog this picker only fills a field, and the dialog previews it.
     if d.fields.contains_key(RECOLOR_ROW) || d.fields.contains_key(COLOUR_FIELD) {
@@ -497,7 +497,7 @@ fn preview(app: &mut VectorcraftApp, d: &mut Dialog) {
 
 /// The command that applies the picked colour to the proxy, and its params (as CMYK in a CMYK
 /// document). Opened for an artboard, the command sets that artboard's background color.
-fn paint_command(app: &VectorcraftApp, d: &Dialog) -> (&'static str, Value) {
+fn paint_command(app: &PlumaApp, d: &Dialog) -> (&'static str, Value) {
     let c = in_document_model(app, picked(d).color);
     if let Some(i) = d.fields.get("artboard").and_then(Value::as_u64) {
         return ("artboard.setProps", json!({ "index": i, "color": color_json(&c) }));
@@ -507,7 +507,7 @@ fn paint_command(app: &VectorcraftApp, d: &Dialog) -> (&'static str, Value) {
 
 /// The picked colour as the document takes it: an RGB colour is CMYK in a CMYK document; CMYK,
 /// grey and Lab colours stay as they are.
-fn in_document_model(app: &VectorcraftApp, c: Color) -> Color {
+fn in_document_model(app: &PlumaApp, c: Color) -> Color {
     if matches!(c, Color::Rgb { .. }) && app.session.active().is_some_and(|s| s.doc.color_mode == ColorMode::Cmyk) {
         let [cy, m, y, k] = c.to_cmyk_managed(cms::active().settings().intent);
         return Color::cmyk(cy, m, y, k);
@@ -627,7 +627,7 @@ fn value_fields(ui: &mut Ui, p: &Picked, channel: Channel) -> (Option<Picked>, O
 }
 
 /// The document's colour swatches as a list; returns the clicked swatch's colour.
-fn swatch_list(app: &VectorcraftApp, ui: &mut Ui, current: &Color, side: f32) -> Option<Color> {
+fn swatch_list(app: &PlumaApp, ui: &mut Ui, current: &Color, side: f32) -> Option<Color> {
     let t = Tokens::get(ui.ctx());
     let mut chosen = None;
     ui.allocate_ui(vec2(side + SLIDER_GAP + SLIDER_W, side), |ui| {
@@ -668,7 +668,7 @@ fn swatch_list(app: &VectorcraftApp, ui: &mut Ui, current: &Color, side: f32) ->
 /// OK: apply the colour to the proxy, keeping the live preview as one undo step. For an artboard,
 /// OK with the starting color unchanged and nothing previewed closes the picker and leaves the
 /// artboard as it was: without a background color, or with its color in its own color model.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if let Some(field) = d.fields.get(COLOUR_FIELD).and_then(Value::as_str) {
         let mut parent = super::parent(d).ok_or("the dialog it was opened over is no longer open")?;
         parent.fields.insert(field.to_string(), json!(picked(d).color.to_hex()));

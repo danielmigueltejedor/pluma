@@ -1,4 +1,4 @@
-//! VectorCraft live effects (Illustrator's Effect menu).
+//! Pluma live effects (Illustrator's Effect menu).
 //!
 //! Effects live in appearance stacks as [`Effect`] `{id, params, visible}` records. This crate
 //! interprets them:
@@ -23,7 +23,7 @@
 //! - [`preview`] measures objects as they are drawn, with their geometry effects (Use Preview
 //!   Bounds).
 //! - **Plug-in effects** (`plugin.<plug-in id>`, Effect › Plug-ins) are geometry effects run by an
-//!   installed WebAssembly plug-in (`vectorcraft-plugins`); [`effect_info`] describes them like
+//!   installed WebAssembly plug-in (`pluma-plugins`); [`effect_info`] describes them like
 //!   built-in ones, and an effect whose plug-in isn't installed leaves the geometry as it is.
 //! - **Colour adjustments** (Brightness/Contrast, Curves, Levels, Hue/Saturation, Shift to Color,
 //!   Temperature/Tint) recolour what an object paints with: [`adjust`] evaluates them for the
@@ -60,9 +60,9 @@ mod warp;
 #[cfg(test)]
 mod tests;
 
+use pluma_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
+use pluma_geom::{BezPath, FillRule, PathData, Rect};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
-use vectorcraft_geom::{BezPath, FillRule, PathData, Rect};
 
 pub use adjust::{
     ADJUSTMENTS, CHANNELS, ColorMap, ImageHook, adjust, adjust_in_document, color_map, curve_at, curve_points, has_adjustment, is_adjustment,
@@ -78,6 +78,7 @@ pub use lighting_presets::{LIGHTING_PRESETS, LightingPreset, lighting_preset_par
 pub use live::{expand_live, expand_live_deep, expanded_live_group, outline_object, text_outliner};
 pub use marks::{CROP_MARKS, crop_marks_art, has_crop_marks};
 pub use pixel::{PIXEL_EFFECTS, PixelFx, PixelSpace};
+pub use pluma_three_d::Mesh;
 pub use raster::{RASTERIZE, RasterFx, Rasterize, color_param, outset, raster_effects};
 pub use reshape::{
     SYMBOL_ART_MAX_NODES, expand_outlined, gives_image_shape, has_gradient_copies, has_item_geometry, has_painted_effects, has_transform_art,
@@ -92,7 +93,6 @@ pub use solids::{
 pub use stylize::{ScribbleSetting, scribble_setting_id, scribble_settings};
 pub use svg_filter::SVG_FILTER;
 pub use trap::TRAP;
-pub use vectorcraft_three_d::Mesh;
 pub use warp::{WarpStyle, warp_point};
 
 mod catalog;

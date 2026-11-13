@@ -14,11 +14,11 @@ mod tests;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pluma_color::recolor::Rng;
+use pluma_doc::{Node, NodeId, OrientedBox};
+use pluma_geom::{Affine, Point, Rect};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_color::recolor::Rng;
-use vectorcraft_doc::{Node, NodeId, OrientedBox};
-use vectorcraft_geom::{Affine, Point, Rect};
-use vectorcraft_render::effects;
 
 use super::super::edit::selected_roots;
 use super::super::menucmds::whole_or;

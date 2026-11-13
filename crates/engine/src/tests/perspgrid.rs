@@ -1,8 +1,8 @@
 //! Perspective Grid definition, presets and view options (`perspective.grid.get` / `define`,
 //! `perspective.presets.*`, View → Perspective Grid toggles, the grid widgets).
 
+use pluma_tools::distort::perspective::{PerspectiveGrid, Rgb};
 use serde_json::{Value, json};
-use vectorcraft_tools::distort::perspective::{PerspectiveGrid, Rgb};
 
 use crate::*;
 
@@ -110,8 +110,8 @@ fn grid_definition_fields_survive_a_native_round_trip() {
     let mut s = session();
     run(&mut s, "perspective.grid.define", json!({"units": "cm", "scale": [1, 4], "angle": 40, "groundColor": "#123456", "opacity": 20}));
     let doc = s.doc().unwrap().doc.clone();
-    vectorcraft_testkit::invariants::check_native_roundtrip_exact(&doc).unwrap();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    pluma_testkit::invariants::check_native_roundtrip_exact(&doc).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(PerspectiveGrid::from_doc(&back), PerspectiveGrid::from_doc(&doc));
     let g = PerspectiveGrid::from_doc(&back).unwrap();
     assert_eq!((g.units.as_str(), g.scale, g.ground_color, g.opacity), ("centimeters", [1.0, 4.0], Rgb([0x12, 0x34, 0x56]), 20.0));
@@ -241,9 +241,9 @@ fn presets_import_refuses_replace_given_as_text() {
 
 // ---------- M8.10: view options ----------
 
-use vectorcraft_geom::Point;
-use vectorcraft_tools::distort::perspective::Plane;
-use vectorcraft_tools::{Overlay, PointerEvent, PointerKind};
+use pluma_geom::Point;
+use pluma_tools::distort::perspective::Plane;
+use pluma_tools::{Overlay, PointerEvent, PointerKind};
 
 fn drag(s: &mut Session, tool: &str, from: Point, to: Point) {
     let v = ViewInfo::default();
@@ -272,7 +272,7 @@ fn view_options_toggle_without_undo_steps_and_survive_presets() {
     assert!(g.locked && g.lock_station && !g.snap && g.rulers, "a preset keeps the view options");
     // Saved with the document.
     let doc = s.doc().unwrap().doc.clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(PerspectiveGrid::from_doc(&back), Some(g));
 }
 
@@ -427,15 +427,15 @@ fn snapped_moves_keep_objects_on_a_plane_together() {
 
 // ---------- M8.11: grid widgets and the Plane Switching Widget ----------
 
-use vectorcraft_tools::distort::perspective::widget::{WidgetCorner, WidgetPlace};
-use vectorcraft_tools::{Mods, ScreenFrame, ToolKey};
+use pluma_tools::distort::perspective::widget::{WidgetCorner, WidgetPlace};
+use pluma_tools::{Mods, ScreenFrame, ToolKey};
 
 /// A 1000 × 700 window at zoom 2 showing the document from (100, 50).
 fn screen() -> ScreenFrame {
     ScreenFrame {
         origin: Point::new(100.0, 50.0),
-        right: vectorcraft_geom::Vec2::new(0.5, 0.0),
-        down: vectorcraft_geom::Vec2::new(0.0, 0.5),
+        right: pluma_geom::Vec2::new(0.5, 0.0),
+        down: pluma_geom::Vec2::new(0.0, 0.5),
         size: (1000.0, 700.0),
     }
 }
@@ -520,7 +520,7 @@ fn ground_level_points_move_the_whole_grid() {
     // The left ground-level point sits 24 px from the origin along the left wall's ground line.
     let towards = g.to_page(Plane::Left, Point::new(g.cell, 0.0)).unwrap();
     let gl = o + (towards - o).normalize() * 24.0;
-    drag(&mut s, "perspectiveGrid", gl, gl + vectorcraft_geom::Vec2::new(30.0, -20.0));
+    drag(&mut s, "perspectiveGrid", gl, gl + pluma_geom::Vec2::new(30.0, -20.0));
     let n = grid(&s);
     let moved = [n.origin[0] - o.x, n.origin[1] - o.y, n.horizon - g.horizon, n.vp_left - g.vp_left, n.vp_right - g.vp_right];
     for (got, want) in moved.into_iter().zip([30.0, -20.0, -20.0, 30.0, 30.0]) {
@@ -529,7 +529,7 @@ fn ground_level_points_move_the_whole_grid() {
     assert_eq!((n.cell, n.viewing_angle()), (g.cell, g.viewing_angle()), "the same grid, elsewhere");
     // Shift keeps it on one axis.
     s.execute("edit.undo", &json!({})).unwrap();
-    gesture_mods(&mut s, gl, gl + vectorcraft_geom::Vec2::new(30.0, -8.0), Mods { shift: true, ..Default::default() });
+    gesture_mods(&mut s, gl, gl + pluma_geom::Vec2::new(30.0, -8.0), Mods { shift: true, ..Default::default() });
     let n = grid(&s);
     assert!(near(n.origin[0], o.x + 30.0) && n.origin[1] == o.y && n.horizon == g.horizon);
 }
@@ -583,7 +583,7 @@ fn widget_options_and_the_right_extent_are_saved() {
     assert_eq!(back.perspective_widget.position, WidgetCorner::TopRight);
     run(&mut s, "perspective.grid.set", json!({"extentRight": 123}));
     let doc = s.doc().unwrap().doc.clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(PerspectiveGrid::from_doc(&back).unwrap().extent_right, Some(123.0));
     assert!(s.execute("perspective.grid.set", &json!({"extentRight": -1})).is_err());
 }

@@ -1,14 +1,14 @@
 //! `cargo xtask test262`: the official ECMAScript conformance suite (https://github.com/tc39/test262,
 //! BSD-3-Clause) at a pinned commit, fetched as GitHub's archive of that commit, checked against
 //! its SHA-256 and size, and unpacked into `corpus/test262/` (gitignored, never committed). It then
-//! runs `vectorcraft-js`'s `test262` tests, which parse the ES5 parse subset, run the ES5
+//! runs `pluma-js`'s `test262` tests, which parse the ES5 parse subset, run the ES5
 //! `test/language` tests and the tests of the ES5 built-ins under `test/built-ins` and
 //! `test/annexB/built-ins` that need only the interpreter's built-ins, run the `test/built-ins`
 //! tests for `String`, `Number`, `RegExp` and `Date`, and print each one's counts.
 //!
 //! It also fetches `json2.js`, Douglas Crockford's public-domain JSON polyfill
 //! (https://github.com/douglascrockford/JSON-js), at a pinned commit, checks it against its SHA-256
-//! and size, saves it in `corpus/json2/` (gitignored, never committed), and runs `vectorcraft-js`'s
+//! and size, saves it in `corpus/json2/` (gitignored, never committed), and runs `pluma-js`'s
 //! `json2` test, which runs the polyfill and compares what it writes and reads with the built-in
 //! `JSON`.
 //!
@@ -42,12 +42,12 @@ const MAX_BYTES: u64 = 64 << 20;
 pub fn run_suite() -> Result<(), String> {
     let dir = fetch()?;
     let mut c = cargo();
-    c.env("VECTORCRAFT_TEST262_DIR", &dir).args(["test", "-p", "vectorcraft-js", "--release", "--test", "test262", "--", "--nocapture"]);
-    run(c, &format!("cargo test -p vectorcraft-js --release --test test262 -- --nocapture (VECTORCRAFT_TEST262_DIR={})", dir.display()))?;
+    c.env("PLUMA_TEST262_DIR", &dir).args(["test", "-p", "pluma-js", "--release", "--test", "test262", "--", "--nocapture"]);
+    run(c, &format!("cargo test -p pluma-js --release --test test262 -- --nocapture (PLUMA_TEST262_DIR={})", dir.display()))?;
     let json2 = fetch_json2()?;
     let mut c = cargo();
-    c.env("VECTORCRAFT_JSON2", &json2).args(["test", "-p", "vectorcraft-js", "--release", "--test", "json2", "--", "--nocapture"]);
-    run(c, &format!("cargo test -p vectorcraft-js --release --test json2 -- --nocapture (VECTORCRAFT_JSON2={})", json2.display()))
+    c.env("PLUMA_JSON2", &json2).args(["test", "-p", "pluma-js", "--release", "--test", "json2", "--", "--nocapture"]);
+    run(c, &format!("cargo test -p pluma-js --release --test json2 -- --nocapture (PLUMA_JSON2={})", json2.display()))
 }
 
 /// Fetches `json2.js` unless a copy with the pinned SHA-256 is there already, and returns its path.
@@ -68,7 +68,7 @@ fn fetch_json2() -> Result<PathBuf, String> {
     std::fs::create_dir_all(&base).map_err(|e| format!("create {}: {e}", base.display()))?;
     let url = format!("https://raw.githubusercontent.com/douglascrockford/JSON-js/{JSON2_COMMIT}/json2.js");
     let mut curl = Command::new("curl");
-    curl.args(["-fsSL", "--retry", "3", "-A", "VectorCraft-dev", "--max-filesize", &JSON2_MAX_BYTES.to_string(), "-o"]).arg(&file).arg(&url);
+    curl.args(["-fsSL", "--retry", "3", "-A", "Pluma-dev", "--max-filesize", &JSON2_MAX_BYTES.to_string(), "-o"]).arg(&file).arg(&url);
     run(curl, &format!("curl {url}"))?;
     if !matches(&file)? {
         let got = std::fs::read(&file).map(|b| sha256::hex(&b)).unwrap_or_default();
@@ -83,7 +83,7 @@ fn fetch_json2() -> Result<PathBuf, String> {
 fn fetch() -> Result<PathBuf, String> {
     let base = root().join("corpus").join("test262");
     let dir = base.join(format!("test262-{COMMIT}"));
-    let marker = dir.join(".vectorcraft-sha256");
+    let marker = dir.join(".pluma-sha256");
     if std::fs::read_to_string(&marker).is_ok_and(|s| s.trim() == SHA256) {
         println!("test262 {COMMIT} is in {}", dir.display());
         return Ok(dir);
@@ -93,7 +93,7 @@ fn fetch() -> Result<PathBuf, String> {
     if !verified(&archive)? {
         let url = format!("https://codeload.github.com/tc39/test262/tar.gz/{COMMIT}");
         let mut curl = Command::new("curl");
-        curl.args(["-fsSL", "--retry", "3", "-A", "VectorCraft-dev", "--max-filesize", &MAX_BYTES.to_string(), "-o"]).arg(&archive).arg(&url);
+        curl.args(["-fsSL", "--retry", "3", "-A", "Pluma-dev", "--max-filesize", &MAX_BYTES.to_string(), "-o"]).arg(&archive).arg(&url);
         run(curl, &format!("curl {url}"))?;
         if !verified(&archive)? {
             let got = std::fs::read(&archive).map(|b| sha256::hex(&b)).unwrap_or_default();

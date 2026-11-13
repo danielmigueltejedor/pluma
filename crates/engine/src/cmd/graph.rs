@@ -8,13 +8,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{
+use pluma_color::{Color, Paint};
+use pluma_doc::{
     Appearance, CharStyle, ColumnDesign, ColumnType, Document, Fractions, GraphDesign, GraphKind, GraphSpec, Justify, Node, NodeId, NodeKind,
     TextObject, TickLength, ValueAxisSide,
 };
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, shapes};
+use pluma_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, shapes};
+use serde_json::{Value, json};
 
 use super::typecmd::refresh_bounds;
 use super::{CommandSpec, EngineError, Result, Session, bad, bool_or, cmd, f64_or, f64_req, has_doc, has_selection, named_id, ok, str_param};

@@ -1,7 +1,7 @@
 //! Select by Artboards.
 
+use pluma_doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
 
 use crate::Session;
 
@@ -114,10 +114,10 @@ fn a_symbol_instance_is_measured_by_its_art() {
     // the 200 × 120 artboard, while the 20 × 20 square around the instance's origin lies off it.
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120"><defs><symbol id="Far"><rect x="100" y="60" width="40" height="20" fill="#f00"/></symbol></defs><use href="#Far" x="-50" y="-50"/></svg>"##;
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "far.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())})).unwrap();
+    s.execute("document.open", &json!({"name": "far.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes())})).unwrap();
     let mut instance = None;
     s.doc().unwrap().doc.walk(|n| {
-        if matches!(n.kind, vectorcraft_doc::NodeKind::SymbolInstance { .. }) {
+        if matches!(n.kind, pluma_doc::NodeKind::SymbolInstance { .. }) {
             instance = Some(n.id);
         }
     });
@@ -129,8 +129,8 @@ fn a_symbol_instance_is_measured_by_its_art() {
 
 /// Select by Link Status.
 mod by_link_status {
+    use pluma_doc::{Document, NodeId};
     use serde_json::{Value, json};
-    use vectorcraft_doc::{Document, NodeId};
 
     use crate::Session;
     use crate::tests_links::{BLUE, Folder, RED, place, png, session, write};
@@ -154,12 +154,12 @@ mod by_link_status {
     /// removed.
     fn links(name: &str) -> Links {
         let dir = Folder::new(name);
-        let (a, b, c, e, d) = (dir.file("ok.png"), dir.file("changes.png"), dir.file("goes.png"), dir.file("kept.png"), dir.file("page.vectorcraft"));
+        let (a, b, c, e, d) = (dir.file("ok.png"), dir.file("changes.png"), dir.file("goes.png"), dir.file("kept.png"), dir.file("page.pluma"));
         write(&a, &png(10, 10, RED));
         write(&b, &png(12, 10, RED));
         write(&c, &png(14, 10, BLUE));
         write(&e, &png(16, 10, BLUE));
-        write(&d, &vectorcraft_format::save_file(&Document::new(80.0, 50.0)));
+        write(&d, &pluma_format::save_file(&Document::new(80.0, 50.0)));
         let mut s = session();
         let (ok, modified, missing) = (place(&mut s, &a), place(&mut s, &b), place(&mut s, &c));
         let embedded = NodeId(s.execute("file.place", &json!({"path": e, "at": [100, 100], "link": false})).unwrap()["ids"][0].as_u64().unwrap());

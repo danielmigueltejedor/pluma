@@ -1,8 +1,8 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// #4919: Object › Plug-ins › Color Effects › Create Swatch Legend… opens a dialog with the
 /// columns, chip size, gap and values; it previews, Cancel rolls it back, and OK draws the legend
@@ -10,7 +10,7 @@ use crate::{VectorcraftApp, menus};
 /// draw only those.
 #[test]
 fn create_swatch_legend_opens_its_dialog_previews_and_runs_on_ok() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
     app.run("swatch.new", json!({"name": "Ink", "color": "#123456"})).unwrap();
     let entries = menus::menu_entries(&app);
@@ -22,7 +22,7 @@ fn create_swatch_legend_opens_its_dialog_previews_and_runs_on_ok() {
     for s in ["Create Swatch Legend", "Columns:", "Size:", "Gap:", "HEX", "CMYK", "Grayscale", "Preview"] {
         assert!(shown.contains(s), "{s} in {shown}");
     }
-    let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, Vec::len);
+    let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, Vec::len);
     let d = app.ui.dialog.as_mut().unwrap();
     d.fields.insert("preview".into(), json!(true));
     painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
@@ -42,7 +42,7 @@ fn create_swatch_legend_opens_its_dialog_previews_and_runs_on_ok() {
     let st = app.session.doc().unwrap();
     let g = st.doc.layers[0].children().unwrap().last().unwrap();
     let label = g.children().unwrap().iter().find_map(|c| match &c.kind {
-        vectorcraft_doc::NodeKind::Text(t) if t.plain_text().starts_with("Ink") => Some(t.plain_text()),
+        pluma_doc::NodeKind::Text(t) if t.plain_text().starts_with("Ink") => Some(t.plain_text()),
         _ => None,
     });
     let label = label.expect("Ink's label");

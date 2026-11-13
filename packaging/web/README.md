@@ -1,22 +1,22 @@
 # Hosting Pluma for the web
 
-`vectorcraft-web-<version>.zip` (from the GitHub release, or `packaging/web/package.sh`) holds a
-static site in `vectorcraft-web-<version>/`:
+`pluma-web-<version>.zip` (from the GitHub release, or `packaging/web/package.sh`) holds a
+static site in `pluma-web-<version>/`:
 
 | File | What it is |
 |---|---|
 | `index.html` | The page. It loads everything through relative URLs. |
-| `vectorcraft-web-<hash>.js` | wasm-bindgen glue (generated, ES module) |
-| `vectorcraft-web-<hash>_bg.wasm` | The app, about 13 MB, or 5 MB with compression |
+| `pluma-web-<hash>.js` | wasm-bindgen glue (generated, ES module) |
+| `pluma-web-<hash>_bg.wasm` | The app, about 13 MB, or 5 MB with compression |
 | `_headers`, `.htaccess` | Sample header rules for Netlify/Cloudflare Pages and Apache |
 
 There is no server-side code. Upload the folder's contents anywhere that serves static files.
 
 ## Any path works
 
-All URLs in `index.html` are relative (`public_url = "./"` in `apps/vectorcraft-web/Trunk.toml`),
+All URLs in `index.html` are relative (`public_url = "./"` in `apps/pluma-web/Trunk.toml`),
 so the site works at a domain root (`https://example.com/`), under a prefix
-(`https://example.com/tools/vectorcraft/`) and from a CDN bucket. The asset names carry a content
+(`https://example.com/tools/pluma/`) and from a CDN bucket. The asset names carry a content
 hash, so they can be cached forever. Only `index.html` needs revalidation.
 
 ## Required server settings
@@ -39,7 +39,7 @@ hash, so they can be cached forever. Only `index.html` needs revalidation.
 nginx example:
 
 ```nginx
-location /vectorcraft/ {
+location /pluma/ {
     types { application/wasm wasm; text/javascript js; text/html html; }
     gzip on;
     gzip_types application/wasm text/javascript text/html;
@@ -84,7 +84,7 @@ the other families load in the background and appear in the font menus as they a
 
 ```html
 <iframe
-  src="https://example.com/vectorcraft/"
+  src="https://example.com/pluma/"
   title="Pluma vector illustration app"
   style="width: 100%; height: 720px; border: 0;"
   allow="fullscreen; clipboard-read; clipboard-write"
@@ -114,6 +114,6 @@ Pluma renders with wgpu. It uses **WebGPU** when the browser has it and falls ba
 | `?webgl` | Force the WebGL2 backend (useful when a WebGPU driver misbehaves) |
 | `?cpu` | Force the CPU canvas path (slowest, most compatible) |
 
-For example: `<iframe src="https://example.com/vectorcraft/?webgl" ...>`.
+For example: `<iframe src="https://example.com/pluma/?webgl" ...>`.
 
 A browser with neither WebGPU nor WebGL2 gets a message in place of the app.

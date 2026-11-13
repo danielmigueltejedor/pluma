@@ -1,6 +1,6 @@
-//! VectorCraft text: font database, shaping, layout, glyph outlines.
+//! Pluma text: font database, shaping, layout, glyph outlines.
 //!
-//! API contract used by `vectorcraft-render`, `vectorcraft-tools` and the UI:
+//! API contract used by `pluma-render`, `pluma-tools` and the UI:
 //! - [`FontDb::global`]: process-wide database preloaded with the bundled OFL fonts (feature
 //!   `bundled-fonts`, on by default; without it the embedder adds fonts with [`FontDb::add_font`]).
 //! - [`layout`]: lays out a [`TextObject`] into glyph outlines in *text space* (apply `t.xf` to
@@ -49,19 +49,19 @@ pub use svg_glyph::{SvgGlyphReader, set_svg_glyph_reader};
 pub use kept::{KeptLayoutsFrame, LayoutStamp, keep_layout, take_kept_layout};
 use kurbo::{Affine, BezPath, Point, Rect, Shape, Vec2};
 pub use layout::{decorations, fit_first_line, fit_source_lines, layout, layout_with, scaled};
-pub use vectorcraft_doc::TextObject;
+pub use pluma_doc::TextObject;
 
-pub use vectorcraft_doc::{AreaFit, FirstBaseline, TextFlow, VerticalAlign};
+pub use pluma_doc::{AreaFit, FirstBaseline, TextFlow, VerticalAlign};
 
-/// Paragraph composer; stored per text object in [`vectorcraft_doc::ParaStyle::composer`].
-pub use vectorcraft_doc::Composer;
+/// Paragraph composer; stored per text object in [`pluma_doc::ParaStyle::composer`].
+pub use pluma_doc::Composer;
 
 /// Layout parameters that the document model doesn't store per object (Area Type Options,
 /// composer, OpenType features). [`layout`] takes rows/columns/inset/first baseline from the object.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayoutOptions {
     /// Area type rows and columns (text fills them in [`LayoutOptions::flow`] order). Layout clamps each
-    /// count to 1..=[`vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS`].
+    /// count to 1..=[`pluma_doc::AreaOptions::MAX_ROWS_COLUMNS`].
     pub rows: usize,
     pub columns: usize,
     /// Gutter between rows/columns in points.
@@ -142,7 +142,7 @@ pub struct PositionedGlyph {
     pub image: Option<Arc<GlyphImage>>,
     /// A colour glyph's art (COLR layers, an SVG document's art), drawn through `xf` instead of an
     /// outline: a group in font units (y down). Its `outline` is empty.
-    pub colour: Option<Arc<vectorcraft_doc::Node>>,
+    pub colour: Option<Arc<pluma_doc::Node>>,
     /// Type on a curved path in a script whose letters join: the glyph's `outline` is bent along
     /// the path ([`GlyphBend`]) so it meets its neighbours, and `xf` is only the straight glyph
     /// nearest it (for the caret, hit testing and tools). `None`: the glyph is drawn through `xf`.
@@ -248,10 +248,10 @@ impl PositionedGlyph {
         self.image.as_ref().map(|i| (i, self.xf * i.xf))
     }
     /// The glyph's colour bitmap as an image object placed through `to_doc` (text space → where it
-    /// goes), holding its pixels ([`vectorcraft_doc::ImageObject::pixels`]), without an id.
-    pub fn placed_image_node(&self, to_doc: Affine) -> Option<vectorcraft_doc::Node> {
+    /// goes), holding its pixels ([`pluma_doc::ImageObject::pixels`]), without an id.
+    pub fn placed_image_node(&self, to_doc: Affine) -> Option<pluma_doc::Node> {
         let (image, to_text) = self.placed_image()?;
-        let im = vectorcraft_doc::ImageObject {
+        let im = pluma_doc::ImageObject {
             key: image.blob.content_key(),
             width: image.width,
             height: image.height,
@@ -260,11 +260,11 @@ impl PositionedGlyph {
             placement: Default::default(),
             pixels: Some(Arc::new(image.blob.clone())),
         };
-        Some(vectorcraft_doc::Node::new(vectorcraft_doc::NodeId(u64::MAX), vectorcraft_doc::NodeKind::Image(Box::new(im))))
+        Some(pluma_doc::Node::new(pluma_doc::NodeId(u64::MAX), pluma_doc::NodeKind::Image(Box::new(im))))
     }
     /// The glyph's colour art placed through `to_doc` (text space → where they go): a copy of
     /// [`Self::colour`], transformed, its nodes without ids.
-    pub fn placed_colour(&self, to_doc: Affine) -> Option<vectorcraft_doc::Node> {
+    pub fn placed_colour(&self, to_doc: Affine) -> Option<pluma_doc::Node> {
         let mut art = (**self.colour.as_ref()?).clone();
         art.transform(to_doc * self.xf, true);
         Some(art)
@@ -307,7 +307,7 @@ pub struct LineInfo {
     pub region: usize,
 }
 
-/// An inline graphic ([`vectorcraft_doc::TextRun::inline`]) placed by the layout: draw the art of
+/// An inline graphic ([`pluma_doc::TextRun::inline`]) placed by the layout: draw the art of
 /// the run's symbol through `xf`. Missing symbols reserve their room but get no entry.
 #[derive(Clone, Debug, PartialEq)]
 pub struct InlineGlyph {
@@ -333,7 +333,7 @@ pub struct ListMarker {
     pub glyphs: std::ops::Range<usize>,
     /// The tab's glyph, which draws nothing: the last of [`Self::glyphs`], or the first in a
     /// right-to-left paragraph. A marker aligned right
-    /// ([`vectorcraft_doc::text::ListAlign::Right`]) has it the other way round.
+    /// ([`pluma_doc::text::ListAlign::Right`]) has it the other way round.
     pub tab: usize,
     /// The marker's characters ("•").
     pub text: String,
@@ -828,13 +828,13 @@ fn caret_horizontal_filtered(layout: &TextLayout, byte: usize, right: bool, vali
 
 /// Does paragraph `text` run right to left: its `direction`, else (None) from its first strong
 /// character (numbers and punctuation don't count)?
-pub fn paragraph_is_rtl(text: &str, direction: Option<vectorcraft_doc::ParaDirection>) -> bool {
+pub fn paragraph_is_rtl(text: &str, direction: Option<pluma_doc::ParaDirection>) -> bool {
     layout::is_rtl(layout::para_bidi(text, direction).as_ref())
 }
 
 /// Is the character at byte `at` of paragraph `text` set right to left: its bidi level is odd, with
 /// the paragraph's `direction` (None: from its first strong character)?
-pub fn char_is_rtl(text: &str, direction: Option<vectorcraft_doc::ParaDirection>, at: usize) -> bool {
+pub fn char_is_rtl(text: &str, direction: Option<pluma_doc::ParaDirection>, at: usize) -> bool {
     layout::para_bidi(text, direction).is_some_and(|info| info.levels.get(at).is_some_and(|level| level.is_rtl()))
 }
 

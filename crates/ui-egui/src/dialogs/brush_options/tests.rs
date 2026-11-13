@@ -1,20 +1,20 @@
 use super::*;
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app
 }
 
-fn set(app: &mut VectorcraftApp, fields: Value) {
+fn set(app: &mut PlumaApp, fields: Value) {
     let d = app.ui.dialog.as_mut().unwrap();
     for (k, v) in fields.as_object().unwrap() {
         d.fields.insert(k.clone(), v.clone());
     }
 }
 
-fn shown(app: &mut VectorcraftApp) -> String {
+fn shown(app: &mut PlumaApp) -> String {
     crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
 }
 
@@ -102,7 +102,7 @@ fn bristle_brush_options_name_field_takes_at_most_31_characters() {
     for (brush, kept) in [("Bristle Round", 31), ("6 pt. Flat", 40)] {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
             out.textures_delta.clear();
         };
@@ -124,17 +124,17 @@ fn bristle_brush_options_name_field_takes_at_most_31_characters() {
 }
 
 /// A path painted with brush `name`, and the height of the art its stroke draws.
-fn brushed(app: &mut VectorcraftApp, name: &str) -> (vectorcraft_doc::NodeId, f64) {
+fn brushed(app: &mut PlumaApp, name: &str) -> (pluma_doc::NodeId, f64) {
     let id = app.run("shape.line", json!({"x1": 20, "y1": 100, "x2": 280, "y2": 100})).unwrap()["id"].as_u64().unwrap();
-    let id = vectorcraft_doc::NodeId(id);
+    let id = pluma_doc::NodeId(id);
     app.run("brush.apply", json!({ "name": name, "ids": [id.0] })).unwrap();
     (id, drawn_height(app, id))
 }
 
-fn drawn_height(app: &VectorcraftApp, id: vectorcraft_doc::NodeId) -> f64 {
+fn drawn_height(app: &PlumaApp, id: pluma_doc::NodeId) -> f64 {
     let st = app.session.active().unwrap();
-    let pieces = vectorcraft_brush::node_pieces(&st.doc, st.doc.node(id).unwrap()).unwrap();
-    vectorcraft_brush::pieces_bounds(&pieces).unwrap().height()
+    let pieces = pluma_brush::node_pieces(&st.doc, st.doc.node(id).unwrap()).unwrap();
+    pluma_brush::pieces_bounds(&pieces).unwrap().height()
 }
 
 #[test]
@@ -187,7 +187,7 @@ fn scatter_options_show_each_value_with_its_mode_and_ok_applies_them() {
 
 #[test]
 fn brush_key_color_eyedropper_updates_the_open_dialog() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut app = app();
     app.run("paint.setFill", json!({"color": "#336699"})).unwrap();
     app.run("shape.rectangle", json!({"x": 40, "y": 40, "width": 80, "height": 60})).unwrap();
@@ -200,7 +200,7 @@ fn brush_key_color_eyedropper_updates_the_open_dialog() {
     let view = app.view_info();
     crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Down, 80.0, 70.0), view);
     let key = app.ui.dialog.as_ref().unwrap().fields.get("keyColor").cloned().unwrap();
-    assert_eq!(vectorcraft_engine::cmd::color_value(&key).unwrap().to_hex(), "#336699");
+    assert_eq!(pluma_engine::cmd::color_value(&key).unwrap().to_hex(), "#336699");
     assert_eq!(app.session.tool_id(), back);
 }
 
@@ -285,7 +285,7 @@ fn ctx() -> egui::Context {
 
 /// Runs one 1200 × 900 frame with `events` through the app's key handling and the dialogs, and
 /// returns the center of the text `label` if the frame shows it.
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, label: &str) -> Option<egui::Pos2> {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, label: &str) -> Option<egui::Pos2> {
     use egui::{Pos2, Rect};
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 900.0))), events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| {
@@ -300,7 +300,7 @@ fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>
 }
 
 /// Clicks the text `label` the open dialog shows.
-fn click_text(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
+fn click_text(ctx: &egui::Context, app: &mut PlumaApp, label: &str) {
     use egui::{Event, PointerButton};
     frame(ctx, app, vec![], label);
     let at = frame(ctx, app, vec![], label).unwrap_or_else(|| panic!("no {label:?} shown"));
@@ -311,7 +311,7 @@ fn click_text(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
 }
 
 /// Presses Escape.
-fn escape(ctx: &egui::Context, app: &mut VectorcraftApp) {
+fn escape(ctx: &egui::Context, app: &mut PlumaApp) {
     let key = |pressed| egui::Event::Key { key: egui::Key::Escape, physical_key: None, pressed, repeat: false, modifiers: Default::default() };
     frame(ctx, app, vec![key(true)], "");
     frame(ctx, app, vec![key(false)], "");
@@ -416,17 +416,17 @@ fn each_tips_sample_paints_the_brush_with_its_method() {
     let mut app = app();
     app.run("ui.brushOptions", json!({"name": "Confetti"})).unwrap();
     let d = app.ui.dialog.as_ref().unwrap();
-    let key: vectorcraft_color::Color = serde_json::from_value(d.fields["keyColor"].clone()).unwrap();
+    let key: pluma_color::Color = serde_json::from_value(d.fields["keyColor"].clone()).unwrap();
     let colors = |id: &str| -> Vec<String> {
-        let method = vectorcraft_brush::Colorization::parse(id, key).unwrap();
+        let method = pluma_brush::Colorization::parse(id, key).unwrap();
         let doc = brush_art_options::tip_doc(&brush_art_options::edited_def(d), "scatter", method, 120.0, 44.0).unwrap();
-        let mut hex: Vec<String> = vectorcraft_brush::art_colors(doc.layers.iter().map(|l| l.as_ref())).iter().map(|c| c.to_hex()).collect();
+        let mut hex: Vec<String> = pluma_brush::art_colors(doc.layers.iter().map(|l| l.as_ref())).iter().map(|c| c.to_hex()).collect();
         hex.sort();
         hex
     };
     let (black, blue) = ("#000000".to_string(), brush_art_options::TIP_STROKE.to_hex());
-    let confetti = vectorcraft_brush::defaults().iter().find(|b| b.name == "Confetti").unwrap();
-    let art: Vec<String> = vectorcraft_brush::art_colors(confetti.art()).iter().map(|c| c.to_hex()).collect();
+    let confetti = pluma_brush::defaults().iter().find(|b| b.name == "Confetti").unwrap();
+    let art: Vec<String> = pluma_brush::art_colors(confetti.art()).iter().map(|c| c.to_hex()).collect();
     let none = colors("none");
     assert!(none.len() == 2 && art.iter().all(|c| none.contains(c)), "None keeps the art's colors {art:?}: {none:?}");
     let (tints, shades, hue) = (colors("tints"), colors("tintsAndShades"), colors("hueShift"));
@@ -546,18 +546,14 @@ fn pattern_options_set_each_corner_tile_to_original_none_or_an_automatic_tile() 
 
 #[test]
 fn pattern_tile_menus_use_document_patterns_and_side_none_keeps_dialog_open() {
+    use pluma_doc::{Node, PatternDef};
+    use pluma_geom::Rect;
     use std::sync::Arc;
-    use vectorcraft_doc::{Node, PatternDef};
-    use vectorcraft_geom::Rect;
 
     let mut app = app();
     app.session
         .edit("Pattern", |doc, _| {
-            let art = Node::path(
-                doc.alloc_id(),
-                vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)),
-                vectorcraft_doc::Appearance::default_art(),
-            );
+            let art = Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)), pluma_doc::Appearance::default_art());
             doc.patterns.push(PatternDef { tile: Rect::new(0.0, 0.0, 10.0, 4.0), ..PatternDef::new("Wide", vec![Arc::new(art)]) });
             Ok(())
         })
@@ -628,19 +624,15 @@ fn pattern_tile_menus_use_document_patterns_and_side_none_keeps_dialog_open() {
 
 #[test]
 fn new_pattern_brush_keeps_a_tile_swatch_choice() {
+    use pluma_doc::{Node, PatternDef};
+    use pluma_geom::Rect;
     use std::sync::Arc;
-    use vectorcraft_doc::{Node, PatternDef};
-    use vectorcraft_geom::Rect;
 
     let mut app = app();
     app.run("shape.rectangle", json!({"x":0,"y":0,"width":20,"height":4})).unwrap();
     app.session
         .edit("Pattern", |doc, _| {
-            let art = Node::path(
-                doc.alloc_id(),
-                vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)),
-                vectorcraft_doc::Appearance::default_art(),
-            );
+            let art = Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)), pluma_doc::Appearance::default_art());
             doc.patterns.push(PatternDef { tile: Rect::new(0.0, 0.0, 10.0, 4.0), ..PatternDef::new("Wide", vec![Arc::new(art)]) });
             Ok(())
         })
@@ -674,7 +666,7 @@ fn pattern_options_keep_the_corner_art_a_corner_borrows() {
 
 #[test]
 fn pattern_options_preview_and_save_borrowed_corner_before_clearing_source() {
-    use vectorcraft_geom::Rect;
+    use pluma_geom::Rect;
 
     let mut app = app();
     let chain = app.run("brush.get", json!({"name": "Chain"})).unwrap();
@@ -704,18 +696,14 @@ fn pattern_options_preview_and_save_borrowed_corner_before_clearing_source() {
 
 #[test]
 fn pattern_options_borrowed_swatch_corner_keeps_its_frame() {
+    use pluma_doc::{Node, PatternDef};
+    use pluma_geom::Rect;
     use std::sync::Arc;
-    use vectorcraft_doc::{Node, PatternDef};
-    use vectorcraft_geom::Rect;
 
     let mut app = app();
     app.session
         .edit("Pattern", |doc, _| {
-            let art = Node::path(
-                doc.alloc_id(),
-                vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)),
-                vectorcraft_doc::Appearance::default_art(),
-            );
+            let art = Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)), pluma_doc::Appearance::default_art());
             doc.patterns.push(PatternDef { tile: Rect::new(0.0, 0.0, 10.0, 4.0), ..PatternDef::new("Corner", vec![Arc::new(art)]) });
             Ok(())
         })
@@ -735,20 +723,17 @@ fn pattern_options_borrowed_swatch_corner_keeps_its_frame() {
 
 #[test]
 fn pattern_options_selects_swatches_with_reserved_names() {
+    use pluma_doc::{Node, PatternDef};
+    use pluma_geom::Rect;
     use std::sync::Arc;
-    use vectorcraft_doc::{Node, PatternDef};
-    use vectorcraft_geom::Rect;
 
     let mut app = app();
     let names = ["none", "original", "autoCentered", "autoBetween", "autoSliced", "autoOverlap"];
     app.session
         .edit("Patterns", |doc, _| {
             for name in names {
-                let art = Node::path(
-                    doc.alloc_id(),
-                    vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)),
-                    vectorcraft_doc::Appearance::default_art(),
-                );
+                let art =
+                    Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 4.0)), pluma_doc::Appearance::default_art());
                 doc.patterns.push(PatternDef { tile: Rect::new(0.0, 0.0, 10.0, 4.0), ..PatternDef::new(name, vec![Arc::new(art)]) });
             }
             Ok(())

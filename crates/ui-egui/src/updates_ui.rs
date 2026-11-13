@@ -1,11 +1,11 @@
 //! Software updates: Help ▸ Check for Updates, the check at start, and their windows.
 //!
 //! The flow and the windows are `nodalia-update`'s, shared with the other Nodalia apps; this file
-//! is what is VectorCraft's own: when an update may close the app, and where its keys go.
+//! is what is Pluma's own: when an update may close the app, and where its keys go.
 
 use serde_json::Value;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use nodalia_update::egui::Status;
@@ -58,7 +58,7 @@ impl Default for Runtime {
 #[cfg(not(target_arch = "wasm32"))]
 const ACCENT: [u8; 3] = [0xe8, 0x57, 0x3f];
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Whether the app looks for a newer release when it starts (off until the desktop app turns it on).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_startup_update_check(&mut self, on: bool) {
@@ -66,7 +66,7 @@ impl VectorcraftApp {
     }
 }
 
-pub(crate) fn check(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn check(app: &mut PlumaApp) -> Result<Value, String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.updates_rt.check_requested = true;
@@ -83,7 +83,7 @@ pub(crate) fn check(app: &mut VectorcraftApp) -> Result<Value, String> {
     }
 }
 
-pub(crate) fn tick(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn tick(app: &mut PlumaApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let rt = &mut app.updates_rt;
@@ -103,7 +103,7 @@ pub(crate) fn tick(app: &mut VectorcraftApp, ctx: &egui::Context) {
 
 /// Whether an update window is open: they are modal, so keys, tool keys and clipboard events stay
 /// out of the documents behind them, and the app's other windows take no input.
-pub(crate) fn blocks_input(app: &VectorcraftApp) -> bool {
+pub(crate) fn blocks_input(app: &PlumaApp) -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.updates_rt.updater.is_open()
@@ -120,7 +120,7 @@ pub(crate) fn blocks_input(app: &VectorcraftApp) -> bool {
 /// or file dialog is open, and no tool is in the middle of a drag or an edit it computes on
 /// another thread.
 #[cfg(not(target_arch = "wasm32"))]
-fn safe_to_close(app: &VectorcraftApp) -> bool {
+fn safe_to_close(app: &PlumaApp) -> bool {
     let session = &app.session;
     !crate::unsaved::any_dirty(app)
         && app.background.jobs.is_empty()
@@ -135,7 +135,7 @@ fn safe_to_close(app: &VectorcraftApp) -> bool {
 
 /// Carries out what the update windows asked for.
 #[cfg(not(target_arch = "wasm32"))]
-fn act(app: &mut VectorcraftApp, ctx: &egui::Context, action: Action) {
+fn act(app: &mut PlumaApp, ctx: &egui::Context, action: Action) {
     match action {
         Action::OpenUrl(url) => app.open_url(&url),
         Action::Exit => {
@@ -152,7 +152,7 @@ fn act(app: &mut VectorcraftApp, ctx: &egui::Context, action: Action) {
     }
 }
 
-pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // An installation waits for unsaved and running work.
@@ -171,7 +171,7 @@ pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     #[cfg(target_arch = "wasm32")]
     if app.updates_rt.manual_window_open {
         let mut open = true;
-        egui::Window::new(tl!("VectorCraft Updates"))
+        egui::Window::new(tl!("Pluma Updates"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -194,28 +194,28 @@ pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
 
 /// Opens the update prompt for a test in another module.
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(crate) fn open_prompt_for_test(app: &mut VectorcraftApp) {
+pub(crate) fn open_prompt_for_test(app: &mut PlumaApp) {
     tests::offer(app);
 }
 
 /// Opens the window of a running check for a test in another module.
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(crate) fn open_result_window_for_test(app: &mut VectorcraftApp, _ctx: &egui::Context) {
+pub(crate) fn open_result_window_for_test(app: &mut PlumaApp, _ctx: &egui::Context) {
     app.updates_rt.updater.set_status(Status::Checking { user: true });
 }
 
 /// Closes the update windows for a test in another module.
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(crate) fn close_dialogs_for_test(app: &mut VectorcraftApp) {
+pub(crate) fn close_dialogs_for_test(app: &mut PlumaApp) {
     app.updates_rt.updater.set_status(Status::Idle);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pluma_engine::Session;
+    use pluma_tools::{PointerEvent, PointerKind};
     use serde_json::json;
-    use vectorcraft_engine::Session;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
 
     #[cfg(not(target_arch = "wasm32"))]
     fn release() -> nodalia_update::Release {
@@ -230,19 +230,19 @@ mod tests {
 
     /// An updater that keeps no record of its checks, showing an update.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn offer(app: &mut VectorcraftApp) {
+    pub(super) fn offer(app: &mut PlumaApp) {
         app.updates_rt.updater = Updater::new(crate::UPDATE_APP).with_stamp(None);
         app.updates_rt.updater.offer(release());
     }
 
     /// An app with one saved document holding a selected rectangle.
     #[cfg(not(target_arch = "wasm32"))]
-    fn app_with_saved_object() -> VectorcraftApp {
+    fn app_with_saved_object() -> PlumaApp {
         let services = crate::Services { write: Some(Box::new(|_: &str, _: &[u8]| Ok(()))), ..Default::default() };
-        let mut app = VectorcraftApp::new(Session::new(), services);
+        let mut app = PlumaApp::new(Session::new(), services);
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
-        app.run("file.save", json!({"path": "/docs/saved.vectorcraft"})).unwrap();
+        app.run("file.save", json!({"path": "/docs/saved.pluma"})).unwrap();
         assert!(!crate::unsaved::any_dirty(&app));
         app
     }
@@ -254,7 +254,7 @@ mod tests {
 
     /// One frame in the app's order: the shortcuts read the input, then the update windows draw.
     #[cfg(not(target_arch = "wasm32"))]
-    fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) {
+    fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) {
         let mut output = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
             crate::shortcuts::handle(app, ui.ctx());
             show(app, ui.ctx());
@@ -264,7 +264,7 @@ mod tests {
 
     /// A Copy, the Pen tool's key and Delete, in one frame each: none of them may act.
     #[cfg(not(target_arch = "wasm32"))]
-    fn assert_keys_do_nothing(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    fn assert_keys_do_nothing(app: &mut PlumaApp, ctx: &egui::Context) {
         let tool = app.session.tool_id();
         let mut reached = Vec::new();
         frame(app, ctx, vec![egui::Event::Copy]);
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn startup_prompt_shows_and_closes() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let ctx = egui::Context::default();
         offer(&mut app);
         frame(&mut app, &ctx, vec![]);
@@ -366,7 +366,7 @@ mod tests {
 
         app.run("shape.rectangle", json!({"x": 70, "y": 10, "width": 50, "height": 50})).unwrap();
         assert!(!safe_to_close(&app), "unsaved changes");
-        app.run("file.save", json!({"path": "/docs/saved.vectorcraft"})).unwrap();
+        app.run("file.save", json!({"path": "/docs/saved.pluma"})).unwrap();
         assert!(safe_to_close(&app));
 
         app.ui.dialog = Some(crate::state::Dialog::new("about", json!({})));
@@ -396,8 +396,7 @@ mod tests {
         crate::background::wait_all(&mut app);
         assert!(safe_to_close(&app));
 
-        crate::opening::start(&mut app, "/art/Wait.vectorcraft", vectorcraft_format::save(&vectorcraft_doc::Document::new(10.0, 10.0), false))
-            .unwrap();
+        crate::opening::start(&mut app, "/art/Wait.pluma", pluma_format::save(&pluma_doc::Document::new(10.0, 10.0), false)).unwrap();
         assert!(!safe_to_close(&app), "a file opening");
         app.opening.pending.clear();
         assert!(safe_to_close(&app));
@@ -407,7 +406,7 @@ mod tests {
         app.ui.action_sets = vec![ActionSet::new("Test", vec![Action::new("Move", vec![step.clone(), step])])];
         app.ui.action_playback.speed = PlaybackSpeed::Step;
         assert_eq!(play(&mut app, 0, 0).unwrap()["pending"], json!(1));
-        app.run("file.save", json!({"path": "/docs/saved.vectorcraft"})).unwrap();
+        app.run("file.save", json!({"path": "/docs/saved.pluma"})).unwrap();
         crate::background::wait_all(&mut app);
         assert!(!safe_to_close(&app), "an action playing");
         app.ui.action_playing = None;
@@ -437,7 +436,7 @@ mod tests {
         for k in 0..40 {
             app.run("shape.rectangle", json!({"x": 10 * k, "y": 100, "width": 20, "height": 20})).unwrap();
         }
-        app.run("file.save", json!({"path": "/docs/saved.vectorcraft"})).unwrap();
+        app.run("file.save", json!({"path": "/docs/saved.pluma"})).unwrap();
         app.run("select.all", json!({})).unwrap();
         app.select_tool("shapeBuilder");
         app.session.pointer(&PointerEvent::new(PointerKind::Move, 15.0, 110.0), view).unwrap();

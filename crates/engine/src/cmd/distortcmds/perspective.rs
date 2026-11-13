@@ -294,7 +294,7 @@ pub(super) fn persp_move(s: &mut Session, p: &Value) -> Result<Value> {
                 let h = g.homography_at(plane, depth)?;
                 let start = h.inverse()?.apply(from)?;
                 let delta = g.plane_delta(plane, depth, from, to)?;
-                h.apply(start + vectorcraft_tools::distort::perspective::constrain_move_delta(delta).1)
+                h.apply(start + pluma_tools::distort::perspective::constrain_move_delta(delta).1)
             })
             .unwrap_or(to)
     } else {
@@ -309,19 +309,18 @@ pub(super) fn persp_move(s: &mut Session, p: &Value) -> Result<Value> {
         crate::cmd::perspgrid::snap_fix(doc, &ids, p, (from, snap_to))
             .and_then(|(plane, depth, correction)| Some((plane, grid_of(doc).plane_delta(plane, depth, from, to)?, correction)))
     };
-    let snapped = move |pl: Plane, raw: vectorcraft_geom::Vec2| {
+    let snapped = move |pl: Plane, raw: pluma_geom::Vec2| {
         let raw = fix.filter(|f| f.0 == pl).map_or(raw, |f| f.1);
-        let (direction, dv) =
-            if constrain { vectorcraft_tools::distort::perspective::constrain_move_delta(raw) } else { (vectorcraft_geom::Vec2::ZERO, raw) };
-        dv + fix.filter(|f| f.0 == pl).map_or(vectorcraft_geom::Vec2::ZERO, |f| {
+        let (direction, dv) = if constrain { pluma_tools::distort::perspective::constrain_move_delta(raw) } else { (pluma_geom::Vec2::ZERO, raw) };
+        dv + fix.filter(|f| f.0 == pl).map_or(pluma_geom::Vec2::ZERO, |f| {
             if !constrain {
                 return f.2;
             }
             if direction.x.abs() < 1e-12 {
-                return vectorcraft_geom::Vec2::new(0.0, f.2.y);
+                return pluma_geom::Vec2::new(0.0, f.2.y);
             }
             if direction.y.abs() < 1e-12 {
-                return vectorcraft_geom::Vec2::new(f.2.x, 0.0);
+                return pluma_geom::Vec2::new(f.2.x, 0.0);
             }
             let (correction, axis) =
                 if f.2.x == 0.0 || (f.2.y != 0.0 && f.2.y.abs() < f.2.x.abs()) { (f.2.y, direction.y) } else { (f.2.x, direction.x) };
@@ -518,7 +517,7 @@ pub(super) fn persp_nudge(s: &mut Session, p: &Value) -> Result<Value> {
     let g = grid_of(&st.doc);
     let (plane, depth, rect) = g.plane_bounds(&st.doc, &ids).ok_or_else(|| EngineError::Other("the selection isn't in perspective".into()))?;
     let from = g.homography_at(plane, depth).and_then(|h| h.apply(rect.center())).ok_or_else(beyond_horizon)?;
-    let to = from + vectorcraft_geom::Vec2::new(dx.clamp(-1.0, 1.0), dy.clamp(-1.0, 1.0)) * k;
+    let to = from + pluma_geom::Vec2::new(dx.clamp(-1.0, 1.0), dy.clamp(-1.0, 1.0)) * k;
     persp_move(s, &json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>(), "from": [from.x, from.y], "to": [to.x, to.y], "copy": copy}))
 }
 
@@ -605,7 +604,7 @@ pub(super) fn edit_text(s: &mut Session, p: &Value) -> Result<Value> {
         let Some(flat) = t.bounds() else { return Ok(()) };
         let cross = || EngineError::Other("the object would cross the horizon of the perspective plane".into());
         let drawn = h.map_rect_bbox(flat).ok_or_else(cross)?;
-        let shift = vectorcraft_geom::Affine::translate(drawn.center() - flat.center());
+        let shift = pluma_geom::Affine::translate(drawn.center() - flat.center());
         let moved = h.checked_then_after(&Homography::from_affine(shift.inverse())).ok_or_else(cross)?;
         t.transform(shift);
         if let Some(rec) = n.extras_if_any().and_then(|e| e.perspective.as_deref_mut()) {

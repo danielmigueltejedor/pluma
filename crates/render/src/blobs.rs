@@ -1,5 +1,5 @@
 use super::{Affine, Arc, BezPath, Ink, Node, Pixmap, Shape, images, ink, paint};
-use vectorcraft_doc::{AppearanceItem, NodeKind};
+use pluma_doc::{AppearanceItem, NodeKind};
 
 /// `key`'s pixels in the shared image store; `touch` marks them used.
 pub(crate) fn lookup(key: &images::ImageKey, touch: bool) -> Option<Arc<Pixmap>> {
@@ -9,7 +9,7 @@ pub(crate) fn lookup(key: &images::ImageKey, touch: bool) -> Option<Arc<Pixmap>>
 
 /// The key of `blob`'s decoded pixels in the shared store, the display table a CMYK image's inks
 /// show through (its generation is in the key), and the pixels' size once decoded.
-pub(crate) fn blob_key(blob: &vectorcraft_doc::ImageBlob) -> (images::ImageKey, Option<Arc<ink::InkLut>>, Option<(u16, u16)>) {
+pub(crate) fn blob_key(blob: &pluma_doc::ImageBlob) -> (images::ImageKey, Option<Arc<ink::InkLut>>, Option<(u16, u16)>) {
     let id = images::blob_id(blob);
     let lut = id.cmyk.then(ink::display_lut);
     let key = images::ImageKey {
@@ -30,7 +30,7 @@ pub(crate) fn blob_key(blob: &vectorcraft_doc::ImageBlob) -> (images::ImageKey, 
 /// when the colour settings change), from the shared store, and their key there. An image whose
 /// pixels can't be decoded is noted in the store and not decoded again; each request for it counts
 /// a failure in [`decode_failures`].
-pub(crate) fn blob_pixmap(blob: &vectorcraft_doc::ImageBlob, touch: bool) -> Option<(images::ImageKey, Arc<Pixmap>)> {
+pub(crate) fn blob_pixmap(blob: &pluma_doc::ImageBlob, touch: bool) -> Option<(images::ImageKey, Arc<Pixmap>)> {
     let (key, lut, size) = blob_key(blob);
     let pm = match lookup(&key, touch) {
         Some(pm) => pm,
@@ -105,7 +105,7 @@ pub(crate) fn image_mip(key: images::ImageKey, pm: Arc<Pixmap>, m: Affine) -> (i
 /// Can image node `n` (`im`) clipped by `region` be painted straight into the region: visible,
 /// with no transparency, effects or paint of its own, and the region inside the image's frame
 /// (within a pixel), so no paint past the image's edge shows?
-pub(crate) fn plain_image(n: &Node, im: &vectorcraft_doc::ImageObject, region: &BezPath) -> bool {
+pub(crate) fn plain_image(n: &Node, im: &pluma_doc::ImageObject, region: &BezPath) -> bool {
     if !(n.visible && n.has_default_transparency() && n.appearance.items.is_empty() && n.appearance.effects.is_empty()) {
         return false;
     }
@@ -113,7 +113,7 @@ pub(crate) fn plain_image(n: &Node, im: &vectorcraft_doc::ImageObject, region: &
 }
 
 /// Is `region` inside image `im`'s frame (within `slack` pixels)?
-fn inside_frame(im: &vectorcraft_doc::ImageObject, region: &BezPath, slack: f64) -> bool {
+fn inside_frame(im: &pluma_doc::ImageObject, region: &BezPath, slack: f64) -> bool {
     let det = im.xf.determinant();
     if !(det.abs() > 1e-12 && det.is_finite()) {
         return false;
@@ -126,12 +126,12 @@ fn inside_frame(im: &vectorcraft_doc::ImageObject, region: &BezPath, slack: f64)
 /// [`white_shape_mask`]) shaped like `region`, be painted straight into the region: the mask shows
 /// the image fully inside the shape and hides it outside, as a clipping path does. The region must
 /// lie inside the image's frame, since outside the frame the mask shows nothing.
-pub(crate) fn shape_masked_image(n: &Node, im: &vectorcraft_doc::ImageObject, region: &BezPath) -> bool {
+pub(crate) fn shape_masked_image(n: &Node, im: &pluma_doc::ImageObject, region: &BezPath) -> bool {
     n.visible
         && n.opacity >= 1.0
-        && n.blend == vectorcraft_color::BlendMode::Normal
+        && n.blend == pluma_color::BlendMode::Normal
         && !n.isolate
-        && n.knockout == vectorcraft_doc::Knockout::Neutral
+        && n.knockout == pluma_doc::Knockout::Neutral
         && !n.knockout_shape
         && n.appearance.items.is_empty()
         && n.appearance.effects.is_empty()
@@ -141,8 +141,8 @@ pub(crate) fn shape_masked_image(n: &Node, im: &vectorcraft_doc::ImageObject, re
 /// Is opacity mask `m` one path filled with opaque white and nothing else, with Clip on and
 /// Invert off (each piece of an envelope's distorted image with Preserve Shape Using
 /// Transparency)?
-pub(crate) fn white_shape_mask(m: &vectorcraft_doc::OpacityMask) -> bool {
-    use vectorcraft_color::{BlendMode, Color, Paint};
+pub(crate) fn white_shape_mask(m: &pluma_doc::OpacityMask) -> bool {
+    use pluma_color::{BlendMode, Color, Paint};
     let a = &m.art;
     let shows = |p: &Paint| !matches!(p, Paint::None);
     let white = |p: &Paint| matches!(p, Paint::Solid { color, tint, .. } if *color == Color::WHITE && *tint >= 1.0);
@@ -172,7 +172,7 @@ pub(crate) fn white_shape_mask(m: &vectorcraft_doc::OpacityMask) -> bool {
 /// Opacity-mask coverage of one premultiplied pixel: luminance, with the area outside the mask
 /// art black (clip) or white (no clip), optionally inverted.
 pub(crate) fn mask_value(r: u8, g: u8, b: u8, a: u8, clip: bool, invert: bool) -> u8 {
-    let [kr, kg, kb] = vectorcraft_color::blend::MASK_LUM;
+    let [kr, kg, kb] = pluma_color::blend::MASK_LUM;
     let mut l = (kr * r as f32 + kg * g as f32 + kb * b as f32) / 255.0;
     if !clip {
         l += 1.0 - a as f32 / 255.0;

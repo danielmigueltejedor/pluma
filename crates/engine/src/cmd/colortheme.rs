@@ -2,12 +2,12 @@
 //! preferences (no online service). `colorTheme.addToSwatches` adds a theme to the Swatches panel as a
 //! colour group.
 
+use pluma_color::Color;
+use pluma_color::harmony::{Harmony, THEME_SIZE};
+use pluma_color::recolor::ColorKey;
+use pluma_tools::params::color_json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_color::harmony::{Harmony, THEME_SIZE};
-use vectorcraft_color::recolor::ColorKey;
-use vectorcraft_tools::params::color_json;
 
 use super::{CommandSpec, Result, Session, always, bad, cmd, color_value, has_doc, str_param};
 

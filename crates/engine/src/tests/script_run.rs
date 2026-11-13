@@ -634,14 +634,14 @@ fn undo_in_a_run_reaches_only_the_runs_own_steps_and_old_ids_stay_dead() {
 
 #[test]
 fn a_string_over_the_crossing_limit_does_not_cross() {
-    let limits = vectorcraft_js::DataLimits { bytes: 20, ..vectorcraft_js::DataLimits::default() };
+    let limits = pluma_js::DataLimits { bytes: 20, ..pluma_js::DataLimits::default() };
     assert!(script::to_data(&json!("four"), &limits, 0, &mut (0, 0)).is_ok());
     assert_eq!(script::to_data(&json!("fives"), &limits, 0, &mut (0, 0)), Err(String::new()));
 }
 
 #[test]
 fn a_result_too_large_to_cross_names_its_place() {
-    let limits = vectorcraft_js::DataLimits { bytes: 90, ..vectorcraft_js::DataLimits::default() };
+    let limits = pluma_js::DataLimits { bytes: 90, ..pluma_js::DataLimits::default() };
     let v = json!({"a": [1, {"name": "x".repeat(40)}]});
     assert_eq!(script::to_data(&v, &limits, 0, &mut (0, 0)), Err(".a[1].name".to_string()));
 }
@@ -707,7 +707,7 @@ fn a_document_a_run_opens_counts_toward_its_growth_allowance() {
     TEST_GROWTH.with(|g| g.set(Some(20)));
     let rects: String = (0..30).map(|i| format!(r#"<rect x="{i}" y="0" width="1" height="1"/>"#)).collect();
     let svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">{rects}</svg>"#);
-    let data = vectorcraft_format::base64_encode(svg.as_bytes());
+    let data = pluma_format::base64_encode(svg.as_bytes());
     let mut s = two_docs();
     let before = state(&s);
     let source = format!("try {{ vc.run('document.open', {{name: 'a.svg', dataBase64: '{data}'}}); }} catch (e) {{}}");
@@ -726,7 +726,7 @@ fn a_document_a_run_opens_counts_toward_its_growth_allowance() {
     maker.execute("edit.clear", &json!({"ids": [instance]})).unwrap();
     assert_eq!(objects(&maker, 0), 0);
     let data = maker.execute("document.serialize", &json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    let source = format!("vc.run('document.open', {{name: 'b.vectorcraft', dataBase64: '{data}'}});");
+    let source = format!("vc.run('document.open', {{name: 'b.pluma', dataBase64: '{data}'}});");
     let e = run(&mut s, &source).unwrap_err().to_string();
     TEST_GROWTH.with(|g| g.set(None));
     assert!(e.contains("objects and data"), "{e}");
@@ -759,7 +759,7 @@ fn graph_design_art_counts_toward_the_growth_allowance() {
     assert_eq!(objects(&maker, 0), 0);
     assert_eq!(maker.documents()[0].doc.graph_designs[0].art.count_with_masks(), 31);
     let data = maker.execute("document.serialize", &json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    let source = format!("vc.run('document.open', {{name: 'g.vectorcraft', dataBase64: '{data}'}});");
+    let source = format!("vc.run('document.open', {{name: 'g.pluma', dataBase64: '{data}'}});");
     let e = run(&mut s, &source).unwrap_err().to_string();
     TEST_GROWTH.with(|g| g.set(None));
     assert!(e.contains("objects and data"), "{e}");
@@ -896,12 +896,12 @@ fn a_run_does_not_start_while_a_complex_document_goes_without_a_copy() {
     let mut s = Session::new();
     s.recovery.set_store(store);
     s.script_copy_first = true;
-    let mut d = vectorcraft_doc::Document::new(1000.0, 1000.0);
+    let mut d = pluma_doc::Document::new(1000.0, 1000.0);
     let layer = d.layers[0].id;
     for i in 0..cmd::recovery::COMPLEX_OBJECTS {
         let id = d.alloc_id();
-        let r = vectorcraft_geom::Rect::new((i % 200) as f64, (i / 200) as f64, (i % 200) as f64 + 1.0, (i / 200) as f64 + 1.0);
-        let n = vectorcraft_doc::Node::path(id, vectorcraft_geom::shapes::rectangle(r), vectorcraft_doc::Appearance::default_art());
+        let r = pluma_geom::Rect::new((i % 200) as f64, (i / 200) as f64, (i % 200) as f64 + 1.0, (i / 200) as f64 + 1.0);
+        let n = pluma_doc::Node::path(id, pluma_geom::shapes::rectangle(r), pluma_doc::Appearance::default_art());
         d.insert(Some(layer), i, n).unwrap();
     }
     s.add_document(d, None);

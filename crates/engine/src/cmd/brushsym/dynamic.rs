@@ -1,13 +1,13 @@
 //! Dynamic symbols (Symbol Options › Symbol Type): an instance of a dynamic symbol changes the
 //! appearance of objects in the symbol's art and stays linked to the symbol
 //! (`symbol.instance.setAppearance`, `symbol.instance.reset`). The changes live on the instance
-//! ([`vectorcraft_doc::symbol_overrides`]); editing the symbol keeps those whose object is still
+//! ([`pluma_doc::symbol_overrides`]); editing the symbol keeps those whose object is still
 //! there ([`fit_overrides`]).
 
 use std::sync::Arc;
 
-use vectorcraft_color::BlendMode;
-use vectorcraft_doc::symbol_overrides::{self, SymbolOverride};
+use pluma_color::BlendMode;
+use pluma_doc::symbol_overrides::{self, SymbolOverride};
 
 use super::{Document, EngineError, Node, NodeId, NodeKind, Result, Session, Value, bad, check_numbers, ids_json, json, roots, selected_instances};
 
@@ -141,7 +141,7 @@ fn paint_refusal(n: &Node, key: &str, cmd: &str) -> Option<EngineError> {
         NodeKind::Path { .. } | NodeKind::Compound { .. } | NodeKind::Text(_) | NodeKind::Group { .. } | NodeKind::Layer { .. } => return None,
         NodeKind::Image(_) => {
             let effects = if key == "fill" { n.appearance.fill().map(|f| &f.effects) } else { n.appearance.stroke().map(|s| &s.effects) };
-            if effects.is_some_and(|e| vectorcraft_render::effects::gives_image_shape(e)) {
+            if effects.is_some_and(|e| pluma_render::effects::gives_image_shape(e)) {
                 return None;
             }
             bad(cmd, format!("{key} cannot be set on an image without a Convert to Shape or Outline Object effect on it"))
@@ -174,13 +174,13 @@ fn check_paint_kinds(p: &Value, art: &Node, path: &[u32], cmd: &str) -> Result<(
 /// Refuse `fill`, the paint `p` asks for the object at `path` of `art`, when that object is a
 /// symbol instance and `fill` is a gradient or a pattern: an instance stains its art with a solid
 /// fill only, so such a fill draws nothing.
-fn solid_fill_check(p: &Value, art: &Node, path: &[u32], fill: Option<&vectorcraft_color::Paint>, cmd: &str) -> Result<()> {
+fn solid_fill_check(p: &Value, art: &Node, path: &[u32], fill: Option<&pluma_color::Paint>, cmd: &str) -> Result<()> {
     let asked = p.get("fill").is_some_and(|v| !v.is_null());
     let is_instance = symbol_overrides::part(art, path).is_some_and(|n| matches!(n.kind, NodeKind::SymbolInstance { .. }));
-    let draws_nothing = |f: &vectorcraft_color::Paint| match f {
-        vectorcraft_color::Paint::Gradient(_) => true,
-        vectorcraft_color::Paint::Pattern { .. } => true,
-        vectorcraft_color::Paint::None | vectorcraft_color::Paint::Solid { .. } => false,
+    let draws_nothing = |f: &pluma_color::Paint| match f {
+        pluma_color::Paint::Gradient(_) => true,
+        pluma_color::Paint::Pattern { .. } => true,
+        pluma_color::Paint::None | pluma_color::Paint::Solid { .. } => false,
     };
     if asked && is_instance && fill.is_some_and(draws_nothing) {
         return Err(bad(cmd, "fill on a symbol instance must be a solid color or none"));
@@ -190,7 +190,7 @@ fn solid_fill_check(p: &Value, art: &Node, path: &[u32], fill: Option<&vectorcra
 
 /// `fill` or `stroke` of `p` for override `o`: absent leaves it, null clears it, a colour string or
 /// an object of `paint.setFill`'s paint params sets it.
-fn paint_change(s: &Session, p: &Value, key: &str, cmd: &str) -> Result<Option<Option<vectorcraft_color::Paint>>> {
+fn paint_change(s: &Session, p: &Value, key: &str, cmd: &str) -> Result<Option<Option<pluma_color::Paint>>> {
     let Some(v) = p.get(key) else { return Ok(None) };
     if v.is_null() {
         return Ok(Some(None));

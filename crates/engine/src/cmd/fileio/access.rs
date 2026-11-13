@@ -75,7 +75,7 @@ pub(crate) fn read_file_head(path: &str, max: usize) -> Result<Vec<u8>> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
     // Work that stops early for a cancel can leave a truncated result: none of it is written.
-    vectorcraft_doc::cancel::check()?;
+    pluma_doc::cancel::check()?;
     may_write(path)?;
     // Never a half-written file: see [`write_atomic`].
     write_atomic(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))
@@ -84,9 +84,9 @@ pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
 /// [`write_file`] with what `fill` writes into the file (a save streamed into it).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn write_file_with(path: &str, fill: &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>) -> Result<()> {
-    vectorcraft_doc::cancel::check()?;
+    pluma_doc::cancel::check()?;
     may_write(path)?;
-    vectorcraft_format::write_atomic_with(std::path::Path::new(path), |f| fill(f)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+    pluma_format::write_atomic_with(std::path::Path::new(path), |f| fill(f)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -103,7 +103,7 @@ pub(crate) fn write_new_file(path: &str, bytes: &[u8]) -> Result<()> {
     may_write(path)?;
     let err = |e: std::io::Error| EngineError::Other(format!("{path}: {e}"));
     let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(err)?;
-    let written = f.write_all(bytes).and_then(|()| vectorcraft_format::sync_file(&f));
+    let written = f.write_all(bytes).and_then(|()| pluma_format::sync_file(&f));
     drop(f);
     written.map_err(|e| {
         // Best effort: the partly written file is all there is to clean up.
@@ -333,8 +333,8 @@ pub(crate) fn drive_share_of(path: &str, final_path: impl FnOnce(&str) -> Option
     })
 }
 
-/// The path of `document` (on a drive, `Z:\jobs\doc.vectorcraft`) on the network share the drive is
-/// mapped to (`\\server\share\jobs\doc.vectorcraft`), when its folder is on one and automation may
+/// The path of `document` (on a drive, `Z:\jobs\doc.pluma`) on the network share the drive is
+/// mapped to (`\\server\share\jobs\doc.pluma`), when its folder is on one and automation may
 /// read the folder. The folder's final path ([`std::fs::canonicalize`]) names the share as
 /// `\\?\UNC\server\share\…`.
 #[cfg(windows)]

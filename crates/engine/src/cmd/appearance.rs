@@ -21,11 +21,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::appearance::SharedStack;
+use pluma_doc::{Appearance, AppearanceItem, CharStyle, FillLayer, Node, NodeKind, ParaStyle, StrokeLayer};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::appearance::SharedStack;
-use vectorcraft_doc::{Appearance, AppearanceItem, CharStyle, FillLayer, Node, NodeKind, ParaStyle, StrokeLayer};
-use vectorcraft_geom::Rect;
 
 use super::edit::{outermost, roots_of, selected_roots};
 use super::opacitymask::percent;
@@ -179,7 +179,7 @@ pub(crate) struct ActiveItem {
 
 impl Session {
     /// The method returns explicit target parameters and the selected appearance effect list.
-    pub fn appearance_effect_target(&self, params: &Value) -> Option<(Value, &[vectorcraft_doc::Effect])> {
+    pub fn appearance_effect_target(&self, params: &Value) -> Option<(Value, &[pluma_doc::Effect])> {
         let mut ids = appearance_targets(self, params).ok()?;
         let item = item_target(self, params, "effect.apply").ok()?;
         let anchor = item.anchor(self, &ids);
@@ -343,7 +343,7 @@ pub(crate) fn aligned(p: &Value, cmd: &str) -> Result<bool> {
 }
 
 /// What the appearances of `ids` share, when there are several of them and they all exist.
-pub(crate) fn shared_stack(d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Option<SharedStack> {
+pub(crate) fn shared_stack(d: &pluma_doc::Document, ids: &[NodeId]) -> Option<SharedStack> {
     if ids.len() < 2 {
         return None;
     }
@@ -352,7 +352,7 @@ pub(crate) fn shared_stack(d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Opt
 }
 
 /// Do the appearances of `ids` differ (several objects whose stacks aren't all equal)?
-pub(crate) fn appearances_differ(d: &vectorcraft_doc::Document, ids: &[NodeId]) -> bool {
+pub(crate) fn appearances_differ(d: &pluma_doc::Document, ids: &[NodeId]) -> bool {
     let mut aps = ids.iter().filter_map(|id| d.node(*id)).map(|n| &n.appearance);
     let Some(first) = aps.next() else { return false };
     aps.any(|a| a != first)
@@ -363,7 +363,7 @@ pub(crate) fn appearances_differ(d: &vectorcraft_doc::Document, ids: &[NodeId]) 
 /// index and each target on its own: an index a target doesn't share with the first is left out
 /// of that target (never taken as the same index there), whatever the other targets have. Not
 /// aligned, or one target: the same indices in each.
-pub(crate) fn items_per_target(d: &vectorcraft_doc::Document, ids: &[NodeId], idx: &[usize], aligned: bool) -> Vec<Vec<usize>> {
+pub(crate) fn items_per_target(d: &pluma_doc::Document, ids: &[NodeId], idx: &[usize], aligned: bool) -> Vec<Vec<usize>> {
     let aps: Option<Vec<&Appearance>> = ids.iter().map(|id| d.node(*id).map(|n| &*n.appearance)).collect();
     match aps.filter(|aps| aligned && aps.len() >= 2) {
         Some(aps) => aps
@@ -453,7 +453,7 @@ pub(crate) fn edit_items_then(
     label: &str,
     fill: bool,
     mut f: impl FnMut(&mut Node, Option<usize>) -> Result<()>,
-    mut after: impl FnMut(&mut vectorcraft_doc::Document, &[NodeId]) -> Result<bool>,
+    mut after: impl FnMut(&mut pluma_doc::Document, &[NodeId]) -> Result<bool>,
 ) -> Result<()> {
     if ids.is_empty() {
         return Ok(());
@@ -476,7 +476,7 @@ pub(crate) fn edit_items_then(
 }
 
 /// How many of `ids` differ in `d` from `before`.
-pub(crate) fn count_changed(d: &vectorcraft_doc::Document, before: &vectorcraft_doc::Document, ids: &[NodeId]) -> usize {
+pub(crate) fn count_changed(d: &pluma_doc::Document, before: &pluma_doc::Document, ids: &[NodeId]) -> usize {
     ids.iter().filter(|id| d.node(**id) != before.node(**id)).count()
 }
 
@@ -637,8 +637,8 @@ fn clear_appearance(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Each of `ids` whose object opacity or blend mode is another in `d` than in `before`, for
 /// [`super::graph::capture_series_object_opacity`].
-fn object_opacity_changed(before: &vectorcraft_doc::Document, d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Vec<NodeId> {
-    let of = |d: &vectorcraft_doc::Document, id: NodeId| d.node(id).map(|n| (n.opacity, n.blend));
+fn object_opacity_changed(before: &pluma_doc::Document, d: &pluma_doc::Document, ids: &[NodeId]) -> Vec<NodeId> {
+    let of = |d: &pluma_doc::Document, id: NodeId| d.node(id).map(|n| (n.opacity, n.blend));
     ids.iter().copied().filter(|id| of(before, *id) != of(d, *id)).collect()
 }
 
@@ -650,8 +650,8 @@ fn both_kinds(ids: &[NodeId]) -> Vec<(NodeId, bool)> {
 
 /// Each of `ids` with each kind of row (fill `true`, stroke `false`) whose topmost visible row has another opacity or blend
 /// mode in `d` than in `before` (no row counts as opaque and Normal), for [`super::graph::capture_series_opacity`].
-fn top_opacity_changed(before: &vectorcraft_doc::Document, d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Vec<(NodeId, bool)> {
-    let top = |d: &vectorcraft_doc::Document, id: NodeId, fill: bool| {
+fn top_opacity_changed(before: &pluma_doc::Document, d: &pluma_doc::Document, ids: &[NodeId]) -> Vec<(NodeId, bool)> {
+    let top = |d: &pluma_doc::Document, id: NodeId, fill: bool| {
         d.node(id)
             .and_then(|n| n.appearance.items.iter().rev().find(|it| it.is_fill() == fill && it.visible()).map(|it| (it.opacity(), it.blend())))
             .unwrap_or((1.0, BlendMode::Normal))
@@ -662,14 +662,14 @@ fn top_opacity_changed(before: &vectorcraft_doc::Document, d: &vectorcraft_doc::
 /// Each of `ids` with each kind of row (fill `true`, stroke `false`) whose topmost visible row has another paint, or a
 /// stroke another weight, in `d` than in `before` (no row counts as no paint), for
 /// [`super::graph::capture_series_top_paints`].
-fn top_paint_changed(before: &vectorcraft_doc::Document, d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Vec<(NodeId, bool)> {
-    let top = |d: &vectorcraft_doc::Document, id: NodeId, fill: bool| d.node(id).map(|n| super::graph::shown_paint(n, fill));
+fn top_paint_changed(before: &pluma_doc::Document, d: &pluma_doc::Document, ids: &[NodeId]) -> Vec<(NodeId, bool)> {
+    let top = |d: &pluma_doc::Document, id: NodeId, fill: bool| d.node(id).map(|n| super::graph::shown_paint(n, fill));
     ids.iter().flat_map(|id| [(*id, true), (*id, false)]).filter(|(id, fill)| top(before, *id, *fill) != top(d, *id, *fill)).collect()
 }
 
 /// `rows` (each object with the kind of row) whose topmost visible row of that kind has paint: a command that wrote them
 /// replaces the paint another mark of the series left on the graph, even when the mark's own row comes out as it was.
-fn painted_rows(d: &vectorcraft_doc::Document, rows: impl IntoIterator<Item = (NodeId, bool)>) -> Vec<(NodeId, bool)> {
+fn painted_rows(d: &pluma_doc::Document, rows: impl IntoIterator<Item = (NodeId, bool)>) -> Vec<(NodeId, bool)> {
     rows.into_iter().filter(|(id, fill)| d.node(*id).is_some_and(|n| !super::graph::shown_paint(n, *fill).0.is_none())).collect()
 }
 
@@ -679,15 +679,15 @@ fn painted_rows(d: &vectorcraft_doc::Document, rows: impl IntoIterator<Item = (N
 /// topmost row of each kind, which counts only when it is visible. It also stores the marks' object opacity and blend mode
 /// when they changed, or on every mark when the edit wrote them (`object`). Returns whether the stored paint changed.
 pub(super) fn capture_series_writes(
-    before: &vectorcraft_doc::Document,
-    d: &mut vectorcraft_doc::Document,
+    before: &pluma_doc::Document,
+    d: &mut pluma_doc::Document,
     ids: &[NodeId],
     paints: (bool, bool),
     opacities: (bool, bool),
     top_only: bool,
     object: bool,
 ) -> bool {
-    let top_shows = |d: &vectorcraft_doc::Document, id: NodeId, kind: bool| {
+    let top_shows = |d: &pluma_doc::Document, id: NodeId, kind: bool| {
         let items = d.node(id).map_or(&[][..], |n| &n.appearance.items[..]);
         items.iter().rev().find(|it| it.is_fill() == kind).is_some_and(AppearanceItem::visible)
     };
@@ -695,7 +695,7 @@ pub(super) fn capture_series_writes(
         let rows = ids.iter().flat_map(|id| [fill.then_some((*id, true)), stroke.then_some((*id, false))]).flatten();
         rows.filter(|(id, kind)| !top_only || top_shows(d, *id, *kind)).collect()
     };
-    let written = |d: &vectorcraft_doc::Document, rows: (bool, bool)| painted_rows(d, kinds(rows));
+    let written = |d: &pluma_doc::Document, rows: (bool, bool)| painted_rows(d, kinds(rows));
     let mut opacity_rows = top_opacity_changed(before, d, ids);
     // A written row that had paint before the edit counts too when the edit left it without paint: only a row without
     // paint both before and after keeps what the graph stores.
@@ -1218,7 +1218,7 @@ fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
         let src = Arc::new(d.node(super::path::compound_or_self(d, clicked)).ok_or(EngineError::NoNode(clicked))?.clone());
         let (fill, stroke) = (super::paint::proxy_paint(&src, false, None), super::paint::proxy_paint(&src, true, None));
         let a = attrs.appearance;
-        if !vectorcraft_doc::symbol_overrides::takes_part_paint(&src) || !(a.fill.color || a.stroke.color) {
+        if !pluma_doc::symbol_overrides::takes_part_paint(&src) || !(a.fill.color || a.stroke.color) {
             return Err(super::brushsym::part_only());
         }
         super::brushsym::edit_part(s, id, &path, "Eyedropper", |o| {
@@ -1305,9 +1305,9 @@ fn copy_from(s: &mut Session, p: &Value) -> Result<Value> {
         super::overprint::edit_counted(s, "Eyedropper", |d| {
             for &(id, range) in &ranges {
                 let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) else { return Err(EngineError::NoNode(id)) };
-                let (start, end) = range.unwrap_or((0, vectorcraft_text::edit::runs_len(&t.runs)));
+                let (start, end) = range.unwrap_or((0, pluma_text::edit::runs_len(&t.runs)));
                 let placed = picked.placed(Some(t.local_bounds()));
-                vectorcraft_text::edit::style_range(&mut t.runs, start, end, |st| picked.run(st, &placed, &attrs));
+                pluma_text::edit::style_range(&mut t.runs, start, end, |st| picked.run(st, &placed, &attrs));
                 if let Some((_, para)) = picked.text.as_ref().filter(|_| attrs.paragraph) {
                     t.edit_paras(Some(t.paragraphs_in(start, end)), |p| *p = para.clone());
                 }

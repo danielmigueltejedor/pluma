@@ -2,10 +2,10 @@
 //! params' top level or from an `svg` object (which wins), and the files an SVG export writes
 //! (one per artboard, plus the images it links to).
 
+use pluma_doc::Document;
+use pluma_svg::ExportOptions;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use vectorcraft_doc::Document;
-use vectorcraft_svg::ExportOptions;
 
 use super::encode::{ARTBOARD_PARAMS, ArtboardPick, Encoded};
 use super::{ARTBOARD, ARTBOARDS, FormatOption, RANGE};
@@ -52,7 +52,7 @@ pub const OPTIONS: &[FormatOption] = &[
         name: "preserveEditing",
         ty: "boolean",
         default: "false",
-        description: "embed the native document in <metadata> so VectorCraft reopens the SVG with nothing lost",
+        description: "embed the native document in <metadata> so Pluma reopens the SVG with nothing lost",
     },
     FormatOption {
         name: "metadata",
@@ -133,7 +133,7 @@ pub fn options_map(p: &Value) -> Result<Map<String, Value>, String> {
 fn plan(doc: &Document, p: &Value) -> Result<(ExportOptions, Vec<Option<usize>>, bool), String> {
     let mut m = options_map(p)?;
     // Fonts: unless chosen, Document Setup → Type → Export decides (appearance = outlines).
-    if !m.contains_key("outlineText") && doc.setup.export_text == vectorcraft_doc::ExportText::Appearance {
+    if !m.contains_key("outlineText") && doc.setup.export_text == pluma_doc::ExportText::Appearance {
         m.insert("outlineText".into(), Value::Bool(true));
     }
     let picks: Map<String, Value> = ARTBOARD_PARAMS.iter().chain(["useArtboards"].iter()).filter_map(|k| m.remove_entry(*k)).collect();
@@ -165,7 +165,7 @@ pub(super) fn lost_artboards_warning(doc: &Document, p: &Value, label: &str) -> 
 pub(super) fn encode(doc: &Document, p: &Value, compressed: bool) -> Result<Encoded, String> {
     let (opts, boards, chosen) = plan(doc, p)?;
     // Preserve editing embeds the native document (once, shared by every file).
-    let native = opts.preserve_editing.then(|| vectorcraft_format::save(doc, false));
+    let native = opts.preserve_editing.then(|| pluma_format::save(doc, false));
     // Draw linked files as vectors when available, or their previews with a warning. Keep
     // that preparation out of the native attachment so missing links remain relinkable.
     let (full, warnings) = crate::cmd::place::document::full_documents(doc);
@@ -173,20 +173,20 @@ pub(super) fn encode(doc: &Document, p: &Value, compressed: bool) -> Result<Enco
     let filled = super::export::with_artboard_fills(&full, p, boards.iter().flatten().copied())?;
     let doc = &*filled;
     // A chosen artboard's file holds the art over it; otherwise the file holds all of it.
-    let regions: Option<Vec<vectorcraft_geom::Rect>> =
+    let regions: Option<Vec<pluma_geom::Rect>> =
         chosen.then(|| boards.iter().flatten().filter_map(|b| doc.artboards.get(*b)).map(|a| a.rect).collect());
     let overflow = crate::cmd::fonts::export_overflow_warning(doc, &doc.layers, regions.as_deref());
     // Render effects SVG cannot represent faithfully, including source-model Darkness shadows.
-    let flat = crate::cmd::rasterfx::flatten_pixel_effects_for(doc, opts.profile != vectorcraft_svg::Profile::Tiny12);
+    let flat = crate::cmd::rasterfx::flatten_pixel_effects_for(doc, opts.profile != pluma_svg::Profile::Tiny12);
     let doc = flat.as_ref().unwrap_or(doc);
     let mut enc = Encoded { warnings, ..Encoded::default() };
     // One renderer measures the art over every artboard: each 3D solid is built once.
-    let mut renderer = vectorcraft_render::Renderer::new();
+    let mut renderer = pluma_render::Renderer::new();
     for artboard in boards {
         // A chosen artboard's file holds the art over it (#550) and is named after it (#3544).
         let over = artboard.filter(|_| chosen).and_then(|b| doc.artboards.get(b)).map(|a| super::export::art_over(doc, a.rect, &mut renderer));
         let file = ExportOptions { artboard, artboard_title: chosen, ..opts.clone() };
-        let mut out = vectorcraft_svg::export_full(over.as_ref().unwrap_or(doc), &file, native.as_deref());
+        let mut out = pluma_svg::export_full(over.as_ref().unwrap_or(doc), &file, native.as_deref());
         let bytes = out.take_bytes();
         for l in out.linked {
             if !enc.linked.iter().any(|e| e.name == l.name) {
@@ -198,7 +198,7 @@ pub(super) fn encode(doc: &Document, p: &Value, compressed: bool) -> Result<Enco
                 enc.warnings.push(w);
             }
         }
-        enc.files.push((artboard, if compressed { vectorcraft_svg::compress_bytes(&bytes) } else { bytes }));
+        enc.files.push((artboard, if compressed { pluma_svg::compress_bytes(&bytes) } else { bytes }));
     }
     // Live type names its fonts; outlines and embedded fonts are the fallback font's.
     if (opts.outline_text || opts.embed_fonts)

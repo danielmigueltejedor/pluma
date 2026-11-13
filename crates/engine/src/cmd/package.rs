@@ -7,8 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 
-use vectorcraft_doc::links::hash_bytes;
-use vectorcraft_doc::{Document, LinkInfo};
+use pluma_doc::links::hash_bytes;
+use pluma_doc::{Document, LinkInfo};
 
 use serde_json::{Value, json};
 
@@ -24,7 +24,7 @@ pub fn specs() -> Vec<CommandSpec> {
         "Package",
         [],
         None,
-        "{folder?, name?: (default: \"<document> Folder\"), copyLinks?: true, linksFolder?: true (the linked files go in Links/, else next to the document), relink?: true (the packaged document links to the copies), copyFonts?: true (the fonts its type uses go in Fonts/; fonts whose licence doesn't allow embedding are left out), report?: true (<document> Report.txt)} copy the saved document as it is now into folder/name as <document>.vectorcraft with its linked files and fonts; the open document doesn't change → {folder, files: [paths relative to folder/name], links, fonts (counts copied), missingLinks: [file names not found], skippedFonts: [{font, reason}], warnings: [nested files copied unchanged or cycles/depth stopped]}; no folder → the same with {name: \"<name>.zip\", dataBase64} (a zip of the files in <name>/) instead of folder",
+        "{folder?, name?: (default: \"<document> Folder\"), copyLinks?: true, linksFolder?: true (the linked files go in Links/, else next to the document), relink?: true (the packaged document links to the copies), copyFonts?: true (the fonts its type uses go in Fonts/; fonts whose licence doesn't allow embedding are left out), report?: true (<document> Report.txt)} copy the saved document as it is now into folder/name as <document>.pluma with its linked files and fonts; the open document doesn't change → {folder, files: [paths relative to folder/name], links, fonts (counts copied), missingLinks: [file names not found], skippedFonts: [{font, reason}], warnings: [nested files copied unchanged or cycles/depth stopped]}; no folder → the same with {name: \"<name>.zip\", dataBase64} (a zip of the files in <name>/) instead of folder",
         has_doc,
         package
     )]
@@ -58,7 +58,7 @@ fn font_ext(bytes: &[u8]) -> &'static str {
 /// extension; without a file, `family-style` with that extension.
 fn packaged_name(path: Option<&Path>, family: &str, style: &str, data: &[u8]) -> String {
     match path.and_then(Path::file_name).map(|n| n.to_string_lossy().into_owned()) {
-        Some(name) if vectorcraft_text::is_font_file(Path::new(&name)) => name,
+        Some(name) if pluma_text::is_font_file(Path::new(&name)) => name,
         Some(name) => format!("{name}.{}", font_ext(data)),
         None => format!("{family}-{style}.{}", font_ext(data)).replace(|c: char| !(c.is_alphanumeric() || "-_.".contains(c)), ""),
     }
@@ -102,13 +102,13 @@ fn safe_asset_name(name: &str) -> String {
 }
 
 /// A file placed: (page, bounding, page box) of each placed object showing it.
-type PlacedPages = Vec<(u32, bool, vectorcraft_doc::PageBox)>;
+type PlacedPages = Vec<(u32, bool, pluma_doc::PageBox)>;
 
 #[cfg(test)]
 thread_local! {
     /// Tests: how many placed PDF or `.ai` pages [`page_fonts`] read on this thread.
     pub(crate) static PAGES_READ: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
-    /// Tests: how many linked `.vectorcraft` files had their preview and PDF read on this thread,
+    /// Tests: how many linked `.pluma` files had their preview and PDF read on this thread,
     /// to keep them in the rewritten copy.
     pub(crate) static PARTS_READ: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
@@ -129,7 +129,7 @@ fn page_fonts(name: &str, bytes: &[u8], path: &str, pages: &PlacedPages) -> BTre
     fonts
 }
 
-/// Collect dependencies depth-first so nested VectorCraft files are rewritten before
+/// Collect dependencies depth-first so nested Pluma files are rewritten before
 /// their parents: each parent can record the final hash of the rewritten child.
 /// Cycles, excessive nesting, and unreadable children are reported, not fatal.
 struct Collector<'a> {
@@ -284,7 +284,7 @@ impl<'a> Collector<'a> {
                 let pages = placed.get(&file.path);
                 let placed_file = pages.is_some();
                 if placed_file && let Some(mut art) = super::place::document::editing_data(&file.name, &bytes) {
-                    if depth >= vectorcraft_doc::placed_document::MAX_DEPTH {
+                    if depth >= pluma_doc::placed_document::MAX_DEPTH {
                         self.warn(&mut lines, format!("{}: nesting limit reached; copied unchanged without collecting its own links", file.path));
                     } else {
                         self.collect(&mut art, found_path, &destination_file, depth + 1, true, None)?;
@@ -295,10 +295,10 @@ impl<'a> Collector<'a> {
                     placed_fonts.extend(page_fonts(&file.name, &bytes, found_path, pages));
                 }
                 if placed_file && super::place::document::is_native(&file.name, &bytes) {
-                    if depth >= vectorcraft_doc::placed_document::MAX_DEPTH {
+                    if depth >= pluma_doc::placed_document::MAX_DEPTH {
                         self.warn(&mut lines, format!("{}: nesting limit reached; copied unchanged without collecting its own links", file.path));
                     } else {
-                        match vectorcraft_format::load_file(&bytes) {
+                        match pluma_format::load_file(&bytes) {
                             Ok(saved) => {
                                 let compressed = bytes.starts_with(&[0x1f, 0x8b]);
                                 let include_linked =
@@ -309,13 +309,13 @@ impl<'a> Collector<'a> {
                                     #[cfg(test)]
                                     PARTS_READ.with(|c| c.set(c.get() + 1));
                                     // Preserve auxiliary native-file content when rewriting.
-                                    let mut options = vectorcraft_format::SaveOptions::for_doc(&nested);
-                                    options.preview = vectorcraft_format::preview(&bytes);
-                                    options.pdf = vectorcraft_format::pdf_content(&bytes);
+                                    let mut options = pluma_format::SaveOptions::for_doc(&nested);
+                                    options.preview = pluma_format::preview(&bytes);
+                                    options.pdf = pluma_format::pdf_content(&bytes);
                                     options.profiles = saved.profiles;
                                     options.compress = compressed;
                                     options.include_linked = include_linked;
-                                    match vectorcraft_format::save_with(&nested, &options) {
+                                    match pluma_format::save_with(&nested, &options) {
                                         Ok(rewritten) => bytes = rewritten,
                                         Err(e) => self.warn(
                                             &mut lines,
@@ -343,7 +343,7 @@ impl<'a> Collector<'a> {
             lines.push(String::new());
         }
         if self.opts.copy_fonts {
-            let db = vectorcraft_text::FontDb::global();
+            let db = pluma_text::FontDb::global();
             heading(&mut lines, "FONTS");
             let mut used_fonts = super::fonts::used_fonts(doc);
             used_fonts.append(&mut placed_fonts);
@@ -353,11 +353,11 @@ impl<'a> Collector<'a> {
                 // Found by any of its names, as the canvas draws it (in the version the type names).
                 let resolved = db
                     .resolve(&family, &style)
-                    .filter(|(_, m)| *m != vectorcraft_text::FontMatch::Missing)
+                    .filter(|(_, m)| *m != pluma_text::FontMatch::Missing)
                     .map(|(f, m)| (db.face_version(&family, &style, version.as_deref()).unwrap_or(f), m));
                 // A style the family lacks is shown in its closest style, whose file is copied.
                 let shown = match &resolved {
-                    Some((f, vectorcraft_text::FontMatch::Style)) => format!(" (shown in {} {})", f.family, f.style),
+                    Some((f, pluma_text::FontMatch::Style)) => format!(" (shown in {} {})", f.family, f.style),
                     _ => String::new(),
                 };
                 let reason = match resolved {
@@ -484,7 +484,7 @@ impl Package {
 fn collect_and_write(package: Package, write: &mut dyn FnMut(&str, &[u8]) -> Result<()>) -> Result<Value> {
     let Package { o, doc_path, links_from, stem, name, root, info, doc: original } = package;
     let mut doc = (*original).clone();
-    let doc_name = format!("{stem}.{}", vectorcraft_format::EXTENSION);
+    let doc_name = format!("{stem}.{}", pluma_format::EXTENSION);
     let base = LinkBase { doc: Some(&doc_path), relative: Some(&links_from) };
     // After a save in another folder, links found away from their paths take the paths where they
     // were found, as a copy of the document has them.
@@ -504,7 +504,7 @@ fn collect_and_write(package: Package, write: &mut dyn FnMut(&str, &[u8]) -> Res
     // The files are looked for where the links name them before the rebasing above.
     collector.collect(&mut doc, &doc_path, &doc_name, 0, false, Some((looked, base)))?;
     let mut entries = std::mem::take(&mut collector.entries);
-    entries.insert(0, (doc_name.clone(), vectorcraft_format::save_file(&doc)));
+    entries.insert(0, (doc_name.clone(), pluma_format::save_file(&doc)));
     let mut taken = std::mem::take(&mut collector.taken);
     let lines = collector.sections.concat();
     let missing = std::mem::take(&mut collector.missing);
@@ -544,7 +544,7 @@ fn collect_and_write(package: Package, write: &mut dyn FnMut(&str, &[u8]) -> Res
             let zip = zip(&named)?;
             out["name"] = json!(format!("{name}.zip"));
             out["bytes"] = json!(zip.len());
-            out["dataBase64"] = json!(vectorcraft_format::base64_encode(&zip));
+            out["dataBase64"] = json!(pluma_format::base64_encode(&zip));
         }
     }
     Ok(out)
@@ -569,8 +569,8 @@ fn check_no_overwrite(root: &Path, entries: &[Entry], sources: &[&str]) -> Resul
 
 /// The MS-DOS time and date a zip entry records: now (UTC), else 1980-01-01.
 fn dos_time() -> (u16, u16) {
-    let Some(t) = vectorcraft_doc::metadata::output_time() else { return (0, 0x21) };
-    let [y, mo, d, h, mi, s] = vectorcraft_doc::metadata::civil(t);
+    let Some(t) = pluma_doc::metadata::output_time() else { return (0, 0x21) };
+    let [y, mo, d, h, mi, s] = pluma_doc::metadata::civil(t);
     let date = (((y - 1980).clamp(0, 127) << 9) | (mo << 5) | d) as u16;
     (((h << 11) | (mi << 5) | (s / 2)) as u16, date)
 }

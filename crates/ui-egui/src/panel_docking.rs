@@ -19,12 +19,12 @@ use craft_ui::docking::{
 };
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::{DockTab, ICON_PANEL_GROUPS, UiState};
 
 /// The id of the dock area that draws the panels.
 pub(crate) fn area_id() -> egui::Id {
-    egui::Id::unique("vectorcraft-panel-docking")
+    egui::Id::unique("pluma-panel-docking")
 }
 
 /// The dock area a headless app floats into, before it ever drew a frame.
@@ -61,7 +61,7 @@ pub(crate) fn hit_rects(ctx: &egui::Context) -> Vec<(craft_ui::docking::Hit<Stri
 
 /// `ui.docking`: the layout in use, the open flyout, the focused panel and every docking
 /// control the main window drew last frame (`hitRects`, rects in window points).
-pub(crate) fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
+pub(crate) fn inspect(app: &PlumaApp, ctx: &egui::Context) -> Value {
     let layout = layout_of(&app.ui);
     let hits: Vec<Value> = hit_rects(ctx).iter().map(|(hit, r)| json!({"hit": hit, "rect": [r.left(), r.top(), r.width(), r.height()]})).collect();
     json!({
@@ -306,10 +306,10 @@ fn apply(layout: &mut Layout<String>, action: Action<String>) -> Result<Vec<Stri
     layout.apply_with_permissions(action, model_permissions).map_err(|e| e.to_string())
 }
 
-/// The docking commands VectorCraft handles here: `window.panel` (the Window menu), its own
+/// The docking commands Pluma handles here: `window.panel` (the Window menu), its own
 /// `window.panel.collapse` and `window.collapseDock`, the Tools panel's float and dock
 /// ([`crate::tools_float`]) and craft-ui's shared ids. Workspaces stay [`crate::workspaces`]'.
-pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub(crate) fn command(app: &mut PlumaApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if let Some(result) = crate::tools_float::command(app, id, params) {
         return Some(result);
     }
@@ -344,7 +344,7 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Opt
 /// `window.panel {panel}`: show a panel. One in an icon column opens (or puts away) its flyout;
 /// one in front of its floating window hides; one in a group comes to the front; one closed with a remembered place comes back there; a
 /// library panel or a panel the dock has no place for floats.
-fn show_panel(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
+fn show_panel(app: &mut PlumaApp, params: &Value) -> Result<Value, String> {
     let raw = params.get("panel").and_then(Value::as_str).unwrap_or_default();
     let panel = normalize(raw).ok_or_else(|| format!("unknown panel `{raw}`"))?;
     let layout = layout_of(&app.ui);
@@ -374,7 +374,7 @@ fn show_panel(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String>
 }
 
 /// Hides the group holding an active panel and records each tab's return location.
-pub(crate) fn hide_group(app: &mut VectorcraftApp, panel: &str) -> Result<Value, String> {
+pub(crate) fn hide_group(app: &mut PlumaApp, panel: &str) -> Result<Value, String> {
     let mut txn = Transaction::begin(app)?;
     let panel = panel.to_string();
     let closed = txn.apply(Action::CloseGroup { panel })?;
@@ -387,7 +387,7 @@ pub(crate) fn hide_group(app: &mut VectorcraftApp, panel: &str) -> Result<Value,
 }
 
 /// Reopens the tabs hidden together with `panel` and brings it to the front.
-fn restore_hidden_group(app: &mut VectorcraftApp, panel: &str) -> Result<Value, String> {
+fn restore_hidden_group(app: &mut PlumaApp, panel: &str) -> Result<Value, String> {
     let mut txn = Transaction::begin(app)?;
     let members =
         app.ui.docking_hidden_groups.iter().find(|group| group.iter().any(|id| id == panel)).cloned().unwrap_or_else(|| vec![panel.to_string()]);
@@ -406,7 +406,7 @@ fn restore_hidden_group(app: &mut VectorcraftApp, panel: &str) -> Result<Value, 
 
 /// Show `panel` as `window.panel` does, but leave it be when it already shows ([`showing`]): a
 /// command that opens a panel to work in (Edit › Color Settings…) never puts it away.
-pub(crate) fn reveal_panel(app: &mut VectorcraftApp, panel: &str) -> Result<Value, String> {
+pub(crate) fn reveal_panel(app: &mut PlumaApp, panel: &str) -> Result<Value, String> {
     if showing(&app.ui, panel) {
         app.ui.dock = true;
         return Ok(json!({"open": panel}));
@@ -416,7 +416,7 @@ pub(crate) fn reveal_panel(app: &mut VectorcraftApp, panel: &str) -> Result<Valu
 
 /// `window.collapseDock {collapsed?}`: collapse every dock column to icons, or expand the outer
 /// one; without `collapsed` it toggles the outer column.
-pub(crate) fn collapse_dock(app: &mut VectorcraftApp, collapsed: Option<bool>) -> Result<Value, String> {
+pub(crate) fn collapse_dock(app: &mut PlumaApp, collapsed: Option<bool>) -> Result<Value, String> {
     let iconic = collapsed.unwrap_or(!dock_collapsed(&app.ui));
     app.ui.dock = true;
     if app.ui.docking.is_none() {
@@ -444,7 +444,7 @@ pub(crate) fn collapse_dock(app: &mut VectorcraftApp, collapsed: Option<bool>) -
     Ok(json!(iconic))
 }
 
-/// Where `window.panel.float` and `window.panel.dock` put a panel by the parameters VectorCraft
+/// Where `window.panel.float` and `window.panel.dock` put a panel by the parameters Pluma
 /// gave them before its panels moved to craft-ui's layout.
 enum Legacy {
     /// `onto` (a tab of the group holding `anchor`, which floats unless the panel docks), `above`
@@ -459,7 +459,7 @@ enum Legacy {
     Column(usize),
 }
 
-/// The VectorCraft-only parameters of `window.panel.float` / `window.panel.dock`, taken out of
+/// The Pluma-only parameters of `window.panel.float` / `window.panel.dock`, taken out of
 /// `fields` so craft-ui parses the rest: where the panel goes, and `collapsed`.
 fn take_legacy(id: &str, fields: &mut serde_json::Map<String, Value>) -> Result<(Option<Legacy>, Option<bool>), String> {
     let dock = id == "window.panel.dock";
@@ -527,9 +527,9 @@ fn take_legacy(id: &str, fields: &mut serde_json::Map<String, Value>) -> Result<
     Ok((legacy, minimized))
 }
 
-/// `window.panel.float` and `window.panel.dock`: craft-ui's commands, with VectorCraft's own
+/// `window.panel.float` and `window.panel.dock`: craft-ui's commands, with Pluma's own
 /// parameters ([`Legacy`], `collapsed`) done in the same transaction.
-fn float_or_dock(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<Value, String> {
+fn float_or_dock(app: &mut PlumaApp, id: &str, params: &Value) -> Result<Value, String> {
     let mut params = if params.is_null() { json!({}) } else { params.clone() };
     let fields = params.as_object_mut().ok_or("params must be an object")?;
     let (legacy, minimized) = take_legacy(id, fields)?;
@@ -690,7 +690,7 @@ impl Legacy {
     }
 }
 
-/// Command params with VectorCraft's panel names resolved (a panel id or English name, in any
+/// Command params with Pluma's panel names resolved (a panel id or English name, in any
 /// case).
 fn resolve_panels(params: &Value) -> Result<Value, String> {
     let mut params = if params.is_null() { json!({}) } else { params.clone() };
@@ -707,16 +707,16 @@ fn resolve_panels(params: &Value) -> Result<Value, String> {
 }
 
 /// A shared docking command (`window.panel.*`, `ui.dock`) on the layout in use, all or nothing.
-/// craft-ui's `DockCommand` parses it and makes the layout actions; VectorCraft resolves panel
+/// craft-ui's `DockCommand` parses it and makes the layout actions; Pluma resolves panel
 /// names, shows a hidden panel before moving, floating or docking it, floats a panel the layout
 /// has no place for, and returns a floated panel to its dock place on Dock Panel.
-fn shared_command(app: &mut VectorcraftApp, id: &str, params: &Value) -> Result<Value, String> {
+fn shared_command(app: &mut PlumaApp, id: &str, params: &Value) -> Result<Value, String> {
     shared_command_with(app, id, params, None, None)
 }
 
 /// [`shared_command`], with the panel put where `legacy` says instead of where the command puts
 /// it, and its group or floating window then minimized or restored (`minimized`).
-fn shared_command_with(app: &mut VectorcraftApp, id: &str, params: &Value, legacy: Option<Legacy>, minimized: Option<bool>) -> Result<Value, String> {
+fn shared_command_with(app: &mut PlumaApp, id: &str, params: &Value, legacy: Option<Legacy>, minimized: Option<bool>) -> Result<Value, String> {
     let mut params = resolve_panels(params)?;
     if let Some(fields) = params.as_object_mut() {
         fields.insert("command".into(), Value::String(id.to_owned()));
@@ -727,11 +727,11 @@ fn shared_command_with(app: &mut VectorcraftApp, id: &str, params: &Value, legac
         DockCommand::NewWorkspace { name } => return app.run("window.workspace.new", json!({"name": name})),
         DockCommand::DeleteWorkspace { name } => return app.run("window.workspace.delete", json!({"name": name})),
         DockCommand::ResetWorkspace {} => return app.run("window.workspace.reset", json!({})),
-        DockCommand::Lock { .. } => return Err("Lock Workspace is not available in VectorCraft".into()),
+        DockCommand::Lock { .. } => return Err("Lock Workspace is not available in Pluma".into()),
         DockCommand::Window { .. } => return Err("Move Panel to New Window is not available: floating panels stay in the main window".into()),
         _ => {}
     }
-    // VectorCraft's docks are columns beside the canvas, so a dock at a window edge is a `side`,
+    // Pluma's docks are columns beside the canvas, so a dock at a window edge is a `side`,
     // not a frame on the outer edge (craft-ui's `Placement::Edge`).
     if let DockCommand::Dock { anchor: None, side: None, zone: Some(_), .. } = &command {
         return Err("zone needs an anchor: dock beside a panel with anchor, or in a new dock column with side (Start or End)".into());
@@ -797,7 +797,7 @@ fn shared_command_with(app: &mut VectorcraftApp, id: &str, params: &Value, legac
 }
 
 /// One action from the renderer: the user's own gesture.
-fn gesture(app: &mut VectorcraftApp, action: Action<String>) -> Result<Value, String> {
+fn gesture(app: &mut PlumaApp, action: Action<String>) -> Result<Value, String> {
     let mut txn = Transaction::begin(app)?;
     let closed = txn.apply(action)?;
     Ok(txn.commit(app, closed, None))
@@ -806,7 +806,7 @@ fn gesture(app: &mut VectorcraftApp, action: Action<String>) -> Result<Value, St
 /// Where a command floats a panel, group or column it gives no rect: inside the dock area as
 /// last drawn, else (headless, before any frame) inside [`HEADLESS_AREA`]. Seeded with every
 /// panel's own size, so a panel the area never drew floats at that size too.
-fn float_space(app: &VectorcraftApp) -> FloatSpace<String> {
+fn float_space(app: &PlumaApp) -> FloatSpace<String> {
     let space = app.dock_rt.space.clone().unwrap_or_else(|| FloatSpace::new(HEADLESS_AREA));
     crate::state::all_panels().fold(space, |space, (id, _)| space.with_panel_size(id.to_owned(), floating_size(id)))
 }
@@ -814,7 +814,7 @@ fn float_space(app: &VectorcraftApp) -> FloatSpace<String> {
 /// Float `panel` (open or not) as a window of its own with its top-left corner at `at`, `width`
 /// wide: the Tabs panel over the text it sets. `origin`: the main window's content top-left on the
 /// desktop. A panel already floating in an OS window of its own moves to `at` from there (#4995).
-pub(crate) fn place_floating(app: &mut VectorcraftApp, panel: &str, at: egui::Pos2, width: f32, origin: Option<egui::Pos2>) -> Result<(), String> {
+pub(crate) fn place_floating(app: &mut PlumaApp, panel: &str, at: egui::Pos2, width: f32, origin: Option<egui::Pos2>) -> Result<(), String> {
     let panel = normalize(panel).ok_or("unknown panel")?.to_string();
     if !(at.x.is_finite() && at.y.is_finite() && width.is_finite()) {
         return Err("panel position must be finite".into());
@@ -846,7 +846,7 @@ struct Transaction {
 }
 
 impl Transaction {
-    fn begin(app: &VectorcraftApp) -> Result<Self, String> {
+    fn begin(app: &PlumaApp) -> Result<Self, String> {
         if app.ui.docking.as_ref().is_some_and(|layout| !valid(layout)) {
             return Err("saved panel layout is invalid; reset the workspace first".into());
         }
@@ -983,7 +983,7 @@ impl Transaction {
 
     /// Store the result. `reveal` is the panel the command showed: its flyout opens, or its
     /// floating window comes forward on the next frame.
-    fn commit(self, app: &mut VectorcraftApp, closed: Vec<String>, reveal: Option<String>) -> Value {
+    fn commit(self, app: &mut PlumaApp, closed: Vec<String>, reveal: Option<String>) -> Value {
         let Self { workspace, returns } = self;
         let layout = workspace.layout;
         let mut hidden: BTreeMap<String, Location<String>> = workspace.hidden.into_iter().collect();
@@ -1092,14 +1092,14 @@ fn known(action: &Action<String>) -> bool {
         | Action::ResizeIconic { panel, .. }
         | Action::SetNative { panel, .. }
         | Action::SetMonitor { panel, .. } => registered(panel),
-        // Actions newer than this list are rejected until VectorCraft checks them.
+        // Actions newer than this list are rejected until Pluma checks them.
         _ => false,
     }
 }
 
 /// Draw the canvas, its docked Tools panel and the other panels below the bars, and apply
 /// what the user did to them.
-pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+pub(crate) fn show(app: &mut PlumaApp, ui: &mut egui::Ui) {
     let area = area_id();
     let ctx = ui.ctx().clone();
     let changed_workspace = ctx.data_mut(|data| {
@@ -1171,7 +1171,12 @@ pub(crate) fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     if let Some(panel) = app.dock_rt.raise.take() {
         dock = dock.raise_panel(panel);
     }
-    let mut output = dock.show_content(ui, &layout, &style, &mut PanelContent { app: &mut *app, layout: &layout });
+    let mut content = PanelContent { app: &mut *app, layout: &layout, islands: Vec::new() };
+    let mut output = dock.show_content(ui, &layout, &style, &mut content);
+    let t = crate::theme::Tokens::get(&ctx);
+    for rect in std::mem::take(&mut content.islands) {
+        crate::theme::round_island_corners(ui.painter(), &t, rect);
+    }
     app.dock_rt.space = craft_ui::docking::float_space(&ctx, area);
     if let Some(panel) = output.focused.take() {
         app.dock_rt.focused = Some(panel);
@@ -1257,7 +1262,7 @@ fn palette_window_levels(ctx: &egui::Context, layout: &Layout<String>, modal: bo
 }
 
 /// Does a modal dialog block the app's other windows ([`modal_open`] for the docking renderer)?
-pub(crate) fn modal_open(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+pub(crate) fn modal_open(app: &PlumaApp, ctx: &egui::Context) -> bool {
     app.ui.dialog.is_some()
         || app.ui.about
         || app.ui.palette_open
@@ -1267,11 +1272,11 @@ pub(crate) fn modal_open(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
 }
 
 /// Keys, text and clipboard events that a floating panel's own OS window left over run the main
-/// window's shortcuts, tool keys and clipboard on its next frame ([`VectorcraftApp::raw_input_hook`]).
+/// window's shortcuts, tool keys and clipboard on its next frame ([`PlumaApp::raw_input_hook`]).
 /// craft-ui forwards nothing while a field in that window has the keyboard. A field of the main
 /// window loses it, as a click elsewhere in one window would take it. A floating document's OS
 /// window forwards its keys here too ([`crate::doc_windows`]).
-pub(crate) fn forward_keys(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: Option<egui::Modifiers>) {
+pub(crate) fn forward_keys(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: Option<egui::Modifiers>) {
     if events.is_empty() {
         return;
     }
@@ -1296,7 +1301,7 @@ fn keep_field_ending_keys(ui: &egui::Ui) {
     ui.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Key { key: egui::Key::Enter | egui::Key::Escape, pressed: true, .. })));
 }
 
-/// VectorCraft's look and wording of craft-ui's docking.
+/// Pluma's look and wording of craft-ui's docking.
 fn dock_style(ui: &egui::Ui) -> craft_ui::docking::DockStyle {
     let t = crate::theme::Tokens::get(ui.ctx());
     let mut style = craft_ui::docking::DockStyle::from_ui(ui);
@@ -1309,6 +1314,11 @@ fn dock_style(ui: &egui::Ui) -> craft_ui::docking::DockStyle {
     style.border = egui::Stroke::new(1.0, t.border);
     style.accent = t.accent;
     style.blocked_dim = t.panel.gamma_multiply(0.6);
+    if t.nodalia {
+        // Islands: the canvas and every dock column stand apart on the window colour.
+        style.gap = crate::theme::ISLAND_GAP;
+        style.dock_gap = Some(crate::theme::ISLAND_GAP);
+    }
     // New docks at the docked area's free sides but no full-height column from the window's left
     // or right edge; a drop on no target (the canvas) floats.
     style.side_edge_zones = false;
@@ -1317,7 +1327,7 @@ fn dock_style(ui: &egui::Ui) -> craft_ui::docking::DockStyle {
     style.localized(|key| DOCK_LABELS.iter().find(|(k, _)| *k == key).map(|(_, english)| tl!(english).to_owned()))
 }
 
-/// VectorCraft's wording of craft-ui's docking labels, translated through `tl!`.
+/// Pluma's wording of craft-ui's docking labels, translated through `tl!`.
 const DOCK_LABELS: &[(&str, &str)] = &[
     ("dock.float", "Float Panel"),
     ("dock.close", "Close Panel"),
@@ -1344,14 +1354,23 @@ pub(crate) fn floating_size(panel: &str) -> egui::Vec2 {
 
 /// The panels' content, labels and icons.
 struct PanelContent<'a> {
-    app: &'a mut VectorcraftApp,
+    app: &'a mut PlumaApp,
     layout: &'a Layout<String>,
+    /// The canvas's and the docked columns' rects this pass, whose corners Nodalia rounds.
+    islands: Vec<egui::Rect>,
 }
 
 impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
     /// Draw a registered panel body, fitting untouched flyouts and pinning sized panels' footers.
+    fn column_rect(&mut self, _ctx: &egui::Context, _column: &craft_ui::docking::Column<String>, rect: egui::Rect, _side: craft_ui::docking::Side) {
+        self.islands.push(rect);
+    }
+
     fn body(&mut self, ui: &mut egui::Ui, id: &String) {
         if id == CANVAS {
+            if ui.ctx().viewport_id() == egui::ViewportId::ROOT {
+                self.islands.push(ui.max_rect());
+            }
             crate::toolbar::show_beside_canvas(self.app, ui);
             self.app.canvas_area(ui);
             return;

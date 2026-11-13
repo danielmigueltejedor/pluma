@@ -2,19 +2,19 @@
 
 > **Last updated:** 2026-10-31 · **Change:** Confining file access refuses a `:` in a name after the drive on Windows, an NTFS alternate data stream such as `x.svg:evil` (#3604); previously: Object → Expand… dimmed while the selection has an appearance Expand Appearance expands (`object.expand.info`'s `appearance`, #3089); previously: brush library panels (`window.brushLibrary`, `window.brushLibrary.other`, `ui.saveBrushLibrary`); previously: Transform Each opens on the values it was last confirmed with; its Copy button confirms with `copy: true` (#1732); previously: panel docking on craft-ui's layout: `ui.docking`, the parameters of `window.panel.float` and `window.panel.dock`; previously: `ui.screenshot`'s 64 MiB inline-PNG cap and its path-plus-data downgrade; symbol library panels (`window.symbolLibrary`, `window.symbolLibrary.other`, `ui.saveSymbolLibrary`); synthetic input budgets (#1709); bounded transport waits (#1726).
 
-`vectorcraft --control <port>` listens on `127.0.0.1:<port>` (loopback only). The port must be a number
+`pluma --control <port>` listens on `127.0.0.1:<port>` (loopback only). The port must be a number
 from 1 to 65535 (`--control=<port>` works too), given once; otherwise the app prints an error and exits
 before it starts. One JSON request per line:
 `{"id": 1, "method": "ui.inspect", "params": {}}` → `{"id": 1, "ok": true, "result": {...}}` or `{"id":1,"ok":false,"error":"..."}`.
 
-Set `VECTORCRAFT_CONFIG_DIR` to a dedicated directory for an isolated native test profile. Preferences,
+Set `PLUMA_CONFIG_DIR` to a dedicated directory for an isolated native test profile. Preferences,
 logs, recovery and user libraries then use that root, without importing the legacy Pluma profile.
 An unset override preserves the usual platform paths and legacy migration; an explicitly empty override
-disables those paths. `VECTORCRAFT_NO_PREFS` continues to disable preference reads and writes.
+disables those paths. `PLUMA_NO_PREFS` continues to disable preference reads and writes.
 Without the override, a `portable.txt` or `Pluma.portable` file beside the executable (as in the
-Windows portable zip) puts that root in `VectorCraftData` next to the executable; on macOS the marker
+Windows portable zip) puts that root in `PlumaData` next to the executable; on macOS the marker
 and the folder sit next to `Pluma.app`, for an AppImage next to the `.AppImage` file, and a
-Flatpak install has neither. `VECTORCRAFT_NO_PREFS` never looks for the marker or creates the folder.
+Flatpak install has neither. `PLUMA_NO_PREFS` never looks for the marker or creates the folder.
 
 **Only requests are read.** Every line must be a JSON object with a string `method` (`id` and `params`
 are optional; blank lines are skipped). Anything else gets one error reply
@@ -31,7 +31,7 @@ renew it). A reply has 60 seconds to be written. Expiration closes the connectio
 that stalls gets the usual error line first);
 persistent clients can send further requests within these bounds, or reconnect after idle expiration.
 These transport budgets are separate from the existing 60-second command-processing wait.
-Transport: `apps/vectorcraft/src/control_server.rs`.
+Transport: `apps/pluma/src/control_server.rs`.
 
 ## Synthetic input budgets
 
@@ -57,12 +57,12 @@ answering with its window hidden, minimized or covered, or with the screen locke
 ## Confining file access
 
 ```sh
-vectorcraft --control 7979 --automation-read-root /work/project --automation-write-root /work/project/out
+pluma --control 7979 --automation-read-root /work/project --automation-write-root /work/project/out
 ```
 
-`--automation-read-root <dir>` and `--automation-write-root <dir>` (or `VECTORCRAFT_AUTOMATION_READ_ROOT` /
-`VECTORCRAFT_AUTOMATION_WRITE_ROOT`; `--flag=<dir>` works too) confine what the control channel reads and
-writes, with the same flags as `vectorcraft-cli mcp` and the other Nodalia apps. Every path a request reads
+`--automation-read-root <dir>` and `--automation-write-root <dir>` (or `PLUMA_AUTOMATION_READ_ROOT` /
+`PLUMA_AUTOMATION_WRITE_ROOT`; `--flag=<dir>` works too) confine what the control channel reads and
+writes, with the same flags as `pluma-cli mcp` and the other Nodalia apps. Every path a request reads
 (open, place, relink, library and profile loads, plug-ins…) must lie inside a read root, every path it
 writes (save, export, package, captures, library saves…) inside a write root; anything else is an
 ordinary error reply. Paths are made absolute against the app's working directory, links are followed
@@ -111,7 +111,7 @@ the two can still win that race.
 | `app.export` with `useArtboards` | `{path, useArtboards: true, range? \| artboards?, …}` | Export As: PNG, JPEG and WebP write one file per chosen artboard (default all; SVG does so for a `range`), `<path stem>-<artboard>.<ext>`, and return `{path, files: [path…]}`; a PDF keeps them as pages of `path`. `useArtboards: false` covers the bounds of the visible art. The menu's Export As… is `file.exportAs`: the `exportAs` dialog (`format`, `useArtboards`, `all`, `range`), then a save dialog and the format's options: `pngOptions` / `jpgOptions` / `webpOptions`, `svgOptions`, or `savePdf` for a PDF with Use Artboards |
 | `ui.dialog.*` on `gradientStop` | `{field: "color" \| "opacity" \| "location", value}` | double-clicking a stop on the Gradient tool's annotator opens its popover (fields `index`, `x`, `y`, `tab`); set `color` (hex), `opacity` or `location` (percentages) and `ui.dialog.confirm` to apply them to the selected stop. `gradient.selectStop {index}` picks the stop the annotator, the panels and Delete/←/→ (`ui.key`) act on |
 | `engine.execute` `ui.savePdfDialog` | `{path?, preset?, range?, …document.exportPdf options}` | opens the Save PDF dialog (`file.export.pdf` with no params opens it too). Its fields are the `document.exportPdf` options: set `compatibility` with `ui.dialog.set {field: "compatibility", value: "1.5"}`, a whole section with `{field: "compression", value: {…}}`, the artboards with `__allArtboards: false` and `range`, the visible section with `__section` (General, Compression, Marks and Bleeds, Output, Advanced, Security, Summary). `ui.dialog.confirm` writes `path` (else asks for one), returns `{path, bytes, warnings}` and opens the file when `viewAfterSaving` is set |
-| `file.save` / `file.saveAs` / `file.saveCopy` / `file.saveAsTemplate` (via `engine.execute`) | `{path?, format?, options?, svg?}` | Save writes the document's own file in its own format (a document opened from or saved as SVG/PDF saves as that again; the result's `warnings` say what the format loses). With `path` the file is written at once (Save As or a Copy to an SVG path without SVG options first opens SVG Options, below). Without one (never saved, a converted older file, Save As, a Copy, a Template) the app shows a save panel with one file type per save format (`vectorcraft`, `template`, `pdf`, `svg`, `svgz`, `ai`; for a Template, `template` and `ait`), then the format's options: SVG opens the `svgOptions` dialog (below; returns `{"pending": "svgOptions", "path"}`), PDF the `savePdf` dialog (its `__save` field names the save command); `ui.dialog.confirm` finishes the save. A name typed in the panel without the file type's extension gets it, and a name the panel returns with the extension of a format the panel does not list has it replaced (in a native save, `card.png` and `card.ait` are saved as `card.vectorcraft`, and `notes.v2`, whose extension names no format, is saved as `notes.v2.vectorcraft`); when a file of that name exists, which the panel did not ask about, the save (and every export or other write through a save panel) answers `cancelled` and opens a `replaceFile` dialog (fields `message`, `detail`, `path`): `ui.dialog.confirm` writes that file, `ui.dialog.cancel` writes nothing. On the web a `saveOptions` dialog (fields `path`, `format`) first names the file and picks the format. `file.formatOptions {format?}` reads the options a save would use. `file.revert` opens a `confirm` dialog (`{"pending": "confirm"}`); `ui.dialog.confirm` reloads the saved file in the same tab |
+| `file.save` / `file.saveAs` / `file.saveCopy` / `file.saveAsTemplate` (via `engine.execute`) | `{path?, format?, options?, svg?}` | Save writes the document's own file in its own format (a document opened from or saved as SVG/PDF saves as that again; the result's `warnings` say what the format loses). With `path` the file is written at once (Save As or a Copy to an SVG path without SVG options first opens SVG Options, below). Without one (never saved, a converted older file, Save As, a Copy, a Template) the app shows a save panel with one file type per save format (`vectorcraft`, `template`, `pdf`, `svg`, `svgz`, `ai`; for a Template, `template` and `ait`), then the format's options: SVG opens the `svgOptions` dialog (below; returns `{"pending": "svgOptions", "path"}`), PDF the `savePdf` dialog (its `__save` field names the save command); `ui.dialog.confirm` finishes the save. A name typed in the panel without the file type's extension gets it, and a name the panel returns with the extension of a format the panel does not list has it replaced (in a native save, `card.png` and `card.ait` are saved as `card.pluma`, and `notes.v2`, whose extension names no format, is saved as `notes.v2.pluma`); when a file of that name exists, which the panel did not ask about, the save (and every export or other write through a save panel) answers `cancelled` and opens a `replaceFile` dialog (fields `message`, `detail`, `path`): `ui.dialog.confirm` writes that file, `ui.dialog.cancel` writes nothing. On the web a `saveOptions` dialog (fields `path`, `format`) first names the file and picks the format. `file.formatOptions {format?}` reads the options a save would use. `file.revert` opens a `confirm` dialog (`{"pending": "confirm"}`); `ui.dialog.confirm` reloads the saved file in the same tab |
 | SVG Options (`engine.execute` of `file.export.svg`, `file.saveAs`, `file.saveCopy`) | `{}` / `{path?, svg?: {…}}` | `file.export.svg` without params, and Save As or Save a Copy to an `.svg`/`.svgz` path without SVG options, open the `svgOptions` dialog (`ui.dialog.set` its fields: `styling`, `outlineText`, `images`, `objectIds`, `decimals`, `minify`, `responsive`, `fewerTspans`, `metadata`, `preserveEditing`, `useArtboards`, `allArtboards`, `range`, `showCode`, `profile` (`svg11`/`tiny12`), `encoding` (`utf8`/`utf16`/`latin1`), `embedFonts`; `ui.dialog.confirm` exports or saves and remembers the choices). With `svg: {…}` (the `document.formats` SVG options) they run directly. `app.save {path?, svg?}` takes the same options; a document saved as SVG saves as SVG again with the same options |
 | `engine.execute` `file.place` | `{paths?}` / `{path \| name+dataBase64, …file.place params}` | with no file, picks files and opens the `place` dialog; with `paths`, opens it for them (fields `files`, `link`, `template`, `replace`; `__replace` says whether Replace applies, `__info` describes each file). `ui.dialog.confirm` places one file centered in the view (or in place of the selected object) and loads the place cursor with several (`file.place.queue`). In the desktop app the dialog reads its files off the UI thread: `__info` is empty until they are read, `ui.dialog.confirm` returns `{background: true, status}`, `ui.inspect` lists the files still being read in `placing`, and the file is placed (or the cursor loaded) once it is read. With a file, it runs `file.place` centered in the view, at once. Files dropped on the window with no document open open. On the web, files dropped on the canvas are placed at the drop point (linked; Shift embeds) and files dropped off it (the tab bar) open, as in Illustrator; desktop drops carry no pointer position, so documents (native, SVG, PDF, `.ai`, EPS, DXF, EMF/WMF) open as tabs of their own and pictures and text are placed in the middle of the view. Swatch libraries and color books (`.vcswatches`, `.gpl`, `.ase`, `.acb`), graphic style libraries (`.vcstyles`), Libraries panel files (`.vclibrary`), presets (`.vcflattener`, `.vcpdfpresets`, `.vcprintpresets`, `.vcperspective`, `.vcexportpresets`), plug-ins (`.wasm`) and shortcut sets (`.kys`, in Import Shortcut Set) open wherever they are dropped, as File › Open opens them. With the cursor loaded (`ui.inspect` → `tool: "place"`, `toolOptions: {count, current, name, names}`), `ui.pointer` clicks and drags place files (in the desktop app each file is read off the UI thread and placed once it is read, and `ui.inspect` lists it in `placing` until then) and `ui.key` ←/→/↑/↓ and Escape cycle and discard them |
 | `app.export` raster options | `{path?, format: png \| jpg \| webp, ppi?, width?, height?, background?, antiAlias?, interlaced?, quality?}` | `ppi` sets the pixel size (72 = one pixel per point) and is stored in PNG and JPEG files (WebP files store no resolution); `width` or `height` sets the size of each file in pixels instead (`width` wins), and PNG and JPEG files store the resolution that results; `background` is `transparent`, `white`, `black` or `"#rrggbb"`; `antiAlias` is `none`, `art` or `type` (text snapped to pixels); `interlaced` writes an Adam7 PNG. The PNG Options dialog (`pngOptions`; `jpgOptions` / `webpOptions` for the other raster formats) has the same fields: fill them with `ui.dialog.set` and press OK with `ui.dialog.confirm` |
@@ -120,7 +120,7 @@ the two can still win that race.
 | `app.export` Text and WebP | `{path?, format: txt, encoding?: utf8 \| utf16, lineEndings?: lf \| crlf, selectionOnly?}` / `{format: webp, lossless?, quality?}` | Text writes the stories in stacking order (back to front; a thread once; hidden objects and template layers left out), each line ended by `lineEndings`; `utf16` is little-endian with a byte order mark. Export As → Text opens `txtOptions` (fields `path`, `encoding`, `lineEndings`, `selectionOnly`; OK writes the file). WebP is always lossless: `lossless: false` adds a warning |
 | `engine.execute` `document.exportForOffice` | `{}` / `{path?, ppi?: 72 \| 150 \| 300, transparent?, artboard?}` | File → Save for Office Documents…: without params opens `saveForOffice` (fields `ppi`, `transparent`, `artboard`; OK picks the file); with params writes the artboard as a PNG (`path`, else a picked file) → `{path}`, and the status bar shows the first of the export's `warnings` as Save As shows a save's notes. Headless it returns `{dataBase64, width, height, warnings}` |
 | Native file dialogs | any command with no `path` that needs one (`file.open`, `file.saveAs`, `file.place`, exports…) | on macOS (a sheet on the window) and Linux the dialog doesn't hold the window: the call returns `"cancelled"` at once, `ui.inspect` reports `fileDialog`, and when the person at the computer picks a file the command runs again on the document it was asked for. While it is open another dialog is refused: that call returns `"cancelled"` too, and the status bar (`ui.inspect` → `ui.status`) says `"A file dialog is open: choose there first"`; on macOS `app.quit`, `file.close` and `file.closeAll` return that message and the menu bar does nothing (#592, #867). On Windows the dialog is shown in line: the call returns once it closes. Pass `path` to skip the dialog |
-| Background Save / Export | `app.save`, `app.export {path}`, `file.save`, `file.saveAs`, `file.saveCopy`, `file.exportForScreens {folder, …}` | with the `backgroundSave` / `backgroundExport` preferences on (the default) the desktop app writes the file from a snapshot on a worker thread: the call returns `{path, background: true, status}` at once (`file.exportForScreens`: `{background: true, status}`, and the files are written into the folder from a snapshot taken at the call), `ui.inspect` lists the jobs still running in `background` (labels such as `"Saving a.vectorcraft"`), and the document counts as saved (as of the snapshot) once its file is written. Quit and Close wait for them. A job that fails reports the error in the status bar only (`ui.inspect` → `ui.status`), a path outside `--automation-write-root` included. With the preferences off (`prefs.set`), saves return once written. `app.save {path?, wait: true}` and `app.export {path, wait: true}` wait for the jobs already running, write the file before they reply whatever the preferences are set to, and return its result or the error. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the preferences. A `wait` that is not `true`, `false` or `null` is refused with "`wait` must be true or false", and nothing is written |
+| Background Save / Export | `app.save`, `app.export {path}`, `file.save`, `file.saveAs`, `file.saveCopy`, `file.exportForScreens {folder, …}` | with the `backgroundSave` / `backgroundExport` preferences on (the default) the desktop app writes the file from a snapshot on a worker thread: the call returns `{path, background: true, status}` at once (`file.exportForScreens`: `{background: true, status}`, and the files are written into the folder from a snapshot taken at the call), `ui.inspect` lists the jobs still running in `background` (labels such as `"Saving a.pluma"`), and the document counts as saved (as of the snapshot) once its file is written. Quit and Close wait for them. A job that fails reports the error in the status bar only (`ui.inspect` → `ui.status`), a path outside `--automation-write-root` included. With the preferences off (`prefs.set`), saves return once written. `app.save {path?, wait: true}` and `app.export {path, wait: true}` wait for the jobs already running, write the file before they reply whatever the preferences are set to, and return its result or the error. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the preferences. A `wait` that is not `true`, `false` or `null` is refused with "`wait` must be true or false", and nothing is written |
 | `engine.execute` `file.exportForScreens` | `{}` / `{…document.exportForScreens params}` | without params opens `exportForScreens` on the settings the document last exported with (`document.exportSettings`). While the Artboard tool is in use, the artboards it has selected (its `selected` option, the rows the Artboards panel highlights) are checked instead, and `select` is `range`, or `all` when every artboard is selected. Fields: `tab` (`artboards` \| `assets` \| `layers` \| `selection`; OK reads Export Layer or Export Selection on those), `layers` ([layer id…] checked), `selectionMode` (`one` \| `each`), `name` (the file name pattern of `document.exportForScreens`), `counterStart`, `folders` (`none` \| `rows` \| `format` \| `item` \| `itemFormat`), `exportPreset` (the preset applied last), `__savePreset` (the name typed to save one), `select` (`all` \| `range` \| `full`), `range` ("1-3, 5"), `boards` (a bool per artboard; checking them sets `select` and `range`), `includeBleed`, `folder` (desktop; default the Desktop, else home), `openLocation`, `subfolders`, `prefix`, `preset` (`""` \| `mobile` \| `density`), `formats` (rows `{format, scale: "2x" \| "100w" \| "100h" \| "72ppi", suffix, quality?, folder?}`), `settings` (`{png \| png8 \| jpg \| webp \| gif \| svg \| pdf: {…options}}`, the gear's Format Settings; `__settings` names the format shown). `ui.dialog.confirm` exports (a bad range or no folder keeps it open); on the web OK reads "Download" and the files download (several as one `.zip`). With params it runs `document.exportForScreens`: no `folder` returns the files (or with `zip: true` one zip) as `dataBase64`; with `openLocation` the first file is shown in the file manager. When `warnings` is not empty, an export into a folder or a download shows the first in the status bar as Save As shows a save's notes |
 | Export for Screens' Assets tab, Asset Export panel | `ui.dialog.set` `tab: "assets"`, `assets: [asset id…]`; `window.panel {panel: "assetExport"}` | on the Assets tab of `exportForScreens` the `assets` field lists the checked asset ids (all of them when it opens); `ui.dialog.confirm` runs `document.exportForScreens {assets}` (nothing checked keeps it open) and OK reads "Export Asset". The Asset Export panel acts through `assets.*` and shares the format rows with the dialog (`assets.settings.set`). The dialog has the format presets menu (☰). In the dialog, `exportPreset` names the preset applied last (`ui.dialog.set` of it applies the preset it names, as picking it does; a name that is not a preset's is an error and leaves the dialog as it was), `__exportPresets` lists the presets, and `__savePreset` holds the name being typed after Save Preset…. The panel menu applies presets through `assets.settings.set {exportPreset}` and holds Save As Preset…, Save Changes, Delete Preset, Import Preset… and Export Preset…. Import and Export use picked files. |
 | `engine.execute` `file.exportSelection` | `{multiple?}` | File › Export Selection…: collects the selected objects as one asset (`assets.add`; one per object with `multiple: true`) and opens `exportForScreens` on its Assets tab with just them checked → `{assets}`. `document.exportSelection` still exports the selection in one go, without the dialog |
@@ -307,11 +307,11 @@ Symbol libraries open in the same panels: `window.symbolLibrary {library}` (`lib
 null` closes them). Clicking a symbol there runs `symbol.addFromLibrary {library, name}`, adding it to the document's
 Symbols in one undo step; Shift/Cmd-clicks select symbols for Add to Symbols, and a symbol dragged onto the canvas runs
 it with `place: true` and the drop point as `x`, `y`. `window.symbolLibrary.other {path?}` loads the symbols of any
-document Pluma opens (a saved symbol library is a `.vectorcraft` document) and opens them there. The User
+document Pluma opens (a saved symbol library is a `.pluma` document) and opens them there. The User
 Defined libraries are `window.userSymbolLibrary1`…`10` in Window → Symbol Libraries. `ui.saveSymbolLibrary {names?}`
 (Save Symbols…, the Symbols panel's Save Symbol Library…) opens the `saveSymbolLibrary` dialog (fields `name`, `user`:
 save to the user library folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs `symbol.saveLibrary` (to a
-file it asks for a path and suggests `name` with `.vectorcraft`).
+file it asks for a path and suggests `name` with `.pluma`).
 
 Brush libraries open in the same panels: `window.brushLibrary {library}` (`library_panels` kind `brushes`; `library:
 null` closes them). Clicking a brush there runs `brush.addFromLibrary {library, name}`, adding it to the document's
@@ -319,11 +319,11 @@ Brushes in one undo step, with `apply: true` when paths are selected (they take 
 Apply Brush when the document has the brush already and the click only applies it);
 Shift/Cmd-clicks select brushes for Add to Brushes. A brush dragged onto a path runs it with `apply: true` and that
 path as `ids`, and one dragged onto the Brushes panel runs it without. `window.brushLibrary.other {path?}` loads the
-brushes of any document Pluma opens (a saved brush library is a `.vectorcraft` document) and opens them there.
+brushes of any document Pluma opens (a saved brush library is a `.pluma` document) and opens them there.
 The User Defined libraries are `window.userBrushLibrary1`…`10` in Window → Brush Libraries. `ui.saveBrushLibrary
 {names?}` (Save Brushes…, the Brushes panel's Save Brush Library…) opens the `saveBrushLibrary` dialog (fields
 `name`, `user`: save to the user library folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs
-`brush.saveLibrary` (to a file it asks for a path and suggests `name` with `.vectorcraft`).
+`brush.saveLibrary` (to a file it asks for a path and suggests `name` with `.pluma`).
 
 Tile Edge Color: Object → Pattern → Tile Edge Color… (`ui.tileEdgeColor`) opens the `tileEdgeColor` dialog (field
 `color`: `#rrggbb` or a preset name such as "Light Blue"); `ui.dialog.confirm` sets the preference
@@ -342,9 +342,9 @@ System Title Bar on or off. On macOS the window buttons are centred on the app b
 On Linux and the BSDs, Preferences › User Interface › Pluma Title Bar on Every Desktop (`appTitleBar`, read
 when the app starts, off by default) turns off the desktop's frame and uses the app bar as the title bar in the
 sessions where the desktop would draw the frame: X11 sessions, Wayland compositors that draw server-side decorations
-such as KDE Plasma, and a window opened through XWayland. System Title Bar and `VECTORCRAFT_TITLEBAR` (`app`, or
+such as KDE Plasma, and a window opened through XWayland. System Title Bar and `PLUMA_TITLEBAR` (`app`, or
 `system` or `desktop`) take precedence over it. The checkbox is dimmed while either applies, and a note under it names
-each one that applies. `VECTORCRAFT_TITLEBAR` also takes precedence over System Title Bar for the run it is set in:
+each one that applies. `PLUMA_TITLEBAR` also takes precedence over System Title Bar for the run it is set in:
 `app` keeps the app bar as the title bar with System Title Bar on. Only the values `app`, `system` and `desktop` take
 precedence (case-sensitive, surrounding spaces ignored); any other value, such as `unknown`, is ignored and does not
 override System Title Bar. While the variable is set to one of those values, the Preferences dialog dims
@@ -694,7 +694,7 @@ File menu details: `file.openRecent1`…`file.openRecent30` open the recent file
 lists (0 hides them all; `file.recentFiles` returns the listed paths), `file.reveal` shows the document's file in the
 system file manager (desktop only; answers `{path}`), and `file.newFromTemplate` without params opens a file picker
 in the Templates folder (preference `templatesFolder`). Older native files open as "<name> [Converted]" (preference
-`appendConverted`), so their Save asks for a new `.vectorcraft` name. Native files reopen at the view they were saved
+`appendConverted`), so their Save asks for a new `.pluma` name. Native files reopen at the view they were saved
 with.
 
 DXF Options: Export As… with the DXF format (`file.exportAs {format: "dxf"}`, then the save dialog), or
@@ -736,7 +736,7 @@ reads, and answers a control request with an error unless the file is a placed d
 The preference `editOriginalSystemDefaults` (Preferences › File Handling › Use System Defaults for Edit Original, on
 by default, #5236) opens the file in the system's default app for it; off, in the app that made it: a raster image in
 Lienzo, looked for only where it installs (the Applications folders on macOS; on Windows the path its installer
-registers under App Paths, then `ArtCraft\Lienzo` in the per-user and per-machine program folders, then the `PATH`;
+registers under App Paths, then `Nodalia\Lienzo` in the per-user and per-machine program folders, then the `PATH`;
 the `PATH` elsewhere), and any other file, or a raster image without Lienzo installed, in the system's default app.
 
 Package: File → Package… (`ui.packageDialog`) opens the `package` dialog for a saved document (a document never saved
@@ -1033,24 +1033,24 @@ main window's shortcuts; modal dialogs block them.
 - [x] Release connection slots on worker exit, including timeout and failed worker creation.
 - [x] Preserve correlated replies and persistent connections within the transport budgets.
 
-## In the browser: `window.vectorcraft`
+## In the browser: `window.pluma`
 
 The web build has no TCP server (a page can't listen on a socket), so it offers the same methods to the
-page itself, as promises on `window.vectorcraft` (`apps/vectorcraft-web/src/api.rs`). An agent driving Pluma in a
+page itself, as promises on `window.pluma` (`apps/pluma-web/src/api.rs`). An agent driving Pluma in a
 browser tab, or a host app showing it in an `<iframe>`, uses the commands it would send to the desktop
 app:
 
 | Call | |
 |---|---|
-| `vectorcraft.request(method, params)` | any control method of this document → its `result` |
-| `vectorcraft.execute(command, params)` | `engine.execute` |
-| `vectorcraft.commands()` | `engine.commands` |
-| `vectorcraft.docInspect(params)` / `vectorcraft.uiInspect(params)` | `document.inspect` / `ui.inspect` |
-| `vectorcraft.inspect()` | `ui.inspect` (the name before `uiInspect`) |
-| `vectorcraft.screenshot(params)` | `ui.screenshot` (no `path`: the PNG comes back inline, as `data` and as `pngBase64`) |
-| `vectorcraft.openFile(name, bytes)` | opens the bytes the way a dropped file opens (returns `true` once queued) |
-| `vectorcraft.captureDownloads(on)` | while on, a save or export is kept in the page instead of downloaded |
-| `vectorcraft.files()` / `vectorcraft.readFile(name)` | the kept files (`{path, size}`) / one of them as a `Uint8Array` |
+| `pluma.request(method, params)` | any control method of this document → its `result` |
+| `pluma.execute(command, params)` | `engine.execute` |
+| `pluma.commands()` | `engine.commands` |
+| `pluma.docInspect(params)` / `pluma.uiInspect(params)` | `document.inspect` / `ui.inspect` |
+| `pluma.inspect()` | `ui.inspect` (the name before `uiInspect`) |
+| `pluma.screenshot(params)` | `ui.screenshot` (no `path`: the PNG comes back inline, as `data` and as `pngBase64`) |
+| `pluma.openFile(name, bytes)` | opens the bytes the way a dropped file opens (returns `true` once queued) |
+| `pluma.captureDownloads(on)` | while on, a save or export is kept in the page instead of downloaded |
+| `pluma.files()` / `pluma.readFile(name)` | the kept files (`{path, size}`) / one of them as a `Uint8Array` |
 
 Errors reject with an `Error` carrying the method's message. Requests run on the UI's next frame, so a
 hidden tab (whose frames the browser pauses) answers when it is shown again.
@@ -1070,4 +1070,4 @@ hidden tab (whose frames the browser pauses) answers when it is shown again.
 | 2026-10-23 | minor | Documented the symbol library panel commands (`window.symbolLibrary`, `.other`, `ui.saveSymbolLibrary`, `window.userSymbolLibrary1`…`10`). |
 | 2026-10-13 | minor | Documented count, pending-event and per-frame request budgets (#1709). |
 | 2026-10-13 | minor | Documented transport deadlines and connection-slot recovery (#1726). |
-| 2026-10-18 | minor | Documented `window.vectorcraft`, the web build's control channel. |
+| 2026-10-18 | minor | Documented `window.pluma`, the web build's control channel. |

@@ -1,5 +1,5 @@
 use super::*;
-use vectorcraft_color::Color;
+use pluma_color::Color;
 
 fn paint_op(f: &mut Filter, op: &str, vals: &[V]) {
     super::paint_op(f, op, vals, &mut Names::default());
@@ -118,7 +118,7 @@ fn a_drop_shadow_reads_its_settings() {
     let p = &shadow.params;
     assert_eq!(
         (shadow.id.as_str(), &p["mode"], &p["color"]),
-        ("stylize.dropShadow", &json!("Screen"), &json!(vectorcraft_color::Color::rgb(0.0, 1.0, 0.0)))
+        ("stylize.dropShadow", &json!("Screen"), &json!(pluma_color::Color::rgb(0.0, 1.0, 0.0)))
     );
     for (key, want) in [("x", 11.0), ("y", -13.0), ("blur", 34.0), ("opacity", 43.0)] {
         near(p, key, want);
@@ -172,7 +172,7 @@ fn an_inner_glow_reads_its_settings() {
     let p = &glow.params;
     assert_eq!(
         (glow.id.as_str(), &p["mode"], &p["source"], &p["color"]),
-        ("stylize.innerGlow", &json!("Difference"), &json!("center"), &json!(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0)))
+        ("stylize.innerGlow", &json!("Difference"), &json!("center"), &json!(pluma_color::Color::rgb(1.0, 0.0, 0.0)))
     );
     near(p, "opacity", 41.0);
     near(p, "blur", 13.0);
@@ -1427,7 +1427,7 @@ fn a_style_is_read_as_a_writer_checks_it() {
     let gradient = fill("Bb\n1 (G) 0 0 0 1 1 0 0 1 0 0 1 Bg\n0 BB");
     let stack = compound("Stack Style Filter", std::slice::from_ref(&gradient));
     let data = style(&[stack, blend(1, 0.5)]);
-    let own = Paint::solid(vectorcraft_color::Color::WHITE);
+    let own = Paint::solid(pluma_color::Color::WHITE);
     let got = read(&data, Some(&own)).unwrap();
     assert_eq!(got.appearance.items.len(), 1);
     assert_eq!(got.appearance.items[0].paint(), &own);
@@ -1474,17 +1474,17 @@ fn art_styles_read_registration_and_named_colors() {
     let st0 = &styles["Reg0"];
     assert!(st0.plain);
     let [StyleItem::Fill(Paint::Solid { swatch, tint, color })] = st0.items.as_slice() else { panic!("{st0:?}") };
-    assert_eq!((swatch.as_deref(), *tint, *color), (Some(vectorcraft_color::swatch::REGISTRATION), 0.0, Color::cmyk(1.0, 1.0, 1.0, 1.0).tinted(0.0)));
+    assert_eq!((swatch.as_deref(), *tint, *color), (Some(pluma_color::swatch::REGISTRATION), 0.0, Color::cmyk(1.0, 1.0, 1.0, 1.0).tinted(0.0)));
 
     let st100 = &styles["Reg100"];
     assert!(st100.plain);
     let [StyleItem::Fill(Paint::Solid { swatch, tint, color })] = st100.items.as_slice() else { panic!("{st100:?}") };
-    assert_eq!((swatch.as_deref(), *tint, *color), (Some(vectorcraft_color::swatch::REGISTRATION), 1.0, Color::cmyk(1.0, 1.0, 1.0, 1.0)));
+    assert_eq!((swatch.as_deref(), *tint, *color), (Some(pluma_color::swatch::REGISTRATION), 1.0, Color::cmyk(1.0, 1.0, 1.0, 1.0)));
 
     let st_name = &styles["RegName"];
     assert!(st_name.plain);
     let [StyleItem::Fill(Paint::Solid { swatch, tint, .. })] = st_name.items.as_slice() else { panic!("{st_name:?}") };
-    assert_eq!((swatch.as_deref(), *tint), (Some(vectorcraft_color::swatch::REGISTRATION), 0.0));
+    assert_eq!((swatch.as_deref(), *tint), (Some(pluma_color::swatch::REGISTRATION), 0.0));
 
     let st_spot = &styles["Shemen"];
     assert!(st_spot.plain);
@@ -1494,5 +1494,5 @@ fn art_styles_read_registration_and_named_colors() {
     let st_stroke = &styles["StrokeReg"];
     assert!(st_stroke.plain);
     let [StyleItem::Stroke { paint: Paint::Solid { swatch, tint, .. }, .. }] = st_stroke.items.as_slice() else { panic!("{st_stroke:?}") };
-    assert_eq!((swatch.as_deref(), *tint), (Some(vectorcraft_color::swatch::REGISTRATION), 0.0));
+    assert_eq!((swatch.as_deref(), *tint), (Some(pluma_color::swatch::REGISTRATION), 0.0));
 }

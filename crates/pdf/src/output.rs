@@ -29,9 +29,9 @@ use std::sync::{Arc, OnceLock};
 
 use craft_pdf::write::backend as krilla;
 use krilla::image::ImageColorspace;
-use vectorcraft_color::Color;
-use vectorcraft_color::cms::{self, Cms, CmykLut, Intent, Model, ProfileKind, ProofLut};
-use vectorcraft_doc::{ColorMode, Document};
+use pluma_color::Color;
+use pluma_color::cms::{self, Cms, CmykLut, Intent, Model, ProfileKind, ProofLut};
+use pluma_doc::{ColorMode, Document};
 
 use crate::patch::{Patch, Xref};
 use crate::{ColorConversion, PdfError, PdfSettings, ProfileInclusion, Standard};

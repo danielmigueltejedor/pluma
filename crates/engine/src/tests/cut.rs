@@ -1,8 +1,8 @@
 //! Tests for the cutting commands: Mirror & Cut, Line Cut and Rectangle Cut.
 
+use pluma_doc::NodeKind;
+use pluma_geom::{FillRule, PathData, Rect};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_geom::{FillRule, PathData, Rect};
 
 use crate::*;
 
@@ -46,7 +46,7 @@ fn geometry(s: &Session, id: NodeId) -> (PathData, FillRule) {
 
 fn area(s: &Session, id: NodeId) -> f64 {
     let (p, r) = geometry(s, id);
-    vectorcraft_pathops::area(&p, r)
+    pluma_pathops::area(&p, r)
 }
 
 fn bounds(s: &Session, id: NodeId) -> Rect {
@@ -239,7 +239,7 @@ fn cut_commands_need_paths() {
 }
 
 mod tools {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
     use super::*;
     use crate::tooling::ViewInfo;

@@ -2,11 +2,11 @@
 //! attachment bookkeeping (copy, paste, duplicate, Selection-tool moves, release) and drawing in
 //! perspective (flare, spiral, polar grid, click-to-size dialogs).
 
+use pluma_doc::NodeKind;
+use pluma_geom::{Point, Rect};
+use pluma_tools::Mods;
+use pluma_tools::distort::perspective::{self as persp, Plane};
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_geom::{Point, Rect};
-use vectorcraft_tools::Mods;
-use vectorcraft_tools::distort::perspective::{self as persp, Plane};
 
 use crate::tests_persp_select::{attached, drag, grid, persp_session, undo_len};
 use crate::*;
@@ -19,14 +19,14 @@ fn persp_text(s: &mut Session) -> NodeId {
     id
 }
 
-fn node(s: &Session, id: NodeId) -> vectorcraft_doc::Node {
+fn node(s: &Session, id: NodeId) -> pluma_doc::Node {
     s.doc().unwrap().doc.node(id).unwrap().clone()
 }
 
 /// The art the renderer and exporters draw for `id` (its outlines, projected).
 fn drawn_bounds(s: &Session, id: NodeId) -> Rect {
     let n = node(s, id);
-    vectorcraft_render::effects::reshape(None, &n, None).unwrap().geometric_bounds().unwrap()
+    pluma_render::effects::reshape(None, &n, None).unwrap().geometric_bounds().unwrap()
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn type_in_perspective_is_projected_and_stays_type() {
     let h = n.projection().expect("drawn through a projection");
     // Really foreshortened: the right plane recedes to the right, so the letters' far end is
     // shorter than their near end.
-    let out = vectorcraft_render::effects::reshape(None, &n, None).unwrap();
+    let out = pluma_render::effects::reshape(None, &n, None).unwrap();
     let mut pts = vec![];
     out.walk(&mut |c| {
         if let Some(p) = c.path_data() {
@@ -54,7 +54,7 @@ fn type_in_perspective_is_projected_and_stays_type() {
     // Bounds, hit testing and the selection box follow the drawn type.
     let gb = n.geometric_bounds().unwrap();
     assert!((gb.x0 - b.x0).abs() < 12.0 && (gb.x1 - b.x1).abs() < 12.0, "{gb:?} {b:?}");
-    let hit = vectorcraft_doc::hit::hit_test(&s.doc().unwrap().doc, b.center(), Default::default()).unwrap();
+    let hit = pluma_doc::hit::hit_test(&s.doc().unwrap().doc, b.center(), Default::default()).unwrap();
     assert_eq!(hit.leaf, id);
     let _ = h;
 }
@@ -65,9 +65,9 @@ fn type_in_perspective_exports_projected_outlines() {
     let id = persp_text(&mut s);
     let b = drawn_bounds(&s, id);
     let doc = s.doc().unwrap().doc.clone();
-    let svg = vectorcraft_svg::export(&doc, &Default::default());
+    let svg = pluma_svg::export(&doc, &Default::default());
     assert!(!svg.contains("HELLO"), "no flat text in the SVG");
-    let pdf = vectorcraft_render::effects::bake_document(&doc).unwrap();
+    let pdf = pluma_render::effects::bake_document(&doc).unwrap();
     let baked = pdf.node(id).unwrap();
     assert!(!matches!(baked.kind, NodeKind::Text(_)));
     let bb = baked.geometric_bounds().unwrap();
@@ -84,7 +84,7 @@ fn type_in_perspective_in_a_group_with_a_geometry_effect_exports_projected() {
     // Offset Path 0 on the group leaves every path as it is.
     s.execute("effect.apply", &json!({"effect": "path.offsetPath", "params": {"offset": 0}})).unwrap();
     let doc = s.doc().unwrap().doc.clone();
-    let baked = vectorcraft_render::effects::bake_document(&doc).unwrap();
+    let baked = pluma_render::effects::bake_document(&doc).unwrap();
     let bb = baked.node(id).unwrap().geometric_bounds().unwrap();
     assert!((bb.x0 - b.x0).abs() < 1e-6 && (bb.y1 - b.y1).abs() < 1e-6, "{bb:?} {b:?}");
 }
@@ -123,16 +123,16 @@ fn moving_type_whose_projection_would_overflow_is_refused() {
     // corner: a document can hold it (its entries are finite, and its w row is already 1) and the
     // type draws, but its product with a scale by 2 in perspective overflows, since its move,
     // 0.9·k·q, is larger than any point it draws.
-    let step = grid(&s).transform_map(Plane::Right, 0.0, vectorcraft_geom::Affine::scale(2.0), 0.0).unwrap();
+    let step = grid(&s).transform_map(Plane::Right, 0.0, pluma_geom::Affine::scale(2.0), 0.0).unwrap();
     let q = flat.origin();
     let scaled = |e: i32| {
         let k = 2f64.powf(f64::from(e) / 16.0);
-        vectorcraft_geom::Homography([[k, 0.0, -0.9 * k * q.x], [0.0, k, -0.9 * k * q.y], [0.0, 0.0, 1.0]])
+        pluma_geom::Homography([[k, 0.0, -0.9 * k * q.x], [0.0, k, -0.9 * k * q.y], [0.0, 0.0, 1.0]])
     };
-    let finite = |m: &vectorcraft_geom::Homography| m.to_array().iter().all(|v| v.is_finite());
-    let draws = |m: &vectorcraft_geom::Homography| {
+    let finite = |m: &pluma_geom::Homography| m.to_array().iter().all(|v| v.is_finite());
+    let draws = |m: &pluma_geom::Homography| {
         let drawn = m.map_rect_bbox(flat);
-        drawn.is_some_and(|b| step.map_rect_bbox(b).is_some()) && vectorcraft_geom::Homography::from_array(m.to_array()) == Some(*m)
+        drawn.is_some_and(|b| step.map_rect_bbox(b).is_some()) && pluma_geom::Homography::from_array(m.to_array()) == Some(*m)
     };
     let e = (0..16 * 1024).find(|e| draws(&scaled(*e)) && !finite(&step.then_after(&scaled(*e)))).unwrap_or_else(|| panic!("{step:?} {flat:?}"));
     let big = scaled(e);
@@ -187,13 +187,13 @@ fn edit_text_whose_flat_view_would_overflow_is_refused() {
     // drawn overflows.
     let scaled = |e: i32| {
         let k = 2f64.powf(f64::from(e) / 16.0);
-        vectorcraft_geom::Homography([[4.0 * k, 0.0, 0.0], [0.0, 4.0 * k, 0.0], [0.0, 0.0, 1.0]])
+        pluma_geom::Homography([[4.0 * k, 0.0, 0.0], [0.0, 4.0 * k, 0.0], [0.0, 0.0, 1.0]])
     };
-    let overflows = |m: &vectorcraft_geom::Homography| {
+    let overflows = |m: &pluma_geom::Homography| {
         let Some(drawn) = m.map_rect_bbox(flat) else { return false };
-        let shift = vectorcraft_geom::Affine::translate(drawn.center() - flat.center());
-        let moved = m.then_after(&vectorcraft_geom::Homography::from_affine(shift.inverse()));
-        vectorcraft_geom::Homography::from_array(m.to_array()) == Some(*m) && moved.to_array().iter().any(|v| !v.is_finite())
+        let shift = pluma_geom::Affine::translate(drawn.center() - flat.center());
+        let moved = m.then_after(&pluma_geom::Homography::from_affine(shift.inverse()));
+        pluma_geom::Homography::from_array(m.to_array()) == Some(*m) && moved.to_array().iter().any(|v| !v.is_finite())
     };
     let e = (0..16 * 1024).find(|e| overflows(&scaled(*e))).unwrap_or_else(|| panic!("{flat:?}"));
     let mut doc = s.doc().unwrap().doc.clone();
@@ -250,7 +250,7 @@ fn isolating_ancestor_after_undo_clears_editing_from_redo_history() {
 
 #[test]
 fn isolate_settles_pending_typing_interaction() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let (mut s, rect) = persp_session();
     let v = crate::ViewInfo::default();
     s.select_tool("type", v).unwrap();
@@ -279,7 +279,7 @@ fn ending_edit_text_during_a_save_leaves_the_document_saved() {
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.execute("perspective.editText", &json!({})).unwrap();
     let uid = s.doc().unwrap().uid;
-    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/type.vectorcraft", "modified": 777})).unwrap();
+    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/type.pluma", "modified": 777})).unwrap();
     let job = save_job(&mut s, plan).unwrap();
     s.execute("object.exitIsolation", &json!({})).unwrap();
     job.write(|_, _| Ok(())).unwrap();
@@ -312,7 +312,7 @@ fn symbols_in_perspective_stay_instances() {
     let n = node(&s, id);
     assert!(matches!(n.kind, NodeKind::SymbolInstance { .. }));
     assert!(n.projection().is_some());
-    let baked = vectorcraft_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
+    let baked = pluma_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
     assert!(!matches!(baked.node(id).unwrap().kind, NodeKind::SymbolInstance { .. }), "exports draw the projected art");
 }
 
@@ -405,7 +405,7 @@ fn the_canvas_draws_type_in_perspective_foreshortened() {
     s.execute("edit.clear", &json!({"ids": [rect.0]})).ok();
     let id = persp_text(&mut s);
     let b = drawn_bounds(&s, id);
-    let img = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, b, 2.0, true);
+    let img = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, b, 2.0, true);
     // The inked height of a strip of columns near each end of the line.
     let height = |x0: f64, x1: f64| {
         let (mut lo, mut hi) = (u32::MAX, 0);
@@ -428,16 +428,16 @@ fn double_clicking_type_in_perspective_edits_it_and_projections_round_trip() {
     let (mut s, _) = persp_session();
     let id = persp_text(&mut s);
     // Saved and opened again: still type, still projected.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(doc.node(id).unwrap().projection(), node(&s, id).projection());
     let v = ViewInfo::default();
     s.select_tool("perspectiveSelection", v).unwrap();
     let c = node(&s, id).geometric_bounds().unwrap().center();
-    let r = s.pointer(&vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::DoubleClick, c.x, c.y), v).unwrap();
+    let r = s.pointer(&pluma_tools::PointerEvent::new(pluma_tools::PointerKind::DoubleClick, c.x, c.y), v).unwrap();
     assert_eq!(r, vec![crate::UiRequest::SwitchTool("type".into())]);
     assert_eq!(s.doc().unwrap().isolation, Some(id));
     // Saved while editing: the file has it projected.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert!(doc.node(id).unwrap().projection().is_some());
     s.execute("object.exitIsolation", &json!({})).unwrap();
     assert!(node(&s, id).projection().is_some());

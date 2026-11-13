@@ -39,10 +39,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use pluma_doc::hit::{Hit, HitKind, hit_test, marquee, objects_at, selected_hidden_at};
+use pluma_doc::{NodeId, OrientedBox};
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::{Hit, HitKind, hit_test, marquee, objects_at, selected_hidden_at};
-use vectorcraft_doc::{NodeId, OrientedBox};
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use crate::bbox::{Handle, hit_handle, in_rotate_zone, move_delta, rotate_for_drag, scale_for_drag};
 use crate::corners::{self, CornerDrag, over_widget};
@@ -384,9 +384,8 @@ impl MoveSnap {
 /// The shift that lands `r` on the grid (a gridline every `step`), on each axis by whichever of its
 /// two edges is nearest a gridline, however far that is. The center does not snap (#1816).
 fn grid_pull(r: Rect, step: f64) -> Vec2 {
-    let pull = |vs: [f64; 2]| {
-        vs.iter().map(|v| vectorcraft_geom::snap::snap_to_grid(*v, step, 0.0) - v).min_by(|a, b| a.abs().total_cmp(&b.abs())).unwrap_or(0.0)
-    };
+    let pull =
+        |vs: [f64; 2]| vs.iter().map(|v| pluma_geom::snap::snap_to_grid(*v, step, 0.0) - v).min_by(|a, b| a.abs().total_cmp(&b.abs())).unwrap_or(0.0);
     Vec2::new(pull([r.x0, r.x1]), pull([r.y0, r.y1]))
 }
 
@@ -400,7 +399,7 @@ pub fn matrix_json(a: Affine) -> Value {
 /// ([`object_bounds`]). With Use Preview Bounds on, each measurement evaluates the geometry effects
 /// of the objects (Offset Path, Pathfinder, Outline Object, blends), and the canvas asks for the
 /// cursor on every hover frame. The session keeps one memo ([`ToolContext::preview_memo`]), as the
-/// UI keeps one for `VectorcraftApp::selection_box`. The memo holds the measurements for one key
+/// UI keeps one for `PlumaApp::selection_box`. The memo holds the measurements for one key
 /// (the document's uid and revision, the selected objects and Use Preview Bounds), and a new key
 /// replaces them.
 #[derive(Default)]
@@ -419,7 +418,7 @@ struct MemoState {
 struct Measured {
     revision: (u64, u64),
     objects: Vec<NodeId>,
-    measure: vectorcraft_effects::preview::Measure,
+    measure: pluma_effects::preview::Measure,
     bounds: Option<Option<Rect>>,
     oriented: Option<Option<OrientedBox>>,
     by_object: HashMap<NodeId, Option<Option<Rect>>>,
@@ -487,16 +486,16 @@ fn remembered<T: Clone>(cx: &ToolContext, slot: impl Fn(&mut Measured) -> &mut O
 }
 
 /// Selection bounds used for the bounding box: visual bounds as drawn with Use Preview Bounds
-/// ([`vectorcraft_effects::preview`]), else geometric bounds, with point type measured by its
+/// ([`pluma_effects::preview`]), else geometric bounds, with point type measured by its
 /// glyphs with Measure Type by Glyph Bounds ([`ToolContext::bounds_measure`]).
 pub fn selection_bounds(cx: &ToolContext) -> Option<Rect> {
-    remembered(cx, |m| &mut m.bounds, || vectorcraft_effects::preview::bounds_of_with(cx.doc, &cx.selection.objects, cx.bounds_measure()))
+    remembered(cx, |m| &mut m.bounds, || pluma_effects::preview::bounds_of_with(cx.doc, &cx.selection.objects, cx.bounds_measure()))
 }
 
 /// [`selection_bounds`] square to the selection's own angle: the bounding box the Selection tool
 /// shows and drags (rotated after a rotation).
 pub fn selection_box(cx: &ToolContext) -> Option<OrientedBox> {
-    remembered(cx, |m| &mut m.oriented, || vectorcraft_effects::preview::oriented_bounds_with(cx.doc, &cx.selection.objects, cx.bounds_measure()))
+    remembered(cx, |m| &mut m.oriented, || pluma_effects::preview::oriented_bounds_with(cx.doc, &cx.selection.objects, cx.bounds_measure()))
 }
 
 /// [`selection_box`] while the canvas shows it (View › Show Bounding Box, and no anchors selected
@@ -528,7 +527,7 @@ fn object_bounds(cx: &ToolContext, id: NodeId) -> Option<Rect> {
 /// which compares the whole selection: a walk of every selected object checking it each time takes
 /// time in the square of their number.
 fn with_object_bounds<R>(cx: &ToolContext, walk: impl FnOnce(&mut dyn FnMut(NodeId) -> Option<Rect>) -> R) -> R {
-    let mut measure = |id: NodeId| vectorcraft_effects::preview::bounds_of_with(cx.doc, &[id], cx.bounds_measure());
+    let mut measure = |id: NodeId| pluma_effects::preview::bounds_of_with(cx.doc, &[id], cx.bounds_measure());
     let Some(mut st) = cx.preview_memo.and_then(|memo| memo.0.try_borrow_mut().ok()) else {
         return walk(&mut measure);
     };
@@ -546,7 +545,7 @@ fn with_object_bounds<R>(cx: &ToolContext, walk: impl FnOnce(&mut dyn FnMut(Node
 
 /// The objects of `ids` that lie entirely inside marquee `r`, edges included, measured by their
 /// geometric bounds with symbol instances measured by their art
-/// ([`vectorcraft_doc::Node::geometric_bounds_with`]).
+/// ([`pluma_doc::Node::geometric_bounds_with`]).
 pub(crate) fn inside(cx: &ToolContext, r: Rect, ids: Vec<NodeId>) -> Vec<NodeId> {
     let symbols = cx.doc.symbol_boxes();
     let within = |b: Rect| r.min_x() <= b.min_x() && b.max_x() <= r.max_x() && r.min_y() <= b.min_y() && b.max_y() <= r.max_y();
@@ -608,7 +607,7 @@ fn selected_source_hit(cx: &ToolContext, p: Point) -> Option<(Hit, NodeId)> {
     if cx.doc.mask_edit.is_none() && cx.doc.pattern_edit.is_none() {
         return None;
     }
-    let is_sources = |g: &NodeId| cx.doc.node(*g).is_some_and(|n| n.name.as_deref() == Some(vectorcraft_doc::shaper::SOURCES));
+    let is_sources = |g: &NodeId| cx.doc.node(*g).is_some_and(|n| n.name.as_deref() == Some(pluma_doc::shaper::SOURCES));
     let mut containers = cx.doc.paint_order(cx.selection.objects.iter().filter_map(|id| cx.doc.parent_of(*id)).filter(is_sources));
     containers.dedup();
     let front = hit_test(cx.doc, p, cx.selection_hit_options());
@@ -621,7 +620,7 @@ fn selected_source_hit(cx: &ToolContext, p: Point) -> Option<(Hit, NodeId)> {
         {
             return None;
         }
-        let h = hit_test(cx.doc, p, vectorcraft_doc::hit::HitOptions { scope: Some(sources), ..cx.selection_hit_options() })?;
+        let h = hit_test(cx.doc, p, pluma_doc::hit::HitOptions { scope: Some(sources), ..cx.selection_hit_options() })?;
         cx.selection.contains(h.top_object(Some(sources))).then_some((h, sources))
     })
 }
@@ -720,8 +719,8 @@ fn thread_params(cx: &ToolContext, from: NodeId, start: Point, end: Point) -> Va
     if r.width() > cx.tol(6.0) && r.height() > cx.tol(6.0) {
         return json!({ "from": from.0, "rect": [r.x0, r.y0, r.width(), r.height()] });
     }
-    let frame = |n: &vectorcraft_doc::Node| {
-        is_threadable(n) || matches!(&n.kind, vectorcraft_doc::NodeKind::Path { path, .. } if path.subpaths.first().is_some_and(|s| s.closed))
+    let frame = |n: &pluma_doc::Node| {
+        is_threadable(n) || matches!(&n.kind, pluma_doc::NodeKind::Path { path, .. } if path.subpaths.first().is_some_and(|s| s.closed))
     };
     // The art the text flows into: what is drawn, not a clipping path's outline.
     let to =
@@ -1069,7 +1068,7 @@ impl Tool for SelectionTool {
         // Highlighted only where a press would take the bracket, not a nearer port.
         let drag = if let State::Bracket(b) = &self.state { Some(b) } else { None };
         let mut o = pathtype::overlays(cx, self.bracket_hover.filter(|p| over_bracket(cx, *p)), drag);
-        if let Some(source) = cx.isolation.and_then(|id| cx.doc.node(id)).filter(|n| n.name.as_deref() == Some(vectorcraft_doc::shaper::SOURCES)) {
+        if let Some(source) = cx.isolation.and_then(|id| cx.doc.node(id)).filter(|n| n.name.as_deref() == Some(pluma_doc::shaper::SOURCES)) {
             for n in source.children().into_iter().flatten() {
                 if let Some(path) = n.path_data() {
                     o.push(Overlay::Path { path: path.to_bezpath(), color: [0x80, 0x80, 0x80], width: 1.0, dashed: true });
@@ -1252,33 +1251,31 @@ fn can_be_key(cx: &ToolContext, id: NodeId) -> bool {
 
 /// Shaper's Construction mode: a Shaper Group's original shapes are isolated.
 fn construction(cx: &ToolContext) -> bool {
-    cx.isolation.and_then(|id| cx.doc.node(id)).is_some_and(|n| n.name.as_deref() == Some(vectorcraft_doc::shaper::SOURCES))
+    cx.isolation.and_then(|id| cx.doc.node(id)).is_some_and(|n| n.name.as_deref() == Some(pluma_doc::shaper::SOURCES))
 }
 
 /// Is `n` area type (text in a frame) whose frame the tools reshape? Type in perspective isn't:
 /// it transforms whole.
-pub(crate) fn is_area_type(n: &vectorcraft_doc::Node) -> bool {
-    n.extras().perspective.is_none()
-        && matches!(&n.kind, vectorcraft_doc::NodeKind::Text(t) if matches!(t.kind, vectorcraft_doc::TextKind::Area { .. }))
+pub(crate) fn is_area_type(n: &pluma_doc::Node) -> bool {
+    n.extras().perspective.is_none() && matches!(&n.kind, pluma_doc::NodeKind::Text(t) if matches!(t.kind, pluma_doc::TextKind::Area { .. }))
 }
 
 /// Is `n` type on a path outside perspective (Direct Selection drags its path's anchors)?
-pub(crate) fn is_path_type(n: &vectorcraft_doc::Node) -> bool {
-    n.extras().perspective.is_none()
-        && matches!(&n.kind, vectorcraft_doc::NodeKind::Text(t) if matches!(t.kind, vectorcraft_doc::TextKind::OnPath { .. }))
+pub(crate) fn is_path_type(n: &pluma_doc::Node) -> bool {
+    n.extras().perspective.is_none() && matches!(&n.kind, pluma_doc::NodeKind::Text(t) if matches!(t.kind, pluma_doc::TextKind::OnPath { .. }))
 }
 
 /// Can `n` be a frame of a thread: area type or type on a path, outside perspective?
-pub(crate) fn is_threadable(n: &vectorcraft_doc::Node) -> bool {
-    n.extras().perspective.is_none() && matches!(&n.kind, vectorcraft_doc::NodeKind::Text(t) if !matches!(t.kind, vectorcraft_doc::TextKind::Point))
+pub(crate) fn is_threadable(n: &pluma_doc::Node) -> bool {
+    n.extras().perspective.is_none() && matches!(&n.kind, pluma_doc::NodeKind::Text(t) if !matches!(t.kind, pluma_doc::TextKind::Point))
 }
 
 /// Does a double-click or the Control bar's Isolate Selected Object button isolate an object of
 /// this kind? A group, a compound path or a single path, image, mesh or placed file does. Blends,
 /// envelopes, repeats and symbol instances do not; they have editing modes of their own (a
 /// repeat's is isolation of the repeat itself, to edit its source art).
-pub fn isolates(kind: &vectorcraft_doc::NodeKind) -> bool {
-    use vectorcraft_doc::NodeKind as K;
+pub fn isolates(kind: &pluma_doc::NodeKind) -> bool {
+    use pluma_doc::NodeKind as K;
     matches!(kind, K::Group { .. } | K::Compound { .. } | K::Path { .. } | K::Image(_) | K::Mesh(_) | K::PlacedDocument(_))
 }
 
@@ -1294,7 +1291,7 @@ pub(crate) fn release_guide_at(cx: &ToolContext, p: Point, m: Mods) -> Option<Ac
         return Some(Action::Exec("view.guides.release".into(), json!({ "index": i })));
     }
     let leaf = hit_test(cx.doc, p, cx.hit_options())?.leaf;
-    let guide = cx.doc.node(leaf).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Path { guide: true, .. }));
+    let guide = cx.doc.node(leaf).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Path { guide: true, .. }));
     guide.then(|| Action::Exec("view.guides.release".into(), json!({ "ids": [leaf.0] })))
 }
 
@@ -1478,18 +1475,18 @@ impl SelectionTool {
         // A double-click edits what is drawn: not a clipping path's outline.
         if let Some(h) = hit_test(cx.doc, p, cx.hit_options()) {
             let top = h.top_object(cx.isolation);
-            if cx.doc.node(top).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Text(_))) {
+            if cx.doc.node(top).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Text(_))) {
                 return vec![Action::SwitchTool("type".into())];
             }
             // A symbol instance: its symbol is edited in symbol editing mode, except one inside
             // the art of a symbol already being edited.
-            if cx.doc.node(top).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::SymbolInstance { .. })) {
+            if cx.doc.node(top).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::SymbolInstance { .. })) {
                 return if cx.doc.symbol_edit.is_some() { vec![] } else { vec![Action::Exec("symbol.edit".into(), json!({ "id": top.0 }))] };
             }
             // A repeat: its source art is edited in isolation mode, where the repeat follows each
             // edit (#5054), as the reference app's Repeat does.
             if cx.double_click_isolate
-                && cx.doc.node(top).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Repeat(_)))
+                && cx.doc.node(top).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Repeat(_)))
                 && cx.isolation != Some(top)
             {
                 return vec![Action::Exec("object.isolate".into(), json!({ "id": top.0 }))];

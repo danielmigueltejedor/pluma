@@ -1,20 +1,20 @@
 //! The dialog registry and the shared frame, drawn headlessly.
 
+use pluma_doc::Unit;
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_doc::Unit;
-use vectorcraft_engine::Session;
 
 use super::*;
 use crate::theme;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app
 }
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut VectorcraftApp, input: egui::RawInput) {
+fn frame(app: &mut PlumaApp, input: egui::RawInput) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -27,11 +27,11 @@ fn enter() -> egui::RawInput {
     egui::RawInput { events: vec![key], ..Default::default() }
 }
 
-fn open(app: &mut VectorcraftApp, kind: &str, fields: serde_json::Value) {
+fn open(app: &mut PlumaApp, kind: &str, fields: serde_json::Value) {
     app.ui.dialog = Some(Dialog::new(kind, fields));
 }
 
-fn objects(app: &VectorcraftApp) -> usize {
+fn objects(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().doc.layers.iter().map(|l| l.children().map_or(0, |c| c.len())).sum()
 }
 
@@ -210,13 +210,11 @@ fn effect_dialogs_edit_a_color_that_document_color_mode_converted() {
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run("effect.apply", json!({"ids": [id], "effect": effect, "item": null, "params": {"color": "#ff0000"}})).unwrap();
         app.run("file.documentColorMode", json!({"mode": "cmyk"})).unwrap();
-        let color = |app: &VectorcraftApp| {
-            app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["color"].clone()
-        };
+        let color =
+            |app: &PlumaApp| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["color"].clone();
         let converted = color(&app);
-        let hex = serde_json::from_value::<vectorcraft_doc::color::Color>(converted.clone())
-            .unwrap_or_else(|e| panic!("{effect}: {converted}: {e}"))
-            .to_hex();
+        let hex =
+            serde_json::from_value::<pluma_doc::color::Color>(converted.clone()).unwrap_or_else(|e| panic!("{effect}: {converted}: {e}")).to_hex();
         app.run("effect.dialog", json!({"effect": effect, "index": 0, "item": null})).unwrap();
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
         assert!(text.lines().any(|l| l.trim() == hex), "{effect}: no {hex} in {text}");
@@ -268,16 +266,16 @@ fn raster_filter_dialogs_preview_and_apply() {
         frame(&mut app, Default::default());
         assert!(app.session.in_interaction(), "{effect}: previews");
         confirm(&mut app).unwrap();
-        let n = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+        let n = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
         assert_eq!(n.appearance.effects.len(), 1, "{effect}");
         assert_eq!(n.appearance.effects[0].params[key], v, "{effect}");
     }
     // Fields follow the effect's documented order (its dialog's), not the alphabet.
-    let doc = vectorcraft_effects::effect_info("blur.smart").unwrap().params;
+    let doc = pluma_effects::effect_info("blur.smart").unwrap().params;
     let ranks: Vec<usize> = ["radius", "threshold", "quality", "blurMode"].iter().map(|k| super::effect::doc_rank(doc, k)).collect();
     assert!(ranks.windows(2).all(|w| w[0] < w[1]) && ranks[3] < usize::MAX, "{ranks:?}");
     assert_eq!(super::effect::doc_rank(doc, "nope"), usize::MAX);
-    let doc = vectorcraft_effects::effect_info("pixelate.colorHalftone").unwrap().params;
+    let doc = pluma_effects::effect_info("pixelate.colorHalftone").unwrap().params;
     let ranks: Vec<usize> = ["maxRadius", "channel1", "channel2", "channel3", "channel4"].iter().map(|k| super::effect::doc_rank(doc, k)).collect();
     assert!(ranks.windows(2).all(|w| w[0] < w[1]) && ranks[4] < usize::MAX, "{ranks:?}");
     // Labels as the dialogs show them.
@@ -286,7 +284,7 @@ fn raster_filter_dialogs_preview_and_apply() {
     assert_eq!(super::form::humanize("channel3"), "Channel 3:");
     assert_eq!(super::form::humanize("cellSize"), "Cell Size:");
     assert_eq!(super::form::humanize("lightDirection"), "Light Direction:");
-    let doc = vectorcraft_effects::effect_info("texture.texturizer").unwrap().params;
+    let doc = pluma_effects::effect_info("texture.texturizer").unwrap().params;
     let ranks: Vec<usize> = ["texture", "scaling", "relief", "lightDirection", "invert"].iter().map(|k| super::effect::doc_rank(doc, k)).collect();
     assert!(ranks.windows(2).all(|w| w[0] < w[1]) && ranks[4] < usize::MAX, "{ranks:?}");
 }
@@ -299,7 +297,7 @@ fn effect_dialog_applies_to_its_appearance_item() {
     app.run("effect.dialog", json!({"effect": "distort.roughen", "item": 1})).unwrap();
     frame(&mut app, Default::default());
     confirm(&mut app).unwrap();
-    let n = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+    let n = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
     assert_eq!(n.appearance.items[1].effects().len(), 1, "the effect goes to the stroke");
     assert!(n.appearance.effects.is_empty() && n.appearance.items[0].effects().is_empty());
 }
@@ -312,7 +310,7 @@ fn scribble_dialog_settings_presets_load_parameters() {
     app.run("effect.dialog", json!({"effect": "stylize.scribble"})).unwrap();
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
     assert!(text.lines().any(|l| l == "Settings"), "{text}");
-    let tight = vectorcraft_effects::scribble_settings().iter().find(|p| p.id == "tight").unwrap();
+    let tight = pluma_effects::scribble_settings().iter().find(|p| p.id == "tight").unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("__scribbleSetting".into(), json!("tight"));
     for (k, v) in tight.params.as_object().unwrap() {
         app.ui.dialog.as_mut().unwrap().fields.insert(k.clone(), v.clone());
@@ -320,7 +318,7 @@ fn scribble_dialog_settings_presets_load_parameters() {
     frame(&mut app, Default::default());
     assert_eq!(app.ui.dialog.as_ref().unwrap().f64("spacing", 0.0), 2.0);
     confirm(&mut app).unwrap();
-    assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["spacing"], json!(2.0));
+    assert_eq!(app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["spacing"], json!(2.0));
 }
 
 #[test]
@@ -333,10 +331,10 @@ fn scribble_dialog_shows_the_angle_as_stored_and_each_variation() {
     frame(&mut app, Default::default());
     assert_eq!(app.ui.dialog.as_ref().unwrap().fields["angle"].as_f64(), Some(-90.0), "the field reads what is stored");
     confirm(&mut app).unwrap();
-    let n = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+    let n = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
     assert_eq!(n.appearance.effects[0].params["angle"].as_f64(), Some(-90.0));
     // Each variation follows the option it varies, as in the reference app's Scribble Options.
-    let doc = vectorcraft_effects::effect_info("stylize.scribble").unwrap().params;
+    let doc = pluma_effects::effect_info("stylize.scribble").unwrap().params;
     let order = ["angle", "overlap", "overlapVariation", "strokeWidth", "curviness", "curvinessVariation", "spacing", "spacingVariation", "seed"];
     let ranks: Vec<usize> = order.iter().map(|k| super::effect::doc_rank(doc, k)).collect();
     assert!(ranks.windows(2).all(|w| w[0] < w[1]) && ranks[8] < usize::MAX, "{ranks:?}");
@@ -367,7 +365,7 @@ fn revolve_dialog_preview_cancel_confirm_and_undo() {
 
 #[test]
 fn extrude_inflate_and_rotate_dialogs_preview_confirm_and_undo() {
-    for effect in vectorcraft_effects::SOLIDS {
+    for effect in pluma_effects::SOLIDS {
         let mut app = app();
         app.run("path.create", json!({"d":"M100 100 L200 100 L200 200 L100 200 Z"})).unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -399,7 +397,7 @@ fn dialogs_are_as_tall_as_their_content() {
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 1000.0));
-    let height = |app: &mut VectorcraftApp, kind: &str, fields: serde_json::Value| {
+    let height = |app: &mut PlumaApp, kind: &str, fields: serde_json::Value| {
         open(app, kind, fields);
         for _ in 0..30 {
             let input = egui::RawInput { screen_rect: Some(screen), ..Default::default() };
@@ -524,7 +522,7 @@ fn workspace_and_toolbar_dialogs_end_at_their_buttons() {
 }
 
 /// The dialog window of `app`'s open dialog after a few frames in a `w` × 900 window.
-fn dialog_rect(app: &mut VectorcraftApp, w: f32) -> egui::Rect {
+fn dialog_rect(app: &mut PlumaApp, w: f32) -> egui::Rect {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -634,7 +632,7 @@ fn given_headings_are_shown_as_they_are() {
 struct PluginIntField {
     ctx: egui::Context,
     d: Dialog,
-    m: vectorcraft_plugins::Manifest,
+    m: pluma_plugins::Manifest,
     pos: egui::Pos2,
 }
 
@@ -645,17 +643,17 @@ impl PluginIntField {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         theme::apply(&ctx, Default::default());
-        let m = vectorcraft_plugins::Manifest {
+        let m = pluma_plugins::Manifest {
             id: "test.seed".into(),
             name: "Seed".into(),
             version: String::new(),
-            kind: vectorcraft_plugins::Kind::Filter,
+            kind: pluma_plugins::Kind::Filter,
             description: String::new(),
             author: String::new(),
             api: 1,
             permissions: None,
             inputs: Vec::new(),
-            params: vec![("seed".into(), vectorcraft_plugins::ParamSpec::Int { min, max, default: 0 }.into())],
+            params: vec![("seed".into(), pluma_plugins::ParamSpec::Int { min, max, default: 0 }.into())],
             extensions: Vec::new(),
             budget: Default::default(),
             paint_output: false,
@@ -744,7 +742,7 @@ fn plugin_color_parameter_shows_a_color_button() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let m = vectorcraft_plugins::Manifest::parse(
+    let m = pluma_plugins::Manifest::parse(
         br##"{"id":"test.grid","name":"Grid","kind":"filter","params":{"line":{"type":"color","default":"#000000"}}}"##,
     )
     .unwrap();
@@ -766,13 +764,13 @@ fn a_dialog_opens_with_its_first_field_focused_so_typing_and_enter_apply() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
     let enter = || egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
     let release = || egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: false, repeat: false, modifiers: Default::default() };
-    let bounds = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let bounds = |app: &PlumaApp| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     // Object › Transform › Rotate…: type 90 over the angle, press Enter.
     crate::menus::invoke(&mut app, "object.rotate", json!({}));
     frame(&mut app, vec![]);
@@ -794,7 +792,7 @@ fn a_dialog_opens_with_its_first_field_focused_so_typing_and_enter_apply() {
     assert!((after.x0 - before.x0 - 15.0).abs() < 1e-6 && (after.y0 - before.y0).abs() < 1e-6, "{before:?} → {after:?}");
     // Transform Each, then the Transform effect: Scale › Horizontal, a plain number, comes first,
     // and it scales the object's own width, turned with it (this one is on its side).
-    let own = |app: &VectorcraftApp| app.session.doc().unwrap().doc.oriented_bounds(&[vectorcraft_doc::NodeId(id)], false).unwrap().rect;
+    let own = |app: &PlumaApp| app.session.doc().unwrap().doc.oriented_bounds(&[pluma_doc::NodeId(id)], false).unwrap().rect;
     let before = own(&app);
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
     frame(&mut app, vec![]);
@@ -809,7 +807,7 @@ fn a_dialog_opens_with_its_first_field_focused_so_typing_and_enter_apply() {
     frame(&mut app, vec![egui::Event::Text("50".into())]);
     frame(&mut app, vec![enter()]);
     assert!(app.ui.dialog.is_none());
-    let node = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+    let node = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
     assert_eq!(node.appearance.effects.last().map(|e| e.params["scaleH"].clone()), Some(json!(50.0)));
 }
 
@@ -826,7 +824,7 @@ fn shift_enter_in_a_dialog_field_applies_it_and_confirms_the_dialog() {
     let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 900.0)));
     let mut time = 0.0;
     // Whole app frames: the panels, then the dialog.
-    let mut frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let mut frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         time += 0.1;
         let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), screen_rect, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -838,7 +836,7 @@ fn shift_enter_in_a_dialog_field_applies_it_and_confirms_the_dialog() {
     let shift_enter =
         || egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::SHIFT };
     let release = || egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: false, repeat: false, modifiers: egui::Modifiers::SHIFT };
-    let bounds = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let bounds = |app: &PlumaApp| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     // Move…: type 15 over its first field and press Shift+Enter.
     let before = bounds(&app);
     crate::menus::invoke(&mut app, "object.move", json!({}));
@@ -887,7 +885,7 @@ fn a_dialog_opened_by_a_click_focuses_its_first_field_each_time_it_opens() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -897,7 +895,7 @@ fn a_dialog_opened_by_a_click_focuses_its_first_field_each_time_it_opens() {
         let press = |pressed| egui::Event::PointerButton { pos, button, pressed, modifiers };
         vec![egui::Event::PointerMoved(pos), press(true), press(false)]
     };
-    type Open = fn(&mut VectorcraftApp);
+    type Open = fn(&mut PlumaApp);
     let opens: [(&str, Open); 2] = [
         ("Convert to Shape", |app| drop(app.run("effect.dialog", json!({"effect": "convertToShape.rectangle"})))),
         ("Rasterize", |app| crate::menus::invoke(app, "object.rasterize", json!({}))),
@@ -928,7 +926,7 @@ fn a_dialogs_focus_skips_a_greyed_out_first_field() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -961,7 +959,7 @@ fn tab_through_the_hex_field_keeps_the_value_typed_before_it() {
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
     // One frame of the dialog layer: every text drawn, with its center.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
         fn collect(s: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
@@ -978,8 +976,8 @@ fn tab_through_the_hex_field_keeps_the_value_typed_before_it() {
     let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
     let (tab, back) = (key(egui::Key::Tab, egui::Modifiers::NONE), key(egui::Key::Tab, egui::Modifiers::SHIFT));
     let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
-    let color = |app: &VectorcraftApp| app.ui.dialog.as_ref().unwrap().fields["color"].clone();
-    type Open = fn(&mut VectorcraftApp);
+    let color = |app: &PlumaApp| app.ui.dialog.as_ref().unwrap().fields["color"].clone();
+    type Open = fn(&mut PlumaApp);
     let opens: [(&str, Open, &str); 2] = [
         ("Color Picker", |app| drop(app.run("ui.colorPicker", json!({"color": "#ffffff"}))), "FFFFFF"),
         ("Swatch Options", |app| drop(app.run("ui.swatchOptions", json!({"name": "Sky"}))), "3366CC"),
@@ -1028,7 +1026,7 @@ fn a_hex_code_pasted_into_the_hex_field_replaces_its_digits() {
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
     // One frame of the dialog layer: every text drawn, with its center.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
         fn collect(s: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
@@ -1046,8 +1044,8 @@ fn a_hex_code_pasted_into_the_hex_field_replaces_its_digits() {
     // The context keeps a key down until it is let go, and a dialog ignores a repeat of Enter.
     let release = |key| egui::Event::Key { key, physical_key: None, pressed: false, repeat: false, modifiers: Default::default() };
     let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
-    type Open = fn(&mut VectorcraftApp);
-    type Applied = fn(&VectorcraftApp) -> String;
+    type Open = fn(&mut PlumaApp);
+    type Applied = fn(&PlumaApp) -> String;
     let dialogs: [(&str, Open, Applied, &str, &str); 2] = [
         (
             "Color Picker",
@@ -1066,7 +1064,7 @@ fn a_hex_code_pasted_into_the_hex_field_replaces_its_digits() {
     ];
     for (name, open, applied, hex, other) in dialogs {
         // Opens the dialog and clicks into its # field. → The texts it shows.
-        let click_in = |app: &mut VectorcraftApp| {
+        let click_in = |app: &mut PlumaApp| {
             open(app);
             for _ in 0..3 {
                 frame(app, vec![]);
@@ -1136,7 +1134,7 @@ fn object_mosaic_makes_the_grid_typed_in_its_dialog() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -1161,7 +1159,7 @@ fn object_mosaic_makes_the_grid_typed_in_its_dialog() {
 /// #793: Artboard Options lists its fields as Name, Width, Height, not by key.
 #[test]
 fn artboard_options_lists_name_then_width_and_height() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 612, "height": 792})).unwrap();
     open(&mut app, "artboardOptions", json!({"index": 0, "name": "Artboard 1", "width": 612, "height": 792, "x": 0, "y": 0}));
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
@@ -1200,7 +1198,7 @@ fn the_transform_effect_dialog_has_its_controls_previews_them_and_shows_them_aga
     // The options start at the catalog defaults (#885).
     let d = app.ui.dialog.as_ref().unwrap();
     assert_eq!((d.bool("objects"), d.bool("patterns"), d.bool("strokes")), (true, false, false));
-    let effect = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].clone();
+    let effect = |app: &PlumaApp| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].clone();
     // The reference point and Random update the preview.
     let d = app.ui.dialog.as_mut().unwrap();
     for (k, v) in [("moveH", json!(30)), ("copies", json!(3)), ("reference", json!(8))] {
@@ -1217,7 +1215,7 @@ fn the_transform_effect_dialog_has_its_controls_previews_them_and_shows_them_aga
     assert_eq!(effect(&app).params["strokes"], json!(true));
     confirm(&mut app).unwrap();
     assert!(!app.session.in_interaction());
-    assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects.len(), 1);
+    assert_eq!(app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects.len(), 1);
     // Editing it from the Appearance panel shows the same values.
     app.run("effect.dialog", json!({"effect": "distort.transform", "index": 0})).unwrap();
     let d = app.ui.dialog.as_ref().unwrap();
@@ -1286,14 +1284,14 @@ fn transform_each_switches_between_relative_and_absolute_scale() {
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
     let mut f = Frames::new();
     f.run(&mut app, vec![]);
-    let mode = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Transform Each is open").fields["relative"].clone();
-    let scale = |app: &VectorcraftApp, h: &str, v: &str| {
+    let mode = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Transform Each is open").fields["relative"].clone();
+    let scale = |app: &PlumaApp, h: &str, v: &str| {
         let d = app.ui.dialog.as_ref().expect("Transform Each is open");
         (d.f64(h, f64::NAN), d.f64(v, f64::NAN))
     };
     assert_eq!(mode(&app), json!(true), "Relative at first");
     assert_eq!(scale(&app, "scaleH", "scaleV"), (100.0, 100.0));
-    let click = |f: &mut Frames, app: &mut VectorcraftApp, label: &str| {
+    let click = |f: &mut Frames, app: &mut PlumaApp, label: &str| {
         let at = f.control(app, label, Role::RadioButton);
         f.press(app, at, true);
         f.press(app, at, false);
@@ -1305,7 +1303,7 @@ fn transform_each_switches_between_relative_and_absolute_scale() {
     app.ui.dialog.as_mut().unwrap().fields.extend([("absH".to_string(), json!(40)), ("absV".to_string(), json!(30))]);
     f.run(&mut app, vec![]);
     confirm(&mut app).unwrap();
-    let b = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let b = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert_eq!((b.x0, b.y0, b.x1, b.y1), (20.0, 5.0, 60.0, 35.0));
     let (cmd, p) = app.session.journal.last().unwrap();
     assert_eq!((cmd.as_str(), &p["relative"], &p["scaleH"], &p["scaleV"]), ("object.transformEach", &json!(false), &json!(40.0), &json!(30.0)));
@@ -1331,7 +1329,7 @@ fn transform_each_switching_to_absolute_ignores_the_preview() {
     f.run(&mut app, vec![]);
     app.ui.dialog.as_mut().unwrap().fields.extend([("scaleH".to_string(), json!(50)), ("preview".to_string(), json!(true))]);
     f.run(&mut app, vec![]);
-    let width = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap().width();
+    let width = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap().width();
     assert_eq!(width(&app), 30.0, "the preview scaled it");
     let at = f.control(&mut app, "Absolute", Role::RadioButton);
     f.press(&mut app, at, true);
@@ -1349,7 +1347,7 @@ fn transform_each_control_set_of_relative_keeps_the_sizes_after_it() {
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 60, "height": 20})).unwrap();
     app.run("select.all", json!({})).unwrap();
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
-    let set = |app: &mut VectorcraftApp, field: &str, value: serde_json::Value| {
+    let set = |app: &mut PlumaApp, field: &str, value: serde_json::Value| {
         let old = app.ui.dialog.as_ref().and_then(|d| d.fields.get(field).cloned());
         set_field(app.ui.dialog.as_mut().expect("Transform Each is open"), field.into(), value);
         field_set(app, field, old.as_ref()).unwrap();
@@ -1372,7 +1370,7 @@ fn transform_each_scale_link_follows_a_mode_switch_and_control_sets() {
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 60, "height": 20})).unwrap();
     app.run("select.all", json!({})).unwrap();
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
-    let set = |app: &mut VectorcraftApp, field: &str, value: serde_json::Value| {
+    let set = |app: &mut PlumaApp, field: &str, value: serde_json::Value| {
         let old = app.ui.dialog.as_ref().and_then(|d| d.fields.get(field).cloned());
         set_field(app.ui.dialog.as_mut().expect("Transform Each is open"), field.into(), value);
         field_set(app, field, old.as_ref()).unwrap();
@@ -1398,10 +1396,10 @@ fn transform_each_scale_link_keeps_the_proportions() {
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
     let mut f = Frames::new();
     f.run(&mut app, vec![]);
-    let set = |app: &mut VectorcraftApp, k: &str, v: serde_json::Value| {
+    let set = |app: &mut PlumaApp, k: &str, v: serde_json::Value| {
         app.ui.dialog.as_mut().expect("Transform Each is open").fields.insert(k.into(), v);
     };
-    let scale = |app: &VectorcraftApp| {
+    let scale = |app: &PlumaApp| {
         let d = app.ui.dialog.as_ref().expect("Transform Each is open");
         (d.f64("scaleH", f64::NAN), d.f64("scaleV", f64::NAN))
     };
@@ -1524,7 +1522,7 @@ fn transform_each_absolute_reads_mixed_and_sets_every_object() {
     f.run(&mut app, vec![egui::Event::Text("50".into())]);
     f.key(&mut app, egui::Key::Enter, egui::Modifiers::NONE);
     assert!(app.ui.dialog.is_none(), "Enter applies it");
-    let size = |id: u64| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let size = |id: u64| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert_eq!((size(small).width(), size(small).height()), (50.0, 20.0));
     assert_eq!((size(large).width(), size(large).height()), (50.0, 80.0));
 }
@@ -1542,7 +1540,7 @@ fn transform_each_absolute_reads_mixed_for_a_side_of_zero() {
     assert_eq!((d.f64("absH", -1.0), d.fields.get("absV")), (100.0, None), "its width, and Mixed for its height");
     app.ui.dialog.as_mut().unwrap().fields.insert("moveH".into(), json!(10));
     confirm(&mut app).unwrap();
-    let b = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let b = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert_eq!((b.x0, b.y0, b.x1), (20.0, 50.0, 120.0));
 }
 
@@ -1560,7 +1558,7 @@ fn transform_each_control_set_takes_a_size_in_units() {
     assert_eq!(d.fields.get("absH"), None, "Mixed");
     set_field(app.ui.dialog.as_mut().expect("Transform Each is open"), "absH".into(), json!("10 mm"));
     confirm(&mut app).unwrap();
-    let b = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+    let b = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
     assert!((b.width() - 10.0 * 72.0 / 25.4).abs() < 1e-6, "10 mm wide: {}", b.width());
 }
 
@@ -1631,7 +1629,7 @@ fn drop_shadow_chooses_color_or_darkness() {
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
     let mut time = 0.0;
-    let mut run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let mut run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         time += 0.1;
         let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
@@ -1657,7 +1655,7 @@ fn drop_shadow_chooses_color_or_darkness() {
     for events in [vec![egui::Event::PointerMoved(at)], vec![button(true)], vec![button(false)], vec![], vec![]] {
         run(&mut app, events);
     }
-    let effect = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].clone();
+    let effect = |app: &PlumaApp| app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].clone();
     assert!(app.session.in_interaction(), "the preview runs");
     assert_eq!(effect(&app).params["shade"], json!("darkness"));
     confirm(&mut app).unwrap();
@@ -1680,7 +1678,7 @@ fn artboard_options_position_moves_art_only_with_the_tool_option_on() {
         super::confirm(&mut app).unwrap();
         assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect.x0, 50.0);
         assert_eq!(
-            app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().x0,
+            app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().x0,
             if move_art { 60.0 } else { 10.0 }
         );
         app.run("edit.undo", json!({})).unwrap();
@@ -1704,7 +1702,7 @@ fn artboard_options_position_follows_the_tool_option_with_another_tool() {
         super::confirm(&mut app).unwrap();
         assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect.x0, 50.0);
         assert_eq!(
-            app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().x0,
+            app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap().x0,
             if move_art { 60.0 } else { 10.0 }
         );
     }
@@ -1716,8 +1714,8 @@ fn artboard_options_position_follows_the_tool_option_with_another_tool() {
 #[test]
 fn artboard_options_shows_keeps_and_clears_the_background_color() {
     let mut app = app();
-    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[0].color.map(|c| c.to_hex());
-    let lines = |app: &mut VectorcraftApp| {
+    let color = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards[0].color.map(|c| c.to_hex());
+    let lines = |app: &mut PlumaApp| {
         let text = crate::tests_labels::painted_text(app, |app, ui| show(app, ui.ctx()));
         text.lines().map(str::trim).map(str::to_string).collect::<Vec<_>>()
     };
@@ -1759,9 +1757,9 @@ fn new_artboard_options_give_the_new_artboard_its_background_color() {
 /// sets them in one undo step, and a new artboard's Artboard Options gives it the ones ticked.
 #[test]
 fn artboard_options_show_center_mark_and_cross_hairs() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut app = app();
-    let marks = |app: &VectorcraftApp, i: usize| {
+    let marks = |app: &PlumaApp, i: usize| {
         let a = &app.session.doc().unwrap().doc.artboards[i];
         (a.show_center_mark, a.show_cross_hairs)
     };
@@ -1810,7 +1808,7 @@ fn artboard_options_show_center_mark_and_cross_hairs() {
 #[test]
 fn artboard_options_global_checkboxes_set_the_preferences() {
     let mut app = app();
-    let prefs = |app: &VectorcraftApp| (app.session.prefs.fade_region_outside_artboard, app.session.prefs.artboard_update_while_dragging);
+    let prefs = |app: &PlumaApp| (app.session.prefs.fade_region_outside_artboard, app.session.prefs.artboard_update_while_dragging);
     assert_eq!(prefs(&app), (true, true));
     crate::dialogs::artboard_options::open(&mut app).unwrap();
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
@@ -1847,7 +1845,7 @@ fn artboard_options_global_checkboxes_set_the_preferences() {
 #[test]
 fn artboard_options_error_leaves_the_global_preferences_unchanged() {
     let mut app = app();
-    let prefs = |app: &VectorcraftApp| (app.session.prefs.fade_region_outside_artboard, app.session.prefs.artboard_update_while_dragging);
+    let prefs = |app: &PlumaApp| (app.session.prefs.fade_region_outside_artboard, app.session.prefs.artboard_update_while_dragging);
     for new in [false, true] {
         if new {
             app.run("ui.newArtboard", json!({})).unwrap();
@@ -1871,9 +1869,9 @@ fn artboard_options_error_leaves_the_global_preferences_unchanged() {
 /// Artboard Options gives it the ones set.
 #[test]
 fn artboard_options_show_video_display_options() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut app = app();
-    let video = |app: &VectorcraftApp, i: usize| {
+    let video = |app: &PlumaApp, i: usize| {
         let a = &app.session.doc().unwrap().doc.artboards[i];
         (a.show_video_safe_areas, a.video_ruler_pixel_aspect_ratio)
     };
@@ -1926,13 +1924,13 @@ fn artboard_options_show_video_display_options() {
 /// nothing.
 #[test]
 fn artboard_options_width_resizes_every_selected_artboard() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
     app.run("artboard.setProps", json!({"index": 2, "width": 300, "height": 150})).unwrap();
     app.select_tool("artboard");
     crate::panels::artboards::select(&mut app, 0);
     app.session.set_tool_option("selected", &json!([0, 2]));
-    let boards = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards.clone();
+    let boards = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards.clone();
     let before = boards(&app);
     let undo = app.session.doc().unwrap().history.undo.len();
     crate::dialogs::artboard_options::open(&mut app).unwrap();
@@ -1963,12 +1961,12 @@ fn artboard_options_width_resizes_every_selected_artboard() {
 /// reference point the form uses, the center by default, as the Transform panel's W does.
 #[test]
 fn artboard_options_width_resizes_every_selected_artboard_about_the_reference_point() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300, "artboards": 2})).unwrap();
     app.select_tool("artboard");
     crate::panels::artboards::select(&mut app, 0);
     app.session.set_tool_option("selected", &json!([0, 1]));
-    let before: Vec<vectorcraft_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+    let before: Vec<pluma_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
     crate::dialogs::artboard_options::open(&mut app).unwrap();
     let mut f = Frames::new();
     let shown = f.texts(&mut app);
@@ -1981,8 +1979,8 @@ fn artboard_options_width_resizes_every_selected_artboard_about_the_reference_po
     f.press(&mut app, height, false);
     f.key(&mut app, egui::Key::Enter, egui::Modifiers::NONE);
     assert!(app.ui.dialog.is_none(), "Enter applies the dialog");
-    let after: Vec<vectorcraft_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
-    let want: Vec<vectorcraft_geom::Rect> = before.iter().map(|r| vectorcraft_geom::Rect::new(r.x0 - 50.0, r.y0, r.x1 + 50.0, r.y1)).collect();
+    let after: Vec<pluma_geom::Rect> = app.session.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+    let want: Vec<pluma_geom::Rect> = before.iter().map(|r| pluma_geom::Rect::new(r.x0 - 50.0, r.y0, r.x1 + 50.0, r.y1)).collect();
     assert_eq!(after, want);
 }
 
@@ -2008,11 +2006,11 @@ fn field_after(shown: &[(String, egui::Rect)], label: &str) -> egui::Pos2 {
 
 /// A 400 × 300 pt artboard at the page's origin with the ruler origin at (120, 50), and its
 /// Artboard Options open.
-fn artboard_options_from_a_ruler_origin() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn artboard_options_from_a_ruler_origin() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("document.setRulerOrigin", json!({"x": 120, "y": 50})).unwrap();
-    assert_eq!(app.ruler_origin(), vectorcraft_geom::Point::new(120.0, 50.0));
+    assert_eq!(app.ruler_origin(), pluma_geom::Point::new(120.0, 50.0));
     app.run("tool.options", json!({"tool": "artboard"})).unwrap();
     app
 }
@@ -2050,7 +2048,7 @@ fn artboard_options_x_and_y_count_from_the_ruler_origin_at_the_reference_point()
     }
     f.key(&mut app, egui::Key::Enter, egui::Modifiers::NONE);
     assert!(app.ui.dialog.is_none(), "Enter applies the dialog");
-    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(20.0, -250.0, 420.0, 50.0));
+    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, pluma_geom::Rect::new(20.0, -250.0, 420.0, 50.0));
     assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     app.run("edit.undo", json!({})).unwrap();
     assert_eq!(app.session.doc().unwrap().doc, before);
@@ -2095,8 +2093,7 @@ fn objects_on_path_tool_options_pivot_grid_rotate_field_and_reset() {
 /// the top-left corner with that reference point.
 #[test]
 fn artboard_options_size_keeps_the_reference_point() {
-    for (point, want) in
-        [(None, vectorcraft_geom::Rect::new(-50.0, 0.0, 450.0, 300.0)), (Some("Top Left"), vectorcraft_geom::Rect::new(0.0, 0.0, 500.0, 300.0))]
+    for (point, want) in [(None, pluma_geom::Rect::new(-50.0, 0.0, 450.0, 300.0)), (Some("Top Left"), pluma_geom::Rect::new(0.0, 0.0, 500.0, 300.0))]
     {
         let mut app = artboard_options_from_a_ruler_origin();
         let mut f = Frames::new();
@@ -2185,7 +2182,7 @@ fn roughen_pucker_bloat_and_tweak_have_sliders() {
 fn dialog_sliders_report_the_numbers_their_fields_show() {
     use crate::widgets::accessibility_tests::{slider_value, tree};
     use egui::accesskit::Role::Slider;
-    fn set(app: &mut VectorcraftApp, k: &str, v: serde_json::Value) {
+    fn set(app: &mut PlumaApp, k: &str, v: serde_json::Value) {
         app.ui.dialog.as_mut().expect("a dialog is open").fields.insert(k.into(), v);
     }
     let v = |n: f64, (lo, hi): (f64, f64), text: &str| (Some(n), Some(lo), Some(hi), Some(text.to_string()));
@@ -2246,7 +2243,7 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
     assert_eq!(slider_value(&shown, "Opacity:"), v(40.0, (0.0, 100.0), "40%"));
     app.ui.dialog = None;
     app.run("path.create", json!({"d": "M150 40 L180 60 L180 140 L150 160"})).unwrap();
-    app.run("effect.dialog", json!({"effect": vectorcraft_effects::REVOLVE, "item": null})).unwrap();
+    app.run("effect.dialog", json!({"effect": pluma_effects::REVOLVE, "item": null})).unwrap();
     set(&mut app, "angle", json!(270));
     set(&mut app, "offset", json!(600));
     let shown = tree(|ui| show(&mut app, ui.ctx()));
@@ -2254,7 +2251,7 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
     assert_eq!(slider_value(&shown, "Revolve angle"), v(270.0, (0.0, 360.0), "270.0°"));
     assert_eq!(slider_value(&shown, "Offset"), v(600.0, (0.0, 600.0), "600.0 pt"), "past the rail's 500 pt");
     app.ui.dialog = None;
-    app.run("effect.dialog", json!({"effect": vectorcraft_effects::EXTRUDE, "item": null})).unwrap();
+    app.run("effect.dialog", json!({"effect": pluma_effects::EXTRUDE, "item": null})).unwrap();
     set(&mut app, "__tab", json!("rotation"));
     set(&mut app, "rotationX", json!(30));
     set(&mut app, "rotationY", json!(12.25));
@@ -2266,7 +2263,7 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
     app.run("ui.swatchOptions", json!({"name": "Ink"})).unwrap();
     let shown = tree(|ui| show(&mut app, ui.ctx()));
     assert_eq!(slider_value(&shown, "M"), v(80.0, (0.0, 100.0), "80%"));
-    let mut o = vectorcraft_engine::cmd::FlattenOptions { balance: 30.0, ..Default::default() };
+    let mut o = pluma_engine::cmd::FlattenOptions { balance: 30.0, ..Default::default() };
     let shown = tree(|ui| {
         flatten::options_editor(ui, "flatten-test", &mut o, true);
     });
@@ -2307,7 +2304,7 @@ impl Frames {
         Self { ctx, time: 0.0 }
     }
 
-    fn run(&mut self, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> egui::FullOutput {
+    fn run(&mut self, app: &mut PlumaApp, events: Vec<egui::Event>) -> egui::FullOutput {
         self.time += 0.1;
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 900.0));
         let input = egui::RawInput { events, time: Some(self.time), screen_rect: Some(screen), ..Default::default() };
@@ -2317,18 +2314,18 @@ impl Frames {
     }
 
     /// The strings the dialog layer paints once it has settled, each with its rectangle.
-    fn texts(&mut self, app: &mut VectorcraftApp) -> Vec<(String, egui::Rect)> {
+    fn texts(&mut self, app: &mut PlumaApp) -> Vec<(String, egui::Rect)> {
         self.run(app, vec![]);
         painted(&self.run(app, vec![]))
     }
 
     /// The center of the button that screen readers name `label`.
-    fn button(&mut self, app: &mut VectorcraftApp, label: &str) -> egui::Pos2 {
+    fn button(&mut self, app: &mut PlumaApp, label: &str) -> egui::Pos2 {
         self.control(app, label, egui::accesskit::Role::Button)
     }
 
     /// The center of the control of `role` that screen readers name `label`.
-    fn control(&mut self, app: &mut VectorcraftApp, label: &str, role: egui::accesskit::Role) -> egui::Pos2 {
+    fn control(&mut self, app: &mut PlumaApp, label: &str, role: egui::accesskit::Role) -> egui::Pos2 {
         self.run(app, vec![]);
         let out = self.run(app, vec![]);
         let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
@@ -2337,12 +2334,12 @@ impl Frames {
         egui::pos2((b.x0 + b.x1) as f32 * 0.5, (b.y0 + b.y1) as f32 * 0.5)
     }
 
-    fn press(&mut self, app: &mut VectorcraftApp, at: egui::Pos2, pressed: bool) {
+    fn press(&mut self, app: &mut PlumaApp, at: egui::Pos2, pressed: bool) {
         let button = egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
         self.run(app, vec![egui::Event::PointerMoved(at), button]);
     }
 
-    fn drag(&mut self, app: &mut VectorcraftApp, from: egui::Pos2, by: egui::Vec2) {
+    fn drag(&mut self, app: &mut PlumaApp, from: egui::Pos2, by: egui::Vec2) {
         self.press(app, from, true);
         for k in 1..=4 {
             self.run(app, vec![egui::Event::PointerMoved(from + by * k as f32 / 4.0)]);
@@ -2350,7 +2347,7 @@ impl Frames {
         self.press(app, from + by, false);
     }
 
-    fn key(&mut self, app: &mut VectorcraftApp, key: egui::Key, modifiers: egui::Modifiers) {
+    fn key(&mut self, app: &mut PlumaApp, key: egui::Key, modifiers: egui::Modifiers) {
         let event = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
         self.run(app, vec![egui::Event::ModifiersChanged(modifiers), event]);
         self.run(app, vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
@@ -2358,7 +2355,7 @@ impl Frames {
 }
 
 /// The corners in the open dialog, and those of the first object's first effect.
-fn free_distort_corners(app: &VectorcraftApp) -> (serde_json::Value, serde_json::Value) {
+fn free_distort_corners(app: &PlumaApp) -> (serde_json::Value, serde_json::Value) {
     let s = app.session.active().unwrap();
     let node = s.doc.node(s.selection.objects[0]).unwrap();
     (app.ui.dialog.as_ref().unwrap().fields["corners"].clone(), node.appearance.effects[0].params["corners"].clone())
@@ -2482,7 +2479,7 @@ fn a_focused_dialog_slider_steps_with_the_arrow_keys() {
     let at = f.control(&mut app, "Frequency", egui::accesskit::Role::Slider);
     f.press(&mut app, at, true);
     f.press(&mut app, at, false);
-    let frequency = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Vector Halftone is open").f64("frequency", 0.0);
+    let frequency = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Vector Halftone is open").f64("frequency", 0.0);
     let start = frequency(&app);
     assert!((2.0..=139.0).contains(&start), "the click set {start}");
     let mut seen = vec![];
@@ -2520,7 +2517,7 @@ fn tab_and_shift_tab_reach_a_dialog_slider_for_the_arrow_keys() {
     use egui::Modifiers as M;
     let mut app = app();
     app.run("ui.perspectiveGridDialog", json!({})).unwrap();
-    let opacity = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Define Grid is open").f64("opacity", 0.0);
+    let opacity = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Define Grid is open").f64("opacity", 0.0);
     let mut f = Frames::new();
     let at = f.control(&mut app, "Opacity:", egui::accesskit::Role::Slider);
     f.press(&mut app, at, true);
@@ -2545,7 +2542,7 @@ fn screen_readers_step_a_dialog_slider() {
     let mut app = app();
     app.run("tool.options", json!({"tool": "pencil"})).unwrap();
     app.ui.dialog.as_mut().expect("Pencil Tool Options is open").fields.insert("fidelity".into(), json!(2.5));
-    let fidelity = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Pencil Tool Options is open").f64("fidelity", 0.0);
+    let fidelity = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Pencil Tool Options is open").f64("fidelity", 0.0);
     let mut f = Frames::new();
     f.run(&mut app, vec![]);
     let out = f.run(&mut app, vec![]);
@@ -2569,9 +2566,8 @@ fn transform_each_sliders_step_the_numbers_their_fields_show() {
     app.run("document.setUnits", json!({"units": "millimeters"})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
-    let set =
-        |app: &mut VectorcraftApp, k: &str, v: serde_json::Value| app.ui.dialog.as_mut().expect("Transform Each is open").fields.insert(k.into(), v);
-    let get = |app: &VectorcraftApp, k: &str| app.ui.dialog.as_ref().expect("Transform Each is open").f64(k, f64::NAN);
+    let set = |app: &mut PlumaApp, k: &str, v: serde_json::Value| app.ui.dialog.as_mut().expect("Transform Each is open").fields.insert(k.into(), v);
+    let get = |app: &PlumaApp, k: &str| app.ui.dialog.as_ref().expect("Transform Each is open").f64(k, f64::NAN);
     let mut f = Frames::new();
     let at = f.control(&mut app, "Horizontal:", egui::accesskit::Role::Slider);
     f.press(&mut app, at, true);
@@ -2606,9 +2602,9 @@ fn the_flattener_and_3d_sliders_step_with_the_arrow_keys() {
         if open == "flatten" {
             app.run("ui.flattenTransparencyDialog", json!({})).unwrap();
         } else {
-            app.run("effect.dialog", json!({"effect": vectorcraft_effects::REVOLVE, "item": null})).unwrap();
+            app.run("effect.dialog", json!({"effect": pluma_effects::REVOLVE, "item": null})).unwrap();
         }
-        let value = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("the dialog is open").f64(key, -1.0);
+        let value = |app: &PlumaApp| app.ui.dialog.as_ref().expect("the dialog is open").f64(key, -1.0);
         let mut f = Frames::new();
         let at = f.control(&mut app, label, egui::accesskit::Role::Slider);
         f.press(&mut app, at, true);
@@ -2634,7 +2630,7 @@ fn the_blob_brush_tip_preview_is_a_named_slider_with_arrow_keys() {
     use egui::Modifiers as M;
     let mut app = app();
     app.run("tool.options", json!({"tool": "blobBrush"})).unwrap();
-    let angle = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Blob Brush Tool Options is open").f64("angle", f64::NAN);
+    let angle = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Blob Brush Tool Options is open").f64("angle", f64::NAN);
     let mut f = Frames::new();
     f.run(&mut app, vec![]);
     let out = f.run(&mut app, vec![]);
@@ -2690,7 +2686,7 @@ fn screen_readers_set_a_dialog_slider_number() {
     use egui::accesskit::{Action, ActionData, ActionRequest, TreeId};
     let mut app = app();
     app.run("tool.options", json!({"tool": "blobBrush"})).unwrap();
-    let angle = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Blob Brush Tool Options is open").f64("angle", f64::NAN);
+    let angle = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Blob Brush Tool Options is open").f64("angle", f64::NAN);
     let mut f = Frames::new();
     f.run(&mut app, vec![]);
     let out = f.run(&mut app, vec![]);
@@ -2730,7 +2726,7 @@ fn screen_readers_set_a_dialog_slider_number() {
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     crate::menus::invoke(&mut app, "object.transformEach", json!({}));
     app.ui.dialog.as_mut().expect("Transform Each is open").fields.insert("scaleH".into(), json!(300));
-    let scale = |app: &VectorcraftApp| app.ui.dialog.as_ref().expect("Transform Each is open").f64("scaleH", f64::NAN);
+    let scale = |app: &PlumaApp| app.ui.dialog.as_ref().expect("Transform Each is open").f64("scaleH", f64::NAN);
     f.run(&mut app, vec![]);
     let out = f.run(&mut app, vec![]);
     let (node, ..) = slider_node(&out, "Horizontal:");
@@ -2778,8 +2774,8 @@ fn screen_readers_set_a_dialog_slider_number() {
 
 #[test]
 fn polar_grid_shared_canvas_click_defaults_units_counts_and_history() {
-    use vectorcraft_doc::NodeId;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_doc::NodeId;
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut app = app();
     app.select_tool("polarGrid");
     app.run("tool.setOption", json!({"tool": "polarGrid", "values": {"concentric": 2, "radial": 3}})).unwrap();
@@ -2814,7 +2810,7 @@ fn polar_grid_shared_canvas_click_defaults_units_counts_and_history() {
 /// Part of gap G11: an Arc tool click opens its options at the pointer; OK draws an arc there.
 #[test]
 fn arc_click_opens_options_and_ok_draws() {
-    use vectorcraft_doc::NodeKind;
+    use pluma_doc::NodeKind;
     let mut app = app();
     open_tool_dialog(&mut app, "arc", json!({"x": 100.0, "y": 50.0}));
     let d = app.ui.dialog.as_ref().unwrap();
@@ -2835,7 +2831,7 @@ fn arc_click_opens_options_and_ok_draws() {
 /// stores them.
 #[test]
 fn polar_grid_dialog_edits_skews_compound_and_fill() {
-    use vectorcraft_doc::{NodeId, NodeKind};
+    use pluma_doc::{NodeId, NodeKind};
     let mut app = app();
     app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
     app.run("tool.setOption", json!({"tool": "polarGrid", "values": {"concentric": 3, "radial": 4, "radialSkew": 500}})).unwrap();
@@ -2869,7 +2865,7 @@ fn polar_grid_dialog_edits_skews_compound_and_fill() {
     let children = s.doc.node(NodeId(result["id"].as_u64().unwrap())).unwrap().children().unwrap();
     // Two rings under four radial dividers, all in the current fill.
     assert_eq!(children.iter().map(|n| matches!(n.kind, NodeKind::Compound { .. })).collect::<Vec<_>>(), [true, true, false, false, false, false]);
-    assert!(children.iter().all(|n| n.appearance.fill().is_some_and(|f| f.paint != vectorcraft_color::Paint::None)));
+    assert!(children.iter().all(|n| n.appearance.fill().is_some_and(|f| f.paint != pluma_color::Paint::None)));
     let widths: Vec<f64> = children[0].children().unwrap().iter().map(|n| n.geometric_bounds().unwrap().width()).collect();
     assert!((widths[0] - 100.0).abs() < 1e-6 && (widths[1] - 93.75).abs() < 1e-6, "outward: {widths:?}");
     let tips: Vec<f64> = children[3..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[1].p.x).collect();
@@ -2897,7 +2893,7 @@ fn polar_grid_shared_cancel_reopen_zero_counts_and_failed_creation() {
         app.ui.dialog.as_mut().unwrap().fields.insert(key.into(), json!(0));
     }
     let result = confirm(&mut app).unwrap();
-    let group = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(result["id"].as_u64().unwrap())).unwrap();
+    let group = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(result["id"].as_u64().unwrap())).unwrap();
     assert_eq!(group.children().unwrap().len(), 1);
     assert!(group.children().unwrap()[0].path_data().unwrap().is_closed());
     open_tool_dialog(&mut app, "polarGrid", json!({"x": 10, "y": 20}));
@@ -2916,7 +2912,7 @@ fn polar_grid_shared_cancel_reopen_zero_counts_and_failed_creation() {
 }
 
 /// Open the real Preset menu before choosing a Fit; these actions are no longer body buttons.
-fn artboard_fit_preset_at(frames: &mut Frames, app: &mut VectorcraftApp, label: &str) -> egui::Pos2 {
+fn artboard_fit_preset_at(frames: &mut Frames, app: &mut PlumaApp, label: &str) -> egui::Pos2 {
     let texts = frames.texts(app);
     assert!(texts.iter().all(|(t, _)| !matches!(t.as_str(), "Fit to Artwork Bounds" | "Fit to Selected Art")), "Fit lives only in Preset");
     let row = texts.iter().find(|(t, _)| t == "Preset:").unwrap().1;
@@ -2960,7 +2956,7 @@ fn artboard_options_fit_drafts_cancel_and_apply_without_moving_art() {
             }
             confirm(&mut app).unwrap();
             assert_eq!(app.session.doc().unwrap().doc.layers, before.layers, "art stays in place");
-            assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 110.0, 100.0));
+            assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, pluma_geom::Rect::new(30.0, 40.0, 110.0, 100.0));
             app.run("edit.undo", json!({})).unwrap();
             assert_eq!(app.session.doc().unwrap().doc, before);
         }
@@ -2998,7 +2994,7 @@ fn artboard_options_size_changes_honor_scale_artwork() {
                 let steps = app.session.doc().unwrap().history.undo.len();
                 confirm(&mut app).unwrap();
                 let after = app.session.doc().unwrap().doc.clone();
-                let bounds = vectorcraft_render::encode::art_bounds(&after).unwrap();
+                let bounds = pluma_render::encode::art_bounds(&after).unwrap();
                 let (sx, sy) = if scale { (width / 200.0, height / 100.0) } else { (1.0, 1.0) };
                 for (actual, expected) in [(bounds.x0, 20.0 * sx), (bounds.y0, 10.0 * sy), (bounds.x1, 60.0 * sx), (bounds.y1, 30.0 * sy)] {
                     assert!((actual - expected).abs() < 1e-6, "{actual} != {expected}, scale={scale}, choice={choice}");
@@ -3112,7 +3108,7 @@ fn artboard_options_fit_changes_only_active_board_even_with_an_artboard_multisel
     assert_eq!(app.session.doc().unwrap().doc, before, "fit remains a draft");
     confirm(&mut app).unwrap();
     let doc = &app.session.doc().unwrap().doc;
-    assert_eq!(doc.artboards[0].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 110.0, 100.0));
+    assert_eq!(doc.artboards[0].rect, pluma_geom::Rect::new(30.0, 40.0, 110.0, 100.0));
     assert_eq!(&doc.artboards[1..], &before.artboards[1..]);
     assert_eq!(doc.layers, before.layers, "fitting never moves artwork");
     app.run("edit.undo", json!({})).unwrap();
@@ -3156,12 +3152,12 @@ fn artboard_options_fit_artwork_ignores_draft_membership_and_invalidates_on_edit
     );
     confirm(&mut app).unwrap();
     assert_eq!(app.session.doc().unwrap().doc.layers, layers);
-    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 640.0, 150.0));
+    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, pluma_geom::Rect::new(30.0, 40.0, 640.0, 150.0));
     app.run("edit.undo", json!({})).unwrap();
     assert_eq!(app.session.doc().unwrap().doc.artboards, boards);
     assert_eq!(app.session.doc().unwrap().doc.layers, layers);
     app.run("edit.redo", json!({})).unwrap();
-    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 640.0, 150.0));
+    assert_eq!(app.session.doc().unwrap().doc.artboards[0].rect, pluma_geom::Rect::new(30.0, 40.0, 640.0, 150.0));
     assert_eq!(app.session.doc().unwrap().doc.layers, layers);
 }
 
@@ -3176,10 +3172,8 @@ fn artboard_options_fit_artwork_includes_all_boards_and_is_independent_of_target
         app.run("paint.setStroke", json!({"none":true})).unwrap();
     }
     let layers = app.session.doc().unwrap().doc.layers.clone();
-    let expected =
-        vectorcraft_geom::Rect::new(boards[0].rect.x0 + 30.0, boards[0].rect.y0 + 40.0, boards[0].rect.x0 + 110.0, boards[0].rect.y0 + 100.0).union(
-            vectorcraft_geom::Rect::new(boards[1].rect.x0 + 30.0, boards[1].rect.y0 + 40.0, boards[1].rect.x0 + 70.0, boards[1].rect.y0 + 70.0),
-        );
+    let expected = pluma_geom::Rect::new(boards[0].rect.x0 + 30.0, boards[0].rect.y0 + 40.0, boards[0].rect.x0 + 110.0, boards[0].rect.y0 + 100.0)
+        .union(pluma_geom::Rect::new(boards[1].rect.x0 + 30.0, boards[1].rect.y0 + 40.0, boards[1].rect.x0 + 70.0, boards[1].rect.y0 + 70.0));
     app.select_tool("artboard");
     let mut frames = Frames::new();
     for index in [0, 1, 0] {
@@ -3221,7 +3215,7 @@ fn artboard_options_fit_artwork_new_board_includes_art_outside_its_draft() {
     let after = app.session.doc().unwrap().doc.artboards.clone();
     assert_eq!(after.len(), 2);
     assert_eq!(after[0], boards[0]);
-    assert_eq!(after[1].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 530.0, 190.0));
+    assert_eq!(after[1].rect, pluma_geom::Rect::new(30.0, 40.0, 530.0, 190.0));
     assert_eq!(app.session.doc().unwrap().doc.layers, layers);
     app.run("edit.undo", json!({})).unwrap();
     assert_eq!(app.session.doc().unwrap().doc.artboards, boards);
@@ -3267,7 +3261,7 @@ fn artboard_options_fit_and_background_color_coexist_through_cancel_undo_and_red
             confirm(&mut app).unwrap();
             let after = app.session.doc().unwrap().doc.clone();
             let board = &after.artboards[usize::from(new)];
-            assert_eq!(board.rect, vectorcraft_geom::Rect::new(x, 40.0, x + 80.0, 100.0));
+            assert_eq!(board.rect, pluma_geom::Rect::new(x, 40.0, x + 80.0, 100.0));
             assert_eq!(board.color.map(|c| c.to_hex()).as_deref(), Some("#c05030"));
             assert_eq!(after.layers, before.layers, "fitting never moves the art");
             if new {
@@ -3301,7 +3295,7 @@ fn artboard_options_position_only_fit_keeps_art_with_move_art_enabled() {
     frames.press(&mut app, at, false);
     confirm(&mut app).unwrap();
     let after = app.session.doc().unwrap().doc.clone();
-    assert_eq!(after.artboards[0].rect, vectorcraft_geom::Rect::new(10.0, 10.0, 90.0, 70.0));
+    assert_eq!(after.artboards[0].rect, pluma_geom::Rect::new(10.0, 10.0, 90.0, 70.0));
     assert_eq!(after.layers, before.layers, "position-only fitting never moves art");
     app.run("edit.undo", json!({})).unwrap();
     assert_eq!(app.session.doc().unwrap().doc, before);
@@ -3354,7 +3348,7 @@ fn artboard_options_selected_fit_spans_other_boards_and_off_board_art() {
     assert_eq!(app.session.doc().unwrap().doc, before, "selection fit is a draft");
     confirm(&mut app).unwrap();
     let after = app.session.doc().unwrap().doc.clone();
-    assert_eq!(after.artboards[0].rect, vectorcraft_geom::Rect::new(30.0, 40.0, 1050.0, 540.0));
+    assert_eq!(after.artboards[0].rect, pluma_geom::Rect::new(30.0, 40.0, 1050.0, 540.0));
     assert_eq!(after.artboards[1..], before.artboards[1..]);
     assert_eq!(after.layers, before.layers);
     app.run("edit.undo", json!({})).unwrap();
@@ -3374,7 +3368,7 @@ fn an_effect_dialog_keeps_a_typed_distance_within_the_effects_range() {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         theme::apply(&ctx, Default::default());
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
             out.textures_delta.clear();
         };
@@ -3385,7 +3379,7 @@ fn an_effect_dialog_keeps_a_typed_distance_within_the_effects_range() {
         frame(&mut app, vec![egui::Event::Text(typed.into())]);
         frame(&mut app, vec![enter()]);
         assert!(app.ui.dialog.is_none(), "{typed}");
-        let node = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+        let node = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
         assert_eq!(node.appearance.effects.last().map(|e| e.params["cellSize"].clone()), Some(json!(applied)), "{typed}");
     }
 }
@@ -3401,7 +3395,7 @@ fn effect_length_invalid_input_does_not_revert_to_sub_minimum_value() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
         out
@@ -3457,7 +3451,7 @@ fn bounded_field_with_inches_does_not_clamp_point_bounds_to_inch_numbers() {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -3486,7 +3480,7 @@ fn color_halftones_max_radius_stays_in_pixels_whatever_the_units() {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
         theme::apply(&ctx, Default::default());
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
             out.textures_delta.clear();
             out

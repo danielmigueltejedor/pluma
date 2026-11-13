@@ -15,9 +15,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pluma_color::Paint;
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::Paint;
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use crate::Document;
 use crate::appearance::AppearanceItem;
@@ -218,7 +218,7 @@ impl PatternDef {
     }
     /// Visual bounds of the art (stroke included).
     pub fn art_bounds(&self) -> Option<Rect> {
-        self.art.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, n.visual_bounds()))
+        self.art.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, n.visual_bounds()))
     }
     /// Re-derive the tile from the art (Size Tile to Art).
     pub fn fit_tile_to_art(&mut self) {
@@ -716,7 +716,7 @@ impl RepeatSpec {
     pub(crate) fn copies_bounds(&self, source: Rect, doc: Option<&Document>) -> Option<Rect> {
         // Without a document the source's bounds are the ones `source` is: not measured twice.
         let transforms = if doc.is_none() { self.transforms_from(None, Some(source)) } else { self.transforms(doc) };
-        transforms.into_iter().fold(None, |acc, m| vectorcraft_geom::union_opt(acc, Some(m.transform_rect_bbox(source))))
+        transforms.into_iter().fold(None, |acc, m| pluma_geom::union_opt(acc, Some(m.transform_rect_bbox(source))))
     }
     /// Apply a document transform (source + arrangement parameters).
     pub fn transform(&mut self, a: Affine, scaling: impl Into<crate::node::Scaling>) {
@@ -772,7 +772,7 @@ pub fn is_repeat(n: &Node) -> bool {
 mod tests {
     use super::*;
     use crate::Appearance;
-    use vectorcraft_geom::shapes;
+    use pluma_geom::shapes;
 
     fn sq(x: f64, y: f64, s: f64) -> Arc<Node> {
         Arc::new(Node::path(NodeId(1), shapes::rectangle(Rect::new(x, y, x + s, y + s)), Appearance::default()))

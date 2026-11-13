@@ -1,8 +1,8 @@
 //! Color Effects: its live effects through effect.apply, and Apply as Filter.
 
+use pluma_doc::NodeId;
+use pluma_geom::Rect;
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Rect;
 
 use crate::Session;
 
@@ -21,7 +21,7 @@ fn fill_hex(s: &Session, id: NodeId) -> String {
 }
 
 fn pixel(s: &Session) -> [u8; 4] {
-    vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 100.0, 100.0), 1.0, true).pixel(50, 50)
+    pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 100.0, 100.0), 1.0, true).pixel(50, 50)
 }
 
 #[test]
@@ -89,30 +89,30 @@ fn bad_requests_are_refused() {
 }
 
 /// An embedded image object of `blob`, selected.
-fn image(s: &mut Session, key: &str, blob: vectorcraft_doc::ImageBlob, x: f64) -> NodeId {
+fn image(s: &mut Session, key: &str, blob: pluma_doc::ImageBlob, x: f64) -> NodeId {
     s.edit("Place", |d, sel| {
         d.images.insert(key.into(), blob);
         let id = d.alloc_id();
-        let im = vectorcraft_doc::ImageObject {
+        let im = pluma_doc::ImageObject {
             key: key.into(),
             width: 4,
             height: 4,
-            xf: vectorcraft_geom::Affine::translate((x, 0.0)) * vectorcraft_geom::Affine::scale(10.0),
+            xf: pluma_geom::Affine::translate((x, 0.0)) * pluma_geom::Affine::scale(10.0),
             link: None,
             placement: Default::default(),
             pixels: None,
         };
-        d.insert(d.default_layer(), 0, vectorcraft_doc::Node::new(id, vectorcraft_doc::NodeKind::Image(Box::new(im))))?;
+        d.insert(d.default_layer(), 0, pluma_doc::Node::new(id, pluma_doc::NodeKind::Image(Box::new(im))))?;
         sel.set([id]);
         Ok(id)
     })
     .unwrap()
 }
 
-fn png(img: image::DynamicImage) -> vectorcraft_doc::ImageBlob {
+fn png(img: image::DynamicImage) -> pluma_doc::ImageBlob {
     let mut bytes = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
-    vectorcraft_doc::ImageBlob::png(bytes)
+    pluma_doc::ImageBlob::png(bytes)
 }
 
 fn selected(s: &Session) -> Vec<NodeId> {
@@ -134,8 +134,8 @@ fn select_by_color_kind_finds_spot_colours_effects_and_image_models() {
     s.execute("effect.apply", &json!({"effect": "addon.color.invert"})).unwrap();
     let rgb = image(&mut s, "rgb", png(image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 4))), 0.0);
     let gray = image(&mut s, "gray", png(image::DynamicImage::ImageLuma8(image::GrayImage::new(4, 4))), 50.0);
-    let inks = vectorcraft_doc::cmyk::Inks::new(4, 4, vec![0; 64]).unwrap();
-    let cmyk = image(&mut s, "cmyk", vectorcraft_doc::ImageBlob::cmyk_tiff(&inks).unwrap(), 100.0);
+    let inks = pluma_doc::cmyk::Inks::new(4, 4, vec![0; 64]).unwrap();
+    let cmyk = image(&mut s, "cmyk", pluma_doc::ImageBlob::cmyk_tiff(&inks).unwrap(), 100.0);
     for (kind, ids) in [
         ("spotColors", vec![spot]),
         ("colorEffects", vec![adjusted]),
@@ -159,15 +159,15 @@ fn select_by_color_kind_finds_spot_colours_effects_and_image_models() {
 const HALFTONE: &str = "addon.color.halftone";
 
 /// The dots in group `g`: each path's geometry, ink and blend mode.
-fn dots(g: &vectorcraft_doc::Node) -> Vec<(vectorcraft_geom::PathData, String, vectorcraft_color::BlendMode)> {
-    let ink = |c: &vectorcraft_doc::Node| c.appearance.fill_paint().color().unwrap().to_hex();
+fn dots(g: &pluma_doc::Node) -> Vec<(pluma_geom::PathData, String, pluma_color::BlendMode)> {
+    let ink = |c: &pluma_doc::Node| c.appearance.fill_paint().color().unwrap().to_hex();
     g.children().unwrap().iter().map(|c| (c.path_data().unwrap().clone(), ink(c), c.blend)).collect()
 }
 
 /// `format` as `document.export` writes the active document.
 fn exported(s: &mut Session, format: &str) -> Vec<u8> {
     let v = s.execute("document.export", &json!({"format": format})).unwrap();
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
 }
 
 /// How many subpaths the path data of `svg` starts.
@@ -207,7 +207,7 @@ fn exports_write_the_dots_as_paths() {
     let plain: Vec<usize> = ["pdf", "eps", "ai"].map(|f| exported(&mut s, f).len()).to_vec();
     s.execute("effect.apply", &json!({"effect": HALFTONE, "params": {"frequency": 18}})).unwrap();
     // The exporters' copy of the document has the dots in the object's place.
-    let baked = vectorcraft_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
+    let baked = pluma_render::effects::bake_document(&s.doc().unwrap().doc).unwrap();
     let mut paths = 0;
     baked.walk(|n| {
         assert!(n.appearance.effects.iter().all(|e| e.id != HALFTONE));
@@ -255,7 +255,7 @@ fn ink_tone(curve: &str) -> serde_json::Value {
     json!({"tones": [{"color": {"model": "cmyk", "c": 0.0, "m": 0.6, "y": 1.0, "k": 0.0}, "swatch": "Ink", "curve": curve}]})
 }
 
-fn fill_paint(s: &Session, id: NodeId) -> vectorcraft_color::Paint {
+fn fill_paint(s: &Session, id: NodeId) -> pluma_color::Paint {
     s.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint().clone()
 }
 
@@ -264,11 +264,11 @@ fn duotone_draws_a_tint_of_its_spot_tone_and_expands_to_it() {
     let (mut s, id) = grey_rect();
     let grey = pixel(&s);
     s.execute("effect.apply", &json!({"effect": DUOTONE, "params": ink_tone("0,0 100,100")})).unwrap();
-    assert_eq!(fill_paint(&s, id).color().unwrap(), vectorcraft_color::Color::gray(0.5), "the colours stay");
+    assert_eq!(fill_paint(&s, id).color().unwrap(), pluma_color::Color::gray(0.5), "the colours stay");
     let drawn = pixel(&s);
     assert!(drawn != grey && drawn[0] > drawn[2], "drawn in the ink: {drawn:?}");
     s.execute("effect.expandAppearance", &json!({})).unwrap();
-    let vectorcraft_color::Paint::Solid { swatch, tint, .. } = fill_paint(&s, id) else { panic!("a solid fill") };
+    let pluma_color::Paint::Solid { swatch, tint, .. } = fill_paint(&s, id) else { panic!("a solid fill") };
     assert_eq!(swatch.as_deref(), Some("Ink"), "linked to the spot swatch, so it separates on its plate");
     assert!((tint - 0.5).abs() < 0.01, "{tint}");
 }
@@ -297,10 +297,10 @@ fn duotone_as_a_filter_equals_the_live_effect_expanded() {
     let kept = s.doc().unwrap().doc.node(id).unwrap().appearance.effects[0].params.clone();
     assert_eq!(kept["tones"], params["tones"]);
     s.execute("addon.color.filter", &json!({"effect": DUOTONE, "params": kept})).unwrap();
-    let vectorcraft_color::Paint::Solid { swatch, tint, .. } = fill_paint(&s, id) else { panic!("a solid fill") };
+    let pluma_color::Paint::Solid { swatch, tint, .. } = fill_paint(&s, id) else { panic!("a solid fill") };
     assert_eq!(swatch.as_deref(), Some("Ink"));
-    let fx = vectorcraft_render::effects::addons::duotone::tone_curve_points(Some(&json!("0,0 40,70 100,100")));
-    let want = vectorcraft_render::effects::curve_at(&fx, 0.5);
+    let fx = pluma_render::effects::addons::duotone::tone_curve_points(Some(&json!("0,0 40,70 100,100")));
+    let want = pluma_render::effects::curve_at(&fx, 0.5);
     assert!(want > 0.7 && (tint - want).abs() < 0.01, "the curve lifts the mid tone: {tint}, {want}");
 }
 

@@ -2,8 +2,8 @@
 //! Japanese text only with craft-fonts' faces, skipped without them).
 use crate::*;
 use kurbo::Shape;
-use vectorcraft_doc::{AreaFit, CharStyle, Justify, TextKind, TextRun};
-use vectorcraft_geom::PathData;
+use pluma_doc::{AreaFit, CharStyle, Justify, TextKind, TextRun};
+use pluma_geom::PathData;
 
 fn vertical(text: &str) -> TextObject {
     vertical_styled(text, CharStyle { size: 20.0, ..CharStyle::default() })
@@ -617,7 +617,7 @@ fn upright_glyphs_follow_the_fonts_vertical_metrics() {
 /// Needs a font with full-width Japanese punctuation (skipped without one).
 #[test]
 fn mojikumi_halves_line_end_and_consecutive_punctuation() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     let lay = |text: &str, m: Mojikumi, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
         t.xf = Affine::IDENTITY;
@@ -658,7 +658,7 @@ fn mojikumi_halves_line_end_and_consecutive_punctuation() {
 /// none with Mojikumi None. Needs a font with full-width Japanese (skipped without one).
 #[test]
 fn mojikumi_spaces_japanese_from_latin_by_a_quarter_em() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     let lay = |text: &str, m: Mojikumi, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
         t.xf = Affine::IDENTITY;
@@ -693,8 +693,8 @@ fn mojikumi_spaces_japanese_from_latin_by_a_quarter_em() {
 /// list markers too.
 #[test]
 fn mojikumi_applies_only_to_japanese_punctuation_and_letters() {
-    use vectorcraft_doc::Mojikumi;
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::Mojikumi;
+    use pluma_doc::text::{Bullet, ParaList};
     let styled = |text: &str, m: Mojikumi| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
         t.xf = Affine::IDENTITY;
@@ -726,7 +726,7 @@ fn mojikumi_applies_only_to_japanese_punctuation_and_letters() {
 /// Japanese punctuation (skipped without one).
 #[test]
 fn mojikumi_sets_an_opening_bracket_flush_at_the_start_of_a_wrapped_line() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     // 20 pt type in a frame three and a half ems across the lines.
     let lay = |text: &str, m: Mojikumi, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
@@ -771,7 +771,7 @@ fn mojikumi_sets_an_opening_bracket_flush_at_the_start_of_a_wrapped_line() {
 /// Japanese punctuation (skipped without one).
 #[test]
 fn burasagari_hangs_a_comma_or_full_stop_outside_the_line() {
-    use vectorcraft_doc::{Burasagari, Mojikumi};
+    use pluma_doc::{Burasagari, Mojikumi};
     // 20 pt type, justified, in a frame five ems along the lines.
     let lay = |text: &str, b: Burasagari, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
@@ -831,7 +831,7 @@ fn burasagari_hangs_a_comma_or_full_stop_outside_the_line() {
 /// Horizontal and vertical. Needs a font with full-width Japanese (skipped without one).
 #[test]
 fn kinsoku_set_decides_whether_a_small_kana_may_start_a_line() {
-    use vectorcraft_doc::Kinsoku;
+    use pluma_doc::Kinsoku;
     let lay = |text: &str, k: Kinsoku, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
         t.xf = Affine::IDENTITY;
@@ -862,7 +862,7 @@ fn kinsoku_set_decides_whether_a_small_kana_may_start_a_line() {
 /// without one).
 #[test]
 fn kinsoku_shori_type_pushes_a_closing_bracket_in_or_out() {
-    use vectorcraft_doc::KinsokuShoriType;
+    use pluma_doc::KinsokuShoriType;
     let text = "一二三四五六七八九十一二三四五」六";
     let lay = |ty: KinsokuShoriType, justify: Justify, vertical_type: bool| {
         let mut t = TextObject::point(Point::ZERO, text, CharStyle { size: 20.0, ..CharStyle::default() });
@@ -912,7 +912,7 @@ fn kinsoku_shori_type_pushes_a_closing_bracket_in_or_out() {
 /// craft-fonts' Shippori Mincho (skipped without it).
 #[test]
 fn kinsoku_shori_type_closes_a_column_by_the_em_down_the_column() {
-    use vectorcraft_doc::KinsokuShoriType;
+    use pluma_doc::KinsokuShoriType;
     if FontDb::global().face("Shippori Mincho", "Regular").is_none_or(|f| f.family != "Shippori Mincho") {
         eprintln!("skipped: built without craft-fonts (set CRAFT_FONTS_DIR to a craft-fonts checkout to run it)");
         return;
@@ -943,7 +943,7 @@ fn kinsoku_shori_type_closes_a_column_by_the_em_down_the_column() {
 /// keeps today's cells. Needs craft-fonts' Shippori Mincho (skipped without it).
 #[test]
 fn proportional_metrics_set_upright_glyphs_on_their_proportional_heights() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     let lay = |text: &str, font: &str, on: bool, m: Mojikumi| {
         let mut t = vertical_styled(text, CharStyle { size: 20.0, font_family: font.into(), proportional_metrics: on, ..CharStyle::default() });
         t.para.mojikumi = m;

@@ -15,7 +15,7 @@ use krilla::geom::{Path, Transform};
 use krilla::mask::Mask;
 use krilla::num::NormalizedF32;
 use krilla::paint::FillRule;
-use vectorcraft_geom::Affine;
+use pluma_geom::Affine;
 
 pub(crate) fn xf(a: Affine) -> Transform {
     let c = a.as_coeffs();

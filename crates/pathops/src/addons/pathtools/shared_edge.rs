@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveArclen, ParamCurveNearest, Point};
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, SubPath};
+use pluma_geom::{Anchor, AnchorKind, PathData, SubPath};
 
 use super::crossings::control_box;
 use super::extend::finite;

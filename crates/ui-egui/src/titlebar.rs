@@ -1,5 +1,5 @@
 //! The window's own title bar on Windows and Linux, where the window has no OS decorations
-//! ([`VectorcraftApp::custom_titlebar`]): empty space in the app bar drags the window and a
+//! ([`PlumaApp::custom_titlebar`]): empty space in the app bar drags the window and a
 //! double-click there maximizes it, caption buttons at the far right minimize, maximize/restore and
 //! close, and thin invisible zones along the window's edges resize it. On macOS the app bar sits
 //! under the system's transparent title bar and only its [`drag_area`] is used.
@@ -7,13 +7,24 @@
 use egui::{CursorIcon, Id, LayerId, Order, PointerButton, Rect, ResizeDirection, Sense, Stroke, Ui, ViewportCommand, pos2, vec2};
 use serde_json::json;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 
 /// One caption button: as wide as the native Windows ones.
 pub const BUTTON_WIDTH: f32 = 46.0;
 /// The three caption buttons together.
 pub const WIDTH: f32 = 3.0 * BUTTON_WIDTH;
+/// Nodalia's round window controls: 28 pt circles, 4 pt apart, 8 pt from the window's edge.
+const NDL_SIZE: f32 = 28.0;
+const NDL_GAP: f32 = 4.0;
+const NDL_EDGE: f32 = 8.0;
+/// The three Nodalia window controls together, with their gap to the window's edge.
+pub const NDL_WIDTH: f32 = 3.0 * NDL_SIZE + 2.0 * NDL_GAP + NDL_EDGE;
+
+/// The width the caption buttons take at the bar's right end with tokens `t`.
+pub fn width(t: &Tokens) -> f32 {
+    if t.nodalia { NDL_WIDTH } else { WIDTH }
+}
 /// Resize zone thickness along an edge, and the side of a corner zone.
 const EDGE: f32 = 5.0;
 const CORNER: f32 = 12.0;
@@ -73,11 +84,33 @@ fn handed_to_os(ctx: &egui::Context) {
 /// Minimize, Maximize/Restore and Close at the right end of `bar` (the app bar's outer rect), full
 /// bar height down to its bottom border, flush with the window's edge so a maximized window's
 /// corner hits Close. Close runs `app.quit`, which asks about unsaved documents first.
-pub fn caption_buttons(app: &mut VectorcraftApp, ui: &mut Ui, bar: Rect) {
+pub fn caption_buttons(app: &mut PlumaApp, ui: &mut Ui, bar: Rect) {
     let t = Tokens::get(ui.ctx());
     let max = maximized(ui.ctx());
     let mut clicked = None;
     for (i, c) in CAPTIONS.into_iter().enumerate() {
+        if t.nodalia {
+            // Round controls, each hit area the bar's full height and half the gap either side;
+            // Close's runs to the window's edge so a maximized window's corner hits it.
+            let centre_x = bar.right() - NDL_EDGE - NDL_SIZE / 2.0 - (2 - i) as f32 * (NDL_SIZE + NDL_GAP);
+            let right = if c == Caption::Close { bar.right() } else { centre_x + (NDL_SIZE + NDL_GAP) / 2.0 };
+            let r = Rect::from_min_max(pos2(centre_x - (NDL_SIZE + NDL_GAP) / 2.0, bar.top()), pos2(right, bar.bottom()));
+            let resp = ui.interact(r, caption_id(c), Sense::click());
+            let pressed = resp.is_pointer_button_down_on() && resp.hovered();
+            paint_nodalia(ui, &t, c, max, pos2(centre_x, bar.center().y), (resp.hovered(), pressed), 1.0);
+            let tip = match c {
+                Caption::Minimize => tl!("Minimize"),
+                Caption::Maximize if max => tl!("Restore"),
+                Caption::Maximize => tl!("Maximize"),
+                Caption::Close => tl!("Close"),
+            };
+            // Nodalia's controls say what they do by their glyphs: no tooltip repeats it.
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tip));
+            if resp.clicked() {
+                clicked = Some(c);
+            }
+            continue;
+        }
         let r = Rect::from_min_size(pos2(bar.right() - WIDTH + i as f32 * BUTTON_WIDTH, bar.top()), vec2(BUTTON_WIDTH, bar.height() - 1.0));
         let resp = ui.interact(r, caption_id(c), Sense::click());
         let close = c == Caption::Close;
@@ -109,6 +142,65 @@ pub fn caption_buttons(app: &mut VectorcraftApp, ui: &mut Ui, bar: Rect) {
         }
         None => {}
     }
+}
+
+/// A Nodalia window control centred at `centre`, `k` times its 28 pt size: a disc that takes its
+/// colour under the pointer (minimize amber, maximize cyan, close coral) and a bold glyph on a
+/// 24 pt grid. Maximize is two corners on the diagonal, open outwards; restore turns them inwards.
+fn paint_nodalia(ui: &Ui, t: &Tokens, c: Caption, maximized: bool, centre: egui::Pos2, (hovered, pressed): (bool, bool), k: f32) {
+    let p = if t.dark { nodalia_theme::Mode::Dark } else { nodalia_theme::Mode::Light }.palette_with(crate::theme::PLUMA);
+    let c32 = crate::theme::ndl;
+    let ppp = ui.ctx().pixels_per_point();
+    let centre = pos2((centre.x * ppp).round() / ppp, (centre.y * ppp).round() / ppp);
+    let (mut fill, ink) = match (c, hovered || pressed) {
+        (Caption::Close, true) => (t.caption_close, t.caption_close_text),
+        (Caption::Maximize, true) => (c32(p.status_info_bg), c32(p.status_info_fg)),
+        (Caption::Minimize, true) => (c32(p.status_warning_bg), c32(p.status_warning_fg)),
+        _ => (t.button, t.text_dim),
+    };
+    if pressed {
+        fill = fill.gamma_multiply(0.82).to_opaque();
+    }
+    let painter = ui.painter();
+    painter.circle_filled(centre, NDL_SIZE / 2.0 * k, fill);
+    let at = |x: f32, y: f32| centre + vec2(x - 12.0, y - 12.0) * k;
+    let s = Stroke::new(2.0 * k, ink);
+    let path = |points: Vec<egui::Pos2>| {
+        for q in &points {
+            painter.circle_filled(*q, k, ink);
+        }
+        for w in points.windows(2) {
+            if let [a, b] = w {
+                painter.line_segment([*a, *b], s);
+            }
+        }
+    };
+    match c {
+        Caption::Minimize => path(vec![at(8.0, 12.0), at(16.0, 12.0)]),
+        Caption::Maximize if maximized => {
+            path(vec![at(14.0, 7.0), at(14.0, 10.0), at(17.0, 10.0)]);
+            path(vec![at(10.0, 17.0), at(10.0, 14.0), at(7.0, 14.0)]);
+        }
+        Caption::Maximize => {
+            path(vec![at(12.0, 7.0), at(17.0, 7.0), at(17.0, 12.0)]);
+            path(vec![at(12.0, 17.0), at(7.0, 17.0), at(7.0, 12.0)]);
+        }
+        Caption::Close => {
+            path(vec![at(8.0, 8.0), at(16.0, 16.0)]);
+            path(vec![at(16.0, 8.0), at(8.0, 16.0)]);
+        }
+    }
+}
+
+/// A dialog's close button in the Nodalia look: the window controls' disc and × scaled to `rect`.
+/// Says whether it was clicked.
+pub fn ndl_close_button(ui: &mut Ui, rect: Rect, id: Id) -> bool {
+    let t = Tokens::get(ui.ctx());
+    let resp = ui.interact(rect, id, Sense::click());
+    let pressed = resp.is_pointer_button_down_on() && resp.hovered();
+    paint_nodalia(ui, &t, Caption::Close, false, rect.center(), (resp.hovered(), pressed), rect.height() / NDL_SIZE);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Close")));
+    resp.clicked()
 }
 
 /// The 10 pt line glyphs of the caption buttons.
@@ -176,12 +268,12 @@ pub fn resize_zones(ui: &mut Ui) {
 mod tests {
     use super::*;
     use egui::{Event, Pos2, RawInput, ViewportId};
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     /// A headless window `width` pt wide showing the app bar (as the title bar) and the resize zones.
     struct Win {
         ctx: egui::Context,
-        app: VectorcraftApp,
+        app: PlumaApp,
         width: f32,
         time: f64,
         maximized: bool,
@@ -192,7 +284,7 @@ mod tests {
             let ctx = egui::Context::default();
             crate::theme::install_fonts(&ctx);
             crate::theme::apply(&ctx, Default::default());
-            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            let mut app = PlumaApp::new(Session::new(), Default::default());
             app.custom_titlebar = true;
             Self { ctx, app, width, time: 0.0, maximized: false }
         }
@@ -287,11 +379,10 @@ mod tests {
                     assert!(!a.shrink(0.5).intersects(b.shrink(0.5)), "{a:?} overlaps {b:?} at {width}");
                 }
             }
-            // Wide windows show the whole group; narrow ones drop Discord, then the search icon.
             let texts: Vec<String> = texts(&out).into_iter().map(|(t, _)| t).collect();
             let has = |s: &str| texts.iter().any(|t| t == s);
-            assert_eq!(has("Discord"), width > 1000.0, "{width}: {texts:?}");
-            // Search is an icon only (as in PhotoCraft): its label lives in the tooltip.
+            assert!(!has("Discord"), "{width}: {texts:?}");
+            // Search is an icon only (as in Lienzo): its label lives in the tooltip.
             assert!(!has("Search commands and tools"), "{width}: {texts:?}");
         }
     }

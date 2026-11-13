@@ -1,7 +1,7 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
-use vectorcraft_geom::{Anchor, ParamCurve};
+use pluma_doc::Selection;
+use pluma_geom::{Anchor, ParamCurve};
 
 /// The Anchor Point tool has its own caret cursor, not the Pen's start-a-path one, and over a
 /// segment the Reshape Segment cursor, kept while the segment is dragged.
@@ -24,24 +24,20 @@ fn anchor_point_tool_shows_its_caret_and_reshape_over_segments() {
 
 /// Selected three-anchor blend spine; the end anchors stay pinned to the
 /// centres of the two key objects.
-fn blend_spine_doc(smooth: bool) -> (vectorcraft_doc::Document, NodeId, Selection) {
+fn blend_spine_doc(smooth: bool) -> (pluma_doc::Document, NodeId, Selection) {
     let (mut d, _) = doc_with_rect();
     let layer = d.layers[0].id;
     let (id, first, last) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     let key = |id, x| {
-        let path = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art()))
+        let path = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+        std::sync::Arc::new(pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art()))
     };
-    let mut path = vectorcraft_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
+    let mut path = pluma_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
     if smooth {
         path.anchors[1] = Anchor::smooth(Point::new(160.0, 310.0), Point::new(190.0, 330.0));
     }
-    let spec =
-        vectorcraft_doc::live::BlendSpec { spine: Some(vectorcraft_geom::PathData::single(path)), key_anchors: vec![0, 2], ..Default::default() };
-    let blend = vectorcraft_doc::Node::new(
-        id,
-        vectorcraft_doc::NodeKind::Blend { children: vec![key(first, 100.0), key(last, 200.0)], spec: Box::new(spec) },
-    );
+    let spec = pluma_doc::live::BlendSpec { spine: Some(pluma_geom::PathData::single(path)), key_anchors: vec![0, 2], ..Default::default() };
+    let blend = pluma_doc::Node::new(id, pluma_doc::NodeKind::Blend { children: vec![key(first, 100.0), key(last, 200.0)], spec: Box::new(spec) });
     d.insert(Some(layer), 1, blend).unwrap();
     let mut selected = Selection::default();
     selected.set([id]);
@@ -52,8 +48,8 @@ fn blend_spine_doc(smooth: bool) -> (vectorcraft_doc::Document, NodeId, Selectio
 /// of selection insertion order; cursor and emitted command must agree.
 #[test]
 fn overlapping_path_and_blend_follow_selection_then_stacking() {
-    use vectorcraft_doc::{Appearance, Node};
-    use vectorcraft_geom::{PathData, SubPath};
+    use pluma_doc::{Appearance, Node};
+    use pluma_geom::{PathData, SubPath};
     for path_on_top in [false, true] {
         for path_selected in [false, true] {
             for blend_first in [false, true] {
@@ -73,9 +69,9 @@ fn overlapping_path_and_blend_follow_selection_then_stacking() {
                     let (mut d, mut sel) = (d.clone(), sel.clone());
                     let path = d.alloc_id();
                     let points = if path_is_segment {
-                        vec![at - vectorcraft_geom::Vec2::new(0.0, 30.0), at + vectorcraft_geom::Vec2::new(0.0, 30.0)]
+                        vec![at - pluma_geom::Vec2::new(0.0, 30.0), at + pluma_geom::Vec2::new(0.0, 30.0)]
                     } else {
-                        vec![at, at + vectorcraft_geom::Vec2::new(0.0, 60.0)]
+                        vec![at, at + pluma_geom::Vec2::new(0.0, 60.0)]
                     };
                     let node = Node::path(path, PathData::single(SubPath::polyline(&points, false)), Appearance::default_art());
                     d.insert(Some(d.layers[0].id), if path_on_top { 2 } else { 1 }, node).unwrap();
@@ -175,17 +171,13 @@ fn anchor_point_prefers_a_blend_spine_anchor_over_its_short_handle() {
     let layer = d.layers[0].id;
     let (id, first, last) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     let key = |id, x| {
-        let path = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art()))
+        let path = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+        std::sync::Arc::new(pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art()))
     };
-    let mut path = vectorcraft_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
+    let mut path = pluma_geom::SubPath::polyline(&[Point::new(110.0, 310.0), Point::new(160.0, 310.0), Point::new(210.0, 310.0)], false);
     path.anchors[1] = Anchor::smooth(Point::new(160.0, 310.0), Point::new(162.0, 310.0));
-    let spec =
-        vectorcraft_doc::live::BlendSpec { spine: Some(vectorcraft_geom::PathData::single(path)), key_anchors: vec![0, 2], ..Default::default() };
-    let blend = vectorcraft_doc::Node::new(
-        id,
-        vectorcraft_doc::NodeKind::Blend { children: vec![key(first, 100.0), key(last, 200.0)], spec: Box::new(spec) },
-    );
+    let spec = pluma_doc::live::BlendSpec { spine: Some(pluma_geom::PathData::single(path)), key_anchors: vec![0, 2], ..Default::default() };
+    let blend = pluma_doc::Node::new(id, pluma_doc::NodeKind::Blend { children: vec![key(first, 100.0), key(last, 200.0)], spec: Box::new(spec) });
     d.insert(Some(layer), 1, blend).unwrap();
     let mut selected = Selection::default();
     selected.set([id]);
@@ -409,10 +401,10 @@ fn anchor_point_picks_within_the_tolerance_and_drags_shown_handles() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
-    sp.anchors[1] = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 300.0));
-    let path = vectorcraft_geom::PathData::single(sp);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
+    sp.anchors[1] = pluma_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 300.0));
+    let path = pluma_geom::PathData::single(sp);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -443,10 +435,10 @@ fn anchor_point_click_on_a_handle_retracts_only_that_handle() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
-    sp.anchors[1] = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
-    let path = vectorcraft_geom::PathData::single(sp);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
+    sp.anchors[1] = pluma_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
+    let path = pluma_geom::PathData::single(sp);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -465,7 +457,7 @@ fn anchor_point_click_on_a_handle_retracts_only_that_handle() {
     assert!(t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 160.5, 280.5)).is_empty());
     assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 160.5, 280.5)), retract("in"));
     // The command leaves the other handle where it was.
-    let mut a = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
+    let mut a = pluma_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
     a.set_handle(true, a.p, true);
     assert!(!a.has_out());
     assert_eq!(a.h_in, Point::new(160.0, 280.0));
@@ -479,10 +471,10 @@ fn anchor_point_shift_drag_moves_the_anchor() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
-    sp.anchors[1] = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
-    let path = vectorcraft_geom::PathData::single(sp);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
+    sp.anchors[1] = pluma_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
+    let path = pluma_geom::PathData::single(sp);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let s = Selection::default();
     let p = paint();
     let cx = cx(&d, &s, &p);
@@ -516,9 +508,8 @@ fn anchor_point_space_mid_drag_moves_the_anchor() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, vectorcraft_geom::PathData::single(sp), vectorcraft_doc::Appearance::default_art()))
-        .unwrap();
+    let sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, pluma_geom::PathData::single(sp), pluma_doc::Appearance::default_art())).unwrap();
     let s = Selection::default();
     let p = paint();
     let cx = cx(&d, &s, &p);
@@ -545,10 +536,10 @@ fn escape_cancels_an_anchor_point_drag() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
-    sp.anchors[1] = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
-    let path = vectorcraft_geom::PathData::single(sp);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(300.0, 300.0)], false);
+    sp.anchors[1] = pluma_geom::Anchor::smooth(Point::new(200.0, 300.0), Point::new(240.0, 320.0));
+    let path = pluma_geom::PathData::single(sp);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -594,9 +585,8 @@ fn anchor_point_shift_drag_honors_measurement_labels() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, vectorcraft_geom::PathData::single(sp), vectorcraft_doc::Appearance::default_art()))
-        .unwrap();
+    let sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, pluma_geom::PathData::single(sp), pluma_doc::Appearance::default_art())).unwrap();
     let s = Selection::default();
     let p = paint();
     let base = cx(&d, &s, &p);

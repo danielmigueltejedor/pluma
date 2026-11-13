@@ -1,7 +1,7 @@
 //! Scale Strokes & Effects on effects: the catalogue's distance parameters and `scale_effect`.
 
+use pluma_doc::Effect;
 use serde_json::json;
-use vectorcraft_doc::Effect;
 
 use crate::*;
 

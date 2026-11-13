@@ -1,14 +1,14 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::{ID, STATE, check, fix, show};
 use crate::panels::set_pstate;
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// An app with a rectangle and a stray point (a path of one anchor), nothing selected.
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap();
     app.run("path.create", json!({"anchors": [{"x": 80, "y": 80}]})).unwrap();
@@ -67,19 +67,19 @@ fn check_lists_what_it_found_and_fix_clears_it() {
 }
 
 /// An app with the point type `text`, selected.
-fn type_app(text: &str) -> (VectorcraftApp, u64) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn type_app(text: &str) -> (PlumaApp, u64) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 60, "text": text, "size": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     (app, id)
 }
 
-fn texts(app: &VectorcraftApp) -> Vec<String> {
+fn texts(app: &PlumaApp) -> Vec<String> {
     let mut out = vec![];
     for l in &app.session.doc().unwrap().doc.layers {
         l.walk(&mut |n| {
-            if let vectorcraft_doc::NodeKind::Text(t) = &n.kind {
+            if let pluma_doc::NodeKind::Text(t) = &n.kind {
                 out.push(t.plain_text());
             }
         });
@@ -123,7 +123,7 @@ fn the_plugins_submenu_runs_the_text_tools() {
 }
 
 /// One frame of the panel in `ctx` with `events` and `modifiers` held: the texts drawn and where.
-fn frame_with(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> Vec<(String, egui::Rect)> {
+fn frame_with(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> Vec<(String, egui::Rect)> {
     fn collect(s: &egui::Shape, out: &mut Vec<(String, egui::Rect)>) {
         match s {
             egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect())),
@@ -140,12 +140,12 @@ fn frame_with(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::E
     v
 }
 
-fn panel_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
+fn panel_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
     frame_with(app, ctx, events, egui::Modifiers::NONE)
 }
 
 /// Click the text `label` the panel draws, with `modifiers` held.
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str, modifiers: egui::Modifiers) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, label: &str, modifiers: egui::Modifiers) {
     let shown = panel_frame(app, ctx, vec![]);
     let at = shown.iter().find(|(s, _)| s == label).unwrap_or_else(|| panic!("no {label:?} in {shown:?}")).1.center();
     let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers };

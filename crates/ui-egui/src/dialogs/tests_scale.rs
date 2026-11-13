@@ -1,14 +1,14 @@
 //! The shared dialog frame at every UI scale (Preferences → User Interface → UI Scaling zooms the
 //! whole interface, so a window holds fewer points).
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::*;
 use crate::theme;
 
 /// The save prompt's rect after a few frames in a window of `physical` pixels at UI scale `zoom`.
-fn prompt(app: &mut VectorcraftApp, ctx: &egui::Context, physical: egui::Vec2, zoom: f32) -> (egui::Rect, egui::Rect) {
+fn prompt(app: &mut PlumaApp, ctx: &egui::Context, physical: egui::Vec2, zoom: f32) -> (egui::Rect, egui::Rect) {
     ctx.set_zoom_factor(zoom);
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, physical / zoom);
     for _ in 0..10 {
@@ -21,7 +21,7 @@ fn prompt(app: &mut VectorcraftApp, ctx: &egui::Context, physical: egui::Vec2, z
 
 #[test]
 fn the_save_prompt_fits_its_content_and_the_window_at_every_ui_scale() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);

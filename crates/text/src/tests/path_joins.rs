@@ -4,8 +4,8 @@
 //! that need an Arabic font say so and stop without one.
 use crate::*;
 use kurbo::{Affine, BezPath, Point, Shape};
+use pluma_doc::{CharStyle, TextKind};
 use std::sync::Arc;
-use vectorcraft_doc::{CharStyle, TextKind};
 
 fn arabic_face() -> Option<Arc<FontFace>> {
     let db = FontDb::global();
@@ -16,8 +16,8 @@ fn arabic_face() -> Option<Arc<FontFace>> {
 }
 
 /// A circle of radius `r` round the origin, one closed path.
-fn circle(r: f64) -> vectorcraft_geom::PathData {
-    vectorcraft_geom::PathData::from_bezpath(&kurbo::Circle::new((0.0, 0.0), r).to_path(1e-3))
+fn circle(r: f64) -> pluma_geom::PathData {
+    pluma_geom::PathData::from_bezpath(&kurbo::Circle::new((0.0, 0.0), r).to_path(1e-3))
 }
 
 /// Type `s` in `style` on a circle of radius `r`, the whole loop for it.
@@ -106,13 +106,13 @@ fn chord_placement_leaves_the_join_gap_above_the_baseline() {
 
 /// A circle of radius `r` run the other way (clockwise): type on it stands on the inside, its
 /// tops towards the centre, as Flip puts it.
-fn circle_reversed(r: f64) -> vectorcraft_geom::PathData {
+fn circle_reversed(r: f64) -> pluma_geom::PathData {
     let mut bp = kurbo::Circle::new((0.0, 0.0), r).to_path(1e-3);
     bp = bp.reverse_subpaths();
-    vectorcraft_geom::PathData::from_bezpath(&bp)
+    pluma_geom::PathData::from_bezpath(&bp)
 }
 
-fn on(path: vectorcraft_geom::PathData, s: &str, style: CharStyle) -> TextLayout {
+fn on(path: pluma_geom::PathData, s: &str, style: CharStyle) -> TextLayout {
     let mut t = TextObject::point(Point::ZERO, s, style);
     t.kind = TextKind::OnPath { path, start: 0.25, end: None };
     layout(FontDb::global(), &t)
@@ -120,8 +120,8 @@ fn on(path: vectorcraft_geom::PathData, s: &str, style: CharStyle) -> TextLayout
 
 /// The largest gap between neighbouring bent glyphs of a word at the baseline and `h` above it,
 /// where their bends put their edges; and how many glyphs were bent.
-fn bent_gaps(l: &TextLayout, text: &str, path: &vectorcraft_geom::PathData, h: f64) -> (f64, f64, usize) {
-    let ap = vectorcraft_geom::ArcPath::new(path);
+fn bent_gaps(l: &TextLayout, text: &str, path: &pluma_geom::PathData, h: f64) -> (f64, f64, usize) {
+    let ap = pluma_geom::ArcPath::new(path);
     let at = |b: &GlyphBend, x: f64, y: f64| {
         let (p, d) = ap.at(b.s + x * b.step / b.advance);
         p + kurbo::Vec2::new(-d.y, d.x) * (y + b.rise)
@@ -195,7 +195,7 @@ fn joined_type_on_a_straight_path_is_unchanged() {
     line.move_to((0.0, 0.0));
     line.line_to((400.0, 0.0));
     let style = CharStyle { font_family: face.family.clone(), font_style: face.style.clone(), size: 29.0, ..CharStyle::default() };
-    let l = on(vectorcraft_geom::PathData::from_bezpath(&line), "سلسلة متصلة", style);
+    let l = on(pluma_geom::PathData::from_bezpath(&line), "سلسلة متصلة", style);
     for g in &l.glyphs {
         assert!(g.bend.is_none());
         let face = db.face_by_id(g.font_id).unwrap();

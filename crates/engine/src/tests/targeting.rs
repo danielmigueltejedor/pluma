@@ -1,9 +1,9 @@
 //! Targeting through the Layers panel's target circles (`layer.target`) and moving or copying
 //! appearances between objects (`appearance.transfer`).
 
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::Node;
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::Node;
 
 use crate::*;
 

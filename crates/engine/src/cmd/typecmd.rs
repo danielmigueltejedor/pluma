@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
+use pluma_doc::{AreaFit, Document, Justify, Node, NodeId, NodeKind, RubyAlign, RubyPosition, RubySpan, TextObject};
+use pluma_geom::{Affine, PathData, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::{AreaFit, Document, Justify, Node, NodeId, NodeKind, RubyAlign, RubyPosition, RubySpan, TextObject};
-use vectorcraft_geom::{Affine, PathData, Vec2};
 
 use super::edit::selected_roots;
 use super::pathops::{len_param, num_param, shape_node};
@@ -277,7 +277,7 @@ fn ruby(s: &mut Session, p: &Value) -> Result<Value> {
             };
             let (a, b) = match range {
                 Some(r) => r.bytes(t),
-                None => (0, vectorcraft_text::edit::runs_len(&t.runs)),
+                None => (0, pluma_text::edit::runs_len(&t.runs)),
             };
             // The ruby over the range goes; a new reading takes its place.
             t.ruby.retain(|r| r.end <= a || r.start >= b);
@@ -304,37 +304,37 @@ fn ruby(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Recompute the layout caches (bounds and baselines) after a text edit. Every engine text edit ends here (typing
 /// through `text.editRange` too), inside its `Session::edit`, so this is where Auto Size area type
-/// ([`vectorcraft_doc::AreaFit::AutoHeight`]) fits its frame to the text: part of the same undo
+/// ([`pluma_doc::AreaFit::AutoHeight`]) fits its frame to the text: part of the same undo
 /// step as the edit.
 pub(crate) fn refresh_bounds(t: &mut TextObject) {
     // Edits that changed the paragraph count keep one paragraph style per paragraph.
     t.normalize_paras();
     auto_height(t);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     t.cached_bounds = Some(lay.bounds);
     t.cached_baselines = lay.baselines();
-    t.cached_ink = Some((lay.bounds, vectorcraft_render::effects::preview::laid_out_ink(&lay, t)));
+    t.cached_ink = Some((lay.bounds, pluma_render::effects::preview::laid_out_ink(&lay, t)));
 }
 
 /// [`refresh_bounds`] for a document that is opening: the first frame takes the layout
-/// ([`vectorcraft_text::take_kept_layout`]) instead of laying the object out again.
+/// ([`pluma_text::take_kept_layout`]) instead of laying the object out again.
 pub(crate) fn refresh_bounds_for_first_frame(t: &mut TextObject) {
     t.normalize_paras();
     auto_height(t);
-    let stamp = vectorcraft_text::LayoutStamp::now();
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let stamp = pluma_text::LayoutStamp::now();
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     t.cached_bounds = Some(lay.bounds);
     t.cached_baselines = lay.baselines();
-    t.cached_ink = Some((lay.bounds, vectorcraft_render::effects::preview::laid_out_ink(&lay, t)));
-    vectorcraft_text::keep_layout(t, stamp, lay);
+    t.cached_ink = Some((lay.bounds, pluma_render::effects::preview::laid_out_ink(&lay, t)));
+    pluma_text::keep_layout(t, stamp, lay);
 }
 
 /// The text-space bounds of area type's frame, when Auto Size can fit it: a rectangle (one
 /// subpath, as large as its bounds) of horizontal type in one row, with some height.
-fn auto_height_frame(t: &TextObject) -> Option<vectorcraft_geom::Rect> {
-    use vectorcraft_geom::Shape;
-    let vectorcraft_doc::TextKind::Area { frame } = &t.kind else { return None };
-    if t.area.fit != vectorcraft_doc::AreaFit::AutoHeight || t.vertical || t.area.rows > 1 || frame.subpaths.len() != 1 {
+fn auto_height_frame(t: &TextObject) -> Option<pluma_geom::Rect> {
+    use pluma_geom::Shape;
+    let pluma_doc::TextKind::Area { frame } = &t.kind else { return None };
+    if t.area.fit != pluma_doc::AreaFit::AutoHeight || t.vertical || t.area.rows > 1 || frame.subpaths.len() != 1 {
         return None;
     }
     let b = frame.bounds()?;
@@ -356,9 +356,9 @@ thread_local! {
 /// the inset), so the frame's height follows the text. Text in several columns gets the least
 /// height (to 0.01 pt) at which it fits. True when the frame changed.
 fn auto_height(t: &mut TextObject) -> bool {
-    use vectorcraft_geom::Shape;
+    use pluma_geom::Shape;
     let Some(b) = auto_height_frame(t) else { return false };
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Lay out in a frame as tall as the canvas allows: everything the width lets through flows.
     let tall = (crate::MAX_COORD - b.y0).min(1.0e5);
     if tall <= 1.0 {
@@ -366,8 +366,8 @@ fn auto_height(t: &mut TextObject) -> bool {
     }
     let mut probe = t.clone();
     let with_size = |probe: &mut TextObject, w: f64, h: f64| {
-        if let vectorcraft_doc::TextKind::Area { frame } = &mut probe.kind {
-            *frame = PathData::from_bezpath(&vectorcraft_geom::Rect::new(b.x0, b.y0, b.x0 + w, b.y0 + h).to_path(0.1));
+        if let pluma_doc::TextKind::Area { frame } = &mut probe.kind {
+            *frame = PathData::from_bezpath(&pluma_geom::Rect::new(b.x0, b.y0, b.x0 + w, b.y0 + h).to_path(0.1));
         }
     };
     // Columns: all the text in one column as wide as each of them is surely tall enough.
@@ -376,8 +376,8 @@ fn auto_height(t: &mut TextObject) -> bool {
     with_size(&mut probe, col_w, tall);
     probe.area.columns = 1;
     // Measured from the top: aligned in the tall probe the lines would sit far below.
-    probe.area.vertical_align = vectorcraft_doc::VerticalAlign::Top;
-    let lay = vectorcraft_text::layout(db, &probe);
+    probe.area.vertical_align = pluma_doc::VerticalAlign::Top;
+    let lay = pluma_text::layout(db, &probe);
     let inset = t.area.inset.max(0.0);
     let Some(bottom) = lay.lines.iter().map(|l| l.baseline + l.descent).filter(|y| y.is_finite()).reduce(f64::max) else { return false };
     // The layout's fit test is `baseline + descent <= bottom + 0.01`: the last line fits exactly.
@@ -389,7 +389,7 @@ fn auto_height(t: &mut TextObject) -> bool {
             #[cfg(test)]
             COLUMN_LAYOUTS.with(|c| c.set(c.get() + 1));
             with_size(probe, b.width(), h);
-            !vectorcraft_text::layout(db, probe).overflow
+            !pluma_text::layout(db, probe).overflow
         };
         // The bisection runs on the one column's lines as `columns_hold` places them in the columns.
         // The columns are then laid out at the upper height it ends on and, when they hold the text
@@ -416,7 +416,7 @@ fn auto_height(t: &mut TextObject) -> bool {
     }
     // Scale the frame about its top edge, keeping its anchors (and their order) as they are.
     let a = Affine::translate((0.0, b.y0)) * Affine::scale_non_uniform(1.0, h / b.height()) * Affine::translate((0.0, -b.y0));
-    let vectorcraft_doc::TextKind::Area { frame } = &mut t.kind else { return false };
+    let pluma_doc::TextKind::Area { frame } = &mut t.kind else { return false };
     let mut next = frame.clone();
     next.transform(a);
     if next.bounds().is_none_or(|nb| ![nb.x0, nb.y0, nb.x1, nb.y1].iter().all(|v| v.is_finite() && v.abs() <= crate::MAX_COORD)) {
@@ -443,10 +443,10 @@ fn least_height(mut lo: f64, mut hi: f64, mut fits: impl FnMut(f64) -> bool) -> 
 /// `lines`, the text's lines laid out in one column as wide as each of them from the same top?
 /// Each column takes the next lines while they end within its bottom, as layout tests them
 /// (`baseline + descent <= bottom + 0.01`). A column's first line sits its
-/// [`first_baseline`](vectorcraft_text::LineInfo::first_baseline) below `y0 + inset`, and the
+/// [`first_baseline`](pluma_text::LineInfo::first_baseline) below `y0 + inset`, and the
 /// lines after it keep their distances from it. A last line with no characters (after a return
 /// that ends the text) may be left out, as layout leaves it out without overflowing.
-fn columns_hold(lines: &[vectorcraft_text::LineInfo], cols: usize, y0: f64, inset: f64, h: f64) -> bool {
+fn columns_hold(lines: &[pluma_text::LineInfo], cols: usize, y0: f64, inset: f64, h: f64) -> bool {
     let Some(first) = lines.first() else { return true };
     let bottom = y0 + h - inset + 0.01;
     let mut next = 0;
@@ -478,8 +478,8 @@ pub(crate) fn refresh_bounds_of(d: &mut Document, ids: &[NodeId]) {
 /// pushed text out of its frame says so itself.
 pub(crate) fn with_overflow(s: &Session, ids: &[NodeId], mut result: Value) -> Value {
     let Ok(st) = s.doc() else { return result };
-    let db = vectorcraft_text::FontDb::global();
-    let fits = |t: &TextObject| matches!(t.kind, vectorcraft_doc::TextKind::Point) || !vectorcraft_text::layout(db, t).overflow;
+    let db = pluma_text::FontDb::global();
+    let fits = |t: &TextObject| matches!(t.kind, pluma_doc::TextKind::Point) || !pluma_text::layout(db, t).overflow;
     let over = |id: &&NodeId| matches!(st.doc.node(**id).map(|n| &n.kind), Some(NodeKind::Text(t)) if !fits(t));
     let over: Vec<u64> = ids.iter().filter(over).map(|i| i.0).collect();
     if !over.is_empty() {
@@ -603,7 +603,7 @@ fn create_outlines(s: &mut Session, _: &Value) -> Result<Value> {
         for tid in texts {
             let Some(n) = d.node(tid).cloned() else { continue };
             let NodeKind::Text(t) = &n.kind else { continue };
-            let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+            let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
             let mut children = vec![];
             // Where each run's glyphs end among `children`: the canvas paints a run's ruby with the
             // run, before the runs after it, so its outlines go there too.
@@ -669,7 +669,7 @@ fn create_outlines(s: &mut Session, _: &Value) -> Result<Value> {
             placed.extend(ruby.map(|(_, r)| r));
             let mut children = placed;
             // Underline and strikethrough bars become paths of their run's paint too (#847).
-            for (run, bar) in vectorcraft_text::decorations(&lay, vectorcraft_text::FontDb::global(), t) {
+            for (run, bar) in pluma_text::decorations(&lay, pluma_text::FontDb::global(), t) {
                 let st = t.runs.get(run).map(|r| r.style.clone()).unwrap_or_else(|| t.first_style());
                 let mut node = shape_node(d, PathData::from_bezpath(&bar).transformed(t.xf), None);
                 node.appearance = st.appearance().into();
@@ -747,7 +747,7 @@ impl TextRange {
     }
     /// The byte range in `t`, clamped and ordered.
     pub(crate) fn bytes(&self, t: &TextObject) -> (usize, usize) {
-        let len = vectorcraft_text::edit::runs_len(&t.runs);
+        let len = pluma_text::edit::runs_len(&t.runs);
         let a = self.start.unwrap_or(0).min(len);
         let b = self.end.unwrap_or(len).min(len);
         (a.min(b), a.max(b))
@@ -765,13 +765,13 @@ pub(crate) fn para_span(range: Option<TextRange>, t: &TextObject) -> Option<std:
 }
 
 /// Apply `f` to the character styles of `range` of `t` (None: every run).
-pub(crate) fn style_chars(t: &mut TextObject, range: Option<TextRange>, mut f: impl FnMut(&mut vectorcraft_doc::CharStyle)) {
+pub(crate) fn style_chars(t: &mut TextObject, range: Option<TextRange>, mut f: impl FnMut(&mut pluma_doc::CharStyle)) {
     match range {
         None => t.runs.iter_mut().for_each(|r| f(&mut r.style)),
         Some(r) => {
             let (a, b) = r.bytes(t);
             if a < b {
-                vectorcraft_text::edit::style_range(&mut t.runs, a, b, f);
+                pluma_text::edit::style_range(&mut t.runs, a, b, f);
             }
         }
     }
@@ -785,8 +785,8 @@ fn set_text(s: &mut Session, p: &Value) -> Result<Value> {
             let Some(NodeKind::Text(t)) = d.node_mut(*id).map(|n| &mut n.kind) else { continue };
             let style = t.first_style();
             // Every paragraph of the new text takes the first paragraph's attributes.
-            t.splice_paras(0, vectorcraft_text::edit::runs_len(&t.runs), &text);
-            t.runs = vec![vectorcraft_doc::TextRun { text: text.clone(), style, inline: None }];
+            t.splice_paras(0, pluma_text::edit::runs_len(&t.runs), &text);
+            t.runs = vec![pluma_doc::TextRun { text: text.clone(), style, inline: None }];
             // The text is new: the ruby of the old one is gone.
             t.ruby.clear();
             refresh_bounds(t);
@@ -829,12 +829,12 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
         None => None,
     };
     super::paint::check_keep_model(p, C)?;
-    let paint = |k: &str| -> Result<Option<vectorcraft_color::Paint>> {
+    let paint = |k: &str| -> Result<Option<pluma_color::Paint>> {
         Ok(match p.get(k) {
             None | Some(Value::Null) => None,
-            Some(Value::String(n)) if n.eq_ignore_ascii_case("none") => Some(vectorcraft_color::Paint::None),
+            Some(Value::String(n)) if n.eq_ignore_ascii_case("none") => Some(pluma_color::Paint::None),
             Some(v) => {
-                Some(vectorcraft_color::Paint::solid(super::paint::new_color(s, p, color_value(v).ok_or_else(|| bad(C, format!("bad {k} colour")))?)))
+                Some(pluma_color::Paint::solid(super::paint::new_color(s, p, color_value(v).ok_or_else(|| bad(C, format!("bad {k} colour")))?)))
             }
         })
     };
@@ -871,7 +871,7 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
             let size = size.map(|v| local_type_value(t, v, (0.1, 1296.0), false, C)).transpose()?;
             let leading = leading.map(|v| v.map(|v| local_type_value(t, v, (0.1, 5000.0), false, C)).transpose()).transpose()?;
             // The stroke weight is in document points, as stroke.set gives it; the character stroke is drawn in text space.
-            let k = vectorcraft_doc::Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0);
+            let k = pluma_doc::Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0);
             let before = protect.then(|| t.runs.clone());
             style_chars(t, range, |st| {
                 if let Some(f) = &font {
@@ -924,7 +924,7 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
                 // command's.
                 let styled = match range {
                     None if kept.is_empty() => t.runs.clone(),
-                    None => super::textedit::unprotected_runs(&t.runs, 0, vectorcraft_text::edit::runs_len(&t.runs), &kept),
+                    None => super::textedit::unprotected_runs(&t.runs, 0, pluma_text::edit::runs_len(&t.runs), &kept),
                     Some(r) => {
                         let (a, b) = r.bytes(t);
                         super::textedit::unprotected_runs(&t.runs, a, b, &kept)
@@ -999,9 +999,7 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
 pub(crate) fn reshape_area_with(t: &mut TextObject, f: impl FnOnce(&mut TextObject) -> bool) -> bool {
     let before = t.kind.clone();
     let within = |t: &TextObject| match &t.kind {
-        vectorcraft_doc::TextKind::Area { frame } => {
-            frame.bounds().is_some_and(|b| [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.abs() <= crate::MAX_COORD))
-        }
+        pluma_doc::TextKind::Area { frame } => frame.bounds().is_some_and(|b| [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.abs() <= crate::MAX_COORD)),
         _ => false,
     };
     let height = |t: &TextObject| auto_height_frame(t).map(|b| b.height());
@@ -1014,7 +1012,7 @@ pub(crate) fn reshape_area_with(t: &mut TextObject, f: impl FnOnce(&mut TextObje
     if let (Some(a), Some(b)) = (was, height(t))
         && (a - b).abs() > 1e-6
     {
-        t.area.fit = vectorcraft_doc::AreaFit::None;
+        t.area.fit = pluma_doc::AreaFit::None;
     }
     refresh_bounds(t);
     true
@@ -1023,15 +1021,15 @@ pub(crate) fn reshape_area_with(t: &mut TextObject, f: impl FnOnce(&mut TextObje
 /// Area type's text, if `n` is area type.
 fn area_text(n: Option<&Node>) -> Option<&TextObject> {
     match n.map(|n| &n.kind) {
-        Some(NodeKind::Text(t)) if matches!(t.kind, vectorcraft_doc::TextKind::Area { .. }) => Some(t),
+        Some(NodeKind::Text(t)) if matches!(t.kind, pluma_doc::TextKind::Area { .. }) => Some(t),
         _ => None,
     }
 }
 
 /// The width and height of area type's frame in points, along the type's own axes, and the frame's
 /// bounds in text space.
-fn area_size(t: &TextObject) -> Option<(f64, f64, vectorcraft_geom::Rect)> {
-    let vectorcraft_doc::TextKind::Area { frame } = &t.kind else { return None };
+fn area_size(t: &TextObject) -> Option<(f64, f64, pluma_geom::Rect)> {
+    let pluma_doc::TextKind::Area { frame } = &t.kind else { return None };
     let b = frame.bounds()?;
     let [a, bb, c, d, _, _] = t.xf.as_coeffs();
     Some((b.width() * a.hypot(bb), b.height() * c.hypot(d), b))
@@ -1088,7 +1086,7 @@ pub(crate) fn fit_param(p: &Value, cur: AreaFit, c: &str) -> Result<Option<AreaF
 /// `overflow`s its frame at `fitScale` (Shrink Text to Fit's factor; 1 unshrunk).
 pub(crate) fn area_options_json(t: &TextObject) -> Result<Value> {
     let mut v = serde_json::to_value(&t.area).map_err(|e| EngineError::Other(e.to_string()))?;
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     if let Some(o) = v.as_object_mut() {
         o.insert("fit".into(), json!(t.area.fit.id()));
         o.insert("flow".into(), json!(t.area.flow));
@@ -1109,7 +1107,7 @@ pub(crate) fn area_options_json(t: &TextObject) -> Result<Value> {
     Ok(v)
 }
 
-/// The [`vectorcraft_doc::AreaOptions`] keys `text.areaOptions` merges as they are.
+/// The [`pluma_doc::AreaOptions`] keys `text.areaOptions` merges as they are.
 const AREA_KEYS: [&str; 9] = ["rows", "columns", "gutter", "rowGutter", "inset", "firstBaseline", "firstBaselineMin", "verticalAlign", "flow"];
 
 fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
@@ -1137,16 +1135,16 @@ fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Each area type takes the options given over its own (#3759): setting one option on several
     // frames leaves their other options as they were.
-    let merged = |own: &vectorcraft_doc::AreaOptions| -> Result<vectorcraft_doc::AreaOptions> {
+    let merged = |own: &pluma_doc::AreaOptions| -> Result<pluma_doc::AreaOptions> {
         let mut v = serde_json::to_value(own).map_err(|e| EngineError::Other(e.to_string()))?;
         if let Some(o) = v.as_object_mut() {
             for (k, val) in &given {
                 o.insert((*k).clone(), (*val).clone());
             }
         }
-        let mut opts: vectorcraft_doc::AreaOptions = serde_json::from_value(v).map_err(|e| bad(C, e.to_string()))?;
-        opts.rows = opts.rows.clamp(1, vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS);
-        opts.columns = opts.columns.clamp(1, vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS);
+        let mut opts: pluma_doc::AreaOptions = serde_json::from_value(v).map_err(|e| bad(C, e.to_string()))?;
+        opts.rows = opts.rows.clamp(1, pluma_doc::AreaOptions::MAX_ROWS_COLUMNS);
+        opts.columns = opts.columns.clamp(1, pluma_doc::AreaOptions::MAX_ROWS_COLUMNS);
         let finite = |x: f64| if x.is_finite() { x } else { 0.0 };
         opts.gutter = finite(opts.gutter).clamp(0.0, 10_000.0);
         // A gutter given alone is the rows' and the columns'.
@@ -1161,12 +1159,12 @@ fn area_options(s: &mut Session, p: &Value) -> Result<Value> {
         Ok(opts)
     };
     let d = &s.doc()?.doc;
-    let planned: Vec<(NodeId, vectorcraft_doc::AreaOptions)> = ids
+    let planned: Vec<(NodeId, pluma_doc::AreaOptions)> = ids
         .iter()
         .filter_map(|id| area_text(d.node(*id)).map(|t| (*id, &t.area)))
         .map(|(id, own)| merged(own).map(|o| (id, o)))
         .collect::<Result<_>>()?;
-    let apply = |t: &mut TextObject, opts: &vectorcraft_doc::AreaOptions| {
+    let apply = |t: &mut TextObject, opts: &pluma_doc::AreaOptions| {
         t.area = opts.clone();
         // Auto Size sets the height (Illustrator's dialog turns the Height field off).
         let h = if opts.fit == AreaFit::AutoHeight { None } else { h };
@@ -1257,7 +1255,7 @@ fn reshape_path(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let d = Vec2::new(f64_req(p, "dx", C)?, f64_req(p, "dy", C)?);
     let node = s.doc()?.doc.node(id);
-    let on_path = matches!(node.map(|n| &n.kind), Some(NodeKind::Text(t)) if matches!(t.kind, vectorcraft_doc::TextKind::OnPath { .. }));
+    let on_path = matches!(node.map(|n| &n.kind), Some(NodeKind::Text(t)) if matches!(t.kind, pluma_doc::TextKind::OnPath { .. }));
     if !on_path || node.is_some_and(|n| n.extras().perspective.is_some()) {
         return Err(bad(C, "not type on a path outside perspective"));
     }
@@ -1283,10 +1281,10 @@ fn set_path_handle(s: &mut Session, p: &Value) -> Result<Value> {
     let si = super::draw2::usize_opt(p, "subpath", C)?.unwrap_or(0);
     let ai = p.get("anchor").and_then(Value::as_u64).map(index).ok_or_else(|| bad(C, "missing anchor"))?;
     let out = str_param(p, "which") != Some("in");
-    let pos = vectorcraft_geom::Point::new(f64_req(p, "x", C)?, f64_req(p, "y", C)?);
+    let pos = pluma_geom::Point::new(f64_req(p, "x", C)?, f64_req(p, "y", C)?);
     let independent = switch_or(p, "independent", false, C)?;
     let node = s.doc()?.doc.node(id);
-    let on_path = matches!(node.map(|n| &n.kind), Some(NodeKind::Text(t)) if matches!(t.kind, vectorcraft_doc::TextKind::OnPath { .. }));
+    let on_path = matches!(node.map(|n| &n.kind), Some(NodeKind::Text(t)) if matches!(t.kind, pluma_doc::TextKind::OnPath { .. }));
     if !on_path || node.is_some_and(|n| n.extras().perspective.is_some()) {
         return Err(bad(C, "not type on a path outside perspective"));
     }
@@ -1314,8 +1312,8 @@ mod area_tests;
 fn headline_fit(t: &TextObject, tracking: f64) -> Option<(f64, f64, usize)> {
     let mut probe = t.clone();
     let para_end = probe.plain_text().find('\n').unwrap_or(usize::MAX);
-    vectorcraft_text::edit::style_range(&mut probe.runs, 0, para_end.min(vectorcraft_text::edit::runs_len(&t.runs)), |st| st.tracking = tracking);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &probe);
+    pluma_text::edit::style_range(&mut probe.runs, 0, para_end.min(pluma_text::edit::runs_len(&t.runs)), |st| st.tracking = tracking);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &probe);
     let cell = lay.frames.first()?;
     let line = lay.lines.first()?;
     let para = t.para_at(0);
@@ -1330,7 +1328,7 @@ fn fit_headline(s: &mut Session, p: &Value) -> Result<Value> {
     let mut plans = vec![];
     for id in &ids {
         let Some(NodeKind::Text(t)) = d.node(*id).map(|n| &n.kind) else { continue };
-        if !matches!(t.kind, vectorcraft_doc::TextKind::Area { .. }) {
+        if !matches!(t.kind, pluma_doc::TextKind::Area { .. }) {
             continue;
         }
         // Largest tracking that keeps the first paragraph on one line (bisection). The layout
@@ -1352,8 +1350,8 @@ fn fit_headline(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Fit Headline", |d, _| {
         for (id, tr) in &plans {
             if let Some(NodeKind::Text(t)) = d.node_mut(*id).map(|n| &mut n.kind) {
-                let end = t.plain_text().find('\n').unwrap_or(usize::MAX).min(vectorcraft_text::edit::runs_len(&t.runs));
-                vectorcraft_text::edit::style_range(&mut t.runs, 0, end, |st| st.tracking = *tr);
+                let end = t.plain_text().find('\n').unwrap_or(usize::MAX).min(pluma_text::edit::runs_len(&t.runs));
+                pluma_text::edit::style_range(&mut t.runs, 0, end, |st| st.tracking = *tr);
                 refresh_bounds(t);
             }
         }
@@ -1484,8 +1482,8 @@ mod ruby_tests {
         let (mut s, id) = session_with_text();
         s.execute("type.ruby", &json!({"text": "かんじ", "start": 0, "end": 6})).unwrap();
         let t = text_of(&s, id).clone();
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-        let inked = |gs: &[vectorcraft_text::PositionedGlyph]| -> Vec<kurbo::Rect> {
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+        let inked = |gs: &[pluma_text::PositionedGlyph]| -> Vec<kurbo::Rect> {
             gs.iter().filter(|g| !g.outline.elements().is_empty()).map(|g| t.xf.transform_rect_bbox(g.outline.bounding_box())).collect()
         };
         let (base, ruby) = (inked(&lay.glyphs), inked(&lay.ruby));
@@ -1517,8 +1515,8 @@ mod ruby_tests {
         let t = text_of(&s, id).clone();
         assert_eq!(t.runs.len(), 2, "{:?}", t.runs);
         let (red, blue) = (t.runs[0].style.fill.clone(), t.runs[1].style.fill.clone());
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-        let ink = |gs: &mut dyn Iterator<Item = &vectorcraft_text::PositionedGlyph>| {
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+        let ink = |gs: &mut dyn Iterator<Item = &pluma_text::PositionedGlyph>| {
             gs.filter(|g| !g.outline.elements().is_empty()).map(|g| g.outline.bounding_box()).reduce(|a, b| a.union(b)).unwrap()
         };
         let (reading, big) = (ink(&mut lay.ruby.iter()), ink(&mut lay.glyphs.iter().filter(|g| g.run == 1)));
@@ -1549,7 +1547,7 @@ mod ruby_tests {
         let (mut s, _) = session_with_text();
         let export = |s: &mut Session, format: &str| -> Vec<u8> {
             let r = s.execute("document.export", &json!({"format": format})).unwrap();
-            vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
+            pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
         };
         s.execute("type.ruby", &json!({"text": "かんじ", "start": 0, "end": 6})).unwrap();
         let svg_ruby = String::from_utf8(export(&mut s, "svg")).unwrap();
@@ -1569,8 +1567,8 @@ mod ruby_tests {
         let (mut s, id) = session_with_text();
         s.execute("type.ruby", &json!({"text": "かんじ", "start": 0, "end": 6, "position": "below", "size": 40})).unwrap();
         let doc = s.doc().unwrap().doc.clone();
-        let bytes = vectorcraft_format::save(&doc, false);
-        let back = vectorcraft_format::load(&bytes).unwrap();
+        let bytes = pluma_format::save(&doc, false);
+        let back = pluma_format::load(&bytes).unwrap();
         let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
         assert_eq!(t.ruby.len(), 1);
         assert_eq!((t.ruby[0].start, t.ruby[0].end), (0, 6));
@@ -1578,7 +1576,7 @@ mod ruby_tests {
         assert_eq!(t.ruby[0].position, RubyPosition::Below);
         assert!((t.ruby[0].size_percent - 40.0).abs() < 1e-9);
         // The loaded type lays the reading out too.
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         assert!(!lay.ruby.is_empty());
     }
 }

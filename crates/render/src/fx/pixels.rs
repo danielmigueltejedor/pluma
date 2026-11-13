@@ -122,7 +122,7 @@ impl Renderer {
         let channels = match f.ink.base() {
             Ink::Cmy => effects::pixel::Channels::CmyPlane,
             Ink::K => effects::pixel::Channels::KPlane,
-            Ink::Display | Ink::RichBlack if f.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk => effects::pixel::Channels::Cmyk,
+            Ink::Display | Ink::RichBlack if f.doc.color_mode == pluma_doc::ColorMode::Cmyk => effects::pixel::Channels::Cmyk,
             _ => effects::pixel::Channels::Rgb,
         };
         // What the content reads (as the raster kept for it found it, else found now), with the
@@ -292,7 +292,7 @@ impl Renderer {
             None => (image, x0, y0, k),
         };
         // A cancelled export drew part of the content: that raster isn't kept for later frames.
-        if !vectorcraft_doc::cancel::is_cancelled()
+        if !pluma_doc::cancel::is_cancelled()
             && let Some(((key, made), inputs)) = key.zip(made).zip(inputs)
         {
             let anchor = content.reach.origin();
@@ -457,7 +457,7 @@ impl Renderer {
                 f.doc.setup.highlight_substituted_glyphs,
                 o.highlight_alternate_glyphs,
             ));
-            (vectorcraft_text::FontDb::global().generation(), crate::proof::overprints(f.opts), highlights).hash(&mut h);
+            (pluma_text::FontDb::global().generation(), crate::proof::overprints(f.opts), highlights).hash(&mut h);
         }
         if reads.plugins || (doc.plugins && (reads.symbols || reads.patterns)) {
             (effects::plugin_revision(), doc.names, doc.patterns).hash(&mut h);
@@ -474,7 +474,7 @@ impl Renderer {
         {
             return d.clone();
         }
-        let cms = vectorcraft_color::cms::active();
+        let cms = pluma_color::cms::active();
         let hash = |each: &mut dyn FnMut(&mut DefaultHasher)| {
             let mut h = DefaultHasher::new();
             each(&mut h);
@@ -592,8 +592,8 @@ impl Renderer {
         f: &Frame,
         reach: Rect,
         blur: f64,
-        composite: Option<(vectorcraft_doc::color::BlendMode, f32)>,
-        draw: impl FnOnce(&mut Self, &mut RenderContext, &Frame, Option<(vectorcraft_doc::color::BlendMode, f32)>),
+        composite: Option<(pluma_doc::color::BlendMode, f32)>,
+        draw: impl FnOnce(&mut Self, &mut RenderContext, &Frame, Option<(pluma_doc::color::BlendMode, f32)>),
     ) {
         // A filter layer's coarser grid starts where its context does: at the corner of a context
         // drawn single-threaded, and at the frame's edge for a region cropped to the frame.
@@ -623,7 +623,7 @@ impl Renderer {
         off.flush();
         let mut pm = vello_cpu::Pixmap::new(w, h);
         off.render(&mut pm, &mut self.resources);
-        let layered = composite.is_some_and(|(m, o)| m != vectorcraft_doc::color::BlendMode::Normal || o < 1.0);
+        let layered = composite.is_some_and(|(m, o)| m != pluma_doc::color::BlendMode::Normal || o < 1.0);
         if let Some((m, o)) = composite.filter(|_| layered) {
             ctx.set_transform(Affine::IDENTITY);
             ctx.push_layer(None, Some(blend_mode(m)), Some(o), None, None);
@@ -670,8 +670,8 @@ impl Renderer {
             };
             let ig = &*ig;
             // The item with its gradient moved along with its own effects.
-            let carried = (!carry.is_empty() && matches!(item.paint(), vectorcraft_color::Paint::Gradient(_))).then(|| {
-                let mut ap = vectorcraft_doc::Appearance { items: vec![item.clone()], ..Default::default() };
+            let carried = (!carry.is_empty() && matches!(item.paint(), pluma_color::Paint::Gradient(_))).then(|| {
+                let mut ap = pluma_doc::Appearance { items: vec![item.clone()], ..Default::default() };
                 carry.apply(&mut ap);
                 ap.items.pop()
             });
@@ -715,7 +715,7 @@ impl Renderer {
     fn paint_item(&mut self, ctx: &mut RenderContext, f: &Frame, n: &Node, item: &AppearanceItem, ig: &BezPath, rule: FillRule, ib: Rect) {
         match item {
             AppearanceItem::Fill(fl) => {
-                let layered = fl.opacity < 1.0 || fl.blend != vectorcraft_doc::color::BlendMode::Normal;
+                let layered = fl.opacity < 1.0 || fl.blend != pluma_doc::color::BlendMode::Normal;
                 if layered {
                     ctx.set_transform(Affine::IDENTITY);
                     ctx.push_layer(None, Some(blend_mode(fl.blend)), Some(fl.opacity), None, None);

@@ -3,7 +3,7 @@
 
 use harfrust::{Feature, ShapeOptions, Tag, UnicodeBuffer};
 use kurbo::Point;
-use vectorcraft_doc::{CharStyle, TextObject, TextRun};
+use pluma_doc::{CharStyle, TextObject, TextRun};
 
 use crate::test_fonts::{VARIABLE_FAMILY, variable_font};
 use crate::*;

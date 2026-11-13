@@ -5,8 +5,8 @@
 //! deletes them without refitting. `[` and `]` make the brush smaller and larger. With Pressure on,
 //! a pen's pressure scales the brush.
 
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_geom::Point;
 
 use crate::{Action, Cursor, MAX_STROKE_SAMPLES, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, previews_at};
 
@@ -158,7 +158,7 @@ impl Tool for AnchorEraserTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     fn ev(kind: PointerKind, x: f64, y: f64) -> PointerEvent {
         PointerEvent::new(kind, x, y)

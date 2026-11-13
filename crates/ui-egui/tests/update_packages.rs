@@ -4,7 +4,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use vectorcraft_ui_egui::UPDATE_APP;
+use pluma_ui_egui::UPDATE_APP;
 
 fn packaging(path: &str) -> String {
     let file = format!("{}/../../packaging/{path}", env!("CARGO_MANIFEST_DIR"));
@@ -14,26 +14,26 @@ fn packaging(path: &str) -> String {
 #[test]
 fn the_release_scripts_make_the_packages_the_updater_installs() {
     let macos = packaging("macos/package.sh");
-    assert!(macos.contains(r#"APP="$WORK/VectorCraft.app""#), "the bundle the updater swaps");
-    assert!(macos.contains(r#"DMG="$DIST/vectorcraft-$VERSION-macos-$ARCH.dmg""#));
+    assert!(macos.contains(r#"APP="$WORK/Pluma.app""#), "the bundle the updater swaps");
+    assert!(macos.contains(r#"DMG="$DIST/pluma-$VERSION-macos-$ARCH.dmg""#));
     assert!(macos.contains("ARCH=universal"));
     let linux = packaging("linux/package.sh");
-    assert!(linux.contains(r#"BASENAME="vectorcraft-$VERSION-linux-$ARCH""#));
+    assert!(linux.contains(r#"BASENAME="pluma-$VERSION-linux-$ARCH""#));
     assert!(linux.contains("$BASENAME.AppImage"));
-    assert!(packaging("windows/package.ps1").contains(r#""vectorcraft-$Version-windows-$Arch.msi""#));
-    assert!(packaging("windows/vectorcraft.wxs").contains(r#"Key="Software\VectorCraft" Name="InstallDir" Value="[INSTALLFOLDER]""#));
-    assert_eq!(UPDATE_APP.bundle, "VectorCraft.app");
+    assert!(packaging("windows/package.ps1").contains(r#""pluma-$Version-windows-$Arch.msi""#));
+    assert!(packaging("windows/pluma.wxs").contains(r#"Key="Software\Pluma" Name="InstallDir" Value="[INSTALLFOLDER]""#));
+    assert_eq!(UPDATE_APP.bundle, "Pluma.app");
     assert_eq!(UPDATE_APP.repo, "getnodalia/pluma");
 }
 
 #[test]
 fn every_published_package_reaches_the_systems_it_is_for() {
     for (package, systems) in [
-        ("vectorcraft-1.0.0-macos-universal.dmg", &[("macos", "aarch64"), ("macos", "x86_64")][..]),
-        ("vectorcraft-1.0.0-linux-x86_64.AppImage", &[("linux", "x86_64")]),
-        ("vectorcraft-1.0.0-linux-aarch64.AppImage", &[("linux", "aarch64")]),
-        ("vectorcraft-1.0.0-windows-x64.msi", &[("windows", "x86_64")]),
-        ("vectorcraft-1.0.0-windows-arm64.msi", &[("windows", "aarch64")]),
+        ("pluma-1.0.0-macos-universal.dmg", &[("macos", "aarch64"), ("macos", "x86_64")][..]),
+        ("pluma-1.0.0-linux-x86_64.AppImage", &[("linux", "x86_64")]),
+        ("pluma-1.0.0-linux-aarch64.AppImage", &[("linux", "aarch64")]),
+        ("pluma-1.0.0-windows-x64.msi", &[("windows", "x86_64")]),
+        ("pluma-1.0.0-windows-arm64.msi", &[("windows", "aarch64")]),
     ] {
         let found = nodalia_update::systems_for_package(package);
         for system in systems {

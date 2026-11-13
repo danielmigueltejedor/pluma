@@ -1,9 +1,9 @@
 //! `paint.setFill` / `paint.setStroke` `span: "selection"`: one gradient placed on the union of
 //! the targets' bounds, so the ramp runs across them (#2127).
 
+use pluma_color::{GradientPaint, Paint};
+use pluma_geom::{Affine, Point};
 use serde_json::{Value, json};
-use vectorcraft_color::{GradientPaint, Paint};
-use vectorcraft_geom::{Affine, Point};
 
 use crate::*;
 
@@ -43,7 +43,7 @@ fn black_to_white() -> Value {
 /// The red channel of the rendered document at (x, y).
 fn red_at(s: &Session, x: u32, y: u32) -> u8 {
     let doc = s.doc().unwrap().doc.clone();
-    let img = vectorcraft_render::Renderer::new().render(&doc, 400, 200, Affine::IDENTITY, &Default::default());
+    let img = pluma_render::Renderer::new().render(&doc, 400, 200, Affine::IDENTITY, &Default::default());
     img.pixel(x, y)[0]
 }
 

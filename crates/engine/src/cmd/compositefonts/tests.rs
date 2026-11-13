@@ -1,5 +1,5 @@
+use pluma_doc::{NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
 
 use crate::Session;
 
@@ -27,7 +27,7 @@ fn steps(s: &Session) -> usize {
     s.doc().unwrap().history.undo.len()
 }
 
-fn text(s: &Session, id: u64) -> vectorcraft_doc::TextObject {
+fn text(s: &Session, id: u64) -> pluma_doc::TextObject {
     match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => (**t).clone(),
         _ => panic!("not text"),
@@ -36,7 +36,7 @@ fn text(s: &Session, id: u64) -> vectorcraft_doc::TextObject {
 
 /// A scratch folder of the test's own.
 fn folder(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-composite-fonts-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-composite-fonts-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -60,7 +60,7 @@ fn composite_fonts_are_set_as_one_undo_step_and_saved() {
     let listed = s.execute("type.compositeFonts.list", &json!({})).unwrap();
     assert_eq!(listed["fonts"].as_array().map(Vec::len), Some(2));
     // They travel with the file.
-    let back = vectorcraft_format::load(&vectorcraft_format::save_file(&s.doc().unwrap().doc)).unwrap();
+    let back = pluma_format::load(&pluma_format::save_file(&s.doc().unwrap().doc)).unwrap();
     assert_eq!(*back.composite_fonts, *s.doc().unwrap().doc.composite_fonts);
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(names(&s).is_empty());
@@ -126,9 +126,9 @@ fn type_set_in_a_composite_font_follows_it() {
     assert!(r.get("warning").is_none(), "{r}");
     let t = text(&s, id);
     assert_eq!(t.runs[0].style.font_family, "CF Type");
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let face = |family: &str| db.face(family, "Regular").unwrap().id();
-    let lay = vectorcraft_text::layout(db, &t);
+    let lay = pluma_text::layout(db, &t);
     let fonts: Vec<u32> = lay.glyphs.iter().map(|g| g.font_id).collect();
     assert_eq!(fonts, [face("JetBrains Mono"), face("JetBrains Mono"), face("Inter"), face("Inter")]);
     let missing = |s: &mut Session| s.execute("text.fonts", &json!({})).unwrap().as_array().unwrap().iter().filter(|f| f["missing"] == true).count();
@@ -158,7 +158,7 @@ fn type_set_in_a_composite_font_follows_it() {
 #[test]
 fn type_in_symbol_art_follows_its_composite_font() {
     fn width(s: &Session) -> f64 {
-        fn find(n: &vectorcraft_doc::Node) -> Option<f64> {
+        fn find(n: &pluma_doc::Node) -> Option<f64> {
             if let NodeKind::Text(t) = &n.kind {
                 return t.cached_bounds.map(|b| b.width());
             }
@@ -181,7 +181,7 @@ fn type_in_symbol_art_follows_its_composite_font() {
 /// that added it is undone, and after its document closes.
 #[test]
 fn composite_fonts_no_document_defines_are_forgotten() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut s = session();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Forgotten Undo")]})).unwrap();
     assert!(db.composite_font("CF Forgotten Undo").is_some());
@@ -204,9 +204,9 @@ fn exports_outline_type_in_a_composite_font() {
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Export")]})).unwrap();
     s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab1", "size": 20, "font": "CF Export"})).unwrap();
     let svg = s.execute("document.export", &json!({"format": "svg"})).unwrap();
-    let svg = String::from_utf8(vectorcraft_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+    let svg = String::from_utf8(pluma_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
     assert!(!svg.contains("CF Export") && !svg.contains("<text") && svg.contains("<path"), "{svg}");
-    let ai = vectorcraft_eps::export_legacy_ai(&s.doc().unwrap().doc, &vectorcraft_eps::LegacyAiOptions::default()).unwrap();
+    let ai = pluma_eps::export_legacy_ai(&s.doc().unwrap().doc, &pluma_eps::LegacyAiOptions::default()).unwrap();
     assert!(!String::from_utf8_lossy(&ai.bytes).contains("CF Export"));
 }
 
@@ -225,18 +225,18 @@ fn exports_draw_composite_fonts_of_a_document_without_a_session() {
     let doc = (*s.doc().unwrap().doc).clone();
     // The font database forgets the font; the copy of the document still defines it.
     s.execute("type.compositeFonts.set", &json!({"fonts": []})).unwrap();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     assert!(db.composite_font("CF Standalone").is_none());
     let paths = |svg: &str| svg.split(" d=\"").skip(1).filter_map(|p| p.split('"').next().map(str::to_string)).collect::<Vec<_>>();
-    let svg = vectorcraft_svg::export(&doc, &vectorcraft_svg::ExportOptions::default());
+    let svg = pluma_svg::export(&doc, &pluma_svg::ExportOptions::default());
     assert!(!svg.contains("CF Standalone") && !svg.contains("<text"), "{svg}");
     s.execute("text.setStyle", &json!({"ids": [id], "font": "JetBrains Mono"})).unwrap();
-    let plain = vectorcraft_svg::export(&s.doc().unwrap().doc, &vectorcraft_svg::ExportOptions { outline_text: true, ..Default::default() });
+    let plain = pluma_svg::export(&s.doc().unwrap().doc, &pluma_svg::ExportOptions { outline_text: true, ..Default::default() });
     assert!(!paths(&svg).is_empty());
     assert_eq!(paths(&svg), paths(&plain));
-    let pdf = vectorcraft_pdf::export(&doc, &vectorcraft_pdf::PdfOptions::uncompressed()).unwrap();
+    let pdf = pluma_pdf::export(&doc, &pluma_pdf::PdfOptions::uncompressed()).unwrap();
     assert!(String::from_utf8_lossy(&pdf).contains("JetBrainsMono"));
-    let ai = vectorcraft_eps::export_legacy_ai(&doc, &vectorcraft_eps::LegacyAiOptions::default()).unwrap();
+    let ai = pluma_eps::export_legacy_ai(&doc, &pluma_eps::LegacyAiOptions::default()).unwrap();
     assert!(!String::from_utf8_lossy(&ai.bytes).contains("CF Standalone"));
     // The fonts lent for the exports are forgotten again.
     assert!(db.composite_font("CF Standalone").is_none());
@@ -244,7 +244,7 @@ fn exports_draw_composite_fonts_of_a_document_without_a_session() {
     // definition draws its type, and the front document's is put back.
     let inter = json!({"name": "CF Standalone", "parts": {"kanji": {"font": "Inter"}}});
     s.execute("type.compositeFonts.set", &json!({"fonts": [inter]})).unwrap();
-    let svg = vectorcraft_svg::export(&doc, &vectorcraft_svg::ExportOptions::default());
+    let svg = pluma_svg::export(&doc, &pluma_svg::ExportOptions::default());
     assert_eq!(paths(&svg), paths(&plain));
     assert_eq!(db.composite_font("CF Standalone").unwrap().parts.kanji.font, "Inter");
 }
@@ -298,7 +298,7 @@ fn font_inventory_checks_the_part_of_each_character() {
     let fonts = s.execute("text.fonts", &json!({})).unwrap();
     let row = fonts.as_array().unwrap().iter().find(|r| r["family"] == "CF Inventory").cloned().unwrap();
     assert_eq!((&row["missing"], &row["status"]), (&json!(true), &json!("missing")), "{row}");
-    assert_eq!(row["resolved"]["family"], vectorcraft_text::FALLBACK_FAMILY, "{row}");
+    assert_eq!(row["resolved"]["family"], pluma_text::FALLBACK_FAMILY, "{row}");
     // A run that starts with a combining mark after a run ending in kana: the mark is Roman.
     let boundary = json!({"name": "CF Boundary", "parts": {"kanji": {"font": "Source Sans 3"}, "roman": {"font": "No Such Part Font"}}});
     s.execute("type.compositeFonts.set", &json!({"fonts": [boundary]})).unwrap();
@@ -312,7 +312,7 @@ fn font_inventory_checks_the_part_of_each_character() {
     assert_eq!(text(&s, id).runs.len(), 2);
     assert_eq!(row(&mut s).unwrap()["status"], "missing");
     // A symbol the Kanji part's font draws but the Symbols part's font lacks.
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let (mono, sans) = (db.face("JetBrains Mono", "Regular").unwrap(), db.face("Source Sans 3", "Regular").unwrap());
     let c = ('\u{2190}'..='\u{2BFF}').find(|c| mono.covers(*c) && !sans.covers(*c)).expect("a symbol only JetBrains Mono draws");
     let glyphs = json!({"name": "CF Glyphs", "parts": {"kanji": {"font": "JetBrains Mono"}, "symbols": {"font": "Source Sans 3"}}});
@@ -352,7 +352,7 @@ fn the_front_document_defines_a_shared_name() {
     let mut other = font("CF Front");
     other["parts"]["roman"]["size"] = json!(75);
     s.execute("type.compositeFonts.set", &json!({"fonts": [other]})).unwrap();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     assert_eq!(db.composite_font("CF Front").unwrap().parts.roman.size, 75.0);
     s.execute("document.activate", &json!({"index": 0})).unwrap();
     assert_eq!(db.composite_font("CF Front").unwrap().parts.roman.size, 50.0);
@@ -362,7 +362,7 @@ fn the_front_document_defines_a_shared_name() {
 /// type naming it shows as missing; a click on the back document's tab brings it back.
 #[test]
 fn a_font_only_a_back_document_defines_is_missing_in_front() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut s = session();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Back Only")]})).unwrap();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -391,7 +391,7 @@ fn opened_document_measures_missing_composite_font_as_missing() {
     assert!(s.set_active(0));
     assert!(s.set_active(1));
     let actual = text(&s, id);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
@@ -404,7 +404,7 @@ fn full_roman_file(name: &str) -> (Vec<u8>, u64, f64) {
     s.execute("type.compositeFonts.set", &json!({"fonts": [full]})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab12", "size": 20, "font": name})).unwrap()["id"].as_u64().unwrap();
     let width = text(&s, id).cached_bounds.unwrap().width();
-    (vectorcraft_format::save_file(&s.doc().unwrap().doc), id, width)
+    (pluma_format::save_file(&s.doc().unwrap().doc), id, width)
 }
 
 /// Type in a missing font that no composite font is named after keeps the bounds it was measured
@@ -416,7 +416,7 @@ fn opening_leaves_type_in_an_unrelated_missing_font_as_measured() {
     let id =
         s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab", "size": 20, "font": "No Such Family CF"})).unwrap()["id"].as_u64().unwrap();
     let mut doc = (*s.doc().unwrap().doc).clone();
-    let kept = vectorcraft_geom::Rect::new(1.0, 2.0, 3.0, 4.0);
+    let kept = pluma_geom::Rect::new(1.0, 2.0, 3.0, 4.0);
     if let NodeKind::Text(t) = &mut doc.node_mut(NodeId(id)).unwrap().kind {
         t.cached_bounds = Some(kept);
     }
@@ -437,10 +437,10 @@ fn opening_measures_inline_graphics_of_composite_type_in_its_own_definition() {
     let id = s.execute("text.create", &json!({"x": 10, "y": 150, "text": "x", "size": 20})).unwrap()["id"].as_u64().unwrap();
     s.execute("text.insertInline", &json!({"id": id, "at": 0, "symbol": "CF Inline Mark"})).unwrap();
     let width = text(&s, id).cached_bounds.unwrap().width();
-    let bytes = vectorcraft_format::save_file(&s.doc().unwrap().doc);
+    let bytes = pluma_format::save_file(&s.doc().unwrap().doc);
     let mut s = session();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Inline")]})).unwrap();
-    let file = crate::cmd::fileio::read_for_open("inline.vectorcraft", &bytes, None, &json!({}), false, false).unwrap();
+    let file = crate::cmd::fileio::read_for_open("inline.pluma", &bytes, None, &json!({}), false, false).unwrap();
     crate::cmd::fileio::open_read(&mut s, file).unwrap();
     assert!((text(&s, id).cached_bounds.unwrap().width() - width).abs() < 1e-6);
 }
@@ -451,14 +451,14 @@ fn opening_measures_inline_graphics_of_composite_type_in_its_own_definition() {
 fn opening_measures_type_read_in_a_composite_font_closed_since() {
     let mut s = session();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab12", "size": 20, "font": "CF Gone"})).unwrap()["id"].as_u64().unwrap();
-    let bytes = vectorcraft_format::save_file(&s.doc().unwrap().doc);
+    let bytes = pluma_format::save_file(&s.doc().unwrap().doc);
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Gone")]})).unwrap();
-    let file = crate::cmd::fileio::read_for_open("gone.vectorcraft", &bytes, None, &json!({}), false, false).unwrap();
+    let file = crate::cmd::fileio::read_for_open("gone.pluma", &bytes, None, &json!({}), false, false).unwrap();
     assert!(s.close_document(1));
     crate::cmd::fileio::open_read(&mut s, file).unwrap();
     let actual = text(&s, id);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
@@ -470,11 +470,11 @@ fn an_opened_file_measures_its_type_in_its_own_composite_fonts() {
     let (bytes, id, width) = full_roman_file("CF Opened");
     let mut s = session();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Opened")]})).unwrap();
-    let file = crate::cmd::fileio::read_for_open("opened.vectorcraft", &bytes, None, &json!({}), false, false).unwrap();
+    let file = crate::cmd::fileio::read_for_open("opened.pluma", &bytes, None, &json!({}), false, false).unwrap();
     crate::cmd::fileio::open_read(&mut s, file).unwrap();
     let actual = text(&s, id);
     assert!((actual.cached_bounds.unwrap().width() - width).abs() < 1e-6);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
@@ -487,11 +487,11 @@ fn a_document_replaced_in_the_back_is_measured_in_its_own_composite_fonts() {
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Replaced")]})).unwrap();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Replaced")]})).unwrap();
-    assert!(s.replace_document(0, vectorcraft_format::load(&bytes).unwrap()));
+    assert!(s.replace_document(0, pluma_format::load(&bytes).unwrap()));
     assert!(s.set_active(0));
     let actual = text(&s, id);
     assert!((actual.cached_bounds.unwrap().width() - width).abs() < 1e-6);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
@@ -502,18 +502,18 @@ fn a_document_replaced_in_the_back_is_measured_when_the_front_one_closes() {
     let mut s = session();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     s.execute("type.compositeFonts.set", &json!({"fonts": [font("CF Closed")]})).unwrap();
-    assert!(s.replace_document(0, vectorcraft_format::load(&bytes).unwrap()));
+    assert!(s.replace_document(0, pluma_format::load(&bytes).unwrap()));
     assert!(s.close_document(1));
     let actual = text(&s, id);
     assert!((actual.cached_bounds.unwrap().width() - width).abs() < 1e-6);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
 /// A failed batch takes back the composite fonts it set, in the font database too.
 #[test]
 fn a_failed_batch_takes_back_its_composite_fonts() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut s = session();
     let steps = json!([
         {"command": "type.compositeFonts.set", "params": {"fonts": [font("CF Failed Batch")]}},
@@ -528,7 +528,7 @@ fn a_failed_batch_takes_back_its_composite_fonts() {
 /// is not left in the font database.
 #[test]
 fn a_refused_edit_takes_back_its_new_composite_font() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut s = session();
     let x = crate::MAX_COORD - 1000.0;
     s.execute("text.create", &json!({"x": x, "y": 50, "text": "MMMMMMMM", "size": 100, "font": "CF Refused Edit"})).unwrap();
@@ -545,15 +545,15 @@ fn loaded_composite_font_cannot_take_an_installed_family_name() {
     let mut s = session();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "Ab", "size": 20, "font": "Inter"})).unwrap()["id"].as_u64().unwrap();
     let mut doc = (*s.doc().unwrap().doc).clone();
-    doc.composite_fonts.push(vectorcraft_doc::CompositeFont::new("Inter", "Source Sans 3", "Regular"));
+    doc.composite_fonts.push(pluma_doc::CompositeFont::new("Inter", "Source Sans 3", "Regular"));
     if let NodeKind::Text(t) = &mut doc.node_mut(NodeId(id)).unwrap().kind {
         t.cached_bounds = None;
     }
     s.add_document(doc, None);
     assert!(names(&s).is_empty());
-    assert!(vectorcraft_text::FontDb::global().composite_font("Inter").is_none());
+    assert!(pluma_text::FontDb::global().composite_font("Inter").is_none());
     let actual = text(&s, id);
-    let expected = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &actual).bounds;
+    let expected = pluma_text::layout(pluma_text::FontDb::global(), &actual).bounds;
     assert_eq!(actual.cached_bounds, Some(expected));
 }
 
@@ -561,13 +561,13 @@ fn loaded_composite_font_cannot_take_an_installed_family_name() {
 /// twice) are left out when the file opens.
 #[test]
 fn unusable_composite_fonts_in_a_file_are_left_out() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut s = session();
     let mut doc = (*s.doc().unwrap().doc).clone();
-    let mut wild = vectorcraft_doc::CompositeFont::new("CF Wild", "Source Sans 3", "Regular");
+    let mut wild = pluma_doc::CompositeFont::new("CF Wild", "Source Sans 3", "Regular");
     wild.parts.roman.size = 5000.0;
-    let good = vectorcraft_doc::CompositeFont::new("CF Kept", "Source Sans 3", "Regular");
-    let twice = vectorcraft_doc::CompositeFont::new("cf kept", "Inter", "Regular");
+    let good = pluma_doc::CompositeFont::new("CF Kept", "Source Sans 3", "Regular");
+    let twice = pluma_doc::CompositeFont::new("cf kept", "Inter", "Regular");
     *doc.composite_fonts = vec![wild, good, twice];
     s.add_document(doc, None);
     assert_eq!(names(&s), ["CF Kept"]);

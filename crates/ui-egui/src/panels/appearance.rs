@@ -19,15 +19,15 @@
 use std::sync::OnceLock;
 
 use egui::{Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::{AppearanceItem, Effect, Node, NodeId};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::{AppearanceItem, Effect, Node, NodeId};
 
 use super::{pstate, set_pstate};
 use crate::panels::stroke::paint_profile;
 use crate::theme::Tokens;
 use crate::widgets::{self, PanelDrag, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 const ROW: f32 = 30.0;
 pub(super) const EYE_W: f32 = 26.0;
@@ -74,7 +74,7 @@ impl Sel {
 
 /// The selected row of `node` (the first selected object): a selected effect row while that
 /// effect still exists and agrees with the engine's active item, else the active item's row.
-fn current_sel(app: &VectorcraftApp, ctx: &egui::Context, node: Option<&Node>) -> Sel {
+fn current_sel(app: &PlumaApp, ctx: &egui::Context, node: Option<&Node>) -> Sel {
     let Some(n) = node else { return Sel::None };
     let (owner, sel): (Option<NodeId>, Sel) = pstate(ctx, "ap-sel");
     let exists = |item: Option<usize>, k: usize| owner == Some(n.id) && n.appearance.effects_at(item).is_some_and(|fx| k < fx.len());
@@ -144,7 +144,7 @@ struct Highlight {
 
 /// Make `sel` the active row; its fill/stroke becomes the active item that paint and effect edits
 /// target. The highlighted rows stay as they are.
-fn set_active(app: &mut VectorcraftApp, ctx: &egui::Context, sel: Sel) {
+fn set_active(app: &mut PlumaApp, ctx: &egui::Context, sel: Sel) {
     if app.session.appearance_item() != sel.item() {
         app.run("appearance.setActiveItem", json!({ "index": sel.item() })).ok();
     }
@@ -154,7 +154,7 @@ fn set_active(app: &mut VectorcraftApp, ctx: &egui::Context, sel: Sel) {
 
 /// Select a row; its fill/stroke becomes the active item that paint and effect edits target.
 /// It is the only highlighted row and the anchor.
-pub(crate) fn select_row(app: &mut VectorcraftApp, ctx: &egui::Context, sel: Sel) {
+pub(crate) fn select_row(app: &mut PlumaApp, ctx: &egui::Context, sel: Sel) {
     set_active(app, ctx, sel);
     let owner = app.session.active().and_then(|d| d.selection.subjects().first().copied());
     let (rows, order) = sel.rows().map_or((Rows::Items, vec![]), |(r, k)| (r, vec![k]));
@@ -202,7 +202,7 @@ fn selected_effects(ctx: &egui::Context, n: Option<&Node>, sel: Sel) -> Option<(
 /// Ctrl/Cmd toggles the row, a plain click highlights only it. A row of another kind or list starts
 /// a new highlight. The clicked row becomes active, or the first highlighted one when its
 /// highlight went off.
-fn click_row(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, k: usize, m: egui::Modifiers) {
+fn click_row(app: &mut PlumaApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, k: usize, m: egui::Modifiers) {
     let h = highlight(ctx, n, sel);
     let (mut order, anchor) = if h.rows == rows { (h.order, h.anchor) } else { (vec![], None) };
     let click = widgets::row_click(&rows.order(n), &order, anchor, k, m);
@@ -216,13 +216,13 @@ fn click_row(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, 
 }
 
 /// An effect as the fx menu lists it: (id, label without the ellipsis, Effect-menu path).
-fn catalog_entry(e: vectorcraft_effects::EffectInfo) -> (String, String, Vec<String>) {
+fn catalog_entry(e: pluma_effects::EffectInfo) -> (String, String, Vec<String>) {
     (e.id.to_string(), e.label.trim_end_matches('…').to_string(), e.menu.iter().map(|s| s.to_string()).collect())
 }
 
 fn catalog() -> &'static [(String, String, Vec<String>)] {
     static C: OnceLock<Vec<(String, String, Vec<String>)>> = OnceLock::new();
-    C.get_or_init(|| vectorcraft_effects::effect_catalog().into_iter().map(catalog_entry).collect())
+    C.get_or_init(|| pluma_effects::effect_catalog().into_iter().map(catalog_entry).collect())
 }
 
 /// Display label of an effect id ("stylize.dropShadow" → "Drop Shadow"; plug-in effects by their
@@ -232,7 +232,7 @@ pub fn effect_label(id: &str) -> String {
         .iter()
         .find(|c| c.0 == id)
         .map(|c| c.1.clone())
-        .or_else(|| vectorcraft_effects::effect_info(id).map(|e| e.label.trim_end_matches('…').to_string()))
+        .or_else(|| pluma_effects::effect_info(id).map(|e| e.label.trim_end_matches('…').to_string()))
         .unwrap_or_else(|| id.rsplit('.').next().unwrap_or(id).to_string())
 }
 
@@ -255,15 +255,15 @@ pub(crate) fn shown_effect_label(id: &str) -> String {
 /// Safe Mode skips (the object keeps it and draws without it).
 pub fn effect_row_label(id: &str) -> String {
     let label = shown_effect_label(id);
-    if vectorcraft_plugins::effect::skipped(id) { format!("{label} ({})", tl!("Safe Mode")) } else { label }
+    if pluma_plugins::effect::skipped(id) { format!("{label} ({})", tl!("Safe Mode")) } else { label }
 }
 
 /// The tooltip of an effect row Safe Mode skips: why it draws nothing, and its plug-in's id;
 /// `None` for an effect that draws.
 pub fn skipped_effect_tip(id: &str) -> Option<String> {
-    let plugin = vectorcraft_plugins::effect::plugin_id(id).filter(|_| vectorcraft_plugins::effect::skipped(id))?;
-    let why = crate::i18n::msg(&vectorcraft_plugins::Error::SafeMode.to_string());
-    Some(format!("{why}\n{}", vectorcraft_plugins::safe_mode::display_name(plugin)))
+    let plugin = pluma_plugins::effect::plugin_id(id).filter(|_| pluma_plugins::effect::skipped(id))?;
+    let why = crate::i18n::msg(&pluma_plugins::Error::SafeMode.to_string());
+    Some(format!("{why}\n{}", pluma_plugins::safe_mode::display_name(plugin)))
 }
 
 /// "Opacity: Default" or "Opacity: 50% Multiply".
@@ -353,7 +353,7 @@ const POPUP_GAP: f32 = 6.0;
 /// Open panel `id` as a row's popup ([`row_popup`]) at the height of the click that opened it; its
 /// first text field takes the keyboard. A panel showing already (in the dock, a floating window or
 /// an icon column's flyout) opens no popup.
-pub(crate) fn open_popup(app: &mut VectorcraftApp, ctx: &egui::Context, id: &str) {
+pub(crate) fn open_popup(app: &mut PlumaApp, ctx: &egui::Context, id: &str) {
     if crate::panel_docking::showing(&app.ui, id) {
         app.ui.transient_panel = None;
         return;
@@ -369,9 +369,9 @@ pub(crate) fn open_popup(app: &mut VectorcraftApp, ctx: &egui::Context, id: &str
 /// right of it when there is no room), level with the row that opened it, so it shows which row it
 /// belongs to. A press outside it, Escape, the Appearance panel going out of sight, or the panel
 /// showing elsewhere puts it away.
-pub(crate) fn row_popup(app: &mut VectorcraftApp, ctx: &egui::Context, panel: Rect) {
+pub(crate) fn row_popup(app: &mut PlumaApp, ctx: &egui::Context, panel: Rect) {
     let Some(id) = app.ui.transient_panel.clone() else { return };
-    let close = |app: &mut VectorcraftApp| {
+    let close = |app: &mut PlumaApp| {
         app.ui.transient_panel = None;
         app.ui.transient_focus = false;
     };
@@ -429,7 +429,7 @@ fn edit_tip(resp: egui::Response, name: &egui::Response) -> egui::Response {
 }
 
 /// The Appearance panel: the object row, the stack of the selected object (or of new art with nothing selected) and the bottom bar; Delete/Backspace after a row click remove the highlighted rows.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let node = first_subject(app);
     let sel = current_sel(app, ui.ctx(), node.as_ref());
@@ -502,7 +502,7 @@ pub(crate) const ROW_KEYS: &str = "ap-keys";
 /// clicked last, not somewhere outside the panel, the panel was drawn in every frame since, and no
 /// text field has the focus (the Layers panel's rule). The app's shortcuts leave the keys to the
 /// panel meanwhile ([`super::rows_take_delete`]); otherwise they delete the selected art.
-fn delete_key(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn delete_key(app: &mut PlumaApp, ui: &mut Ui) {
     let panel = ui.min_rect();
     let ctx = ui.ctx().clone();
     let pressed_outside = ctx.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(|p| !panel.contains(p)));
@@ -531,7 +531,7 @@ fn thumbnail_drag(ui: &mut Ui, th: Rect, id: NodeId) {
 
 /// The object the panel lists: the targeted layer, group or object (`layer.target`), else the
 /// first selected one.
-fn first_subject(app: &VectorcraftApp) -> Option<Node> {
+fn first_subject(app: &PlumaApp) -> Option<Node> {
     let st = app.session.active()?;
     st.selection.subjects().first().and_then(|id| st.doc.node(*id)).cloned()
 }
@@ -539,7 +539,7 @@ fn first_subject(app: &VectorcraftApp) -> Option<Node> {
 /// The selection as the Control bar and the object row name it: "No Selection", the kind ("Path",
 /// "Type", "Layer"…) of the object, or targeted layer, the panel lists, or of every selected
 /// object when they are all of one kind, else "Mixed Objects".
-pub(crate) fn object_label(app: &VectorcraftApp) -> &'static str {
+pub(crate) fn object_label(app: &PlumaApp) -> &'static str {
     let Some(st) = app.session.active() else { return "No Selection" };
     let mut kinds = st.selection.subjects().iter().map(|id| st.doc.node(*id).map_or("No Selection", Node::kind_label));
     let Some(first) = kinds.next() else { return "No Selection" };
@@ -549,7 +549,7 @@ pub(crate) fn object_label(app: &VectorcraftApp) -> &'static str {
 /// The selected objects the panel lists (several, at least one differing from the first in
 /// appearance, opacity or blend mode): what their stacks share, and whether their opacity and blend
 /// mode differ. `None` for one object, or several alike.
-fn mixed(app: &VectorcraftApp) -> Option<Mixed> {
+fn mixed(app: &PlumaApp) -> Option<Mixed> {
     let st = app.session.active()?;
     let nodes: Vec<&Node> = st.selection.subjects().iter().filter_map(|id| st.doc.node(*id)).collect();
     let (first, rest) = nodes.split_first()?;
@@ -557,15 +557,15 @@ fn mixed(app: &VectorcraftApp) -> Option<Mixed> {
     if rest.is_empty() || (!transparency && rest.iter().all(|n| n.appearance == first.appearance)) {
         return None;
     }
-    let aps: Vec<&vectorcraft_doc::Appearance> = nodes.iter().map(|n| &*n.appearance).collect();
+    let aps: Vec<&pluma_doc::Appearance> = nodes.iter().map(|n| &*n.appearance).collect();
     let fills_differ = rest.iter().any(|n| n.appearance.fill_paint() != first.appearance.fill_paint());
-    Some(Mixed { shared: vectorcraft_doc::appearance::SharedStack::of(&aps), transparency, fills_differ })
+    Some(Mixed { shared: pluma_doc::appearance::SharedStack::of(&aps), transparency, fills_differ })
 }
 
 /// A mixed selection as the panel lists it ([`mixed`]).
 struct Mixed {
     /// The fills, strokes and effects the objects share: the rows listed.
-    shared: vectorcraft_doc::appearance::SharedStack,
+    shared: pluma_doc::appearance::SharedStack,
     /// The objects' opacity or blend mode differ: the Opacity row reads "Mixed".
     transparency: bool,
     /// Their topmost fills differ: the object row shows no fill chip.
@@ -575,7 +575,7 @@ struct Mixed {
 /// `params` of an item or effect command the panel runs, with `aligned` when the selected objects'
 /// stacks differ: its indices are then rows of the first object's stack, which each other object
 /// edits where it has them (the panel lists only the rows they share).
-fn aligned(app: &VectorcraftApp, mut params: Value) -> Value {
+fn aligned(app: &PlumaApp, mut params: Value) -> Value {
     let differ = app.session.active().is_some_and(|st| {
         let mut aps = st.selection.subjects().iter().filter_map(|id| st.doc.node(*id)).map(|n| &n.appearance);
         aps.next().is_some_and(|first| aps.any(|a| a != first))
@@ -590,7 +590,7 @@ fn aligned(app: &VectorcraftApp, mut params: Value) -> Value {
 /// strokes, effects and transparency as rows. "Stroke:" opens the Stroke panel, which sets up its
 /// stroke, and "Fill:" the Color panel on its fill; the swatches and the weight field work as an
 /// object's ([`swatch_button`], [`weight_field`]), on its top fill and stroke.
-fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn default_stack(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let ap = app.session.new_art();
     let (opacity, blend, _) = app.session.new_art_transparency();
@@ -661,7 +661,7 @@ enum Slot {
 /// The rows of object `n` (fills/strokes with their Opacity and effect rows, the Contents row, the object's effects and Opacity) with the click rules, row drags and drop markers; `sel` is the active row.
 /// `only`: a mixed selection (`n` its first object): only the rows its objects share are listed,
 /// and rows aren't dragged (where one would go in each of the different stacks isn't one place).
-fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: Rect, only: Option<&Mixed>) {
+fn stack(app: &mut PlumaApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: Rect, only: Option<&Mixed>) {
     let t = Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
     let dragging: Option<Dragged> = pstate::<Option<Dragged>>(&ctx, "ap-drag").filter(|_| only.is_none());
@@ -819,7 +819,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
 /// as one block ([`block_drop_command`]) and the moved rows (the copies) stay highlighted, the
 /// active row with its row.
 #[allow(clippy::too_many_arguments)]
-fn block_drop(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: &[(Slot, Rect)], what: Dragged, set: &[usize], p: egui::Pos2) {
+fn block_drop(app: &mut PlumaApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: &[(Slot, Rect)], what: Dragged, set: &[usize], p: egui::Pos2) {
     let copy = ctx.input(|i| i.modifiers.alt);
     let Some((cmd, params)) = block_drop_command(n, rows, what, set, p, copy) else { return };
     let Ok(r) = app.run(cmd, params.clone()) else { return };
@@ -842,7 +842,7 @@ fn block_drop(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel,
 /// The dimmed copy of the dragged rows under the pointer at `pos` ([`widgets::drag_ghost`]): the
 /// row [`widgets::ghost_row`] picks from the dragged rows `order` (highlight order; empty: only the
 /// grabbed one), with its label, colour swatch and stroke weight, or its effect's name.
-fn drag_ghost(app: &VectorcraftApp, ui: &Ui, n: &Node, what: Dragged, order: &[usize], pos: egui::Pos2, width: f32) {
+fn drag_ghost(app: &PlumaApp, ui: &Ui, n: &Node, what: Dragged, order: &[usize], pos: egui::Pos2, width: f32) {
     let (grab, w): (egui::Vec2, f32) = pstate(ui.ctx(), "ap-grab");
     let r = Rect::from_min_size(pos - grab, vec2(if w > 0.0 { w } else { width }, ROW));
     let shown = match what {
@@ -1030,10 +1030,10 @@ fn block_drop_command(n: &Node, rows: &[(Slot, Rect)], what: Dragged, set: &[usi
 /// (characters); double-clicking Contents targets the members, Characters opens the Color panel
 /// on the characters' paint (whose chips it shows), and its name the Character panel. Returns its
 /// rect and response (for dragging).
-fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, sel: Sel) -> (Rect, egui::Response) {
+fn contents_row(app: &mut PlumaApp, ui: &mut Ui, n: &Node, label: &str, sel: Sel) -> (Rect, egui::Response) {
     let (r, resp) = row(ui, sel == Sel::Contents);
     eye(ui, r, "ap-contents-eye", true, false);
-    let characters = matches!(n.kind, vectorcraft_doc::NodeKind::Text(_));
+    let characters = matches!(n.kind, pluma_doc::NodeKind::Text(_));
     let at = pos2(r.left() + EYE_W + 24.0, r.center().y);
     let name = if characters {
         let name = name_link(ui, at, "ap-characters-link", tl!(label));
@@ -1054,7 +1054,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
         }
     }
     // An image's row has no members to target.
-    let image = matches!(n.kind, vectorcraft_doc::NodeKind::Image(_));
+    let image = matches!(n.kind, pluma_doc::NodeKind::Image(_));
     let resp = if image || name.is_some_and(|n| n.hovered()) {
         resp
     } else {
@@ -1076,7 +1076,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
 }
 
 /// A stroke row's notes after the weight: its brush, "Dashed" and its width profile (drawn).
-fn stroke_notes(ui: &Ui, r: Rect, st: &vectorcraft_doc::StrokeLayer) {
+fn stroke_notes(ui: &Ui, r: Rect, st: &pluma_doc::StrokeLayer) {
     let t = Tokens::get(ui.ctx());
     let painter = ui.painter_at(r);
     let dashed = st.dash.as_ref().is_some_and(|d| d.is_dashed()).then_some(tl!("Dashed"));
@@ -1101,7 +1101,7 @@ fn stroke_notes(ui: &Ui, r: Rect, st: &vectorcraft_doc::StrokeLayer) {
 /// whose opacity and blend the panel edits). Returns the row's rect.
 ///
 /// `mixed`: the selected objects' opacity or blend mode differ: it reads "Mixed".
-fn opacity_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, opacity: f32, blend: BlendMode, sel: Sel, mixed: bool) -> Rect {
+fn opacity_row(app: &mut PlumaApp, ui: &mut Ui, item: Option<usize>, opacity: f32, blend: BlendMode, sel: Sel, mixed: bool) -> Rect {
     let this = item.map_or(Sel::Opacity, Sel::ItemOpacity);
     let (r, resp) = row(ui, sel == this);
     eye(ui, r, ("ap-op-eye", item), true, false);
@@ -1124,7 +1124,7 @@ fn opacity_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, opaci
 /// An effect row: of the object (`item: None`) or, indented under it, of fill/stroke `item`.
 /// Clicking the name opens the effect's dialog to edit it (the disclosure: an inline editor).
 /// Returns the row's rect and response (for dragging).
-fn effect_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: usize, e: &Effect, selected: bool) -> (Rect, egui::Response) {
+fn effect_row(app: &mut PlumaApp, ui: &mut Ui, item: Option<usize>, k: usize, e: &Effect, selected: bool) -> (Rect, egui::Response) {
     let t = Tokens::get(ui.ctx());
     let open_key = format!("ap-fx-open-{item:?}-{k}");
     let open: bool = pstate(ui.ctx(), &open_key);
@@ -1168,25 +1168,25 @@ fn effect_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: usi
 
 /// Does the effect have a dialog (any parameters)?
 fn has_options(id: &str) -> bool {
-    vectorcraft_effects::default_params(id).is_some_and(|d| d.as_object().is_some_and(|o| !o.is_empty()))
+    pluma_effects::default_params(id).is_some_and(|d| d.as_object().is_some_and(|o| !o.is_empty()))
 }
 
 /// Inline editor for an applied effect's parameters, labeled as the effect dialogs' generic fields
 /// are: numbers, booleans, strings, colors, the values a parameter picks from as a dropdown
 /// ([`crate::dialogs::shown_choices`]), and Drop Shadow's Color or Darkness as radio buttons;
 /// edits go through `effect.setParams`.
-fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: usize, e: &Effect) {
+fn effect_editor(app: &mut PlumaApp, ui: &mut Ui, item: Option<usize>, k: usize, e: &Effect) {
     let t = Tokens::get(ui.ctx());
     let params = editor_params(e);
     let mut change: Option<(String, Value)> = None;
     let mut edit = false;
     let built_in = built_in_effect(&e.id);
     // A plug-in effect's parameters are labelled, measured and shown as its manifest says.
-    let plugin = vectorcraft_plugins::effect::installed(&e.id);
+    let plugin = pluma_plugins::effect::installed(&e.id);
     let manifest = plugin.as_ref().map(|p| p.manifest());
     let visible = manifest.map(|m| m.visible(&params));
     let (unit, relative) = (app.session.general_unit(), params.get("relative").and_then(Value::as_bool).unwrap_or(false));
-    let cmyk = app.session.active().is_some_and(|s| s.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk);
+    let cmyk = app.session.active().is_some_and(|s| s.doc.color_mode == pluma_doc::ColorMode::Cmyk);
     egui::Frame::NONE.fill(t.panel_darker).inner_margin(egui::Margin { left: (EYE_W + 12.0) as i8, right: 6, top: 4, bottom: 4 }).show(ui, |ui| {
         ui.spacing_mut().item_spacing.y = 3.0;
         if params.is_empty() {
@@ -1228,7 +1228,7 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
                     }
                     // A plug-in's number list is typed as its dialog's is: "45, 135".
                     if let Some(spec) = manifest.and_then(|m| m.param(key)).map(|p| &p.spec)
-                        && matches!(spec, vectorcraft_plugins::manifest::ParamSpec::NumberList { .. })
+                        && matches!(spec, pluma_plugins::manifest::ParamSpec::NumberList { .. })
                     {
                         let typed = widgets::exact_text_field(ui, ("fx", item, k, key.as_str()), &crate::dialogs::number_list_text(v), 90.0);
                         if let Some(list) = typed.and_then(|text| crate::dialogs::read_number_list(&text, spec)) {
@@ -1240,7 +1240,7 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
                         return;
                     }
                     // A plug-in's color is the color button its dialog shows.
-                    if manifest.and_then(|m| m.param(key)).is_some_and(|p| matches!(p.spec, vectorcraft_plugins::manifest::ParamSpec::Color { .. })) {
+                    if manifest.and_then(|m| m.param(key)).is_some_and(|p| matches!(p.spec, pluma_plugins::manifest::ParamSpec::Color { .. })) {
                         if let Some(c) = crate::dialogs::plugin_color_button(ui, ("fx-color", item, k, key.as_str()), v) {
                             change = Some((key.clone(), c));
                         }
@@ -1262,9 +1262,9 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
                         Value::Number(n) => {
                             let (x, id) = (n.as_f64().unwrap_or(0.0), ("fx", item, k, key.as_str()));
                             let suffix = ui_keys.and_then(|u| u.unit.as_deref()).map(crate::dialogs::unit_suffix).unwrap_or_default();
-                            let nx = if vectorcraft_effects::is_length(&e.id, key, relative) {
+                            let nx = if pluma_effects::is_length(&e.id, key, relative) {
                                 widgets::num_field(ui, id, Some(x), unit, 70.0)
-                            } else if let Some(range) = vectorcraft_effects::raster_px_range(&e.id, key) {
+                            } else if let Some(range) = pluma_effects::raster_px_range(&e.id, key) {
                                 widgets::range_field_named(ui, id, None, x, range, &crate::dialogs::unit_suffix("px"), 2, 70.0)
                             } else {
                                 widgets::plain_field(ui, id, x, &suffix, 2, 70.0)
@@ -1274,8 +1274,8 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
                             }
                         }
                         // Glass's loaded texture shows its size; its dialog's Load Texture… replaces it.
-                        Value::String(s) if key == vectorcraft_effects::pixel::TEXTURE_IMAGE => {
-                            let size = vectorcraft_effects::pixel::texture(s).map(|t| t.size());
+                        Value::String(s) if key == pluma_effects::pixel::TEXTURE_IMAGE => {
+                            let size = pluma_effects::pixel::texture(s).map(|t| t.size());
                             widgets::dim_label(ui, &size.map_or_else(String::new, |(w, h)| format!("{w} × {h} px")));
                         }
                         Value::String(s) => {
@@ -1306,7 +1306,7 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
 /// The values [`effect_editor`] lists: the effect's own values over its defaults, with earlier keys
 /// in their current form (Scribble's one `variation` as its Path Overlap and Spacing variations).
 fn editor_params(e: &Effect) -> serde_json::Map<String, Value> {
-    match vectorcraft_effects::merged_params(&e.id, &e.params) {
+    match pluma_effects::merged_params(&e.id, &e.params) {
         Value::Object(m) => m,
         _ => serde_json::Map::new(),
     }
@@ -1331,7 +1331,7 @@ enum Painted {
 
 /// The swatch of fill/stroke row `r` showing `paint`: a click opens a popup of the document's
 /// swatches that sets the paint `target`; Shift-click opens the Color panel on it instead.
-fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, target: Painted) {
+fn swatch_button(app: &mut PlumaApp, ui: &mut Ui, r: Rect, paint: &Paint, target: Painted) {
     let cr = Rect::from_min_size(pos2(r.left() + EYE_W + 76.0, r.center().y - 9.0), vec2(18.0, 18.0));
     chip(ui, cr, paint, false);
     let resp = ui
@@ -1358,7 +1358,7 @@ fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, 
 /// The weight of stroke row `r` (stroke `st`) and its notes after it: the Stroke panel's spinner
 /// (arrows, Units > Stroke, preset dropdown); a weight typed, stepped or picked goes to the stroke
 /// `target`, with nothing selected the next object drawn's (`stroke.set`).
-fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, st: &vectorcraft_doc::StrokeLayer, target: Painted) {
+fn weight_field(app: &mut PlumaApp, ui: &mut Ui, r: Rect, st: &pluma_doc::StrokeLayer, target: Painted) {
     const W: f32 = 100.0;
     let fr = Rect::from_min_size(pos2(r.left() + EYE_W + 104.0, r.center().y - 13.0), vec2(W, 26.0));
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
@@ -1376,7 +1376,7 @@ fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, st: &vectorcraft
 }
 
 /// Small swatch grid inside the appearance chip popup; a pick paints `target`.
-fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, target: Painted) {
+fn swatch_picker(app: &mut PlumaApp, ui: &mut Ui, target: Painted) {
     let Some(st) = app.session.active() else { return };
     let mut all: Vec<(String, Paint)> = st.doc.swatches.iter().map(|s| (s.name.clone(), s.paint.clone())).collect();
     for g in &st.doc.swatch_groups {
@@ -1415,7 +1415,7 @@ fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, target: Painted) {
 }
 
 /// The bottom bar: Add New Stroke, Add New Fill, Add New Effect, Clear Appearance, and Duplicate and Delete Selected Item, which also take dropped rows.
-fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) {
+fn bottom(app: &mut PlumaApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) {
     let has = node.is_some();
     widgets::bottom_bar(ui, |ui| {
         if widgets::icon_button_enabled(ui, "dc-new-stroke", tl!("Add New Stroke"), false, has, 24.0).clicked() {
@@ -1455,7 +1455,7 @@ fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, node: Option<&Node>, sel: Sel) 
 /// while the row hangs over it, and on release the row is copied or removed, as rows dropped on
 /// the Layers panel's buttons are. The buttons take the row even when nothing is selected (the row
 /// names itself). Ends the row drag once the pointer is up.
-fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel, duplicate: &egui::Response, delete: &egui::Response) {
+fn drop_on_buttons(app: &mut PlumaApp, ui: &Ui, node: Option<&Node>, sel: Sel, duplicate: &egui::Response, delete: &egui::Response) {
     let ctx = ui.ctx();
     let dragging: Option<Dragged> = pstate(ctx, "ap-drag");
     if !ctx.input(|i| i.pointer.any_down()) {
@@ -1503,7 +1503,7 @@ fn drop_on_buttons(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: 
 /// After the rows `gone` of kind `rows` were removed while the active row survived, the active row,
 /// the highlight and its anchor move up past the removed rows below them; removed rows drop out of
 /// the highlight. `n` is the object as it was before the removal.
-fn highlight_after_removal(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, gone: &[usize]) {
+fn highlight_after_removal(app: &mut PlumaApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, gone: &[usize]) {
     let h = highlight(ctx, n, sel);
     if h.rows != rows {
         return;
@@ -1544,7 +1544,7 @@ fn button_drop_command(items: &[usize], effects: Option<&(Option<usize>, Vec<usi
 
 /// Duplicate the highlighted fills/strokes or effects: each copy shows right above its row and the
 /// copies are highlighted ([`highlight_copies`]).
-fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
+fn duplicate_selected(app: &mut PlumaApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     let (rows, indices) = match selected_effects(ui.ctx(), node, sel) {
         Some((item, ks)) => (Rows::Effects(item), ks),
         None if matches!(sel, Sel::Item(_)) => (Rows::Items, selected_items(ui.ctx(), node, sel)),
@@ -1564,7 +1564,7 @@ fn duplicate_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, se
 /// the next paint index, an effect's where the original was (the original one below it). The copy of
 /// the active row becomes active (else the first copy), the copy of the anchor the anchor. `n` is
 /// the object as it was before the copy.
-fn highlight_copies(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, dup: &[usize]) {
+fn highlight_copies(app: &mut PlumaApp, ctx: &egui::Context, n: &Node, sel: Sel, rows: Rows, dup: &[usize]) {
     let below = |k: usize| dup.iter().filter(|d| **d < k).count();
     let copy = |k: usize| match rows {
         Rows::Items => k + below(k) + 1,
@@ -1587,7 +1587,7 @@ fn highlight_copies(app: &mut VectorcraftApp, ctx: &egui::Context, n: &Node, sel
 
 /// Remove the highlighted fills/strokes or effects; a removed item effect leaves its fill/stroke
 /// selected. A selected Opacity row is set back to Default (100%, Normal) and stays selected.
-fn delete_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
+fn delete_selected(app: &mut PlumaApp, ui: &Ui, node: Option<&Node>, sel: Sel) {
     match sel {
         Sel::Opacity => {
             app.run("transparency.set", json!({"item": null, "opacity": 100, "blend": "Normal"})).ok();
@@ -1615,9 +1615,9 @@ fn delete_selected(app: &mut VectorcraftApp, ui: &Ui, node: Option<&Node>, sel: 
 
 /// The fx menu (Appearance panel, Properties): effects grouped by their Effect-menu submenu;
 /// opens the effect dialog.
-pub(crate) fn fx_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn fx_menu(app: &mut PlumaApp, ui: &mut Ui) {
     let mut groups: Vec<(String, Vec<(String, String)>)> = vec![];
-    let plugins: Vec<_> = vectorcraft_effects::plugin_effects().into_iter().map(catalog_entry).collect();
+    let plugins: Vec<_> = pluma_effects::plugin_effects().into_iter().map(catalog_entry).collect();
     // Built-in effects in the UI language; a plug-in's by the name it gives.
     let built_in = catalog().iter().map(|(id, label, menu)| (id, tl!(label), menu));
     for (id, label, menu) in built_in.chain(plugins.iter().map(|(id, label, menu)| (id, label.as_str(), menu))) {
@@ -1643,7 +1643,7 @@ pub(crate) fn fx_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let node = first_subject(app);
     let has = node.is_some();
     let sel = current_sel(app, ui.ctx(), node.as_ref());

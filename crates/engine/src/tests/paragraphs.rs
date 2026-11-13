@@ -1,9 +1,9 @@
 //! Paragraph attributes per paragraph: ranged Paragraph panel commands, paragraph styles on one
 //! paragraph, splitting and merging paragraphs while editing, undo and threaded text.
 
+use pluma_doc::{Justify, NodeId, NodeKind, TextObject};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_doc::{Justify, NodeId, NodeKind, TextObject};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -47,7 +47,7 @@ fn ranged_paragraph_commands_touch_only_their_paragraphs() {
     assert!(t.runs.iter().any(|r| r.text == "two" && r.style.underline));
     assert!(t.runs.iter().any(|r| r.text.starts_with("one") && !r.style.underline));
     // The layout sees each paragraph's alignment.
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert!(lay.lines[1].x0 > lay.lines[0].x0 + 20.0, "the centred line sits right of the left one");
     // No range: every paragraph (as before).
     s.execute("text.setStyle", &json!({"id": id, "justify": "right"})).unwrap();
@@ -75,7 +75,7 @@ fn a_file_with_paragraph_spacing_out_of_range_opens_with_it_in_range() {
     let id = s.execute("text.create", &json!({"x": 40, "y": 60, "size": 20, "text": "Line\tone\nLine two"})).unwrap()["id"].as_u64().unwrap();
     let mut d = (*s.doc().unwrap().doc).clone();
     let Some(NodeKind::Text(t)) = d.node_mut(NodeId(id)).map(|n| &mut n.kind) else { panic!("not text") };
-    let tab = |position| vectorcraft_doc::TabStop { position, align: vectorcraft_doc::TabAlign::Left, leader: String::new(), align_on: '.' };
+    let tab = |position| pluma_doc::TabStop { position, align: pluma_doc::TabAlign::Left, leader: String::new(), align_on: '.' };
     let mut first = t.para.clone();
     (first.left_indent, first.first_line_indent, first.space_after) = (f64::MAX, -1e7, 5000.0);
     first.tabs = vec![tab(-5.0), tab(f64::MAX)];
@@ -83,10 +83,10 @@ fn a_file_with_paragraph_spacing_out_of_range_opens_with_it_in_range() {
     (second.right_indent, second.space_before) = (-f64::MAX, 1e7);
     t.set_paragraph_styles(vec![first, second]);
     let attrs = json!({"left_indent": 1e9, "space_after": 2000, "tabs": [serde_json::to_value(tab(-5.0)).unwrap()]});
-    d.para_styles.push(vectorcraft_doc::TextStyleDef { name: "Wide".into(), attrs: attrs.as_object().unwrap().clone() });
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save_file(&d));
-    s.execute("document.open", &json!({"name": "spacing.vectorcraft", "dataBase64": data})).unwrap();
-    let max = vectorcraft_doc::MAX_COORD;
+    d.para_styles.push(pluma_doc::TextStyleDef { name: "Wide".into(), attrs: attrs.as_object().unwrap().clone() });
+    let data = pluma_format::base64_encode(&pluma_format::save_file(&d));
+    s.execute("document.open", &json!({"name": "spacing.pluma", "dataBase64": data})).unwrap();
+    let max = pluma_doc::MAX_COORD;
     let t = text(&s, id);
     let (p0, p1) = (t.para_at(0), t.para_at(1));
     assert_eq!((p0.left_indent, p0.first_line_indent, p0.space_after), (max, -max, 5000.0));
@@ -135,7 +135,7 @@ fn return_in_the_type_tool_continues_the_paragraph_it_splits() {
     s.execute("text.setStyle", &json!({"id": id, "justify": "center", "start": 5, "end": 5})).unwrap();
     s.select_tool("type", v).unwrap();
     // Click into the first line (right-aligned: it ends at the origin), then End and Return.
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(&s, id));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &text(&s, id));
     let l0 = &lay.lines[0];
     let (x, y) = (100.0 + (l0.x0 + l0.x1) / 2.0, 100.0 + l0.baseline - 5.0);
     for k in [PointerKind::Down, PointerKind::Up] {
@@ -160,9 +160,9 @@ fn tab_at_the_start_of_a_list_item_moves_it_a_level_down_in_one_undo_step() {
     s.select_tool("type", v).unwrap();
     // Click into the second line, then Home: the caret before "two".
     let t = text(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let l1 = &lay.lines[1];
-    let at = t.xf * vectorcraft_geom::Point::new((l1.x0 + l1.x1) / 2.0, l1.baseline - 3.0);
+    let at = t.xf * pluma_geom::Point::new((l1.x0 + l1.x1) / 2.0, l1.baseline - 3.0);
     for k in [PointerKind::Down, PointerKind::Up] {
         s.pointer(&PointerEvent::new(k, at.x, at.y), v).unwrap();
     }
@@ -172,7 +172,7 @@ fn tab_at_the_start_of_a_list_item_moves_it_a_level_down_in_one_undo_step() {
     let levels = |s: &Session| text(s, id).paragraph_styles().iter().map(|p| p.list.map(|l| l.level)).collect::<Vec<_>>();
     assert_eq!(levels(&s), [Some(1), Some(2)]);
     assert_eq!((text(&s, id).plain_text(), s.doc().unwrap().history.undo.len()), ("one\ntwo".to_string(), undo + 1));
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(&s, id));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &text(&s, id));
     let starts: Vec<f64> = lay.markers.iter().map(|m| lay.glyphs[m.glyphs.start].origin.x).collect();
     assert!((starts[1] - starts[0] - 18.0).abs() < 1e-6, "the item moved 18 pt in: {starts:?}");
     assert_eq!(lay.markers.iter().map(|m| m.text.as_str()).collect::<Vec<_>>(), ["1.", "1."]);
@@ -251,7 +251,7 @@ fn threaded_frames_keep_each_paragraphs_style() {
 /// others: only the touched paragraphs change, and the layout reads each paragraph's own.
 #[test]
 fn ranged_set_format_sets_direction_mojikumi_and_leading_model_per_paragraph() {
-    use vectorcraft_doc::{LeadingModel, Mojikumi, ParaDirection};
+    use pluma_doc::{LeadingModel, Mojikumi, ParaDirection};
     let mut s = session();
     let id = area(&mut s, "Hello.\nHello.");
     // A caret in the second paragraph (byte 9).
@@ -264,7 +264,7 @@ fn ranged_set_format_sets_direction_mojikumi_and_leading_model_per_paragraph() {
     let (p0, p1) = (t.para_at(0).clone(), t.para_at(1).clone());
     assert_eq!((p0.direction, p0.leading_model, p0.mojikumi), (None, LeadingModel::RomanBaseline, Mojikumi::LineEndHalf));
     assert_eq!((p1.direction, p1.leading_model, p1.mojikumi), (Some(ParaDirection::RightToLeft), LeadingModel::EmBoxTop, Mojikumi::None));
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert!(!lay.lines[0].rtl && lay.lines[1].rtl, "each paragraph's direction");
     // Return in the right-to-left paragraph continues it.
     s.execute("text.editRange", &json!({"id": id, "start": 13, "end": 13, "insert": "\nX"})).unwrap();
@@ -281,7 +281,7 @@ fn shift_return_in_the_type_tool_inserts_soft_return() {
     let v = ViewInfo::default();
     let id = s.execute("text.create", &json!({"x": 100, "y": 100, "text": "First Second", "size": 20})).unwrap()["id"].as_u64().unwrap();
     s.select_tool("type", v).unwrap();
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(&s, id));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &text(&s, id));
     let l0 = &lay.lines[0];
     let (x, y) = (100.0 + (l0.x0 + l0.x1) / 2.0, 100.0 + l0.baseline - 5.0);
     for k in [PointerKind::Down, PointerKind::Up] {
@@ -295,6 +295,6 @@ fn shift_return_in_the_type_tool_inserts_soft_return() {
     s.tool_key(ToolKey::Enter, shift, v).unwrap();
     s.tool_key(ToolKey::Escape, Mods::default(), v).unwrap();
     assert_eq!(text(&s, id).plain_text(), "First \u{2028}Second");
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(&s, id));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &text(&s, id));
     assert_eq!(lay.lines.len(), 2, "broken into two lines in one paragraph");
 }

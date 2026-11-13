@@ -19,10 +19,10 @@ use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Weak};
 
-use vectorcraft_color::cms::Cms;
-use vectorcraft_doc::pattern::{Overlap, PatternDef, TileType};
-use vectorcraft_doc::{Document, Node};
-use vectorcraft_geom::{Affine, Rect, Shape, Vec2};
+use pluma_color::cms::Cms;
+use pluma_doc::pattern::{Overlap, PatternDef, TileType};
+use pluma_doc::{Document, Node};
+use pluma_geom::{Affine, Rect, Shape, Vec2};
 use vello_cpu::peniko::{Extend, ImageQuality, ImageSampler};
 use vello_cpu::{Pixmap, RenderContext};
 
@@ -48,7 +48,7 @@ struct Deps {
     pixels: Vec<Weak<Vec<u8>>>,
     /// shortcut: any change to the document's other data draws the tile again, not only a brush
     /// edit; compare the brush library alone if that ever costs a frame.
-    unknown: Weak<vectorcraft_brush::serde_json::Map<String, vectorcraft_brush::serde_json::Value>>,
+    unknown: Weak<pluma_brush::serde_json::Map<String, pluma_brush::serde_json::Value>>,
     fonts: u64,
 }
 
@@ -65,14 +65,14 @@ impl Deps {
         Self {
             art: Self::art(doc).map(Arc::downgrade).collect(),
             pixels: Self::pixels(doc).map(Arc::downgrade).collect(),
-            unknown: vectorcraft_doc::Shared::downgrade(&doc.unknown),
-            fonts: vectorcraft_text::FontDb::global().generation(),
+            unknown: pluma_doc::Shared::downgrade(&doc.unknown),
+            fonts: pluma_text::FontDb::global().generation(),
         }
     }
 
     /// Does `doc` hold what the tile was drawn from?
     fn current(&self, doc: &Document) -> bool {
-        self.fonts == vectorcraft_text::FontDb::global().generation()
+        self.fonts == pluma_text::FontDb::global().generation()
             && std::ptr::eq(self.unknown.as_ptr(), &*doc.unknown)
             && self.art.iter().map(Weak::as_ptr).eq(Self::art(doc).map(Arc::as_ptr))
             && self.pixels.iter().map(Weak::as_ptr).eq(Self::pixels(doc).map(Arc::as_ptr))
@@ -264,7 +264,7 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
     let scale = raster_scale(s, (pw, ph));
     let params = (def.tile, def.tile_type, def.overlap);
     let key = (name.to_string(), scale.to_bits(), ink, f.opts.mark_undecoded_images);
-    let cms = vectorcraft_color::cms::active();
+    let cms = pluma_color::cms::active();
     let hit = CACHE.with(|c| {
         let mut c = c.borrow_mut();
         c.check_plugins();
@@ -307,7 +307,7 @@ pub(crate) fn set_pattern_paint(ctx: &mut RenderContext, name: &str, xf: Affine,
             let deps = crate::fx::Reads::of_all(def.art.iter().map(|a| &**a)).any().then(|| Deps::of(doc));
             // A cancelled export drew part of the tile: it isn't kept for later frames.
             CACHE.with(|c| {
-                if vectorcraft_doc::cancel::is_cancelled() {
+                if pluma_doc::cancel::is_cancelled() {
                     return;
                 }
                 let mut c = c.borrow_mut();

@@ -2,10 +2,10 @@
 //! category), the user's saved presets and the recently used sizes (both kept in the
 //! preferences), and the artboard grid layout shared with Rearrange All Artboards.
 
+use pluma_doc::{Artboard, Background, ColorMode, Document, Unit};
+use pluma_geom::{Point, Rect};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Artboard, Background, ColorMode, Document, Unit};
-use vectorcraft_geom::{Point, Rect};
 
 use super::{CommandSpec, Result, Session, always, bad, clock_date, cmd, date_param, str_param};
 
@@ -381,7 +381,7 @@ fn de_spacing<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<f64
 
 /// A saved or Recent preset's bleed, each side kept to 0 to `MAX_BLEED` points.
 fn de_bleed<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<[f64; 4], D::Error> {
-    Ok(vectorcraft_doc::setup::bleed_in_range(<[f64; 4]>::deserialize(d)?))
+    Ok(pluma_doc::setup::bleed_in_range(<[f64; 4]>::deserialize(d)?))
 }
 
 /// Top-left corners for artboards of `sizes` from `origin`: `columns` per row, `spacing` apart,

@@ -3,10 +3,10 @@
 //! report mixed values, and saves and exports never carry the editing layer. Mask editing is not
 //! entered in isolation mode, and isolation mode is not entered while a mask is edited.
 
+use pluma_geom::Affine;
+use pluma_render::{RenderOptions, Renderer};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_geom::Affine;
-use vectorcraft_render::{RenderOptions, Renderer};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::cmd::maskedit::MASK_EDIT_LAYER;
 use crate::tests::{history, select_with_a_step_to_redo};
@@ -38,7 +38,7 @@ fn doc(s: &Session) -> &Document {
     &s.doc().unwrap().doc
 }
 
-fn mask(s: &Session, id: NodeId) -> Option<&vectorcraft_doc::OpacityMask> {
+fn mask(s: &Session, id: NodeId) -> Option<&pluma_doc::OpacityMask> {
     doc(s).node(id).and_then(|n| n.extras().mask.as_deref())
 }
 
@@ -47,7 +47,7 @@ fn has_edit_layer(d: &Document) -> bool {
 }
 
 fn data(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
 }
 
 /// #2727: the canvas passes `isolation` while mask art is edited; the editing layer is not drawn on
@@ -82,7 +82,7 @@ fn mask_options_act_on_the_masked_object_while_editing() {
     // Opacity and blend go to the masked object too, not to the mask art.
     s.execute("transparency.set", &json!({"opacity": 40, "blend": "Multiply"})).unwrap();
     let n = doc(&s).node(obj).unwrap();
-    assert!((n.opacity - 0.4).abs() < 1e-6 && n.blend == vectorcraft_color::BlendMode::Multiply);
+    assert!((n.opacity - 0.4).abs() < 1e-6 && n.blend == pluma_color::BlendMode::Multiply);
     let info = s.execute("transparency.info", &json!({})).unwrap();
     assert_eq!((info["ids"].clone(), info["opacity"].clone(), info["editingMask"].clone()), (json!([obj.0]), json!(40.0), json!(obj.0)));
 }
@@ -226,7 +226,7 @@ fn empty_point_type_is_not_saved_into_the_mask() {
         s.execute(cmd, &json!({})).unwrap();
         assert!(!s.tool_wants_text(), "{cmd}");
         let art = &mask(&s, obj).unwrap().art;
-        assert!(art.children().is_none() && !matches!(art.kind, vectorcraft_doc::NodeKind::Text(_)), "{cmd}: the mask keeps only the square");
+        assert!(art.children().is_none() && !matches!(art.kind, pluma_doc::NodeKind::Text(_)), "{cmd}: the mask keeps only the square");
         assert_eq!(art.geometric_bounds().unwrap().x1, 100.0, "{cmd}");
         let labels = s.doc().unwrap().history.undo.iter().map(|e| e.label.as_str()).collect::<Vec<_>>();
         // The mask took the type in when it was placed, so its removal is a step of its own.
@@ -255,7 +255,7 @@ fn empty_point_type_is_not_saved_into_the_mask_during_a_cmd_press() {
         assert!(!s.tool_wants_text(), "{cmd}");
         s.pointer(&PointerEvent::new(PointerKind::Up, 280.0, 280.0).with_mods(press), v).unwrap();
         let art = &mask(&s, obj).unwrap().art;
-        assert!(art.children().is_none() && !matches!(art.kind, vectorcraft_doc::NodeKind::Text(_)), "{cmd}: the mask keeps only the square");
+        assert!(art.children().is_none() && !matches!(art.kind, pluma_doc::NodeKind::Text(_)), "{cmd}: the mask keeps only the square");
     }
 }
 
@@ -274,7 +274,7 @@ fn release_of_a_masked_group_and_a_masked_object_inside_it_keeps_order_and_ids()
     let before = doc(&s).clone();
     let n = before.peek_next_id();
     s.execute("transparency.releaseOpacityMask", &json!({"ids": [group.0, a.0]})).unwrap();
-    let ids = |n: &vectorcraft_doc::Node| n.children().unwrap().iter().map(|c| c.id).collect::<Vec<_>>();
+    let ids = |n: &pluma_doc::Node| n.children().unwrap().iter().map(|c| c.id).collect::<Vec<_>>();
     assert_eq!(ids(&doc(&s).layers[0]), [group, NodeId(n)]);
     assert_eq!(ids(doc(&s).node(group).unwrap()), [a, NodeId(n + 1), b]);
     assert!(mask(&s, group).is_none() && mask(&s, a).is_none());
@@ -364,7 +364,7 @@ fn one_object_gets_an_empty_mask_drawn_in_editing_mode() {
     assert_eq!(s.doc().unwrap().isolation, Some(me.layer));
     assert!(s.doc().unwrap().selection.is_empty());
     // An empty clipping mask hides the object; drawing white in editing mode reveals it there.
-    let render = |s: &Session| vectorcraft_render::Renderer::new().render(doc(s), 300, 300, vectorcraft_geom::Affine::IDENTITY, &Default::default());
+    let render = |s: &Session| pluma_render::Renderer::new().render(doc(s), 300, 300, pluma_geom::Affine::IDENTITY, &Default::default());
     assert_eq!(render(&s).pixel(50, 100)[3], 0);
     let m = s.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 100, "height": 200})).unwrap()["id"].as_u64().unwrap();
     s.execute("paint.setFill", &json!({"color": "#ffffff", "ids": [m]})).unwrap();
@@ -516,8 +516,8 @@ fn opacity_is_a_percentage_everywhere() {
     let a = rect(&mut s, 0.0, 100.0);
     s.execute("appearance.setItem", &json!({"index": 0, "opacity": 1})).unwrap();
     let fill_opacity = |s: &Session| match &doc(s).node(a).unwrap().appearance.items[0] {
-        vectorcraft_doc::AppearanceItem::Fill(f) => f.opacity,
-        vectorcraft_doc::AppearanceItem::Stroke(st) => st.opacity,
+        pluma_doc::AppearanceItem::Fill(f) => f.opacity,
+        pluma_doc::AppearanceItem::Stroke(st) => st.opacity,
     };
     assert!((fill_opacity(&s) - 0.01).abs() < 1e-6);
     s.execute("appearance.setItem", &json!({"index": 0, "opacity": 100})).unwrap();
@@ -550,7 +550,7 @@ fn info_reports_mixed_values_as_null() {
     let one = s.execute("transparency.info", &json!({"id": a.0})).unwrap();
     assert_eq!((one["opacity"].clone(), one["isolate"].clone()), (json!(50.0), json!(true)));
     let i = s.transparency_info();
-    assert_eq!((i.opacity, i.blend, i.knockout), (None, Some(vectorcraft_color::BlendMode::Screen), Some(vectorcraft_doc::Knockout::Neutral)));
+    assert_eq!((i.opacity, i.blend, i.knockout), (None, Some(pluma_color::BlendMode::Screen), Some(pluma_doc::Knockout::Neutral)));
     s.execute("select.none", &json!({})).unwrap();
     assert_eq!(s.execute("transparency.info", &json!({})).unwrap()["opacity"], Value::Null);
     // Many targets are gathered in one walk of the tree.
@@ -566,7 +566,7 @@ fn saving_while_editing_writes_no_editing_layer() {
     let obj = editing_mask(&mut s);
     s.execute("object.move", &json!({"dx": 50, "dy": 0})).unwrap();
     let bytes = data(&s.execute("document.save", &json!({})).unwrap());
-    let back = vectorcraft_format::load(&bytes).unwrap();
+    let back = pluma_format::load(&bytes).unwrap();
     assert!(back.mask_edit.is_none() && !has_edit_layer(&back));
     assert_eq!(back.layers.len(), 1);
     // The edit made while editing is in the saved mask.
@@ -574,11 +574,11 @@ fn saving_while_editing_writes_no_editing_layer() {
     // Still editing in the session.
     assert!(doc(&s).mask_edit.is_some() && has_edit_layer(doc(&s)));
     // A file saved mid-edit by an older version (editing record and layer written) opens clean.
-    let mut v: Value = serde_json::from_slice(&vectorcraft_format::save(doc(&s), false)).unwrap();
+    let mut v: Value = serde_json::from_slice(&pluma_format::save(doc(&s), false)).unwrap();
     let full = serde_json::to_value(doc(&s)).unwrap();
     v["document"]["layers"] = full["layers"].clone();
     v["document"]["mask_edit"] = json!({"object": obj.0, "layer": doc(&s).mask_edit.unwrap().layer.0});
-    let old = vectorcraft_format::load(&serde_json::to_vec(&v).unwrap()).unwrap();
+    let old = pluma_format::load(&serde_json::to_vec(&v).unwrap()).unwrap();
     assert!(old.mask_edit.is_none() && !has_edit_layer(&old) && old.layers.len() == 1);
 }
 

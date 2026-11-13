@@ -1,15 +1,15 @@
 //! The menu bar (Illustrator's menu tree) and UI-level commands.
 //!
-//! Items bound to a command id run through [`VectorcraftApp::run`]. Items not implemented yet are
+//! Items bound to a command id run through [`PlumaApp::run`]. Items not implemented yet are
 //! listed (disabled, with their shortcut) so the full surface is visible and discoverable; the
 //! parity tracker drives them to "done".
 
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use vectorcraft_engine::cmd::fileio::SaveMode;
+use pluma_engine::cmd::fileio::SaveMode;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::io;
 use crate::panels::character::Face;
 use crate::state::next_zoom;

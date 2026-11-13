@@ -35,7 +35,7 @@ pub(super) fn scaling_options(s: &Session, p: &Value) -> Scaling {
     let corners = bool_or(p, "corners", s.prefs.scale_corners);
     Scaling {
         strokes,
-        effects: strokes.then_some(vectorcraft_render::effects::scale_effect),
+        effects: strokes.then_some(pluma_render::effects::scale_effect),
         keep_type_strokes: !strokes,
         keep_corners: !corners,
         ..Scaling::default()
@@ -51,7 +51,7 @@ pub(crate) fn transform_patterns(s: &mut Session, p: &Value, ids: &[NodeId]) -> 
     let mut uses = false;
     let paths = d.index_paths(ids.iter().copied());
     for n in ids.iter().filter_map(|id| paths.get(id)).filter_map(|p| d.node_at(p)) {
-        n.walk(&mut |c| uses |= vectorcraft_doc::pattern::uses_pattern(c, None));
+        n.walk(&mut |c| uses |= pluma_doc::pattern::uses_pattern(c, None));
     }
     if uses {
         s.note_journal("patterns", json!(on));
@@ -77,7 +77,7 @@ pub(crate) fn transform_node(n: &mut Node, xf: Affine, sc: Scaling, objects: boo
         n.transform(xf, sc);
         super::pixelgrid::keep_pixel_aligned(n, sc);
     } else if sc.patterns {
-        vectorcraft_doc::pattern::transform_patterns_only(n, xf);
+        pluma_doc::pattern::transform_patterns_only(n, xf);
     }
 }
 
@@ -302,7 +302,7 @@ pub(super) fn move_cmd(s: &mut Session, p: &Value) -> Result<Value> {
 /// <https://community.adobe.com/t5/illustrator-discussions/arrow-keys-and-ruler-guides-not-adjusted-when-using-rotate-view/m-p/12489564>).
 pub(crate) fn along_constrain_angle(dx: f64, dy: f64, deg: f64) -> (f64, f64) {
     // Whole turns are the page's axes, exactly; quarter turns are exact too.
-    let Some(axes) = vectorcraft_geom::constrain_axes(deg) else { return (dx, dy) };
+    let Some(axes) = pluma_geom::constrain_axes(deg) else { return (dx, dy) };
     let v = axes * Point::new(dx, dy);
     (v.x, v.y)
 }
@@ -347,7 +347,7 @@ pub(super) fn rotate(s: &mut Session, p: &Value) -> Result<Value> {
     let o = origin_of(s, p, &ids)?;
     let mut angle = f64_or(p, "angle", 0.0);
     if bool_or(p, "absolute", false) {
-        angle = vectorcraft_geom::normalize_deg(angle - s.doc()?.doc.bbox_angle(&ids));
+        angle = pluma_geom::normalize_deg(angle - s.doc()?.doc.bbox_angle(&ids));
     }
     // Angles are counter-clockwise; y is down, so negate.
     let a = about(o, Affine::rotate(-angle.to_radians()));

@@ -328,12 +328,12 @@ pub(super) fn env_options(s: &mut Session, p: &Value) -> Result<Value> {
 /// transparency and opacity mask; the generated pieces get ids of their own.
 fn expand_envelope(d: &mut Document, id: NodeId) -> Result<()> {
     let n = d.node(id).cloned().ok_or(EngineError::NoNode(id))?;
-    let mut g = vectorcraft_render::effects::expanded_live_group(Some(d), &n);
+    let mut g = pluma_render::effects::expanded_live_group(Some(d), &n);
     fix_ids(d, &mut g);
     // Outlined type's emoji take their pixels into the document.
     d.adopt_pixels(&mut g);
     // Outlined type repeats its object's id on its pieces.
-    vectorcraft_render::effects::fresh_ids(d, &mut g, &mut Default::default());
+    pluma_render::effects::fresh_ids(d, &mut g, &mut Default::default());
     *d.node_mut(id).ok_or(EngineError::NoNode(id))? = g;
     Ok(())
 }

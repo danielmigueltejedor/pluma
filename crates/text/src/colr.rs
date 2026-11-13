@@ -1,20 +1,20 @@
 //! COLR colour glyphs (v0 layers, v1 paint graphs): read into a tree of document nodes in font
 //! units (y down, as outlines are), which the renderer, the exporters and Create Outlines draw and
-//! keep as they do any art. A glyph whose paints VectorCraft has no form for is drawn into an image
+//! keep as they do any art. A glyph whose paints Pluma has no form for is drawn into an image
 //! instead, as bitmap glyphs are ([`GlyphImage`]); [`Tree::unsupported`] names what made it one.
 
 use std::sync::Arc;
 
 use kurbo::{Affine, BezPath, Point, Rect, Shape, Vec2};
+use pluma_doc::color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{Appearance, FillLayer, ImageBlob, Node, NodeId, NodeKind};
+use pluma_geom::PathData;
 use skrifa::color::{Brush, ColorGlyph, ColorGlyphCollection, ColorPainter, ColorPalettes, ColorStop, CompositeMode, Extend, Transform};
 use skrifa::instance::{LocationRef, Size};
 use skrifa::outline::DrawSettings;
 use skrifa::raw::TableProvider;
 use skrifa::raw::types::BoundingBox;
 use skrifa::{GlyphId, MetadataProvider};
-use vectorcraft_doc::color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, FillLayer, ImageBlob, Node, NodeId, NodeKind};
-use vectorcraft_geom::PathData;
 use vello_cpu::peniko;
 
 use crate::GlyphImage;
@@ -38,12 +38,12 @@ const NO_ID: NodeId = NodeId(u64::MAX);
 /// Font units y up → y down.
 const FLIP: Affine = Affine::new([1.0, 0.0, 0.0, -1.0, 0.0, 0.0]);
 
-/// A colour glyph as VectorCraft draws it.
+/// A colour glyph as Pluma draws it.
 #[derive(Clone)]
 pub(crate) enum ColourContent {
     /// Its layers as document nodes in font units (y down): a group.
     Art(Arc<Node>),
-    /// Its picture, for paints VectorCraft has no form for.
+    /// Its picture, for paints Pluma has no form for.
     Image(Arc<GlyphImage>),
 }
 
@@ -140,7 +140,7 @@ struct Tree<'a> {
     nodes: usize,
     /// The path elements of the clips and fills so far.
     points: usize,
-    /// What VectorCraft has no form for, the first one met: the glyph becomes an image.
+    /// What Pluma has no form for, the first one met: the glyph becomes an image.
     unsupported: Option<&'static str>,
     /// The graph is past [`MAX_COLR_NODES`] or [`MAX_COLR_DEPTH`].
     too_large: bool,
@@ -249,7 +249,7 @@ impl<'a> Tree<'a> {
         Some(Arc::new(Node::group(NO_ID, root.children)))
     }
 
-    /// `brush` as a VectorCraft paint and opacity, in the tree's space; `None` with
+    /// `brush` as a Pluma paint and opacity, in the tree's space; `None` with
     /// [`Self::unsupported`] set when it has no form there.
     fn paint(&mut self, brush: &Brush<'_>) -> Option<(Paint, f32)> {
         self.foreground_used |= match brush {
@@ -329,7 +329,7 @@ impl<'a> Tree<'a> {
         let b = path.bounding_box();
         self.painted = Some(self.painted.map_or(b, |p| p.union(b)));
         let Some((paint, opacity)) = self.paint(brush) else { return };
-        let fill = vectorcraft_doc::AppearanceItem::Fill(FillLayer { opacity, ..FillLayer::new(paint) });
+        let fill = pluma_doc::AppearanceItem::Fill(FillLayer { opacity, ..FillLayer::new(paint) });
         self.add(Node::path(NO_ID, PathData::from_bezpath(path), Appearance { items: vec![fill], ..Appearance::default() }));
     }
 }
@@ -413,7 +413,7 @@ impl ColorPainter for Tree<'_> {
     }
 }
 
-/// COLRv1's blend composite modes as VectorCraft's (`SrcOver` is Normal); `None` for the
+/// COLRv1's blend composite modes as Pluma's (`SrcOver` is Normal); `None` for the
 /// Porter-Duff modes, which it has no form for.
 fn blend_mode(mode: CompositeMode) -> Option<BlendMode> {
     Some(match mode {

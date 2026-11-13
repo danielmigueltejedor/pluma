@@ -1,7 +1,7 @@
 use super::*;
 use crate::testutil::{cx, paint};
-use vectorcraft_doc::{Appearance, Document, Node, Selection};
-use vectorcraft_geom::{PathData, SubPath};
+use pluma_doc::{Appearance, Document, Node, Selection};
+use pluma_geom::{PathData, SubPath};
 
 const NO: Mods = Mods { shift: false, alt: false, cmd: false, ctrl: false, space: false };
 const ALT: Mods = Mods { alt: true, ..NO };
@@ -301,7 +301,7 @@ fn the_rubber_band_shows_the_next_segment_and_ending_the_path() {
     t.set_option("next", &json!("curved"));
     let band = t.overlays(&cx).into_iter().find_map(|o| if let Overlay::Path { path, .. } = o { Some(path) } else { None }).unwrap();
     assert!(
-        band.elements().iter().any(|e| matches!(e, vectorcraft_geom::PathEl::CurveTo(p1, ..) if (p1.y - 100.0).abs() < 1e-9 && p1.x > 200.0)),
+        band.elements().iter().any(|e| matches!(e, pluma_geom::PathEl::CurveTo(p1, ..) if (p1.y - 100.0).abs() < 1e-9 && p1.x > 200.0)),
         "{band:?}"
     );
     assert!(t.key(&cx, ToolKey::Escape, NO).is_empty());

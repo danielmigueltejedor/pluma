@@ -1,10 +1,10 @@
 use super::{
-    Arc, CaptureEpoch, MAX_SCREENSHOT_BYTES, MAX_SCREENSHOT_TOTAL_BYTES, QueuedScreenshot, SCREENSHOT_SETTLE_FRAMES, SCREENSHOT_TIMEOUT_ERROR,
-    VectorcraftApp, file_access, json, now_ms,
+    Arc, CaptureEpoch, MAX_SCREENSHOT_BYTES, MAX_SCREENSHOT_TOTAL_BYTES, PlumaApp, QueuedScreenshot, SCREENSHOT_SETTLE_FRAMES,
+    SCREENSHOT_TIMEOUT_ERROR, file_access, json, now_ms,
 };
 use crate::control;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// The image size (pixels) and checked byte count a capture of the current viewport would
     /// have: the window's content rect times the current DPI/zoom. The viewport's own `inner_rect`
     /// is the fresh source; `content_rect` is only a fallback for hosts that do not report one

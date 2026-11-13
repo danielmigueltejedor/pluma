@@ -1,7 +1,7 @@
-use super::{CornerRadius, Tokens, Ui, VectorcraftApp, json, theme, vec2, widgets};
+use super::{CornerRadius, PlumaApp, Tokens, Ui, json, theme, vec2, widgets};
 
 /// The Home screen (`app.home`; with no document open, unless its preference is off).
-pub(super) fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
+pub(super) fn home(app: &mut PlumaApp, ui: &mut Ui, rect: egui::Rect) {
     let t = Tokens::get(ui.ctx());
     ui.painter().rect_filled(rect, 0.0, t.panel_darker);
     // Taller than the window (a small window, many recent files): it scrolls. Widgets scrolled out
@@ -23,11 +23,11 @@ pub(super) fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
 }
 
 /// The Home screen's column: welcome, New / Open, Recent Files, presets and community links.
-fn home_content(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn home_content(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    // The welcome and the New / Open buttons sit centred, as PhotoCraft's Home screen does (#4684).
+    // The welcome and the New / Open buttons sit centred, as Lienzo's Home screen does (#4684).
     ui.vertical_centered(|ui| {
-        ui.label(egui::RichText::new(tl!("Welcome to VectorCraft")).font(theme::semibold(26.0)).color(t.text));
+        ui.label(egui::RichText::new(tl!("Welcome to Pluma")).font(theme::semibold(26.0)).color(t.text));
         ui.add_space(4.0);
         ui.label(egui::RichText::new(tl!("Vector illustration — fast, open, scriptable.")).size(14.0).color(t.text_dim));
         ui.add_space(22.0);
@@ -53,7 +53,7 @@ fn home_content(app: &mut VectorcraftApp, ui: &mut Ui) {
     let presets = ["Letter", "A4", "Web 1920×1080", "Phone 390×844", "Postcard", "Social Square Post 1080×1080"];
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(14.0, 14.0);
-        let cards: Vec<_> = presets.iter().filter_map(|name| vectorcraft_engine::cmd::newdoc::find(&app.session, name)).collect();
+        let cards: Vec<_> = presets.iter().filter_map(|name| pluma_engine::cmd::newdoc::find(&app.session, name)).collect();
         for s in cards {
             if crate::dialogs::preset_card(ui, &s, false).clicked() {
                 app.run("file.new", json!({ "preset": s.name })).ok();
@@ -70,7 +70,7 @@ fn home_content(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// The Home screen's Recent Files (#663): the first of File › Open Recent Files, each its name and
 /// folder; a click opens it. Nothing when there are none.
-fn recent(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn recent(app: &mut PlumaApp, ui: &mut Ui) {
     const SHOWN: usize = 6;
     let files: Vec<String> = crate::io::recent_files(app).iter().take(SHOWN).cloned().collect();
     if files.is_empty() {

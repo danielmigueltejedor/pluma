@@ -7,7 +7,7 @@
 
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 
 /// Save a Timestamped Copy.
@@ -34,7 +34,7 @@ pub fn menu() -> Vec<Item> {
 
 /// Save a Timestamped Copy with params `p`: a document never saved, given no `folder`, goes in the
 /// folder picked. The status bar says where the copy went.
-pub(crate) fn save_copy(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn save_copy(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let mut p = if p.is_object() { p.clone() } else { json!({}) };
     if p.get("folder").is_none() && app.session.active().is_some_and(|st| st.path.is_none()) {
         p["folder"] = json!(crate::picks::folder(app).ok_or("cancelled")?);
@@ -46,7 +46,7 @@ pub(crate) fn save_copy(app: &mut VectorcraftApp, p: &Value) -> Result<Value, St
 
 /// Export All Open Documents with params `p`: without a `folder`, the copies go in the folder
 /// picked. The status bar says how many were written and names the first that failed.
-pub(crate) fn export_all(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn export_all(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let mut p = if p.is_object() { p.clone() } else { json!({}) };
     if p.get("folder").is_none() {
         p["folder"] = json!(crate::picks::folder(app).ok_or("cancelled")?);
@@ -69,7 +69,7 @@ pub(crate) fn export_all(app: &mut VectorcraftApp, p: &Value) -> Result<Value, S
 /// Batch Trace Folder with params `p`: the folder of images and then the folder the results go in
 /// are asked for when not given. The status bar says how many images were traced and how many
 /// couldn't be.
-pub(crate) fn batch_trace(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn batch_trace(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let mut p = if p.is_object() { p.clone() } else { json!({}) };
     for key in ["folder", "destinationFolder"] {
         if p.get(key).is_none() {

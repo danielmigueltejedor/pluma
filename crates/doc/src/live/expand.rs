@@ -13,7 +13,7 @@ pub type Outliner<'a> = Option<&'a dyn Fn(&Node) -> Option<Node>>;
 /// `region` (see [`crate::PatternDef::instances_in`]); `None` without such a swatch.
 pub type PatternTiles<'a> = &'a dyn Fn(&str, Affine, Rect) -> Option<Vec<Node>>;
 
-/// What live evaluation asks of the crates above this one (`vectorcraft-effects` supplies them).
+/// What live evaluation asks of the crates above this one (`pluma-effects` supplies them).
 #[derive(Clone, Copy, Default)]
 pub struct Hooks<'a> {
     /// Type as its glyph outlines, a symbol instance as its art (see [`Outliner`]).

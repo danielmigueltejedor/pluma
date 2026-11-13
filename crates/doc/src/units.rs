@@ -328,10 +328,10 @@ pub enum ColorMode {
 
 impl ColorMode {
     /// The colour model new colours take in a document of this mode.
-    pub fn model(self) -> vectorcraft_color::cms::Model {
+    pub fn model(self) -> pluma_color::cms::Model {
         match self {
-            ColorMode::Rgb => vectorcraft_color::cms::Model::Rgb,
-            ColorMode::Cmyk => vectorcraft_color::cms::Model::Cmyk,
+            ColorMode::Rgb => pluma_color::cms::Model::Rgb,
+            ColorMode::Cmyk => pluma_color::cms::Model::Cmyk,
         }
     }
 }

@@ -2,8 +2,8 @@
 //! the mesh file (USDA by default, USDZ, glTF or OBJ), and `assets.export3D` writes them, apart from
 //! the picture assets `assets.export` writes.
 
+use pluma_color::Paint;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
 
 use crate::*;
 
@@ -38,7 +38,7 @@ fn files(r: &Value) -> Vec<(String, Vec<u8>)> {
         .as_array()
         .unwrap()
         .iter()
-        .map(|f| (f["name"].as_str().unwrap().to_string(), vectorcraft_format::base64_decode(f["dataBase64"].as_str().unwrap()).unwrap()))
+        .map(|f| (f["name"].as_str().unwrap().to_string(), pluma_format::base64_decode(f["dataBase64"].as_str().unwrap()).unwrap()))
         .collect()
 }
 
@@ -214,7 +214,7 @@ fn three_d_assets_round_trip_through_the_native_format() {
     run(&mut s, "assets.add3D", json!({"ids": [a], "format": "usdz"}));
     let saved = s.doc().unwrap().doc.assets.clone();
     let b64 = run(&mut s, "document.serialize", json!({"format": "vectorcraft"}))["dataBase64"].as_str().unwrap().to_string();
-    run(&mut s, "document.open", json!({"name": "assets3d.vectorcraft", "dataBase64": b64}));
+    run(&mut s, "document.open", json!({"name": "assets3d.pluma", "dataBase64": b64}));
     assert_eq!(s.doc().unwrap().doc.assets, saved);
     assert_eq!(saved[0].format_3d.as_deref(), Some("usdz"));
 }

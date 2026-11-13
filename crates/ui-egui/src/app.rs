@@ -9,7 +9,7 @@ use super::state::{
     QueuedScreenshot, SCREENSHOT_SETTLE_FRAMES, SCREENSHOT_TIMEOUT_ERROR, SCREENSHOT_TIMEOUT_MS, SYSTEM_CLIPBOARD_POLL, take_frame_once,
 };
 use super::{
-    Arc, AutomationRoots, ControlRequest, Ordering, Receiver, Session, UiState, Value, VectorcraftApp, View, ViewInfo, background, canvas, chrome,
+    Arc, AutomationRoots, ControlRequest, Ordering, PlumaApp, Receiver, Session, UiState, Value, View, ViewInfo, background, canvas, chrome,
     clipboard_probe, dialogs, export_progress, file_access, fileio, font_menu, graphics, i18n, io, json, menus, native_menu, opening, palette,
     panel_docking, panels, picks, place, placing, plugin_runs, prefs_dialog, recovery, screen_color, scrub, shortcut_editor, shortcuts, theme,
     titlebar, toolbar, tools_float, trace_runs, unsaved, updates_ui, widgets,
@@ -30,7 +30,7 @@ mod view;
 
 pub use fonts::MAX_RECENT_FONTS;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Takes the host's Caps Lock state, which gives the drawing tools the crosshair while it is on
     /// without changing the saved Use Precise Cursors preference.
     pub fn set_caps_lock(&mut self, on: bool) {
@@ -46,7 +46,7 @@ impl VectorcraftApp {
     /// Data Recovery the host's store and makes a view for each open document.
     pub fn new(mut session: Session, services: Services) -> Self {
         // The font menus and the first file opened need the installed fonts: catalog them now.
-        vectorcraft_text::FontDb::global().scan_in_background();
+        pluma_text::FontDb::global().scan_in_background();
         if let Some(store) = &services.recovery_store {
             session.recovery.set_store(store.clone());
         }
@@ -55,6 +55,12 @@ impl VectorcraftApp {
         session.place_cursor_requests = true;
         // A script runs a slice per frame, so the window keeps drawing and Stop can be pressed.
         session.script_frames = true;
+        // Unit tests lay the interface out in the Modern scheme, whose metrics they were written
+        // against (as `theme::Scheme::default` does); the Nodalia ones set it themselves.
+        #[cfg(test)]
+        if session.prefs.ui_color_scheme == "nodalia" {
+            session.prefs.ui_color_scheme = "modern".into();
+        }
         let views = session.documents().iter().map(View::of).collect();
         let view_uids = session.documents().iter().map(|d| d.uid).collect();
         let known = session.documents().iter().map(|d| d.uid).collect();
@@ -65,7 +71,7 @@ impl VectorcraftApp {
             view_uids,
             services,
             canvas: CanvasCache {
-                renderer: vectorcraft_render::Renderer::new(),
+                renderer: pluma_render::Renderer::new(),
                 texture: None,
                 key: None,
                 shown: None,
@@ -234,7 +240,7 @@ impl VectorcraftApp {
 
 /// eframe isn't a dependency of this crate (the host owns the event loop); these entry points are
 /// called from the host's `eframe::App` impl.
-impl VectorcraftApp {
+impl PlumaApp {
     /// Applies the work that finished off the UI thread. It stays pending while a script runs, since
     /// every change to the documents ends in a busy error until the script ends.
     pub(crate) fn poll_finished_work(&mut self) {
@@ -277,7 +283,7 @@ impl VectorcraftApp {
     /// unsaved work.
     pub fn tick(&mut self, ctx: &egui::Context) {
         let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
-        if let Err(msg) = file_access::confine(confined.as_ref(), || vectorcraft_engine::guard::catch_panic(|| self.tick_frame(ctx))) {
+        if let Err(msg) = file_access::confine(confined.as_ref(), || pluma_engine::guard::catch_panic(|| self.tick_frame(ctx))) {
             self.picks.recover();
             self.session.set_replaying(false);
             self.status(format!("Internal error: {msg} (please report this bug)"));
@@ -382,7 +388,7 @@ impl VectorcraftApp {
                 }
             } else {
                 // Quitting with nothing unsaved: no copies to leave behind.
-                vectorcraft_engine::cmd::recovery::forget_all(&mut self.session);
+                pluma_engine::cmd::recovery::forget_all(&mut self.session);
             }
         }
         if let Some(wait) = recovery::frame(self, now) {
@@ -444,7 +450,7 @@ impl VectorcraftApp {
         {
             let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
             let _ = file_access::confine(confined.as_ref(), || {
-                vectorcraft_engine::guard::catch_panic(|| {
+                pluma_engine::guard::catch_panic(|| {
                     self.ui_setup(ctx);
                     self.handle_input_once(ctx);
                 })
@@ -521,7 +527,7 @@ impl VectorcraftApp {
         crate::ime::begin_ui(self, &ctx);
         let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
         if let Err(msg) = file_access::confine(confined.as_ref(), || {
-            vectorcraft_engine::guard::catch_panic(|| {
+            pluma_engine::guard::catch_panic(|| {
                 self.ui_setup(&ctx);
                 self.handle_input_once(&ctx);
                 self.ui_frame(ui);
@@ -557,11 +563,29 @@ impl VectorcraftApp {
         // A selection move released over a panel ends before any panel sees the release (#2826).
         canvas::release_over_panel(self, &ctx);
         let t = theme::Tokens::get(&ctx);
+        // Nodalia: the window colour under the islands and the gaps between them.
+        let islands = t.nodalia && self.ui.screen_mode < 3;
+        if islands {
+            ui.painter().rect_filled(ui.max_rect(), 0.0, t.app_bar);
+        }
         if self.ui.screen_mode < 2 {
             chrome::app_bar(self, ui);
-            if self.ui.control_bar {
-                chrome::control_bar(self, ui);
-            }
+        }
+        // Below the app bar every island keeps a gap from the window's edges.
+        let mut island_ui;
+        let ui = if islands {
+            let g = theme::ISLAND_GAP;
+            let mut rect = ui.available_rect_before_wrap();
+            rect.min.x += g;
+            rect.max.x -= g;
+            rect.max.y -= g;
+            island_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(*ui.layout()));
+            &mut island_ui
+        } else {
+            ui
+        };
+        if self.ui.screen_mode < 2 && self.ui.control_bar {
+            chrome::control_bar(self, ui);
         }
         if self.ui.status_bar && self.ui.screen_mode < 3 {
             chrome::status_bar(self, ui);
@@ -594,7 +618,8 @@ impl VectorcraftApp {
         }
         panels::library_panel::tidy(self);
         // The canvas and the panels: one docking layout. Tab hides the panels but not the canvas.
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.pasteboard)).show(ui, |ui| panel_docking::show(self, ui));
+        let backdrop = if islands { t.app_bar } else { t.pasteboard };
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(backdrop)).show(ui, |ui| panel_docking::show(self, ui));
         crate::doc_windows::show(self, &ctx);
         dialogs::show(self, &ctx);
         updates_ui::show(self, &ctx);

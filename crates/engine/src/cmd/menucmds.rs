@@ -5,13 +5,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::marks::{MarkStyle, TrimMarks};
+use pluma_doc::{Appearance, ImageObject, LiveShape, Node, NodeId, NodeKind, RasterColorModel, RasterEffectsSettings, Scaling};
+use pluma_geom::{Affine, Anchor, PathData, Point, Rect, Vec2};
+use pluma_render::AntiAlias;
+use pluma_render::encode::{RasterExportOptions, RasterFormat};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::marks::{MarkStyle, TrimMarks};
-use vectorcraft_doc::{Appearance, ImageObject, LiveShape, Node, NodeId, NodeKind, RasterColorModel, RasterEffectsSettings, Scaling};
-use vectorcraft_geom::{Affine, Anchor, PathData, Point, Rect, Vec2};
-use vectorcraft_render::AntiAlias;
-use vectorcraft_render::encode::{RasterExportOptions, RasterFormat};
 
 use super::edit::{duplicate_in, selected_roots, selected_roots_to_transform};
 use super::{
@@ -395,16 +395,9 @@ fn other_layers(s: &mut Session, lock: bool) -> Result<Value> {
 /// and includes guide paths while `guides_locked`. Without `lock`, guide paths and the objects that hold one are left
 /// out while `guides_locked`; a clip group, Shaper group, compound path and every other object that holds a selected
 /// object or such a guide are left out with their members.
-fn unselected(
-    d: &vectorcraft_doc::Document,
-    iso: Option<NodeId>,
-    selection: &[NodeId],
-    roots: &[NodeId],
-    guides_locked: bool,
-    lock: bool,
-) -> Vec<NodeId> {
+fn unselected(d: &pluma_doc::Document, iso: Option<NodeId>, selection: &[NodeId], roots: &[NodeId], guides_locked: bool, lock: bool) -> Vec<NodeId> {
     /// Pushes the visible guide paths in `n`, `n` included, locked ones too.
-    fn shown_guides(n: &vectorcraft_doc::Node, out: &mut Vec<NodeId>) {
+    fn shown_guides(n: &pluma_doc::Node, out: &mut Vec<NodeId>) {
         if !n.visible {
             return;
         }
@@ -503,7 +496,7 @@ const MAX_ABSOLUTE: f64 = 1.0e7;
 /// The box a symbol instance or any other object has of its own, rotated with it, as the Transform
 /// panel and the Control bar show it: Absolute Transform Each measures its targets on this, with
 /// `symbols` shared so many instances of one symbol measure its art once.
-fn own_box(doc: &vectorcraft_doc::Document, id: NodeId, symbols: &vectorcraft_doc::SymbolBoxes) -> Option<Rect> {
+fn own_box(doc: &pluma_doc::Document, id: NodeId, symbols: &pluma_doc::SymbolBoxes) -> Option<Rect> {
     doc.oriented_bounds_with(&[id], false, symbols).map(|b| b.rect)
 }
 
@@ -611,7 +604,7 @@ fn transform_each_as(s: &mut Session, p: &Value, label: &str) -> Result<Value> {
             // The object's own box, turned with it, as the Transform panel and the dialog show it:
             // the scales act along its axes, about that box's reference point, so a turned square
             // keeps its shape and the size the dialog shows is the one it takes.
-            let frame = vectorcraft_doc::OrientedBox { angle: d.bbox_angle(&[*id]), rect: own };
+            let frame = pluma_doc::OrientedBox { angle: d.bbox_angle(&[*id]), rect: own };
             let o = frame.reference_point(refi);
             // Reflect X / Reflect Y match Object › Transform › Transform Each and Effect › Distort › Transform:
             // Reflect X flips left-right (negate x), Reflect Y flips top-bottom (negate y).
@@ -640,9 +633,9 @@ fn transform_each_as(s: &mut Session, p: &Value, label: &str) -> Result<Value> {
 pub(crate) const MAX_PIXELS: f64 = 64.0e6;
 
 /// A copy of `doc` whose only content is `nodes` (paint order), for offscreen rendering.
-pub(crate) fn isolated_doc(doc: &vectorcraft_doc::Document, nodes: Vec<Node>) -> vectorcraft_doc::Document {
+pub(crate) fn isolated_doc(doc: &pluma_doc::Document, nodes: Vec<Node>) -> pluma_doc::Document {
     let mut tmp = doc.clone();
-    let mut layer = Node::layer(NodeId(u64::MAX), "raster", vectorcraft_doc::LayerColor::Preset(0));
+    let mut layer = Node::layer(NodeId(u64::MAX), "raster", pluma_doc::LayerColor::Preset(0));
     if let Some(ch) = layer.children_mut() {
         *ch = nodes.into_iter().map(Arc::new).collect();
     }
@@ -650,7 +643,7 @@ pub(crate) fn isolated_doc(doc: &vectorcraft_doc::Document, nodes: Vec<Node>) ->
     tmp
 }
 
-pub(crate) fn unique_key(d: &vectorcraft_doc::Document, stem: &str) -> String {
+pub(crate) fn unique_key(d: &pluma_doc::Document, stem: &str) -> String {
     let mut i = d.images.len() + 1;
     loop {
         let k = format!("{stem}-{i}");
@@ -664,17 +657,17 @@ pub(crate) fn unique_key(d: &vectorcraft_doc::Document, stem: &str) -> String {
 /// `doc` rendered over `region` with `opts` in colour model `color` (premultiplied RGBA), with the
 /// note that an image in it couldn't be decoded ([`super::rasterfx::undecoded_warning`]).
 fn render_pixels(
-    doc: &vectorcraft_doc::Document,
+    doc: &pluma_doc::Document,
     region: Rect,
     scale: f64,
-    opts: &vectorcraft_render::RenderOptions,
+    opts: &pluma_render::RenderOptions,
     color: RasterColorModel,
-) -> Result<(vectorcraft_render::Rendered, Option<&'static str>)> {
+) -> Result<(pluma_render::Rendered, Option<&'static str>)> {
     if region.width() * region.height() * scale * scale > MAX_PIXELS || region.width() * scale > 65535.0 || region.height() * scale > 65535.0 {
         return Err(EngineError::Other("image would be too large; lower the resolution".into()));
     }
-    let mut r = vectorcraft_render::Renderer::new();
-    let failed = vectorcraft_render::decode_failures();
+    let mut r = pluma_render::Renderer::new();
+    let failed = pluma_render::decode_failures();
     let mut img = r.render_region_with(doc, region, scale, opts);
     let warning = super::rasterfx::undecoded_warning(failed);
     RasterEffectsSettings { color_model: color, ..Default::default() }.finish_pixels(&mut img.pixels);
@@ -683,10 +676,10 @@ fn render_pixels(
 
 /// [`render_pixels`] as a PNG, with its width and height.
 fn render_png(
-    doc: &vectorcraft_doc::Document,
+    doc: &pluma_doc::Document,
     region: Rect,
     scale: f64,
-    opts: &vectorcraft_render::RenderOptions,
+    opts: &pluma_render::RenderOptions,
     color: RasterColorModel,
 ) -> Result<(Vec<u8>, u32, u32, Option<&'static str>)> {
     let (img, warning) = render_pixels(doc, region, scale, opts, color)?;
@@ -697,20 +690,20 @@ fn render_png(
 /// transparency of `img` (the same art in screen colours) as a greyscale PNG when it has any: a
 /// CMYK image keeps no alpha of its own.
 fn cmyk_raster(
-    doc: &vectorcraft_doc::Document,
+    doc: &pluma_doc::Document,
     region: Rect,
     scale: f64,
-    opts: &vectorcraft_render::RenderOptions,
-    img: &vectorcraft_render::Rendered,
-) -> Result<(vectorcraft_doc::ImageBlob, Option<Vec<u8>>)> {
-    let inks = vectorcraft_render::Renderer::new().render_region_inks(doc, region, scale, opts);
+    opts: &pluma_render::RenderOptions,
+    img: &pluma_render::Rendered,
+) -> Result<(pluma_doc::ImageBlob, Option<Vec<u8>>)> {
+    let inks = pluma_render::Renderer::new().render_region_inks(doc, region, scale, opts);
     let alpha: Vec<u8> = img.pixels.as_chunks::<4>().0.iter().map(|p| p[3]).collect();
     // Partly covered pixels carry that much ink: divided back out, as straight colour is, since
     // the mask applies the coverage.
     let straight = |v: u8, a: u8| if a == 0 { 0 } else { ((u32::from(v) * 255 + u32::from(a) / 2) / u32::from(a)).min(255) as u8 };
     let data = inks.as_chunks::<4>().0.iter().zip(&alpha).flat_map(|(p, &a)| p.map(|v| straight(v, a))).collect();
-    let blob = vectorcraft_doc::cmyk::Inks::new(img.width, img.height, data)
-        .and_then(|i| vectorcraft_doc::ImageBlob::cmyk_tiff(&i))
+    let blob = pluma_doc::cmyk::Inks::new(img.width, img.height, data)
+        .and_then(|i| pluma_doc::ImageBlob::cmyk_tiff(&i))
         .ok_or_else(|| EngineError::Other("the CMYK image couldn't be written".into()))?;
     if alpha.iter().all(|&a| a == 255) {
         return Ok((blob, None));
@@ -726,7 +719,7 @@ fn cmyk_raster(
 /// ([`rasterize_art`]).
 pub(crate) struct Rasterized {
     /// A PNG, or a CMYK image of the art's inks ([`cmyk_raster`]).
-    blob: vectorcraft_doc::ImageBlob,
+    blob: pluma_doc::ImageBlob,
     /// A CMYK image's transparency, a greyscale PNG: it becomes the image's opacity mask.
     alpha: Option<Vec<u8>>,
     width: u32,
@@ -734,7 +727,7 @@ pub(crate) struct Rasterized {
     /// Image pixels → document.
     xf: Affine,
     /// The art's outline, with Create Clipping Mask.
-    clip: Option<(PathData, vectorcraft_geom::FillRule)>,
+    clip: Option<(PathData, pluma_geom::FillRule)>,
     /// The note that an image in the art couldn't be decoded ([`render_png`]).
     warning: Option<&'static str>,
 }
@@ -742,8 +735,8 @@ pub(crate) struct Rasterized {
 impl Rasterized {
     /// The image as a new object of `d` (its pixels in `d.images`), in a clip group with the art's
     /// outline when it has one.
-    pub(crate) fn into_node(self, d: &mut vectorcraft_doc::Document) -> Node {
-        let image = |d: &mut vectorcraft_doc::Document, blob: vectorcraft_doc::ImageBlob| {
+    pub(crate) fn into_node(self, d: &mut pluma_doc::Document) -> Node {
+        let image = |d: &mut pluma_doc::Document, blob: pluma_doc::ImageBlob| {
             let key = unique_key(d, "raster");
             d.images.insert(key.clone(), blob);
             let image =
@@ -752,8 +745,8 @@ impl Rasterized {
         };
         let mut node = image(d, self.blob);
         if let Some(png) = self.alpha {
-            let art = image(d, vectorcraft_doc::ImageBlob::new("image/png", png));
-            node.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(art, true)));
+            let art = image(d, pluma_doc::ImageBlob::new("image/png", png));
+            node.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(art, true)));
         }
         match self.clip {
             Some((path, rule)) => super::rasterfx::clip_group(d, path, rule, node),
@@ -764,9 +757,9 @@ impl Rasterized {
 
 /// Object › Rasterize's image of `nodes` (drawn also where hidden) with the params `p` of command
 /// `cmd`, each defaulting to `doc`'s raster effects settings: over the bounds of what the art draws
-/// ([`vectorcraft_render::drawn_bounds`]) and the room around them, in whole pixels. With `inks`,
+/// ([`pluma_render::drawn_bounds`]) and the room around them, in whole pixels. With `inks`,
 /// a CMYK document's colour model makes a CMYK image ([`cmyk_raster`]); otherwise images are PNGs.
-pub(crate) fn rasterize_art(doc: &vectorcraft_doc::Document, nodes: Vec<Node>, p: &Value, cmd: &str, inks: bool) -> Result<Rasterized> {
+pub(crate) fn rasterize_art(doc: &pluma_doc::Document, nodes: Vec<Node>, p: &Value, cmd: &str, inks: bool) -> Result<Rasterized> {
     check_numbers(p, &["ppi"], cmd)?;
     let ppi = f64_or(p, "ppi", doc.raster_effects_ppi);
     if !(1.0..=2400.0).contains(&ppi) {
@@ -774,7 +767,7 @@ pub(crate) fn rasterize_art(doc: &vectorcraft_doc::Document, nodes: Vec<Node>, p
     }
     // The document's raster effects settings, changed by the params.
     let mut look = doc.raster_effects.clone();
-    let mut background = (look.background == vectorcraft_doc::Background::White).then_some([255; 3]);
+    let mut background = (look.background == pluma_doc::Background::White).then_some([255; 3]);
     let mut anti_alias = if look.anti_alias { AntiAlias::Art } else { AntiAlias::None };
     for (k, v) in p.as_object().into_iter().flatten().filter(|(_, v)| !v.is_null()) {
         match k.as_str() {
@@ -807,7 +800,7 @@ pub(crate) fn rasterize_art(doc: &vectorcraft_doc::Document, nodes: Vec<Node>, p
         })
         .collect();
     // What the art draws, its geometry effects applied.
-    let b = nodes.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, vectorcraft_render::drawn_bounds(doc, n)));
+    let b = nodes.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, pluma_render::drawn_bounds(doc, n)));
     let b = b.ok_or_else(|| bad(cmd, "selection has no bounds"))?.inflate(pad, pad);
     let scale = ppi / 72.0;
     // Snap to whole pixels.
@@ -818,24 +811,24 @@ pub(crate) fn rasterize_art(doc: &vectorcraft_doc::Document, nodes: Vec<Node>, p
         .clipping_mask
         .then(|| {
             let outlines = nodes.iter().filter_map(|n| {
-                let (bp, rule) = vectorcraft_render::drawn_outline(doc, n)?;
+                let (bp, rule) = pluma_render::drawn_outline(doc, n)?;
                 let mut p = Node::path(n.id, PathData::from_bezpath(&bp), Appearance::default());
                 if let NodeKind::Path { rule: r, .. } = &mut p.kind {
                     *r = rule;
                 }
                 Some(Arc::new(p))
             });
-            vectorcraft_render::effects::clip_outline(&Node::group(NodeId(u64::MAX), outlines.collect()))
+            pluma_render::effects::clip_outline(&Node::group(NodeId(u64::MAX), outlines.collect()))
         })
         .flatten()
         .map(|(bp, rule)| (PathData::from_bezpath(&bp), rule));
     let tmp = isolated_doc(doc, nodes);
     let opts = raster.render_options(RasterFormat::Png);
     let (img, warning) = render_pixels(&tmp, region, scale, &opts, look.color_model)?;
-    let (blob, alpha) = if inks && doc.color_mode == vectorcraft_doc::ColorMode::Cmyk && look.color_model == RasterColorModel::Document {
+    let (blob, alpha) = if inks && doc.color_mode == pluma_doc::ColorMode::Cmyk && look.color_model == RasterColorModel::Document {
         cmyk_raster(&tmp, region, scale, &opts, &img)?
     } else {
-        (vectorcraft_doc::ImageBlob::new("image/png", img.to_png().map_err(EngineError::Other)?), None)
+        (pluma_doc::ImageBlob::new("image/png", img.to_png().map_err(EngineError::Other)?), None)
     };
     let xf = Affine::translate(region.origin().to_vec2()) * Affine::scale(1.0 / scale);
     Ok(Rasterized { blob, alpha, width: img.width, height: img.height, xf, clip, warning })
@@ -890,11 +883,11 @@ fn object_mosaic(s: &mut Session, p: &Value) -> Result<Value> {
     let node = st.doc.node(id).cloned().ok_or(EngineError::NoNode(id))?;
     let NodeKind::Image(im) = &node.kind else { return Err(bad(C, "select an image")) };
     let blob = st.doc.images.get(&im.key).filter(|b| !b.bytes.is_empty()).ok_or_else(|| bad(C, "the image has no embedded pixels"))?;
-    let raster = vectorcraft_trace::Raster::decode(&blob.bytes).map_err(|e| bad(C, e.to_string()))?;
+    let raster = pluma_trace::Raster::decode(&blob.bytes).map_err(|e| bad(C, e.to_string()))?;
     let cols = whole_or(p, "columns", 10, C)?.clamp(1, 1000) as u32;
     let rows = whole_or(p, "rows", 10, C)?.clamp(1, 1000) as u32;
     let gray = switch_or(p, "gray", false, C)?;
-    let colors = vectorcraft_trace::mosaic(&raster, cols, rows);
+    let colors = pluma_trace::mosaic(&raster, cols, rows);
     // Tiles in image space, placed by the image transform (scaled to a new size if asked).
     let b = node.geometric_bounds().ok_or_else(|| bad(C, "image has no bounds"))?;
     check_numbers(p, &["width", "height", "spacingX", "spacingY"], C)?;
@@ -950,7 +943,7 @@ fn object_mosaic(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn polygon_path(pts: &[Point]) -> PathData {
-    PathData::single(vectorcraft_geom::SubPath::new(pts.iter().map(|p| Anchor::corner(*p)).collect(), true))
+    PathData::single(pluma_geom::SubPath::new(pts.iter().map(|p| Anchor::corner(*p)).collect(), true))
 }
 
 fn crop_image(s: &mut Session, p: &Value) -> Result<Value> {
@@ -1006,7 +999,7 @@ fn crop_image(s: &mut Session, p: &Value) -> Result<Value> {
         render_png(&tmp, region, scale, &RasterExportOptions::default().render_options(RasterFormat::Png), RasterColorModel::Document)?;
     s.edit("Crop Image", |d, _| {
         let key = unique_key(d, "crop");
-        d.images.insert(key.clone(), vectorcraft_doc::ImageBlob::new("image/png", png));
+        d.images.insert(key.clone(), pluma_doc::ImageBlob::new("image/png", png));
         if let Some(n) = d.node_mut(id) {
             n.kind = NodeKind::Image(Box::new(ImageObject {
                 key,
@@ -1074,7 +1067,7 @@ fn trim_image(s: &mut Session, id: NodeId, im: ImageObject) -> Result<Value> {
     let (cw, ch) = (x1 - x0, y1 - y0);
     s.edit("Crop Image", |d, _| {
         let key = unique_key(d, "crop");
-        d.images.insert(key.clone(), vectorcraft_doc::ImageBlob::new("image/png", png));
+        d.images.insert(key.clone(), pluma_doc::ImageBlob::new("image/png", png));
         if let Some(n) = d.node_mut(id) {
             n.kind = NodeKind::Image(Box::new(ImageObject {
                 key,
@@ -1101,7 +1094,7 @@ fn mask_image(s: &mut Session, _: &Value) -> Result<Value> {
         .iter()
         .find_map(|id| match st.doc.node(*id).map(|n| &n.kind) {
             Some(NodeKind::Image(im)) => {
-                Some((*id, vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, im.width as f64, im.height as f64)).transformed(im.xf)))
+                Some((*id, pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, im.width as f64, im.height as f64)).transformed(im.xf)))
             }
             _ => None,
         })
@@ -1266,7 +1259,7 @@ fn convert_to_artboards(s: &mut Session, _: &Value) -> Result<Value> {
             // Named one past the highest artboard id the document has, whatever id it is given.
             let number = d.artboards.iter().map(|a| a.id).max().map_or(1, |m| m.saturating_add(1));
             let aid = d.next_artboard_id();
-            d.artboards.push(vectorcraft_doc::Artboard {
+            d.artboards.push(pluma_doc::Artboard {
                 id: aid,
                 name: format!("Artboard {number}"),
                 rect: b,

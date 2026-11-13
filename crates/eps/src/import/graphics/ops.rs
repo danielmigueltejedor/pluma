@@ -18,7 +18,7 @@ impl Interp<'_> {
             st.dash = None;
         }
         let tol = (0.01 / self.scale().max(1e-9)).clamp(1e-4, 1.0);
-        let outline = vectorcraft_effects::stroke::line_outline(&bp, &st, st.width, tol);
+        let outline = pluma_effects::stroke::line_outline(&bp, &st, st.width, tol);
         // The path, each entry of the dash pattern in each period, and the outline count as elements.
         let dashes = st.dash.as_ref().map_or(0.0, |d| periods * d.pattern.len() as f64) as usize;
         self.spend_elements(bp.elements().len().saturating_add(dashes).saturating_add(outline.elements().len()))?;

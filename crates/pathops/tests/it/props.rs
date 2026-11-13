@@ -3,9 +3,9 @@ use crate::common;
 use std::f64::consts::PI;
 
 use kurbo::{ParamCurve, Point, Rect, Shape as _};
+use pluma_geom::{FillRule, PathData, SubPath};
+use pluma_pathops::*;
 use proptest::prelude::*;
-use vectorcraft_geom::{FillRule, PathData, SubPath};
-use vectorcraft_pathops::*;
 
 const NZ: FillRule = FillRule::NonZero;
 

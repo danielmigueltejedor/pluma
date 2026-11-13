@@ -2,14 +2,14 @@
 
 use craft_ui::docking::Hit;
 use egui::{Event, PointerButton, Pos2, Rect, pos2, vec2};
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 
 const SCREEN: Rect = Rect::from_min_max(Pos2::ZERO, pos2(1600.0, 1000.0));
 
 struct Harness {
-    app: VectorcraftApp,
+    app: PlumaApp,
     ctx: egui::Context,
     time: f64,
     cursor: egui::CursorIcon,
@@ -19,7 +19,7 @@ struct Harness {
 impl Harness {
     /// Create a blank document and settle the initial docking layout over three frames.
     fn new() -> Self {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         let mut h = Self { app, ctx: egui::Context::default(), time: 0.0, cursor: egui::CursorIcon::Default, nodes: Vec::new() };
         for _ in 0..3 {
@@ -34,7 +34,7 @@ impl Harness {
         self.run(input);
     }
 
-    /// A frame whose input first goes through [`VectorcraftApp::release_lost_buttons`], with the
+    /// A frame whose input first goes through [`PlumaApp::release_lost_buttons`], with the
     /// system reporting a mouse button down or not.
     fn frame_with_system_buttons(&mut self, events: Vec<Event>, system_held: bool) {
         self.time += 0.05;
@@ -672,7 +672,7 @@ fn tools_redock_at_window_edge_above_and_below_canvas() {
 #[ignore = "manual visual check; set LEFT_TOOLS_SCREENSHOTS to an existing harness directory"]
 fn capture_tools_beside_left_panels() {
     let dir = std::path::PathBuf::from(std::env::var_os("LEFT_TOOLS_SCREENSHOTS").unwrap());
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("window.toolsBesideCanvas", json!({"on": true})).unwrap();
     app.run("window.panel.dock", json!({"panel": "layers", "side": "Start"})).unwrap();
@@ -680,7 +680,7 @@ fn capture_tools_beside_left_panels() {
         .with_size(vec2(1200.0, 800.0))
         .with_accessibility_check(false)
         .wgpu()
-        .build_ui_state(|ui, app: &mut VectorcraftApp| app.ui(ui), app);
+        .build_ui_state(|ui, app: &mut PlumaApp| app.ui(ui), app);
     h.run_steps(6);
     h.render().unwrap().save(dir.join("tools-inside-left-dock.png")).unwrap();
     h.state_mut().ui.toolbar_double = true;
@@ -1140,14 +1140,14 @@ fn other_function_keys_and_keyboard_guards_keep_their_routes() {
     h.press(egui::Key::F7, egui::Modifiers::NONE);
     assert!(!showing(&h.app.ui, "layers"), "F7 toggles when the field releases focus");
 
-    let dir = vectorcraft_testkit::temp_dir("panel-shortcut-revert");
-    let path = dir.join(format!("panel-shortcut-revert-{}.vectorcraft", std::process::id()));
+    let dir = pluma_testkit::temp_dir("panel-shortcut-revert");
+    let path = dir.join(format!("panel-shortcut-revert-{}.pluma", std::process::id()));
     let services = crate::Services {
         read: Some(Box::new(|p| std::fs::read(p).map_err(|e| e.to_string()))),
         write: Some(Box::new(|p, data| std::fs::write(p, data).map_err(|e| e.to_string()))),
         ..Default::default()
     };
-    let mut saved = VectorcraftApp::new(Session::new(), services);
+    let mut saved = PlumaApp::new(Session::new(), services);
     saved.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     saved.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
     saved.run("file.saveAs", json!({"path": path.to_string_lossy()})).unwrap();

@@ -5,7 +5,7 @@
 //!
 //! Behavior reference (public documentation):
 //! <https://help.adobe.com/archive/en_US/illustrator/cs3/illustrator_cs3_help.pdf#page=347>.
-//! Which characters fall in which class, the ranges and the defaults are VectorCraft's own.
+//! Which characters fall in which class, the ranges and the defaults are Pluma's own.
 
 use serde::{Deserialize, Serialize};
 

@@ -15,7 +15,7 @@ pub(crate) struct Writer {
     /// `cmyk_blending`).
     cmyk: bool,
     /// Spot colours written with a Lab alternate, gathered from the exporters ([`Self::absorb`]).
-    lab_spots: Vec<(String, vectorcraft_color::cms::Lab)>,
+    lab_spots: Vec<(String, pluma_color::cms::Lab)>,
     warnings: Vec<String>,
     /// RGB content of a CMYK document, gathered from the exporters ([`Self::absorb`]).
     rgb_in_cmyk: RgbInCmyk,
@@ -96,8 +96,8 @@ impl Writer {
         let info = &doc.metadata;
         let given = |s: &str| Some(s.trim()).filter(|s| !s.is_empty()).map(str::to_string);
         let metadata = Metadata {
-            creator: "VectorCraft".into(),
-            producer: "VectorCraft".into(),
+            creator: "Pluma".into(),
+            producer: "Pluma".into(),
             title: Some(title.to_owned()),
             authors: given(&info.author).into_iter().collect(),
             description: given(&info.description),
@@ -150,7 +150,7 @@ impl Writer {
         let page_group = fits && !self.pdf13 && (doc.page_isolate || doc.page_knockout);
         let cmyk_page_group = fits && self.cmyk && !page_group && ex.shows_transparency();
         // Each copy draws within an equal share of the symbol objects the export has left
-        // ([`vectorcraft_doc::MAX_SYMBOL_NODES`]), so every copy leaves out the same instances.
+        // ([`pluma_doc::MAX_SYMBOL_NODES`]), so every copy leaves out the same instances.
         let limit = ex.symbol_limit;
         let share = limit.saturating_sub(ex.symbol_nodes) / moves.len() as u64;
         for m in moves {
@@ -371,7 +371,7 @@ fn number(digits: &[u8]) -> Option<u32> {
 
 /// Unix seconds (UTC) → krilla date.
 pub(super) fn date_time(t: i64) -> krilla::metadata::DateTime {
-    let [year, month, day, hour, minute, second] = vectorcraft_doc::metadata::civil(t);
+    let [year, month, day, hour, minute, second] = pluma_doc::metadata::civil(t);
     krilla::metadata::DateTime::new(year as u16)
         .month(month as u8)
         .day(day as u8)

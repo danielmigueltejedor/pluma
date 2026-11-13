@@ -8,13 +8,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use pluma_engine::Session;
+use pluma_plugins::safe_mode::{self, Item};
+use pluma_plugins::{registry, wat as tpl};
+use pluma_ui_egui::dialogs::safe_mode as ui;
+use pluma_ui_egui::panels::appearance;
+use pluma_ui_egui::{PlumaApp, Services, chrome, dialogs, theme};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::safe_mode::{self, Item};
-use vectorcraft_plugins::{registry, wat as tpl};
-use vectorcraft_ui_egui::dialogs::safe_mode as ui;
-use vectorcraft_ui_egui::panels::appearance;
-use vectorcraft_ui_egui::{Services, VectorcraftApp, chrome, dialogs, theme};
 
 static LOCK: Mutex<()> = Mutex::new(());
 
@@ -64,21 +64,21 @@ fn store_with_two(tag: &str) -> PathBuf {
     let mut s = Session::new();
     s.attach_plugin_store(dir.clone());
     for id in ["test.ui.x", "test.ui.y"] {
-        s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&filter(id))})).unwrap();
+        s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&filter(id))})).unwrap();
     }
     dir
 }
 
 /// A launch of the app after one that stopped while `stopped` was loading (none: Safe Mode from
 /// `--safe-mode` when `flag`), with the plug-in folder `dir` and the launch marker folder `launch`.
-fn launch(dir: &Path, launch: &Path, flag: bool) -> VectorcraftApp {
+fn launch(dir: &Path, launch: &Path, flag: bool) -> PlumaApp {
     for p in registry::list() {
         registry::remove(p.id());
     }
     let stopped = ui::begin_launch(Some(launch), flag);
     let mut session = Session::new();
     session.attach_plugin_store(dir.to_path_buf());
-    let mut app = VectorcraftApp::new(session, Services::default());
+    let mut app = PlumaApp::new(session, Services::default());
     ui::after_start(&mut app, stopped);
     app
 }
@@ -86,13 +86,13 @@ fn launch(dir: &Path, launch: &Path, flag: bool) -> VectorcraftApp {
 /// A marker left by a launch that stopped while the stored plug-in x was loading.
 fn stopped_while_loading_x(launch: &Path, dir: &Path) {
     let x = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.path()).find(|p| p.to_string_lossy().contains("test_ui_x")).unwrap();
-    let item = json!({"format": "vectorcraft-launch", "version": 1, "item": {"file": x.display().to_string()}});
+    let item = json!({"format": "pluma-launch", "version": 1, "item": {"file": x.display().to_string()}});
     std::fs::create_dir_all(launch).unwrap();
     std::fs::write(launch.join("launch-1-dead.json"), item.to_string()).unwrap();
 }
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| dialogs::show(app, ui.ctx()));
@@ -107,7 +107,7 @@ fn done(launch: &Path) {
     let _ = std::fs::remove_dir_all(launch);
 }
 
-fn kind(app: &VectorcraftApp) -> Option<&str> {
+fn kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
@@ -125,7 +125,7 @@ fn disable_and_continue_loads_every_plug_in_but_the_one_that_was_loading() {
     dialogs::confirm(&mut app).unwrap();
     assert!(!safe_mode::active() && kind(&app).is_none());
     assert!(registry::get("test.ui.x").is_none() && registry::get("test.ui.y").is_some(), "only the one that was loading is off");
-    assert_eq!(chrome::window_title(&app), "VectorCraft");
+    assert_eq!(chrome::window_title(&app), "Pluma");
     assert!(dir.join("disabled.json").is_file(), "kept off at later launches");
     ui::end_launch();
 
@@ -174,7 +174,7 @@ fn a_disabled_list_that_cannot_be_saved_says_so() {
     let launch_dir = dir.join("Launch");
     stopped_while_loading_x(&launch_dir, &dir);
     // A later version's list, which a save keeps as it is.
-    let later = r#"{"format": "vectorcraft-disabled-plugins", "version": 2, "items": []}"#;
+    let later = r#"{"format": "pluma-disabled-plugins", "version": 2, "items": []}"#;
     std::fs::write(dir.join("disabled.json"), later).unwrap();
     let unsaved = "Couldn't save the disabled plug-ins for the next launch";
     let mut app = launch(&dir, &launch_dir, false);
@@ -200,7 +200,7 @@ fn the_safe_mode_label_leaves_the_menus_their_room() {
     for width in [560.0, 720.0, 1280.0] {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 400.0))), ..Default::default() };
         let mut out = ctx.run_ui(input, |ui| chrome::app_bar(&mut app, ui));
         out.textures_delta.clear();
@@ -251,7 +251,7 @@ fn the_safe_mode_flag_asks_nothing_and_loads_nothing() {
     let app = launch(&dir, &launch_dir, true);
     assert!(kind(&app).is_none() && ui::staying_on(&app));
     assert_eq!((safe_mode::source(), registry::list().len()), (Some(safe_mode::Source::Flag), 0));
-    assert_eq!(app.ui.status, vectorcraft_plugins::Error::SafeMode.to_string());
+    assert_eq!(app.ui.status, pluma_plugins::Error::SafeMode.to_string());
     assert!(chrome::window_title(&app).ends_with("(Safe Mode)"));
     // An object's plug-in effect stays in its Appearance list, marked as skipped.
     assert!(appearance::effect_row_label("plugin.org.example.glow").ends_with("(Safe Mode)"));

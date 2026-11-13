@@ -71,7 +71,7 @@ fn text_create_justify_anchors_point_type_on_its_point() {
 
 #[test]
 fn kinsoku_set_is_set_per_paragraph_and_saved_only_when_not_hard() {
-    use vectorcraft_doc::Kinsoku;
+    use pluma_doc::Kinsoku;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id =
@@ -94,7 +94,7 @@ fn kinsoku_set_is_set_per_paragraph_and_saved_only_when_not_hard() {
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(para(&s).kinsoku, Kinsoku::Hard);
     // Documents from before it read as Hard.
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
     assert_eq!(old.kinsoku, Kinsoku::Hard);
 }
 
@@ -103,7 +103,7 @@ fn kinsoku_set_is_set_per_paragraph_and_saved_only_when_not_hard() {
 /// (new type's and older documents' type), reopens with the file, and paragraph styles carry it.
 #[test]
 fn kinsoku_shori_type_is_set_per_paragraph_and_saved_only_when_not_push_out_only() {
-    use vectorcraft_doc::KinsokuShoriType;
+    use pluma_doc::KinsokuShoriType;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "あ」\nい", "area": {"width": 100, "height": 100}})).unwrap()["id"]
@@ -118,7 +118,7 @@ fn kinsoku_shori_type_is_set_per_paragraph_and_saved_only_when_not_push_out_only
     s.execute("text.setFormat", &json!({"id": id, "start": 0, "end": 1, "kinsokuType": "pushInFirst"})).unwrap();
     assert_eq!((text(&s).para_at(0).kinsoku_type, text(&s).para_at(1).kinsoku_type), (KinsokuShoriType::PushInFirst, KinsokuShoriType::PushOutOnly));
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["kinsoku_type"], "pushInFirst");
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.para_at(0).kinsoku_type, back.para_at(1).kinsoku_type), (KinsokuShoriType::PushInFirst, KinsokuShoriType::PushOutOnly));
     assert!(s.execute("text.setFormat", &json!({"id": id, "kinsokuType": "pushIn"})).is_err());
@@ -131,13 +131,13 @@ fn kinsoku_shori_type_is_set_per_paragraph_and_saved_only_when_not_push_out_only
     s.execute("paraStyle.new", &json!({"name": "Pushed in", "attrs": {"kinsoku_type": "pushOutFirst"}})).unwrap();
     s.execute("paraStyle.apply", &json!({"name": "Pushed in", "id": id})).unwrap();
     assert_eq!(text(&s).para_at(1).kinsoku_type, KinsokuShoriType::PushOutFirst);
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
     assert_eq!(old.kinsoku_type, KinsokuShoriType::PushOutOnly);
 }
 
 #[test]
 fn burasagari_is_set_per_paragraph_and_saved_only_when_on() {
-    use vectorcraft_doc::Burasagari;
+    use pluma_doc::Burasagari;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "雅楽、笙。", "area": {"width": 200, "height": 100}})).unwrap()["id"]
@@ -161,7 +161,7 @@ fn burasagari_is_set_per_paragraph_and_saved_only_when_on() {
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(para(&s).burasagari, Burasagari::Standard);
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
     assert_eq!(old.burasagari, Burasagari::None);
 }
 
@@ -208,7 +208,7 @@ fn optical_margin_alignment_is_set_per_object_and_saved_only_when_on() {
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(text(&s).optical_margin);
     // Saved and reopened as it was; a document from before it reads as off.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     assert!(t.optical_margin);
     let mut old = serde_json::to_value(text(&s)).unwrap();
@@ -231,8 +231,7 @@ fn system_layout_sets_the_document_and_every_text_object() {
         _ => panic!("text"),
     };
     let setup = |s: &Session| s.doc().unwrap().doc.setup.clone();
-    let advances =
-        |s: &Session| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s, id)).glyphs.iter().map(|g| g.advance).collect::<Vec<_>>();
+    let advances = |s: &Session| pluma_text::layout(pluma_text::FontDb::global(), &text(s, id)).glyphs.iter().map(|g| g.advance).collect::<Vec<_>>();
     assert!(!setup(&s).system_layout);
     assert!(!text(&s, id).system_layout && !text(&s, other).system_layout);
     assert!(serde_json::to_value(setup(&s)).unwrap().get("systemLayout").is_none());
@@ -257,13 +256,13 @@ fn system_layout_sets_the_document_and_every_text_object() {
     assert!(!setup(&s).system_layout && !text(&s, id).system_layout && !text(&s, made).system_layout);
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(setup(&s).system_layout && text(&s, id).system_layout);
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert!(back.setup.system_layout);
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     assert!(t.system_layout);
     let mut old = serde_json::to_value(setup(&s)).unwrap();
     old.as_object_mut().unwrap().remove("systemLayout");
-    assert!(!serde_json::from_value::<vectorcraft_doc::DocSetup>(old).unwrap().system_layout);
+    assert!(!serde_json::from_value::<pluma_doc::DocSetup>(old).unwrap().system_layout);
 }
 
 /// Character panel menu › Fractional Widths: `type.fractionalWidths` sets or toggles the flag
@@ -279,8 +278,7 @@ fn fractional_widths_is_set_per_object_and_saved_only_when_off() {
         NodeKind::Text(t) => (**t).clone(),
         _ => panic!("text"),
     };
-    let advances =
-        |s: &Session| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s)).glyphs.iter().map(|g| g.advance).collect::<Vec<_>>();
+    let advances = |s: &Session| pluma_text::layout(pluma_text::FontDb::global(), &text(s)).glyphs.iter().map(|g| g.advance).collect::<Vec<_>>();
     // New type: on, and not saved.
     assert!(text(&s).fractional_widths);
     assert!(serde_json::to_value(text(&s)).unwrap().get("fractionalWidths").is_none());
@@ -310,7 +308,7 @@ fn fractional_widths_is_set_per_object_and_saved_only_when_off() {
     assert!(text(&s).fractional_widths);
     // Saved and reopened as it was; a document from before it reads as on.
     s.execute("type.fractionalWidths", &json!({"on": false})).unwrap();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     assert!(!t.fractional_widths);
     let mut old = serde_json::to_value(text(&s)).unwrap();
@@ -323,7 +321,7 @@ fn fractional_widths_is_set_per_object_and_saved_only_when_off() {
 /// and paragraph styles carry them.
 #[test]
 fn hyphenation_options_are_set_per_paragraph_and_saved_only_when_not_default() {
-    use vectorcraft_doc::HyphenationOptions;
+    use pluma_doc::HyphenationOptions;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo", "area": {"width": 200, "height": 100}})).unwrap()["id"]
@@ -345,7 +343,7 @@ fn hyphenation_options_are_set_per_paragraph_and_saved_only_when_not_default() {
     let (first, second) = paras(&s);
     assert_eq!((first.hyphenation, &second.hyphenation), (HyphenationOptions::default(), &want), "only the paragraph the caret is in");
     assert_eq!(serde_json::to_value(&second).unwrap()["hyphenation"]["hyphen_limit"], 2);
-    let back: vectorcraft_doc::ParaStyle = serde_json::from_value(serde_json::to_value(&second).unwrap()).unwrap();
+    let back: pluma_doc::ParaStyle = serde_json::from_value(serde_json::to_value(&second).unwrap()).unwrap();
     assert_eq!(back.hyphenation, want);
     s.execute("text.setFormat", &json!({"hyphenLimit": -3, "hyphenationZone": 5000})).unwrap();
     assert_eq!((paras(&s).0.hyphenation.hyphen_limit, paras(&s).1.hyphenation.zone), (0, 1296.0));
@@ -356,7 +354,7 @@ fn hyphenation_options_are_set_per_paragraph_and_saved_only_when_not_default() {
     s.execute("paraStyle.new", &json!({"name": "Loose", "attrs": {"hyphenation": {"words_longer_than": 9}}})).unwrap();
     s.execute("paraStyle.apply", &json!({"name": "Loose", "id": id})).unwrap();
     assert_eq!(paras(&s).0.hyphenation, HyphenationOptions { words_longer_than: 9, ..HyphenationOptions::default() });
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left", "hyphenate": true})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left", "hyphenate": true})).unwrap();
     assert_eq!(old.hyphenation, HyphenationOptions::default());
 }
 
@@ -386,7 +384,7 @@ fn roman_hanging_punctuation_is_set_per_paragraph_and_saved_only_when_on() {
     assert!(text(&s).para_at(0).roman_hanging && !text(&s).para_at(1).roman_hanging);
     assert!(left(&s) < inside - 5.0, "{} {inside}", left(&s));
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["roman_hanging"], true);
-    let back: vectorcraft_doc::ParaStyle = serde_json::from_value(serde_json::to_value(text(&s).para_at(0)).unwrap()).unwrap();
+    let back: pluma_doc::ParaStyle = serde_json::from_value(serde_json::to_value(text(&s).para_at(0)).unwrap()).unwrap();
     assert!(back.roman_hanging);
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(!text(&s).para_at(0).roman_hanging);
@@ -402,7 +400,7 @@ fn roman_hanging_punctuation_is_set_per_paragraph_and_saved_only_when_on() {
 /// unknown value changes nothing, and paragraph styles carry it.
 #[test]
 fn insert_kashidas_is_set_per_paragraph_and_saved_only_when_set() {
-    use vectorcraft_doc::text::Kashida;
+    use pluma_doc::text::Kashida;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s
@@ -421,7 +419,7 @@ fn insert_kashidas_is_set_per_paragraph_and_saved_only_when_set() {
     s.execute("text.setFormat", &json!({"kashida": "medium", "start": 0, "end": 0})).unwrap();
     assert_eq!((text(&s).para_at(0).kashida, text(&s).para_at(1).kashida), (Kashida::Medium, Kashida::None));
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["kashida"], "medium");
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.para_at(0).kashida, back.para_at(1).kashida), (Kashida::Medium, Kashida::None));
     assert!(s.execute("text.setFormat", &json!({"kashida": "wide"})).is_err());
@@ -441,7 +439,7 @@ fn insert_kashidas_is_set_per_paragraph_and_saved_only_when_set() {
 /// "none" turns it off, and paragraph styles set it and turn it off.
 #[test]
 fn bulleted_lists_are_set_per_paragraph_saved_and_continued() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo\nThree", "area": {"width": 300, "height": 200}})).unwrap()["id"]
@@ -473,9 +471,9 @@ fn bulleted_lists_are_set_per_paragraph_saved_and_continued() {
     assert_eq!((list(&s, 0), list(&s, 2)), (square, None), "an unknown value changes nothing");
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "square"}));
     // A saved list reads the fields it leaves out as their defaults and ignores those it doesn't know.
-    let read = |v: serde_json::Value| serde_json::from_value::<vectorcraft_doc::ParaStyle>(json!({ "list": v })).unwrap().list;
+    let read = |v: serde_json::Value| serde_json::from_value::<pluma_doc::ParaStyle>(json!({ "list": v })).unwrap().list;
     assert_eq!((read(json!({})), read(json!({"bullet": "dash", "restart": 2}))), (dot, Some(ParaList::bulleted(Bullet::Dash))));
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.para_at(0).list, back.para_at(1).list, back.para_at(2).list), (square, dot, None));
     // Return at the end of a list item starts another one.
@@ -506,7 +504,7 @@ fn bulleted_lists_are_set_per_paragraph_saved_and_continued() {
 /// unknown value is an error; the list is saved, reopened and carried by paragraph styles.
 #[test]
 fn numbered_lists_are_set_per_paragraph_saved_and_styled() {
-    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, NumberStyle, ParaList};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo\nThree", "area": {"width": 300, "height": 200}})).unwrap()["id"]
@@ -517,9 +515,7 @@ fn numbered_lists_are_set_per_paragraph_saved_and_styled() {
         _ => panic!("text"),
     };
     let list = |s: &Session, i: usize| text(s).para_at(i).list;
-    let numbers = |s: &Session| {
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
-    };
+    let numbers = |s: &Session| pluma_text::layout(pluma_text::FontDb::global(), &text(s)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>();
     s.execute("select.set", &json!({"ids": [id]})).unwrap();
     s.execute("text.setFormat", &json!({"list": "number"})).unwrap();
     let arabic = Some(ParaList::numbered(NumberStyle::Arabic));
@@ -546,7 +542,7 @@ fn numbered_lists_are_set_per_paragraph_saved_and_styled() {
     }
     assert_eq!((list(&s, 0), list(&s, 1)), (letters, arabic), "an unknown value changes nothing");
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "square", "number": "lowerLetters"}));
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.para_at(0).list, back.para_at(1).list, back.para_at(2).list), (letters, arabic, arabic));
     // Return at the end of a numbered item starts the next number.
@@ -581,7 +577,7 @@ fn numbered_lists_are_set_per_paragraph_saved_and_styled() {
 /// paragraph styles carry it both ways.
 #[test]
 fn list_markers_are_aligned_per_paragraph_saved_and_styled() {
-    use vectorcraft_doc::text::{Bullet, ListAlign, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, ListAlign, NumberStyle, ParaList};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo\nThree", "area": {"width": 300, "height": 200}})).unwrap()["id"]
@@ -617,7 +613,7 @@ fn list_markers_are_aligned_per_paragraph_saved_and_styled() {
     s.execute("text.setFormat", &json!({"listAlign": "left", "start": 8, "end": 8})).unwrap();
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "square", "align": "right"}));
     assert_eq!(serde_json::to_value(text(&s).para_at(2)).unwrap()["list"], json!({"bullet": "dot"}));
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.para_at(0).list, back.para_at(1).list), (list(&s, 0), Some(ParaList::numbered(NumberStyle::Arabic).aligned(ListAlign::Right))));
     // A list turned off and on again starts aligned left.
@@ -638,7 +634,7 @@ fn list_markers_are_aligned_per_paragraph_saved_and_styled() {
 }
 
 /// The text object `id`.
-fn text_at(s: &Session, id: u64) -> vectorcraft_doc::text::TextObject {
+fn text_at(s: &Session, id: u64) -> pluma_doc::text::TextObject {
     match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => (**t).clone(),
         _ => panic!("text"),
@@ -647,11 +643,11 @@ fn text_at(s: &Session, id: u64) -> vectorcraft_doc::text::TextObject {
 
 /// How many list markers text object `id` draws.
 fn marker_count(s: &Session, id: u64) -> usize {
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text_at(s, id)).markers.len()
+    pluma_text::layout(pluma_text::FontDb::global(), &text_at(s, id)).markers.len()
 }
 
 /// The tab stops of paragraph `k` of text object `id`.
-fn tab_stops(s: &Session, id: u64, k: usize) -> Vec<(f64, vectorcraft_doc::TabAlign, String)> {
+fn tab_stops(s: &Session, id: u64, k: usize) -> Vec<(f64, pluma_doc::TabAlign, String)> {
     text_at(s, id).para_at(k).tabs.iter().map(|t| (t.position, t.align, t.leader.clone())).collect()
 }
 
@@ -659,7 +655,7 @@ fn tab_stops(s: &Session, id: u64, k: usize) -> Vec<(f64, vectorcraft_doc::TabAl
 /// transform it is drawn with (in thousandths), from the top line down and left to right.
 fn drawn_glyphs(s: &Session, id: u64) -> Vec<(u32, i64, i64, [i64; 6])> {
     let Some(NodeKind::Text(t)) = s.doc().unwrap().doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     let milli = |v: f64| (v * 1000.0).round() as i64;
     let mut v: Vec<(u32, i64, i64, [i64; 6])> = lay
         .glyphs
@@ -682,7 +678,7 @@ fn drawn_glyphs(s: &Session, id: u64) -> Vec<(u32, i64, i64, [i64; 6])> {
 /// lists back.
 #[test]
 fn convert_to_text_writes_the_markers_where_they_were_drawn() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 800, "height": 800})).unwrap();
     let (text, markers, tabs) = (text_at, marker_count, tab_stops);
@@ -716,7 +712,7 @@ fn convert_to_text_writes_the_markers_where_they_were_drawn() {
     assert_eq!(t.plain_text(), format!("\u{2022}\tOne\n\u{2022}\t{long}\n\n\u{25AA}\tFour\n\u{2022}\tFive"));
     assert!((0..5).all(|k| t.para_at(k).list.is_none()), "no paragraph is in a list");
     assert_eq!(markers(&s, id), 0);
-    let left = vectorcraft_doc::TabAlign::Left;
+    let left = pluma_doc::TabAlign::Left;
     let plain_stop = |position| vec![(position, left, String::new())];
     assert_eq!(
         (tabs(&s, id, 0), tabs(&s, id, 1), tabs(&s, id, 2), tabs(&s, id, 3), tabs(&s, id, 4)),
@@ -772,7 +768,7 @@ fn convert_to_text_writes_the_markers_where_they_were_drawn() {
     // the number's tab reached, which the wrapped paragraph's width kept the number's tab from,
     // would catch the converted tab, which measures only the first line: it goes. The lines are
     // compared with the Single-line Composer, as a paragraph with a tab is broken line by line.
-    let right = vectorcraft_doc::TabAlign::Right;
+    let right = pluma_doc::TabAlign::Right;
     for (text_in, width, stops, kept) in [
         ("One ", 300, json!([{"position": 200, "align": "right"}]), vec![(200.0, right, String::new())]),
         ("The quick brown fox jumps over the lazy dog", 230, json!([{"position": 100, "align": "right"}, {"position": 150}]), vec![]),
@@ -836,7 +832,7 @@ fn convert_to_text_of_markers_aligned_right_keeps_the_text_in_place() {
     s.execute("file.new", &json!({"width": 800, "height": 800})).unwrap();
     let text_glyphs = |s: &Session, id: u64| {
         let Some(NodeKind::Text(t)) = s.doc().unwrap().doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         let milli = |v: f64| (v * 1000.0).round() as i64;
         lay.glyphs
             .iter()
@@ -882,7 +878,7 @@ fn convert_to_text_of_markers_aligned_right_keeps_the_text_in_place() {
 /// digits leave the direction unset.
 #[test]
 fn a_right_to_left_list_paragraph_converts_to_text_read_first() {
-    use vectorcraft_doc::ParaDirection;
+    use pluma_doc::ParaDirection;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 800, "height": 800})).unwrap();
     for (number, text, direction) in [
@@ -925,7 +921,7 @@ fn threaded_numbers_convert_to_text_as_the_story_counted_them() {
     };
     let numbers = |s: &Session, id: u64| {
         let Some(NodeKind::Text(t)) = s.doc().unwrap().doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        pluma_text::layout(pluma_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
     };
     let thread = |s: &mut Session, text: &str| {
         let a =
@@ -1071,7 +1067,7 @@ fn convert_to_text_keeps_deeper_list_levels_in_place() {
         _ => panic!("text"),
     };
     let numbers = |s: &Session, id: u64| {
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s, id)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        pluma_text::layout(pluma_text::FontDb::global(), &text(s, id)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
     };
     let text_in = "One\nTwo\nThree\nFour\nFive";
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "size": 20, "text": text_in, "area": {"width": 400, "height": 400}})).unwrap()["id"]
@@ -1117,7 +1113,7 @@ fn convert_to_text_keeps_deeper_list_levels_in_place() {
 /// level is saved past level 1, reopened and carried by paragraph styles.
 #[test]
 fn list_levels_are_set_per_paragraph_saved_and_styled() {
-    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, NumberStyle, ParaList};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id =
@@ -1129,9 +1125,7 @@ fn list_levels_are_set_per_paragraph_saved_and_styled() {
         _ => panic!("text"),
     };
     let levels = |s: &Session| (0..4).map(|i| text(s).para_at(i).list.map(|l| l.level)).collect::<Vec<_>>();
-    let numbers = |s: &Session| {
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
-    };
+    let numbers = |s: &Session| pluma_text::layout(pluma_text::FontDb::global(), &text(s)).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>();
     s.execute("select.set", &json!({"ids": [id]})).unwrap();
     s.execute("text.setFormat", &json!({"list": "number", "start": 0, "end": 9})).unwrap();
     assert_eq!(levels(&s), [Some(1), Some(1), Some(1), None]);
@@ -1165,7 +1159,7 @@ fn list_levels_are_set_per_paragraph_saved_and_styled() {
     assert_eq!(text(&s).para_at(3).list, Some(ParaList::bulleted(Bullet::Dot).at_level(4)));
     assert_eq!(serde_json::to_value(text(&s).para_at(1)).unwrap()["list"], json!({"bullet": "square", "level": 3}));
     assert_eq!(serde_json::to_value(text(&s).para_at(0)).unwrap()["list"], json!({"bullet": "dot", "number": "arabic"}));
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((0..4).map(|i| back.para_at(i).list).collect::<Vec<_>>(), (0..4).map(|i| text(&s).para_at(i).list).collect::<Vec<_>>());
     // A list turned off and on again starts at level 1.
@@ -1206,7 +1200,7 @@ fn create_outlines_makes_a_path_of_the_bullet() {
 /// are saved only when not the defaults, and paragraph styles carry them.
 #[test]
 fn justification_options_are_set_per_paragraph_and_saved_only_when_not_default() {
-    use vectorcraft_doc::{JustificationOptions, SingleWordJustify};
+    use pluma_doc::{JustificationOptions, SingleWordJustify};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "One\nTwo", "area": {"width": 200, "height": 100}})).unwrap()["id"]
@@ -1237,7 +1231,7 @@ fn justification_options_are_set_per_paragraph_and_saved_only_when_not_default()
     let (first, second) = paras(&s);
     assert_eq!((first.justification, &second.justification), (JustificationOptions::default(), &want), "only the paragraph the caret is in");
     assert_eq!(serde_json::to_value(&second).unwrap()["justification"]["single_word"], "alignCenter");
-    let back: vectorcraft_doc::ParaStyle = serde_json::from_value(serde_json::to_value(&second).unwrap()).unwrap();
+    let back: pluma_doc::ParaStyle = serde_json::from_value(serde_json::to_value(&second).unwrap()).unwrap();
     assert_eq!(back.justification, want);
     // Out of order: nothing changes, and the error names the setting.
     let e = s.execute("text.setFormat", &json!({"wordSpacing": {"desired": 85}, "letterSpacing": {"min": 5}})).unwrap_err().to_string();
@@ -1251,7 +1245,7 @@ fn justification_options_are_set_per_paragraph_and_saved_only_when_not_default()
     s.execute("paraStyle.new", &json!({"name": "Airy", "attrs": {"justification": {"auto_leading": 200.0}}})).unwrap();
     s.execute("paraStyle.apply", &json!({"name": "Airy", "id": id})).unwrap();
     assert_eq!(paras(&s).0.justification, JustificationOptions { auto_leading: 200.0, ..JustificationOptions::default() });
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left", "hyphenate": true})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left", "hyphenate": true})).unwrap();
     assert_eq!(old.justification, JustificationOptions::default());
 }
 
@@ -1261,7 +1255,7 @@ fn justification_options_are_set_per_paragraph_and_saved_only_when_not_default()
 /// baseline.
 #[test]
 fn new_type_takes_the_japanese_defaults_while_the_interface_is_japanese() {
-    use vectorcraft_doc::{CharAlign, LeadingModel};
+    use pluma_doc::{CharAlign, LeadingModel};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let made = |s: &mut Session, cmd: &str, p: Value| -> (LeadingModel, CharAlign) {
@@ -1312,7 +1306,7 @@ fn new_type_takes_the_japanese_defaults_while_the_interface_is_japanese() {
     // Imported text keeps the Roman baseline.
     s.ui_language = Some("ja".into());
     let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="10" y="50">雅楽</text></svg>"#;
-    s.execute("document.open", &json!({"name": "t.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())})).unwrap();
+    s.execute("document.open", &json!({"name": "t.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes())})).unwrap();
     let mut found = vec![];
     s.doc().unwrap().doc.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
@@ -1324,7 +1318,7 @@ fn new_type_takes_the_japanese_defaults_while_the_interface_is_japanese() {
 
 #[test]
 fn leading_model_is_set_per_paragraph_and_saved_only_when_top_to_top() {
-    use vectorcraft_doc::LeadingModel;
+    use pluma_doc::LeadingModel;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     // Exercise ink bounds with bundled glyphs; Japanese outlines require optional craft-fonts.
@@ -1342,7 +1336,7 @@ fn leading_model_is_set_per_paragraph_and_saved_only_when_top_to_top() {
     let t = text(&s);
     assert_eq!(t.para.leading_model, LeadingModel::EmBoxTop);
     // The fallback used without craft-fonts has no glyph metrics to move the first line.
-    if !vectorcraft_text::CRAFT_FONTS.is_empty() {
+    if !pluma_text::CRAFT_FONTS.is_empty() {
         assert_ne!(t.cached_bounds, before, "the first line moves up to the frame's top");
     }
     assert_eq!(serde_json::to_value(&t.para).unwrap()["leading_model"], "emBoxTop");
@@ -1352,7 +1346,7 @@ fn leading_model_is_set_per_paragraph_and_saved_only_when_top_to_top() {
 
 #[test]
 fn character_alignment_is_a_character_attribute_saved_only_when_set() {
-    use vectorcraft_doc::CharAlign;
+    use pluma_doc::CharAlign;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "雅楽"})).unwrap()["id"].as_u64().unwrap();
@@ -1387,7 +1381,7 @@ fn character_alignment_is_a_character_attribute_saved_only_when_set() {
 /// set and kept by a native save.
 #[test]
 fn character_direction_is_a_character_attribute_saved_only_when_set() {
-    use vectorcraft_doc::ParaDirection;
+    use pluma_doc::ParaDirection;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "שלום 21 10 2026"})).unwrap()["id"].as_u64().unwrap();
@@ -1414,7 +1408,7 @@ fn character_direction_is_a_character_attribute_saved_only_when_set() {
     assert!(runs(&s).iter().all(|r| r.style.char_direction.is_none()));
     s.execute("edit.redo", &json!({})).unwrap();
     // Saved and reopened as it was.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     let reopened: Vec<_> = t.runs.iter().map(|r| (r.text.clone(), r.style.char_direction)).collect();
     assert_eq!(reopened, set(&s));
@@ -1437,7 +1431,7 @@ fn character_kashidas_default_on_and_round_trip_by_range() {
     assert!(runs(&s)[0].style.kashidas);
     let old = serde_json::to_value(&runs(&s)[0].style).unwrap();
     assert!(old.get("kashidas").is_none());
-    assert!(serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().kashidas);
+    assert!(serde_json::from_value::<pluma_doc::CharStyle>(old).unwrap().kashidas);
     s.execute("text.setRangeStyle", &json!({"id": id, "start": 4, "end": 6, "kashidas": false})).unwrap();
     assert_eq!(runs(&s).iter().map(|r| r.style.kashidas).collect::<Vec<_>>(), [true, false, true]);
     let err = s.execute("text.setRangeStyle", &json!({"id": id, "kashidas": "off"})).unwrap_err().to_string();
@@ -1445,7 +1439,7 @@ fn character_kashidas_default_on_and_round_trip_by_range() {
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(runs(&s).iter().all(|r| r.style.kashidas));
     s.execute("edit.redo", &json!({})).unwrap();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     assert_eq!(t.runs.iter().map(|r| r.style.kashidas).collect::<Vec<_>>(), [true, false, true]);
     s.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -1479,7 +1473,7 @@ fn proportional_metrics_is_a_character_attribute_saved_only_when_on() {
     // Styles written without it (documents from before it) read as off.
     let old = serde_json::to_value(&runs(&s)[0].style).unwrap();
     assert!(old.get("proportionalMetrics").is_none());
-    assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().proportional_metrics);
+    assert!(!serde_json::from_value::<pluma_doc::CharStyle>(old).unwrap().proportional_metrics);
 }
 
 /// Tate-chu-yoko (Character panel menu, East Asian options): a character attribute, saved only
@@ -1507,7 +1501,7 @@ fn tate_chu_yoko_is_a_character_attribute_saved_only_when_on() {
     assert_eq!(on, [("2026".to_string(), true), ("年".to_string(), false)]);
     let old = serde_json::to_value(&runs(&s)[1].style).unwrap();
     assert!(old.get("tateChuYoko").is_none());
-    assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().tate_chu_yoko);
+    assert!(!serde_json::from_value::<pluma_doc::CharStyle>(old).unwrap().tate_chu_yoko);
     s.execute("text.setFormat", &json!({"tateChuYoko": false})).unwrap();
     assert!(runs(&s).iter().all(|r| !r.style.tate_chu_yoko));
 }
@@ -1546,7 +1540,7 @@ fn tate_chu_yoko_settings_are_character_attributes_saved_only_when_set() {
     assert_eq!(offsets(&s)[0], ("2026".to_string(), -4.0, 1296.0));
     assert!(runs(&s)[0].style.tate_chu_yoko);
     // Saved and reopened as they were.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     let reopened: Vec<_> = t.runs.iter().map(|r| (r.text.clone(), r.style.tcy_up_down, r.style.tcy_left_right)).collect();
     assert_eq!(reopened, offsets(&s));
@@ -1592,9 +1586,9 @@ fn standard_vertical_roman_is_a_character_attribute_saved_only_when_on() {
     assert_eq!(on, [("ABC".to_string(), true), ("年".to_string(), false)]);
     let old = serde_json::to_value(&runs(&s)[1].style).unwrap();
     assert!(old.get("standardVerticalRoman").is_none());
-    assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().standard_vertical_roman);
+    assert!(!serde_json::from_value::<pluma_doc::CharStyle>(old).unwrap().standard_vertical_roman);
     // Saved and reopened as it was.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     let reopened: Vec<_> = t.runs.iter().map(|r| (r.text.clone(), r.style.standard_vertical_roman)).collect();
     assert_eq!(reopened, on);
@@ -1628,7 +1622,7 @@ fn no_break_is_a_character_attribute_saved_only_when_on() {
     assert_eq!(on, [("A".to_string(), true), ("b".to_string(), false)]);
     let old = serde_json::to_value(&runs(&s)[1].style).unwrap();
     assert!(old.get("noBreak").is_none());
-    assert!(!serde_json::from_value::<vectorcraft_doc::CharStyle>(old).unwrap().no_break);
+    assert!(!serde_json::from_value::<pluma_doc::CharStyle>(old).unwrap().no_break);
     s.execute("text.setFormat", &json!({"noBreak": false})).unwrap();
     assert!(runs(&s).iter().all(|r| !r.style.no_break));
 }
@@ -1637,7 +1631,7 @@ fn no_break_is_a_character_attribute_saved_only_when_on() {
 /// when set; the text keeps the digits that were typed.
 #[test]
 fn digits_are_a_character_attribute_saved_only_when_set() {
-    use vectorcraft_doc::Digits;
+    use pluma_doc::Digits;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "صفحة 12"})).unwrap()["id"].as_u64().unwrap();
@@ -1673,9 +1667,9 @@ fn digits_are_a_character_attribute_saved_only_when_set() {
 /// 120% of that em size.
 #[test]
 fn font_height_reference_is_a_character_attribute_saved_only_when_not_the_em_box() {
-    use vectorcraft_doc::FontHeightReference as R;
-    use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+    use pluma_doc::FontHeightReference as R;
+    use pluma_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id =
@@ -1737,8 +1731,8 @@ fn a_leading_step_from_auto_starts_at_each_paragraphs_auto_leading() {
 /// the graphic in it from 24 pt.
 #[test]
 fn a_leading_step_from_auto_starts_at_an_inline_graphics_own_size() {
-    use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+    use pluma_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     s.execute("shape.ellipse", &json!({"x": 300, "y": 300, "width": 10, "height": 10})).unwrap();
@@ -1762,7 +1756,7 @@ fn a_leading_step_from_auto_starts_at_an_inline_graphics_own_size() {
 /// saved under it, kept by save and reopen and by character styles; the text stays as typed.
 #[test]
 fn indic_digits_round_trip_through_the_commands_and_the_file() {
-    use vectorcraft_doc::Digits;
+    use pluma_doc::Digits;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "page 12"})).unwrap()["id"].as_u64().unwrap();
@@ -1787,7 +1781,7 @@ fn indic_digits_round_trip_through_the_commands_and_the_file() {
         assert!(runs(&s).iter().all(|r| r.style.digits == d), "{d:?}");
         assert_eq!(serde_json::to_value(&runs(&s)[0].style).unwrap()["digits"], d.id());
         assert_eq!(runs(&s).iter().map(|r| r.text.as_str()).collect::<String>(), "page 12");
-        let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+        let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
         let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
         assert!(t.runs.iter().all(|r| r.style.digits == d), "{d:?} after reopening");
     }
@@ -1834,7 +1828,7 @@ fn language_is_a_character_attribute_saved_only_when_set() {
     assert_eq!(set(&s), [("fi i fikir".to_string(), Some("tr".to_string()))]);
     s.execute("edit.redo", &json!({})).unwrap();
     // Saved and reopened as it was.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     let reopened: Vec<_> = t.runs.iter().map(|r| (r.text.clone(), r.style.language.clone())).collect();
     assert_eq!(reopened, set(&s));
@@ -1859,8 +1853,8 @@ fn language_is_a_character_attribute_saved_only_when_set() {
 #[test]
 fn variable_font_settings_are_a_character_attribute_saved_only_when_set() {
     let _fonts = crate::adding_fonts();
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY as FAMILY, two_axis_font};
-    vectorcraft_text::FontDb::global().add_font(two_axis_font().unwrap());
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY as FAMILY, two_axis_font};
+    pluma_text::FontDb::global().add_font(two_axis_font().unwrap());
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "lIn lIn", "font": FAMILY, "size": 40})).unwrap()["id"].as_u64().unwrap();
@@ -1893,7 +1887,7 @@ fn variable_font_settings_are_a_character_attribute_saved_only_when_set() {
     let axes = |v: &[(&str, f64)]| v.iter().map(|(t, v)| (t.to_string(), *v)).collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(set, [("lIn ".to_string(), axes(&[("wdth", 80.0)])), ("lIn".to_string(), axes(&[("wdth", 80.0), ("wght", 550.0)]))]);
     // A saved file keeps them.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("text") };
     assert_eq!(t.runs, runs(&s));
     // Another style or font clears them: their settings were the old face's.
@@ -1932,7 +1926,7 @@ fn variable_font_settings_are_a_character_attribute_saved_only_when_set() {
 
 #[test]
 fn new_type_is_composed_with_line_end_half_width_punctuation() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = s.execute("text.create", &json!({"x": 10, "y": 50, "text": "雅楽。"})).unwrap()["id"].as_u64().unwrap();
@@ -1950,7 +1944,7 @@ fn new_type_is_composed_with_line_end_half_width_punctuation() {
     // Saved only when set; documents from before it read as None.
     let json = serde_json::to_value(para(&s)).unwrap();
     assert_eq!(json["mojikumi"], "lineEndHalf");
-    let old: vectorcraft_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
+    let old: pluma_doc::ParaStyle = serde_json::from_value(json!({"justify": "Left"})).unwrap();
     assert_eq!(old.mojikumi, Mojikumi::None);
     assert!(serde_json::to_value(&old).unwrap().get("mojikumi").is_none());
 }
@@ -1983,7 +1977,7 @@ fn area_options_columns_change_layout() {
     let q = s.execute("text.areaOptions", &json!({})).unwrap();
     assert_eq!((q["rows"].as_u64(), q["columns"].as_u64()), (Some(1), Some(1)));
     let lay = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
-        NodeKind::Text(t) => vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t),
+        NodeKind::Text(t) => pluma_text::layout(pluma_text::FontDb::global(), t),
         _ => panic!(),
     };
     assert_eq!(lay(&s).frames.len(), 1);
@@ -2057,7 +2051,7 @@ fn area_options_for_several_frames_change_only_what_is_given() {
         k => panic!("{k:?}"),
     };
     let (oa, ob) = (area(&s, a), area(&s, b));
-    assert_eq!((oa.vertical_align, ob.vertical_align), (vectorcraft_doc::VerticalAlign::Bottom, vectorcraft_doc::VerticalAlign::Bottom));
+    assert_eq!((oa.vertical_align, ob.vertical_align), (pluma_doc::VerticalAlign::Bottom, pluma_doc::VerticalAlign::Bottom));
     assert_eq!((oa.columns, oa.gutter, oa.inset), (3, 6.0, 0.0));
     assert_eq!((ob.columns, ob.inset), (1, 4.0), "b keeps its own options");
 }
@@ -2078,8 +2072,8 @@ fn fit_min_percent_for_several_frames_keeps_each_frames_fit() {
         NodeKind::Text(t) => t.area.fit,
         k => panic!("{k:?}"),
     };
-    assert_eq!(fit(&s, plain), vectorcraft_doc::AreaFit::None, "the plain frame doesn't start shrinking");
-    assert_eq!(fit(&s, shrink), vectorcraft_doc::AreaFit::ShrinkText { min_percent: 30.0 });
+    assert_eq!(fit(&s, plain), pluma_doc::AreaFit::None, "the plain frame doesn't start shrinking");
+    assert_eq!(fit(&s, shrink), pluma_doc::AreaFit::ShrinkText { min_percent: 30.0 });
 }
 
 /// #3565: `text.setPathHandle` moves a direction handle of type on a path's path, in document
@@ -2097,7 +2091,7 @@ fn set_path_handle_reshapes_type_on_a_path() {
         NodeKind::Text(t) => *t.type_path().unwrap().subpaths[0].anchors.first().unwrap(),
         _ => panic!("not text"),
     };
-    let smooth = first(&s).kind == vectorcraft_geom::AnchorKind::Smooth;
+    let smooth = first(&s).kind == pluma_geom::AnchorKind::Smooth;
     s.execute("text.setPathHandle", &json!({"id": id.0, "anchor": 0, "which": "out", "x": 100, "y": 250})).unwrap();
     let a = first(&s);
     assert!((a.h_out.x - 100.0).abs() < 1e-6 && (a.h_out.y - 250.0).abs() < 1e-6, "{a:?}");
@@ -2107,7 +2101,7 @@ fn set_path_handle_reshapes_type_on_a_path() {
     s.execute("text.setPathHandle", &json!({"id": id.0, "anchor": 0, "which": "in", "x": 60, "y": 300, "independent": true})).unwrap();
     let b = first(&s);
     assert_eq!(b.h_out, a.h_out, "independent: the other handle stays");
-    assert_eq!(b.kind, vectorcraft_geom::AnchorKind::Corner);
+    assert_eq!(b.kind, pluma_geom::AnchorKind::Corner);
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(first(&s), a, "one undo step each");
     assert!(s.execute("text.setPathHandle", &json!({"id": id.0, "anchor": 9, "which": "out", "x": 0, "y": 0})).is_err(), "no such anchor");

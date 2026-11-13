@@ -5,8 +5,8 @@
 //! Frames are ordinary text objects holding their slice of the story; the document lists the
 //! thread order. After every edit, threads whose frames changed are re-flowed ([`reflow`]).
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
 
 use super::edit::selected_roots;
 use super::typecmd::refresh_bounds;
@@ -155,15 +155,15 @@ pub(crate) fn reflow(before: &Document, doc: &mut Document) {
             continue;
         }
         let source_refs: Vec<&TextObject> = sources.iter().collect();
-        let paras = vectorcraft_text::thread::story_paras(&source_refs, &later_wins);
-        vectorcraft_text::edit::normalize(&mut story);
+        let paras = pluma_text::thread::story_paras(&source_refs, &later_wins);
+        pluma_text::edit::normalize(&mut story);
         if live.len() >= 2 {
             // Threaded frames keep their size: Auto Size is off for them (as in Illustrator).
             for id in &live {
-                if text_of(doc, *id).is_some_and(|t| t.area.fit == vectorcraft_doc::AreaFit::AutoHeight)
+                if text_of(doc, *id).is_some_and(|t| t.area.fit == pluma_doc::AreaFit::AutoHeight)
                     && let Some(NodeKind::Text(t)) = doc.node_mut(*id).map(|n| &mut n.kind)
                 {
-                    t.area.fit = vectorcraft_doc::AreaFit::None;
+                    t.area.fit = pluma_doc::AreaFit::None;
                 }
             }
         }
@@ -180,7 +180,7 @@ pub(crate) fn reflow(before: &Document, doc: &mut Document) {
             })
             .collect();
         let refs: Vec<&TextObject> = frames.iter().collect();
-        let parts = vectorcraft_text::thread::distribute(vectorcraft_text::FontDb::global(), &refs, &story, &paras);
+        let parts = pluma_text::thread::distribute(pluma_text::FontDb::global(), &refs, &story, &paras);
         for (id, part) in live.iter().zip(parts) {
             if let Some(NodeKind::Text(t)) = doc.node_mut(*id).map(|n| &mut n.kind) {
                 let mut next = (**t).clone();
@@ -274,10 +274,10 @@ pub(crate) fn keep_frame_sizes(doc: &mut Document) {
             continue;
         }
         for id in live {
-            if text_of(doc, id).is_some_and(|t| t.area.fit == vectorcraft_doc::AreaFit::AutoHeight)
+            if text_of(doc, id).is_some_and(|t| t.area.fit == pluma_doc::AreaFit::AutoHeight)
                 && let Some(NodeKind::Text(t)) = doc.node_mut(id).map(|n| &mut n.kind)
             {
-                t.area.fit = vectorcraft_doc::AreaFit::None;
+                t.area.fit = pluma_doc::AreaFit::None;
             }
         }
     }
@@ -326,7 +326,7 @@ pub(crate) fn mark_continued(doc: &mut Document) {
     for thread in doc.text_threads.clone() {
         let live: Vec<NodeId> = thread.into_iter().filter(|id| text_of(doc, *id).is_some()).collect();
         let frames: Vec<&TextObject> = live.iter().filter_map(|id| text_of(doc, *id)).collect();
-        let marks = vectorcraft_text::thread::continued(&frames);
+        let marks = pluma_text::thread::continued(&frames);
         for (id, on) in live.iter().zip(marks) {
             if let Some(NodeKind::Text(t)) = doc.node_mut(*id).map(|n| &mut n.kind)
                 && t.first_para_continues != on
@@ -408,7 +408,7 @@ pub(crate) fn leave_threads(d: &mut Document, was: &[(NodeId, TextObject)]) {
             let on = d.text_threads.iter().find(|t| t.contains(id)).is_some_and(|t| {
                 let live: Vec<(NodeId, &TextObject)> = t.iter().filter_map(|i| Some((*i, text_of(d, *i)?))).collect();
                 let frames: Vec<&TextObject> = live.iter().map(|(_, f)| *f).collect();
-                live.iter().zip(vectorcraft_text::thread::continued(&frames)).any(|((i, _), on)| on && i == id)
+                live.iter().zip(pluma_text::thread::continued(&frames)).any(|((i, _), on)| on && i == id)
             });
             (*id, on)
         })
@@ -448,8 +448,8 @@ fn cut_to_shown(n: &mut Node, ids: &[NodeId]) {
     {
         // Split as `take_overflow` splits it: the first part is what the frame shows.
         let from: &TextObject = t;
-        let parts = vectorcraft_text::thread::distribute_continuing_levels(
-            vectorcraft_text::FontDb::global(),
+        let parts = pluma_text::thread::distribute_continuing_levels(
+            pluma_text::FontDb::global(),
             &[from, from],
             &from.runs,
             &from.paragraph_styles(),
@@ -485,11 +485,11 @@ fn kept_type(d: &Document, id: NodeId) -> Option<NodeId> {
 
 /// Put the text that frame `from` holds beyond what it shows after the text of frame `to`.
 fn take_overflow(d: &mut Document, to: NodeId, from: &TextObject) {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // `from`'s text split as if it flowed on into a second frame: the second part is what `from`
     // has no room for. Its share is measured as it is laid out, continuing a paragraph or not and
     // with its numbered list paragraphs counted on from the frames before it.
-    let parts = vectorcraft_text::thread::distribute_continuing_levels(
+    let parts = pluma_text::thread::distribute_continuing_levels(
         db,
         &[from, from],
         &from.runs,
@@ -503,21 +503,21 @@ fn take_overflow(d: &mut Document, to: NodeId, from: &TextObject) {
     tail.set_paragraph_styles(rest.paras.clone());
     if let Some(NodeKind::Text(t)) = d.node_mut(to).map(|n| &mut n.kind) {
         let head = (**t).clone();
-        t.runs = vectorcraft_text::thread::story(&[&head, &tail]);
-        t.set_paragraph_styles(vectorcraft_text::thread::story_paras(&[&head, &tail], &[]));
+        t.runs = pluma_text::thread::story(&[&head, &tail]);
+        t.set_paragraph_styles(pluma_text::thread::story_paras(&[&head, &tail], &[]));
         refresh_bounds(t);
     }
 }
 
 /// A closed path converted to an empty area-type frame with `style`.
-fn frame_from_path(n: &Node, style: vectorcraft_doc::CharStyle, system_layout: bool) -> Option<Node> {
+fn frame_from_path(n: &Node, style: pluma_doc::CharStyle, system_layout: bool) -> Option<Node> {
     let NodeKind::Path { path, .. } = &n.kind else { return None };
     if !path.subpaths.first().is_some_and(|s| s.closed) {
         return None;
     }
-    let mut t = TextObject::point(vectorcraft_geom::Point::ZERO, "", style);
+    let mut t = TextObject::point(pluma_geom::Point::ZERO, "", style);
     t.kind = TextKind::Area { frame: path.clone() };
-    t.xf = vectorcraft_geom::Affine::IDENTITY;
+    t.xf = pluma_geom::Affine::IDENTITY;
     t.system_layout = system_layout;
     refresh_bounds(&mut t);
     Some(Node::new(n.id, NodeKind::Text(Box::new(t))))
@@ -593,8 +593,8 @@ fn add(s: &mut Session, p: &Value) -> Result<Value> {
             let [x, y, w, h] = finite_numbers(v)
                 .filter(|[_, _, w, h]| *w > 0.0 && *h > 0.0)
                 .ok_or_else(|| bad(C, "`rect` must be [x, y, width, height] with a positive size"))?;
-            let frame = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, w, h));
-            (NodeId(0), Some(empty_frame(src, style.clone(), TextKind::Area { frame }, vectorcraft_geom::Affine::translate((x, y)))))
+            let frame = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, w, h));
+            (NodeId(0), Some(empty_frame(src, style.clone(), TextKind::Area { frame }, pluma_geom::Affine::translate((x, y)))))
         }
         (None, None, Some(v)) => {
             let [x, y] = finite_numbers(v).ok_or_else(|| bad(C, "`at` must be [x, y]"))?;
@@ -604,7 +604,7 @@ fn add(s: &mut Session, p: &Value) -> Result<Value> {
                 TextKind::Point => return Err(bad(C, "`from` must be area type or type on a path")),
             };
             let b = shape.bounds().map(|b| src.xf.transform_rect_bbox(b)).ok_or_else(|| bad(C, "`from` has an empty frame"))?;
-            let xf = vectorcraft_geom::Affine::translate((x - b.x0, y - b.y0)) * src.xf;
+            let xf = pluma_geom::Affine::translate((x - b.x0, y - b.y0)) * src.xf;
             (NodeId(0), Some(empty_frame(src, style.clone(), src.kind.clone(), xf)))
         }
         _ => return Err(bad(C, "give one of `to`, `rect` or `at`")),
@@ -650,7 +650,7 @@ fn add(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// An empty frame of `kind` (area type or type on a path) placed by `xf`, with the type options of
 /// `src`.
-fn empty_frame(src: &TextObject, style: vectorcraft_doc::CharStyle, kind: TextKind, xf: vectorcraft_geom::Affine) -> TextObject {
+fn empty_frame(src: &TextObject, style: pluma_doc::CharStyle, kind: TextKind, xf: pluma_geom::Affine) -> TextObject {
     let mut t = src.clone();
     t.runs = vec![TextRun { text: String::new(), style, inline: None }];
     t.set_all_paras(src.para_at(0).clone());
@@ -682,7 +682,7 @@ fn release(s: &mut Session, _: &Value) -> Result<Value> {
             for t in &sources {
                 story.extend(t.runs.iter().cloned());
             }
-            let paras = vectorcraft_text::thread::story_paras(&sources.iter().collect::<Vec<_>>(), &[]);
+            let paras = pluma_text::thread::story_paras(&sources.iter().collect::<Vec<_>>(), &[]);
             let style = story.first().map(|r| r.style.clone()).unwrap_or_default();
             let first_para = paras.first().cloned().unwrap_or_default();
             for id in &out {
@@ -706,7 +706,7 @@ fn release(s: &mut Session, _: &Value) -> Result<Value> {
             if let Some(first) = keep.first()
                 && let Some(NodeKind::Text(t)) = d.node_mut(*first).map(|n| &mut n.kind)
             {
-                vectorcraft_text::edit::normalize(&mut story);
+                pluma_text::edit::normalize(&mut story);
                 t.runs = story;
                 t.set_paragraph_styles(paras);
                 // It starts the story, also when it is left alone and so out of a thread.
@@ -763,7 +763,7 @@ fn break_thread(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Break Thread", |d, _| {
         let sources: Vec<TextObject> = thread.iter().filter_map(|id| text_of(d, *id).cloned()).collect();
         let mut story: Vec<TextRun> = sources.iter().flat_map(|t| t.runs.iter().cloned()).collect();
-        let paras = vectorcraft_text::thread::story_paras(&sources.iter().collect::<Vec<_>>(), &[]);
+        let paras = pluma_text::thread::story_paras(&sources.iter().collect::<Vec<_>>(), &[]);
         let end_style = story.last().map(|r| r.style.clone()).unwrap_or_default();
         let last_para = paras.last().cloned().unwrap_or_default();
         // Every frame but the first holds nothing, for the re-flow to share the story out among
@@ -777,7 +777,7 @@ fn break_thread(s: &mut Session, p: &Value) -> Result<Value> {
             }
         }
         if let Some(NodeKind::Text(t)) = head.first().and_then(|id| d.node_mut(*id)).map(|n| &mut n.kind) {
-            vectorcraft_text::edit::normalize(&mut story);
+            pluma_text::edit::normalize(&mut story);
             t.runs = story;
             t.set_paragraph_styles(paras);
             t.first_para_continues = false;

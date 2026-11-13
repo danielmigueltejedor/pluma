@@ -15,7 +15,7 @@ use skrifa::{GlyphId, MetadataProvider, Tag};
 
 use crate::GlyphImage;
 use crate::colr::ColourContent;
-use vectorcraft_doc::color::Color;
+use pluma_doc::color::Color;
 
 mod alternates;
 mod build;
@@ -112,7 +112,7 @@ pub struct FontDb {
     instances: Mutex<Instances>,
     /// Composite fonts (Type › Composite Fonts…) by lowercased name ([`FontDb::set_composite_font`]):
     /// type naming one as its family is set in its parts' fonts.
-    composites: RwLock<HashMap<String, Arc<vectorcraft_doc::CompositeFont>>>,
+    composites: RwLock<HashMap<String, Arc<pluma_doc::CompositeFont>>>,
     /// The composite fonts [`FontDb::lend_composite_fonts`] put in, by lowercased name.
     composite_loans: Mutex<HashMap<String, composite::CompositeLoan>>,
 }
@@ -348,7 +348,7 @@ mod image_cache_tests {
         // Images as large as a font may make them: no test font has enough of those to fill the
         // budget, so they're made here.
         let image = || {
-            let blob = vectorcraft_doc::ImageBlob::png(vec![0; crate::bitmap::MAX_PNG_BYTES]);
+            let blob = pluma_doc::ImageBlob::png(vec![0; crate::bitmap::MAX_PNG_BYTES]);
             Some(Arc::new(GlyphImage { blob, width: 1, height: 1, xf: kurbo::Affine::IDENTITY }))
         };
         let mut cache = GlyphCache::default();

@@ -5,7 +5,7 @@
 use std::f64::consts::{FRAC_PI_2, PI};
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveArclen, Point, Vec2};
-use vectorcraft_geom::{Anchor, AnchorKind, SubPath};
+use pluma_geom::{Anchor, AnchorKind, SubPath};
 
 use super::{ACCURACY, TINY, nearest_on};
 use crate::fit::end_tangent;

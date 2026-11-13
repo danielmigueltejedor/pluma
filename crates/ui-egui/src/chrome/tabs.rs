@@ -1,19 +1,19 @@
-use super::{Sense, Stroke, Tokens, Ui, VectorcraftApp, icons, json, theme, vec2, widgets, zoom_label};
+use super::{PlumaApp, Sense, Stroke, Tokens, Ui, icons, json, theme, vec2, widgets, zoom_label};
 
 /// [`view_tab_title`] for a document with one view.
 #[cfg(test)]
-pub(super) fn tab_title(d: &vectorcraft_engine::DocState, zoom: f64, outline: bool, display_print_size: bool) -> String {
+pub(super) fn tab_title(d: &pluma_engine::DocState, zoom: f64, outline: bool, display_print_size: bool) -> String {
     view_tab_title(d, None, zoom, outline, display_print_size)
 }
 
 /// A document tab's title: "Name* @ 66.67 % (RGB/Preview)", or while an opacity mask is edited
 /// "Name* @ 66.67 % (<Opacity Mask>/Opacity Mask)". For a view of a document with more than one
 /// view, the view's `number` follows the name: "Name:2* @ 66.67 % (RGB/Preview)".
-fn view_tab_title(d: &vectorcraft_engine::DocState, number: Option<u32>, zoom: f64, outline: bool, display_print_size: bool) -> String {
+fn view_tab_title(d: &pluma_engine::DocState, number: Option<u32>, zoom: f64, outline: bool, display_print_size: bool) -> String {
     let mode = if d.doc.mask_edit.is_some() {
         format!("<{0}>/{0}", tl!("Opacity Mask"))
     } else {
-        let color = if d.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk { "CMYK" } else { "RGB" };
+        let color = if d.doc.color_mode == pluma_doc::ColorMode::Cmyk { "CMYK" } else { "RGB" };
         format!("{color}/{}", if outline { tl!("Outline") } else { tl!("Preview") })
     };
     let number = number.map(|n| format!(":{n}")).unwrap_or_default();
@@ -22,28 +22,28 @@ fn view_tab_title(d: &vectorcraft_engine::DocState, number: Option<u32>, zoom: f
 
 /// The title of window `w`, a view of document `d`: with the view's zoom and Outline or Preview,
 /// and the view's number while the document has more than one view.
-fn window_tab_title(app: &VectorcraftApp, w: crate::doc_windows::Win, d: &vectorcraft_engine::DocState) -> String {
+fn window_tab_title(app: &PlumaApp, w: crate::doc_windows::Win, d: &pluma_engine::DocState) -> String {
     let view = crate::doc_windows::view(app, w);
     let zoom = view.map_or(1.0, |v| v.zoom);
     view_tab_title(d, crate::doc_windows::label(app, w), zoom, view.is_some_and(|v| v.outline), app.session.prefs.display_print_size)
 }
 
 /// The title of window `w`'s tab and floating window ([`crate::doc_windows`]).
-pub(crate) fn document_window_title(app: &VectorcraftApp, w: crate::doc_windows::Win) -> Option<String> {
+pub(crate) fn document_window_title(app: &PlumaApp, w: crate::doc_windows::Win) -> Option<String> {
     let d = app.session.documents().get(w.0)?;
     Some(window_tab_title(app, w, d))
 }
 
 /// The height of the tab strip and the size of a tab's title, in points: larger with User
 /// Interface › Large Tabs.
-fn tab_size(app: &VectorcraftApp) -> (f32, f32) {
+fn tab_size(app: &PlumaApp) -> (f32, f32) {
     if app.session.prefs.large_tabs { (44.0, 14.0) } else { (35.0, 12.5) }
 }
 
 /// The tab at the top of window `w`'s floating OS window ([`crate::doc_windows`]): a strip with the
 /// window's tab, as the main window's strip draws it but without its ×. → the tab's response,
 /// which senses clicks and drags.
-pub(crate) fn window_tab(app: &VectorcraftApp, ui: &mut Ui, w: crate::doc_windows::Win) -> egui::Response {
+pub(crate) fn window_tab(app: &PlumaApp, ui: &mut Ui, w: crate::doc_windows::Win) -> egui::Response {
     let t = Tokens::get(ui.ctx());
     let (height, title_size) = tab_size(app);
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
@@ -137,7 +137,7 @@ pub(super) fn first_tab_shown(widths: &[f32], active: Option<usize>, room: f32) 
 /// above or below the strip floats its view in a window under the pointer; one dragged along the
 /// strip moves its document among the others (`document.move`, #5663), a line marking where it
 /// will go.
-pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn doc_tabs(app: &mut PlumaApp, ui: &mut Ui) {
     /// The width of the » button.
     const MORE: f32 = 30.0;
     let t = Tokens::get(ui.ctx());
@@ -271,7 +271,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Makes document `i` the current one, as a click on its tab does: the Home screen closes, and
 /// with the Artboard tool the artboard the document shows becomes the tool's target.
-pub(crate) fn show_document(app: &mut VectorcraftApp, i: usize) {
+pub(crate) fn show_document(app: &mut PlumaApp, i: usize) {
     app.ui.home = None;
     let changed = app.session.active_index() != Some(i);
     if app.session.set_active(i)
@@ -292,7 +292,7 @@ pub(crate) fn show_document(app: &mut VectorcraftApp, i: usize) {
 /// screen, where no tab is the current one, the next document is the first and the previous
 /// document is the last. Each view Window › New Window opened is a step of its own. Returns
 /// `{index}`, with the view's number as `view` while the document has more than one view.
-pub fn step_document(app: &mut VectorcraftApp, forward: bool) -> Result<serde_json::Value, String> {
+pub fn step_document(app: &mut PlumaApp, forward: bool) -> Result<serde_json::Value, String> {
     let all = crate::doc_windows::windows(app);
     let n = all.len();
     if n == 0 {
@@ -315,14 +315,14 @@ pub fn step_document(app: &mut VectorcraftApp, forward: bool) -> Result<serde_js
 
 /// The isolation mode breadcrumb bar. It is drawn over the top of `area` (the canvas), after the
 /// canvas, so entering isolation mode does not change the canvas's size (#3126).
-pub fn isolation_bar(app: &mut VectorcraftApp, ui: &mut Ui, area: egui::Rect) {
+pub fn isolation_bar(app: &mut PlumaApp, ui: &mut Ui, area: egui::Rect) {
     let t = Tokens::get(ui.ctx());
     if let Some(st) = app.session.active()
         && let Some(iso) = st.isolation
     {
         let ancestry = st.doc.ancestry(iso).unwrap_or_default();
         struct Crumb {
-            id: Option<vectorcraft_doc::NodeId>,
+            id: Option<pluma_doc::NodeId>,
             is_layer: bool,
             name: String,
         }
@@ -417,7 +417,7 @@ pub fn isolation_bar(app: &mut VectorcraftApp, ui: &mut Ui, area: egui::Rect) {
 /// name. The field's list shows every artboard by number and name, as the Artboards panel lists
 /// them, and opens with the active artboard's row in view. The list lays out only the rows in view
 /// and at most one more. Returns the artboard chosen in the list.
-pub(super) fn artboard_list(app: &VectorcraftApp, ui: &mut Ui, cur: usize) -> Option<usize> {
+pub(super) fn artboard_list(app: &PlumaApp, ui: &mut Ui, cur: usize) -> Option<usize> {
     /// The width of the field.
     const FIELD_W: f32 = 140.0;
     /// The least width of the list.

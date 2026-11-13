@@ -1,8 +1,8 @@
 //! `draw_path` / `draw_shape` style the object they draw in the same call: `name`, `opacity`,
 //! `dash`, `cap`, `join` and `effects` (#2112).
 
+use pluma_doc::{LineCap, LineJoin, Node, NodeId};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LineCap, LineJoin, Node, NodeId};
 
 use crate::{Backend, Headless, Server, call_tool};
 
@@ -145,7 +145,7 @@ fn schemas_list_the_options() {
 fn a_bad_paint_draws_nothing() {
     let mut h = headless();
     let (before, undo, svg) =
-        (objects(&h), h.session.doc().unwrap().history.undo.len(), vectorcraft_svg::export(&h.session.doc().unwrap().doc, &Default::default()));
+        (objects(&h), h.session.doc().unwrap().history.undo.len(), pluma_svg::export(&h.session.doc().unwrap().doc, &Default::default()));
     for bad in [
         json!({"stroke": "currentColor"}),
         json!({"fill": "currentColor"}),
@@ -165,7 +165,7 @@ fn a_bad_paint_draws_nothing() {
             let st = h.session.doc().unwrap();
             assert_eq!(objects(&h), before, "{tool} {args} drew something");
             assert_eq!(st.history.undo.len(), undo, "{tool} {args} left an undo step");
-            assert_eq!(vectorcraft_svg::export(&st.doc, &Default::default()), svg, "{tool} {args} changed the SVG");
+            assert_eq!(pluma_svg::export(&st.doc, &Default::default()), svg, "{tool} {args} changed the SVG");
         }
     }
     // A good call is one undo step, named as the drawing command names its own.
@@ -182,7 +182,7 @@ fn a_bad_paint_draws_nothing() {
 }
 
 /// The opacity `draw_path` takes in percent reads back in the same scale: `doc_inspect` (and
-/// the `vectorcraft://object/{id}` resource, the same summary) report `opacityPct` beside the
+/// the `pluma://object/{id}` resource, the same summary) report `opacityPct` beside the
 /// stored 0–1 `opacity`, so an agent that reuses what it read does not turn 55 % into 0.55 %.
 #[test]
 fn inspect_reports_opacity_in_the_percent_scale_the_drawing_tools_take() {
@@ -203,7 +203,7 @@ fn inspect_reports_opacity_in_the_percent_scale_the_drawing_tools_take() {
     let tree: Value = serde_json::from_str(r.content[0]["text"].as_str().unwrap()).unwrap();
     let in_tree = tree["layers"][0]["children"].as_array().unwrap().iter().find(|c| c["id"] == id.0).expect("the path in its layer");
     assert_eq!(in_tree["opacityPct"], json!(55.0), "{in_tree}");
-    let res = crate::resources::read(&mut h, &format!("vectorcraft://object/{}", id.0)).unwrap();
+    let res = crate::resources::read(&mut h, &format!("pluma://object/{}", id.0)).unwrap();
     assert_eq!((res["opacityPct"].clone(), res["opacity"].as_f64().map(|o| (o * 100.0).round())), (json!(55.0), Some(55.0)), "{res}");
     // Writing `opacityPct` back, as the descriptions say, keeps the object as it was.
     let r = call_tool(&mut h, "run_command", &json!({"command": "object.setProps", "params": {"id": id.0, "opacity": n["opacityPct"]}}));

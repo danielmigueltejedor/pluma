@@ -104,14 +104,14 @@ const KANGXI: &str = "一丨丶丿乙亅二亠人儿入八冂冖冫几凵刀力�
 /// largest difference between their boxes, in thousandths of an em. `None` when they are clearly
 /// different glyphs (or the face lacks the character); `Some(0)` when there is nothing to compare
 /// (several characters, a vertical form, no ink in either).
-fn glyph_deviation(face: &vectorcraft_text::FontFace, text: &str, o: &craft_pdf::interpret::font::OutlineGlyph, vertical: bool) -> Option<f64> {
+fn glyph_deviation(face: &pluma_text::FontFace, text: &str, o: &craft_pdf::interpret::font::OutlineGlyph, vertical: bool) -> Option<f64> {
     let Some(c) = comparable(text, vertical) else { return Some(0.0) };
     let gid = face.glyph_for(c);
     if gid == 0 {
         return None;
     }
     let embedded = o.outline();
-    let installed = vectorcraft_text::FontDb::global().outline(face, gid);
+    let installed = pluma_text::FontDb::global().outline(face, gid);
     match (embedded.elements().is_empty(), installed.elements().is_empty()) {
         (true, true) => Some(0.0),
         (false, false) => {
@@ -132,16 +132,16 @@ fn glyph_deviation(face: &vectorcraft_text::FontFace, text: &str, o: &craft_pdf:
 /// tell its styles apart, draw a character differently in each style). `None`: no style of the
 /// family has that glyph, so the font isn't the installed one.
 pub(super) fn matching_face(
-    face: &Arc<vectorcraft_text::FontFace>,
+    face: &Arc<pluma_text::FontFace>,
     text: &str,
     o: &craft_pdf::interpret::font::OutlineGlyph,
     vertical: bool,
-) -> Option<Arc<vectorcraft_text::FontFace>> {
+) -> Option<Arc<pluma_text::FontFace>> {
     let own = glyph_deviation(face, text, o, vertical);
     if own == Some(0.0) {
         return Some(face.clone());
     }
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Other installed versions of its family and style (a font library keeps old ones), then the
     // family's other styles.
     let versions = db.versions(face).into_iter().skip(1).take(16);
@@ -170,14 +170,14 @@ const IDENTIFIABLE: [std::ops::RangeInclusive<u32>; 6] =
 /// font embedded without a character map still carries the font's own outlines, so a glyph whose
 /// subset code names nothing is found this way. `None` when no glyph matches (another version of
 /// the font, or a glyph that is no character), and for empty glyphs, which every space draws.
-pub(crate) fn identify_glyph(face: &vectorcraft_text::FontFace, embedded: &BezPath) -> Option<char> {
+pub(crate) fn identify_glyph(face: &pluma_text::FontFace, embedded: &BezPath) -> Option<char> {
     if embedded.elements().is_empty() {
         return None;
     }
     let k = 1000.0 / face.units_per_em();
     // Installed outlines are y-down in font units.
     let to_pdf = Affine::new([k, 0.0, 0.0, -k, 0.0, 0.0]);
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     IDENTIFIABLE.iter().cloned().flatten().filter_map(char::from_u32).find(|c| {
         let gid = face.glyph_for(*c);
         gid != 0 && same_shape(embedded, &(to_pdf * db.outline(face, gid).as_ref().clone()))
@@ -221,5 +221,5 @@ pub(super) struct FontInfo {
     pub(super) family: String,
     pub(super) style: String,
     /// The installed face of its PostScript name.
-    pub(super) face: Option<Arc<vectorcraft_text::FontFace>>,
+    pub(super) face: Option<Arc<pluma_text::FontFace>>,
 }

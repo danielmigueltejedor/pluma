@@ -6,13 +6,13 @@
 //! command's parameters) and `preview`. The live effect's dialog shows the same fields but Keep
 //! Original ([`screen_fields`]).
 
+use pluma_color::Color;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
 
 use super::{DialogSpec, form};
 use crate::panels::c32;
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Vector Halftone.
 pub const KIND: &str = "vectorHalftone";
@@ -30,12 +30,12 @@ pub fn fields() -> Value {
 }
 
 /// Whether the open Object → Vector Halftone dialog is showing its temporary dot group.
-pub(crate) fn previewing(app: &VectorcraftApp) -> bool {
+pub(crate) fn previewing(app: &PlumaApp) -> bool {
     app.ui.dialog.as_ref().is_some_and(|d| d.kind == KIND)
         && app.session.active().and_then(|st| st.interaction.as_ref()?.preview.as_ref()).is_some_and(|(cmd, _)| cmd == CMD)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     screen_fields(ui, d);
     form::check(ui, d, "keepOriginal", tl!("Keep Original"));
     let p = form::params(d);
@@ -69,6 +69,6 @@ pub(super) fn screen_fields(ui: &mut egui::Ui, d: &mut Dialog) {
     }
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     form::commit_preview(app, CMD, form::params(d))
 }

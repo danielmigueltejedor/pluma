@@ -5,27 +5,27 @@
 use egui::accesskit::Role;
 use egui::vec2;
 use egui_kittest::kittest::Queryable;
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::show;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
-type Harness = egui_kittest::Harness<'static, VectorcraftApp>;
+type Harness = egui_kittest::Harness<'static, PlumaApp>;
 
 /// Build a 300 by 300 document for a real-dialog accessibility harness.
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app
 }
 
 /// A kittest harness over the real dialog layer, with kittest's strict accessibility check on:
 /// every visible input must have an accessible name.
-fn strict(app: VectorcraftApp) -> Harness {
+fn strict(app: PlumaApp) -> Harness {
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(1100.0, 900.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;

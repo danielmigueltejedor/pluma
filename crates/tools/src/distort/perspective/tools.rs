@@ -220,7 +220,7 @@ impl Tool for PerspectiveSelectionTool {
                     self.drag = SelDrag::Scale { ids: cx.selection.objects.clone(), plane, depth, rect, handle };
                     return vec![Action::Begin("Scale in Perspective".into())];
                 }
-                let Some(hit) = vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options()) else {
+                let Some(hit) = pluma_doc::hit::hit_test(cx.doc, p, cx.hit_options()) else {
                     return vec![Action::Exec("select.set".into(), json!({"ids": []}))];
                 };
                 let top = hit.top_object(cx.isolation);
@@ -282,7 +282,7 @@ impl Tool for PerspectiveSelectionTool {
                     return vec![w.options()];
                 }
                 // Type in perspective: Edit Text, then type.
-                match vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options()).map(|h| h.top_object(cx.isolation)) {
+                match pluma_doc::hit::hit_test(cx.doc, p, cx.hit_options()).map(|h| h.top_object(cx.isolation)) {
                     Some(id) if cx.doc.node(id).is_some_and(|n| matches!(n.kind, NodeKind::Text(_)) && n.projection().is_some()) => {
                         vec![Action::Exec("perspective.editText".into(), json!({"id": id.0})), Action::SwitchTool("type".into())]
                     }

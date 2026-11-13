@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use kurbo::{Affine, Point, Rect};
-use vectorcraft_color::gradient::GradientKind;
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{AppearanceItem, ColorMode, Document, Guide, Knockout, LayerColor, LineCap, LineJoin, Node, NodeKind, Unit};
+use pluma_color::gradient::GradientKind;
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{AppearanceItem, ColorMode, Document, Guide, Knockout, LayerColor, LineCap, LineJoin, Node, NodeKind, Unit};
 
 use super::*;
 
@@ -287,11 +287,11 @@ fn object_tags_without_an_object_before_them_tag_nothing() {
     }
     for bad in ["(x) (y) XT\n", "/id 3 XT\n", "XT\n"] {
         let err = read(stream7(&layer7("L", &format!("{a}f\n{bad}"))).as_bytes()).unwrap_err();
-        assert!(err.contains("operators VectorCraft doesn't know"), "{bad}: {err}");
+        assert!(err.contains("operators Pluma doesn't know"), "{bad}: {err}");
     }
     // Outside any layer too.
     let err = read(stream7(&format!("(x) (y) XT\n{}", layer7("L", &format!("{a}f\n")))).as_bytes()).unwrap_err();
-    assert!(err.contains("operators VectorCraft doesn't know"), "{err}");
+    assert!(err.contains("operators Pluma doesn't know"), "{err}");
 }
 
 /// A filled clipping path's tags are its own, and a clip group's tags after `Q` are the group's.
@@ -403,8 +403,8 @@ fn a_hidden_clipping_paths_fill_leaves_the_look_with_it() {
 fn a_brushs_art_with_tags_is_read_without_them() {
     let art_ = format!("%AI8_BeginBrushPattern\n(Dot art)\n0 A\n0 g\n{}f\n/sku (D-1) XT\n%AI8_EndBrushPattern\n", rect_path(0.0, 0.0, 4.0, 4.0));
     let r = read_ok(&format!("{art_}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
-    let vectorcraft_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter: {:?}", r.warnings) };
+    let lib = pluma_brush::library(&r.doc);
+    let pluma_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter: {:?}", r.warnings) };
     assert_eq!(s.art.geometric_bounds().map(|b| (b.width(), b.height())), Some((4.0, 4.0)));
     assert!(s.art.extras().attrs.is_none(), "{:?}", s.art.extras().attrs);
 }
@@ -428,7 +428,7 @@ fn paths_colours_and_strokes() {
     assert_eq!(path.bounds(), Some(Rect::new(0.0, 90.0, 10.0, 100.0)));
     assert!(path.subpaths[0].closed);
     assert_eq!(path.subpaths[0].anchors.len(), 4, "the closing point merges with the first");
-    assert_eq!(*rule, vectorcraft_geom::FillRule::EvenOdd);
+    assert_eq!(*rule, pluma_geom::FillRule::EvenOdd);
     assert_eq!(fill(&a[0]).color(), Some(Color::rgb(1.0, 0.0, 0.0)));
     let st = a[0].appearance.stroke().unwrap();
     assert_eq!((st.width, st.cap, st.join, st.miter_limit), (3.0, LineCap::Round, LineJoin::Bevel, 4.0));
@@ -450,7 +450,7 @@ fn paths_colours_and_strokes() {
 }
 
 /// Each subpath's anchor kinds, in order.
-fn anchor_kinds(n: &Node) -> Vec<Vec<vectorcraft_geom::AnchorKind>> {
+fn anchor_kinds(n: &Node) -> Vec<Vec<pluma_geom::AnchorKind>> {
     let Some(path) = n.path_data() else { panic!("{:?}", n.kind) };
     path.subpaths.iter().map(|s| s.anchors.iter().map(|a| a.kind).collect()).collect()
 }
@@ -466,7 +466,7 @@ fn anchor_points(n: &Node) -> Vec<[(f64, f64); 3]> {
 /// handles stay where they are.
 #[test]
 fn a_segment_operators_case_sets_the_kind_of_the_anchor_it_ends_on() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let doc = read_ok(&layer("0 0 m\n10 10 20 0 30 0 c\n40 10 50 0 60 0 C\nh\nS\n")).doc;
     let a = art(&doc);
     assert_eq!(anchor_kinds(&a[0]), [vec![Corner, Smooth, Corner]], "handles that aren't in line stay a smooth point's");
@@ -485,7 +485,7 @@ fn a_segment_operators_case_sets_the_kind_of_the_anchor_it_ends_on() {
 /// one keeps its first anchor's kind from its handles.
 #[test]
 fn a_closed_paths_start_takes_the_case_of_the_segment_back_to_it() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let start = |close: &str| {
         let doc = read_ok(&layer(&format!("{close}s\n"))).doc;
         anchor_kinds(&art(&doc)[0])
@@ -502,7 +502,7 @@ fn a_closed_paths_start_takes_the_case_of_the_segment_back_to_it() {
 /// Every `m` starts a subpath of its own, in a compound path's members and within one path.
 #[test]
 fn each_subpath_takes_the_case_of_its_own_segments() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let body = "*u\n0 0 m\n10 0 l\n10 10 L\nh\nf\n20 0 m\n30 0 L\n30 10 l\n20 0 l\nf\n*U\n\
                 0 50 m\n10 50 L\n10 60 l\nh\n20 50 m\n30 50 l\n30 60 L\n20 50 l\nf\n";
     let a = art(&read_ok(&layer(body)).doc);
@@ -515,7 +515,7 @@ fn each_subpath_takes_the_case_of_its_own_segments() {
 /// Guide paths and clipping paths keep the case of their segments too.
 #[test]
 fn guide_and_clipping_paths_take_the_case_of_their_segments() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let a = art(&read_ok(&layer("(N) *\n10 10 m\n50 10 l\n90 10 L\n(N) *\n")).doc);
     assert!(matches!(a[0].kind, NodeKind::Path { guide: true, .. }));
     assert_eq!(anchor_kinds(&a[0]), [vec![Corner, Smooth, Corner]]);
@@ -530,7 +530,7 @@ fn guide_and_clipping_paths_take_the_case_of_their_segments() {
 /// their own anchors.
 #[test]
 fn a_segment_that_isnt_read_leaves_the_kinds_in_step() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let a = art(&read_ok(&layer("10 c\n0 0 m\n5 l\n10 0 L\n(x) 20 y\n20 0 l\n30 0 L\nS\n")).doc);
     assert_eq!(anchor_kinds(&a[0]), [vec![Corner, Corner, Smooth, Corner]]);
     // A subpath of a lone `m` is a point of its own.
@@ -1513,19 +1513,19 @@ fn several_clipping_paths_clip_to_their_intersection() {
     let deep = |n: usize, last: &str| format!("0 Ae\nq\n{}{last}{RED}{square}f\nQ\n", format!("{a}h\nW\nn\n").repeat(n));
     // The layer is 1 deep, the clipping group 2, and the art in the innermost of `n` levels `n + 2`.
     let in_group = fits(&|n| deep(n, ""));
-    assert_eq!(in_group, vectorcraft_doc::MAX_DEPTH - 2);
+    assert_eq!(in_group, pluma_doc::MAX_DEPTH - 2);
     let r = read_ok(&layer(&deep(in_group, "")));
     let NodeKind::Group { children, clip: true } = &art(&r.doc)[0].kind else { panic!("{:?}", art(&r.doc)[0].kind) };
     assert_eq!(levels(children).len(), in_group, "{:?}", r.warnings);
     assert!(read(stream(&layer(&deep(400, ""))).as_bytes()).unwrap_err().contains("nested too deeply"));
     let in_layer = fits(&|n| format!("{}{RED}{square}f\n", format!("{a}h\nW\nn\n").repeat(n)));
-    assert_eq!(in_layer, vectorcraft_doc::MAX_DEPTH - 1);
+    assert_eq!(in_layer, pluma_doc::MAX_DEPTH - 1);
     let in_mask = fits(&|n| {
         let art: String = format!("{}1 g\n{square}f\n", format!("{a}h\nW\nn\n").repeat(n)).lines().map(|l| format!("%_{l}\n")).collect();
         format!("{RED}{square}f\n%_/ArtDictionary :\n%_/Mask :\n%_X=\n{art}%_X+\n%_(Art) ,\n%_1 /Bool (Clipping) ,\n%_; (AI9_Mask) ,\n%_;\n")
     });
     // The masked object is 2 deep and its mask's art 3.
-    assert_eq!(in_mask, vectorcraft_doc::MAX_DEPTH - 3);
+    assert_eq!(in_mask, pluma_doc::MAX_DEPTH - 3);
     // A compound clipping path holds its subpaths one level down: as the innermost one, it adds a level.
     let compound_last = format!("*u\n{a}h\nW\nn\n{b}h\nW\nn\n*U\n");
     assert!(read(stream(&layer(&deep(in_group - 1, &compound_last))).as_bytes()).unwrap_err().contains("nested too deeply"));
@@ -1873,7 +1873,7 @@ fn clipping_paths_beside_a_compound_paths_look_keep_their_fills() {
         let body = format!("0 Ae\n*u\n{RED}{a}h\nW\nf\n{after_first}{second}{b}h\nW\nf\n{look}*U\n");
         let doc = read_ok(&layer(&body)).doc;
         // Every object, opacity masks' art included, has an id of its own.
-        fn ids(n: &Node, seen: &mut std::collections::HashSet<vectorcraft_doc::NodeId>) {
+        fn ids(n: &Node, seen: &mut std::collections::HashSet<pluma_doc::NodeId>) {
             assert!(seen.insert(n.id), "{:?} appears twice", n.id);
             if let Some(m) = &n.extras().mask {
                 ids(&m.art, seen);
@@ -2086,7 +2086,7 @@ fn raster_settings(entries: &str) -> String {
 
 #[test]
 fn document_raster_effects_settings_come_from_the_document() {
-    use vectorcraft_doc::{Background, RasterColorModel, RasterEffectsSettings};
+    use pluma_doc::{Background, RasterColorModel, RasterEffectsSettings};
     let square = layer(&format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0)));
     let settings = |entries: &str| {
         let doc = read_ok(&format!("{}{square}", raster_settings(entries))).doc;
@@ -2186,9 +2186,9 @@ fn art_after_the_printers_crop_marks_reads() {
 
 /// The document data `library` (a `variableSets` element) read with a layer holding a square: the
 /// variables read and the notes about the library.
-fn read_library(library: &str) -> (vectorcraft_doc::Variables, Vec<String>) {
+fn read_library(library: &str) -> (pluma_doc::Variables, Vec<String>) {
     let square = layer(&format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0)));
-    let r = read_ok(&format!("{}{square}", vectorcraft_testkit::ai::variable_library_data(library)));
+    let r = read_ok(&format!("{}{square}", pluma_testkit::ai::variable_library_data(library)));
     let notes = r.warnings.into_iter().filter(|w| w.contains("variable library")).collect();
     ((*r.doc.variables).clone(), notes)
 }
@@ -2203,8 +2203,8 @@ fn partly_read(n: usize) -> String {
 /// read whole gives no note.
 #[test]
 fn ai_variable_library_definitions() {
-    use vectorcraft_doc::VariableKind;
-    let (vars, notes) = read_library(&vectorcraft_testkit::ai::sample_variable_sets("none", &[]));
+    use pluma_doc::VariableKind;
+    let (vars, notes) = read_library(&pluma_testkit::ai::sample_variable_sets("none", &[]));
     let kinds: Vec<(&str, VariableKind)> = vars.variables.iter().map(|v| (v.name.as_str(), v.kind)).collect();
     assert_eq!(
         kinds,
@@ -2220,12 +2220,12 @@ fn ai_variable_library_definitions() {
     assert!(notes.is_empty(), "{notes:?}");
     // The library of the testkit's text variables, and an empty one.
     let square = layer(&format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0)));
-    let r = read_ok(&format!("{}{square}", vectorcraft_testkit::ai::variable_library(&["variable", "Team"], &["Home", "Away"])));
+    let r = read_ok(&format!("{}{square}", pluma_testkit::ai::variable_library(&["variable", "Team"], &["Home", "Away"])));
     let names: Vec<&str> = r.doc.variables.variables.iter().map(|v| v.name.as_str()).collect();
     assert_eq!(names, ["variable", "Team"], "{:?}", r.warnings);
-    assert_eq!(r.doc.variables.dataset("Away").and_then(|d| d.values.get("Team")), Some(&vectorcraft_doc::DataValue::Text("Away Team".into())));
-    let r = read_ok(&format!("{}{square}", vectorcraft_testkit::ai::variable_library(&[], &[])));
-    assert_eq!(*r.doc.variables, vectorcraft_doc::Variables::default());
+    assert_eq!(r.doc.variables.dataset("Away").and_then(|d| d.values.get("Team")), Some(&pluma_doc::DataValue::Text("Away Team".into())));
+    let r = read_ok(&format!("{}{square}", pluma_testkit::ai::variable_library(&[], &[])));
+    assert_eq!(*r.doc.variables, pluma_doc::Variables::default());
     assert!(!r.warnings.iter().any(|w| w.contains("variable")), "{:?}", r.warnings);
 }
 
@@ -2237,7 +2237,7 @@ fn ai_variable_library_definitions() {
 /// The objects read keep their XML ids; an id two objects have names neither of them.
 #[test]
 fn ai_variable_library_bindings() {
-    use vectorcraft_testkit::ai::{XmlValue, named, variable_library_data, xml_element, xml_node};
+    use pluma_testkit::ai::{XmlValue, named, variable_library_data, xml_element, xml_node};
     let declare = |name: &str, t: &str, art: Option<XmlValue>| {
         let mut attributes = vec![("trait", XmlValue::Str(t)), ("varName", XmlValue::Unicode(name))];
         attributes.extend(art.map(|a| ("docRef", a)));
@@ -2264,7 +2264,7 @@ fn ai_variable_library_bindings() {
     assert_eq!(r.bindings_skipped, 1);
     // The reader doesn't bind them: the importer does, with the objects it keeps.
     assert!(r.doc.variables.bindings.is_empty());
-    let ids: Vec<vectorcraft_doc::NodeId> = art(&r.doc).iter().map(|n| n.id).collect();
+    let ids: Vec<pluma_doc::NodeId> = art(&r.doc).iter().map(|n| n.id).collect();
     assert_eq!(r.xml_ids.get("one"), Some(&Some(ids[0])));
     assert_eq!(r.xml_ids.get("two"), Some(&Some(ids[1])));
     assert_eq!(r.xml_ids.get("twice"), Some(&None));
@@ -2275,7 +2275,7 @@ fn ai_variable_library_bindings() {
 /// out.
 #[test]
 fn ai_variable_library_bindings_stay_within_the_byte_budget() {
-    use vectorcraft_testkit::ai::{XmlValue, variable_library_data, xml_element, xml_node};
+    use pluma_testkit::ai::{XmlValue, variable_library_data, xml_element, xml_node};
     let (name, id) = ("é".repeat(255), "a".repeat(255));
     let target = format!("/XMLUIDREF : ({id}) ;");
     let declare = || {
@@ -2303,8 +2303,8 @@ fn ai_variable_library_bindings_stay_within_the_byte_budget() {
 /// its URL, kept when it names no file. A variable of unknown kind has no value.
 #[test]
 fn ai_variable_library_dataset_values() {
-    use vectorcraft_doc::DataValue;
-    use vectorcraft_testkit::ai::{SAMPLE_MISSING_FILE, sample_variable_sets};
+    use pluma_doc::DataValue;
+    use pluma_testkit::ai::{SAMPLE_MISSING_FILE, sample_variable_sets};
     let (vars, notes) = read_library(&sample_variable_sets("none", &[]));
     assert!(notes.is_empty(), "{notes:?}");
     let names: Vec<&str> = vars.datasets.iter().map(|d| d.name.as_str()).collect();
@@ -2324,8 +2324,8 @@ fn ai_variable_library_dataset_values() {
 /// A data set's value element can carry a namespace prefix.
 #[test]
 fn ai_variable_library_dataset_values_with_a_prefix() {
-    use vectorcraft_doc::DataValue;
-    use vectorcraft_testkit::ai::sample_variable_sets;
+    use pluma_doc::DataValue;
+    use pluma_testkit::ai::sample_variable_sets;
     let library = sample_variable_sets("none", &[]).replace("%_(v_visible) /String (xmlnode-nodename)", "%_(c:v_visible) /String (xmlnode-nodename)");
     assert!(library.contains("c:v_visible"));
     let (vars, notes) = read_library(&library);
@@ -2337,7 +2337,7 @@ fn ai_variable_library_dataset_values_with_a_prefix() {
 /// The data set shown comes in as the active one, and the lock as it was set.
 #[test]
 fn ai_variable_library_state() {
-    use vectorcraft_testkit::ai::sample_variable_sets;
+    use pluma_testkit::ai::sample_variable_sets;
     let (vars, notes) = read_library(&sample_variable_sets("variableAndTypes", &[]));
     assert_eq!(vars.active_dataset.as_deref(), Some("ds_two"));
     assert!(vars.locked, "{notes:?}");
@@ -2345,7 +2345,7 @@ fn ai_variable_library_state() {
     let (vars, _) = read_library(&sample_variable_sets("none", &[]));
     assert!(!vars.locked);
     assert_eq!(vars.active_dataset.as_deref(), Some("ds_two"));
-    // A lock VectorCraft doesn't know reads as unlocked, with a note.
+    // A lock Pluma doesn't know reads as unlocked, with a note.
     let (vars, notes) = read_library(&sample_variable_sets("everything", &[]));
     assert!(!vars.locked);
     assert_eq!(notes, [partly_read(1)]);
@@ -2361,8 +2361,8 @@ fn ai_variable_library_state() {
 /// come in.
 #[test]
 fn ai_variable_library_bad_sibling() {
-    use vectorcraft_doc::DataValue;
-    use vectorcraft_testkit::ai::{XmlValue, sample_variable_sets, xml_element, xml_text};
+    use pluma_doc::DataValue;
+    use pluma_testkit::ai::{XmlValue, sample_variable_sets, xml_element, xml_text};
     // A value for a variable the library doesn't declare, and a second value for `v_visible`.
     let more = [xml_element("v_nope", &[], &[xml_text(XmlValue::Str("x"))]), xml_element("v_visible", &[], &[xml_text(XmlValue::Bool(true))])];
     let (vars, notes) = read_library(&sample_variable_sets("none", &more));
@@ -2375,8 +2375,8 @@ fn ai_variable_library_bad_sibling() {
 /// A graph variable comes in, but its values aren't read: each is left out with a note.
 #[test]
 fn ai_variable_library_graph_partial() {
-    use vectorcraft_doc::VariableKind;
-    use vectorcraft_testkit::ai::{XmlValue, sample_variable_sets, xml_element, xml_text};
+    use pluma_doc::VariableKind;
+    use pluma_testkit::ai::{XmlValue, sample_variable_sets, xml_element, xml_text};
     let graph = xml_element("v_graph", &[], &[xml_text(XmlValue::Str("a,b\n1,2"))]);
     let (vars, notes) = read_library(&sample_variable_sets("none", &[graph]));
     assert_eq!(notes, [partly_read(1)]);
@@ -2390,8 +2390,8 @@ fn ai_variable_library_graph_partial() {
 /// says so.
 #[test]
 fn ai_variable_library_edge_cases() {
-    use vectorcraft_doc::{DataValue, VariableKind};
-    use vectorcraft_testkit::ai::{XmlValue, xml_element, xml_node, xml_text};
+    use pluma_doc::{DataValue, VariableKind};
+    use pluma_testkit::ai::{XmlValue, xml_element, xml_node, xml_text};
     let set = |locked: &str, declared: Vec<String>, rows: Vec<String>| {
         let sets = xml_element("v:sampleDataSets", &[], &rows);
         xml_element("variableSets", &[], &[xml_element("variableSet", &[("locked", locked)], &[xml_element("variables", &[], &declared), sets])])
@@ -2406,7 +2406,7 @@ fn ai_variable_library_edge_cases() {
         var("  ", "textcontent"),
         var(&"n".repeat(256), "textcontent"),
         xml_node(1, "variable", XmlValue::Str(""), &[("varName", XmlValue::Bool(true))], &[]),
-        // A trait VectorCraft doesn't know: unknown kind.
+        // A trait Pluma doesn't know: unknown kind.
         var("Fancy", "sparkle"),
         var("Shown", "visibility"),
         var("File", "fileref"),
@@ -2464,7 +2464,7 @@ fn ai_variable_library_edge_cases() {
     );
     assert!(broken.contains("%_/Dictionary :\n%_; (xmlnode-children)"));
     let (vars, notes) = read_library(&broken);
-    assert_eq!(vars, vectorcraft_doc::Variables::default());
+    assert_eq!(vars, pluma_doc::Variables::default());
     assert_eq!(notes, ["the file's variable library couldn't be read: the Variables panel doesn't list it"]);
 
     // Past the caps: 256 variables and 1,000 data sets are kept.
@@ -2505,7 +2505,7 @@ fn ai_variable_library_edge_cases() {
 /// it, for the file read from its PDF part.
 #[test]
 fn ai_variable_library_without_the_layers() {
-    use vectorcraft_testkit::ai::{sample_variable_sets, variable_library_data};
+    use pluma_testkit::ai::{sample_variable_sets, variable_library_data};
     let square = layer(&format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0)));
     let library = variable_library_data(&sample_variable_sets("variableAndTypes", &[]));
     let unread = stream(&format!("{library}{}", layer("1 Zz\n")));
@@ -2576,8 +2576,8 @@ fn a_drawn_look_in_a_patterns_art_is_noted() {
 fn a_drawn_look_in_a_brushs_art_is_noted_when_a_brush_uses_it() {
     let section = format!("%AI8_BeginBrushPattern\n(Dot art)\n0 A\n{}%AI8_EndBrushPattern\n", drawn_look_art());
     let r = read_ok(&format!("{section}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
-    assert!(matches!(brush_named(&lib, "Spray"), vectorcraft_brush::BrushKind::Scatter(_)), "{:?}", r.warnings);
+    let lib = pluma_brush::library(&r.doc);
+    assert!(matches!(brush_named(&lib, "Spray"), pluma_brush::BrushKind::Scatter(_)), "{:?}", r.warnings);
     assert!(r.warnings.iter().any(|w| w.contains("drawn look (1)")), "{:?}", r.warnings);
     let r = read_ok(&format!("{section}{}{}", plugin_object(CALLIGRAPHIC, "Nib", NIB), layer("")));
     assert!(!r.warnings.iter().any(|w| w.contains("drawn look")), "{:?}", r.warnings);
@@ -2819,7 +2819,7 @@ fn separation_images_of_process_plates_and_registration() {
     assert!(r.doc.swatches.iter().all(|s| !s.spot), "no spot swatch for a process plate");
     let r = read(&ink_image("1 [1 1 1 1 /DeviceCMYK (All) /Separation]", 8, 0, 2, &[0, 255])).unwrap();
     let swatch = art(&r.doc)[0].extras().colorize.as_deref().and_then(|p| if let Paint::Solid { swatch, .. } = p { swatch.clone() } else { None });
-    assert_eq!(swatch.as_deref(), Some(vectorcraft_color::swatch::REGISTRATION));
+    assert_eq!(swatch.as_deref(), Some(pluma_color::swatch::REGISTRATION));
 }
 
 /// The version 7 form, with samples in hex comment lines after `XI`, keeps the image's ink.
@@ -2878,11 +2878,11 @@ fn images_with_alpha_channels() {
     assert!(art(&r.doc).is_empty() && r.warnings.iter().any(|w| w.contains("cut short")));
 }
 
-/// Editing data `data` opens without its one image and with the warning "an image VectorCraft can't read was left out" once.
+/// Editing data `data` opens without its one image and with the warning "an image Pluma can't read was left out" once.
 fn image_left_out_with_a_warning(data: &[u8]) {
     let r = read(data).unwrap();
     assert!(art(&r.doc).is_empty(), "{:#?}", art(&r.doc));
-    let left_out = r.warnings.iter().filter(|w| *w == "an image VectorCraft can't read was left out").count();
+    let left_out = r.warnings.iter().filter(|w| *w == "an image Pluma can't read was left out").count();
     assert_eq!(left_out, 1, "{:?}", r.warnings);
 }
 
@@ -3029,7 +3029,7 @@ fn a_version_7_linked_image_without_its_file_name_is_left_out_with_a_warning() {
         let a = art(&r.doc);
         assert_eq!(a.len(), body.matches(" XI\n").count(), "{what}: {:?}", r.warnings);
         assert!(a.iter().all(|n| matches!(&n.kind, NodeKind::Image(im) if im.link.is_none())), "{what}: the embedded images only");
-        let left_out = r.warnings.iter().filter(|w| *w == "an image VectorCraft can't read was left out").count();
+        let left_out = r.warnings.iter().filter(|w| *w == "an image Pluma can't read was left out").count();
         assert_eq!(left_out, 1, "{what}: {:?}", r.warnings);
         assert!(!r.warnings.iter().any(|w| w == read::LINKED_PLACEHOLDERS), "{what}: {:?}", r.warnings);
     }
@@ -3403,7 +3403,7 @@ fn a_placed_files_xml_id_names_its_image() {
 /// and a shorter one after it still fits.
 #[test]
 fn xml_ids_stay_within_their_byte_budget() {
-    use vectorcraft_doc::NodeId;
+    use pluma_doc::NodeId;
     let (mut ids, mut bytes) = (std::collections::HashMap::new(), 0);
     super::read::remember_xml_id(&mut ids, &mut bytes, "a".repeat(super::read::MAX_XML_ID_BYTES - 4), NodeId(1));
     super::read::remember_xml_id(&mut ids, &mut bytes, "long_id".into(), NodeId(2));
@@ -3444,7 +3444,7 @@ fn placed_with(numbers: &[(&str, &str)]) -> Structure {
 
 #[test]
 fn a_placed_files_dictionary_names_the_page_and_box_it_shows() {
-    use vectorcraft_doc::PageBox;
+    use pluma_doc::PageBox;
     const PAGE: &str = "AI11 PlacedPDFPageIndex";
     const CROP: &str = "AI11 PlacedPDFCropTo";
     for (crop, bounding, page_box) in [
@@ -3515,7 +3515,7 @@ fn a_placed_files_mask_art_leaves_its_page_to_the_placed_files_dictionary() {
     assert_eq!(a.len(), 1, "{a:?}");
     assert!(a[0].extras().mask.is_some(), "the mask is read");
     assert_eq!(r.placed_pages.len(), 1);
-    assert_eq!((r.placed_pages[0].id, r.placed_pages[0].page_box), (a[0].id, vectorcraft_doc::PageBox::Media));
+    assert_eq!((r.placed_pages[0].id, r.placed_pages[0].page_box), (a[0].id, pluma_doc::PageBox::Media));
 }
 
 /// A placed file in a placed file's opacity mask, read before the outer file's dictionary closes,
@@ -3543,7 +3543,7 @@ fn a_placed_file_in_a_placed_files_mask_leaves_the_outer_files_page() {
     assert!(a[0].extras().mask.is_some(), "the mask is read");
     let outer: Vec<_> = r.placed_pages.iter().filter(|p| p.id == a[0].id).collect();
     assert_eq!(outer.len(), 1, "{:?}", r.placed_pages);
-    assert_eq!((outer[0].page, outer[0].page_box), (2, vectorcraft_doc::PageBox::Media));
+    assert_eq!((outer[0].page, outer[0].page_box), (2, pluma_doc::PageBox::Media));
     assert!(r.placed_pages.iter().any(|p| p.id != a[0].id && p.page == 5), "the inner one names its own page: {:?}", r.placed_pages);
 }
 
@@ -3763,7 +3763,7 @@ fn type_stream7(art: &str) -> String {
 }
 
 /// The text objects of a legacy-format file whose layer holds `art`.
-fn legacy_texts(art: &str) -> Vec<vectorcraft_doc::TextObject> {
+fn legacy_texts(art: &str) -> Vec<pluma_doc::TextObject> {
     let doc = match read(type_stream7(art).as_bytes()) {
         Ok(r) => r.doc,
         Err(e) => panic!("{e}"),
@@ -3860,7 +3860,7 @@ fn legacy_type_in_a_cjk_font_decodes_by_its_cmap() {
         ("UniGB-UTF8-H", "\\357\\277\\275\\377\\344\\270\\255", "\u{fffd}中"),
         ("UniJIS-UTF32-H", "\\000\\000e\\345", "日"),
         ("UniAKR-UTF16-H", "\\254\\000", "가"),
-        // CMaps VectorCraft doesn't carry: read with the nearest carried one, row-and-cell codes in
+        // CMaps Pluma doesn't carry: read with the nearest carried one, row-and-cell codes in
         // their EUC form (中 is 0x5650 in GB 2312, 한 0x4751 in KS X 1001), or byte by byte.
         ("78-RKSJ-H", "\\223\\372", "日"),
         ("RKSJ-V", "\\223\\372", "日"),
@@ -3915,7 +3915,7 @@ fn legacy_type_in_a_utf16_font_keeps_its_paragraph_breaks() {
     assert_eq!(texts[0].paragraph_count(), 3);
 }
 
-fn art_texts(doc: &Document) -> Vec<vectorcraft_doc::TextObject> {
+fn art_texts(doc: &Document) -> Vec<pluma_doc::TextObject> {
     art(doc).iter().filter_map(|n| if let NodeKind::Text(t) = &n.kind { Some((**t).clone()) } else { None }).collect()
 }
 
@@ -3939,7 +3939,7 @@ fn legacy_type_keeps_its_spacing_hanging_punctuation_and_hyphenation() {
     assert!(one.roman_hanging && one.hyphenate);
     let h = &one.hyphenation;
     assert_eq!((h.after_first, h.before_last, h.hyphen_limit), (2, 3, 4));
-    assert_eq!(h.words_longer_than, vectorcraft_doc::text::HyphenationOptions::default().words_longer_than, "no operand sets it");
+    assert_eq!(h.words_longer_than, pluma_doc::text::HyphenationOptions::default().words_longer_than, "no operand sets it");
     let two = texts[0].para_at(1);
     assert_eq!(two.justification.letter_spacing, [0.0, 0.0, 5.0]);
     assert_eq!(two.justification.word_spacing, [70.0, 110.0, 140.0], "word spacing stays");
@@ -3950,12 +3950,12 @@ fn legacy_type_keeps_its_spacing_hanging_punctuation_and_hyphenation() {
     assert_eq!(texts[1].para_at(0), two);
 }
 
-/// `Tg` (§15.3.4) turns binding punctuation on (1 and 3) or off (0 and 2); VectorCraft opens it on
+/// `Tg` (§15.3.4) turns binding punctuation on (1 and 3) or off (0 and 2); Pluma opens it on
 /// as Burasagari's Force setting. Each paragraph of point type and area type keeps the value in
 /// force at its first character, and it lasts into the next text object.
 #[test]
 fn legacy_type_keeps_its_binding_punctuation() {
-    use vectorcraft_doc::Burasagari;
+    use pluma_doc::Burasagari;
     let burasagari = |attrs: &str| legacy_texts(&point_type(attrs, "Hi"))[0].para_at(0).burasagari;
     assert_eq!(burasagari(""), Burasagari::None);
     for on in ["1", "3"] {
@@ -3972,7 +3972,7 @@ fn legacy_type_keeps_its_binding_punctuation() {
     let frame = "10 10 m\n110 10 L\n110 110 L\n10 110 L\nN";
     let area = format!("1 To\n1 0 0 1 10 110 0 Tp\n{frame}\nTP\n0 Tr\n0 0 0 1 k\n/_Helvetica 12 Tf\n1 Tg\n(Area) Tx\nTO\n");
     let texts = legacy_texts(&area);
-    assert!(matches!(texts[0].kind, vectorcraft_doc::TextKind::Area { .. }));
+    assert!(matches!(texts[0].kind, pluma_doc::TextKind::Area { .. }));
     assert_eq!(texts[0].para_at(0).burasagari, Burasagari::Forced, "area type");
 }
 
@@ -3988,12 +3988,12 @@ fn legacy_type_keeps_its_writing_direction() {
     let texts = legacy_texts(&art);
     let vertical: Vec<bool> = texts.iter().map(|t| t.vertical).collect();
     assert_eq!(vertical, [true, true, true, true, true, false]);
-    assert!(matches!(texts[1].kind, vectorcraft_doc::TextKind::Area { .. }));
-    assert!(matches!(texts[2].kind, vectorcraft_doc::TextKind::OnPath { .. }));
+    assert!(matches!(texts[1].kind, pluma_doc::TextKind::Area { .. }));
+    assert!(matches!(texts[2].kind, pluma_doc::TextKind::OnPath { .. }));
     // Vertical point type runs down the canvas from `Tp`'s origin (10, 50), which opens at document
     // (10, 50) on the 100 pt tall artboard, on the column's center line.
     let long = &legacy_texts(&point_type("1 TV", "Point type"))[0];
-    let bounds = long.xf.transform_rect_bbox(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), long).bounds);
+    let bounds = long.xf.transform_rect_bbox(pluma_text::layout(pluma_text::FontDb::global(), long).bounds);
     assert!(bounds.height() > bounds.width(), "{bounds:?}");
     assert!(bounds.x0 < 10.0 && bounds.x1 > 10.0, "{bounds:?}");
     assert!((bounds.y0 - 50.0).abs() < 1.0 && bounds.y1 > 60.0, "{bounds:?}");
@@ -4037,7 +4037,7 @@ fn legacy_type_keeps_its_writing_direction() {
 /// paragraph it ends keeps the attributes in force where the break was read.
 #[test]
 fn an_overflow_break_keeps_the_paragraph_attributes_it_was_read_with() {
-    use vectorcraft_doc::Justify::{Center, Right};
+    use pluma_doc::Justify::{Center, Right};
     for op in ["Tx", "TX"] {
         let leading = &legacy_texts(&point_type(&format!("1 Ta\n(\\r) {op}\n2 Ta"), "Body"))[0];
         assert_eq!((leading.para_at(0).justify, leading.para_at(1).justify), (Center, Right), "{op}");
@@ -4049,8 +4049,8 @@ fn an_overflow_break_keeps_the_paragraph_attributes_it_was_read_with() {
 }
 
 /// The glyph origins of a legacy-format text object.
-fn legacy_origins(t: &vectorcraft_doc::TextObject) -> Vec<(f64, f64)> {
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).glyphs.iter().map(|g| (g.origin.x, g.origin.y)).collect()
+fn legacy_origins(t: &pluma_doc::TextObject) -> Vec<(f64, f64)> {
+    pluma_text::layout(pluma_text::FontDb::global(), t).glyphs.iter().map(|g| (g.origin.x, g.origin.y)).collect()
 }
 
 /// `Ty` (§15.3.4) marks the characters of a Kumi block in vertical and in horizontal type, `TY`
@@ -4113,13 +4113,13 @@ fn legacy_type_attributes_with_bad_operands_stay_as_they_were() {
     assert_eq!(p.justification.word_spacing, [70.0, 110.0, 140.0]);
     assert!(p.roman_hanging && p.hyphenate);
     assert_eq!((p.hyphenation.after_first, p.hyphenation.before_last, p.hyphenation.hyphen_limit), (2, 3, 4));
-    assert_eq!(p.justify, vectorcraft_doc::Justify::Right);
+    assert_eq!(p.justify, pluma_doc::Justify::Right);
     assert_eq!((p.first_line_indent, p.left_indent, p.right_indent), (5.0, 6.0, 7.0));
     assert_eq!(texts[0].runs[0].style.kerning, Some(0.0), "kerning stays off");
     let texts = legacy_texts(&point_type("1 Tg\n4 Tg\n-1 Tg\n0.5 Tg\n/x Tg\n(0) Tg\nTg", "Hi"));
-    assert_eq!(texts[0].para_at(0).burasagari, vectorcraft_doc::Burasagari::Forced, "binding punctuation stays on");
+    assert_eq!(texts[0].para_at(0).burasagari, pluma_doc::Burasagari::Forced, "binding punctuation stays on");
     let texts = legacy_texts(&point_type("0 Tg\n4 Tg\n-1 Tg\n2.5 Tg", "Hi"));
-    assert_eq!(texts[0].para_at(0).burasagari, vectorcraft_doc::Burasagari::None, "binding punctuation stays off");
+    assert_eq!(texts[0].para_at(0).burasagari, pluma_doc::Burasagari::None, "binding punctuation stays off");
     let texts = legacy_texts(&point_type("1 TV\n1 Tv\n1 Ty\n2 TV\n/x TV\nTV\n-1 Tv\n(x) Tv\n0.5 Ty\n2 TY", "Hi"));
     let st = &texts[0].runs[0].style;
     assert!(texts[0].vertical && st.standard_vertical_roman && st.tate_chu_yoko);
@@ -4160,8 +4160,8 @@ fn legacy_special_characters_join_the_story() {
 /// and they last into the next text object. A definition with no stops leaves the default ones.
 #[test]
 fn legacy_tab_definitions_set_the_paragraph_tab_stops() {
-    use vectorcraft_doc::TabAlign;
-    let stops = |p: &vectorcraft_doc::ParaStyle| p.tabs.iter().map(|t| (t.position, t.align)).collect::<Vec<_>>();
+    use pluma_doc::TabAlign;
+    let stops = |p: &pluma_doc::ParaStyle| p.tabs.iter().map(|t| (t.position, t.align)).collect::<Vec<_>>();
     let ruler = "36 5 Xb\n0 0 3 144 Xe\n0 0 1 72 Xe\n0 0 2 200.5 Xe\n0 0 4 250 Xe\n0 0 2 72 Xe\nXB";
     let two_paragraphs = point_type(ruler, "A\\tB\\r").replace("TO\n", "36 0 Xb\nXB\n(C\\tD) Tx\nTO\n");
     let texts = legacy_texts(&format!("{two_paragraphs}{}", point_type("", "E")));
@@ -4192,7 +4192,7 @@ fn legacy_tab_descriptions_out_of_range_are_skipped() {
 /// text object's `To`, so that object's descriptions outside a definition are skipped.
 #[test]
 fn legacy_tab_definitions_skipped_capped_and_left_open() {
-    let positions = |t: &vectorcraft_doc::TextObject| t.para_at(0).tabs.iter().map(|t| t.position).collect::<Vec<f64>>();
+    let positions = |t: &pluma_doc::TextObject| t.para_at(0).tabs.iter().map(|t| t.position).collect::<Vec<f64>>();
     let all_skipped = format!("{}{}", point_type("36 1 Xb\n0 0 1 72 Xe\nXB", "A"), point_type("36 1 Xb\n0 0 9 90 Xe\nXB", "B"));
     let texts = legacy_texts(&all_skipped);
     assert_eq!(positions(&texts[0]), [72.0]);
@@ -4241,8 +4241,8 @@ fn legacy_tab_stops_copied_into_paragraphs_are_capped() {
     assert_eq!(paras.iter().map(|p| p.tabs.len()).sum::<usize>(), 1 << 20);
     assert!(paras[..1024].iter().all(|p| p.tabs.len() == 1024));
     assert!(paras[1024..].iter().all(|p| p.tabs.is_empty()));
-    assert_eq!((paras[2046].justify, paras[2047].justify), (vectorcraft_doc::Justify::Left, vectorcraft_doc::Justify::Center));
-    assert_eq!(r.warnings, ["tab stops past VectorCraft's limits were left out"]);
+    assert_eq!((paras[2046].justify, paras[2047].justify), (pluma_doc::Justify::Left, pluma_doc::Justify::Center));
+    assert_eq!(r.warnings, ["tab stops past Pluma's limits were left out"]);
 }
 
 /// `Te` (end render, §22.6) reads in a text object with no operands and with four, inside a tab
@@ -4268,7 +4268,7 @@ fn legacy_type_spacing_and_hyphenation_are_kept_in_range() {
     assert_eq!((p.hyphenation.after_first, p.hyphenation.before_last, p.hyphenation.hyphen_limit), (1, 15, 25));
     let texts = legacy_texts(&point_type("5 0 0 TC\n200 100 80 TW", "Hi"));
     let j = &texts[0].para_at(0).justification;
-    let d = vectorcraft_doc::text::JustificationOptions::default();
+    let d = pluma_doc::text::JustificationOptions::default();
     assert_eq!((j.letter_spacing, j.word_spacing), (d.letter_spacing, d.word_spacing));
 }
 
@@ -4463,13 +4463,13 @@ fn legacy_read(art: &str) -> Structure {
 
 /// The text objects of the first layer, with their ids, top to bottom: a threaded text object's
 /// frames in file order.
-fn art_frames(doc: &Document) -> Vec<(vectorcraft_doc::NodeId, vectorcraft_doc::TextObject)> {
+fn art_frames(doc: &Document) -> Vec<(pluma_doc::NodeId, pluma_doc::TextObject)> {
     art(doc).iter().rev().filter_map(|n| if let NodeKind::Text(t) = &n.kind { Some((n.id, (**t).clone())) } else { None }).collect()
 }
 
 /// An area's frame in the document.
-fn frame_in_doc(t: &vectorcraft_doc::TextObject) -> Rect {
-    let vectorcraft_doc::TextKind::Area { frame } = &t.kind else { panic!("area type: {:?}", t.kind) };
+fn frame_in_doc(t: &pluma_doc::TextObject) -> Rect {
+    let pluma_doc::TextKind::Area { frame } = &t.kind else { panic!("area type: {:?}", t.kind) };
     kurbo::Shape::bounding_box(&(t.xf * frame.to_bezpath()))
 }
 
@@ -4569,11 +4569,11 @@ fn legacy_linked_area_frames_cap_their_copied_tab_stops() {
     let stops: Vec<usize> = frames.iter().map(|(_, f)| f.para_at(0).tabs.len()).collect();
     assert_eq!(stops.iter().filter(|&&n| n == 1024).count(), 1025);
     assert_eq!(stops.iter().filter(|&&n| n == 0).count(), 3071);
-    assert_eq!(r.warnings, ["tab stops past VectorCraft's limits were left out"]);
+    assert_eq!(r.warnings, ["tab stops past Pluma's limits were left out"]);
 }
 
 /// The warning when linked areas are left out.
-const LINKED_AREAS_LEFT_OUT: &str = "linked type areas past VectorCraft's limits were left out";
+const LINKED_AREAS_LEFT_OUT: &str = "linked type areas past Pluma's limits were left out";
 const DIRECTION_CHANGE_LEFT_OUT: &str = "type that changes writing direction inside a text object opens in the direction of its first character";
 
 /// The frames of linked areas times the characters of their story are kept to the reader's
@@ -4600,14 +4600,14 @@ fn legacy_point_and_path_type_with_several_text_paths_use_the_first() {
     let r = legacy_read(point);
     let frames = art_frames(&r.doc);
     let [(_, only)] = frames.as_slice() else { panic!("one object: {frames:?}") };
-    assert!(matches!(only.kind, vectorcraft_doc::TextKind::Point) && r.doc.text_threads.is_empty());
+    assert!(matches!(only.kind, pluma_doc::TextKind::Point) && r.doc.text_threads.is_empty());
     assert_eq!(only.plain_text(), "ab");
     assert!(same_matrix(only.xf, r.to_doc * Affine::translate((10.0, 50.0)) * Affine::FLIP_Y), "the first text path's matrix: {:?}", only.xf);
     let on_path = "2 To\n1 0 0 1 0 0 0.5 Tp\n0 0 m\n100 0 L\nN\nTP\n0 Tr\n(a) Tx\n1 0 0 1 0 0 0 Tp\n0 50 m\n100 50 L\nN\nTP\n(b) Tx\nTO\n";
     let r = legacy_read(on_path);
     let frames = art_frames(&r.doc);
     let [(_, only)] = frames.as_slice() else { panic!("one object: {frames:?}") };
-    let vectorcraft_doc::TextKind::OnPath { path, start, .. } = &only.kind else { panic!("{:?}", only.kind) };
+    let pluma_doc::TextKind::OnPath { path, start, .. } = &only.kind else { panic!("{:?}", only.kind) };
     assert!((start - 0.5).abs() < 1e-9, "the first text path's start: {start}");
     let along = kurbo::Shape::bounding_box(&(only.xf * path.to_bezpath()));
     assert!((along.y0 - r.to_doc.transform_rect_bbox(Rect::new(0.0, 0.0, 100.0, 0.0)).y0).abs() < 1e-9, "{along:?}");
@@ -4618,7 +4618,7 @@ fn legacy_point_and_path_type_with_several_text_paths_use_the_first() {
     let r = legacy_read(later);
     let frames = art_frames(&r.doc);
     let [(_, only)] = frames.as_slice() else { panic!("one object: {frames:?}") };
-    let vectorcraft_doc::TextKind::OnPath { start, .. } = &only.kind else { panic!("{:?}", only.kind) };
+    let pluma_doc::TextKind::OnPath { start, .. } = &only.kind else { panic!("{:?}", only.kind) };
     assert!((start - 0.5).abs() < 1e-9, "{start}");
     assert!(same_matrix(only.xf, r.to_doc * Affine::translate((5.0, 0.0)) * Affine::FLIP_Y), "{:?}", only.xf);
     // Area type with no frame at all: point type at its first text path.
@@ -4626,7 +4626,7 @@ fn legacy_point_and_path_type_with_several_text_paths_use_the_first() {
     let r = legacy_read(frameless);
     let frames = art_frames(&r.doc);
     let [(_, only)] = frames.as_slice() else { panic!("one object: {frames:?}") };
-    assert!(matches!(only.kind, vectorcraft_doc::TextKind::Point), "{:?}", only.kind);
+    assert!(matches!(only.kind, pluma_doc::TextKind::Point), "{:?}", only.kind);
     assert!(same_matrix(only.xf, r.to_doc * Affine::translate((10.0, 50.0)) * Affine::FLIP_Y), "{:?}", only.xf);
 }
 
@@ -4647,7 +4647,7 @@ fn the_dictionary_after_linked_area_type_applies_to_its_frames() {
     assert_eq!(nodes.len(), 3);
     for n in &nodes {
         assert!(n.extras().mask.is_some(), "every frame is masked: {:?}", n.id);
-        assert_eq!(wrap_of(n), Some(vectorcraft_doc::TextWrap { offset: 12.5, invert: false }));
+        assert_eq!(wrap_of(n), Some(pluma_doc::TextWrap { offset: 12.5, invert: false }));
     }
     let names: Vec<_> = nodes.iter().map(|n| n.name.as_deref()).collect();
     assert_eq!(names, [Some("Story"), None, None]);
@@ -4968,7 +4968,7 @@ fn an_instance_in_a_symbols_art_is_placed_from_the_canvas() {
     let doc = read_ok(&body).doc;
     let names: Vec<&str> = doc.symbols.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(names, ["Dot", "Pair"]);
-    assert_eq!(doc.symbol_registration("Pair"), vectorcraft_doc::SymbolRegistration(0));
+    assert_eq!(doc.symbol_registration("Pair"), pluma_doc::SymbolRegistration(0));
     // Dot sits at (10, 5) in Pair's art, which the page instance puts at (50, 50).
     let a = art(&doc);
     assert_eq!(instance_box(&doc, &a[0]), Rect::new(58.0, 53.0, 62.0, 57.0));
@@ -5036,7 +5036,7 @@ fn an_instance_keeps_its_hide_lock_transparency_and_clip() {
 /// does: no two objects of the document, in its layers or its symbols, share an id.
 #[test]
 fn a_symbols_opacity_mask_art_takes_ids_of_the_document() {
-    fn ids(n: &Node, out: &mut Vec<vectorcraft_doc::NodeId>) {
+    fn ids(n: &Node, out: &mut Vec<pluma_doc::NodeId>) {
         out.push(n.id);
         if let Some(m) = n.extras().mask.as_ref() {
             ids(&m.art, out);
@@ -5083,7 +5083,7 @@ fn the_symbol_list_orders_the_symbols_and_names_stay_apart() {
         let doc = read_ok(&(symbols(&format!("{defs}{list}")) + &layer(&instance("A", [1.0, 0.0, 0.0, -1.0, 20.0, 50.0])))).doc;
         let names: Vec<&str> = doc.symbols.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(names, ["C", "B", "A", "A 2"], "{list}");
-        assert_eq!(doc.symbol_registration("C"), vectorcraft_doc::SymbolRegistration(8));
+        assert_eq!(doc.symbol_registration("C"), pluma_doc::SymbolRegistration(8));
         // An instance names the first symbol the file gives that name.
         assert!(matches!(&art(&doc)[0].kind, NodeKind::SymbolInstance { symbol, .. } if symbol == "A"));
     }
@@ -5244,7 +5244,7 @@ fn symbols_that_hold_each_other_lose_the_instances_that_close_the_loop() {
     let defs = symbols(&(symbol("S1", &instance("S2", m), 5) + &symbol("S2", &instance("S1", m), 5)));
     let r =
         read_ok(&format!("%AI3_TemplateBox: 100.5 50.5 100.5 50.5\n{defs}{}", layer(&(dot() + &instance("S1", [1.0, 0.0, 0.0, -1.0, 20.0, 50.0])))));
-    assert!(r.warnings.contains(&vectorcraft_doc::depth::symbols_note()), "{:?}", r.warnings);
+    assert!(r.warnings.contains(&pluma_doc::depth::symbols_note()), "{:?}", r.warnings);
     assert!(!r.doc.clone().limit_depth(), "nothing is left that draws itself");
 }
 
@@ -5710,7 +5710,7 @@ fn an_undefined_highlight_is_a_gradient_without_one() {
 #[test]
 fn an_undefined_number_anywhere_else_is_still_an_operator_the_reader_doesnt_know() {
     let err = read(stream(&layer(&format!("{RED}-- 5 m\n0 10 L\n10 10 L\nf\n"))).as_bytes()).unwrap_err();
-    assert!(err.contains("operators VectorCraft doesn't know (`--`)"), "{err}");
+    assert!(err.contains("operators Pluma doesn't know (`--`)"), "{err}");
 }
 
 #[test]
@@ -5846,7 +5846,7 @@ fn a_compound_clipping_path_with_a_fill_paints_once_under_its_clip() {
     let NodeKind::Group { children, clip: true } = &art(&doc)[0].kind else { panic!("a clipping group") };
     assert_eq!(children.len(), 2, "{children:#?}");
     let NodeKind::Compound { children: clip, rule } = &children[0].kind else { panic!("{:?}", children[0].kind) };
-    assert_eq!(*rule, vectorcraft_geom::FillRule::EvenOdd);
+    assert_eq!(*rule, pluma_geom::FillRule::EvenOdd);
     assert_eq!(clip.len(), 2);
     assert!(clip.iter().all(|c| matches!(c.kind, NodeKind::Path { clipping: true, .. })));
     assert_eq!(fill(&children[0]).color(), Some(Color::rgb(0.0, 0.0, 1.0)));
@@ -5931,7 +5931,7 @@ fn offset_stroke_style_with(name: &str, entries: &str, stroke: &str) -> String {
 #[test]
 fn a_stroke_offset_filter_is_a_stroke_aligned_inside_or_outside() {
     // GUARDS: a style's stroke aligned inside or outside (Stroke panel › Align Stroke) left the object as its drawn look.
-    use vectorcraft_doc::StrokeAlign;
+    use pluma_doc::StrokeAlign;
     for (inside, align) in [(Some(1), Some(StrokeAlign::Inside)), (Some(0), Some(StrokeAlign::Outside)), (None, None), (Some(2), None)] {
         let r = read_ok(&format!("%AI9_BeginArtStyles\n{}%AI9_EndArtStyles\n{}", offset_stroke_style("Edge", inside), layer(&styled_square("Edge"))));
         let a = art(&r.doc);
@@ -5954,7 +5954,7 @@ fn a_stroke_offset_filter_is_a_stroke_aligned_inside_or_outside() {
 /// style, as a Stroke Style Filter's does.
 #[test]
 fn a_stroke_offset_filter_keeps_its_strokes_style() {
-    use vectorcraft_doc::StrokeAlign;
+    use pluma_doc::StrokeAlign;
     let profile = "/Dictionary : /NotRecorded ,\n/Array :\n0 /Real ,\n1 /Real ,\n; (BSVariableWidthTValuesArray) ,\n\
                    /Array :\n1 /Real ,\n0.1 /Real ,\n; (BSCenteredWidthsArray) ,\n; (kAIBeautifulStrokesParamsDictKey) ,\n";
     let entries = format!("0 /Bool (StrokeOffsetInside) ,\n{profile}");
@@ -5998,7 +5998,7 @@ fn a_stroke_offset_filter_with_a_stroke_this_does_not_read_keeps_the_drawn_look(
 /// style with that stroke.
 #[test]
 fn a_default_style_with_a_stroke_aligned_outside_comes_in() {
-    use vectorcraft_doc::StrokeAlign;
+    use pluma_doc::StrokeAlign;
     let r =
         read_ok(&format!("{}{}", styles_and_list(&[offset_stroke_style("[Default]", Some(0))], &["[Default]"]), layer(&styled_square("[Default]"))));
     assert_eq!(style_names(&r.doc), [("[Default]".to_string(), 1)]);
@@ -6177,9 +6177,9 @@ fn an_object_in_a_version_7_patterns_tile_with_a_style_this_reads_comes_in_as_it
 fn an_object_in_a_brushs_art_with_a_style_this_reads_comes_in_as_itself() {
     let section = format!("%AI8_BeginBrushPattern\n(Dot art)\n0 A\n{}%AI8_EndBrushPattern\n", styled_square("Blue"));
     let r = read_ok(&format!("{section}{ART_STYLES}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
+    let lib = pluma_brush::library(&r.doc);
     let spray = lib.iter().find(|b| b.name == "Spray").unwrap_or_else(|| panic!("{:?}", r.warnings));
-    assert!(matches!(spray.kind, vectorcraft_brush::BrushKind::Scatter(_)), "{:?}", spray.kind);
+    assert!(matches!(spray.kind, pluma_brush::BrushKind::Scatter(_)), "{:?}", spray.kind);
     let art = spray.art();
     let [square] = art.as_slice() else { panic!("{art:#?}") };
     assert_blue_square(square);
@@ -6190,7 +6190,7 @@ fn an_object_in_a_brushs_art_with_a_style_this_reads_comes_in_as_itself() {
 /// does: no object of the brush's art shares an id with an object of the layers.
 #[test]
 fn a_brushs_opacity_mask_art_takes_ids_of_the_document() {
-    fn ids(n: &Node, out: &mut Vec<vectorcraft_doc::NodeId>) {
+    fn ids(n: &Node, out: &mut Vec<pluma_doc::NodeId>) {
         out.push(n.id);
         if let Some(m) = n.extras().mask.as_ref() {
             ids(&m.art, out);
@@ -6205,7 +6205,7 @@ fn a_brushs_opacity_mask_art_takes_ids_of_the_document() {
     let section = format!("%AI8_BeginBrushPattern\n(Dot art)\n0 A\n{RED}{square}f\n{mask}%AI8_EndBrushPattern\n");
     let shapes: String = (0..12).map(|i| format!("{RED}{}f\n", rect_path(f64::from(i) * 20.0, 0.0, f64::from(i) * 20.0 + 10.0, 10.0))).collect();
     let r = read_ok(&format!("{section}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer(&shapes)));
-    let lib = vectorcraft_brush::library(&r.doc);
+    let lib = pluma_brush::library(&r.doc);
     let spray = lib.iter().find(|b| b.name == "Spray").unwrap_or_else(|| panic!("{:?}", r.warnings));
     let art = spray.art();
     assert!(art.iter().any(|n| n.extras().mask.is_some()), "the mask is read: {art:#?}");
@@ -6354,7 +6354,7 @@ fn ai_import_registration_style_does_not_carry_over_previous_color_6205() {
     assert_eq!(s0.as_deref(), Some("Shemen"));
     // Second object is styled in RegWhite: [Registration] at 0% tint (#ffffff)
     let Paint::Solid { swatch, tint, color } = fill(&a[1]) else { panic!("{:#?}", a[1]) };
-    assert_eq!(swatch.as_deref(), Some(vectorcraft_color::swatch::REGISTRATION));
+    assert_eq!(swatch.as_deref(), Some(pluma_color::swatch::REGISTRATION));
     assert_eq!(tint, 0.0);
     assert_eq!(color, Color::cmyk(1.0, 1.0, 1.0, 1.0).tinted(0.0));
 }
@@ -6455,7 +6455,7 @@ fn a_symbol_library_without_layers_gives_its_symbols() {
     let names: Vec<&str> = read.symbols.iter().map(|(s, _)| s.name.as_str()).collect();
     assert_eq!(names, ["Tile", "Pair", "Dot", "Pic"]);
     let registrations: Vec<u8> = read.symbols.iter().map(|(_, r)| r.0).collect();
-    let center = vectorcraft_doc::SymbolRegistration::CENTER.0;
+    let center = pluma_doc::SymbolRegistration::CENTER.0;
     assert_eq!(registrations, [center, center, 0, center]);
     let Some(((tile, _), (pair, _))) = read.symbols.first().zip(read.symbols.get(1)) else { panic!("two symbols") };
     assert_eq!(tile.art.extras().graphic_style, Some(1), "{:#?}", tile.art);
@@ -6487,7 +6487,7 @@ fn an_object_in_a_patterns_art_with_a_listed_style_is_linked() {
 /// does: no object of the pattern's art shares an id with an object of the layers.
 #[test]
 fn a_patterns_opacity_mask_art_takes_ids_of_the_document() {
-    fn ids(n: &Node, out: &mut Vec<vectorcraft_doc::NodeId>) {
+    fn ids(n: &Node, out: &mut Vec<pluma_doc::NodeId>) {
         out.push(n.id);
         if let Some(m) = n.extras().mask.as_ref() {
             ids(&m.art, out);
@@ -6638,7 +6638,7 @@ fn a_variable_width_stroke_comes_in_as_its_drawn_outline() {
 }
 
 /// Only a Stroke Style filter's widths written as one centered array come in as the drawn look.
-/// A Stroke Offset stroke and widths written for each side, as VectorCraft saves them, stay live.
+/// A Stroke Offset stroke and widths written for each side, as Pluma saves them, stay live.
 #[test]
 fn only_centered_widths_on_a_plain_stroke_come_in_as_the_drawn_outline() {
     // GUARDS: every stroke with a profile went to its drawn look, so a Stroke Offset stroke and the
@@ -6714,7 +6714,7 @@ fn a_variable_width_stroke_with_an_empty_look_comes_in_as_itself() {
 }
 
 #[test]
-fn each_pathfinder_operation_on_a_group_draws_as_vectorcraft_draws_it() {
+fn each_pathfinder_operation_on_a_group_draws_as_pluma_draws_it() {
     // GUARDS: only Add (`Command` 0) was read; the other operations came in as the drawn look's one path.
     let ops = [
         (1, "pathfinder.intersect"),
@@ -6741,17 +6741,17 @@ fn each_pathfinder_operation_on_a_group_draws_as_vectorcraft_draws_it() {
         let params = if command == 11 { serde_json::json!({"mixingRate": 30.0}) } else { serde_json::json!({}) };
         assert_eq!(e.params, params, "{command}");
         assert!(!r.warnings.iter().any(|w| w.contains("drawn look")), "{command}: {:?}", r.warnings);
-        // The same squares in a group made in VectorCraft, with the effect of that operation.
+        // The same squares in a group made in Pluma, with the effect of that operation.
         let square = |m: &Arc<Node>| {
             let bounds = m.geometric_bounds().unwrap();
-            Arc::new(Node::path(m.id, vectorcraft_geom::shapes::rectangle(bounds), vectorcraft_doc::Appearance::basic(fill(m), Paint::None, 0.0)))
+            Arc::new(Node::path(m.id, pluma_geom::shapes::rectangle(bounds), pluma_doc::Appearance::basic(fill(m), Paint::None, 0.0)))
         };
         let mut own = Node::group(a[0].id, members.iter().map(square).collect());
-        own.appearance.effects.push(vectorcraft_doc::Effect { id: id.into(), params: params.clone(), visible: true });
+        own.appearance.effects.push(pluma_doc::Effect { id: id.into(), params: params.clone(), visible: true });
         // Each result's box and paints; Outline's lines start where each square's path starts, so
         // the results are compared in a sorted order.
         let faces = |g: &Node| -> Vec<String> {
-            let mut faces: Vec<String> = vectorcraft_effects::pathfinder_children(None, g, None)
+            let mut faces: Vec<String> = pluma_effects::pathfinder_children(None, g, None)
                 .unwrap()
                 .iter()
                 .map(|n| {
@@ -7087,7 +7087,7 @@ fn with_red_stroke(styles: &str) -> String {
 #[test]
 fn twist_and_a_scaling_transform_are_read_only_where_their_outline_is_known() {
     // GUARDS: Twist was read on curves, strokes and groups, and Transform scaling a stroked object,
-    // where the outline VectorCraft draws hasn't been checked.
+    // where the outline Pluma draws hasn't been checked.
     let object = |hidden: &str| {
         format!("0 Ae\nu\n{RED}{}f\nU\n%_Bb\n%_{}f\n%_0 BB\n1 (Bent) XW\n", rect_path(16.0, 16.0, 64.0, 54.0), hidden.replace('\n', "\n%_"))
     };
@@ -7349,16 +7349,16 @@ pub(super) fn envelope_content() -> String {
 }
 
 /// What envelope `kind` draws of [`envelope_content`]: the rectangle's edges, many points to a
-/// side, mapped as VectorCraft maps them, as a red path in art space.
-pub(super) fn drawn_content(kind: &vectorcraft_doc::live::EnvelopeKind) -> String {
+/// side, mapped as Pluma maps them, as a red path in art space.
+pub(super) fn drawn_content(kind: &pluma_doc::live::EnvelopeKind) -> String {
     let rect = Rect::new(40.0, 20.0, 160.0, 80.0);
     drawn_box(kind, rect, rect)
 }
 
 /// What envelope `kind`, mapping from box `src`, draws of a red rectangle `rect`, as in
 /// [`drawn_content`].
-fn drawn_box(kind: &vectorcraft_doc::live::EnvelopeKind, src: Rect, rect: Rect) -> String {
-    let map = vectorcraft_doc::live::envelope_mapper(kind, src);
+fn drawn_box(kind: &pluma_doc::live::EnvelopeKind, src: Rect, rect: Rect) -> String {
+    let map = pluma_doc::live::envelope_mapper(kind, src);
     let corners = [Point::new(rect.x0, rect.y0), Point::new(rect.x1, rect.y0), Point::new(rect.x1, rect.y1), Point::new(rect.x0, rect.y1)];
     let mut s = RED.to_string();
     for (k, a) in corners.iter().enumerate() {
@@ -7372,7 +7372,7 @@ fn drawn_box(kind: &vectorcraft_doc::live::EnvelopeKind, src: Rect, rect: Rect) 
 }
 
 /// The live envelope `n` is: its content, kind, fidelity, editing and options.
-fn live_envelope(n: &Node) -> (&[Arc<Node>], &vectorcraft_doc::live::EnvelopeKind, f64, bool, vectorcraft_doc::live::EnvelopeOptions) {
+fn live_envelope(n: &Node) -> (&[Arc<Node>], &pluma_doc::live::EnvelopeKind, f64, bool, pluma_doc::live::EnvelopeOptions) {
     match &n.kind {
         NodeKind::Envelope { content, kind, fidelity, editing, options, frame } => {
             assert_eq!(**frame, kurbo::Affine::IDENTITY);
@@ -7394,7 +7394,7 @@ pub(super) fn warp_keys(style: u32, bend: f64, h: f64, v: f64, rotate: u32) -> S
 /// distortions (fractions in the file) and orientation read; the warp's drawn art goes.
 #[test]
 fn a_warp_envelope_opens_live() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     for (style, bend, h, v, rotate, id) in
         [(1, 0.5, 0.0, 0.0, 0, "arc"), (1, 0.5, -0.2, 0.3, 1, "arc"), (8, 0.5, 0.0, 0.0, 0, "flag"), (15, 0.5, 0.0, 0.0, 0, "twist")]
     {
@@ -7408,7 +7408,7 @@ fn a_warp_envelope_opens_live() {
         let EnvelopeKind::Warp { style: s, bend: b, h: dh, v: dv, horizontal } = kind else { panic!("{kind:?}") };
         assert_eq!((s.as_str(), *horizontal), (id, rotate == 0));
         assert!([(*b, bend), (*dh, h), (*dv, v)].iter().all(|(got, f)| (got - f * 100.0).abs() < 1e-9), "{kind:?}");
-        assert_eq!((fidelity, editing, options), (50.0, false, vectorcraft_doc::live::EnvelopeOptions::NEW));
+        assert_eq!((fidelity, editing, options), (50.0, false, pluma_doc::live::EnvelopeOptions::NEW));
         assert_eq!(content.len(), 1, "{content:#?}");
         assert!(matches!(content[0].kind, NodeKind::Path { .. }), "{content:#?}");
         assert_eq!(fill(&content[0]).color(), Some(Color::rgb(1.0, 0.0, 0.0)));
@@ -7419,7 +7419,7 @@ fn a_warp_envelope_opens_live() {
 /// Every warp style number reads as its style, in Effect › Warp's order.
 #[test]
 fn warp_envelopes_read_every_style() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     let ids = [
         "arc",
         "arcLower",
@@ -7452,7 +7452,7 @@ fn warp_envelopes_read_every_style() {
 /// included.
 #[test]
 fn a_mesh_envelope_opens_live_with_its_points_and_handles() {
-    use vectorcraft_doc::live::{EnvelopeKind, H_DOWN, H_LEFT, H_RIGHT, H_UP};
+    use pluma_doc::live::{EnvelopeKind, H_DOWN, H_LEFT, H_RIGHT, H_UP};
     // 3 columns 40 apart and 2 rows 30 apart from (40, 20); the inner point (1, 1) moved, and its
     // handle towards (2, 1) longer and off the line.
     let at = |(i, j): (usize, usize)| if (i, j) == (1, 1) { (90.0, 55.0) } else { (40.0 + i as f64 * 40.0, 20.0 + j as f64 * 30.0) };
@@ -7505,7 +7505,7 @@ fn a_mesh_envelope_opens_live_with_its_points_and_handles() {
 /// one-patch mesh, an anchor on the edge included; its contents stay the rectangle.
 #[test]
 fn a_top_object_envelope_opens_live_with_its_outline() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     // Corners (40, 20) (40, 80) (160, 80) (160, 20); the top edge bows up through an anchor at (100, 95).
     let at = |(i, j): (usize, usize)| (40.0 + i as f64 * 120.0, 20.0 + j as f64 * 60.0);
     let handle = |p: (usize, usize), q: (usize, usize)| match (p, q) {
@@ -7525,7 +7525,7 @@ fn a_top_object_envelope_opens_live_with_its_outline() {
     bp.curve_to((120.0, 80.0), (80.0, 80.0), (40.0, 80.0));
     bp.curve_to((40.0, 60.0), (40.0, 40.0), (40.0, 20.0));
     bp.close_path();
-    let want = EnvelopeKind::TopObject { path: vectorcraft_geom::PathData::from_bezpath(&bp), corners: None };
+    let want = EnvelopeKind::TopObject { path: pluma_geom::PathData::from_bezpath(&bp), corners: None };
     let r = read_ok(&layer(&envelope_of(&shape, ENVELOPE_KEYS, &envelope_content(), 3, &drawn_content(&want))));
     let a = art(&r.doc);
     assert_eq!(a.len(), 1, "{a:#?}");
@@ -7551,7 +7551,7 @@ fn a_top_object_envelope_opens_live_with_its_outline() {
 /// Envelope Options come from the options word, Fidelity from its own key.
 #[test]
 fn an_envelope_reads_its_options_and_fidelity() {
-    use vectorcraft_doc::live::{EnvelopeKind, EnvelopeOptions, PreserveShape};
+    use pluma_doc::live::{EnvelopeKind, EnvelopeOptions, PreserveShape};
     let shape = straight_mesh(1, 1, (120.0, 60.0));
     // A flat 1 × 1 mesh over the box draws the box as it is.
     let drawn = drawn_content(&EnvelopeKind::Mesh {
@@ -7627,7 +7627,7 @@ fn stroked_shape() -> (String, Vec<Point>) {
 /// geometric box would leave the stroke 5 pt past it.
 #[test]
 fn an_envelope_saved_with_its_stroke_maps_from_the_stroked_box() {
-    use vectorcraft_doc::live::{EnvelopeKind, EnvelopeMap};
+    use pluma_doc::live::{EnvelopeKind, EnvelopeMap};
     let (mesh, points) = stroked_shape();
     let keys = format!("{ENVELOPE_KEYS}70 /Real (AIDeformArtHeightKey) ,\n130 /Real (AIDeformArtWidthKey) ,\n");
     let outer = Rect::new(35.0, 15.0, 165.0, 85.0);
@@ -7652,10 +7652,10 @@ fn an_envelope_saved_with_its_stroke_maps_from_the_stroked_box() {
 /// geometric box whatever size its file saves.
 #[test]
 fn an_envelope_without_distort_appearance_maps_from_the_geometric_box() {
-    use vectorcraft_doc::live::EnvelopeMap;
+    use pluma_doc::live::EnvelopeMap;
     let keys = "65536 /Int (AIDeformOptionsKey) ,\n50 /Int (AIDeformFidelityKey) ,\n0 /Bool (AIDeformEditModeKey) ,\n70 /Real (AIDeformArtHeightKey) ,\n130 /Real (AIDeformArtWidthKey) ,\n";
     let outer = Rect::new(35.0, 15.0, 165.0, 85.0);
-    let flat = vectorcraft_doc::live::EnvelopeKind::Mesh {
+    let flat = pluma_doc::live::EnvelopeKind::Mesh {
         rows: 1,
         cols: 1,
         points: vec![Point::new(35.0, 15.0), Point::new(165.0, 15.0), Point::new(35.0, 85.0), Point::new(165.0, 85.0)],
@@ -7677,7 +7677,7 @@ fn an_envelope_without_distort_appearance_maps_from_the_geometric_box() {
 /// have one box, and contents with no height have no margins.
 #[test]
 fn an_envelope_not_saved_with_its_stroke_maps_from_the_geometric_box() {
-    use vectorcraft_doc::live::{EnvelopeKind, EnvelopeMap};
+    use pluma_doc::live::{EnvelopeKind, EnvelopeMap};
     let (mesh, points) = stroked_shape();
     let inner = Rect::new(40.0, 20.0, 160.0, 80.0);
     let flat = EnvelopeKind::Mesh { rows: 1, cols: 1, points, handles: vec![] };
@@ -7729,7 +7729,7 @@ fn an_envelope_not_saved_with_its_stroke_maps_from_the_geometric_box() {
 /// An envelope's contents keep their groups: a group of two rectangles stays that group.
 #[test]
 fn an_envelope_s_contents_keep_their_groups() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     let group = format!(
         "u\n{RED}{}f\n{}f\nU\n/ArtDictionary :\n(Pair) /String (AIArtName) ,\n;\n",
         rect_path(40.0, 20.0, 90.0, 80.0),
@@ -7753,7 +7753,7 @@ fn an_envelope_s_contents_keep_their_groups() {
 /// dictionary: the envelope opens live all the same, in Edit Contents.
 #[test]
 fn an_envelope_whose_contents_are_edited_opens_live_in_edit_contents() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     let at = |(i, j): (usize, usize)| (40.0 + i as f64 * 120.0, 20.0 + j as f64 * 60.0);
     let handle = |p: (usize, usize), q: (usize, usize)| match (p, q) {
         ((0, 1), (1, 1)) => (70.0, 95.0),
@@ -7771,7 +7771,7 @@ fn an_envelope_whose_contents_are_edited_opens_live_in_edit_contents() {
     bp.curve_to((120.0, 80.0), (80.0, 80.0), (40.0, 80.0));
     bp.curve_to((40.0, 60.0), (40.0, 40.0), (40.0, 20.0));
     bp.close_path();
-    let want = EnvelopeKind::TopObject { path: vectorcraft_geom::PathData::from_bezpath(&bp), corners: None };
+    let want = EnvelopeKind::TopObject { path: pluma_geom::PathData::from_bezpath(&bp), corners: None };
     let keys = ENVELOPE_KEYS.replace("0 /Bool (AIDeformEditModeKey)", "1 /Bool (AIDeformEditModeKey)");
     let body = envelope_parts(&envelope_content(), &keys, &format!("0 g\n{mesh}"), 3, &drawn_content(&want));
     let r = read_ok(&layer(&body));
@@ -7816,7 +7816,7 @@ fn an_envelope_that_doesnt_read_keeps_its_drawn_art() {
 /// keeps the drawn art.
 #[test]
 fn an_envelope_that_doesnt_come_out_as_drawn_keeps_its_drawn_art() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     let other = EnvelopeKind::Warp { style: "arc".into(), bend: -50.0, h: 0.0, v: 0.0, horizontal: true };
     let body = envelope_of(&straight_mesh(1, 1, (120.0, 60.0)), &warp_keys(1, 0.5, 0.0, 0.0, 0), &envelope_content(), 1, &drawn_content(&other));
     let r = read_ok(&layer(&body));
@@ -7830,7 +7830,7 @@ fn an_envelope_that_doesnt_come_out_as_drawn_keeps_its_drawn_art() {
 /// too, and a white envelope that draws elsewhere keeps its drawn art.
 #[test]
 fn a_white_envelope_that_doesnt_come_out_as_drawn_keeps_its_drawn_art() {
-    use vectorcraft_doc::live::EnvelopeKind;
+    use pluma_doc::live::EnvelopeKind;
     const WHITE: &str = "0 0 0 0 1 1 1 Xa\n";
     let other = EnvelopeKind::Warp { style: "arc".into(), bend: -50.0, h: 0.0, v: 0.0, horizontal: true };
     let content = envelope_content().replace(RED, WHITE);
@@ -7845,10 +7845,10 @@ fn a_white_envelope_that_doesnt_come_out_as_drawn_keeps_its_drawn_art() {
 
 /// A document of `n` warped text objects, with the art the live warp makes of each, in its look.
 fn warped_type_doc(n: usize) -> (Document, Vec<super::envelope::WarpedLook>) {
-    use vectorcraft_doc::{Appearance, Effect, TextObject};
+    use pluma_doc::{Appearance, Effect, TextObject};
     let mut doc = Document::new(400.0, 200.0);
     let mut looks = vec![];
-    let mut layer = Node::layer(doc.alloc_id(), "Art", vectorcraft_doc::LayerColor::Preset(0));
+    let mut layer = Node::layer(doc.alloc_id(), "Art", pluma_doc::LayerColor::Preset(0));
     for i in 0..n {
         let t = TextObject::point(kurbo::Point::new(20.0, 40.0 + 40.0 * i as f64), "TILT", Default::default());
         let mut text = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
@@ -7858,7 +7858,7 @@ fn warped_type_doc(n: usize) -> (Document, Vec<super::envelope::WarpedLook>) {
         text.name = Some(format!("Type {i}"));
         text.locked = i == 0;
         text.visible = i != 0;
-        let mut look = vectorcraft_effects::expand_outlined(None, &text, None).unwrap();
+        let mut look = pluma_effects::expand_outlined(None, &text, None).unwrap();
         look.id = doc.alloc_id();
         looks.push(super::envelope::WarpedLook { slot: text.id, look, left_out: None });
         layer.children_mut().unwrap().push(Arc::new(text));
@@ -7875,7 +7875,7 @@ fn warped_type_past_the_budget_comes_in_as_its_look() {
     let (first, second) = (looks[0].slot, looks[1].slot);
     let left_out = Rect::new(1.0, 2.0, 3.0, 4.0);
     looks[1].left_out = Some(left_out);
-    let wrap = vectorcraft_doc::TextWrap::default();
+    let wrap = pluma_doc::TextWrap::default();
     doc.node_mut(second).unwrap().extras_mut().wrap = Some(wrap);
     let warped = super::envelope::WarpedType { looks, checks: 1, ..Default::default() };
     let mut restyled = vec![Rect::new(5.0, 6.0, 7.0, 8.0), left_out];
@@ -7893,7 +7893,7 @@ fn warped_type_past_the_budget_comes_in_as_its_look() {
 /// warped the other way comes in as its look.
 #[test]
 fn white_warped_type_that_draws_elsewhere_comes_in_as_its_look() {
-    use vectorcraft_doc::{Appearance, CharStyle, Effect, TextObject};
+    use pluma_doc::{Appearance, CharStyle, Effect, TextObject};
     let warp = |bend: f64| {
         let mut appearance = Appearance::default();
         appearance.effects.push(Effect { id: "warp.arc".into(), params: serde_json::json!({"bend": bend}), visible: true });
@@ -7901,14 +7901,14 @@ fn white_warped_type_that_draws_elsewhere_comes_in_as_its_look() {
     };
     for (look_bend, replaced) in [(40.0, 0), (-40.0, 1)] {
         let mut doc = Document::new(400.0, 200.0);
-        let mut layer = Node::layer(doc.alloc_id(), "Art", vectorcraft_doc::LayerColor::Preset(0));
+        let mut layer = Node::layer(doc.alloc_id(), "Art", pluma_doc::LayerColor::Preset(0));
         let white = CharStyle { fill: Paint::solid(Color::WHITE), ..Default::default() };
         let t = TextObject::point(kurbo::Point::new(20.0, 60.0), "TILT", white);
         let mut text = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
         text.appearance = warp(40.0).into();
         let mut other = text.clone();
         other.appearance = warp(look_bend).into();
-        let mut look = vectorcraft_effects::expand_outlined(None, &other, None).unwrap();
+        let mut look = pluma_effects::expand_outlined(None, &other, None).unwrap();
         look.id = doc.alloc_id();
         let looks = vec![super::envelope::WarpedLook { slot: text.id, look, left_out: None }];
         layer.children_mut().unwrap().push(Arc::new(text));
@@ -7922,7 +7922,7 @@ fn white_warped_type_that_draws_elsewhere_comes_in_as_its_look() {
 /// spent, with the page they are held to.
 #[test]
 fn warped_type_gets_what_the_envelopes_left_of_the_budget() {
-    let flat = vectorcraft_doc::live::EnvelopeKind::Mesh {
+    let flat = pluma_doc::live::EnvelopeKind::Mesh {
         rows: 1,
         cols: 1,
         points: vec![Point::new(40.0, 20.0), Point::new(160.0, 20.0), Point::new(40.0, 80.0), Point::new(160.0, 80.0)],
@@ -7987,7 +7987,7 @@ fn warped_type_on_the_page_spends_what_is_left_of_the_budget() {
     let mark = art(&mark.doc)[0].clone();
     for (i, w) in looks.iter_mut().enumerate() {
         w.look.visible = true;
-        w.look = Node::group(vectorcraft_doc::NodeId(u64::MAX - 10 - i as u64), vec![Arc::new(w.look.clone()), mark.clone()]);
+        w.look = Node::group(pluma_doc::NodeId(u64::MAX - 10 - i as u64), vec![Arc::new(w.look.clone()), mark.clone()]);
     }
     let copy = |w: &super::envelope::WarpedLook| super::envelope::WarpedLook { slot: w.slot, look: w.look.clone(), left_out: None };
     let page = Some(Rect::new(0.0, 60.0, 60.0, 100.0));
@@ -8019,7 +8019,7 @@ fn an_envelope_that_differs_from_its_drawn_art_over_the_page_keeps_it() {
 /// the page's art replaces.
 #[test]
 fn an_envelope_whose_drawn_art_holds_an_unread_object_keeps_it() {
-    let flat = vectorcraft_doc::live::EnvelopeKind::Mesh {
+    let flat = pluma_doc::live::EnvelopeKind::Mesh {
         rows: 1,
         cols: 1,
         points: vec![Point::new(40.0, 20.0), Point::new(160.0, 20.0), Point::new(40.0, 80.0), Point::new(160.0, 80.0)],
@@ -8037,7 +8037,7 @@ fn an_envelope_whose_drawn_art_holds_an_unread_object_keeps_it() {
 /// A live envelope takes its drawn art's own properties: its name here.
 #[test]
 fn a_live_envelope_keeps_its_drawn_art_s_name() {
-    let flat = vectorcraft_doc::live::EnvelopeKind::Mesh {
+    let flat = pluma_doc::live::EnvelopeKind::Mesh {
         rows: 1,
         cols: 1,
         points: vec![Point::new(40.0, 20.0), Point::new(160.0, 20.0), Point::new(40.0, 80.0), Point::new(160.0, 80.0)],
@@ -8087,7 +8087,7 @@ fn a_gradient_mesh_reads_as_a_patch() {
     let NodeKind::Mesh(m) = &art(&doc)[0].kind else { panic!("{:?}", art(&doc)[0].kind) };
     let colors: Vec<_> = m.points.iter().map(|p| p.color).collect();
     assert_eq!(colors, [Color::rgb(1.0, 0.0, 0.0), Color::rgb(1.0, 1.0, 1.0), Color::rgb(0.0, 1.0, 0.0), Color::rgb(0.0, 0.0, 1.0)]);
-    use vectorcraft_doc::live::{H_DOWN, H_RIGHT};
+    use pluma_doc::live::{H_DOWN, H_RIGHT};
     let first = &m.points[0];
     assert_eq!(
         (first.p, first.handles[H_DOWN], first.handles[H_RIGHT]),
@@ -8175,7 +8175,7 @@ fn opacity_mask_art_without_its_own_paint_takes_the_paint_before_its_dictionary(
     assert!(f.overprint && s.overprint);
     assert_eq!((s.width, s.cap, s.join, s.miter_limit), (2.0, LineCap::Round, LineJoin::Round, 4.0));
     assert_eq!(s.dash.as_ref().map(|d| (d.pattern.clone(), d.offset)), Some((vec![3.0, 1.0], 0.0)));
-    assert_eq!(rule(&a[0]), Some(vectorcraft_geom::FillRule::EvenOdd));
+    assert_eq!(rule(&a[0]), Some(pluma_geom::FillRule::EvenOdd));
     assert_eq!(fill_layer(&m.art), Some(f));
     assert_eq!(stroke_layer(&m.art), Some(s));
     assert_eq!(rule(&m.art), rule(&a[0]));
@@ -8484,8 +8484,8 @@ fn a_blend_comes_in_as_a_live_blend() {
     assert_eq!(objects.len(), 1, "one object: {objects:?}");
     let NodeKind::Blend { children, spec } = &objects[0].kind else { panic!("not a blend: {:?}", objects[0].kind) };
     assert_eq!(children.len(), 2);
-    assert_eq!(spec.spacing, vectorcraft_doc::live::BlendSpacing::Steps(3));
-    let laid = vectorcraft_doc::blend::blend_expand(children, spec);
+    assert_eq!(spec.spacing, pluma_doc::live::BlendSpacing::Steps(3));
+    let laid = pluma_doc::blend::blend_expand(children, spec);
     assert_eq!(laid.len(), 5);
     let middle = laid.iter().find(|n| n.geometric_bounds().is_some_and(|b| (b.center().x - 60.0).abs() < 0.5)).expect("the middle step");
     let Paint::Solid { color, .. } = fill(middle) else { panic!("solid") };
@@ -8505,13 +8505,13 @@ fn a_blend_with_no_spine_written_runs_straight_between_its_keys() {
     let (blend, warnings) = read_blend(&body.replace(&spine_part, ""));
     let NodeKind::Blend { children, spec } = &blend.kind else { panic!("a live blend: {:?} {warnings:?}", blend.kind) };
     assert!(!warnings.iter().any(|w| w == super::blend::DRAWN), "{warnings:?}");
-    assert_eq!(spec.spacing, vectorcraft_doc::live::BlendSpacing::Steps(3));
+    assert_eq!(spec.spacing, pluma_doc::live::BlendSpacing::Steps(3));
     let spine = spec.spine.as_ref().and_then(|p| p.subpaths.first()).expect("a spine");
     let points: Vec<(f64, f64)> = spine.anchors.iter().map(|a| (a.p.x, a.p.y)).collect();
     assert_eq!(points.len(), 2, "{points:?}");
     assert!((points[0].0 - 10.0).abs() < 0.01 && (points[1].0 - 110.0).abs() < 0.01, "from the left key to the right one: {points:?}");
     assert_eq!(spec.key_anchors, vec![0, 1]);
-    assert_eq!(vectorcraft_doc::blend::blend_expand(children, spec).len(), 5);
+    assert_eq!(pluma_doc::blend::blend_expand(children, spec).len(), 5);
 }
 
 /// The tags after a blend's drawn steps are the live blend's.
@@ -8540,7 +8540,7 @@ fn a_blends_spine_written_backwards_keeps_its_keys_order() {
 /// spine between the keys, also where the spine runs on past the last key.
 #[test]
 fn a_blend_keeps_its_spacing() {
-    use vectorcraft_doc::live::BlendSpacing;
+    use pluma_doc::live::BlendSpacing;
     let straight = "%_10 50 m\n%_110 50 L\n";
     let longer = "%_10 50 m\n%_110 50 L\n%_1010 50 L\n";
     let (red, nearly_red, blue) = ([1.0, 0.0, 0.0], [1.0, 0.0, 3.0 / 255.0], [0.0, 0.0, 1.0]);
@@ -8554,7 +8554,7 @@ fn a_blend_keeps_its_spacing() {
         let (blend, warnings) = read_blend(&blend_file_colored(spine, [Some("A"), Some("B")], &record, from, to));
         let NodeKind::Blend { children, spec } = &blend.kind else { panic!("a live blend for {spacing:?}: {:?} {warnings:?}", blend.kind) };
         assert_eq!(spec.spacing, spacing);
-        assert_eq!(vectorcraft_doc::blend::blend_expand(children, spec).len(), 5, "{spacing:?}");
+        assert_eq!(pluma_doc::blend::blend_expand(children, spec).len(), 5, "{spacing:?}");
         assert!(!warnings.iter().any(|w| w == super::blend::DRAWN), "{spacing:?}: {warnings:?}");
     }
 }
@@ -8563,7 +8563,7 @@ fn a_blend_keeps_its_spacing() {
 /// between them: 254 from red to blue, and 9 between two red squares.
 #[test]
 fn a_smooth_color_blend_comes_in_with_its_drawn_steps() {
-    use vectorcraft_doc::live::BlendSpacing;
+    use pluma_doc::live::BlendSpacing;
     let (red, blue) = ([1.0, 0.0, 0.0], [0.0, 0.0, 1.0]);
     for (to, between) in [(blue, 254), (red, 9)] {
         let record = blend_record_spaced(&['A', 'B'], 0, 4.0, between as u32);
@@ -8571,7 +8571,7 @@ fn a_smooth_color_blend_comes_in_with_its_drawn_steps() {
         let (blend, warnings) = read_blend(&body);
         let NodeKind::Blend { children, spec } = &blend.kind else { panic!("a live blend for {between} steps: {:?} {warnings:?}", blend.kind) };
         assert_eq!(spec.spacing, BlendSpacing::SmoothColor);
-        assert_eq!(vectorcraft_doc::blend::blend_expand(children, spec).len(), between + 2);
+        assert_eq!(pluma_doc::blend::blend_expand(children, spec).len(), between + 2);
         assert!(!warnings.iter().any(|w| w == super::blend::DRAWN), "{between}: {warnings:?}");
     }
 }
@@ -8603,7 +8603,7 @@ fn a_blend_whose_spacing_doesnt_lay_out_its_steps_keeps_them() {
 /// drawn two and two between the keys keep their drawn steps.
 #[test]
 fn a_blend_of_three_keys_keeps_its_distance_between_each_pair() {
-    use vectorcraft_doc::live::BlendSpacing;
+    use pluma_doc::live::BlendSpacing;
     let (red, blue, green) = ([1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]);
     let mix = |a: [f64; 3], b: [f64; 3], t: f64| [0, 1, 2].map(|c| a[c] + (b[c] - a[c]) * t);
     let file = |drawn: &[(f64, [f64; 3])]| {
@@ -8634,7 +8634,7 @@ fn a_blend_of_three_keys_keeps_its_distance_between_each_pair() {
     let (blend, warnings) = read_blend(&file(&three_and_one));
     let NodeKind::Blend { children, spec } = &blend.kind else { panic!("a live blend: {:?} {warnings:?}", blend.kind) };
     assert_eq!(spec.spacing, BlendSpacing::Distance(25.0));
-    assert_eq!(vectorcraft_doc::blend::blend_steps(children, spec), vec![3, 1]);
+    assert_eq!(pluma_doc::blend::blend_steps(children, spec), vec![3, 1]);
     let two_and_two = [
         (0.0, red),
         (100.0 / 3.0, mix(red, blue, 1.0 / 3.0)),
@@ -8785,14 +8785,14 @@ fn moving_a_blends_key_moves_its_steps() {
     let (blend, _) = read_blend(&body);
     let NodeKind::Blend { children, spec } = &blend.kind else { panic!("a blend") };
     let middle = |keys: &[Arc<Node>]| {
-        let laid = vectorcraft_doc::blend::blend_expand(keys, spec);
+        let laid = pluma_doc::blend::blend_expand(keys, spec);
         let xs: Vec<f64> = laid.iter().filter_map(|n| n.geometric_bounds()).map(|b| b.center().y).collect();
         xs.iter().sum::<f64>() / xs.len() as f64
     };
     let before = middle(children);
     let mut keys = children.clone();
     let mut moved = (*keys[1]).clone();
-    moved.transform(vectorcraft_geom::Affine::translate((0.0, 40.0)), true);
+    moved.transform(pluma_geom::Affine::translate((0.0, 40.0)), true);
     keys[1] = Arc::new(moved);
     let after = middle(&keys);
     assert!((after - before - 20.0).abs() < 1.0, "the steps follow: {before} -> {after}");
@@ -8817,7 +8817,7 @@ fn wrap_dictionary(entries: &[&str]) -> String {
 /// The wrap outline a file may keep beside the options: art, then its key.
 const WRAP_PATH: &str = "X=\n%_4 As\n%_0 0 m\n%_0 20 L\n%_20 20 L\n%_20 0 L\n%_f\n%_X+\n%_ (AI11TextWrapPath) ,";
 
-fn wrap_of(n: &Node) -> Option<vectorcraft_doc::TextWrap> {
+fn wrap_of(n: &Node) -> Option<pluma_doc::TextWrap> {
     n.extras().wrap
 }
 
@@ -8827,7 +8827,7 @@ fn wrap_dictionary_path() {
     let r = read_ok(&layer(&format!("{RED}{}f\n{dict}", rect_path(10.0, 10.0, 50.0, 50.0))));
     let kids = art(&r.doc);
     assert_eq!(kids.len(), 1, "the kept outline isn't art: {:?}", r.warnings);
-    assert_eq!(wrap_of(&kids[0]), Some(vectorcraft_doc::TextWrap { offset: 12.5, invert: false }));
+    assert_eq!(wrap_of(&kids[0]), Some(pluma_doc::TextWrap { offset: 12.5, invert: false }));
     assert!(r.warnings.is_empty(), "{:?}", r.warnings);
 }
 
@@ -8844,8 +8844,8 @@ fn wrap_dictionary_invert_and_default() {
     )));
     let kids = art(&r.doc);
     assert_eq!(kids.len(), 3);
-    assert_eq!(wrap_of(&kids[0]), Some(vectorcraft_doc::TextWrap { offset: 12.5, invert: true }));
-    assert_eq!(wrap_of(&kids[1]), Some(vectorcraft_doc::TextWrap::default()), "6 pt when the offset isn't given");
+    assert_eq!(wrap_of(&kids[0]), Some(pluma_doc::TextWrap { offset: 12.5, invert: true }));
+    assert_eq!(wrap_of(&kids[1]), Some(pluma_doc::TextWrap::default()), "6 pt when the offset isn't given");
     assert_eq!(wrap_of(&kids[2]), None, "an object without wrap options isn't a wrap object");
     assert_eq!(kids[2].name.as_deref(), Some("Plain"));
 }
@@ -8874,7 +8874,7 @@ fn wrap_dictionary_group() {
     let r = read_ok(&layer(&format!("u\n{RED}{}f\n{}f\nU\n{dict}", rect_path(0.0, 0.0, 10.0, 10.0), rect_path(20.0, 0.0, 30.0, 10.0))));
     let kids = art(&r.doc);
     assert_eq!(kids.len(), 1);
-    assert_eq!(wrap_of(&kids[0]), Some(vectorcraft_doc::TextWrap::default()));
+    assert_eq!(wrap_of(&kids[0]), Some(pluma_doc::TextWrap::default()));
     let NodeKind::Group { children, .. } = &kids[0].kind else { panic!("a group: {:?}", kids[0].kind) };
     assert_eq!(children.len(), 2);
     assert!(children.iter().all(|c| wrap_of(c).is_none() && matches!(c.kind, NodeKind::Path { .. })));
@@ -8899,10 +8899,10 @@ fn legacy_wrap_group() {
     let NodeKind::Group { children, clip: false } = &kids[0].kind else { panic!("a group: {:?}", kids[0].kind) };
     let wraps: Vec<(bool, bool)> = children.iter().map(|c| (matches!(c.kind, NodeKind::Text(_)), wrap_of(c).is_some())).collect();
     assert_eq!(wraps, [(false, true), (true, false), (false, true), (false, true)], "objects before the text are wrap objects too: {:?}", r.warnings);
-    let none = Some(vectorcraft_doc::TextWrap { offset: 0.0, invert: false });
+    let none = Some(pluma_doc::TextWrap { offset: 0.0, invert: false });
     assert_eq!(wrap_of(&children[0]), none, "no offset");
     assert_eq!(wrap_of(&children[2]), none, "no offset");
-    assert_eq!(wrap_of(&children[3]), Some(vectorcraft_doc::TextWrap { offset: 3.0, invert: true }));
+    assert_eq!(wrap_of(&children[3]), Some(pluma_doc::TextWrap { offset: 3.0, invert: true }));
     assert!(!r.warnings.iter().any(|w| w.contains("*w") || w.contains("*W")), "{:?}", r.warnings);
 }
 
@@ -8915,7 +8915,7 @@ fn legacy_wrap_group_without_text() {
     assert_eq!(kids.len(), 1, "{:?}", r.warnings);
     let NodeKind::Group { children, clip: false } = &kids[0].kind else { panic!("a group: {:?}", kids[0].kind) };
     let wraps: Vec<_> = children.iter().map(|c| wrap_of(c)).collect();
-    assert_eq!(wraps, [Some(vectorcraft_doc::TextWrap { offset: 0.0, invert: false }); 2]);
+    assert_eq!(wraps, [Some(pluma_doc::TextWrap { offset: 0.0, invert: false }); 2]);
 }
 
 /// `*w` and `*W` take no operands, and a wraparound group can't be an element of a compound path.
@@ -8962,7 +8962,7 @@ const CLOSED_PATH: &str =
 /// An Objects on Path group: the stroked `path` with the id `ids[0]`, then a 10 × 6 red square for
 /// each other id, 50 pt apart from x 20, whose frame is turned `angle` radians.
 fn on_path_group(path: &str, ids: &[&str], angle: f64) -> String {
-    use vectorcraft_testkit::ai::on_path_member;
+    use pluma_testkit::ai::on_path_member;
     let (first, rest) = ids.split_first().unwrap();
     let mut group = format!("0 Ae\nu\n/ConstraintGroup :\n128 /GroupType ,\n;\n0 0 1 0 0 0 1 XA\n2 w\n{path}{}", on_path_member(first, None, 0.0));
     for (i, id) in rest.iter().enumerate() {
@@ -8973,7 +8973,7 @@ fn on_path_group(path: &str, ids: &[&str], angle: f64) -> String {
 }
 
 /// The group the layer of `body` holds first, and its Objects on Path record.
-fn on_path(body: &str) -> (Arc<Node>, Option<vectorcraft_doc::objects_on_path::ObjectsOnPath>) {
+fn on_path(body: &str) -> (Arc<Node>, Option<pluma_doc::objects_on_path::ObjectsOnPath>) {
     let doc = read_ok(body).doc;
     let g = art(&doc).first().cloned().unwrap();
     let rec = g.extras().objects_on_path.as_deref().cloned();
@@ -8985,7 +8985,7 @@ fn on_path(body: &str) -> (Arc<Node>, Option<vectorcraft_doc::objects_on_path::O
 /// plain group.
 #[test]
 fn an_objects_on_path_group_opens_with_its_path_objects_and_options() {
-    use vectorcraft_testkit::ai::{on_path_options, on_path_record};
+    use pluma_testkit::ai::{on_path_options, on_path_record};
     let group = on_path_group(OPEN_PATH, &ON_PATH_IDS, 0.5);
     let record = on_path_record(ALIGN_ON_PATH, &ON_PATH_IDS, &on_path_options(4, 0, std::f64::consts::FRAC_PI_6, ""));
     let (g, rec) = on_path(&format!("{record}{}", layer(&group)));
@@ -9012,7 +9012,7 @@ fn an_objects_on_path_group_opens_with_its_path_objects_and_options() {
 /// A group on a closed path opens as an Objects on Path group too.
 #[test]
 fn an_objects_on_path_group_on_a_closed_path_opens_live() {
-    use vectorcraft_testkit::ai::{on_path_options, on_path_record};
+    use pluma_testkit::ai::{on_path_options, on_path_record};
     let record = on_path_record(ALIGN_ON_PATH, &ON_PATH_IDS, &on_path_options(4, 4, 0.0, ""));
     let (g, rec) = on_path(&format!("{record}{}", layer(&on_path_group(CLOSED_PATH, &ON_PATH_IDS, 0.0))));
     let rec = rec.expect("an Objects on Path group");
@@ -9025,7 +9025,7 @@ fn an_objects_on_path_group_on_a_closed_path_opens_live() {
 /// leaves the group a plain group with its art.
 #[test]
 fn an_objects_on_path_record_that_doesnt_fit_leaves_a_plain_group() {
-    use vectorcraft_testkit::ai::{on_path_options, on_path_record};
+    use pluma_testkit::ai::{on_path_options, on_path_record};
     let [p, a, b, c, d] = ON_PATH_IDS;
     let options = |more: &str| on_path_options(4, 4, 0.0, more);
     let good = options("");
@@ -9077,7 +9077,7 @@ fn an_objects_on_path_record_that_doesnt_fit_leaves_a_plain_group() {
 /// is a group of many paths and its last object has no bounds.
 #[test]
 fn repeated_objects_on_path_records_dont_measure_the_objects_again() {
-    use vectorcraft_testkit::ai::{on_path_member, on_path_options, on_path_record};
+    use pluma_testkit::ai::{on_path_member, on_path_options, on_path_record};
     let paths: String = (0..20_000).map(|i| format!("{}f\n", rect_path(f64::from(i % 200), 40.0, f64::from(i % 200) + 1.0, 46.0))).collect();
     let big = format!("u\n{RED}{paths}U\n{}", on_path_member(ON_PATH_IDS[1], Some(0), 0.0));
     let empty = format!("u\nU\n{}", on_path_member(ON_PATH_IDS[2], Some(1), 0.0));
@@ -9123,7 +9123,7 @@ fn repeated_objects_on_path_records_dont_measure_the_objects_again() {
 /// live.
 #[test]
 fn an_objects_on_path_group_in_versioned_content_opens_once() {
-    use vectorcraft_testkit::ai::{on_path_options, on_path_record};
+    use pluma_testkit::ai::{on_path_options, on_path_record};
     let record = on_path_record(ALIGN_ON_PATH, &ON_PATH_IDS, &on_path_options(4, 4, 0.0, ""));
     let group = on_path_group(OPEN_PATH, &ON_PATH_IDS, 0.0);
     let copy = group.replace("/ConstraintGroup :\n128 /GroupType ,\n;\n", "");
@@ -9192,7 +9192,7 @@ fn five_brushes() -> String {
     format!("{art}{order}{objects}")
 }
 
-fn brush_named<'a>(lib: &'a [vectorcraft_brush::Brush], name: &str) -> &'a vectorcraft_brush::BrushKind {
+fn brush_named<'a>(lib: &'a [pluma_brush::Brush], name: &str) -> &'a pluma_brush::BrushKind {
     match lib.iter().find(|b| b.name == name) {
         Some(b) => &b.kind,
         None => panic!("no brush {name} in {:?}", lib.iter().map(|b| &b.name).collect::<Vec<_>>()),
@@ -9215,11 +9215,11 @@ fn the_brush_managers_order_gives_each_brushs_kind_in_order() {
 #[test]
 fn a_files_brushes_come_in_with_their_values_in_the_panels_order() {
     let r = read_ok(&format!("{}{}", five_brushes(), layer(&(rect_path(0.0, 0.0, 10.0, 10.0) + "f\n"))));
-    let lib = vectorcraft_brush::library(&r.doc);
+    let lib = pluma_brush::library(&r.doc);
     let names: Vec<&str> = lib.iter().map(|b| b.name.as_str()).collect();
     assert_eq!(names, ["Mop", "Nib", "Spray", "Ribbon"], "{:?}", r.warnings);
-    assert!(r.warnings.iter().any(|w| w == "brushes VectorCraft can't read yet were left out of the Brushes panel (1)"), "{:?}", r.warnings);
-    use vectorcraft_brush::{BrushKind, Variation};
+    assert!(r.warnings.iter().any(|w| w == "brushes Pluma can't read yet were left out of the Brushes panel (1)"), "{:?}", r.warnings);
+    use pluma_brush::{BrushKind, Variation};
     let BrushKind::Calligraphic(c) = brush_named(&lib, "Nib") else { panic!("calligraphic") };
     assert_eq!((c.angle, c.roundness, c.size), (-10.0, 50.0, 4.0));
     assert_eq!(c.variation, [20.0, 10.0, 2.0]);
@@ -9231,7 +9231,7 @@ fn a_files_brushes_come_in_with_their_values_in_the_panels_order() {
     assert_eq!(s.art.geometric_bounds().map(|b| (b.width(), b.height())), Some((4.0, 4.0)), "the art of its section");
     let BrushKind::Art(a) = brush_named(&lib, "Ribbon") else { panic!("art") };
     assert!(a.art.geometric_bounds().is_some(), "the art of its section");
-    assert_eq!(a.colorization, vectorcraft_brush::Colorization::Tints, "its code");
+    assert_eq!(a.colorization, pluma_brush::Colorization::Tints, "its code");
     let BrushKind::Bristle(b) = brush_named(&lib, "Mop") else { panic!("bristle") };
     let got = [b.stiffness, b.thickness, b.density, b.opacity, b.length, b.size];
     let want = [60.0, 40.0, 30.0, 80.0, 150.0, 2.0 * 72.0 / 25.4];
@@ -9262,7 +9262,7 @@ fn an_older_art_brush_comes_in_with_its_art() {
     let d = brush::parse_tool_object(brush::Tool::Art, "Ribbon", OLD_RIBBON).unwrap();
     assert!(matches!(d.kind, brush::DraftKind::Art { ref art, plain: false, .. } if art == "Ribbon art"), "{d:?}");
     let brush::DraftKind::Art { ref brush, .. } = d.kind else { panic!("art") };
-    assert_eq!(brush.colorization, vectorcraft_brush::ArtBrush::default().colorization, "the default colorization");
+    assert_eq!(brush.colorization, pluma_brush::ArtBrush::default().colorization, "the default colorization");
     // A count of numbers neither form has isn't read.
     for bad in ["1 / Ribbon art/ / / / / 0 1 /  1 0 1 0 1 0 0", "1 / Ribbon art/ / / / / 0 1 /  1 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0"] {
         assert_eq!(brush::parse_tool_object(brush::Tool::Art, "Ribbon", bad), Err(brush::BrushError::Values), "{bad}");
@@ -9271,11 +9271,11 @@ fn an_older_art_brush_comes_in_with_its_art() {
     // 8 numbers are the older form whatever the first number says: read with the defaults.
     let d = brush::parse_tool_object(brush::Tool::Art, "Ribbon", "0 / Ribbon art/ / / / / 0 1 /  1 0 1 0 1 0 0 0").unwrap();
     let brush::DraftKind::Art { ref brush, ref art, plain } = d.kind else { panic!("art") };
-    assert_eq!((art.as_str(), plain, brush.colorization), ("Ribbon art", false, vectorcraft_brush::ArtBrush::default().colorization));
+    assert_eq!((art.as_str(), plain, brush.colorization), ("Ribbon art", false, pluma_brush::ArtBrush::default().colorization));
     let objects = [plugin_object(ART_BRUSH, "Ribbon", OLD_RIBBON), plugin_object(ART_BRUSH, "Bare", "1 / / / / / / 0 1 /  1 0 1 0 1 0 0 0")].concat();
     let r = read_ok(&format!("{}{objects}{}", brush_art("Ribbon art", 4.0), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
-    let vectorcraft_brush::BrushKind::Art(a) = brush_named(&lib, "Ribbon") else { panic!("art") };
+    let lib = pluma_brush::library(&r.doc);
+    let pluma_brush::BrushKind::Art(a) = brush_named(&lib, "Ribbon") else { panic!("art") };
     assert_eq!(a.art.geometric_bounds().map(|b| (b.width(), b.height())), Some((4.0, 4.0)), "the art of its section");
     assert_eq!(lib.len(), 1, "a brush naming no art is left out");
     assert!(r.warnings.iter().any(|w| w.ends_with("Brushes panel (1)")), "{:?}", r.warnings);
@@ -9310,8 +9310,8 @@ fn a_brushs_art_takes_the_patterns_defined_before_it() {
         rect_path(0.0, 0.0, 4.0, 4.0)
     );
     let r = read_ok(&format!("{dots}{art_}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
-    let vectorcraft_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter") };
+    let lib = pluma_brush::library(&r.doc);
+    let pluma_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter") };
     assert!(matches!(fill(&s.art), Paint::Pattern { ref pattern, .. } if pattern == "Dots"), "{:?}", r.warnings);
 }
 
@@ -9321,8 +9321,8 @@ fn a_brushs_art_takes_the_patterns_defined_before_it() {
 fn a_brushs_art_brings_its_spot_colors_and_color_mode() {
     let section = format!("%AI8_BeginBrushPattern\n(Dot art)\n0 A\n0 1 1 0 (Ink) 0 x\n{}f\n%AI8_EndBrushPattern\n", rect_path(0.0, 0.0, 4.0, 4.0));
     let r = read_ok(&format!("{section}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
-    assert!(matches!(brush_named(&lib, "Spray"), vectorcraft_brush::BrushKind::Scatter(_)), "{:?}", r.warnings);
+    let lib = pluma_brush::library(&r.doc);
+    assert!(matches!(brush_named(&lib, "Spray"), pluma_brush::BrushKind::Scatter(_)), "{:?}", r.warnings);
     let ink = r.doc.swatch("Ink").map(|s| (s.paint.color(), s.global, s.spot));
     assert_eq!(ink, Some((Some(Color::cmyk(0.0, 1.0, 1.0, 0.0)), true, true)), "{:?}", r.warnings);
     assert_eq!(r.doc.color_mode, ColorMode::Cmyk);
@@ -9334,7 +9334,7 @@ fn a_brushs_art_brings_its_spot_colors_and_color_mode() {
     // Nor does art that only a brush left out uses (a pattern brush).
     let tile = "%AI8_BeginBrushPattern\n(Tile one)\n0 A\n0 1 1 0 (Fence ink) 0 x\n0 0 m\n4 0 L\n4 4 L\nf\n%AI8_EndBrushPattern\n";
     let r = read_ok(&format!("{tile}{}{}", plugin_object(PATTERN_BRUSH, "Fence", FENCE), layer("")));
-    assert!(vectorcraft_brush::library(&r.doc).is_empty(), "{:?}", r.warnings);
+    assert!(pluma_brush::library(&r.doc).is_empty(), "{:?}", r.warnings);
     assert!(r.doc.swatch("Fence ink").is_none());
     assert_eq!(r.doc.color_mode, ColorMode::Rgb);
 }
@@ -9349,7 +9349,7 @@ fn a_brushs_art_colors_come_after_the_pages_and_a_replaced_sections_bring_nothin
     let page = layer(&format!("0 0 1 0 (Ink) 0 x\n{}f", rect_path(0.0, 0.0, 10.0, 10.0)));
     let body = format!("{}{}{}{page}", section("Gone ink", "1 0 0 0"), section("Ink", "0 1 1 0"), plugin_object(SCATTER, "Spray", SPRAY));
     let r = read_ok(&body);
-    assert!(matches!(brush_named(&vectorcraft_brush::library(&r.doc), "Spray"), vectorcraft_brush::BrushKind::Scatter(_)));
+    assert!(matches!(brush_named(&pluma_brush::library(&r.doc), "Spray"), pluma_brush::BrushKind::Scatter(_)));
     assert_eq!(r.doc.swatch("Ink").and_then(|s| s.paint.color()), Some(Color::cmyk(0.0, 0.0, 1.0, 0.0)), "{:?}", r.warnings);
     assert!(r.doc.swatch("Gone ink").is_none());
 }
@@ -9381,7 +9381,7 @@ fn brush_art_keeps_each_color_name_once_and_a_bounded_number_of_names() {
     assert_eq!(doc.color_mode, ColorMode::Cmyk);
     // The places are shared by the art of every brush, and a name in the art of two takes one.
     let doc = open(&[("Dot art", &many), ("Dash art", ink)]);
-    assert_eq!(vectorcraft_brush::library(&doc).len(), 2);
+    assert_eq!(pluma_brush::library(&doc).len(), 2);
     assert!(doc.swatch("Name 0").is_some() && doc.swatch("Ink").is_none());
     let half: String = many.lines().take(max / 2).map(|l| format!("{l}\n")).collect();
     let doc = open(&[("Dot art", &half), ("Dash art", &format!("{half}{ink}"))]);
@@ -9411,7 +9411,7 @@ fn a_brushs_art_defines_a_process_color_that_a_gradient_stop_names() {
         rect_path(0.0, 0.0, 4.0, 4.0)
     );
     let doc = read_ok(&format!("{defs}{section}{}{}", plugin_object(SCATTER, "Spray", SPRAY), layer(""))).doc;
-    assert!(matches!(brush_named(&vectorcraft_brush::library(&doc), "Spray"), vectorcraft_brush::BrushKind::Scatter(_)));
+    assert!(matches!(brush_named(&pluma_brush::library(&doc), "Spray"), pluma_brush::BrushKind::Scatter(_)));
     let sw = doc.swatch("Test Cyan").unwrap();
     assert!(sw.global && !sw.spot, "a global process color, not an ink: {sw:?}");
 }
@@ -9439,8 +9439,8 @@ fn a_brushs_art_places_a_version_7_patterns_tiles_with_its_operands() {
     };
     let placed = |ops: &str| {
         let r = read_with(ops);
-        let lib = vectorcraft_brush::library(&r.doc);
-        let vectorcraft_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter") };
+        let lib = pluma_brush::library(&r.doc);
+        let pluma_brush::BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter") };
         match fill(&s.art) {
             Paint::Pattern { xf, .. } => xf,
             p => panic!("{ops}: {p:?} {:?}", r.warnings),
@@ -9459,7 +9459,7 @@ fn a_brushs_art_places_a_version_7_patterns_tiles_with_its_operands() {
         assert!(got.iter().zip(want).all(|(g, w)| (g - w).abs() < 1e-6), "{ops}: {got:?}");
     }
     let r = read_with("0 0 1 1 0 0 0 0 [1 0 0 1 0 0]");
-    assert!(!vectorcraft_brush::library(&r.doc).iter().any(|b| b.name == "Spray"), "{:?}", r.warnings);
+    assert!(!pluma_brush::library(&r.doc).iter().any(|b| b.name == "Spray"), "{:?}", r.warnings);
 }
 
 /// A Scatter brush whose 15 numbers start with 1 colors its art with Tints of the stroke, and one
@@ -9468,10 +9468,10 @@ fn a_brushs_art_places_a_version_7_patterns_tiles_with_its_operands() {
 /// files write their brushes, isn't read as a Scatter brush.
 #[test]
 fn a_scatter_brush_in_tints_comes_in_tinted() {
-    use vectorcraft_brush::{BrushKind, Colorization};
+    use pluma_brush::{BrushKind, Colorization};
     let read = |params: &str| {
         let r = read_ok(&format!("{}{}{}", brush_art("Dot art", 4.0), plugin_object(SCATTER, "Spray", params), layer("")));
-        vectorcraft_brush::library(&r.doc).into_iter().find(|b| b.name == "Spray")
+        pluma_brush::library(&r.doc).into_iter().find(|b| b.name == "Spray")
     };
     for (field, first, colorization) in
         [("2", "1", Colorization::Tints), ("2", "0", Colorization::None), ("1", "1", Colorization::Tints), ("1", "0", Colorization::None)]
@@ -9501,7 +9501,7 @@ fn framed_art(name: &str, frame: (f64, f64), op: &str, after: &str) -> String {
 /// part of it, and so are a painted rectangle and a named one, which aren't frames.
 #[test]
 fn a_brushs_frame_is_left_out_only_at_the_arts_bounds() {
-    use vectorcraft_brush::BrushKind;
+    use pluma_brush::BrushKind;
     let named = "%_/ArtDictionary :\n%_/XMLUID : (Edge) ; (AI10_ArtUID) ,\n%_;\n%_\n";
     for (why, frame, op, after, kept) in [
         ("exact", (0.0, 4.0), "n", "", false),
@@ -9512,7 +9512,7 @@ fn a_brushs_frame_is_left_out_only_at_the_arts_bounds() {
     ] {
         let params = "2 /Dot art/ 5 0 0 0 / 0 1 1 0 1 1 0 0 0 0 0 0 0 0 0";
         let r = read_ok(&format!("{}{}{}", framed_art("Dot art", frame, op, after), plugin_object(SCATTER, "Spray", params), layer("")));
-        let lib = vectorcraft_brush::library(&r.doc);
+        let lib = pluma_brush::library(&r.doc);
         let BrushKind::Scatter(s) = brush_named(&lib, "Spray") else { panic!("scatter") };
         if kept {
             assert!(matches!(s.art.kind, NodeKind::Group { .. }), "{why}: {:#?}", s.art);
@@ -9528,17 +9528,17 @@ fn a_brushs_frame_is_left_out_only_at_the_arts_bounds() {
 /// frame is left out: the group stays, without the frame, rather than becoming its one other object.
 #[test]
 fn a_brushs_frame_leaves_the_groups_own_state() {
-    use vectorcraft_doc::{Appearance, FillLayer, NodeId};
+    use pluma_doc::{Appearance, FillLayer, NodeId};
     let square = Rect::new(0.0, 0.0, 4.0, 4.0);
     let paint = FillLayer::new(Paint::solid(Color::BLACK));
     let ap = Appearance { items: vec![AppearanceItem::Fill(paint)], effects: vec![], contents_index: None };
-    let dot = Node::path(NodeId(2), vectorcraft_geom::shapes::rectangle(square), ap);
-    let frame = Node::path(NodeId(1), vectorcraft_geom::shapes::rectangle(square), Default::default());
+    let dot = Node::path(NodeId(2), pluma_geom::shapes::rectangle(square), ap);
+    let frame = Node::path(NodeId(1), pluma_geom::shapes::rectangle(square), Default::default());
     let group = Node::group(NodeId(3), vec![Arc::new(frame), Arc::new(dot)]);
     assert!(matches!(super::brush::without_frame(group.clone()).kind, NodeKind::Path { .. }), "a plain group is its one object");
     // A closed path through the four corners across the square, not along its sides, isn't a frame.
     let corners = [Point::new(0.0, 0.0), Point::new(4.0, 4.0), Point::new(4.0, 0.0), Point::new(0.0, 4.0)];
-    let crossing = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&corners, true));
+    let crossing = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&corners, true));
     let bowtie = Node::path(NodeId(4), crossing, Default::default());
     let dot = group.children().and_then(|c| c.last().cloned()).unwrap();
     let crossed = Node::group(NodeId(5), vec![Arc::new(bowtie), dot]);
@@ -9547,7 +9547,7 @@ fn a_brushs_frame_leaves_the_groups_own_state() {
     let sides = [Point::new(0.0, 0.0), Point::new(4.0, 0.0), Point::new(4.0, 4.0), Point::new(0.0, 4.0)];
     let around = [sides.as_slice(), &sides[..1]].concat();
     for (why, anchors, frame) in [("three sides", sides.as_slice(), false), ("back to the first corner", around.as_slice(), true)] {
-        let open = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(anchors, false));
+        let open = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(anchors, false));
         let dot = group.children().and_then(|c| c.last().cloned()).unwrap();
         let g = Node::group(NodeId(6), vec![Arc::new(Node::path(NodeId(7), open, Default::default())), dot]);
         let left = if frame { None } else { Some(2) };
@@ -9559,9 +9559,9 @@ fn a_brushs_frame_leaves_the_groups_own_state() {
         if let Some(Some(first)) = g.children_mut().map(|c| c.first_mut()) {
             let first = Arc::make_mut(first);
             match why {
-                "note" => first.extras_mut().attrs = Some(Box::new(vectorcraft_doc::ObjectAttributes { note: "edge".into(), ..Default::default() })),
+                "note" => first.extras_mut().attrs = Some(Box::new(pluma_doc::ObjectAttributes { note: "edge".into(), ..Default::default() })),
                 "show center" => {
-                    first.extras_mut().attrs = Some(Box::new(vectorcraft_doc::ObjectAttributes { show_center: Some(true), ..Default::default() }))
+                    first.extras_mut().attrs = Some(Box::new(pluma_doc::ObjectAttributes { show_center: Some(true), ..Default::default() }))
                 }
                 _ => first.visible = false,
             }
@@ -9572,7 +9572,7 @@ fn a_brushs_frame_leaves_the_groups_own_state() {
         let mut g = group.clone();
         (g.visible, g.locked, g.isolate) = (why != "hidden", why == "locked", why == "isolated");
         if why == "note" {
-            g.extras_mut().attrs = Some(Box::new(vectorcraft_doc::ObjectAttributes { note: "edge".into(), ..Default::default() }));
+            g.extras_mut().attrs = Some(Box::new(pluma_doc::ObjectAttributes { note: "edge".into(), ..Default::default() }));
         }
         let out = super::brush::without_frame(g);
         assert!(matches!(out.kind, NodeKind::Group { .. }), "{why}: {out:#?}");
@@ -9586,11 +9586,11 @@ fn a_brushs_frame_leaves_the_groups_own_state() {
 /// draws: the pieces along a path are where they are with the frame kept.
 #[test]
 fn a_brushs_frame_at_the_arts_bounds_draws_the_same_without_it() {
-    use vectorcraft_brush::{ArtBrush, Brush, BrushKind, Scatter};
+    use pluma_brush::{ArtBrush, Brush, BrushKind, Scatter};
     let scatter = ("Spray", "Dot art", SCATTER, "2 /Dot art/ 5 0 0 0 / 0 1 1 0 1 1 0 0 0 0 0 0 0 0 0");
     for (name, art_name, tool, params) in [scatter, ("Ribbon", "Ribbon art", ART_BRUSH, RIBBON)] {
         let r = read_ok(&format!("{}{}{}", framed_art(art_name, (0.0, 4.0), "n", ""), plugin_object(tool, name, params), layer("")));
-        let lib = vectorcraft_brush::library(&r.doc);
+        let lib = pluma_brush::library(&r.doc);
         let read = lib.iter().find(|b| b.name == name).cloned().unwrap();
         let art = match &read.kind {
             BrushKind::Scatter(s) => s.art.clone(),
@@ -9600,8 +9600,8 @@ fn a_brushs_frame_at_the_arts_bounds_draws_the_same_without_it() {
         let bounds = art.geometric_bounds().unwrap();
         assert_eq!((bounds.width(), bounds.height()), (4.0, 4.0), "{name}");
         assert!(matches!(art.kind, NodeKind::Path { .. }), "{name}: the frame left out: {art:#?}");
-        let frame = Node::path(vectorcraft_doc::NodeId(90), vectorcraft_geom::shapes::rectangle(bounds), Default::default());
-        let framed_art = Node::group(vectorcraft_doc::NodeId(91), vec![Arc::new(frame), Arc::new(art)]);
+        let frame = Node::path(pluma_doc::NodeId(90), pluma_geom::shapes::rectangle(bounds), Default::default());
+        let framed_art = Node::group(pluma_doc::NodeId(91), vec![Arc::new(frame), Arc::new(art)]);
         let kind = match &read.kind {
             BrushKind::Scatter(s) => BrushKind::Scatter(Scatter { art: framed_art, ..s.clone() }),
             BrushKind::Art(a) => BrushKind::Art(ArtBrush { art: framed_art, ..a.clone() }),
@@ -9611,9 +9611,9 @@ fn a_brushs_frame_at_the_arts_bounds_draws_the_same_without_it() {
         let mut line = kurbo::BezPath::new();
         line.move_to((0.0, 0.0));
         line.line_to((100.0, 30.0));
-        let stroke = vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0);
+        let stroke = pluma_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 1.0);
         let at = |b: &Brush| -> Vec<[i64; 4]> {
-            vectorcraft_brush::stroke_pieces(&r.doc, b, &line, &stroke)
+            pluma_brush::stroke_pieces(&r.doc, b, &line, &stroke)
                 .iter()
                 .filter_map(|n| n.geometric_bounds())
                 .map(|b| [b.x0, b.y0, b.x1, b.y1].map(|v| (v * 1000.0).round() as i64))
@@ -9632,7 +9632,7 @@ fn a_brushs_frame_at_the_arts_bounds_draws_the_same_without_it() {
 #[test]
 fn a_file_without_brushes_keeps_the_default_ones() {
     let r = read_ok(&layer(&(rect_path(0.0, 0.0, 10.0, 10.0) + "f\n")));
-    assert!(!r.doc.unknown.contains_key(vectorcraft_brush::DOC_KEY));
+    assert!(!r.doc.unknown.contains_key(pluma_brush::DOC_KEY));
 }
 
 /// A brush whose object can't be read, or whose art is missing or can't be read, is left out with a
@@ -9652,16 +9652,16 @@ fn a_brush_that_cant_be_read_leaves_the_layers_and_other_brushes() {
     .concat();
     let r = read_ok(&format!("{bad_art}{objects}{}", layer(&(rect_path(0.0, 0.0, 10.0, 10.0) + "f\n"))));
     assert_eq!(art(&r.doc).len(), 1, "the layer's art");
-    let lib = vectorcraft_brush::library(&r.doc);
+    let lib = pluma_brush::library(&r.doc);
     assert_eq!(lib.iter().map(|b| b.name.as_str()).collect::<Vec<_>>(), ["Nib"], "{:?}", r.warnings);
     assert!(r.warnings.iter().any(|w| w.ends_with("Brushes panel (6)")), "{:?}", r.warnings);
 }
 
-/// Files with brush objects and no brushes VectorCraft reads get an empty list, not the defaults.
+/// Files with brush objects and no brushes Pluma reads get an empty list, not the defaults.
 #[test]
 fn a_file_whose_brushes_are_all_left_out_has_none() {
     let r = read_ok(&format!("{}{}", plugin_object(PATTERN_BRUSH, "Fence", FENCE), layer("")));
-    assert!(vectorcraft_brush::library(&r.doc).is_empty());
+    assert!(pluma_brush::library(&r.doc).is_empty());
 }
 
 /// A brush object that ends after its plug-in name is counted as a brush left out, and the file
@@ -9670,10 +9670,10 @@ fn a_file_whose_brushes_are_all_left_out_has_none() {
 fn a_brush_object_without_a_name_is_counted_as_left_out() {
     let nameless = format!("%AI5_Begin_NonPrinting\nNp\n%AI8_BeginPluginObject\n({CALLIGRAPHIC})\n%AI8_EndPluginObject\n%AI5_End_NonPrinting--\n");
     let r = read_ok(&format!("{nameless}{}", layer("")));
-    assert!(vectorcraft_brush::library(&r.doc).is_empty(), "{:?}", r.warnings);
+    assert!(pluma_brush::library(&r.doc).is_empty(), "{:?}", r.warnings);
     assert!(r.warnings.iter().any(|w| w.ends_with("Brushes panel (1)")), "{:?}", r.warnings);
     let r = read_ok(&format!("{}{nameless}{}", plugin_object(CALLIGRAPHIC, "Nib", NIB), layer("")));
-    let lib = vectorcraft_brush::library(&r.doc);
+    let lib = pluma_brush::library(&r.doc);
     assert_eq!(lib.iter().map(|b| b.name.as_str()).collect::<Vec<_>>(), ["Nib"], "{:?}", r.warnings);
     assert!(r.warnings.iter().any(|w| w.ends_with("Brushes panel (1)")), "{:?}", r.warnings);
 }
@@ -9685,7 +9685,7 @@ fn a_gradients_br_is_not_a_brush() {
         "%AI5_BeginGradient: (G)\n(G) 0 2 Bd\n[\n0 0 0 0 1 1 1 2 1 6 50 0 Bs\n0 0 0 1 0 0 0 2 0.5 6 50 100 Bs\n0 Br\nBD\n%AI5_EndGradient\n";
     let art_ = format!("{}Bb\n1 (G) 0 0 0 1 1 0 0 1 0 0 1 Bg\n10 0 0 10 100 50 Xm\nf\n0 BB\n", rect_path(0.0, 0.0, 20.0, 20.0));
     let r = read_ok(&format!("{gradient}{}", layer(&art_)));
-    assert!(!r.doc.unknown.contains_key(vectorcraft_brush::DOC_KEY));
+    assert!(!r.doc.unknown.contains_key(pluma_brush::DOC_KEY));
     let Paint::Gradient(g) = fill(&art(&r.doc)[0]) else { panic!("a gradient: {:?}", r.warnings) };
     assert_eq!(g.gradient.stops.len(), 2);
 }
@@ -9696,7 +9696,7 @@ fn a_gradients_br_is_not_a_brush() {
 /// read: it varies at random, as an unknown code does.
 #[test]
 fn a_calligraphic_brushs_pen_channels_come_in_by_their_codes() {
-    use vectorcraft_brush::Variation::{Bearing, Fixed, Pressure, Random, Rotation, Tilt};
+    use pluma_brush::Variation::{Bearing, Fixed, Pressure, Random, Rotation, Tilt};
     let modes = |params: &str| {
         let d = brush::parse_tool_object(brush::Tool::Calligraphic, "Pen", params).unwrap();
         let brush::DraftKind::Calligraphic(c) = d.kind else { panic!("{d:?}") };
@@ -9759,12 +9759,12 @@ fn a_path_with_a_calligraphic_brush_comes_in_brushed() {
     let st = a[0].appearance.stroke().unwrap();
     assert_eq!((st.brush.as_deref(), st.width, st.paint.color()), (Some("Six D"), 0.5, Some(Color::rgb(1.0, 0.0, 0.0))));
     assert!(a[0].appearance.fill().is_none_or(|f| f.paint.is_none()), "{:?}", a[0].appearance);
-    use vectorcraft_brush::{BrushKind, Variation};
-    let lib = vectorcraft_brush::library(&r.doc);
+    use pluma_brush::{BrushKind, Variation};
+    let lib = pluma_brush::library(&r.doc);
     let BrushKind::Calligraphic(c) = brush_named(&lib, "Six D") else { panic!("calligraphic") };
     assert_eq!(c.modes, Some([Variation::Rotation, Variation::Bearing, Variation::Pressure]));
     // With no pen recorded on the path, the nib is the brush's own at the stroke's weight.
-    let pieces = vectorcraft_brush::stroke_pieces(&r.doc, &lib[0], &a[0].path_data().unwrap().to_bezpath(), st);
+    let pieces = pluma_brush::stroke_pieces(&r.doc, &lib[0], &a[0].path_data().unwrap().to_bezpath(), st);
     let height = pieces.iter().filter_map(|n| n.geometric_bounds()).map(|b| b.height()).fold(0.0, f64::max);
     assert!(height > 40.0 && height < 46.0, "the line's rise and about half the nib's 3 pt: {height}");
 }
@@ -9847,12 +9847,12 @@ fn a_path_with_an_art_brush_comes_in_brushed() {
     assert!(!r.warnings.iter().any(|w| w.contains("drawn look")), "{:?}", r.warnings);
     let st = a[0].appearance.stroke().unwrap();
     assert_eq!((st.brush.as_deref(), st.width, st.paint.color()), (Some("Ribbon"), 2.0, Some(Color::rgb(1.0, 0.0, 0.0))));
-    let lib = vectorcraft_brush::library(&r.doc);
-    let vectorcraft_brush::BrushKind::Art(brush) = brush_named(&lib, "Ribbon") else { panic!("art") };
-    assert_eq!((brush.width, brush.colorization), (100.0, vectorcraft_brush::Colorization::Tints));
+    let lib = pluma_brush::library(&r.doc);
+    let pluma_brush::BrushKind::Art(brush) = brush_named(&lib, "Ribbon") else { panic!("art") };
+    assert_eq!((brush.width, brush.colorization), (100.0, pluma_brush::Colorization::Tints));
     // Along a straight line, y down: the art is 8 tall at weight 1, its narrow block below the wide one.
     let line = kurbo::BezPath::from_vec(vec![kurbo::PathEl::MoveTo(Point::new(0.0, 0.0)), kurbo::PathEl::LineTo(Point::new(100.0, 0.0))]);
-    let pieces = vectorcraft_brush::stroke_pieces(&r.doc, &lib[0], &line, st);
+    let pieces = pluma_brush::stroke_pieces(&r.doc, &lib[0], &line, st);
     let b = pieces.iter().filter_map(|n| n.geometric_bounds()).reduce(|a, b| a.union(b)).unwrap();
     assert!((b.height() - 16.0).abs() < 1e-3 && (b.width() - 100.0).abs() < 1e-3, "weight 2 doubles the art across, and it stretches along: {b:?}");
     assert!((b.y0 + 8.0).abs() < 1e-3, "{b:?}");
@@ -9898,12 +9898,12 @@ fn a_compound_path_with_an_art_brush_comes_in_brushed() {
 /// mask, an effect, a gradient or pattern, a stroke, or art with no length along the path.
 #[test]
 fn an_art_brush_bends_only_paths_in_solid_fills() {
-    use vectorcraft_color::gradient::{Gradient, GradientPaint, GradientStop};
-    use vectorcraft_doc::{Effect, ImageObject, NodeId, OpacityMask};
+    use pluma_color::gradient::{Gradient, GradientPaint, GradientStop};
+    use pluma_doc::{Effect, ImageObject, NodeId, OpacityMask};
     let def = format!("{}{}", lopsided_art("Ribbon art"), plugin_object(ART_BRUSH, "Ribbon", RIBBON));
     let r = read_ok(&format!("{def}{}", layer(&brushed_path())));
-    let lib = vectorcraft_brush::library(&r.doc);
-    let vectorcraft_brush::BrushKind::Art(brush) = brush_named(&lib, "Ribbon") else { panic!("art") };
+    let lib = pluma_brush::library(&r.doc);
+    let pluma_brush::BrushKind::Art(brush) = brush_named(&lib, "Ribbon") else { panic!("art") };
     let plain = &brush.art;
     assert!(brush::art_bends(plain), "{plain:#?}");
     let with = |change: &dyn Fn(&mut Node)| {
@@ -10036,7 +10036,7 @@ fn an_art_brushed_path_the_brush_cant_draw_keeps_its_drawn_look() {
     let mut wrong = vec![];
     for (why, def, style) in cases {
         let r = read_ok(&format!("{def}{style}{}", layer(&brushed_path())));
-        let lib = vectorcraft_brush::library(&r.doc);
+        let lib = pluma_brush::library(&r.doc);
         let art_read = why == "art not read" || why == "no such brush" || lib.iter().any(|b| b.name == "Ribbon");
         if !matches!(art(&r.doc)[0].kind, NodeKind::Group { .. }) || !r.warnings.iter().any(|w| w.contains("drawn look")) || !art_read {
             wrong.push(why);
@@ -10175,7 +10175,7 @@ fn a_graphs_settings_paint_nothing_and_its_drawn_art_paints_as_usual() {
 fn graph_operators_outside_a_graph_are_unknown() {
     for stray in ["Gs\n", "Go\n", "1 2 Gc\n"] {
         let err = read(stream7(&layer7("L", &format!("{}{stray}", rect_path(0.0, 0.0, 5.0, 5.0)))).as_bytes()).unwrap_err();
-        assert!(err.contains("operators VectorCraft doesn't know"), "{stray}: {err}");
+        assert!(err.contains("operators Pluma doesn't know"), "{stray}: {err}");
     }
     for (stray, op) in [("%_2 0 0 0 Go\n", "`Go`"), ("%_GS\n", "`GS`"), ("%_1 2 Gc\n", "`Gc`")] {
         let r = read(stream7(&layer7("L", &format!("{}f\n{stray}", rect_path(0.0, 0.0, 5.0, 5.0)))).as_bytes()).unwrap();
@@ -10625,9 +10625,9 @@ fn brush_names_are_read_in_the_encoding_picked() {
     let body = format!("{}{order}{scatter}{}", brush_art(KO_GRA, 4.0), layer(""));
     for (encoding, name) in [("windows-949", "빨강"), ("windows-1252", "»¡°\u{ad}")] {
         let s = read_names(&body, encoding);
-        let lib = vectorcraft_brush::library(&s.doc);
+        let lib = pluma_brush::library(&s.doc);
         assert_eq!(lib.iter().map(|b| b.name.as_str()).collect::<Vec<_>>(), [name], "{encoding}: {:?}", s.warnings);
-        assert!(matches!(brush_named(&lib, name), vectorcraft_brush::BrushKind::Scatter(_)), "{encoding}");
+        assert!(matches!(brush_named(&lib, name), pluma_brush::BrushKind::Scatter(_)), "{encoding}");
         assert_eq!(name_notes(&s).len(), 2, "{encoding}: {:?}", s.warnings);
     }
 }
@@ -10648,7 +10648,7 @@ fn symbol_names_are_read_in_the_encoding_picked() {
 /// A symbol library read without its layers has notes on the names of the objects in its art.
 #[test]
 fn a_symbol_librarys_art_has_notes_on_its_object_names() {
-    let inner = format!("{}{}", dot(), vectorcraft_testkit::ai::named(KO_GRA));
+    let inner = format!("{}{}", dot(), pluma_testkit::ai::named(KO_GRA));
     let data = stream(&symbols(&symbol(KO_RED, &inner, 5)));
     let mut names = obj::Names::new(NameEncoding::Korean);
     assert!(super::symbols(data.as_bytes(), &mut names).is_some());
@@ -10661,7 +10661,7 @@ fn a_symbol_librarys_art_has_notes_on_its_object_names() {
 /// picked, with a note on that name.
 #[test]
 fn an_object_named_by_its_xml_id_is_read_in_the_encoding_picked() {
-    let square = format!("{RED}{}f\n{}", rect_path(0.0, 0.0, 10.0, 10.0), vectorcraft_testkit::ai::named(&format!("{KO_RED}_1")));
+    let square = format!("{RED}{}f\n{}", rect_path(0.0, 0.0, 10.0, 10.0), pluma_testkit::ai::named(&format!("{KO_RED}_1")));
     let s = read_names(&layer(&square), "windows-949");
     assert_eq!(art(&s.doc)[0].name.as_deref(), Some("빨강 1"), "{:?}", s.warnings);
     let notes = name_notes(&s);
@@ -10696,19 +10696,19 @@ fn graphic_style_names_are_read_in_the_encoding_picked() {
 #[test]
 fn variable_and_data_set_names_are_read_in_the_encoding_picked() {
     let split_red = "\\273)\n%_(\\241\\260\\255";
-    let library = vectorcraft_testkit::ai::variable_library(&["QVARQ"], &["QSETQ"]).replace("QVARQ", split_red).replace("QSETQ", KO_GRA);
+    let library = pluma_testkit::ai::variable_library(&["QVARQ"], &["QSETQ"]).replace("QVARQ", split_red).replace("QSETQ", KO_GRA);
     let s = read_names(&format!("{library}{}", layer(&format!("{RED}{}f\n", rect_path(0.0, 0.0, 10.0, 10.0)))), "windows-949");
     let vars = &s.doc.variables;
     assert_eq!(vars.variables.iter().map(|v| v.name.as_str()).collect::<Vec<_>>(), ["빨강"], "{:?}", s.warnings);
     assert_eq!(vars.datasets.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), ["그라"], "{:?}", s.warnings);
-    assert_eq!(vars.dataset("그라").and_then(|d| d.values.get("빨강")), Some(&vectorcraft_doc::DataValue::Text("그라 빨강".into())));
+    assert_eq!(vars.dataset("그라").and_then(|d| d.values.get("빨강")), Some(&pluma_doc::DataValue::Text("그라 빨강".into())));
     assert_eq!(name_notes(&s).len(), 2, "{:?}", s.warnings);
 }
 
 /// A binding names its variable by the name read in the encoding picked.
 #[test]
 fn a_bound_variables_name_is_read_in_the_encoding_picked() {
-    use vectorcraft_testkit::ai::{XmlValue, named, variable_library_data, xml_element, xml_node};
+    use pluma_testkit::ai::{XmlValue, named, variable_library_data, xml_element, xml_node};
     let attributes =
         [("trait", XmlValue::Str("textcontent")), ("varName", XmlValue::Unicode("QVARQ")), ("docRef", XmlValue::Raw("/XMLUIDREF : (one) ;"))];
     let variable = xml_node(1, "variable", XmlValue::Str(""), &attributes, &[]);

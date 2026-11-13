@@ -1,13 +1,13 @@
 //! Effect > Warp uses the existing modal and live-effect commands, without changing envelope art.
 use egui::{Event, Pos2, Rect, Shape, pos2, vec2};
+use pluma_doc::NodeId;
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
 
 use super::*;
 
-fn app() -> (VectorcraftApp, NodeId) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> (PlumaApp, NodeId) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 50, "y": 60, "width": 120, "height": 80})).unwrap()["id"].as_u64().unwrap();
     (app, NodeId(id))
@@ -20,14 +20,14 @@ fn context() -> egui::Context {
     ctx
 }
 
-fn frame_output(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> egui::FullOutput {
+fn frame_output(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>) -> egui::FullOutput {
     let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 800.0))), events, ..Default::default() };
     let mut output = ctx.run_ui(input, |ui| show(app, ui.ctx()));
     output.textures_delta.clear();
     output
 }
 
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
     let output = frame_output(app, ctx, events);
     fn collect(shape: &Shape, clip: Rect, texts: &mut Vec<(String, Rect)>) {
         match shape {
@@ -48,20 +48,20 @@ fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> V
     texts
 }
 
-fn settle(app: &mut VectorcraftApp, ctx: &egui::Context) -> Vec<(String, Rect)> {
+fn settle(app: &mut PlumaApp, ctx: &egui::Context) -> Vec<(String, Rect)> {
     for _ in 0..3 {
         frame(app, ctx, vec![]);
     }
     frame(app, ctx, vec![])
 }
 
-fn click_text(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn click_text(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     let texts = frame(app, ctx, vec![]);
     let at = texts.iter().find(|(text, _)| text == label).unwrap_or_else(|| panic!("missing {label:?}: {texts:?}")).1.center();
     click_at(app, ctx, at);
 }
 
-fn click_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2) {
+fn click_at(app: &mut PlumaApp, ctx: &egui::Context, at: Pos2) {
     for event in [
         Event::PointerMoved(at),
         Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() },
@@ -71,14 +71,14 @@ fn click_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2) {
     }
 }
 
-fn set(app: &mut VectorcraftApp, values: Value) {
+fn set(app: &mut PlumaApp, values: Value) {
     // Supply dialog inputs as the control channel does; the production frame previews them.
     app.ui.dialog.as_mut().unwrap().fields.extend(values.as_object().unwrap().clone());
 }
 
 #[test]
 fn warp_options_controls_cover_every_existing_style() {
-    for (style, label) in vectorcraft_effects::WARP_STYLES {
+    for (style, label) in pluma_effects::WARP_STYLES {
         let (mut app, _) = app();
         app.run("effect.dialog", json!({"effect": format!("warp.{style}"), "item": null})).unwrap();
         let ctx = context();
@@ -235,7 +235,7 @@ fn warp_options_preview_toggle_and_ok_use_latest_values() {
 }
 
 /// Locate the actual painted number beside its row label, without requesting widget focus.
-fn click_number(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn click_number(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     let texts = frame(app, ctx, vec![]);
     let row = texts.iter().find(|(text, _)| text == label).unwrap().1;
     let number = texts
@@ -381,7 +381,7 @@ fn warp_options_slider_drag_previews_exact_parameter_and_cancel_restores() {
 }
 
 /// The edit the Warp dialog test makes: the Bend field, the style, or none.
-fn make_warp_edit(app: &mut VectorcraftApp, ctx: &egui::Context, edit: &str) {
+fn make_warp_edit(app: &mut PlumaApp, ctx: &egui::Context, edit: &str) {
     match edit {
         "bend" => {
             click_number(app, ctx, "Bend:");
@@ -399,9 +399,9 @@ fn make_warp_edit(app: &mut VectorcraftApp, ctx: &egui::Context, edit: &str) {
 
 /// OK or Cancel was clicked: the document, the history and Redo as each leaves them.
 fn finish_warp_dialog(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     accept: bool,
-    (before, expected): (&std::sync::Arc<vectorcraft_doc::Document>, &std::sync::Arc<vectorcraft_doc::Document>),
+    (before, expected): (&std::sync::Arc<pluma_doc::Document>, &std::sync::Arc<pluma_doc::Document>),
     (undo, redo): (usize, usize),
 ) {
     let state = app.session.doc().unwrap();
@@ -487,7 +487,7 @@ fn warp_options_mixed_styles_change_only_after_explicit_style_choice() {
     }
 }
 
-fn warp_key(app: &mut VectorcraftApp, ctx: &egui::Context, key: egui::Key, modifiers: egui::Modifiers) {
+fn warp_key(app: &mut PlumaApp, ctx: &egui::Context, key: egui::Key, modifiers: egui::Modifiers) {
     frame(app, ctx, vec![Event::ModifiersChanged(modifiers), Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }]);
     frame(
         app,
@@ -496,7 +496,7 @@ fn warp_key(app: &mut VectorcraftApp, ctx: &egui::Context, key: egui::Key, modif
     );
 }
 
-fn tab_to_warp_control(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str, modifiers: egui::Modifiers) -> egui::Id {
+fn tab_to_warp_control(app: &mut PlumaApp, ctx: &egui::Context, label: &str, modifiers: egui::Modifiers) -> egui::Id {
     // The popup container is also a Tab stop: its rectangle contains every option.
     // Require the real widget's focus announcement as well as its visible label.
     for _ in 0..32 {
@@ -542,7 +542,7 @@ fn tab_to_warp_control(app: &mut VectorcraftApp, ctx: &egui::Context, label: &st
 }
 
 /// With Preview on the Style choice shows on the art in an interaction; off, the document is as it was.
-fn check_style_preview(app: &VectorcraftApp, preview: bool, id: NodeId, before: &std::sync::Arc<vectorcraft_doc::Document>) {
+fn check_style_preview(app: &PlumaApp, preview: bool, id: NodeId, before: &std::sync::Arc<pluma_doc::Document>) {
     let state = app.session.doc().unwrap();
     if preview {
         assert_eq!(state.doc.node(id).unwrap().appearance.effects[0].id, "warp.arcLower");
@@ -563,7 +563,7 @@ fn warp_options_style_keyboard_enter_does_not_accept_dialog() {
         app.session.doc_mut().unwrap().mark_saved();
         let before = app.session.doc().unwrap().doc.clone();
         let selection = app.session.doc().unwrap().selection.clone();
-        let entries = |items: &[vectorcraft_engine::HistoryEntry]| {
+        let entries = |items: &[pluma_engine::HistoryEntry]| {
             items.iter().map(|entry| (entry.label.clone(), entry.doc.clone(), entry.selection.clone())).collect::<Vec<_>>()
         };
         let undo = entries(&app.session.doc().unwrap().history.undo);

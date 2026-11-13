@@ -3,16 +3,16 @@
 //! the same undo transaction. Rendering and exporters only see ordinary groups and paths.
 use super::pathops::Beside;
 use super::{CommandSpec, EngineError, Result, Session, bad, bool_or, checked_ids_param, cmd, f64_or, has_doc, id_param, object_param, point_param};
+use pluma_doc::shaper::{EdgeEdit, FILL_PREFIX, FaceEdit, FaceSelector, SOURCES, STROKE_PREFIX, ShaperSpec};
+use pluma_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind};
+use pluma_geom::{FillRule, PathData, Point, Rect, Shape as _};
+use pluma_pathops as po;
+use pluma_tools::builder::{self as b, BuilderMap};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use vectorcraft_doc::shaper::{EdgeEdit, FILL_PREFIX, FaceEdit, FaceSelector, SOURCES, STROKE_PREFIX, ShaperSpec};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::{FillRule, PathData, Point, Rect, Shape as _};
-use vectorcraft_pathops as po;
-use vectorcraft_tools::builder::{self as b, BuilderMap};
 
 const MAX_SOURCES: usize = 64;
 const MAX_POINTS: usize = 4096;
@@ -149,7 +149,7 @@ fn selected_face(map: &BuilderMap, src: &[Arc<Node>], selector: &FaceSelector) -
         .map(|(i, _)| i)
 }
 fn piece_point(path: &PathData) -> Option<Point> {
-    use vectorcraft_geom::ParamCurve as _;
+    use pluma_geom::ParamCurve as _;
     let sub = path.subpaths.first()?;
     (sub.segment_count() > 0).then(|| sub.segment(sub.segment_count() / 2).eval(0.5))
 }
@@ -287,7 +287,7 @@ fn join_strokes(nodes: Vec<Arc<Node>>) -> Vec<Arc<Node>> {
         }
         let mut end = start;
         let mut prototype = start.0;
-        let mut path = vectorcraft_geom::SubPath::default();
+        let mut path = pluma_geom::SubPath::default();
         loop {
             if !seen.insert(end.0) {
                 break;
@@ -301,7 +301,7 @@ fn join_strokes(nodes: Vec<Arc<Node>>) -> Vec<Arc<Node>> {
                 path = next;
             } else {
                 if let Some((a, b)) = path.anchors.last_mut().zip(next.anchors.first()) {
-                    *a = vectorcraft_geom::Anchor::with_handles(a.p, a.h_in, b.h_out);
+                    *a = pluma_geom::Anchor::with_handles(a.p, a.h_in, b.h_out);
                 }
                 path.anchors.extend(next.anchors.into_iter().skip(1));
             }
@@ -310,7 +310,7 @@ fn join_strokes(nodes: Vec<Arc<Node>>) -> Vec<Arc<Node>> {
                 if let Some(last) = path.anchors.pop()
                     && let Some(first) = path.anchors.first_mut()
                 {
-                    *first = vectorcraft_geom::Anchor::with_handles(first.p, last.h_in, first.h_out);
+                    *first = pluma_geom::Anchor::with_handles(first.p, last.h_in, first.h_out);
                 }
                 path.closed = true;
                 break;

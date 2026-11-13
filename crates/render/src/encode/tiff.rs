@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use vectorcraft_color::cms;
+use pluma_color::cms;
 
 use super::jpeg::{self, ColorModel};
 use super::on_white;
@@ -223,7 +223,7 @@ pub fn write(img: &Image, l: &Layout) -> Result<Vec<u8>, String> {
         (284, Values::Short(vec![1])),
         // Inches.
         (296, Values::Short(vec![2])),
-        (305, Values::Ascii(b"VectorCraft\0".to_vec())),
+        (305, Values::Ascii(b"Pluma\0".to_vec())),
     ];
     if img.photometric == Photometric::Separated {
         // InkSet: CMYK.

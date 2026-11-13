@@ -1,12 +1,12 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::{ID, show};
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app
 }
@@ -26,7 +26,7 @@ fn the_plugins_submenu_selects_the_tool_and_opens_the_panel() {
     assert!(crate::panel_docking::showing(&app.ui, ID), "the panel opens");
     // The other add-ons' submenus are still there, and the tool has no shortcut.
     assert!(entries.iter().any(|e| e.path == ["Object", "Plug-ins", "Path Precision Tools"]));
-    assert!(vectorcraft_tools::tool_info("smartPen").is_some_and(|t| t.shortcut.is_none()));
+    assert!(pluma_tools::tool_info("smartPen").is_some_and(|t| t.shortcut.is_none()));
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn the_panel_sets_the_next_segment_and_its_buttons_edit() {
     assert_eq!(app.session.tool_options_of("smartPen")["next"], json!("curved"));
     // Close or Join closes an open path selected whole, as one undo step.
     let r = app.run("path.create", json!({"anchors": [{"x": 10, "y": 10}, {"x": 110, "y": 10}, {"x": 110, "y": 110}], "closed": false})).unwrap();
-    let id = vectorcraft_doc::NodeId(r["id"].as_u64().unwrap());
+    let id = pluma_doc::NodeId(r["id"].as_u64().unwrap());
     let steps = app.session.doc().unwrap().history.undo.len();
     app.run("addon.pen.closeJoin", json!({})).unwrap();
     assert!(app.session.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().subpaths[0].closed);

@@ -3373,6 +3373,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodalia-theme"
+version = "0.1.0-alpha.1"
+source = "git+https://github.com/danielmigueltejedor/nodalia-design?rev=d066d5d351f18f704bdfd8aad6f04b9e96a155e4#d066d5d351f18f704bdfd8aad6f04b9e96a155e4"
+
+[[package]]
 name = "nodalia-update"
 version = "0.1.0-alpha.1"
 source = "git+https://github.com/danielmigueltejedor/nodalia-design?rev=d066d5d351f18f704bdfd8aad6f04b9e96a155e4#d066d5d351f18f704bdfd8aad6f04b9e96a155e4"
@@ -4050,6 +4055,584 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "pluma"
+version = "0.21.0"
+dependencies = [
+ "arboard",
+ "block2 0.6.2",
+ "chrono",
+ "clipboard-win",
+ "craft-print",
+ "craft-window",
+ "eframe",
+ "egui",
+ "image",
+ "log",
+ "muda",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-text",
+ "objc2-foundation 0.3.2",
+ "objc2-quartz-core 0.3.2",
+ "pluma-engine",
+ "pluma-render",
+ "pluma-text",
+ "pluma-ui-egui",
+ "pollster 1.0.1",
+ "raw-window-handle",
+ "rfd",
+ "serde",
+ "serde_json",
+ "smithay-clipboard",
+ "socket2",
+ "tempfile",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
+ "webbrowser",
+ "windows",
+ "winit",
+ "winresource",
+ "winsafe",
+ "x11rb",
+ "zbus",
+]
+
+[[package]]
+name = "pluma-affinity"
+version = "0.21.0"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "image",
+ "proptest",
+ "ruzstd",
+]
+
+[[package]]
+name = "pluma-apischema"
+version = "0.21.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "pluma-brush"
+version = "0.21.0"
+dependencies = [
+ "kurbo 0.13.1",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pluma-cad"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "kurbo 0.13.1",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-text",
+ "serde_json",
+]
+
+[[package]]
+name = "pluma-cli"
+version = "0.21.0"
+dependencies = [
+ "log",
+ "objc2-core-foundation",
+ "objc2-core-text",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-mcp",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
+ "serde_json",
+ "tempfile",
+ "windows",
+ "winsafe",
+]
+
+[[package]]
+name = "pluma-color"
+version = "0.21.0"
+dependencies = [
+ "kurbo 0.13.1",
+ "moxcms",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pluma-doc"
+version = "0.21.0"
+dependencies = [
+ "chrono",
+ "hayro-ccitt",
+ "image",
+ "jpeg-encoder",
+ "kurbo 0.13.1",
+ "pluma-color",
+ "pluma-geom",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tiff",
+ "zune-jpeg 0.5.15",
+]
+
+[[package]]
+name = "pluma-effects"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "kurbo 0.13.1",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-plugins",
+ "pluma-text",
+ "pluma-three-d",
+ "resvg 0.48.1",
+ "serde_json",
+ "svgtypes 0.16.1",
+]
+
+[[package]]
+name = "pluma-engine"
+version = "0.21.0"
+dependencies = [
+ "cfb",
+ "chrono",
+ "craft-docpath",
+ "craft-proof",
+ "crc32fast",
+ "flate2",
+ "hayro-jpeg2000",
+ "heic-rs",
+ "image",
+ "jxl-color",
+ "jxl-grid",
+ "jxl-oxide",
+ "kurbo 0.13.1",
+ "log",
+ "pluma-affinity",
+ "pluma-apischema",
+ "pluma-brush",
+ "pluma-cad",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-eps",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-js",
+ "pluma-metafile",
+ "pluma-pathops",
+ "pluma-pdf",
+ "pluma-plugins",
+ "pluma-render",
+ "pluma-scriptcheck",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
+ "pluma-tools",
+ "pluma-trace",
+ "proptest",
+ "rayon",
+ "roxmltree 0.21.2",
+ "rustix 1.1.6",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "skrifa 0.47.0",
+ "thiserror 2.0.21",
+ "wat",
+ "zune-core 0.5.3",
+ "zune-jpegxl",
+]
+
+[[package]]
+name = "pluma-eps"
+version = "0.21.0"
+dependencies = [
+ "craft-pdf",
+ "encoding_rs",
+ "fax",
+ "flate2",
+ "hayro-ccitt",
+ "image",
+ "kurbo 0.13.1",
+ "memchr",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-metafile",
+ "pluma-pathops",
+ "pluma-pdf",
+ "pluma-render",
+ "pluma-testkit",
+ "pluma-text",
+ "ruzstd",
+ "serde_json",
+ "skrifa 0.47.0",
+]
+
+[[package]]
+name = "pluma-format"
+version = "0.21.0"
+dependencies = [
+ "craft-vectorcraft-format",
+ "flate2",
+ "pluma-doc",
+ "pluma-geom",
+ "pluma-testkit",
+ "proptest",
+ "rustix 1.1.6",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pluma-geom"
+version = "0.21.0"
+dependencies = [
+ "kurbo 0.13.1",
+ "pluma-testkit",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pluma-js"
+version = "0.21.0"
+dependencies = [
+ "chrono",
+ "proptest",
+ "unicode-general-category",
+]
+
+[[package]]
+name = "pluma-mcp"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "log",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-tools",
+ "proptest",
+ "serde_json",
+ "socket2",
+]
+
+[[package]]
+name = "pluma-metafile"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "kurbo 0.13.1",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-text",
+]
+
+[[package]]
+name = "pluma-pathops"
+version = "0.21.0"
+dependencies = [
+ "kurbo 0.13.1",
+ "linesweeper",
+ "pluma-geom",
+ "pluma-testkit",
+ "proptest",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pluma-pdf"
+version = "0.21.0"
+dependencies = [
+ "aes",
+ "chrono",
+ "craft-pdf",
+ "flate2",
+ "getrandom 0.4.3",
+ "image",
+ "jpeg-encoder",
+ "krilla",
+ "kurbo 0.13.1",
+ "log",
+ "md-5",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-testkit",
+ "pluma-text",
+ "roxmltree 0.21.2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "skrifa 0.47.0",
+ "smallvec",
+ "thiserror 2.0.21",
+ "weezl 0.2.1",
+]
+
+[[package]]
+name = "pluma-plugins"
+version = "0.21.0"
+dependencies = [
+ "craft-vectorcraft-format",
+ "image",
+ "log",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "wasmi",
+ "wat",
+]
+
+[[package]]
+name = "pluma-render"
+version = "0.21.0"
+dependencies = [
+ "flate2",
+ "gif 0.14.2",
+ "image",
+ "jpeg-encoder",
+ "log",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-plugins",
+ "pluma-testkit",
+ "pluma-text",
+ "png 0.18.1",
+ "proptest",
+ "psd",
+ "serde_json",
+ "tiff",
+ "unicode-general-category",
+ "vello_common",
+ "vello_cpu",
+ "wat",
+ "weezl 0.2.1",
+ "winsafe",
+]
+
+[[package]]
+name = "pluma-scriptcheck"
+version = "0.21.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
+name = "pluma-svg"
+version = "0.21.0"
+dependencies = [
+ "craft-docpath",
+ "flate2",
+ "image",
+ "kurbo 0.13.1",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-testkit",
+ "pluma-text",
+ "proptest",
+ "resvg 0.45.1",
+ "serde",
+ "serde_json",
+ "simplecss",
+ "skrifa 0.47.0",
+ "svgtypes 0.16.1",
+ "thiserror 2.0.21",
+ "usvg 0.48.1",
+]
+
+[[package]]
+name = "pluma-testkit"
+version = "0.21.0"
+dependencies = [
+ "fax",
+ "image",
+ "kurbo 0.13.1",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-render",
+ "pluma-svg",
+ "proptest",
+ "serde_json",
+]
+
+[[package]]
+name = "pluma-text"
+version = "0.21.0"
+dependencies = [
+ "harfrust 0.13.3",
+ "icu_segmenter",
+ "kurbo 0.13.1",
+ "log",
+ "pluma-doc",
+ "pluma-geom",
+ "skrifa 0.47.0",
+ "subsetter",
+ "unicode-bidi",
+ "unicode-general-category",
+ "unicode-script",
+ "unicode-segmentation",
+ "vello_cpu",
+ "windows-registry",
+ "write-fonts",
+]
+
+[[package]]
+name = "pluma-three-d"
+version = "0.21.0"
+dependencies = [
+ "pluma-geom",
+ "pluma-pathops",
+]
+
+[[package]]
+name = "pluma-tools"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "kurbo 0.13.1",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-text",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pluma-trace"
+version = "0.21.0"
+dependencies = [
+ "image",
+ "kurbo 0.13.1",
+ "pluma-geom",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pluma-ui-egui"
+version = "0.21.0"
+dependencies = [
+ "bytemuck",
+ "craft-keymap",
+ "craft-ui",
+ "egui",
+ "egui_extras",
+ "egui_kittest",
+ "image",
+ "log",
+ "nodalia-theme",
+ "nodalia-update",
+ "pluma-brush",
+ "pluma-cad",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-engine",
+ "pluma-eps",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-pdf",
+ "pluma-plugins",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
+ "pluma-three-d",
+ "pluma-tools",
+ "rustix 1.1.6",
+ "serde",
+ "serde_json",
+ "toml",
+ "wat",
+ "web-time",
+]
+
+[[package]]
+name = "pluma-web"
+version = "0.21.0"
+dependencies = [
+ "craft-web-api",
+ "eframe",
+ "egui",
+ "js-sys",
+ "log",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-text",
+ "pluma-ui-egui",
+ "rfd",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
 
 [[package]]
 name = "png"
@@ -6202,582 +6785,6 @@ dependencies = [
  "js-sys",
  "serde_core",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "vectorcraft"
-version = "0.21.0"
-dependencies = [
- "arboard",
- "block2 0.6.2",
- "chrono",
- "clipboard-win",
- "craft-print",
- "craft-window",
- "eframe",
- "egui",
- "image",
- "log",
- "muda",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-core-text",
- "objc2-foundation 0.3.2",
- "objc2-quartz-core 0.3.2",
- "pollster 1.0.1",
- "raw-window-handle",
- "rfd",
- "serde_json",
- "smithay-clipboard",
- "socket2",
- "tempfile",
- "vectorcraft-engine",
- "vectorcraft-render",
- "vectorcraft-text",
- "vectorcraft-ui-egui",
- "wayland-backend",
- "wayland-client",
- "wayland-protocols",
- "webbrowser",
- "windows",
- "winit",
- "winresource",
- "winsafe",
- "x11rb",
- "zbus",
-]
-
-[[package]]
-name = "vectorcraft-affinity"
-version = "0.21.0"
-dependencies = [
- "crc32fast",
- "flate2",
- "image",
- "proptest",
- "ruzstd",
-]
-
-[[package]]
-name = "vectorcraft-apischema"
-version = "0.21.0"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "vectorcraft-brush"
-version = "0.21.0"
-dependencies = [
- "kurbo 0.13.1",
- "serde",
- "serde_json",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
-]
-
-[[package]]
-name = "vectorcraft-cad"
-version = "0.21.0"
-dependencies = [
- "image",
- "kurbo 0.13.1",
- "serde_json",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-text",
-]
-
-[[package]]
-name = "vectorcraft-cli"
-version = "0.21.0"
-dependencies = [
- "log",
- "objc2-core-foundation",
- "objc2-core-text",
- "serde_json",
- "tempfile",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-mcp",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "windows",
- "winsafe",
-]
-
-[[package]]
-name = "vectorcraft-color"
-version = "0.21.0"
-dependencies = [
- "kurbo 0.13.1",
- "moxcms",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "vectorcraft-doc"
-version = "0.21.0"
-dependencies = [
- "chrono",
- "hayro-ccitt",
- "image",
- "jpeg-encoder",
- "kurbo 0.13.1",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tiff",
- "vectorcraft-color",
- "vectorcraft-geom",
- "zune-jpeg 0.5.15",
-]
-
-[[package]]
-name = "vectorcraft-effects"
-version = "0.21.0"
-dependencies = [
- "image",
- "kurbo 0.13.1",
- "resvg 0.48.1",
- "serde_json",
- "svgtypes 0.16.1",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-plugins",
- "vectorcraft-text",
- "vectorcraft-three-d",
-]
-
-[[package]]
-name = "vectorcraft-engine"
-version = "0.21.0"
-dependencies = [
- "cfb",
- "chrono",
- "craft-docpath",
- "craft-proof",
- "crc32fast",
- "flate2",
- "hayro-jpeg2000",
- "heic-rs",
- "image",
- "jxl-color",
- "jxl-grid",
- "jxl-oxide",
- "kurbo 0.13.1",
- "log",
- "proptest",
- "rayon",
- "roxmltree 0.21.2",
- "rustix 1.1.6",
- "ruzstd",
- "serde",
- "serde_json",
- "skrifa 0.47.0",
- "thiserror 2.0.21",
- "vectorcraft-affinity",
- "vectorcraft-apischema",
- "vectorcraft-brush",
- "vectorcraft-cad",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-eps",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-js",
- "vectorcraft-metafile",
- "vectorcraft-pathops",
- "vectorcraft-pdf",
- "vectorcraft-plugins",
- "vectorcraft-render",
- "vectorcraft-scriptcheck",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "vectorcraft-tools",
- "vectorcraft-trace",
- "wat",
- "zune-core 0.5.3",
- "zune-jpegxl",
-]
-
-[[package]]
-name = "vectorcraft-eps"
-version = "0.21.0"
-dependencies = [
- "craft-pdf",
- "encoding_rs",
- "fax",
- "flate2",
- "hayro-ccitt",
- "image",
- "kurbo 0.13.1",
- "memchr",
- "ruzstd",
- "serde_json",
- "skrifa 0.47.0",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-metafile",
- "vectorcraft-pathops",
- "vectorcraft-pdf",
- "vectorcraft-render",
- "vectorcraft-testkit",
- "vectorcraft-text",
-]
-
-[[package]]
-name = "vectorcraft-format"
-version = "0.21.0"
-dependencies = [
- "craft-vectorcraft-format",
- "flate2",
- "proptest",
- "rustix 1.1.6",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "vectorcraft-testkit",
-]
-
-[[package]]
-name = "vectorcraft-geom"
-version = "0.21.0"
-dependencies = [
- "kurbo 0.13.1",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "vectorcraft-testkit",
-]
-
-[[package]]
-name = "vectorcraft-js"
-version = "0.21.0"
-dependencies = [
- "chrono",
- "proptest",
- "unicode-general-category",
-]
-
-[[package]]
-name = "vectorcraft-mcp"
-version = "0.21.0"
-dependencies = [
- "image",
- "log",
- "proptest",
- "serde_json",
- "socket2",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-tools",
-]
-
-[[package]]
-name = "vectorcraft-metafile"
-version = "0.21.0"
-dependencies = [
- "image",
- "kurbo 0.13.1",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-text",
-]
-
-[[package]]
-name = "vectorcraft-pathops"
-version = "0.21.0"
-dependencies = [
- "kurbo 0.13.1",
- "linesweeper",
- "proptest",
- "thiserror 2.0.21",
- "vectorcraft-geom",
- "vectorcraft-testkit",
-]
-
-[[package]]
-name = "vectorcraft-pdf"
-version = "0.21.0"
-dependencies = [
- "aes",
- "chrono",
- "craft-pdf",
- "flate2",
- "getrandom 0.4.3",
- "image",
- "jpeg-encoder",
- "krilla",
- "kurbo 0.13.1",
- "log",
- "md-5",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "roxmltree 0.21.2",
- "serde",
- "serde_json",
- "sha2",
- "skrifa 0.47.0",
- "smallvec",
- "thiserror 2.0.21",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "weezl 0.2.1",
-]
-
-[[package]]
-name = "vectorcraft-plugins"
-version = "0.21.0"
-dependencies = [
- "craft-vectorcraft-format",
- "image",
- "log",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.21",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "wasmi",
- "wat",
-]
-
-[[package]]
-name = "vectorcraft-render"
-version = "0.21.0"
-dependencies = [
- "flate2",
- "gif 0.14.2",
- "image",
- "jpeg-encoder",
- "log",
- "png 0.18.1",
- "proptest",
- "psd",
- "serde_json",
- "tiff",
- "unicode-general-category",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-plugins",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "vello_common",
- "vello_cpu",
- "wat",
- "weezl 0.2.1",
- "winsafe",
-]
-
-[[package]]
-name = "vectorcraft-scriptcheck"
-version = "0.21.0"
-dependencies = [
- "proptest",
-]
-
-[[package]]
-name = "vectorcraft-svg"
-version = "0.21.0"
-dependencies = [
- "craft-docpath",
- "flate2",
- "image",
- "kurbo 0.13.1",
- "proptest",
- "resvg 0.45.1",
- "serde",
- "serde_json",
- "simplecss",
- "skrifa 0.47.0",
- "svgtypes 0.16.1",
- "thiserror 2.0.21",
- "usvg 0.48.1",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-testkit",
- "vectorcraft-text",
-]
-
-[[package]]
-name = "vectorcraft-testkit"
-version = "0.21.0"
-dependencies = [
- "fax",
- "image",
- "kurbo 0.13.1",
- "proptest",
- "serde_json",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-render",
- "vectorcraft-svg",
-]
-
-[[package]]
-name = "vectorcraft-text"
-version = "0.21.0"
-dependencies = [
- "harfrust 0.13.3",
- "icu_segmenter",
- "kurbo 0.13.1",
- "log",
- "skrifa 0.47.0",
- "subsetter",
- "unicode-bidi",
- "unicode-general-category",
- "unicode-script",
- "unicode-segmentation",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "vello_cpu",
- "windows-registry",
- "write-fonts",
-]
-
-[[package]]
-name = "vectorcraft-three-d"
-version = "0.21.0"
-dependencies = [
- "vectorcraft-geom",
- "vectorcraft-pathops",
-]
-
-[[package]]
-name = "vectorcraft-tools"
-version = "0.21.0"
-dependencies = [
- "image",
- "kurbo 0.13.1",
- "serde",
- "serde_json",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-text",
-]
-
-[[package]]
-name = "vectorcraft-trace"
-version = "0.21.0"
-dependencies = [
- "image",
- "kurbo 0.13.1",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "vectorcraft-geom",
-]
-
-[[package]]
-name = "vectorcraft-ui-egui"
-version = "0.21.0"
-dependencies = [
- "bytemuck",
- "craft-keymap",
- "craft-ui",
- "egui",
- "egui_extras",
- "egui_kittest",
- "image",
- "log",
- "nodalia-update",
- "rustix 1.1.6",
- "serde",
- "serde_json",
- "toml",
- "vectorcraft-brush",
- "vectorcraft-cad",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-engine",
- "vectorcraft-eps",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-pdf",
- "vectorcraft-plugins",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "vectorcraft-three-d",
- "vectorcraft-tools",
- "wat",
- "web-time",
-]
-
-[[package]]
-name = "vectorcraft-web"
-version = "0.21.0"
-dependencies = [
- "craft-web-api",
- "eframe",
- "egui",
- "js-sys",
- "log",
- "rfd",
- "serde_json",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-text",
- "vectorcraft-ui-egui",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

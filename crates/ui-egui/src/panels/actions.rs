@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use super::{pstate, set_pstate};
 use crate::theme::Tokens;
 use crate::widgets::{self, dim_label};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 mod files;
 pub(crate) use files::can_load;
@@ -234,7 +234,7 @@ pub fn default_sets() -> Vec<ActionSet> {
 /// An action with an included stop ([`STOP_STEP`]) plays up to the stop and waits there at any speed
 /// ([`continue_playback`]). At Accelerated, the steps between two stops are one undo step. → {results:
 /// [the results of the steps run], pending: the steps left, stops included, atStop: true when it waits}
-pub fn play(app: &mut VectorcraftApp, set: usize, idx: usize) -> Result<Value, String> {
+pub fn play(app: &mut PlumaApp, set: usize, idx: usize) -> Result<Value, String> {
     let Some(a) = app.ui.action_sets.get(set).and_then(|s| s.actions.get(idx)).cloned() else { return Err("no such action".into()) };
     let commands = a.included_commands();
     if commands.is_empty() {
@@ -267,14 +267,14 @@ pub fn play(app: &mut VectorcraftApp, set: usize, idx: usize) -> Result<Value, S
 }
 
 /// Runs one step of a paced playback as its own undo step, named `label` → the step's result.
-fn play_step(app: &mut VectorcraftApp, label: &str, step: Value) -> Result<Value, String> {
+fn play_step(app: &mut PlumaApp, label: &str, step: Value) -> Result<Value, String> {
     let r = app.replay("command.batch", json!({"label": label, "commands": [step]}))?;
     Ok(r.get("results").and_then(|r| r.get(0)).cloned().unwrap_or(Value::Null))
 }
 
 /// [`play`] for an action with a stop: runs what comes before the first stop, or at Step by Step and
 /// Pause For the first step, and leaves the rest to [`tick_playback`] and [`continue_playback`].
-fn play_with_stops(app: &mut VectorcraftApp, label: String, commands: Vec<Value>, options: PlaybackOptions) -> Result<Value, String> {
+fn play_with_stops(app: &mut PlumaApp, label: String, commands: Vec<Value>, options: PlaybackOptions) -> Result<Value, String> {
     let mut steps: std::collections::VecDeque<Value> = commands.into();
     let run = next_run(&mut steps, options.speed);
     let ran = !run.is_empty();
@@ -285,7 +285,7 @@ fn play_with_stops(app: &mut VectorcraftApp, label: String, commands: Vec<Value>
 }
 
 /// Runs steps of a playback as one undo step, named `label` → the steps' results.
-fn play_steps(app: &mut VectorcraftApp, label: &str, steps: Vec<Value>) -> Result<Vec<Value>, String> {
+fn play_steps(app: &mut PlumaApp, label: &str, steps: Vec<Value>) -> Result<Vec<Value>, String> {
     let r = app.run("command.batch", json!({"label": label, "commands": steps}))?;
     Ok(r.get("results").and_then(Value::as_array).cloned().unwrap_or_default())
 }
@@ -305,7 +305,7 @@ fn next_run(steps: &mut std::collections::VecDeque<Value>, speed: PlaybackSpeed)
 
 /// Sets up the playback in progress after steps ran (`ran`), or none did: the next pause and frame
 /// start over, and a stop that comes next at Accelerated, or with no step run before it, holds now.
-fn after_run(app: &mut VectorcraftApp, ran: bool) {
+fn after_run(app: &mut PlumaApp, ran: bool) {
     let doc = active_doc(app);
     let played_in = app.tick_iteration.filter(|&t| t == app.host_iteration);
     let Some(playing) = app.ui.action_playing.as_mut() else { return };
@@ -322,7 +322,7 @@ fn after_run(app: &mut VectorcraftApp, ran: bool) {
 }
 
 /// What [`play`] and [`continue_playback`] return.
-fn playback_result(app: &VectorcraftApp, results: Vec<Value>) -> Value {
+fn playback_result(app: &PlumaApp, results: Vec<Value>) -> Value {
     let pending = app.ui.action_playing.as_ref().map_or(0, |p| p.steps.len());
     let mut result = json!({"results": results, "pending": pending});
     if waiting_at_stop(app) {
@@ -374,7 +374,7 @@ struct AtStop {
 
 /// Takes the stop at the front of the playback's steps and waits there. A recording in progress
 /// records the stop too.
-fn hold_at_stop(app: &mut VectorcraftApp) {
+fn hold_at_stop(app: &mut PlumaApp) {
     let Some(playing) = app.ui.action_playing.as_mut() else { return };
     let Some(step) = playing.steps.pop_front() else { return };
     let params = step.get("params").cloned().unwrap_or(Value::Null);
@@ -389,7 +389,7 @@ fn hold_at_stop(app: &mut VectorcraftApp) {
 }
 
 /// Opens the message box of the stop the playback waits at, once, when no other dialog is open.
-fn show_stop_message(app: &mut VectorcraftApp) {
+fn show_stop_message(app: &mut PlumaApp) {
     if app.ui.dialog.is_some() {
         return;
     }
@@ -402,14 +402,14 @@ fn show_stop_message(app: &mut VectorcraftApp) {
 }
 
 /// Closes the message box of a stop, if it is open.
-fn close_stop_message(app: &mut VectorcraftApp) {
+fn close_stop_message(app: &mut PlumaApp) {
     if app.ui.dialog.as_ref().is_some_and(|d| d.kind == crate::dialogs::action_stop::MESSAGE_KIND) {
         app.ui.dialog = None;
     }
 }
 
 /// Whether the playback in progress waits at a stop.
-pub fn waiting_at_stop(app: &VectorcraftApp) -> bool {
+pub fn waiting_at_stop(app: &PlumaApp) -> bool {
     app.ui.action_playing.as_ref().is_some_and(|p| p.stop.is_some())
 }
 
@@ -420,7 +420,7 @@ pub const CONTINUE_PLAYBACK: &str = "ui.action.continue";
 /// now, and closes the stop's message box. The next step runs at once, or at Accelerated the steps
 /// up to the next stop as one undo step; a failing step ends the playback with its error. With no
 /// playback waiting at a stop it is an error. → {results, pending, atStop?}, as [`play`]
-pub fn continue_playback(app: &mut VectorcraftApp, _: &Value) -> Result<Value, String> {
+pub fn continue_playback(app: &mut PlumaApp, _: &Value) -> Result<Value, String> {
     let Some(playing) = app.ui.action_playing.as_mut().filter(|p| p.stop.is_some()) else {
         return Err("no action is waiting at a stop".into());
     };
@@ -450,7 +450,7 @@ pub enum PlaybackSpeed {
     Pause,
 }
 
-/// The pause between steps that Pause For takes, in whole seconds: VectorCraft's own range.
+/// The pause between steps that Pause For takes, in whole seconds: Pluma's own range.
 pub const PAUSE_SECONDS: std::ops::RangeInclusive<u32> = 1..=60;
 
 /// How actions play, kept with the UI preferences.
@@ -490,21 +490,21 @@ pub struct Playing {
     /// before the next one runs, also when Play in the panel ran after the canvas drew and while the
     /// window is minimized or covered.
     hold: bool,
-    /// The [`uid`](vectorcraft_engine::DocState::uid) of the document that was active after the
+    /// The [`uid`](pluma_engine::DocState::uid) of the document that was active after the
     /// last step played, if any.
     doc: Option<u64>,
     /// The host iteration in which Play ran the first step, when that iteration's [`tick`] had
     /// already begun (a control request, or the UI pass after it): the pause before the second step
     /// starts in a later iteration.
     ///
-    /// [`tick`]: VectorcraftApp::tick
+    /// [`tick`]: PlumaApp::tick
     played_in: Option<u64>,
     /// The stop the playback waits at, if any: no step runs until [`continue_playback`] or
     /// [`stop`].
     stop: Option<AtStop>,
 }
 
-fn active_doc(app: &VectorcraftApp) -> Option<u64> {
+fn active_doc(app: &PlumaApp) -> Option<u64> {
     app.session.active().map(|d| d.uid)
 }
 
@@ -517,7 +517,7 @@ fn active_doc(app: &VectorcraftApp) -> Option<u64> {
 /// document was made active, or that one was closed), the playback ends with a status and the rest
 /// do not run, except that a stop is held whichever document is active. → the seconds until the window should draw again while playback goes on (none while
 /// Step by Step waits for a UI pass, which asks for the next frame itself)
-pub fn tick_playback(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
+pub fn tick_playback(app: &mut PlumaApp, now: f64) -> Option<f64> {
     let doc = active_doc(app);
     let playing = app.ui.action_playing.as_mut()?;
     if playing.stop.is_some() {
@@ -570,13 +570,13 @@ pub fn tick_playback(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
 }
 
 /// Whether a Step by Step playback waits for a frame that shows its last step ([`playback_drawn`]).
-pub fn playback_held(app: &VectorcraftApp) -> bool {
+pub fn playback_held(app: &PlumaApp) -> bool {
     app.ui.action_playing.as_ref().is_some_and(|p| p.hold)
 }
 
 /// Called after a UI pass that the window shows, when [`playback_held`] was true as the pass began:
 /// the Step by Step playback runs its next step in the frame after this one, which it asks for.
-pub fn playback_drawn(app: &mut VectorcraftApp) {
+pub fn playback_drawn(app: &mut PlumaApp) {
     if let Some(playing) = app.ui.action_playing.as_mut().filter(|p| p.hold) {
         playing.hold = false;
         if let Some(ctx) = &app.ui_ctx {
@@ -593,7 +593,7 @@ pub const PLAYBACK_OPTIONS: &str = "ui.action.playbackOptions";
 /// after each) or `pause` (`seconds` between steps); `seconds` is a whole number in
 /// [`PAUSE_SECONDS`]. A param left out keeps its value. Any other value is an error, and then
 /// nothing changes. An action already playing keeps its speed. → {speed, seconds}
-pub fn playback_options(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn playback_options(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let current = app.ui.action_playback;
     let speed = match p.get("speed") {
         None => current.speed,
@@ -622,7 +622,7 @@ pub const INCLUDE_STEPS: &str = "ui.action.stepsIncluded";
 /// `{set, action?, step?, included, others?}` includes or excludes all steps of a set, all steps
 /// of one action, or one step. With `step` and `others: true`, leaves that step as it was and
 /// applies `included` to the other steps of its action. Invalid indexes change nothing.
-pub fn include_steps(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn include_steps(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let index = |key: &str| p.get(key).and_then(Value::as_u64).and_then(|n| usize::try_from(n).ok());
     let set = index("set").ok_or("no such action set")?;
     let included = p.get("included").and_then(Value::as_bool).ok_or("included must be true or false")?;
@@ -675,7 +675,7 @@ pub const RENAME_ACTION: &str = "ui.action.rename";
 /// the top set) to `name` with spaces trimmed from both ends, and keeps its steps, function key and
 /// color. An index past the last set or action, or a name with nothing but spaces, is an error, and
 /// then nothing is renamed. → {name}
-pub fn rename_action(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn rename_action(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let index = |k: &str| p.get(k).and_then(Value::as_u64).and_then(|i| usize::try_from(i).ok());
     let name = p.get("name").and_then(Value::as_str).map(str::trim).unwrap_or_default();
     let action = index("set").zip(index("action")).and_then(|(s, a)| app.ui.action_sets.get_mut(s)?.actions.get_mut(a)).ok_or("no such action")?;
@@ -697,7 +697,7 @@ pub const NEW_ACTION: &str = "ui.action.new";
 /// function key takes priority over command shortcuts. The set becomes current and the only selected set, and the new action is selected. While an
 /// action is recording, and for an index past the last set, an empty name, a key or color that is
 /// not one of them, nothing is added. The New Action dialog's Record runs this. → {set, action}
-pub fn new_action(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn new_action(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if app.ui.recording.is_some() {
         return Err("an action is already recording".into());
     }
@@ -738,7 +738,7 @@ pub const ACTION_OPTIONS: &str = "ui.action.options";
 /// key takes priority over command shortcuts. An index past the last set or action, an empty name,
 /// or a key or color that is not one of them is an error, and then nothing changes. The panel
 /// menu's Action Options… runs this for the selected action. → {name, key, color}
-pub fn action_options(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn action_options(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let index = |k: &str| p.get(k).and_then(Value::as_u64).and_then(|i| usize::try_from(i).ok());
     let (set, at) = index("set").zip(index("action")).ok_or("no such action")?;
     let had = app.ui.action_sets.get(set).and_then(|s| s.actions.get(at)).map(|a| a.key).ok_or("no such action")?;
@@ -788,7 +788,7 @@ pub const PLAY_ACTION: &str = "ui.action.play";
 /// `set` that is not a string is an error. A name that no action has is an error, and so is a name
 /// that more than one action in the sets looked in has: then nothing plays. → what [`play`] returns:
 /// at Accelerated, what `command.batch` returns; at Step by Step and Pause For, {results, pending}
-pub fn play_action(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn play_action(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let name = p.get("action").and_then(Value::as_str).ok_or("no such action")?;
     let in_set = match p.get("set") {
         None | Some(Value::Null) => None,
@@ -819,7 +819,7 @@ pub const START_RECORDING: &str = "ui.action.record";
 /// the current set (the first if none is current). With no sets, makes Set 1. Stop adds the action
 /// after the set's existing actions. An explicit invalid set or an existing recording is an error
 /// and leaves the panel unchanged. → {set, name}
-pub fn record(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn record(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if app.ui.recording.is_some() {
         return Err("an action is already recording".into());
     }
@@ -851,7 +851,7 @@ pub fn record(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 /// Stop Playing/Recording does. It also ends a playback at Step by Step or Pause For, or one that
 /// waits at a stop, whose message box closes: the steps already played stay, and the rest do not
 /// run. With nothing recording or playing it changes nothing. → {stopped}
-pub fn stop(app: &mut VectorcraftApp, _: &Value) -> Result<Value, String> {
+pub fn stop(app: &mut PlumaApp, _: &Value) -> Result<Value, String> {
     let playing = app.ui.action_playing.take().is_some();
     close_stop_message(app);
     let recording = app.ui.recording.is_some();
@@ -873,7 +873,7 @@ const SELECTED_STEP: &str = "actions-selected-step";
 /// that are not an object, or no action and no recording is an error, and then nothing changes.
 /// Record Stop's OK runs this. A stop in an action becomes the selected step, and its action and set
 /// become the selected ones. → {set, action, step}, or {recording: true}
-pub fn insert_stop(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn insert_stop(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if !p.is_object() {
         return Err("`params` must be an object".into());
     }
@@ -908,7 +908,7 @@ pub fn insert_stop(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String>
 }
 
 /// The selected step of the action `selected`, if it has one and the panel shows its steps.
-fn selected_step(app: &VectorcraftApp, ctx: &egui::Context, selected: Option<(usize, usize)>) -> Option<usize> {
+fn selected_step(app: &PlumaApp, ctx: &egui::Context, selected: Option<(usize, usize)>) -> Option<usize> {
     let (s, a) = selected?;
     let action = app.ui.action_sets.get(s)?.actions.get(a)?;
     if !pstate::<BTreeSet<u64>>(ctx, "actions-expanded").contains(&action.id) {
@@ -926,7 +926,7 @@ pub const DELETE_STEP: &str = "ui.action.deleteStep";
 /// open on a later step of the action follows it up. A missing or invalid index is an error, and
 /// then nothing changes. Undo does not bring the step back. Delete Selection runs this for the
 /// selected step. → {set, action, step}
-pub fn delete_step(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn delete_step(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let number = |v: &Value| v.as_u64().and_then(|i| usize::try_from(i).ok());
     let index = |k: &str| p.get(k).and_then(number);
     let (set, at) = index("set").zip(index("action")).ok_or("no such action")?;
@@ -984,7 +984,7 @@ fn playable_chord(key: FunctionKey) -> Option<craft_keymap::Chord> {
 
 /// Starts recording into set `set`: Stop Playing/Recording adds an action named `name` with the
 /// steps, or, with `into`, gives them to the action with that id.
-fn start_recording(app: &mut VectorcraftApp, set: usize, name: String, into: Option<u64>) {
+fn start_recording(app: &mut PlumaApp, set: usize, name: String, into: Option<u64>) {
     let start = app.session.journal.len();
     // Keep every step from here on until recording stops, however long it runs.
     app.session.journal.hold(Some(start));
@@ -994,7 +994,7 @@ fn start_recording(app: &mut VectorcraftApp, set: usize, name: String, into: Opt
 
 /// Stop Playing/Recording: ends the recording and keeps its steps (see [`start_recording`]). An
 /// action New Action made that was deleted while it recorded keeps nothing.
-fn stop_recording(app: &mut VectorcraftApp) {
+fn stop_recording(app: &mut PlumaApp) {
     let Some((set, name, start)) = app.ui.recording.take() else { return };
     // A canceled undo group numbers the steps down when it drops entries made before them.
     let start = app.session.journal.held().unwrap_or(start);
@@ -1036,7 +1036,7 @@ pub(crate) fn plays_an_action(chord: &craft_keymap::Chord) -> bool {
 /// Plays each action whose function key was pressed this frame, in the order of the presses and
 /// before any command with the same shortcut, and takes those key presses. The frame's other
 /// events stay for the command, panel and tool shortcuts.
-pub fn play_function_key(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn play_function_key(app: &mut PlumaApp, ctx: &egui::Context) {
     let keys: Vec<(craft_keymap::Chord, (usize, usize))> = app
         .ui
         .action_sets
@@ -1076,7 +1076,7 @@ pub const DELETE_SETS: &str = "ui.actionSet.delete";
 
 /// The sets Delete Selection deletes: the selected sets ([`crate::state::UiState::action_sets_selected`])
 /// when the current set is one of them, else the current set alone.
-fn selected_sets(app: &VectorcraftApp) -> Vec<usize> {
+fn selected_sets(app: &PlumaApp) -> Vec<usize> {
     let len = app.ui.action_sets.len();
     let current = app.ui.action_set.filter(|&s| s < len);
     let sets: Vec<usize> = app.ui.action_sets_selected.iter().copied().filter(|&s| s < len).collect();
@@ -1086,7 +1086,7 @@ fn selected_sets(app: &VectorcraftApp) -> Vec<usize> {
 /// Delete Selection, from the bottom bar and the panel menu: deletes the selected step
 /// ([`DELETE_STEP`]), else the selected action, else asks whether to delete the selected sets
 /// ([`DELETE_SETS`]).
-fn delete_selection(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn delete_selection(app: &mut PlumaApp, ctx: &egui::Context) {
     const SELECTED: &str = "actions-selected";
     // A selected action counts only while its set is the current one, as the panel shows it.
     let selected = pstate::<Option<(usize, usize)>>(ctx, SELECTED).filter(|&(s, _)| app.ui.action_set == Some(s));
@@ -1126,7 +1126,7 @@ fn delete_selection(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// nothing is deleted. A recording into a deleted set stops, and its steps are dropped; a
 /// recording into another set goes on. An open Set Options, New Action or Batch dialog for a
 /// deleted set closes. When the current set is deleted, no set is current afterwards.
-pub fn delete_sets(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn delete_sets(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let len = app.ui.action_sets.len();
     let mut sets: Vec<usize> = match (p.get("ids"), p.get("sets")) {
         (Some(v), _) if !v.is_null() => v
@@ -1199,7 +1199,7 @@ pub const DUPLICATE: &str = "ui.actionSet.duplicate";
 
 /// The panel menu's Duplicate: copies the selected action, else the current set ([`DUPLICATE`]),
 /// and selects the copy.
-fn duplicate_selection(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn duplicate_selection(app: &mut PlumaApp, ctx: &egui::Context) {
     const SELECTED: &str = "actions-selected";
     let Some(set) = app.ui.action_set.filter(|&s| s < app.ui.action_sets.len()) else { return };
     // A selected action counts only while its set is the current one, as the panel shows it.
@@ -1223,7 +1223,7 @@ fn duplicate_selection(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// ([`ActionSet::id`]). Copied actions have no function key, so a key plays only the original.
 /// The copy is selected and its set is the current one. A recording and an open Set Options or
 /// Batch dialog keep to their own set and action. → {set, action?}
-pub fn duplicate(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn duplicate(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     const SELECTED: &str = "actions-selected";
     let len = app.ui.action_sets.len();
     let index = |v: &Value| v.as_u64().and_then(|i| usize::try_from(i).ok());
@@ -1274,7 +1274,7 @@ pub fn duplicate(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 }
 
 /// The panel's (≡) menu.
-pub fn menu(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut egui::Ui) {
     // A selected action counts only while its set is the current one, as the panel shows it: a set
     // deleted since leaves the stored pair pointing at another set's action.
     let selected = pstate::<Option<(usize, usize)>>(ui.ctx(), "actions-selected").filter(|&(s, _)| app.ui.action_set == Some(s));
@@ -1378,7 +1378,7 @@ enum InclusionChange {
 }
 
 /// Draw action sets, steps and playback controls, keeping the list above a pinned footer.
-pub fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     // The selected action as (set, action). Read as the type it is stored as: egui keeps a
     // value per type, so reading the bare pair never found it and no action stayed selected (#1629).
@@ -1607,17 +1607,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     /// A short sized panel clips the list above its footer and can scroll to select its final row.
     #[test]
     fn a_short_actions_panel_keeps_its_last_row_reachable_above_the_footer() {
         use egui::{Event, PointerButton, Rect, UiBuilder, UiStackInfo, pos2, vec2};
         for height in [60.0, 120.0] {
-            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            let mut app = PlumaApp::new(Session::new(), Default::default());
             let ctx = egui::Context::default();
             let mut time = 0.0;
-            let mut frame = |app: &mut VectorcraftApp, events| {
+            let mut frame = |app: &mut PlumaApp, events| {
                 time += 0.1;
                 let input = egui::RawInput {
                     time: Some(time),
@@ -1665,7 +1665,7 @@ mod tests {
         for set in default_sets() {
             for a in set.actions {
                 for (c, _) in a.steps {
-                    assert!(vectorcraft_engine::find_command(&c).is_some(), "{c}");
+                    assert!(pluma_engine::find_command(&c).is_some(), "{c}");
                 }
             }
         }
@@ -1675,17 +1675,15 @@ mod tests {
     /// step at a time, though the same command run by itself is refused.
     #[test]
     fn an_action_with_a_key_no_longer_read_still_plays() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
-        let id = vectorcraft_doc::NodeId(
-            app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap(),
-        );
+        let id = pluma_doc::NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap());
         app.run("select.set", json!({"ids": [id.0]})).unwrap();
         let old = json!({"dx": 5, "dy": 0, "dyy": 1});
         assert!(app.run("object.move", old.clone()).is_err());
         app.ui.action_sets =
             vec![ActionSet::new("Test", vec![Action::new("Move", vec![("object.move".into(), old.clone()), ("object.move".into(), old)])])];
-        let x = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
+        let x = |app: &PlumaApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
         let before = x(&app);
         play(&mut app, 0, 0).unwrap();
         assert!((x(&app) - before - 10.0).abs() < 1e-9, "both moves ran");
@@ -1697,11 +1695,9 @@ mod tests {
 
     #[test]
     fn excluded_steps_do_not_play_and_survive_saved_sets() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
-        let id = vectorcraft_doc::NodeId(
-            app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap(),
-        );
+        let id = pluma_doc::NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap());
         app.run("select.set", json!({"ids": [id.0]})).unwrap();
         let mut action =
             Action::new("Move twice", vec![("object.move".into(), json!({"dx": 5, "dy": 0})), ("object.move".into(), json!({"dx": 20, "dy": 0}))]);
@@ -1712,7 +1708,7 @@ mod tests {
             "normal and Batch playback use the same included commands"
         );
         app.ui.action_sets = vec![ActionSet::new("Test", vec![action])];
-        let x = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
+        let x = |app: &PlumaApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0;
         let before = x(&app);
         play(&mut app, 0, 0).unwrap();
         assert!((x(&app) - before - 5.0).abs() < 1e-9, "the excluded second move did not run");
@@ -1731,7 +1727,7 @@ mod tests {
     #[test]
     fn inclusion_controls_expand_and_toggle_steps_without_selecting_the_action() {
         use super::super::tests_appearance::{click, frame_events, text_rect};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let action = Action::new(
             "Mixed",
             vec![
@@ -1764,7 +1760,7 @@ mod tests {
 
     #[test]
     fn alt_click_keeps_the_chosen_step_and_toggles_the_others() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let action = Action::new("Three", vec![("a".into(), json!({})), ("b".into(), json!({})), ("c".into(), json!({}))]);
         app.ui.action_sets = vec![ActionSet::new("Example", vec![action])];
         app.run(INCLUDE_STEPS, json!({"set": 0, "action": 0, "step": 1, "included": false, "others": true})).unwrap();
@@ -1790,7 +1786,7 @@ mod tests {
 
     #[test]
     fn begin_recording_command_matches_the_panel_button() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.ui.action_sets.clear();
         app.ui.action_set = None;
@@ -1815,10 +1811,10 @@ mod tests {
     #[test]
     fn a_clicked_action_stays_selected_for_play_and_delete() {
         use super::super::tests_appearance::{click, frame_events, text_rect};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
-        let id = vectorcraft_doc::NodeId(id);
+        let id = pluma_doc::NodeId(id);
         let ctx = egui::Context::default();
         let texts = frame_events(&ctx, &mut app, vec![], show);
         click(&ctx, &mut app, text_rect(&texts, "Reflect Horizontal").center(), show);
@@ -1833,7 +1829,7 @@ mod tests {
         click(&ctx, &mut app, play.center(), show);
         assert_eq!(app.session.active().unwrap().selection.len(), 1);
         assert_ne!(app.session.active().unwrap().selection.objects, [id], "played: the copy is selected");
-        let names = |app: &VectorcraftApp| app.ui.action_sets[0].actions.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
+        let names = |app: &PlumaApp| app.ui.action_sets[0].actions.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
         let before = names(&app);
         click(&ctx, &mut app, delete.center(), show);
         assert_eq!(names(&app), before[1..], "the selected action is deleted");
@@ -1847,12 +1843,12 @@ mod tests {
     #[test]
     fn create_new_set_names_a_set_that_recordings_go_into() {
         use super::super::tests_appearance::{click, frame_events, text_rect};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let ctx = egui::Context::default();
         // The bottom bar's 24-point buttons, left to right: stop, record, play, new set, new action,
         // delete. A new set or action moves the bar down.
-        let bar = |ctx: &egui::Context, app: &mut VectorcraftApp| {
+        let bar = |ctx: &egui::Context, app: &mut PlumaApp| {
             frame_events(ctx, app, vec![], show);
             let mut bar = crate::toolbar::tests::widget_rects(ctx, egui::vec2(24.0, 24.0));
             bar.sort_by(|a, b| a.left().total_cmp(&b.left()));
@@ -1866,7 +1862,7 @@ mod tests {
         app.ui.dialog.as_mut().unwrap().fields.insert("name".into(), json!("Print"));
         crate::dialogs::confirm(&mut app).unwrap();
         assert!(app.ui.dialog.is_none());
-        let sets = |app: &VectorcraftApp| app.ui.action_sets.iter().map(|s| (s.name.clone(), s.actions.len())).collect::<Vec<_>>();
+        let sets = |app: &PlumaApp| app.ui.action_sets.iter().map(|s| (s.name.clone(), s.actions.len())).collect::<Vec<_>>();
         assert_eq!(sets(&app), [("Default Actions".to_string(), 6), ("Print".into(), 0)]);
         let rect = json!({"x": 10, "y": 10, "width": 20, "height": 20});
         let (stop, record, _) = bar(&ctx, &mut app);
@@ -1891,7 +1887,7 @@ mod tests {
     #[test]
     fn set_options_renames_the_current_set() {
         use super::super::tests_appearance::{click, frame_events, text_rect};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui.action_sets.push(ActionSet::new("Mine", vec![]));
         let ctx = egui::Context::default();
         let texts = frame_events(&ctx, &mut app, vec![], show);
@@ -1915,7 +1911,7 @@ mod tests {
         use super::super::tests_appearance::{click, frame_events, text_rect};
         let mut app = app_with_sets();
         let ctx = egui::Context::default();
-        let action_options = |ctx: &egui::Context, app: &mut VectorcraftApp| {
+        let action_options = |ctx: &egui::Context, app: &mut PlumaApp| {
             let texts = frame_events(ctx, app, vec![], menu);
             let item = texts.iter().find(|(s, _)| s.trim() == "Action Options…").map(|(_, r)| *r).expect("Action Options… in the menu");
             click(ctx, app, item.center(), menu);
@@ -1945,7 +1941,7 @@ mod tests {
     #[test]
     fn rename_action_renames_one_action_and_refuses_bad_params() {
         let mut app = app_with_sets();
-        let names = |app: &VectorcraftApp| app.ui.action_sets[1].actions.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
+        let names = |app: &PlumaApp| app.ui.action_sets[1].actions.iter().map(|a| a.name.clone()).collect::<Vec<_>>();
         assert_eq!(app.run(RENAME_ACTION, json!({"set": 1, "action": 0, "name": "Push"})).unwrap(), json!({"name": "Push"}));
         assert_eq!(names(&app), ["Push", "Nudge Again"]);
         for p in [
@@ -2036,20 +2032,20 @@ mod tests {
     }
 
     /// An app with the default set and the sets Mine (two actions) and Other.
-    fn app_with_sets() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app_with_sets() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let action = |name: &str| Action::new(name, vec![("object.move".into(), json!({"dx": 1, "dy": 0}))]);
         app.ui.action_sets.push(ActionSet::new("Mine", vec![action("Nudge"), action("Nudge Again")]));
         app.ui.action_sets.push(ActionSet::new("Other", vec![]));
         app
     }
 
-    fn set_names(app: &VectorcraftApp) -> Vec<String> {
+    fn set_names(app: &PlumaApp) -> Vec<String> {
         app.ui.action_sets.iter().map(|s| s.name.clone()).collect()
     }
 
     /// The bottom bar's Delete Selection button (stop, record, play, new set, new action, delete).
-    fn trash(ctx: &egui::Context, app: &mut VectorcraftApp) -> egui::Pos2 {
+    fn trash(ctx: &egui::Context, app: &mut PlumaApp) -> egui::Pos2 {
         super::super::tests_appearance::frame_events(ctx, app, vec![], show);
         let mut bar = crate::toolbar::tests::widget_rects(ctx, egui::vec2(24.0, 24.0));
         bar.sort_by(|a, b| a.left().total_cmp(&b.left()));
@@ -2058,7 +2054,7 @@ mod tests {
     }
 
     /// A click on the name of set `name` with `modifiers` held.
-    fn click_set(ctx: &egui::Context, app: &mut VectorcraftApp, name: &str, modifiers: egui::Modifiers) {
+    fn click_set(ctx: &egui::Context, app: &mut PlumaApp, name: &str, modifiers: egui::Modifiers) {
         use super::super::tests_appearance::{frame_events, text_rect};
         let pos = text_rect(&frame_events(ctx, app, vec![], show), &format!("▾ {name}")).center();
         let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers };
@@ -2068,7 +2064,7 @@ mod tests {
     }
 
     /// The question Delete Selection asks about sets, with the sets OK deletes.
-    fn asked(app: &VectorcraftApp) -> Option<(String, Value)> {
+    fn asked(app: &PlumaApp) -> Option<(String, Value)> {
         let d = app.ui.dialog.as_ref()?;
         (d.kind == crate::dialogs::confirm::KIND && d.str("__command") == DELETE_SETS)
             .then(|| (d.str("message"), d.fields["__params"]["sets"].clone()))
@@ -2104,7 +2100,7 @@ mod tests {
         use super::super::tests_appearance::{click, frame_events, text_rect};
         let mut app = app_with_sets();
         let ctx = egui::Context::default();
-        let delete = |ctx: &egui::Context, app: &mut VectorcraftApp| {
+        let delete = |ctx: &egui::Context, app: &mut PlumaApp| {
             let texts = frame_events(ctx, app, vec![], menu);
             let item = texts.iter().find(|(s, _)| s.trim() == "Delete").map(|(_, r)| *r).expect("Delete in the menu");
             click(ctx, app, item.center(), menu);
@@ -2194,7 +2190,7 @@ mod tests {
     #[test]
     fn ok_deletes_only_the_asked_one_of_two_sets_with_the_same_name() {
         use super::super::tests_appearance::click;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let x = |n: &str| ActionSet::new("X", vec![Action::new(n, vec![])]);
         app.ui.action_sets = vec![x("first"), x("second")];
         let ctx = egui::Context::default();
@@ -2259,7 +2255,7 @@ mod tests {
         let ctx = egui::Context::default();
         click_set(&ctx, &mut app, "Other", egui::Modifiers::NONE);
         let saved = serde_json::to_value(&app.ui).unwrap();
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui = serde_json::from_value(saved).unwrap();
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         assert_eq!(app.ui.action_set, Some(2), "Other is current after the restart");
@@ -2287,7 +2283,7 @@ mod tests {
         let restored = serde_json::from_value::<crate::state::UiState>(saved.clone()).unwrap();
         assert_eq!((restored.action_set, restored.action_sets.len()), (None, 3), "not an index: no set current, the sets load");
         saved["action_set"] = json!(9);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.ui = serde_json::from_value(saved).unwrap();
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let ctx = egui::Context::default();
@@ -2339,7 +2335,7 @@ mod tests {
     #[test]
     fn deleting_the_default_and_the_last_set_leaves_an_empty_panel() {
         use super::super::tests_appearance::click;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let ctx = egui::Context::default();
         click_set(&ctx, &mut app, "Default Actions", egui::Modifiers::NONE);
         let delete = trash(&ctx, &mut app);
@@ -2402,14 +2398,14 @@ mod tests {
     }
 
     /// A click on the panel menu's Duplicate.
-    fn menu_duplicate(ctx: &egui::Context, app: &mut VectorcraftApp) {
+    fn menu_duplicate(ctx: &egui::Context, app: &mut PlumaApp) {
         use super::super::tests_appearance::{click, frame_events};
         let texts = frame_events(ctx, app, vec![], menu);
         let item = texts.iter().find(|(s, _)| s.trim() == "Duplicate").map(|(_, r)| *r).expect("Duplicate in the menu");
         click(ctx, app, item.center(), menu);
     }
 
-    fn action_names(app: &VectorcraftApp, set: usize) -> Vec<String> {
+    fn action_names(app: &PlumaApp, set: usize) -> Vec<String> {
         app.ui.action_sets[set].actions.iter().map(|a| a.name.clone()).collect()
     }
 
@@ -2497,7 +2493,7 @@ mod tests {
     #[test]
     fn a_recording_keeps_its_steps_when_a_canceled_undo_group_drops_earlier_entries() {
         use super::super::tests_appearance::{click, frame_events};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let rect = |x: i32| json!({"x": x, "y": 10, "width": 20, "height": 20});
         for (id, p) in [
             ("file.new", json!({"width": 200, "height": 100})),
@@ -2529,14 +2525,14 @@ mod tests {
     /// recorded.
     #[test]
     fn actions_play_on_the_artboard_active_when_they_play() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
         let boards: Vec<_> = app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
         let r = app.run("shape.rectangle", json!({"x": boards[1].x0 + 10.0, "y": boards[1].y0 + 15.0, "width": 20, "height": 20})).unwrap();
-        let rect = vectorcraft_doc::NodeId(r["id"].as_u64().unwrap());
-        let bounds = |app: &VectorcraftApp, ids: &[vectorcraft_doc::NodeId]| app.session.active().unwrap().doc.bounds_of(ids, false).unwrap();
+        let rect = pluma_doc::NodeId(r["id"].as_u64().unwrap());
+        let bounds = |app: &PlumaApp, ids: &[pluma_doc::NodeId]| app.session.active().unwrap().doc.bounds_of(ids, false).unwrap();
         // Each recorded as the panel records an action, with artboard 0 active.
-        let record = |app: &mut VectorcraftApp, name: &str, id: &str, params: Value| {
+        let record = |app: &mut PlumaApp, name: &str, id: &str, params: Value| {
             let start = app.session.journal.len();
             app.run(id, params).unwrap();
             let steps = app.session.journal_for_action(start);
@@ -2551,11 +2547,11 @@ mod tests {
         app.run("select.set", json!({"ids": [rect.0]})).unwrap();
         play(&mut app, 0, align).unwrap();
         assert_eq!(bounds(&app, &[rect]).x0, boards[2].x0, "aligned to artboard 2, active when the action plays");
-        let ids: Vec<vectorcraft_doc::NodeId> = play(&mut app, 0, paste).unwrap()["results"][0]["ids"]
+        let ids: Vec<pluma_doc::NodeId> = play(&mut app, 0, paste).unwrap()["results"][0]["ids"]
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| vectorcraft_doc::NodeId(v.as_u64().unwrap()))
+            .map(|v| pluma_doc::NodeId(v.as_u64().unwrap()))
             .collect();
         let b = bounds(&app, &ids);
         assert_eq!((b.x0, b.y0), (boards[2].x0 + 10.0, boards[2].y0 + 15.0), "pasted onto artboard 2, where it was on artboard 1");
@@ -2570,22 +2566,21 @@ mod tests {
     /// the artboard active when they play, not on the one active when they were recorded.
     #[test]
     fn distribute_actions_play_on_the_artboard_active_when_they_play() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
         let boards: Vec<_> = app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
         // The rectangles are 20, 40 and 20 pt wide, and they are on artboard 1.
-        let ids: Vec<vectorcraft_doc::NodeId> = [(10.0, 20.0), (50.0, 40.0), (120.0, 20.0)]
+        let ids: Vec<pluma_doc::NodeId> = [(10.0, 20.0), (50.0, 40.0), (120.0, 20.0)]
             .into_iter()
             .map(|(x, w)| {
                 let r = app.run("shape.rectangle", json!({"x": boards[1].x0 + x, "y": boards[1].y0 + 15.0, "width": w, "height": 20})).unwrap();
-                vectorcraft_doc::NodeId(r["id"].as_u64().unwrap())
+                pluma_doc::NodeId(r["id"].as_u64().unwrap())
             })
             .collect();
         app.run("select.set", json!({"ids": ids.iter().map(|id| id.0).collect::<Vec<_>>()})).unwrap();
-        let lefts =
-            |app: &VectorcraftApp| ids.iter().map(|id| app.session.active().unwrap().doc.bounds_of(&[*id], false).unwrap().x0).collect::<Vec<_>>();
+        let lefts = |app: &PlumaApp| ids.iter().map(|id| app.session.active().unwrap().doc.bounds_of(&[*id], false).unwrap().x0).collect::<Vec<_>>();
         // Each step is recorded as the panel records an action, while artboard 0 is active.
-        let record = |app: &mut VectorcraftApp, name: &str, id: &str, params: Value| {
+        let record = |app: &mut PlumaApp, name: &str, id: &str, params: Value| {
             let start = app.session.journal.len();
             app.run(id, params).unwrap();
             let steps = app.session.journal_for_action(start);
@@ -2607,7 +2602,7 @@ mod tests {
 
     /// Files in memory for `app`: what it writes, and what it reads back. Save dialogs pick
     /// `/sets/` and the suggested name, open dialogs pick `open`.
-    fn with_files(app: &mut VectorcraftApp, open: &str) -> std::rc::Rc<std::cell::RefCell<std::collections::BTreeMap<String, Vec<u8>>>> {
+    fn with_files(app: &mut PlumaApp, open: &str) -> std::rc::Rc<std::cell::RefCell<std::collections::BTreeMap<String, Vec<u8>>>> {
         let files = std::rc::Rc::new(std::cell::RefCell::new(std::collections::BTreeMap::<String, Vec<u8>>::new()));
         let (w, r) = (files.clone(), files.clone());
         app.services.write = Some(Box::new(move |path: &str, bytes: &[u8]| {
@@ -2631,7 +2626,7 @@ mod tests {
         let mut app = app_with_sets();
         let files = with_files(&mut app, "/sets/Mine.vcactions");
         let ctx = egui::Context::default();
-        let item = |ctx: &egui::Context, app: &mut VectorcraftApp, label: &str| {
+        let item = |ctx: &egui::Context, app: &mut PlumaApp, label: &str| {
             let texts = frame_events(ctx, app, vec![], menu);
             texts.iter().find(|(s, _)| s.trim() == label).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("{label} in the menu"))
         };
@@ -2699,7 +2694,7 @@ mod tests {
             (json!(" ".repeat(files::MAX_SET_FILE + 1)), "the action set file is larger than 8 MiB"),
             (
                 json!("{\"format\": \"vcactions\", \"version\": 4, \"name\": \"S\", \"actions\": []}"),
-                "the action set file needs a later version of VectorCraft",
+                "the action set file needs a later version of Pluma",
             ),
         ] {
             assert_eq!(app.run(LOAD_SET, json!({ "data": data })).unwrap_err(), want);
@@ -2757,7 +2752,7 @@ mod tests {
     }
 
     /// Load Actions… reads an action set another app saved as text: its actions come in with the
-    /// steps with no recorded values whose label is a VectorCraft command's that takes no values and
+    /// steps with no recorded values whose label is a Pluma command's that takes no values and
     /// has no dialog, a step that is off stays excluded from playback, the other steps are left out
     /// and listed, and the status bar says how many. An action plays the steps that are on.
     #[test]
@@ -2904,7 +2899,7 @@ mod tests {
         assert_eq!(app.ui.action_sets[3].actions[0].steps, [("object.group".to_string(), json!({}))]);
     }
 
-    /// A set loaded from another app's file saves to VectorCraft's own file with its excluded steps,
+    /// A set loaded from another app's file saves to Pluma's own file with its excluded steps,
     /// and loads back the same.
     #[test]
     fn another_apps_set_saves_and_loads_back_with_its_excluded_steps() {
@@ -2947,7 +2942,7 @@ mod tests {
 
     /// The bottom bar's stop and Create New Action buttons (stop, record, play, new set, new
     /// action, delete).
-    fn stop_and_new_action(ctx: &egui::Context, app: &mut VectorcraftApp) -> (egui::Pos2, egui::Pos2) {
+    fn stop_and_new_action(ctx: &egui::Context, app: &mut PlumaApp) -> (egui::Pos2, egui::Pos2) {
         super::super::tests_appearance::frame_events(ctx, app, vec![], show);
         let mut bar = crate::toolbar::tests::widget_rects(ctx, egui::vec2(24.0, 24.0));
         bar.sort_by(|a, b| a.left().total_cmp(&b.left()));
@@ -2956,7 +2951,7 @@ mod tests {
     }
 
     /// The texts the dialog layer draws once the open dialog has settled.
-    fn dialog_texts(app: &mut VectorcraftApp) -> Vec<String> {
+    fn dialog_texts(app: &mut PlumaApp) -> Vec<String> {
         let ctx = egui::Context::default();
         let mut texts = vec![];
         for _ in 0..3 {
@@ -2985,7 +2980,7 @@ mod tests {
         let fields = (d.fields["set"].clone(), d.str("name"), d.fields["key"].clone(), d.str("color"));
         assert_eq!(fields, (json!(1), "Action 3".to_string(), json!(0), String::new()), "the current set, a free name, no key or color");
         crate::dialogs::cancel(&mut app);
-        let counts = |app: &VectorcraftApp| app.ui.action_sets.iter().map(|s| s.actions.len()).collect::<Vec<_>>();
+        let counts = |app: &PlumaApp| app.ui.action_sets.iter().map(|s| s.actions.len()).collect::<Vec<_>>();
         assert_eq!(counts(&app), [6, 2, 0], "Cancel adds nothing");
         assert!(app.ui.recording.is_none(), "and records nothing");
         let texts = frame_events(&ctx, &mut app, vec![], menu);
@@ -3041,7 +3036,7 @@ mod tests {
     #[test]
     fn new_action_refuses_bad_params_and_adds_nothing() {
         let mut app = app_with_sets();
-        let counts = |app: &VectorcraftApp| app.ui.action_sets.iter().map(|s| s.actions.len()).collect::<Vec<_>>();
+        let counts = |app: &PlumaApp| app.ui.action_sets.iter().map(|s| s.actions.len()).collect::<Vec<_>>();
         for (p, want) in [
             (json!({"set": 3, "name": "A"}), "no such action set"),
             (json!({"name": "A"}), "no such action set"),
@@ -3193,7 +3188,7 @@ mod tests {
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("text.create", json!({"x": 20, "y": 50, "text": "Hi"})).unwrap();
         app.select_tool("type");
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         assert!(app.session.tool_wants_text());
         let key = FunctionKey { key: 15, cmd: true, shift: false };
         app.ui.action_sets[1].actions[0].key = Some(key);
@@ -3229,7 +3224,7 @@ mod tests {
         let mut app = app_with_sets();
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let p = |set: usize, action: usize, k: FunctionKey| json!({"set": set, "action": action, "key": k.key, "cmd": k.cmd, "shift": k.shift});
-        let keys = |app: &VectorcraftApp| app.ui.action_sets[1].actions.iter().map(|a| a.key).collect::<Vec<_>>();
+        let keys = |app: &PlumaApp| app.ui.action_sets[1].actions.iter().map(|a| a.key).collect::<Vec<_>>();
         let f15 = FunctionKey { key: 15, cmd: false, shift: false };
         app.run(ACTION_OPTIONS, p(1, 0, f15)).unwrap();
         assert_eq!(keys(&app), [Some(f15), None]);
@@ -3241,24 +3236,24 @@ mod tests {
         let shift_f14 = FunctionKey { key: 14, cmd: false, shift: true };
         crate::keymap::set_override(&mut app.ui.shortcut_overrides, "edit.duplicate", "Shift+F14");
         app.run(ACTION_OPTIONS, p(1, 0, shift_f14)).unwrap();
-        let km = |app: &VectorcraftApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
+        let km = |app: &PlumaApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
         assert!(crate::keymap::lookup(&km(&app), &shift_f14.chord().unwrap()).is_some(), "the command keeps its shortcut");
         assert_eq!(keys(&app), [Some(shift_f14), Some(f15)]);
         // The keys play their actions.
         app.ui.action_sets[1].actions[1].steps = vec![("shape.rectangle".into(), json!({"x": 10, "y": 10, "width": 20, "height": 20}))];
         let ctx = egui::Context::default();
-        let press = |app: &mut VectorcraftApp, key, modifiers| {
+        let press = |app: &mut PlumaApp, key, modifiers| {
             let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
             let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
             out.textures_delta.clear();
         };
-        let last = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.last().map(|s| s.label.clone());
-        let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+        let last = |app: &PlumaApp| app.session.active().unwrap().history.undo.last().map(|s| s.label.clone());
+        let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
         let before = undo(&app);
         press(&mut app, egui::Key::F15, egui::Modifiers::NONE);
         assert_eq!((last(&app), undo(&app)), (Some("Nudge Again".to_string()), before + 1), "F15 plays Nudge Again");
         let id = app.session.active().unwrap().selection.objects.clone();
-        let x = |app: &VectorcraftApp| app.session.active().unwrap().doc.bounds_of(&id, false).unwrap().x0;
+        let x = |app: &PlumaApp| app.session.active().unwrap().doc.bounds_of(&id, false).unwrap().x0;
         let before = x(&app);
         press(&mut app, egui::Key::F14, egui::Modifiers::SHIFT);
         assert_eq!((last(&app), x(&app)), (Some("Nudge".to_string()), before + 1.0), "Shift+F14 plays Nudge");
@@ -3284,7 +3279,7 @@ mod tests {
         let mut app = app_with_sets();
         crate::keymap::set_override(&mut app.ui.shortcut_overrides, "edit.duplicate", "Ctrl+F13");
         let cmd_f13 = FunctionKey { key: 13, cmd: true, shift: false };
-        let km = |app: &VectorcraftApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
+        let km = |app: &PlumaApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
         assert!(crate::keymap::lookup(&km(&app), &cmd_f13.chord().unwrap()).is_some(), "Ctrl+F13 runs Duplicate");
         app.run(ACTION_OPTIONS, json!({"set": 1, "action": 0, "key": 13, "cmd": true, "shift": false})).unwrap();
         assert!(crate::keymap::lookup(&km(&app), &cmd_f13.chord().unwrap()).is_some(), "the command keeps its shortcut");
@@ -3297,7 +3292,7 @@ mod tests {
         let mut app = app_with_sets();
         crate::keymap::set_override(&mut app.ui.shortcut_overrides, "edit.duplicate", "F15 F15");
         let f15 = FunctionKey { key: 15, cmd: false, shift: false };
-        let km = |app: &VectorcraftApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
+        let km = |app: &PlumaApp| crate::keymap::keymap_with(&app.ui.shortcut_overrides);
         assert!(command_on(&km(&app), &f15.chord().unwrap()).is_some(), "F15 pressed twice runs Duplicate");
         app.run(ACTION_OPTIONS, json!({"set": 1, "action": 0, "key": 15})).unwrap();
         assert!(command_on(&km(&app), &f15.chord().unwrap()).is_some(), "the command keeps its shortcut");
@@ -3326,7 +3321,7 @@ mod tests {
         app.ui.action_sets[1].actions[0].key = Some(FunctionKey { key: 15, cmd: false, shift: false });
         app.ui.action_sets[1].actions[1].key = Some(FunctionKey { key: 14, cmd: false, shift: false });
         app.run("shortcuts.set", json!({"id": "edit.duplicate", "shortcut": "F13"})).unwrap();
-        let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.iter().map(|s| s.label.clone()).collect::<Vec<_>>();
+        let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.iter().map(|s| s.label.clone()).collect::<Vec<_>>();
         let before = undo(&app).len();
         let key = |key| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
         let events = vec![key(egui::Key::F15), key(egui::Key::F14), key(egui::Key::F13)];
@@ -3345,7 +3340,7 @@ mod tests {
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
         app.ui.action_sets[2].actions.push(Action::new("Nudge", vec![("object.move".into(), json!({"dx": 5, "dy": 0}))]));
         let id = app.session.active().unwrap().selection.objects.clone();
-        let x = |app: &VectorcraftApp| app.session.active().unwrap().doc.bounds_of(&id, false).unwrap().x0;
+        let x = |app: &PlumaApp| app.session.active().unwrap().doc.bounds_of(&id, false).unwrap().x0;
         let before = x(&app);
         assert_eq!(app.run(PLAY_ACTION, json!({"action": "Nudge"})).unwrap_err(), "more than one action is named “Nudge”");
         assert_eq!(app.run(PLAY_ACTION, json!({"action": "Nope"})).unwrap_err(), "no such action");
@@ -3370,7 +3365,7 @@ mod tests {
         for label in ["Action Options", "Name:", "Function Key:", "Shift", "Color:"] {
             assert!(texts.iter().any(|t| t == label), "{label}: {texts:?}");
         }
-        let set = |app: &mut VectorcraftApp| {
+        let set = |app: &mut PlumaApp| {
             let d = app.ui.dialog.as_mut().expect("Action Options is open");
             assert_eq!((d.fields["key"].clone(), d.bool("shift"), d.str("color")), (json!(0), false, String::new()));
             d.fields.insert("key".into(), json!(15));
@@ -3379,7 +3374,7 @@ mod tests {
         };
         set(&mut app);
         crate::dialogs::cancel(&mut app);
-        let a = |app: &VectorcraftApp, i: usize| app.ui.action_sets[1].actions[i].clone();
+        let a = |app: &PlumaApp, i: usize| app.ui.action_sets[1].actions[i].clone();
         assert_eq!((a(&app, 1).key, a(&app, 1).color), (None, None), "Cancel keeps them");
         open_action(&mut app, 1, 1);
         set(&mut app);
@@ -3502,33 +3497,31 @@ mod tests {
 
     /// A document with one rectangle selected and the set "Moves" with one action that moves it
     /// right three times, by 1, 2 and 4 pt → (the app, the rectangle's left edge as it moves).
-    fn app_with_three_moves() -> (VectorcraftApp, impl Fn(&VectorcraftApp) -> f64) {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app_with_three_moves() -> (PlumaApp, impl Fn(&PlumaApp) -> f64) {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
-        let id = vectorcraft_doc::NodeId(
-            app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap(),
-        );
+        let id = pluma_doc::NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap());
         app.run("select.set", json!({"ids": [id.0]})).unwrap();
         let step = |dx: u32| ("object.move".to_string(), json!({"dx": dx, "dy": 0}));
         app.ui.action_sets = vec![ActionSet::new("Moves", vec![Action::new("Three Moves", vec![step(1), step(2), step(4)])])];
-        let x = move |app: &VectorcraftApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0 - 10.0;
+        let x = move |app: &PlumaApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0 - 10.0;
         (app, x)
     }
 
-    fn undo_steps(app: &VectorcraftApp) -> usize {
+    fn undo_steps(app: &PlumaApp) -> usize {
         app.session.active().unwrap().history.undo.len()
     }
 
     /// One frame of a shown window at `now`: the logic pass, then a UI pass that draws → what the
     /// logic pass's [`tick_playback`] returns.
-    fn frame(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
+    fn frame(app: &mut PlumaApp, now: f64) -> Option<f64> {
         let wait = tick_playback(app, now);
         playback_drawn(app);
         wait
     }
 
     /// Draws frames until the playback in progress ends (at most 20).
-    fn play_out(app: &mut VectorcraftApp) {
+    fn play_out(app: &mut PlumaApp) {
         for _ in 0..20 {
             if app.ui.action_playing.is_none() {
                 return;
@@ -3540,7 +3533,7 @@ mod tests {
 
     #[test]
     fn playback_options_sets_each_speed_and_refuses_bad_values() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         assert_eq!(app.ui.action_playback, PlaybackOptions { speed: PlaybackSpeed::Accelerated, seconds: 1 }, "Accelerated is the default");
         assert_eq!(app.run(PLAYBACK_OPTIONS, json!({"speed": "step"})).unwrap(), json!({"speed": "step", "seconds": 1}));
         assert_eq!(app.run(PLAYBACK_OPTIONS, json!({"speed": "pause", "seconds": 2})).unwrap(), json!({"speed": "pause", "seconds": 2}));
@@ -3572,7 +3565,7 @@ mod tests {
 
     #[test]
     fn the_playback_options_dialog_sets_the_speed_and_pause() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run(PLAYBACK_OPTIONS, json!({"speed": "step", "seconds": 3})).unwrap();
         crate::dialogs::action_playback::open(&mut app);
         let d = app.ui.dialog.as_mut().unwrap();
@@ -3643,7 +3636,7 @@ mod tests {
         app.run(PLAYBACK_OPTIONS, json!({"speed": "step"})).unwrap();
         let ctx = egui::Context::default();
         // One host iteration: `tick`, then a UI pass, in a shown or an occluded window.
-        let frame = |app: &mut VectorcraftApp, hidden: bool| {
+        let frame = |app: &mut PlumaApp, hidden: bool| {
             let mut raw =
                 egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 800.0))), ..Default::default() };
             if hidden {
@@ -3733,20 +3726,19 @@ mod tests {
     fn control_requests_come_before_the_step_that_is_due() {
         let ctx = egui::Context::default();
         // One host iteration's `tick` at `now`.
-        let tick = |app: &mut VectorcraftApp, now: f64| {
+        let tick = |app: &mut PlumaApp, now: f64| {
             app.now_override = Some(now);
             app.begin_host_iteration();
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| app.tick(ui.ctx()));
             out.textures_delta.clear();
         };
         // The same, with `method` and `params` queued on the control channel → its reply.
-        let iteration =
-            |app: &mut VectorcraftApp, tx: &std::sync::mpsc::Sender<crate::control::ControlRequest>, now: f64, method: &str, params: Value| {
-                let (req, reply) = crate::control::ControlRequest::new(method, params);
-                tx.send(req).unwrap();
-                tick(app, now);
-                reply.try_recv().unwrap()
-            };
+        let iteration = |app: &mut PlumaApp, tx: &std::sync::mpsc::Sender<crate::control::ControlRequest>, now: f64, method: &str, params: Value| {
+            let (req, reply) = crate::control::ControlRequest::new(method, params);
+            tx.send(req).unwrap();
+            tick(app, now);
+            reply.try_recv().unwrap()
+        };
         // Stop: the step that is due does not run.
         let (app, x) = app_with_three_moves();
         let (tx, rx) = std::sync::mpsc::channel();
@@ -3850,7 +3842,7 @@ mod tests {
     fn closing_the_playing_document_ends_a_paced_playback() {
         let stopped = "the action stopped playing: its document is no longer active";
         // File › Close with `p`, answering Don't Save for the modified document.
-        let close = |app: &mut VectorcraftApp, p: Value| {
+        let close = |app: &mut PlumaApp, p: Value| {
             assert_eq!(app.run("file.close", p).unwrap(), json!({"pending": crate::unsaved::KIND}));
             app.ui.dialog.as_mut().unwrap().fields.insert("discard".into(), json!(true));
             crate::unsaved::confirm(app).unwrap();
@@ -3899,14 +3891,14 @@ mod tests {
     }
 
     /// [`app_with_three_moves`] with a stop after the first move.
-    fn app_with_a_stop(allow_continue: bool) -> (VectorcraftApp, impl Fn(&VectorcraftApp) -> f64) {
+    fn app_with_a_stop(allow_continue: bool) -> (PlumaApp, impl Fn(&PlumaApp) -> f64) {
         let (mut app, x) = app_with_three_moves();
         let params = json!({"set": 0, "action": 0, "step": 0, "message": "Paint it", "allowContinue": allow_continue});
         assert_eq!(app.run(INSERT_STOP, params).unwrap(), json!({"set": 0, "action": 0, "step": 1}));
         (app, x)
     }
 
-    fn open_kind(app: &VectorcraftApp) -> Option<&str> {
+    fn open_kind(app: &PlumaApp) -> Option<&str> {
         app.ui.dialog.as_ref().map(|d| d.kind.as_str())
     }
 
@@ -4005,7 +3997,7 @@ mod tests {
     }
 
     /// Selects the first step of "Three Moves" by clicking its row, with the action open.
-    fn click_first_step(ctx: &egui::Context, app: &mut VectorcraftApp) {
+    fn click_first_step(ctx: &egui::Context, app: &mut PlumaApp) {
         use super::super::tests_appearance::{click, frame_events};
         set_pstate(ctx, "actions-expanded", BTreeSet::from([app.ui.action_sets[0].actions[0].id]));
         let texts = frame_events(ctx, app, vec![], show);
@@ -4271,7 +4263,7 @@ mod tests {
         let stop = |message: &str| (STOP_STEP.to_string(), json!({"message": message, "allowContinue": false}));
         let moved = ("object.move".to_string(), json!({"dx": 1, "dy": 0}));
         app.ui.action_sets[0].actions[0].steps = vec![stop("first"), stop("second"), moved, stop("last")];
-        let message = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| d.str("message"));
+        let message = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| d.str("message"));
         assert_eq!(play(&mut app, 0, 0).unwrap()["atStop"], json!(true));
         assert_eq!((message(&app).as_deref(), x(&app)), (Some("first"), 0.0));
         assert_eq!(app.run(CONTINUE_PLAYBACK, json!({})).unwrap()["atStop"], json!(true));
@@ -4369,7 +4361,7 @@ mod tests {
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run(CONTINUE_PLAYBACK, json!({})).unwrap();
         assert!(app.ui.action_playing.is_some(), "a document opened at the stop does not end the playback");
-        let bounds = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
+        let bounds = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().geometric_bounds().unwrap();
         assert_eq!(bounds.x0, 2.0, "the next step runs on the document active now");
     }
 
@@ -4394,7 +4386,7 @@ mod tests {
             assert_eq!(files::read_set(&old.to_string(), "Test").unwrap().actions[0].steps.len(), 1, "version {version}");
         }
         let later = json!({"format": "vcactions", "version": 4, "name": "New", "actions": []});
-        assert_eq!(files::read_set(&later.to_string(), "Test").unwrap_err(), "the action set file needs a later version of VectorCraft");
+        assert_eq!(files::read_set(&later.to_string(), "Test").unwrap_err(), "the action set file needs a later version of Pluma");
         for params in [json!({"message": 5}), json!({"allowContinue": "yes"}), json!(42)] {
             let stop = json!({"command": "action.stop", "params": params});
             for step in [stop.clone(), json!({"command": "command.batch", "params": {"commands": [stop]}})] {
@@ -4410,7 +4402,7 @@ mod tests {
     }
 
     /// The panel menu's Insert Stop…, with Record Stop's fields as given, and OK.
-    fn menu_insert_stop(ctx: &egui::Context, app: &mut VectorcraftApp, message: &str, allow_continue: bool) {
+    fn menu_insert_stop(ctx: &egui::Context, app: &mut PlumaApp, message: &str, allow_continue: bool) {
         use super::super::tests_appearance::{click, frame_events};
         let texts = frame_events(ctx, app, vec![], menu);
         let item = texts.iter().find(|(s, _)| s.trim() == "Insert Stop…").map(|(_, r)| *r).expect("Insert Stop… in the menu");
@@ -4434,7 +4426,7 @@ mod tests {
         let label = text_rect(&texts, "Three Moves");
         click(&ctx, &mut app, label.center(), show);
         menu_insert_stop(&ctx, &mut app, "At the end", false);
-        let ids = |app: &VectorcraftApp| app.ui.action_sets[0].actions[0].steps.iter().map(|(c, _)| c.clone()).collect::<Vec<_>>();
+        let ids = |app: &PlumaApp| app.ui.action_sets[0].actions[0].steps.iter().map(|(c, _)| c.clone()).collect::<Vec<_>>();
         assert_eq!(ids(&app).iter().position(|c| c == STOP_STEP), Some(3), "the action selected: the stop goes at its end");
         assert!(pstate::<BTreeSet<u64>>(&ctx, "actions-expanded").contains(&app.ui.action_sets[0].actions[0].id), "the action opens to show it");
 

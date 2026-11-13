@@ -4,9 +4,9 @@
 //! its own and removes them: plug-ins are process-wide, and an importer left installed would show
 //! in other tests' Open dialog.
 
+use pluma_engine::Session;
+use pluma_plugins::wat::{self as tpl, Given};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::wat::{self as tpl, Given};
 
 use super::tests_export::{frame, kind, set};
 use super::*;
@@ -18,18 +18,18 @@ const RECT: &str =
     r#"{"objects":[{"type":"path","path":{"subpaths":[{"closed":true,"anchors":[{"p":[10,20]},{"p":[110,20]},{"p":[110,70]},{"p":[10,70]}]}]}}]}"#;
 
 /// An app that reads files from disk, refusing to read one past the importers' input limit.
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.services.read = Some(Box::new(|p: &str| match std::fs::metadata(p) {
-        Ok(m) if m.len() > vectorcraft_plugins::import::MAX_INPUT_BYTES as u64 => Err("read past the limit".into()),
+        Ok(m) if m.len() > pluma_plugins::import::MAX_INPUT_BYTES as u64 => Err("read past the limit".into()),
         _ => std::fs::read(p).map_err(|e| e.to_string()),
     }));
     app
 }
 
-fn install(app: &mut VectorcraftApp, src: &str) {
+fn install(app: &mut PlumaApp, src: &str) {
     let wasm = wat::parse_str(src).unwrap();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap();
 }
 
 /// A fresh folder for files this test writes.
@@ -41,7 +41,7 @@ fn tmp_dir(tag: &str) -> std::path::PathBuf {
 }
 
 /// The active document's first artboard, as `(x0, y0, x1, y1)`.
-fn artboard(app: &VectorcraftApp) -> (f64, f64, f64, f64) {
+fn artboard(app: &PlumaApp) -> (f64, f64, f64, f64) {
     let r = app.session.doc().unwrap().doc.artboards[0].rect;
     (r.x0, r.y0, r.x1, r.y1)
 }
@@ -130,7 +130,7 @@ fn open_with_asks_for_an_importer_s_parameters_and_passes_them_on() {
     assert_eq!(app.session.documents().len(), 2);
 
     // `app.open` (MCP's open_file) passes `params` on, and asks nothing without them.
-    let control = |app: &mut VectorcraftApp, p: serde_json::Value| {
+    let control = |app: &mut PlumaApp, p: serde_json::Value| {
         let (req, _rx) = crate::control::ControlRequest::new("app.open", p);
         let crate::control::Outcome::Done(r) = crate::control::handle(app, &egui::Context::default(), &req) else { panic!("not done") };
         r
@@ -167,7 +167,7 @@ fn only_file_open_s_dialog_lists_an_importer_s_files() {
         None
     }));
     let lists = |filters: &[(String, Vec<String>)]| filters.iter().any(|(_, exts)| exts.iter().any(|e| e == "tuf"));
-    let shown = |app: &mut VectorcraftApp, cmd: &str| {
+    let shown = |app: &mut PlumaApp, cmd: &str| {
         let _ = app.run(cmd, json!({}));
         let pick = asked.borrow_mut().pop().unwrap_or_else(|| panic!("{cmd} showed no open dialog"));
         lists(&pick.filters)
@@ -209,7 +209,7 @@ fn a_dropped_file_only_an_importer_reads_opens() {
     app.sync_views();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(800.0, 600.0)));
     let on_canvas = Some(egui::pos2(400.0, 300.0));
-    let placed = |app: &VectorcraftApp, name, pos| matches!(app.drop_target(name, pos, false), DropTarget::Place(_));
+    let placed = |app: &PlumaApp, name, pos| matches!(app.drop_target(name, pos, false), DropTarget::Place(_));
     assert!(placed(&app, "a.tud", on_canvas), "no importer lists the extension yet");
 
     install(&mut app, &tpl::module(&tpl::importer("test.ui.dropped", r#"["tud","tus","png"]"#, "{}"), tpl::ECHO, "", 1));
@@ -229,7 +229,7 @@ fn a_dropped_file_only_an_importer_reads_opens() {
 /// ones File › Open installs, imports, checks or loads as something other than a document.
 #[test]
 fn importer_filters_leave_out_what_file_open_opens_as_something_else() {
-    use vectorcraft_engine::cmd::{self, fileio};
+    use pluma_engine::cmd::{self, fileio};
     let lists: [&[&str]; 11] = [
         cmd::plugin::EXTS,
         cmd::shortcutset::EXTS,
@@ -243,7 +243,7 @@ fn importer_filters_leave_out_what_file_open_opens_as_something_else() {
         cmd::library::LIBRARY_EXTS,
         cmd::swatchlib::LIBRARY_EXTS,
     ];
-    for ext in lists.iter().flat_map(|l| l.iter().copied()).chain([vectorcraft_doc::style_libs::STYLES_EXT]) {
+    for ext in lists.iter().flat_map(|l| l.iter().copied()).chain([pluma_doc::style_libs::STYLES_EXT]) {
         assert!(crate::io::opens_as(&format!("a.{ext}")).is_some(), "{ext}");
         assert!(fileio::opens_as_other(ext), "{ext}");
     }
@@ -280,7 +280,7 @@ fn file_open_refuses_an_importer_s_file_past_the_limit_before_reading_it() {
     assert_eq!(artboard(&app), (10.0, 20.0, 110.0, 70.0));
 
     let big = dir.join("big.tub");
-    std::fs::File::create(&big).unwrap().set_len(vectorcraft_plugins::import::MAX_INPUT_BYTES as u64 + 1).unwrap();
+    std::fs::File::create(&big).unwrap().set_len(pluma_plugins::import::MAX_INPUT_BYTES as u64 + 1).unwrap();
     let big = big.to_string_lossy().into_owned();
     let e = crate::io::open_path(&mut app, &big).unwrap_err();
     assert!(e.contains("larger than"), "{e}");

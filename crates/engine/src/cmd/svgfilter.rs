@@ -4,9 +4,9 @@
 //! uses it draws, and deleting it leaves their effects in place, drawing nothing, until a filter of
 //! that name exists again. Each effect holds the definition it draws with, kept in step here.
 
+use pluma_doc::{Appearance, Document, SvgFilter};
+use pluma_render::effects::{self, svg_filter};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, Document, SvgFilter};
-use vectorcraft_render::effects::{self, svg_filter};
 
 use super::fileio::{absolute_path, read_file_head};
 use super::{CommandSpec, Result, Session, bad, cmd, has_doc, text_param};
@@ -79,13 +79,13 @@ fn name_param(p: &Value, cmd: &str) -> Result<String> {
 }
 
 /// Is `e` an `svg.filter` effect that names filter `name`?
-fn names(e: &vectorcraft_doc::Effect, name: &str) -> bool {
+fn names(e: &pluma_doc::Effect, name: &str) -> bool {
     e.id == effects::SVG_FILTER && e.params.get("name").and_then(Value::as_str) == Some(name)
 }
 
 /// The `svg.filter` effects of appearance `a` (its own and its fills' and strokes') that name
 /// filter `name`.
-fn named<'a>(a: &'a Appearance, name: &'a str) -> impl Iterator<Item = &'a vectorcraft_doc::Effect> + 'a {
+fn named<'a>(a: &'a Appearance, name: &'a str) -> impl Iterator<Item = &'a pluma_doc::Effect> + 'a {
     let items = a.items.iter().flat_map(|i| i.effects().iter());
     a.effects.iter().chain(items).filter(move |e| names(e, name))
 }
@@ -196,14 +196,14 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "svgFilter.import";
     let bytes = import_bytes(p, C)?;
     // SVGZ would unpack past the size read above.
-    if vectorcraft_svg::is_svgz(&bytes) {
+    if pluma_svg::is_svgz(&bytes) {
         return Err(bad(C, "Import SVG Filter reads SVG files, not SVGZ"));
     }
-    let text = vectorcraft_svg::text_of(&bytes).map_err(|e| bad(C, format!("the file isn't valid SVG: {e}")))?;
+    let text = pluma_svg::text_of(&bytes).map_err(|e| bad(C, format!("the file isn't valid SVG: {e}")))?;
     let held = s.doc()?.doc.svg_filters.clone();
     let room = SvgFilter::MAX.saturating_sub(held.len());
     // Filters past the room left and names the document has are left out unchecked.
-    let (found, skipped) = vectorcraft_svg::svg_filters(&text, room, |name| held.iter().any(|f| f.name == name))
+    let (found, skipped) = pluma_svg::svg_filters(&text, room, |name| held.iter().any(|f| f.name == name))
         .map_err(|e| bad(C, format!("the file isn't valid SVG: {e}")))?;
     let added: Vec<SvgFilter> = found.into_iter().map(|(name, xml)| SvgFilter { name, xml }).collect();
     let names: Vec<String> = added.iter().map(|f| f.name.clone()).collect();

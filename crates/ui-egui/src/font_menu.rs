@@ -21,9 +21,9 @@ use std::sync::Arc;
 use egui::{Color32, Sense, Ui, vec2};
 use serde_json::json;
 
-use vectorcraft_text::FontClass;
+use pluma_text::FontClass;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 use crate::widgets;
 use crate::widgets::{ArmedWheelField, WheelStream, WheelStreamOwner};
@@ -55,7 +55,7 @@ pub enum WheelOwner {
 }
 
 impl WheelOwner {
-    fn visible(self, app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+    fn visible(self, app: &PlumaApp, ctx: &egui::Context) -> bool {
         if crate::panels::character::text_style(app).is_none() {
             return false;
         }
@@ -68,7 +68,7 @@ impl WheelOwner {
             Self::Character => "character",
             Self::Properties => {
                 let selected = app.session.active().and_then(|document| document.selection.objects.first().and_then(|id| document.doc.node(*id)));
-                if !selected.is_some_and(|n| matches!(&n.kind, vectorcraft_doc::NodeKind::Text(_))) {
+                if !selected.is_some_and(|n| matches!(&n.kind, pluma_doc::NodeKind::Text(_))) {
                     return false;
                 }
                 "properties"
@@ -110,7 +110,7 @@ impl Default for MenuLook<'static> {
 }
 
 impl<'a> MenuLook<'a> {
-    pub fn of(app: &'a VectorcraftApp) -> Self {
+    pub fn of(app: &'a PlumaApp) -> Self {
         let row = match app.session.prefs.font_preview_size.as_str() {
             "small" => 20.0,
             "large" => 32.0,
@@ -166,7 +166,7 @@ fn variable_label() -> &'static str {
 
 /// Does a family of `traits` pass script filter `script` ([`SCRIPTS`])? Latin: neither Japanese
 /// nor Thai.
-fn script_matches(script: usize, traits: vectorcraft_text::FontTraits) -> bool {
+fn script_matches(script: usize, traits: pluma_text::FontTraits) -> bool {
     match script {
         1 => traits.japanese,
         2 => !traits.japanese && !traits.thai,
@@ -342,7 +342,7 @@ pub fn font_menu(
         ui.data_mut(|d| d.remove::<f32>(field.id.with("wheel")));
     } else if out.is_none() || drawn {
         if !turns.is_empty() {
-            let mut own = vectorcraft_text::FontDb::global().canonical(current, "").0;
+            let mut own = pluma_text::FontDb::global().canonical(current, "").0;
             let mut steps = Vec::new();
             for turn in turns {
                 match turn {
@@ -389,7 +389,7 @@ pub fn font_menu(
 }
 
 /// Does the menu list family `f` for search `query` (lowercase) under the filters of `st`?
-fn listed(db: &vectorcraft_text::FontDb, f: &str, query: &str, st: &MenuState, look: MenuLook) -> bool {
+fn listed(db: &pluma_text::FontDb, f: &str, query: &str, st: &MenuState, look: MenuLook) -> bool {
     let label = db.family_display_name(f, look.english_names);
     if !(query.is_empty() || f.to_lowercase().contains(query) || label.to_lowercase().contains(query)) {
         return false;
@@ -407,7 +407,7 @@ fn listed(db: &vectorcraft_text::FontDb, f: &str, query: &str, st: &MenuState, l
 /// The families the closed field's wheel steps through, in the open menu's order with no search:
 /// the recent families first, then the others, under the menu's filters.
 fn wheel_order(st: &MenuState, look: MenuLook) -> Vec<String> {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let families: Vec<_> = db.menu_family_list().iter().filter(|f| listed(db, f, "", st, look)).cloned().collect();
     grouped_rows(&families, look.recent, &[], |_| vec![])
         .into_iter()
@@ -627,12 +627,12 @@ pub(crate) fn offset_wheel_fields_for_test(ctx: &egui::Context, viewport: egui::
 struct WheelTarget {
     input: crate::state::InputGeneration,
     workspace: u64,
-    selection: Vec<vectorcraft_doc::NodeId>,
-    range: Option<(vectorcraft_doc::NodeId, usize, usize)>,
+    selection: Vec<pluma_doc::NodeId>,
+    range: Option<(pluma_doc::NodeId, usize, usize)>,
 }
 
 /// Pending turns and field rectangles belong to their input target and visible workspace.
-pub(crate) fn sync_wheel_target(app: &VectorcraftApp, ctx: &egui::Context, viewport: egui::ViewportId) {
+pub(crate) fn sync_wheel_target(app: &PlumaApp, ctx: &egui::Context, viewport: egui::ViewportId) {
     let target = WheelTarget {
         input: app.input_generation(),
         workspace: app.ui.docking_generation,
@@ -994,7 +994,7 @@ fn header<'s>(ui: &mut Ui, state_id: egui::Id, st: &'s mut MenuState, current: &
         }
     });
     let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // The current family by its own name (a document may name it in Japanese: ヒラギノ角ゴシック),
     // as it was before any preview.
     let current = db.canonical(&st.current, "").0;
@@ -1099,7 +1099,7 @@ fn rows(ui: &mut Ui, range: std::ops::Range<usize>, h: Listed<'_>, sample: Optio
     let current = current.as_str();
     let row_h = look.row;
     let t = Tokens::get(ui.ctx());
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let favorite = |f: &str| look.favorites.iter().any(|x| x.eq_ignore_ascii_case(f));
     if rows.is_empty() {
         // A filter or a font rescan can remove the row whose font was previewed.
@@ -1346,8 +1346,8 @@ const MAX_ASPECT: f32 = 10.0;
 /// `text` (or [`FALLBACK_SAMPLE`] when the font lacks some of its characters) set in `family`,
 /// `px` pixels high: a coverage mask as white with alpha.
 fn render_sample(family: &str, style: &str, text: &str, px: u32) -> Option<egui::ColorImage> {
-    let db = vectorcraft_text::FontDb::global();
-    let face: Arc<vectorcraft_text::FontFace> = db.face(family, style)?;
+    let db = pluma_text::FontDb::global();
+    let face: Arc<pluma_text::FontFace> = db.face(family, style)?;
     let covers = |s: &str| !s.trim().is_empty() && s.chars().filter(|c| !c.is_whitespace()).all(|c| face.covers(c));
     let text = if covers(text) { text } else { FALLBACK_SAMPLE };
     if !covers(text) && !face.family.eq_ignore_ascii_case(family) {
@@ -1357,16 +1357,16 @@ fn render_sample(family: &str, style: &str, text: &str, px: u32) -> Option<egui:
     let em = (asc + desc).max(1.0) / face.units_per_em();
     // The em box fills the height with a little air.
     let size = px as f64 * 0.8 / em;
-    let style = vectorcraft_doc::CharStyle { font_family: face.family.clone(), font_style: face.style.clone(), size, ..Default::default() };
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, text, style);
-    let layout = vectorcraft_text::layout(db, &t);
+    let style = pluma_doc::CharStyle { font_family: face.family.clone(), font_style: face.style.clone(), size, ..Default::default() };
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, text, style);
+    let layout = pluma_text::layout(db, &t);
     let mut path = layout.to_bezpath();
     let b = layout.bounds;
     let w = (b.width().ceil() as u32 + 2).clamp(1, (px as f32 * MAX_ASPECT) as u32) as usize;
     let h = px as usize;
     // Baseline where the ascent fits the top (with the air above it).
     let baseline = px as f64 * 0.1 + asc / face.units_per_em() * size;
-    path.apply_affine(vectorcraft_geom::Affine::translate((1.0 - b.x0.min(0.0), baseline)));
+    path.apply_affine(pluma_geom::Affine::translate((1.0 - b.x0.min(0.0), baseline)));
     let mask = crate::panels::glyphs::rasterize(&path, w, h);
     Some(egui::ColorImage::new([w, h], mask.iter().map(|&a| Color32::from_rgba_premultiplied(a, a, a, a)).collect()))
 }
@@ -1390,7 +1390,7 @@ fn open_id() -> egui::Id {
 /// closed) or is closing (Escape, a press outside the menu), before anything else sees this
 /// frame's input: the canvas must not act inside the preview's interaction (a drag would be
 /// rolled back with the preview). The shell calls it at the start of each frame.
-pub(crate) fn end_stale_preview(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn end_stale_preview(app: &mut PlumaApp, ctx: &egui::Context) {
     if !crate::panels::pstate::<bool>(ctx, PREVIEWING) {
         return;
     }
@@ -1410,7 +1410,7 @@ pub(crate) fn end_stale_preview(app: &mut VectorcraftApp, ctx: &egui::Context) {
 
 /// What the font menus preview on and apply to: the Type tool's selected range while it edits
 /// text (the whole text when nothing is selected), else the selected text objects.
-pub(crate) fn apply(app: &mut VectorcraftApp, ctx: &egui::Context, pick: FontPick) {
+pub(crate) fn apply(app: &mut PlumaApp, ctx: &egui::Context, pick: FontPick) {
     let previewing = crate::panels::pstate::<bool>(ctx, PREVIEWING);
     match pick {
         FontPick::Preview(f, style) => {
@@ -1463,7 +1463,7 @@ pub(crate) fn apply(app: &mut VectorcraftApp, ctx: &egui::Context, pick: FontPic
 }
 
 /// Star `family`, or take its star off (any case).
-fn toggle_favorite(app: &mut VectorcraftApp, family: String) {
+fn toggle_favorite(app: &mut PlumaApp, family: String) {
     let favs = &mut app.ui.favorite_fonts;
     match favs.iter().position(|x| x.eq_ignore_ascii_case(&family)) {
         Some(i) => {
@@ -1476,7 +1476,7 @@ fn toggle_favorite(app: &mut VectorcraftApp, family: String) {
 /// For a font menu that only picks a font and never changes the document (Find Font's Replace
 /// With, the Glyphs panel): the family (and style) chosen, if any. A star is toggled here; the
 /// highlighted row is not previewed.
-pub(crate) fn picked(app: &mut VectorcraftApp, pick: Option<FontPick>) -> Option<(String, Option<String>)> {
+pub(crate) fn picked(app: &mut PlumaApp, pick: Option<FontPick>) -> Option<(String, Option<String>)> {
     match pick? {
         FontPick::Chosen(f, style) => Some((f, style)),
         FontPick::Favorite(f) => {
@@ -1489,7 +1489,7 @@ pub(crate) fn picked(app: &mut VectorcraftApp, pick: Option<FontPick>) -> Option
 
 /// The command that sets font `family` (and `style`, else the closest the family has) on what the
 /// menus act on.
-fn font_command(app: &VectorcraftApp, family: &str, style: Option<&str>) -> (&'static str, serde_json::Value) {
+fn font_command(app: &PlumaApp, family: &str, style: Option<&str>) -> (&'static str, serde_json::Value) {
     let mut p = json!({"font": family});
     if let Some(s) = style {
         p["style"] = json!(s);
@@ -1515,15 +1515,15 @@ fn font_command(app: &VectorcraftApp, family: &str, style: Option<&str>) -> (&'s
 
 /// The text the menus sample: the Type tool's selected characters, else the first line of the
 /// first selected text object, at most a dozen characters.
-pub(crate) fn sample_text(app: &VectorcraftApp) -> Option<String> {
+pub(crate) fn sample_text(app: &PlumaApp) -> Option<String> {
     let doc = &app.session.active()?.doc;
     let text = match crate::panels::character::text_editing(app) {
         Some((id, a, b)) if b > a => match &doc.node(id)?.kind {
-            vectorcraft_doc::NodeKind::Text(t) => t.plain_text().get(a..b).map(str::to_string),
+            pluma_doc::NodeKind::Text(t) => t.plain_text().get(a..b).map(str::to_string),
             _ => None,
         },
         _ => app.session.active()?.selection.objects.iter().find_map(|id| match &doc.node(*id)?.kind {
-            vectorcraft_doc::NodeKind::Text(t) => Some(t.plain_text()),
+            pluma_doc::NodeKind::Text(t) => Some(t.plain_text()),
             _ => None,
         }),
     }?;

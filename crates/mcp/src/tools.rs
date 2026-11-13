@@ -1,8 +1,8 @@
 //! MCP tool definitions (names, descriptions, JSON Schemas) and their implementations on top of a
 //! [`Backend`].
 
+use pluma_engine::cmd::fileio::{ARTBOARD_PARAMS, FORMATS, OPEN_EXTS, SAVE_FORMATS, format, writable_format};
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::fileio::{ARTBOARD_PARAMS, FORMATS, OPEN_EXTS, SAVE_FORMATS, format, writable_format};
 
 use crate::backend::Backend;
 
@@ -39,6 +39,6 @@ impl ToolResult {
     /// The error's text, when the engine refused the call because a script is running.
     pub(crate) fn script_busy(&self) -> Option<String> {
         let text = self.content.first()?.get("text")?.as_str()?;
-        (self.is_error && text.ends_with(vectorcraft_engine::SCRIPT_BUSY)).then(|| text.to_string())
+        (self.is_error && text.ends_with(pluma_engine::SCRIPT_BUSY)).then(|| text.to_string())
     }
 }

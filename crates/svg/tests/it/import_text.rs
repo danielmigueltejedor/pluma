@@ -1,11 +1,11 @@
 //! SVG `<text>` import fidelity: placement in the tree, type on a path, per-character positions,
 //! paints and the style cascade.
 
-use vectorcraft_color::{GradientKind, Paint};
-use vectorcraft_doc::{CharStyle, Document, Justify, Node, NodeKind, TextKind, TextObject};
-use vectorcraft_geom::{Point, Rect};
-use vectorcraft_svg::{import, import_with_report};
-use vectorcraft_text::{FontDb, layout};
+use pluma_color::{GradientKind, Paint};
+use pluma_doc::{CharStyle, Document, Justify, Node, NodeKind, TextKind, TextObject};
+use pluma_geom::{Point, Rect};
+use pluma_svg::{import, import_with_report};
+use pluma_text::{FontDb, layout};
 
 fn svg(body: &str) -> String {
     format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="300">{body}</svg>"#)
@@ -61,7 +61,7 @@ fn metadata_ids_preserve_the_original_text_cascade() {
         for metadata in [false, true] {
             let attribute = if metadata { r#" data-note="kept""# } else { "" };
             let doc = open(&format!(r#"<style>{rules} rect[id]{{fill:black}}</style>{text}<rect width="5" height="5"{attribute}/>"#));
-            let expected = Paint::solid(vectorcraft_color::Color::rgb8(color.0, color.1, color.2));
+            let expected = Paint::solid(pluma_color::Color::rgb8(color.0, color.1, color.2));
             assert_eq!(only_text(&doc).runs[0].style.fill, expected, "{rules}, metadata {metadata}");
         }
     }
@@ -404,9 +404,9 @@ fn white_space_handling() {
 
 #[test]
 fn placeholder_ids_never_clash_with_the_files() {
-    let d = open(r#"<rect id="vectorcraft-text-0" width="5" height="5"/><text y="20">Safe</text>"#);
+    let d = open(r#"<rect id="pluma-text-0" width="5" height="5"/><text y="20">Safe</text>"#);
     assert_eq!(only_text(&d).plain_text(), "Safe");
-    assert_eq!(art(&d)[0].name.as_deref(), Some("vectorcraft-text-0"));
+    assert_eq!(art(&d)[0].name.as_deref(), Some("pluma-text-0"));
 }
 
 #[test]
@@ -418,7 +418,7 @@ fn linked_text_keeps_its_url_and_stroke_style() {
     assert_eq!(n.url(), Some("https://example.com/t"));
     let st = only_text(&d).first_style();
     assert!(close(st.stroke_width, 1.2, 1e-9), "{}", st.stroke_width);
-    assert_eq!(st.stroke_join, vectorcraft_doc::LineJoin::Round);
+    assert_eq!(st.stroke_join, pluma_doc::LineJoin::Round);
     assert_eq!(st.stroke_dash.as_ref().map(|d| d.pattern.clone()), Some(vec![2.0, 1.0]));
 }
 
@@ -586,7 +586,7 @@ fn gradients_on_scaled_text_stay_in_place() {
 /// The start of a type-on-a-path object's path and a point a little way along it, in document
 /// space.
 fn path_start(t: &TextObject) -> (Point, Point) {
-    use vectorcraft_geom::kurbo::{ParamCurve, PathEl};
+    use pluma_geom::kurbo::{ParamCurve, PathEl};
     let TextKind::OnPath { path, .. } = &t.kind else { panic!("{:?}", t.kind) };
     let mut bp = path.to_bezpath();
     bp.apply_affine(t.xf);

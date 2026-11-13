@@ -8,7 +8,7 @@
 //! rounding.
 
 use kurbo::{Affine, BezPath, PathSeg, Rect};
-use vectorcraft_geom::{Anchor, FillRule, PathData, SubPath};
+use pluma_geom::{Anchor, FillRule, PathData, SubPath};
 
 /// Inputs with fewer segments than this are always swept as they are.
 const MIN_SEGMENTS: usize = 2048;
@@ -152,7 +152,7 @@ pub(crate) fn unturn(mut path: PathData) -> PathData {
 #[cfg(test)]
 mod tests {
     use kurbo::{Join, Stroke, StrokeOpts};
-    use vectorcraft_geom::{Anchor, Point, Vec2};
+    use pluma_geom::{Anchor, Point, Vec2};
 
     use super::*;
     use crate::boolean::{BoolOp, DEFAULT_PRECISION, fill_bezpath, try_area, try_boolean, try_unite_all_upright, unite_all_upright};

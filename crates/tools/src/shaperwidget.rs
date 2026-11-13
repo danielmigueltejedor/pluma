@@ -6,10 +6,10 @@
 //! isolation with the group selected (`object.exitIsolation`). The Shaper and Selection tools hit
 //! it and the canvas draws it from the same geometry.
 
+use pluma_doc::shaper::SOURCES;
+use pluma_doc::{Document, NodeId, Selection};
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_doc::shaper::SOURCES;
-use vectorcraft_doc::{Document, NodeId, Selection};
-use vectorcraft_geom::Point;
 
 use crate::{Action, ToolContext};
 
@@ -108,7 +108,7 @@ mod tests {
             assert_eq!((w.group, w.construction, w.at), (g, false, Point::new(166.0, 350.0)));
             let isolate = vec![Action::Exec("object.isolate".into(), json!({ "id": g.0 }))];
             assert_eq!(SelectionTool::default().pointer(&c, &ev(PointerKind::Down, w.at)), isolate);
-            assert_eq!(ShaperTool::default().pointer(&c, &ev(PointerKind::Down, w.at + vectorcraft_geom::Vec2::new(0.0, 5.0))), isolate);
+            assert_eq!(ShaperTool::default().pointer(&c, &ev(PointerKind::Down, w.at + pluma_geom::Vec2::new(0.0, 5.0))), isolate);
             // A double-click on it does nothing more than its two clicks.
             assert_eq!(SelectionTool::default().pointer(&c, &ev(PointerKind::DoubleClick, w.at)), vec![]);
             assert_eq!(ShaperTool::default().pointer(&c, &ev(PointerKind::DoubleClick, w.at)), vec![]);
@@ -148,8 +148,8 @@ mod tests {
         s.add(g);
         let c = cx(&d, &s, &p);
         let w = ShaperWidget::of(c.doc, c.selection, c.isolation, c.zoom).unwrap();
-        assert!(over_widget(&c, w.at + vectorcraft_geom::Vec2::new(7.0, 0.0)));
-        assert!(!over_widget(&c, w.at + vectorcraft_geom::Vec2::new(8.0, 0.0)));
+        assert!(over_widget(&c, w.at + pluma_geom::Vec2::new(7.0, 0.0)));
+        assert!(!over_widget(&c, w.at + pluma_geom::Vec2::new(8.0, 0.0)));
         // A locked group has none.
         d.node_mut(g).unwrap().locked = true;
         assert!(widget(&d, &[g]).is_none());
@@ -164,11 +164,11 @@ mod tests {
         let mut s = Selection::default();
         s.add(g);
         assert!(ShaperWidget::of(&d, &s, None, 1.0).is_some());
-        d.mask_edit = Some(vectorcraft_doc::MaskEdit { object: rect, layer });
+        d.mask_edit = Some(pluma_doc::MaskEdit { object: rect, layer });
         assert!(ShaperWidget::of(&d, &s, Some(layer), 1.0).is_none(), "mask editing");
         assert!(ShaperWidget::of(&d, &Selection::default(), Some(sources), 1.0).is_none(), "mask editing, sources isolated");
         d.mask_edit = None;
-        d.pattern_edit = Some(vectorcraft_doc::pattern::PatternEdit { pattern: "P".into(), layer, original: None });
+        d.pattern_edit = Some(pluma_doc::pattern::PatternEdit { pattern: "P".into(), layer, original: None });
         assert!(ShaperWidget::of(&d, &s, Some(layer), 1.0).is_none(), "pattern editing");
         assert!(ShaperWidget::of(&d, &Selection::default(), Some(sources), 1.0).is_none(), "pattern editing, sources isolated");
     }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
+use pluma_doc::Selection;
 
 fn drag(t: &mut GestureTool, cx: &ToolContext, pts: &[(f64, f64)], m: Mods) -> Vec<Vec<Action>> {
     let mut v = vec![t.pointer(cx, &PointerEvent::new(PointerKind::Down, pts[0].0, pts[0].1))];
@@ -462,7 +462,7 @@ fn blob_brush_shift_keeps_the_stroke_horizontal_or_vertical() {
     for angle in [-450.0, -180.0, -90.0, 90.0, 180.0, 450.0] {
         cx.constrain_angle = angle;
         cx.zoom = 1.0;
-        let axes = vectorcraft_geom::constrain_axes(angle).unwrap();
+        let axes = pluma_geom::constrain_axes(angle).unwrap();
         for (x, y) in [(1.0, 0.5), (0.5, 1.0), (-1.0, -0.5), (-0.5, -1.0)] {
             t.pointer(&cx, &ev(PointerKind::Down, 0.0, 0.0, shift));
             let at = axes * Point::new(x, y);
@@ -684,11 +684,11 @@ fn pencil_shows_the_star_before_a_press_that_draws_a_new_path() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -735,11 +735,11 @@ fn pencil_shift_line_continues_a_selected_path_from_its_end() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -762,11 +762,11 @@ fn pencil_shows_the_continuation_cursor_over_an_end_a_line_continues() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -1047,11 +1047,11 @@ fn paintbrush_alt_with_only_two_anchor_line_selected_draws_a_closed_stroke() {
     let (mut d, _) = doc_with_rect();
     let layer = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(layer), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(layer), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut selected = Selection::default();
     selected.set([id]);
     let p = paint();
@@ -1081,11 +1081,11 @@ fn pencil_alt_line_snaps_its_ends_and_continues_a_selected_path() {
     }
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let mut cx = cx(&d, &s, &p);
@@ -1121,11 +1121,11 @@ fn edit_selected_paths_within_0_draws_a_new_path_from_an_end() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+    let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
     ]));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -1154,13 +1154,13 @@ fn edit_selected_paths_within_0_draws_a_new_path_from_an_end() {
 fn pencil_connects_a_stroke_from_one_selected_path_to_an_end_of_another() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
-    let add = |d: &mut vectorcraft_doc::Document, a: (f64, f64), b: (f64, f64)| {
+    let add = |d: &mut pluma_doc::Document, a: (f64, f64), b: (f64, f64)| {
         let id = d.alloc_id();
-        let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-            vectorcraft_geom::PathEl::MoveTo(Point::new(a.0, a.1)),
-            vectorcraft_geom::PathEl::LineTo(Point::new(b.0, b.1)),
+        let line = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+            pluma_geom::PathEl::MoveTo(Point::new(a.0, a.1)),
+            pluma_geom::PathEl::LineTo(Point::new(b.0, b.1)),
         ]));
-        d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+        d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
         id
     };
     let a = add(&mut d, (300.0, 300.0), (400.0, 300.0));
@@ -1573,7 +1573,7 @@ fn the_eraser_sends_its_tip_and_shows_the_area_it_covers() {
     let o = t.overlays(&cx);
     let [Overlay::Path { path, width, .. }] = &o[..] else { panic!("{o:?}") };
     assert_eq!(*width, 1.0);
-    let b = vectorcraft_geom::Shape::bounding_box(path);
+    let b = pluma_geom::Shape::bounding_box(path);
     assert!((b.x0 - 47.5).abs() < 0.1 && (b.x1 - 152.5).abs() < 0.1, "{b:?}");
     assert!((b.y0 - 140.0).abs() < 0.1 && (b.y1 - 160.0).abs() < 0.1, "{b:?}");
 }
@@ -1611,7 +1611,7 @@ fn the_blob_brush_sends_its_tip_and_shows_the_area_it_covers() {
     let o = t.overlays(&cx);
     let Some(Overlay::Path { path, width, .. }) = o.iter().find(|o| matches!(o, Overlay::Path { .. })) else { panic!("{o:?}") };
     assert_eq!(*width, 1.0);
-    let b = vectorcraft_geom::Shape::bounding_box(path);
+    let b = pluma_geom::Shape::bounding_box(path);
     assert!((b.x0 - 47.5).abs() < 0.1 && (b.x1 - 152.5).abs() < 0.1, "{b:?}");
     assert!((b.y0 - 140.0).abs() < 0.1 && (b.y1 - 160.0).abs() < 0.1, "{b:?}");
     assert!(o.iter().any(|o| matches!(o, Overlay::Measure { .. })), "{o:?}");
@@ -1622,7 +1622,7 @@ fn the_blob_brush_sends_its_tip_and_shows_the_area_it_covers() {
     let o = t.overlays(&cx);
     let [Overlay::Path { path, width, .. }] = &o[..] else { panic!("{o:?}") };
     assert_eq!(*width, 1.0);
-    assert!(vectorcraft_geom::Shape::bounding_box(path).height() < 0.1, "{o:?}");
+    assert!(pluma_geom::Shape::bounding_box(path).height() < 0.1, "{o:?}");
 }
 
 /// #4977: the Blob Brush and the Eraser show their tip at the pointer before a press and while
@@ -1639,12 +1639,12 @@ fn the_blob_brush_and_the_eraser_show_their_tip_at_the_pointer() {
     let bounds = |t: &GestureTool, cx: &ToolContext| match &t.overlays(cx)[..] {
         [Overlay::Path { path: halo, color: [0xff, 0xff, 0xff], width: 3.0, .. }, Overlay::Path { path, color: [0, 0, 0], width: 1.0, .. }] => {
             assert_eq!(halo, path);
-            Some(vectorcraft_geom::Shape::bounding_box(path))
+            Some(pluma_geom::Shape::bounding_box(path))
         }
         [] => None,
         o => panic!("{o:?}"),
     };
-    let near = |b: Option<vectorcraft_geom::Rect>, want: (f64, f64, f64, f64)| {
+    let near = |b: Option<pluma_geom::Rect>, want: (f64, f64, f64, f64)| {
         let b = b.unwrap_or_else(|| panic!("no tip"));
         assert!([b.x0 - want.0, b.y0 - want.1, b.x1 - want.2, b.y1 - want.3].iter().all(|e| e.abs() < 0.01), "{b:?} vs {want:?}");
     };

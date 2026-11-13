@@ -1,7 +1,7 @@
 # Polish (pl) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|few|many" forms).
 #
-# Clean-room: every entry is written from the meaning of VectorCraft's English label, following
+# Clean-room: every entry is written from the meaning of Pluma's English label, following
 # common Polish desktop-software conventions (commands in the imperative: "Otwórz…", "Zapisz";
 # menus and panels as nouns); no other application's Polish localisation was consulted or copied.
 # Drafted with AI assistance (Claude) from the English meaning; not yet fully reviewed by a native
@@ -27,17 +27,16 @@
 	Paste Design	Wklej projekt
 	Select Unused	Zaznacz nieużywane
 	Glowing Edges…	Świecące krawędzie…
-	About VectorCraft	O programie VectorCraft
+	About Pluma	O programie Pluma
 	Align to Path	Wyrównaj do ścieżki
 	Cut Path at Selected Anchor Points	Rozetnij ścieżkę w zaznaczonych punktach kontrolnych
-	Join Our Discord	Dołącz do naszego Discorda
 	Language	Język
 	UI Brightness	Jasność interfejsu
 	Dark	Ciemny
 	Medium Dark	Średnio ciemny
 	Medium Light	Średnio jasny
 	Light	Jasny
-	Quit VectorCraft	Zakończ VectorCraft
+	Quit Pluma	Zakończ Pluma
 # Artwork drag between document tabs.
 	Drop Artwork	Upuść kompozycję
 @msg	{key} must be [x, y] with finite coordinates	{key} musi mieć postać [x, y] ze skończonymi współrzędnymi
@@ -755,11 +754,10 @@
 	Save Swatch Library…	Zapisz bibliotekę próbek…
 	Symbol Libraries	Biblioteki symboli
 	Help	Pomoc
-	ArtCraft Website	Strona ArtCraft
-	VectorCraft on getartcraft.com	VectorCraft w getartcraft.com
-	VectorCraft on GitHub	VectorCraft w serwisie GitHub
+	Pluma Website	Strona Pluma
+	Pluma on GitHub	Pluma w serwisie GitHub
 	Search Commands…	Szukaj poleceń…
-	VectorCraft Help…	Pomoc VectorCraft…
+	Pluma Help…	Pomoc Pluma…
 	Auto Color	Kolor automatyczny
 	Automatic	Automatycznie
 	Isolate Selected Group	Izoluj zaznaczoną grupę
@@ -812,7 +810,7 @@
 	Dock Control Bar	Zadokuj pasek sterowania
 	Float Tool Group	Odepnij grupę narzędzi
 	Services	Usługi
-	Hide VectorCraft	Ukryj VectorCraft
+	Hide Pluma	Ukryj Pluma
 	Hide Others	Ukryj pozostałe
 	Minimize	Minimalizuj
 	Zoom	Zmień rozmiar
@@ -867,8 +865,8 @@
 	Stained Glass…	Witraż…
 	Texturizer…	Teksturowanie…
 	System Title Bar	Systemowy pasek tytułu
-	VectorCraft Title Bar on Every Desktop	Pasek tytułu VectorCraft na każdym pulpicie
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Dopóki zmienna środowiskowa VECTORCRAFT_TITLEBAR jest ustawiona, to ona wybiera pasek tytułu.
+	Pluma Title Bar on Every Desktop	Pasek tytułu Pluma na każdym pulpicie
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Dopóki zmienna środowiskowa PLUMA_TITLEBAR jest ustawiona, to ona wybiera pasek tytułu.
 	System Title Bar takes precedence over this option while it is on.	Dopóki Systemowy pasek tytułu jest włączony, ma pierwszeństwo przed tą opcją.
 	Exit	Zakończ
 	Distort	Zniekształcenie
@@ -2124,7 +2122,7 @@ digits	Malayalam	Malajalam
 	Select All Bound Objects	Zaznacz wszystkie powiązane obiekty
 	Multiple objects	Wiele obiektów
 	Graphics: {adapter}	Grafika: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Część ArtCraft. MIT LUB Apache-2.0. Czcionki: Source Sans 3, Inter, JetBrains Mono (OFL). Ikony: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Część Nodalia. MIT LUB Apache-2.0. Czcionki: Source Sans 3, Inter, JetBrains Mono (OFL). Ikony: Lucide (ISC) + Pluma.
 	Version {version} — open-source vector illustration in pure Rust.	Wersja {version} — otwartoźródłowa grafika wektorowa w czystym Ruście.
 	Align to Page	Wyrównaj do strony
 	Smooth Color	Gładki kolor
@@ -2469,7 +2467,7 @@ digits	Malayalam	Malajalam
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	Nie udało się odczytać folderów lub plików: {n}|Nie udało się odczytać folderów lub plików: {n}|Nie udało się odczytać folderów lub plików: {n}
 	The search stopped at its limit: search a smaller folder.	Wyszukiwanie zatrzymało się na limicie: przeszukaj mniejszy folder.
 	Copy only fonts you own or are licensed to install.	Kopiuj tylko czcionki, które posiadasz lub masz licencję na ich instalację.
-	VectorCraft copies the fonts to {folder}.	VectorCraft kopiuje czcionki do {folder}.
+	Pluma copies the fonts to {folder}.	Pluma kopiuje czcionki do {folder}.
 @plural	Apply to All ({n} more missing)|Apply to All ({n} more missing)	Zastosuj do wszystkich (brakuje jeszcze: {n})|Zastosuj do wszystkich (brakuje jeszcze: {n})|Zastosuj do wszystkich (brakuje jeszcze: {n})
 	Ignore	Ignoruj
 	Linked File Not Found	Nie znaleziono połączonego pliku
@@ -2558,7 +2556,7 @@ digits	Malayalam	Malajalam
 	On: one locked object showing the document, updated when it changes.	Wł.: jeden zablokowany obiekt pokazujący dokument, aktualizowany przy jego zmianie.
 	Off: an editable copy of its art, embedded in this document.	Wył.: edytowalna kopia jego kompozycji, osadzona w tym dokumencie.
 	Images: link to the file instead of only embedding it.	Obrazy: połącz z plikiem zamiast tylko go osadzać.
-	VectorCraft documents: one locked object, updated when the file changes.	Dokumenty VectorCraft: jeden zablokowany obiekt, aktualizowany przy zmianie pliku.
+	Pluma documents: one locked object, updated when the file changes.	Dokumenty Pluma: jeden zablokowany obiekt, aktualizowany przy zmianie pliku.
 	Alignment:	Wyrównanie:
 	Applies when the linked file is relinked or updated.	Ma zastosowanie, gdy połączony plik zostanie ponownie połączony lub zaktualizowany.
 	Bounds (Fill Proportionally)	Granice (wypełnij proporcjonalnie)
@@ -2697,7 +2695,7 @@ digits	Malayalam	Malajalam
 	3 Color Job	Praca 3-kolorowa
 	Recover Documents	Odzyskaj dokumenty
 	Restored documents open unsaved: save them to keep them.	Odzyskane dokumenty otwierają się jako niezapisane: zapisz je, aby je zachować.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	Ostatnio VectorCraft nie zakończył pracy prawidłowo. Te dokumenty miały niezapisane zmiany:
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Ostatnio Pluma nie zakończył pracy prawidłowo. Te dokumenty miały niezapisane zmiany:
 	Do you want to save the changes you made to “{name}”?	Czy zapisać zmiany wprowadzone w „{name}”?
 	Don't Save	Nie zapisuj
 	Your changes will be lost if you don't save them.	Jeśli ich nie zapiszesz, zmiany zostaną utracone.
@@ -2842,7 +2840,7 @@ antiAlias	Sharp	Ostre
 	Selected Swatches Only	Tylko zaznaczone próbki
 	User Defined Libraries	Biblioteki zdefiniowane przez użytkownika
 	Copy Report	Kopiuj raport
-	VectorCraft read this script without running it.	VectorCraft odczytał ten skrypt, nie uruchamiając go.
+	Pluma read this script without running it.	Pluma odczytał ten skrypt, nie uruchamiając go.
 	Needs nothing beyond plain JavaScript	Wymaga tylko zwykłego JavaScriptu
 	Needs the script language's own objects or directives	Wymaga własnych obiektów lub dyrektyw języka skryptowego
 	Needs the document model	Wymaga modelu dokumentu
@@ -3905,7 +3903,7 @@ axis	Both	Obie
 	Width	Szerokość
 	:	:
 effect	Regular	Normalny
-	Saving Poster.vectorcraft	Zapisywanie Poster.vectorcraft
+	Saving Poster.pluma	Zapisywanie Poster.pluma
 	Community	Społeczność
 	Hide Bar	Ukryj pasek
 	More Options	Więcej opcji
@@ -3917,11 +3915,7 @@ effect	Regular	Normalny
 	Quickly start a new file	Szybko rozpocznij nowy plik
 	Recent Files	Ostatnie pliki
 	Vector illustration — fast, open, scriptable.	Ilustracja wektorowa — szybka, otwarta, skryptowalna.
-	Welcome to VectorCraft	Witamy w VectorCraft
-	ArtCraft website	Strona ArtCraft
-	Discord	Discord
-	Join our Discord	Dołącz do naszego Discorda
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Dołącz do społeczności ArtCraft na Discordzie (discord.gg/artcraft)
+	Welcome to Pluma	Witamy w Pluma
 	Source code on GitHub	Kod źródłowy w serwisie GitHub
 	All Tools	Wszystkie narzędzia
 	Draw	Rysuj
@@ -3966,9 +3960,9 @@ font-technology	Variable	Zmienne
 	Installed plug-in {}	Zainstalowano wtyczkę {}
 	Revert to the saved version of “{name}”?	Przywrócić zapisaną wersję „{name}”?
 	Replace “{name}”, the file this document was opened from?	Zastąpić „{name}”, plik, z którego otwarto ten dokument?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Przy otwieraniu pominięto to, czego VectorCraft jeszcze nie odczytuje ({what}), więc zastąpienie pliku utraci to bezpowrotnie. Zapisz pod inną nazwą, aby to zachować.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Przy otwieraniu pominięto to, czego Pluma jeszcze nie odczytuje ({what}), więc zastąpienie pliku utraci to bezpowrotnie. Zapisz pod inną nazwą, aby to zachować.
 	“{name}” already exists. Replace it?	„{name}” już istnieje. Zastąpić?
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	Nazwa w oknie zapisu to „{typed}”, a VectorCraft dodał rozszerzenie typu pliku. Zastąpienie pliku nadpisze jego zawartość.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	Nazwa w oknie zapisu to „{typed}”, a Pluma dodał rozszerzenie typu pliku. Zastąpienie pliku nadpisze jego zawartość.
 	Saved {path}	Zapisano {path}
 	Saving	Zapisywanie
 	Saving {}	Zapisywanie {}
@@ -3976,7 +3970,7 @@ font-technology	Variable	Zmienne
 	Dashed Line	Linia przerywana
 	Panel menu	Menu panelu
 	Unembed…	Wyodrębnij…
-	Applies the next time VectorCraft starts.	Zostanie zastosowane przy następnym uruchomieniu VectorCraft.
+	Applies the next time Pluma starts.	Zostanie zastosowane przy następnym uruchomieniu Pluma.
 	Enable Contextual Task Bar	Włącz kontekstowy pasek zadań
 	Next	Dalej
 	OK	OK
@@ -4425,7 +4419,7 @@ imageTrace	Outline	Kontur
 @msg	can't encode the document: {0}	nie można zakodować dokumentu: {0}
 @msg	can't parse shortcut `{c}`	nie można przeanalizować skrótu `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	nie można przeanalizować skrótu `{s}` dla `{k}`
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	nie można zapisać wersji {0}: VectorCraft zapisuje wersje od {MIN_VERSION} do {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	nie można zapisać wersji {0}: Pluma zapisuje wersje od {MIN_VERSION} do {VERSION}
 @msg	can't write .{ext} images	nie można zapisywać obrazów .{ext}
 @msg	cannot distort a zero-size bounding box	nie można zniekształcić obwiedni o zerowym rozmiarze
 @msg	cannot read PDF: {0}	nie można odczytać PDF: {0}
@@ -4452,7 +4446,7 @@ imageTrace	Outline	Kontur
 @msg	empty brush stroke	puste pociągnięcie pędzla
 @msg	empty cutter	pusty obiekt tnący
 @msg	empty path	pusta ścieżka
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	wersja pliku {0} jest nowsza niż obsługiwana przez tę wersję VectorCraft ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	wersja pliku {0} jest nowsza niż obsługiwana przez tę wersję Pluma ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	dowolny punkt {i} wymaga `at` [x, y] i prawidłowego `color`
 @msg	freeform line {i} must be an array of point indices	dowolna linia {i} musi być tablicą indeksów punktów
 @msg	give both `start` and `end` [x, y] (or neither)	podaj zarówno `start`, jak i `end` [x, y] (albo żadnego)
@@ -4473,9 +4467,9 @@ imageTrace	Outline	Kontur
 @msg	invalid PDF setting: {0}	nieprawidłowe ustawienie PDF: {0}
 @msg	invalid image data for `{0}`	nieprawidłowe dane obrazu dla `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	nieprawidłowe parametry dla `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	nie jest obrazem obsługiwanym przez VectorCraft
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	używa `{at}`, czego czytnik PostScript programu VectorCraft nie zna
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	używa `{at}`, czego czytnik PostScript programu VectorCraft nie zna, w {procs}
+@msg	is not an image Pluma reads	nie jest obrazem obsługiwanym przez Pluma
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	używa `{at}`, czego czytnik PostScript programu Pluma nie zna
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	używa `{at}`, czego czytnik PostScript programu Pluma nie zna, w {procs}
 @msg	its Windows metafile preview was opened instead, which may simplify the art	zamiast tego otwarto jego podgląd w formacie metapliku Windows, co może uprościć kompozycję
 @msg	its preview was placed instead, at screen resolution	zamiast tego umieszczono jego podgląd w rozdzielczości ekranowej
 @msg	join needs open paths	łączenie wymaga otwartych ścieżek
@@ -4532,7 +4526,7 @@ imageTrace	Outline	Kontur
 @msg	no file system here	brak systemu plików
 @msg	no file writer	brak modułu zapisu plików
 @msg	no files to place	brak plików do umieszczenia
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` nie jest dokumentem VectorCraft, plikiem PDF ani plikiem .ai zgodnym z PDF
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` nie jest dokumentem Pluma, plikiem PDF ani plikiem .ai zgodnym z PDF
 @msg	no format to export to	brak formatu eksportu
 @msg	no free recovery area	brak wolnego obszaru odzyskiwania
 @msg	no gradient stop or freeform point is selected	nie zaznaczono punktu koloru gradientu ani dowolnego punktu
@@ -4577,7 +4571,7 @@ imageTrace	Outline	Kontur
 @msg	the action set file is larger than 8 MiB	plik zestawu operacji jest większy niż 8 MiB
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: dokumentacja byłaby większa niż {MAX_BYTES} bajtów
 @msg	the action set file holds more than 1,000 actions	plik zestawu operacji zawiera ponad 1000 operacji
-@msg	the action set file needs a later version of VectorCraft	plik zestawu operacji wymaga nowszej wersji programu VectorCraft
+@msg	the action set file needs a later version of Pluma	plik zestawu operacji wymaga nowszej wersji programu Pluma
 @msg	an action in the action set file has more than 10,000 steps	operacja w pliku zestawu operacji ma ponad 10 000 kroków
 @msg	no such anchor	brak takiego punktu
 @msg	no such artboard	brak takiego obszaru kompozycji
@@ -4609,11 +4603,11 @@ imageTrace	Outline	Kontur
 @msg	node {_1} is not text	węzeł {_1} nie jest tekstem
 @msg	node {_1} is on a locked artboard	węzeł {_1} jest na zablokowanym obszarze kompozycji
 @msg	not a DXF drawing	to nie jest rysunek DXF
-@msg	not a VectorCraft file: {0}	to nie jest plik VectorCraft: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	to nie jest zestaw skrótów VectorCraft (brak `overrides`)
+@msg	not a Pluma file: {0}	to nie jest plik Pluma: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	to nie jest zestaw skrótów Pluma (brak `overrides`)
 @msg	not a blend	to nie jest przejście
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	to nie jest zestaw skrótów: tekst nie zaczyna się od nazwy z ukośnikiem i otwierającego nawiasu klamrowego
-@msg	This shortcut file is in a form VectorCraft can't read.	Ten plik skrótów ma postać, której VectorCraft nie potrafi odczytać.
+@msg	This shortcut file is in a form Pluma can't read.	Ten plik skrótów ma postać, której Pluma nie potrafi odczytać.
 @msg	not a graphic style library (format `{_1}`)	to nie jest biblioteka stylów graficznych (format `{_1}`)
 @msg	not a stored central record	to nie jest zapisany rekord centralny
 @msg	not a valid plug-in module: {0}	nieprawidłowy moduł wtyczki: {0}
@@ -4905,11 +4899,11 @@ imageTrace	Outline	Kontur
 @msg	Sent to {_1}	Wysłano do {_1}
 @msg	{_1} files	Pliki {_1}
 @msg	The graphics were lost and have been restarted	Utracono grafikę i uruchomiono ją ponownie
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	Pierwszy wypróbowany procesor graficzny nie mógł wyświetlić okna, więc VectorCraft uruchomił się ponownie na {summary}
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Ostatnie uruchomienie VectorCraft zakończyło się na {name}, zanim pojawiło się okno, więc VectorCraft uruchomił się na {summary}. Aby ponownie wypróbować ten procesor graficzny, zmień Preferencje › Wydajność › Procesor graficzny lub uruchom z ustawioną zmienną WGPU_BACKEND
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Ostatnie uruchomienie VectorCraft zakończyło się podczas wyliczania procesorów graficznych, więc VectorCraft uruchomił się na {summary} tylko z OpenGL. Aby ponownie wypróbować pozostałe interfejsy graficzne, zmień Preferencje › Wydajność › Procesor graficzny lub uruchom z ustawioną zmienną WGPU_BACKEND
-@msg	Loading VectorCraft…	Wczytywanie VectorCraft…
-@msg	VectorCraft failed to start: {e}	Nie udało się uruchomić VectorCraft: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	Pierwszy wypróbowany procesor graficzny nie mógł wyświetlić okna, więc Pluma uruchomił się ponownie na {summary}
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Ostatnie uruchomienie Pluma zakończyło się na {name}, zanim pojawiło się okno, więc Pluma uruchomił się na {summary}. Aby ponownie wypróbować ten procesor graficzny, zmień Preferencje › Wydajność › Procesor graficzny lub uruchom z ustawioną zmienną WGPU_BACKEND
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Ostatnie uruchomienie Pluma zakończyło się podczas wyliczania procesorów graficznych, więc Pluma uruchomił się na {summary} tylko z OpenGL. Aby ponownie wypróbować pozostałe interfejsy graficzne, zmień Preferencje › Wydajność › Procesor graficzny lub uruchom z ustawioną zmienną WGPU_BACKEND
+@msg	Loading Pluma…	Wczytywanie Pluma…
+@msg	Pluma failed to start: {e}	Nie udało się uruchomić Pluma: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	Wymagana jest przeglądarka z obsługą WebGPU lub WebGL2.
 @msg	The graphics were lost and couldn't be restarted.	Utracono grafikę i nie udało się jej ponownie uruchomić.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Niezapisane zmiany są przechowywane w tej przeglądarce: odśwież stronę, aby je odzyskać.
@@ -4940,21 +4934,21 @@ imageTrace	Outline	Kontur
 @msg	it has more than {MAX_NODES} objects	ma ponad {MAX_NODES} obiektów
 @msg	it has no layers	nie ma warstw
 @msg	it has too many values in a row	ma zbyt wiele wartości z rzędu
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	zawiera {_1}, czego VectorCraft jeszcze z niego nie odczytuje
+@msg	it has {_1}, which Pluma doesn't read from it yet	zawiera {_1}, czego Pluma jeszcze z niego nie odczytuje
 @msg	its objects are nested too deeply	jego obiekty są zagnieżdżone zbyt głęboko
 @msg	its section ending with `%{end}` doesn't end	jego sekcja kończąca się na `%{end}` nie ma końca
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	pędzle, których VectorCraft jeszcze nie odczytuje, pominięto w panelu Pędzle ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	pędzle, których Pluma jeszcze nie odczytuje, pominięto w panelu Pędzle ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	obiekty z kilkoma wypełnieniami lub obrysami, obrysami o zmiennej szerokości, efektami albo pędzlami wczytano jako ich narysowany wygląd ({_1}): ich wyglądu nie można jeszcze edytować
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	nazwa `{name}` nie jest w UTF-8 i została odczytana jako {label}: jeśli wygląda źle, otwórz plik z innym legacyNameEncoding
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	nazwa `{name}` nie jest w UTF-8, a jej części nie są poprawne również w {label}: otwórz plik z innym legacyNameEncoding
 @msg	more names that aren't UTF-8 were read as {label} ({count})	kolejne nazwy spoza UTF-8 odczytano jako {label} ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	gradient „{name}” nie jest zdefiniowany w pliku: zastąpiono go jednolitym kolorem
-@msg	an image VectorCraft can't read was left out	pominięto obraz, którego VectorCraft nie potrafi odczytać
+@msg	an image Pluma can't read was left out	pominięto obraz, którego Pluma nie potrafi odczytać
 @msg	graphs come in as plain art, without their data or settings	wykresy są wczytywane jako zwykła grafika, bez ich danych i ustawień
 @msg	an image whose data is cut short was left out	pominięto obraz z uciętymi danymi
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	osadzony obraz o wymiarach {_1} × {_2} pikseli zmniejszono do {_3} × {_4} pikseli, aby zachować warstwy
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	połączone obrazy pokazują zapisany w pliku podgląd niskiej rozdzielczości, dopóki ich pliki nie zostaną znalezione: połącz je ponownie w panelu Łącza
-@msg	linked type areas past VectorCraft's limits were left out	połączone obszary tekstu poza limitami VectorCraft zostały pominięte
+@msg	linked type areas past Pluma's limits were left out	połączone obszary tekstu poza limitami Pluma zostały pominięte
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	tekst zmieniający kierunek pisania wewnątrz obiektu tekstowego otwiera się w kierunku swojego pierwszego znaku
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	tekst użyty jako maska w połączonych obszarach, oblewanym tekście lub ścieżce złożonej nie przycina
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	połączone obrazy bez podglądu w pliku pokazują symbol zastępczy, dopóki ich pliki nie zostaną znalezione: połącz je ponownie w panelu Łącza
@@ -4963,13 +4957,13 @@ imageTrace	Outline	Kontur
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	ten plik zapisano bez zgodności z PDF, a jego danych edycyjnych nie można odczytać ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	nie udało się odczytać części PDF ({_1}): plik otwarto z jego danych edycyjnych
 @msg	No fonts are missing in this document	W tym dokumencie nie brakuje czcionek
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft nie przeszukuje folderów innych aplikacji ani systemowych: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft nie przeszukuje folderu Shared ani Public w Users: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma nie przeszukuje folderów innych aplikacji ani systemowych: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma nie przeszukuje folderu Shared ani Public w Users: {path}
 @msg	{path} is not a folder	{path} nie jest folderem
 @msg	the search couldn't start: try again in a moment	nie udało się rozpocząć wyszukiwania: spróbuj ponownie za chwilę
 @msg	searching a folder isn't available on the web	przeszukiwanie folderu nie jest dostępne w wersji webowej
 @msg	every search thread stopped on an internal error (please report this bug)	wszystkie wątki wyszukiwania zatrzymały się na błędzie wewnętrznym (zgłoś ten błąd)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	folder czcionek VectorCraft nie jest tu ustawiony: ustawia go aplikacja desktopowa i vectorcraft-cli
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	folder czcionek Pluma nie jest tu ustawiony: ustawia go aplikacja desktopowa i pluma-cli
 @msg	choose the font files to add	wybierz pliki czcionek do dodania
 @msg	not a file	to nie jest plik
 @msg	not a font file	to nie jest plik czcionki
@@ -5127,12 +5121,12 @@ imageTrace	Outline	Kontur
 	All shortcuts reset to defaults.	Wszystkie skróty przywrócono do domyślnych.
 	Imported. Press OK to keep the imported set.	Zaimportowano. Naciśnij OK, aby zachować zaimportowany zestaw.
 	⚠ {chord} was already used by {names} — it has been removed there.	Uwaga: skrót {chord} był już używany przez {names} — został tam usunięty.
-	VectorCraft Defaults	Domyślne VectorCraft
+	Pluma Defaults	Domyślne Pluma
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} skrót jest przypisany więcej niż raz|{n} skróty są przypisane więcej niż raz|{n} skrótów jest przypisanych więcej niż raz
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	Importuj zestaw skrótów
 	Import Shortcut Set…	Importuj zestaw skrótów…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Każdy wpis pliku zostaje dopasowany do narzędzia, polecenia lub panelu VectorCraft. Sprawdź dopasowania i uzupełnij pozostałe.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Każdy wpis pliku zostaje dopasowany do narzędzia, polecenia lub panelu Pluma. Sprawdź dopasowania i uzupełnij pozostałe.
 	Keys	Klawisze
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Plik zapisuje klawisze i modyfikatory jako kody. Sprawdź proponowane znaczenia i uzupełnij kody, które nie są jeszcze znane.
 	Click, then press the key this code stands for (Esc cancels)	Kliknij, a następnie naciśnij klawisz oznaczany tym kodem (Esc anuluje)
@@ -5142,7 +5136,7 @@ imageTrace	Outline	Kontur
 	not known yet	jeszcze nieznany
 	Shortcuts	Skróty
 	In the File	W pliku
-	In VectorCraft	W VectorCraft
+	In Pluma	W Pluma
 	Needs Attention Only	Tylko wymagające uwagi
 	Ready	Gotowe
 	Needs a choice	Wymaga wyboru
@@ -5151,7 +5145,7 @@ imageTrace	Outline	Kontur
 	Tools take a single key (optionally with Shift)	Narzędzia przyjmują pojedynczy klawisz (opcjonalnie z Shift)
 	A later row takes this shortcut	Ten skrót przejmuje dalszy wiersz
 	Same item as a later row	Ten sam element co w dalszym wierszu
-	Start from VectorCraft Defaults	Zacznij od domyślnych skrótów VectorCraft
+	Start from Pluma Defaults	Zacznij od domyślnych skrótów Pluma
 	Add to the Current Shortcuts	Dodaj do bieżących skrótów
 	Remember My Choices	Zapamiętaj moje wybory
 	{ready} of {total} ready	Gotowe: {ready} z {total}
@@ -5391,7 +5385,7 @@ file-filter	Print presets	Ustawienia drukowania
 file-filter	Export presets	Ustawienia eksportu
 file-filter	SVG Compressed	SVG skompresowany
 file-filter	PDF-compatible .ai	.ai zgodny z PDF
-file-filter	VectorCraft Template	Szablon VectorCraft
+file-filter	Pluma Template	Szablon Pluma
 file-filter	Templates	Szablony
 diagnostics	render	renderowanie
 diagnostics	ui	interfejs
@@ -5402,7 +5396,7 @@ diagnostics	ui	interfejs
 @plural	{n} commit|{n} commits	{n} commit|{n} commity|{n} commitów
 gradient-kind	Radial	Promienisty
 mark-style	Japanese	Japońskie
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	skompresowany plik po rozpakowaniu przekracza limit VectorCraft ({_1} MB dokumentu, {_2} MB na obraz)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	skompresowany plik po rozpakowaniu przekracza limit Pluma ({_1} MB dokumentu, {_2} MB na obraz)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	dokument jest zbyt duży, aby zapisać go skompresowanego ({0}): zapisz go z wyłączoną opcją Używaj kompresji
 @msg	the file stopped being read (please report this bug)	odczyt pliku został przerwany (zgłoś ten błąd)
 	Concentric Dividers:	Podziały koncentryczne:
@@ -6390,7 +6384,7 @@ breakText	Glyphs	Glify
 	Malayalam	Malajalam
 	Odia	Orija
 	Urdu	Urdu
-	VectorCraft {release} and later (version {n})	VectorCraft {release} i nowsze (wersja {n})
+	Pluma {release} and later (version {n})	Pluma {release} i nowsze (wersja {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Eksportuj wszystkie otwarte dokumenty jako PDF
 	Export All Open Documents as SVG	Eksportuj wszystkie otwarte dokumenty jako SVG
@@ -6542,14 +6536,14 @@ breakText	Glyphs	Glify
 	Safe Mode	Tryb awaryjny
 	Help › Safe Mode…	Pomoc › Tryb awaryjny…
 	Enable on Re-launch	Włącz przy następnym uruchomieniu
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	Ostatnie uruchomienie programu VectorCraft zatrzymało się podczas wczytywania wtyczki {name}. Może ona nie być przyczyną.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Ostatnie uruchomienie programu Pluma zatrzymało się podczas wczytywania wtyczki {name}. Może ona nie być przyczyną.
 	Disable and Continue	Wyłącz i kontynuuj
 	Start Normally	Uruchom normalnie
 	Start in Safe Mode	Uruchom w trybie awaryjnym
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft działa w trybie awaryjnym: żadne wtyczki nie są wczytywane ani uruchamiane, dopóki program nie zostanie uruchomiony normalnie.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma działa w trybie awaryjnym: żadne wtyczki nie są wczytywane ani uruchamiane, dopóki program nie zostanie uruchomiony normalnie.
 	Disabled plug-ins	Wyłączone wtyczki
 	No plug-ins are disabled.	Żadna wtyczka nie jest wyłączona.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Tryb awaryjny jest włączony: wtyczki nie są wczytywane ani uruchamiane, dopóki VectorCraft nie zostanie uruchomiony normalnie
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Tryb awaryjny jest włączony: wtyczki nie są wczytywane ani uruchamiane, dopóki Pluma nie zostanie uruchomiony normalnie
 @msg	give `id` or `file` (see plugin.safeMode)	podaj `id` lub `file` (patrz plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	ta wtyczka nie jest wyłączona (patrz plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	Nie można zapisać wyłączonych wtyczek na następne uruchomienie

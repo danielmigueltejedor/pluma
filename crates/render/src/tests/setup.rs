@@ -1,6 +1,6 @@
 //! Document Setup options the renderer honours.
 
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
 
 use crate::*;
 

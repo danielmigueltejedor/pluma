@@ -6,8 +6,8 @@
 //! `ashow`, `widthshow` and `xshow` entries of chapter 8) is kept on live type as tracking. The
 //! fonts are written from scratch around the bundled Source Sans 3.
 
+use pluma_doc::{NodeKind, TextObject};
 use skrifa::{FontRef, MetadataProvider};
-use vectorcraft_doc::{NodeKind, TextObject};
 
 use super::tests::{all, read};
 use super::tests_composite::{FONT, glyph, sfnts};
@@ -43,7 +43,7 @@ fn texts(r: &crate::Imported) -> Vec<TextObject> {
 
 /// Where each glyph of `t` starts along its baseline (text space).
 fn origins(t: &TextObject) -> Vec<f64> {
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).glyphs.iter().map(|g| g.origin.x).collect()
+    pluma_text::layout(pluma_text::FontDb::global(), t).glyphs.iter().map(|g| g.origin.x).collect()
 }
 
 #[test]

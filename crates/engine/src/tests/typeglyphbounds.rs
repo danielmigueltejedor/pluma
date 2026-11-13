@@ -2,9 +2,9 @@
 //! Transform panel's values and `object.setBounds` measure each point type object selected as an
 //! object (not inside a selected group) by the ink of its glyphs instead of its em box.
 
+use pluma_doc::{NodeId, NodeKind, OrientedBox, TextObject};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind, OrientedBox, TextObject};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -37,7 +37,7 @@ fn text(s: &Session, id: NodeId) -> TextObject {
 /// The ink of the type's glyphs on the page, laid out afresh (not from the cache).
 fn ink(s: &Session, id: NodeId) -> Rect {
     let t = text(s, id);
-    t.xf.transform_rect_bbox(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).ink_bounds().unwrap())
+    t.xf.transform_rect_bbox(pluma_text::layout(pluma_text::FontDb::global(), &t).ink_bounds().unwrap())
 }
 
 /// The em box (the line box) of point type: what the bounding box measures by default.
@@ -170,7 +170,7 @@ fn rotated_and_skewed_type_measure_their_outlines() {
     run(&mut s, "object.transform", json!({"matrix": [1, 0, 0.6, 1, -360, 0]}));
     let b = s.transform_box(&[o]).unwrap();
     let tx = text(&s, o);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &tx);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &tx);
     let to_local = OrientedBox { angle: b.angle, rect: Rect::ZERO }.to_doc().inverse();
     let want = lay.ink_bounds_in(to_local * tx.xf).unwrap();
     assert!(near(b.rect, want, 1e-9), "{:?} != {want:?}", b.rect);
@@ -285,7 +285,7 @@ fn saved_documents_do_not_depend_on_the_preference() {
 /// What the type draws on the page: its glyphs and its underline and strikethrough bars.
 fn drawn(s: &Session, id: NodeId) -> Rect {
     let t = text(s, id);
-    vectorcraft_text::envelope_ink(&t, t.xf, None).unwrap()
+    pluma_text::envelope_ink(&t, t.xf, None).unwrap()
 }
 
 /// Underline and strikethrough bars are drawn with the type, so the box takes them in and a typed
@@ -315,7 +315,7 @@ fn underline_and_strikethrough_bars_count_as_ink() {
 fn the_cached_ink_is_the_laid_out_ink() {
     let (mut s, t) = with_type(json!({"x": 100, "y": 300, "size": 100, "text": "Hg"}));
     let tx = text(&s, t);
-    assert_eq!(tx.ink(), Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &tx).ink_bounds()));
+    assert_eq!(tx.ink(), Some(pluma_text::layout(pluma_text::FontDb::global(), &tx).ink_bounds()));
     run(&mut s, "object.transform", json!({"matrix": [2, 0, 0, 3, 0, 0]}));
     assert_eq!(text(&s, t).ink(), tx.ink());
     // A cache measured with other bounds is not read.

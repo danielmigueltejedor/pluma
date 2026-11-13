@@ -2,10 +2,10 @@
 //! start points from clicked anchors, adding keys to a blend instead of nesting it (M8.18), and
 //! Escape, or an edit made outside the tool, dropping the first pick.
 
+use pluma_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
+use pluma_doc::{Node, NodeKind};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -87,7 +87,7 @@ fn start_points_pair_the_clicked_anchors() {
     let (keys, sp) = spec(&s, g);
     assert_eq!(keys, vec![a, b], "keys in paint order");
     assert_eq!(sp.starts, vec![Some(0), Some(2)], "each start stays with its object");
-    let steps = vectorcraft_doc::live::expand_live(&node(&s, g));
+    let steps = pluma_doc::live::expand_live(&node(&s, g));
     let mid = steps[1].geometric_bounds().unwrap();
     assert!(mid.height() < 1e-6, "the middle step collapses where opposite corners meet: {mid:?}");
     assert!(s.execute("object.blend.make", &json!({"ids": [a.0, b.0], "starts": "x"})).is_err());
@@ -116,7 +116,7 @@ fn a_blend_and_an_object_make_one_blend_with_more_keys() {
     assert_eq!(sp.spacing, BlendSpacing::Steps(3), "the blend's options are kept");
     assert_eq!(n.name.as_deref(), Some("Ribbon"));
     assert!(s.doc().unwrap().doc.node(g).is_none());
-    assert_eq!(vectorcraft_doc::live::expand_live(&n).len(), 3 + 2 * 3);
+    assert_eq!(pluma_doc::live::expand_live(&n).len(), 3 + 2 * 3);
 }
 
 /// Choosing the Blend tool again (its button, W, `tool.select`) finishes the blend: the first
@@ -335,7 +335,7 @@ fn start_points_round_trip_and_old_blends_load() {
     let (a, b) = (rect(&mut s, 0.0, 0.0, 10.0), rect(&mut s, 100.0, 0.0, 10.0));
     s.execute("object.blend.make", &json!({"ids": [a.0, b.0], "starts": [null, 3]})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert_eq!(&back.layers, &d.layers);
     // A blend saved before start points has none.
     let old: BlendSpec = serde_json::from_value(json!({"spacing": {"steps": 4}, "orientation": "alignToPage"})).unwrap();
@@ -366,7 +366,7 @@ fn easing_is_set_validated_saved_and_old_blends_are_even() {
         assert_eq!(s.doc().unwrap().history.undo.len(), depth);
     }
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert_eq!(&back.layers, &d.layers);
     s.execute("object.blend.options", &json!({"ramp": 0})).unwrap();
     let zero = spec(&s, g).1;
@@ -384,15 +384,15 @@ fn a_document_with_bad_blend_easing_numbers_opens_clamped_while_commands_refuse(
     let (a, b) = (rect(&mut s, 0.0, 0.0, 10.0), rect(&mut s, 100.0, 0.0, 10.0));
     sel(&mut s, &[a, b]);
     let g = id_of(&s.execute("object.blend.make", &json!({"steps": 3, "easingType": "easeOut", "ramp": 40, "colorShift": -50})).unwrap());
-    let text = String::from_utf8(vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
-    let blend_of = |doc: &vectorcraft_doc::Document| match doc.node(g).unwrap().kind.clone() {
+    let text = String::from_utf8(pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let blend_of = |doc: &pluma_doc::Document| match doc.node(g).unwrap().kind.clone() {
         NodeKind::Blend { spec, .. } => *spec,
         _ => panic!("not a blend"),
     };
     for (ramp, shift, want) in [("12.5", "-9000.0", (1.0, -100.0)), ("-3.0", "250.0", (0.0, 100.0)), ("null", "\"NaN\"", (0.0, 0.0))] {
         let t = text.replacen("\"ramp\":0.4", &format!("\"ramp\":{ramp}"), 1).replacen("\"colorShift\":-50.0", &format!("\"colorShift\":{shift}"), 1);
         assert!(t != text && t.contains("\"ramp\":") && t.contains(shift), "the saved blend carries ramp and colorShift");
-        let doc = vectorcraft_format::load(t.as_bytes()).expect("one bad blend number must not fail the document");
+        let doc = pluma_format::load(t.as_bytes()).expect("one bad blend number must not fail the document");
         let spec = blend_of(&doc);
         assert_eq!((spec.ease.ramp, spec.color_shift), want, "{ramp} / {shift}");
     }

@@ -11,19 +11,19 @@
 
 use std::sync::LazyLock;
 
-use serde_json::{Map, Value, json};
-use vectorcraft_doc::Unit;
-use vectorcraft_engine::cmd::FlattenOptions;
-use vectorcraft_engine::cmd::fileio::{SaveMode, pdf};
-use vectorcraft_pdf::{
+use pluma_doc::Unit;
+use pluma_engine::cmd::FlattenOptions;
+use pluma_engine::cmd::fileio::{SaveMode, pdf};
+use pluma_pdf::{
     Changes, Choice, ColorConversion, Compatibility, Downsample, Encryption, ImageCodec, JpegQuality, MarkKind, MonoCodec, Overprint, PdfSettings,
     Printing, ProfileInclusion, Standard,
 };
+use serde_json::{Map, Value, json};
 
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(super) const KIND: &str = "savePdf";
 
@@ -54,7 +54,7 @@ static DEFAULTS: LazyLock<Value> = LazyLock::new(|| serde_json::to_value(PdfSett
 /// Is `name` a built-in PDF preset's? Those are ours (translated where listed); the saved ones are
 /// names.
 pub(super) fn is_builtin_preset(name: &str) -> bool {
-    static NAMES: LazyLock<Vec<String>> = LazyLock::new(|| vectorcraft_pdf::builtin_presets().into_iter().map(|p| p.name).collect());
+    static NAMES: LazyLock<Vec<String>> = LazyLock::new(|| pluma_pdf::builtin_presets().into_iter().map(|p| p.name).collect());
     NAMES.iter().any(|n| n == name)
 }
 
@@ -77,7 +77,7 @@ pub(super) const TOP_LABEL_WIDTH: f32 = LIST_WIDTH + 26.0;
 
 /// Open the dialog with `params` (`document.exportPdf` options and `path?`) applied over their
 /// preset.
-pub fn open(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, params: &Value) -> Result<Value, String> {
     let mut fields = settings_fields(app, params)?;
     let s = |k: &str| params.get(k).and_then(Value::as_str);
     fields.insert("preset".into(), json!(s("preset").unwrap_or(pdf::DEFAULT_PRESET)));
@@ -94,7 +94,7 @@ pub fn open(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
 
 /// The settings `params` ask for (their preset, built-in or saved, with their options applied) as
 /// dialog fields. A standard the writer can't produce yet still shows (Save PDF then says so).
-fn settings_fields(app: &VectorcraftApp, params: &Value) -> Result<Map<String, Value>, String> {
+fn settings_fields(app: &PlumaApp, params: &Value) -> Result<Map<String, Value>, String> {
     let settings = pdf::resolve("ui.savePdfDialog", params, &app.session.prefs.pdf_presets).map_err(|e| e.to_string())?;
     match serde_json::to_value(&settings).map_err(|e| e.to_string())? {
         Value::Object(mut fields) => {
@@ -128,7 +128,7 @@ fn params(d: &Dialog) -> Value {
 /// Save PDF: write the file (a PDF copy, or the PDF a Save As / Save a Copy asked for, `__save`);
 /// the dialog stays open when that fails (bad range, cancelled save…). While Save Preset… asks for
 /// a name, OK (and Enter) saves the preset instead.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.fields.contains_key(SAVE_AS) {
         let mut d = d.clone();
         let r = save_preset(app, &mut d);
@@ -157,7 +157,7 @@ fn preset_params(d: &Dialog) -> Value {
 }
 
 /// Save Preset…: save the settings under the typed name and pick that preset.
-fn save_preset(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<Value, String> {
+fn save_preset(app: &mut PlumaApp, d: &mut Dialog) -> Result<Value, String> {
     let mut p = preset_params(d);
     p["name"] = json!(d.str(SAVE_AS));
     let r = app.run("pdf.preset.save", p)?;
@@ -169,7 +169,7 @@ fn save_preset(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<Value, String
 
 /// Open the preset editor on the saved preset `name`, or on a new preset starting from `preset`
 /// (default: the app default).
-pub fn open_preset(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
+pub fn open_preset(app: &mut PlumaApp, params: &Value) -> Result<Value, String> {
     let s = |k: &str| params.get(k).and_then(Value::as_str);
     let (base, name, description, editing) = match s("name") {
         Some(name) => {
@@ -190,7 +190,7 @@ pub fn open_preset(app: &mut VectorcraftApp, params: &Value) -> Result<Value, St
 
 /// Save Preset (the preset editor's OK): `pdf.preset.save`, then back to Edit → PDF Presets on it.
 /// A new preset may not take the name of another one.
-fn confirm_preset(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm_preset(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut p = preset_params(d);
     let (name, editing) = (d.str("name"), d.str(EDITING));
     if editing.is_empty() {
@@ -328,7 +328,7 @@ pub(super) fn text(ui: &mut egui::Ui, d: &mut Dialog, path: &str, enabled: bool)
 
 // ---------- the dialog ----------
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let editor = d.kind == PRESET_KIND;
     if editor {
@@ -418,7 +418,7 @@ fn standard_chosen(d: &mut Dialog, standard: Standard) {
 
 /// The Preset row (the presets, built-in and saved, and Save Preset…) and, while Save Preset…
 /// asks for a name, the row taking it.
-fn preset_rows(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn preset_rows(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     row_with(ui, tl!("Preset:"), TOP_LABEL_WIDTH, |ui| {
         let presets = pdf::presets(&app.session);
         let names: Vec<&str> = presets.iter().map(String::as_str).collect();
@@ -456,7 +456,7 @@ fn preset_rows(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
 }
 
 /// Replace the settings with preset `name`'s (the artboard choice and path stay).
-fn apply_preset(app: &mut VectorcraftApp, d: &mut Dialog, name: &str) {
+fn apply_preset(app: &mut PlumaApp, d: &mut Dialog, name: &str) {
     match settings_fields(app, &json!({ "preset": name })) {
         Ok(settings) => {
             d.fields.extend(settings);
@@ -536,7 +536,7 @@ fn compression(ui: &mut egui::Ui, d: &mut Dialog) {
     flag(ui, d, "compression.compressText", tl!("Compress text and line art"), true);
 }
 
-pub(super) fn marks_and_bleeds(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(super) fn marks_and_bleeds(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let unit = app.session.general_unit();
     const MARKS: [(&str, &str); 4] = [
         ("marks.trim", "Trim marks"),
@@ -608,7 +608,7 @@ pub(super) fn profile_pick(ui: &mut egui::Ui, d: &mut Dialog, path: &str, names:
 }
 
 fn output(ui: &mut egui::Ui, d: &mut Dialog) {
-    let profiles = vectorcraft_color::cms::profiles();
+    let profiles = pluma_color::cms::profiles();
     let names = |blank: &'static str| -> Vec<&str> { std::iter::once(blank).chain(profiles.iter().map(|p| p.name.as_str())).collect() };
     let standard = choice::<Standard>(d, "standard").unwrap_or_default();
     heading(ui, tl!("Color"));
@@ -618,10 +618,8 @@ fn output(ui: &mut egui::Ui, d: &mut Dialog) {
     // PDF/X-1a converts to CMYK even without a conversion.
     let converting = get(d, "output.conversion") != ColorConversion::None.id() || standard.cmyk_only();
     // The document's own profile (blank), the CMYK profile in effect, then every profile.
-    let destinations: Vec<&str> = std::iter::once(DOCUMENT_PROFILE)
-        .chain(std::iter::once(vectorcraft_pdf::DOCUMENT_CMYK))
-        .chain(profiles.iter().map(|p| p.name.as_str()))
-        .collect();
+    let destinations: Vec<&str> =
+        std::iter::once(DOCUMENT_PROFILE).chain(std::iter::once(pluma_pdf::DOCUMENT_CMYK)).chain(profiles.iter().map(|p| p.name.as_str())).collect();
     row(ui, tl!("Destination:"), |ui| profile_pick(ui, d, "output.destination", &destinations, 2, converting));
     row(ui, tl!("Profile inclusion:"), |ui| {
         // A standard decides whether colours are tagged.
@@ -650,7 +648,7 @@ fn output(ui: &mut egui::Ui, d: &mut Dialog) {
     }
 }
 
-fn advanced(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn advanced(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     heading(ui, tl!("Fonts"));
     let outline = get(d, "advanced.outlineText").as_bool() == Some(true);
     row(ui, tl!("Subset fonts below:"), |ui| {
@@ -770,7 +768,7 @@ pub(super) fn option_label(option: &str) -> String {
 
 /// `document.pdfSettings` for the dialog with the document's warnings (an export in memory),
 /// cached until a field or the document changes.
-fn summary_of(app: &mut VectorcraftApp, ctx: &egui::Context, p: &Value) -> Result<Value, String> {
+fn summary_of(app: &mut PlumaApp, ctx: &egui::Context, p: &Value) -> Result<Value, String> {
     let revision = app.session.active().map_or(0, |s| s.revision);
     let stamp = egui::Id::unique((p.to_string(), revision));
     let key = egui::Id::unique("save-pdf-summary");
@@ -786,7 +784,7 @@ fn summary_of(app: &mut VectorcraftApp, ctx: &egui::Context, p: &Value) -> Resul
     v
 }
 
-fn summary(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn summary(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let t = Tokens::get(ui.ctx());
     let v = match summary_of(app, ui.ctx(), &params(d)) {
         Ok(v) => v,

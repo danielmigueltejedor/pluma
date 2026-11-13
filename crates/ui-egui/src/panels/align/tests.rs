@@ -19,7 +19,7 @@ fn single_object_aligns_to_artboard() {
 /// the key; Align then lines the object up on it rather than on the artboard.
 #[test]
 fn align_to_key_object_makes_a_selected_guide_the_key() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     app.run("guide.add", json!({"vertical": true, "pos": 120})).unwrap();
@@ -40,7 +40,7 @@ fn align_to_key_object_makes_a_selected_guide_the_key() {
 /// object to the artboard.
 #[test]
 fn a_lone_object_aligns_to_the_artboard() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 80, "y": 50, "width": 30, "height": 30})).unwrap()["id"].clone();
@@ -48,12 +48,12 @@ fn a_lone_object_aligns_to_the_artboard() {
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
     app.run("select.key", json!({"id": b})).unwrap();
     app.run("select.toggle", json!({"id": a})).unwrap();
-    let id = vectorcraft_doc::NodeId(b.as_u64().unwrap());
-    let bounds = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap();
+    let id = pluma_doc::NodeId(b.as_u64().unwrap());
+    let bounds = |app: &PlumaApp| app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap();
     // `align_buttons` (the Control bar and the Properties panel): one frame finds the first
     // button, and the next clicks Horizontal Align Right, the third.
     let at = std::cell::Cell::new(egui::Pos2::ZERO);
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
             ui.horizontal(|ui| {
                 at.set(ui.cursor().min);
@@ -86,7 +86,7 @@ fn align_both_centers_params() {
 /// choosing Align to Selection lets the key go.
 #[test]
 fn a_key_object_makes_align_align_to_it() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 80, "y": 50, "width": 30, "height": 30})).unwrap()["id"].clone();
@@ -100,8 +100,8 @@ fn a_key_object_makes_align_align_to_it() {
 
 /// Two rectangles, the back one at x 10 and the front one at x 80, selected front first →
 /// (the app, the back one's id, the front one's id).
-fn back_and_front() -> (VectorcraftApp, Value, Value) {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn back_and_front() -> (PlumaApp, Value, Value) {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let back = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     let front = app.run("shape.rectangle", json!({"x": 80, "y": 50, "width": 30, "height": 30})).unwrap()["id"].clone();
@@ -111,7 +111,7 @@ fn back_and_front() -> (VectorcraftApp, Value, Value) {
 
 /// One frame of the Align panel → its Align To buttons (Selection, Key Object, Artboard) and
 /// its Horizontal Align Left button.
-fn panel_buttons(app: &mut VectorcraftApp, ctx: &egui::Context) -> ([egui::Rect; 3], egui::Rect) {
+fn panel_buttons(app: &mut PlumaApp, ctx: &egui::Context) -> ([egui::Rect; 3], egui::Rect) {
     frame_events(ctx, app, vec![], show);
     // The 28-point buttons are Distribute Spacing's two and then Align To's three.
     let mut small = widget_rects(ctx, egui::vec2(28.0, 28.0));
@@ -123,8 +123,8 @@ fn panel_buttons(app: &mut VectorcraftApp, ctx: &egui::Context) -> ([egui::Rect;
 }
 
 /// The left edge of object `id`.
-fn left_edge(app: &VectorcraftApp, id: &Value) -> f64 {
-    let id = vectorcraft_doc::NodeId(id.as_u64().unwrap());
+fn left_edge(app: &PlumaApp, id: &Value) -> f64 {
+    let id = pluma_doc::NodeId(id.as_u64().unwrap());
     app.session.active().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0
 }
 
@@ -137,7 +137,7 @@ fn align_to_key_object_makes_the_topmost_object_the_key() {
     let ctx = egui::Context::default();
     let ([_, key, _], left) = panel_buttons(&mut app, &ctx);
     click(&ctx, &mut app, key.center(), show);
-    let key_object = |app: &VectorcraftApp| app.session.active().unwrap().selection.key.map(|k| k.0);
+    let key_object = |app: &PlumaApp| app.session.active().unwrap().selection.key.map(|k| k.0);
     assert_eq!(key_object(&app), front.as_u64(), "the front rectangle, selected first");
     app.run("select.set", json!({"ids": [back, front]})).unwrap();
     click(&ctx, &mut app, key.center(), show);
@@ -214,7 +214,7 @@ fn align_to_key_object_needs_two_selected_objects() {
 }
 
 /// One frame of the Align panel → the rects of the Align To buttons drawn as chosen.
-fn chosen_align_to(app: &mut VectorcraftApp, ctx: &egui::Context) -> Vec<egui::Rect> {
+fn chosen_align_to(app: &mut PlumaApp, ctx: &egui::Context) -> Vec<egui::Rect> {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
     out.textures_delta.clear();
     let fill = crate::theme::Tokens::get(ctx).tool_active;
@@ -255,7 +255,7 @@ fn screen_readers_name_the_buttons_and_the_align_to_choice() {
 /// #789: the Control bar's and the Properties panel's align buttons follow Align To too.
 #[test]
 fn the_other_align_buttons_align_to_the_align_to_choice() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 80, "y": 50, "width": 30, "height": 30})).unwrap()["id"].clone();
@@ -264,7 +264,7 @@ fn the_other_align_buttons_align_to_the_align_to_choice() {
     app.ui.align_to = AlignTo::Artboard;
     // One frame finds the first button (Horizontal Align Right is third); the next clicks it.
     let at = std::cell::Cell::new(egui::Pos2::ZERO);
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
             ui.horizontal(|ui| {
                 at.set(ui.cursor().min);
@@ -279,7 +279,7 @@ fn the_other_align_buttons_align_to_the_align_to_choice() {
     frame(&mut app, vec![egui::Event::PointerMoved(right), press(true)]);
     frame(&mut app, vec![press(false)]);
     let st = app.session.active().unwrap();
-    let x1 = |id: &serde_json::Value| st.doc.bounds_of(&[vectorcraft_doc::NodeId(id.as_u64().unwrap())], false).unwrap().x1;
+    let x1 = |id: &serde_json::Value| st.doc.bounds_of(&[pluma_doc::NodeId(id.as_u64().unwrap())], false).unwrap().x1;
     assert_eq!((x1(&a), x1(&b)), (200.0, 200.0), "both to the artboard's right edge");
 }
 
@@ -306,7 +306,7 @@ const BUTTON_ENTRIES: [(&str, &str); 15] = [
 const CHORD: &str = "Cmd+Alt+Shift+F2";
 
 /// One frame pressing [`CHORD`] through the shortcut handler.
-fn press_chord(app: &mut VectorcraftApp) {
+fn press_chord(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     let modifiers = egui::Modifiers::COMMAND | egui::Modifiers::ALT | egui::Modifiers::SHIFT;
     let ev = egui::Event::Key { key: egui::Key::F2, physical_key: None, pressed: true, repeat: false, modifiers };
@@ -319,7 +319,7 @@ fn press_chord(app: &mut VectorcraftApp) {
 /// and each can be given one.
 #[test]
 fn keyboard_shortcuts_lists_each_align_panel_button() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     let panel = {
         let (mut app, _, _) = back_and_front();
         tree(|ui| show(&mut app, ui))
@@ -344,23 +344,23 @@ fn keyboard_shortcuts_lists_each_align_panel_button() {
 /// Distribute Spacing value, and Horizontal Distribute Space makes the gaps equal.
 #[test]
 fn a_shortcut_runs_its_align_panel_button() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ids: Vec<Value> = [(10, 20), (50, 40), (120, 20)]
         .into_iter()
         .map(|(x, w)| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": w, "height": 10})).unwrap()["id"].clone())
         .collect();
     app.run("select.set", json!({"ids": ids})).unwrap();
-    let edges = |app: &VectorcraftApp, right: bool| {
+    let edges = |app: &PlumaApp, right: bool| {
         let st = app.session.active().unwrap();
         ids.iter()
             .map(|id| {
-                let b = st.doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap();
+                let b = st.doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap();
                 if right { b.x1 } else { b.x0 }
             })
             .collect::<Vec<_>>()
     };
-    let sent = |app: &VectorcraftApp| {
+    let sent = |app: &PlumaApp| {
         let (id, p) = app.session.journal.last().unwrap();
         (id.clone(), p["to"].clone(), p.get("spacing").cloned())
     };
@@ -403,8 +403,8 @@ fn an_align_panel_button_shortcut_is_kept_in_a_saved_set() {
         *w.borrow_mut() = b.to_vec();
         Ok(())
     }));
-    let top = |app: &VectorcraftApp, id: &Value| {
-        app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap().y0
+    let top = |app: &PlumaApp, id: &Value| {
+        app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap().y0
     };
     app.run("shortcuts.set", json!({"id": "align.verticalTop", "shortcut": CHORD})).unwrap();
     app.run("shortcuts.export", json!({"path": "/sets/Align.json"})).unwrap();
@@ -423,7 +423,7 @@ fn an_align_panel_button_shortcut_is_kept_in_a_saved_set() {
 
 /// One frame of the Align panel → its Horizontal Distribute Left and Horizontal Distribute
 /// Space buttons.
-fn distribute_buttons(app: &mut VectorcraftApp, ctx: &egui::Context) -> (egui::Rect, egui::Rect) {
+fn distribute_buttons(app: &mut PlumaApp, ctx: &egui::Context) -> (egui::Rect, egui::Rect) {
     frame_events(ctx, app, vec![], show);
     // The lower row of 32-point buttons is Distribute Objects': Vertical Distribute Top, Center
     // and Bottom, then Horizontal Distribute Left, Center and Right.
@@ -444,7 +444,7 @@ fn distribute_buttons(app: &mut VectorcraftApp, ctx: &egui::Context) -> (egui::R
 /// between them equal. With Align to Selection chosen, the outermost objects stay put.
 #[test]
 fn the_distribute_buttons_follow_align_to_artboard() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200, "artboards": 2})).unwrap();
     let boards: Vec<_> = app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
     let ids: Vec<Value> = [(10, 20), (50, 40), (120, 20)]
@@ -452,7 +452,7 @@ fn the_distribute_buttons_follow_align_to_artboard() {
         .map(|(x, w)| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": w, "height": 10})).unwrap()["id"].clone())
         .collect();
     app.run("select.set", json!({"ids": ids})).unwrap();
-    let lefts = |app: &VectorcraftApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
+    let lefts = |app: &PlumaApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
     let ctx = egui::Context::default();
     let (left, space) = distribute_buttons(&mut app, &ctx);
     click(&ctx, &mut app, left.center(), show);
@@ -475,16 +475,16 @@ fn the_distribute_buttons_follow_align_to_artboard() {
 /// they send no spacing.
 #[test]
 fn the_distribute_objects_buttons_send_the_spacing_with_a_key_object() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ids: Vec<Value> = [(10, 20), (50, 40), (120, 20)]
         .into_iter()
         .map(|(x, w)| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": w, "height": 10})).unwrap()["id"].clone())
         .collect();
     app.run("select.set", json!({"ids": ids})).unwrap();
-    let lefts = |app: &VectorcraftApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
+    let lefts = |app: &PlumaApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
     // The command and its `to` and `spacing` params (the app adds the active artboard).
-    let sent = |app: &VectorcraftApp| {
+    let sent = |app: &PlumaApp| {
         let (id, p) = app.session.journal.last().unwrap();
         (id.clone(), p["to"].clone(), p.get("spacing").cloned())
     };
@@ -508,7 +508,7 @@ fn the_distribute_objects_buttons_send_the_spacing_with_a_key_object() {
 /// Distribute Spacing value too, and the objects are spaced from the guide, which stays put.
 #[test]
 fn the_distribute_buttons_send_the_spacing_with_a_key_guide() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ids: Vec<Value> = [(10, 20), (50, 40), (120, 20)]
         .into_iter()
@@ -518,8 +518,8 @@ fn the_distribute_buttons_send_the_spacing_with_a_key_guide() {
     app.run("select.set", json!({"ids": ids})).unwrap();
     app.run("guide.select", json!({"indexes": [0], "toggle": true})).unwrap();
     app.run("select.key", json!({"guide": 0})).unwrap();
-    let lefts = |app: &VectorcraftApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
-    let sent = |app: &VectorcraftApp| {
+    let lefts = |app: &PlumaApp| ids.iter().map(|id| left_edge(app, id)).collect::<Vec<_>>();
+    let sent = |app: &PlumaApp| {
         let (id, p) = app.session.journal.last().unwrap();
         (id.clone(), p["to"].clone(), p.get("spacing").cloned())
     };
@@ -545,7 +545,7 @@ fn the_distribute_buttons_send_the_spacing_with_a_key_guide() {
 /// Horizontal Align Left puts every guide on the artboard's left edge (#3463).
 #[test]
 fn the_align_buttons_align_guides_selected_alone_to_artboard() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     for pos in [20, 50, 180] {
         app.run("guide.add", json!({"vertical": true, "pos": pos})).unwrap();
@@ -560,7 +560,7 @@ fn the_align_buttons_align_guides_selected_alone_to_artboard() {
     row.sort_by(|a, b| a.left().total_cmp(&b.left()));
     assert!(row[0].width() > 0.0, "Horizontal Align Left is enabled");
     click(&ctx, &mut app, row[0].center(), show);
-    let pos = |app: &VectorcraftApp| app.session.active().unwrap().doc.guides.iter().map(|g| g.pos).collect::<Vec<_>>();
+    let pos = |app: &PlumaApp| app.session.active().unwrap().doc.guides.iter().map(|g| g.pos).collect::<Vec<_>>();
     assert_eq!(pos(&app), [0.0, 0.0, 0.0], "{}", app.ui.status);
 }
 
@@ -570,7 +570,7 @@ fn the_align_buttons_align_guides_selected_alone_to_artboard() {
 /// describes for equal columns (https://community.adobe.com/questions-652/illustrator-equal-guides-822924).
 #[test]
 fn the_distribute_buttons_space_guides_selected_alone() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     for pos in [20, 50, 180] {
         app.run("guide.add", json!({"vertical": true, "pos": pos})).unwrap();
@@ -585,7 +585,7 @@ fn the_distribute_buttons_space_guides_selected_alone() {
     assert_eq!(row.len(), 6, "the Distribute row");
     // Its fifth button is Horizontal Distribute Center.
     click(&ctx, &mut app, row[4].center(), show);
-    let pos = |app: &VectorcraftApp| app.session.active().unwrap().doc.guides.iter().map(|g| g.pos).collect::<Vec<_>>();
+    let pos = |app: &PlumaApp| app.session.active().unwrap().doc.guides.iter().map(|g| g.pos).collect::<Vec<_>>();
     assert_eq!(pos(&app), [20.0, 100.0, 180.0], "{}", app.ui.status);
     app.run("edit.undo", json!({})).unwrap();
     assert_eq!(pos(&app), [20.0, 50.0, 180.0], "one undo step");
@@ -596,7 +596,7 @@ fn the_distribute_buttons_space_guides_selected_alone() {
 }
 
 /// Runs the Object → Align item `label` as a click on it does.
-fn object_align(app: &mut VectorcraftApp, label: &str) {
+fn object_align(app: &mut PlumaApp, label: &str) {
     let entry = crate::menus::menu_entries(app).into_iter().find(|e| e.path == ["Object", "Align"] && e.label == label).expect("menu item");
     let (id, p) = crate::menus::click_target(&entry.label, entry.command.as_deref().unwrap(), &entry.params);
     crate::menus::invoke(app, &id, p);
@@ -607,13 +607,13 @@ fn object_align(app: &mut VectorcraftApp, label: &str) {
 /// artboard too.
 #[test]
 fn object_align_follows_align_to() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200, "artboards": 2})).unwrap();
     let boards: Vec<_> = app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 10, "height": 10})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 80, "y": 50, "width": 30, "height": 30})).unwrap()["id"].clone();
-    let bounds = |app: &VectorcraftApp, id: &Value| {
-        app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap()
+    let bounds = |app: &PlumaApp, id: &Value| {
+        app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap()
     };
     app.run("select.set", json!({"ids": [b]})).unwrap();
     object_align(&mut app, "Horizontal Align Left");
@@ -629,11 +629,11 @@ fn object_align_follows_align_to() {
 /// one path align to their own bounds with Align to Selection and with Align to Artboard chosen.
 #[test]
 fn object_align_aligns_anchor_points_to_each_other() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("path.create", json!({"d": "M100 40 L200 60 L150 160 Z"})).unwrap()["id"].as_u64().unwrap();
-    let anchors = |app: &VectorcraftApp| -> Vec<(f64, f64)> {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+    let anchors = |app: &PlumaApp| -> Vec<(f64, f64)> {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap();
         node.path_data().unwrap().anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect()
     };
     for to in [AlignTo::Selection, AlignTo::Artboard] {
@@ -651,11 +651,11 @@ fn object_align_aligns_anchor_points_to_each_other() {
 /// the stored choice. With Align to Artboard chosen the points go to the artboard.
 #[test]
 fn anchor_points_of_one_path_align_to_each_other() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("path.create", json!({"d": "M100 40 L200 60 L150 160 Z"})).unwrap()["id"].as_u64().unwrap();
-    let xs = |app: &VectorcraftApp| -> Vec<f64> {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+    let xs = |app: &PlumaApp| -> Vec<f64> {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap();
         node.path_data().unwrap().anchors().map(|(_, _, a)| a.p.x).collect()
     };
     app.run("select.anchors", json!({"id": id, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
@@ -673,7 +673,7 @@ fn anchor_points_of_one_path_align_to_each_other() {
 /// #1636: the Distribute buttons work on the anchor points of one path (one object selected).
 #[test]
 fn distribute_buttons_space_the_anchor_points_of_one_path() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("path.create", json!({"d": "M10 10 L20 50 L100 30"})).unwrap()["id"].as_u64().unwrap();
     app.run("select.anchors", json!({"id": id, "anchors": [[0, 0], [0, 1], [0, 2]], "mode": "set"})).unwrap();
@@ -688,7 +688,7 @@ fn distribute_buttons_space_the_anchor_points_of_one_path() {
     assert_eq!(row.len(), 6, "the Distribute row");
     let hit = row[4].center();
     click(&ctx, &mut app, hit, show);
-    let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+    let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap();
     let xs: Vec<f64> = node.path_data().unwrap().anchors().map(|(_, _, a)| a.p.x).collect();
     assert_eq!(xs, [10.0, 55.0, 100.0], "{}", app.ui.status);
 }
@@ -697,20 +697,20 @@ fn distribute_buttons_space_the_anchor_points_of_one_path() {
 /// and Area Text each toggle their own preference and show a check while it is on.
 #[test]
 fn align_to_glyph_bounds_toggles_point_and_area_text() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     assert!(frame_events(&ctx, &mut app, vec![], menu).iter().any(|(t, _)| t.trim() == "Align to Glyph Bounds"));
-    let checked = |app: &mut VectorcraftApp| {
+    let checked = |app: &mut PlumaApp| {
         let texts = frame_events(&ctx, app, vec![], glyph_bounds_items);
         texts.iter().filter_map(|(t, _)| t.strip_prefix("✓ ")).map(str::to_string).collect::<Vec<_>>()
     };
-    let choose = |app: &mut VectorcraftApp, label: &str| {
+    let choose = |app: &mut PlumaApp, label: &str| {
         let texts = frame_events(&ctx, app, vec![], glyph_bounds_items);
         let r = texts.iter().find(|(t, _)| t.trim_start_matches('✓').trim() == label).unwrap_or_else(|| panic!("{label} in {texts:?}")).1;
         click(&ctx, app, r.center(), glyph_bounds_items);
     };
-    let prefs = |app: &VectorcraftApp| (app.session.prefs.align_glyph_bounds_point, app.session.prefs.align_glyph_bounds_area);
+    let prefs = |app: &PlumaApp| (app.session.prefs.align_glyph_bounds_point, app.session.prefs.align_glyph_bounds_area);
     assert!(checked(&mut app).is_empty(), "both off by default");
     choose(&mut app, "Point Text");
     assert_eq!((prefs(&app), checked(&mut app)), ((true, false), vec!["Point Text".to_string()]));

@@ -4,9 +4,9 @@ on:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
-      - "apps/vectorcraft/Cargo.toml"
-      - "apps/vectorcraft/src/printing.rs"
-      - "apps/vectorcraft/src/printing/**"
+      - "apps/pluma/Cargo.toml"
+      - "apps/pluma/src/printing.rs"
+      - "apps/pluma/src/printing/**"
       - "crates/ui-egui/src/print.rs"
       - "crates/ui-egui/src/tests/printps.rs"
       - ".github/workflows/print.yml"
@@ -30,8 +30,8 @@ jobs:
       targets: ""
       # A filter that matches nothing still passes, so the printps run fails unless some test ran.
       command: |
-        cargo clippy --locked -p vectorcraft --all-targets -- -D warnings
-        cargo test --locked -p vectorcraft
+        cargo clippy --locked -p pluma --all-targets -- -D warnings
+        cargo test --locked -p pluma
         log="$RUNNER_TEMP/printps.log"
-        cargo test --locked -p vectorcraft-ui-egui --lib -- tests::printps | tee "$log"
+        cargo test --locked -p pluma-ui-egui --lib -- tests::printps | tee "$log"
         grep -Eq 'test result: ok\. [1-9][0-9]* passed' "$log" || { echo "::error::tests::printps matched no tests"; exit 1; }

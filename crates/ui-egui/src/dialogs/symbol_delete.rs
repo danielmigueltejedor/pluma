@@ -2,7 +2,7 @@
 //! selected symbol?" with Yes and No ([`KIND`]); a symbol with placed instances gets Expand
 //! Instances, Delete Instances and Cancel ([`USED`]).
 //!
-//! Fields: `name` (the symbol) and `doc` (the [`vectorcraft_engine::DocState::uid`] of the document
+//! Fields: `name` (the symbol) and `doc` (the [`pluma_engine::DocState::uid`] of the document
 //! it was asked in). Yes or either Instances button deletes the symbol only while that document is
 //! the active one and still has the symbol; an unused symbol that has gained instances since asks
 //! the in-use question instead.
@@ -10,7 +10,7 @@
 use serde_json::{Value, json};
 
 use super::{DialogResult, DialogSpec};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 
 /// The dialog kind of the question for a symbol no instance uses.
@@ -49,7 +49,7 @@ pub(super) const USED_SPEC: DialogSpec = DialogSpec {
 /// Delete Symbol for symbol `name` of the active document. A symbol with instances always asks
 /// what becomes of them; an unused one is deleted at once with `now` (Alt-click on the panel's
 /// button) and asked about otherwise.
-pub(crate) fn ask(app: &mut VectorcraftApp, name: &str, now: bool) {
+pub(crate) fn ask(app: &mut PlumaApp, name: &str, now: bool) {
     let Some(uid) = app.session.active().map(|st| st.uid) else { return };
     match instances(app, uid, name) {
         None => {}
@@ -65,7 +65,7 @@ pub(crate) fn ask(app: &mut VectorcraftApp, name: &str, now: bool) {
 /// Delete Symbol for the unused symbols `names` that Select All Unused picked (#4918): asked once
 /// ("Delete the selected symbols?", or the singular for one), or at once with `now`. Only those still
 /// unused then (`symbol.unused`: brush art, patterns and nested instances count) go, in one undo step.
-pub(crate) fn ask_many(app: &mut VectorcraftApp, names: &[String], now: bool) {
+pub(crate) fn ask_many(app: &mut PlumaApp, names: &[String], now: bool) {
     let Some(uid) = app.session.active().map(|st| st.uid) else { return };
     if now {
         // An error already went to the status bar.
@@ -76,7 +76,7 @@ pub(crate) fn ask_many(app: &mut VectorcraftApp, names: &[String], now: bool) {
 }
 
 /// Deletes those of `names` that are still unused in document `uid` while it is the active one.
-fn delete_unused(app: &mut VectorcraftApp, uid: u64, names: &[String]) -> DialogResult {
+fn delete_unused(app: &mut PlumaApp, uid: u64, names: &[String]) -> DialogResult {
     if app.session.active().map(|st| st.uid) != Some(uid) {
         return Ok(Value::Null);
     }
@@ -93,13 +93,13 @@ fn delete_unused(app: &mut VectorcraftApp, uid: u64, names: &[String]) -> Dialog
     r
 }
 
-fn open(app: &mut VectorcraftApp, kind: &str, name: &str, uid: u64) {
+fn open(app: &mut PlumaApp, kind: &str, name: &str, uid: u64) {
     app.ui.dialog = Some(Dialog::new(kind, json!({ "name": name, "doc": uid })));
 }
 
 /// How many instances symbol `name` has, while the document `uid` is the active one and has the
 /// symbol; `None` otherwise.
-fn instances(app: &mut VectorcraftApp, uid: u64, name: &str) -> Option<u64> {
+fn instances(app: &mut PlumaApp, uid: u64, name: &str) -> Option<u64> {
     if app.session.active().map(|st| st.uid) != Some(uid) {
         return None;
     }
@@ -113,7 +113,7 @@ fn target(d: &Dialog) -> (u64, String) {
 }
 
 /// Yes: deletes the symbol, or asks the in-use question when it has gained instances.
-fn confirm_unused(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm_unused(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     app.ui.dialog = None;
     let (uid, name) = target(d);
     if let Some(names) = d.fields.get("names").and_then(|v| serde_json::from_value::<Vec<String>>(v.clone()).ok()) {
@@ -131,7 +131,7 @@ fn confirm_unused(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
 
 /// Expand Instances (OK) turns the instances into ordinary art; Delete Instances (`discard`)
 /// removes them. Either one deletes the symbol in one undo step.
-fn confirm_used(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm_used(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     app.ui.dialog = None;
     let (uid, name) = target(d);
     if instances(app, uid, &name).is_none() {

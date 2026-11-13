@@ -1,8 +1,8 @@
 use super::*;
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app
@@ -10,13 +10,13 @@ fn app() -> VectorcraftApp {
 
 /// Run the panel for one frame with `events` and `modifiers`; returns the spectrum's rect (when
 /// the options are shown) and the panel's height.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> (Option<Rect>, f32) {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> (Option<Rect>, f32) {
     frame_with(app, ctx, events, modifiers, "color-spectrum")
 }
 
 /// [`frame`] returning the rect of the panel's widget `id` instead of the spectrum's.
 fn frame_with(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ctx: &egui::Context,
     events: Vec<egui::Event>,
     modifiers: egui::Modifiers,
@@ -34,7 +34,7 @@ fn frame_with(
 }
 
 /// Click the spectrum at (x, y) (0..1 each) with `modifiers` held.
-fn click_spectrum(app: &mut VectorcraftApp, ctx: &egui::Context, (x, y): (f32, f32), modifiers: egui::Modifiers) {
+fn click_spectrum(app: &mut PlumaApp, ctx: &egui::Context, (x, y): (f32, f32), modifiers: egui::Modifiers) {
     let r = frame(app, ctx, vec![], modifiers).0.expect("the spectrum is drawn");
     let pos = egui::pos2(r.left() + x * r.width(), r.top() + y * r.height());
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers };
@@ -75,7 +75,7 @@ fn all_thirty_recent_colors_wrap_into_a_narrow_panel() {
     assert_eq!(app.session.recent_colors.len(), 30);
     let ctx = egui::Context::default();
     let screen = Rect::from_min_size(egui::Pos2::ZERO, vec2(160.0, 2000.0));
-    let chips = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let chips = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut rects = vec![];
         let input = egui::RawInput { screen_rect: Some(screen), events, ..Default::default() };
         let mut full = ctx.run_ui(input, |ui| {
@@ -140,7 +140,7 @@ fn a_gradient_stop_and_a_freeform_point_keep_the_panels_model_in_a_cmyk_document
 }
 
 /// One headless frame of the panel menu; returns its painted labels.
-fn menu_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+fn menu_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(236.0, 400.0))), events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
     out.textures_delta.clear();
@@ -148,7 +148,7 @@ fn menu_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::E
 }
 
 /// Click the panel menu's item `label`.
-fn click_menu_item(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn click_menu_item(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     let labels = menu_frame(app, ctx, vec![]);
     let at = labels.iter().find(|(t, _)| t.trim() == label).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no {label} in the menu"));
     let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
@@ -166,12 +166,12 @@ fn create_new_swatch_keeps_the_shown_colors_model_in_a_cmyk_document() {
     app.run("swatch.new", json!({"name": "Ink", "color": {"c": 0, "m": 60, "y": 90, "k": 0}, "spot": true})).unwrap();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let newest = |app: &VectorcraftApp| app.session.doc().unwrap().doc.swatches.last().cloned().expect("a swatch");
+    let newest = |app: &PlumaApp| app.session.doc().unwrap().doc.swatches.last().cloned().expect("a swatch");
     let ink = app.session.doc().unwrap().doc.swatch("Ink").and_then(|w| w.paint.color()).unwrap();
     for (fill, model) in [
-        (json!({"color": "#336699", "keepModel": true}), vectorcraft_color::cms::Model::Rgb),
-        (json!({"color": {"c": 10, "m": 20, "y": 30, "k": 5}}), vectorcraft_color::cms::Model::Cmyk),
-        (json!({"color": {"gray": 0.4}}), vectorcraft_color::cms::Model::Gray),
+        (json!({"color": "#336699", "keepModel": true}), pluma_color::cms::Model::Rgb),
+        (json!({"color": {"c": 10, "m": 20, "y": 30, "k": 5}}), pluma_color::cms::Model::Cmyk),
+        (json!({"color": {"gray": 0.4}}), pluma_color::cms::Model::Gray),
         (json!({"swatch": "Ink"}), ink.model()),
     ] {
         app.run("paint.setFill", fill.clone()).unwrap();
@@ -185,7 +185,7 @@ fn create_new_swatch_keeps_the_shown_colors_model_in_a_cmyk_document() {
     }
 }
 
-fn paints_hex(app: &VectorcraftApp) -> (String, String) {
+fn paints_hex(app: &PlumaApp) -> (String, String) {
     let (f, s) = crate::panels::current_paints(app);
     (f.color().map(|c| c.to_hex()).unwrap_or_default(), s.color().map(|c| c.to_hex()).unwrap_or_default())
 }
@@ -265,7 +265,7 @@ fn the_mode_follows_the_colours_model() {
 }
 
 /// The slider labels one frame of the panel draws.
-fn slider_labels(app: &mut VectorcraftApp, ctx: &egui::Context) -> Vec<String> {
+fn slider_labels(app: &mut PlumaApp, ctx: &egui::Context) -> Vec<String> {
     fn texts(s: &egui::Shape, out: &mut Vec<String>) {
         match s {
             egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -299,7 +299,7 @@ fn the_picked_mode_comes_back_after_a_restart() {
     assert_eq!(slider_labels(&mut app, &ctx), ["C", "M", "Y", "K"]);
     // Quit and start again: the saved UI state comes back, the session and the panel are new.
     let saved: crate::UiState = serde_json::from_value(serde_json::to_value(&app.ui).unwrap()).unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.ui = saved.sanitized();
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("file.documentColorMode", json!({"mode": "cmyk"})).unwrap();
@@ -331,7 +331,7 @@ fn lab_colours_show_lab_sliders_with_signed_ranges() {
     assert_eq!((Mode::Lab.value_at(1, 0.0), Mode::Lab.value_at(0, 1.0)), (-128.0, 100.0));
     assert_eq!((Mode::Rgb.value_at(0, 0.5), Mode::WebSafe.value_at(0, 0.45)), (128.0, 102.0), "other modes as before");
     assert_eq!(track_color(Mode::Lab, &[50.0, -20.0, 30.0], 1, 0.0), Color::lab(50.0, -128.0, 30.0));
-    assert_eq!(convert_to(Mode::Lab, &Color::rgb(1.0, 0.0, 0.0)).model(), vectorcraft_color::cms::Model::Lab);
+    assert_eq!(convert_to(Mode::Lab, &Color::rgb(1.0, 0.0, 0.0)).model(), pluma_color::cms::Model::Lab);
     // In the panel: a Lab fill shows L, a, b.
     let mut app = app();
     let ctx = egui::Context::default();
@@ -473,7 +473,7 @@ fn double_clicking_a_proxy_opens_the_color_picker_for_it() {
     let mut app = app();
     let ctx = egui::Context::default();
     // One frame of the proxy alone; returns the stroke square's rect.
-    let run = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
+    let run = |app: &mut PlumaApp, time: f64, events: Vec<egui::Event>| {
         let input = egui::RawInput { time: Some(time), events, ..Default::default() };
         let mut rect = None;
         let mut out = ctx.run_ui(input, |ui| {
@@ -510,7 +510,7 @@ fn a_global_colour_shows_tint_mode_and_the_t_slider_sets_its_tint() {
     });
     // The chip's name and the T row are drawn; a click on the slider's right part raises the
     // tint and keeps the link.
-    let texts = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let texts = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         fn walk(s: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
             match s {
                 egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.pos + t.galley.rect.center().to_vec2())),
@@ -643,10 +643,10 @@ fn ui_color_panel_answers_junk_params_without_a_panic() {
     let doc = crate::menus::UI_COMMANDS.iter().find(|c| c.0 == "ui.colorPanel").expect("registered").3;
     let mut app = app();
     app.run("paint.setFill", json!({"color": "#336699"})).unwrap();
-    for p in vectorcraft_testkit::strategies::junk_params(doc, "/nonexistent").into_iter().chain(vectorcraft_testkit::strategies::junk_values()) {
+    for p in pluma_testkit::strategies::junk_params(doc, "/nonexistent").into_iter().chain(pluma_testkit::strategies::junk_values()) {
         let _ = app.run("ui.colorPanel", p);
     }
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     assert_eq!(app.run("ui.colorPanel", json!({"mode": "cmyk"})).unwrap()["mode"], "cmyk");
 }
 

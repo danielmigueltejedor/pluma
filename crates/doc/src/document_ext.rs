@@ -183,7 +183,7 @@ impl Document {
                 r
             }
         };
-        let round_path = |path: &mut vectorcraft_geom::PathData| {
+        let round_path = |path: &mut pluma_geom::PathData| {
             for a in path.subpaths.iter_mut().flat_map(|s| s.anchors.iter_mut()) {
                 for p in [&mut a.p, &mut a.h_in, &mut a.h_out] {
                     *p = Point::new(round(p.x), round(p.y));

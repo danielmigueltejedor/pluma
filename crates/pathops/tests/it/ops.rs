@@ -1,8 +1,8 @@
 use std::f64::consts::PI;
 
 use kurbo::{ParamCurve, Point, Rect, Shape as _};
-use vectorcraft_geom::{AnchorKind, FillRule, PathData, SubPath};
-use vectorcraft_pathops::*;
+use pluma_geom::{AnchorKind, FillRule, PathData, SubPath};
+use pluma_pathops::*;
 
 const NZ: FillRule = FillRule::NonZero;
 
@@ -308,7 +308,7 @@ fn offset_of_an_open_path_whose_ends_meet_is_the_closed_shape_offset() {
     // A curved outline: the last anchor's in-handle shapes the closing curve.
     let mut sp = circle(0.0, 0.0, 10.0).subpaths.remove(0);
     let first = sp.anchors[0];
-    sp.anchors.push(vectorcraft_geom::Anchor::with_handles(first.p, first.h_in, first.p));
+    sp.anchors.push(pluma_geom::Anchor::with_handles(first.p, first.h_in, first.p));
     sp.anchors[0].h_in = first.p;
     sp.closed = false;
     let o = offset_path(&PathData::single(sp), 3.0, Join::Round, 4.0);
@@ -480,7 +480,7 @@ fn smooth_level_0_keeps_a_closed_paths_start_corner_within_tolerance() {
         .map(|i| {
             let (p, d_out) = at(f64::from(i) * step);
             let d_in = if i == 0 { at(1.5 * PI).1 } else { d_out };
-            vectorcraft_geom::Anchor::with_handles(p, p - d_in * (step / 3.0), p + d_out * (step / 3.0))
+            pluma_geom::Anchor::with_handles(p, p - d_in * (step / 3.0), p + d_out * (step / 3.0))
         })
         .collect();
     let p = PathData::single(SubPath::new(anchors, true));
@@ -596,7 +596,7 @@ fn timing_unite_1000_circles() {
 
 #[test]
 fn remove_anchor_refits_the_curve_round_it() {
-    use vectorcraft_geom::Anchor;
+    use pluma_geom::Anchor;
     let (p0, p3) = (Point::new(0.0, 0.0), Point::new(100.0, 0.0));
     let original =
         SubPath::new(vec![Anchor::with_handles(p0, p0, Point::new(30.0, 80.0)), Anchor::with_handles(p3, Point::new(70.0, 80.0), p3)], false);

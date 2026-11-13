@@ -27,9 +27,7 @@ pub(super) fn need_ui(b: &dyn Backend, tool: &str) -> Result<(), String> {
     if b.has_ui() {
         Ok(())
     } else {
-        Err(format!(
-            "`{tool}` needs the desktop app: run `vectorcraft --control 7979` and start the server with `vectorcraft-cli mcp --connect 127.0.0.1:7979`"
-        ))
+        Err(format!("`{tool}` needs the desktop app: run `pluma --control 7979` and start the server with `pluma-cli mcp --connect 127.0.0.1:7979`"))
     }
 }
 
@@ -402,7 +400,7 @@ pub(super) fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, St
         b.call("ui.render", p)?
     };
     let png = match r.get("pngBase64").and_then(Value::as_str) {
-        Some(b64) => vectorcraft_format::base64_decode(b64).ok_or("the backend returned bad base64")?,
+        Some(b64) => pluma_format::base64_decode(b64).ok_or("the backend returned bad base64")?,
         // An app from before `data` wrote the file without sending the image: read it back
         // (loopback: the same machine).
         None => match path {
@@ -422,7 +420,7 @@ pub(super) fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, St
 
 /// The window of an app from before `ui.screenshot {data}`, captured through a temporary file.
 fn old_window_capture(b: &mut dyn Backend, max: Option<u32>) -> Result<ToolResult, String> {
-    let tmp = std::env::temp_dir().join(format!("vectorcraft-window-{}.png", std::process::id())).to_string_lossy().to_string();
+    let tmp = std::env::temp_dir().join(format!("pluma-window-{}.png", std::process::id())).to_string_lossy().to_string();
     let r = b.call("ui.screenshot", json!({"path": tmp}))?;
     let png = std::fs::read(&tmp).map_err(|e| format!("read {tmp}: {e}"))?;
     // Best effort: a temporary file left behind is harmless.
@@ -481,7 +479,7 @@ fn fit_capture(png: Vec<u8>, max: Option<u32>, info: &mut Value) -> Result<Vec<u
 pub(super) fn image_result(png: &[u8], info: Value) -> ToolResult {
     ToolResult {
         content: vec![
-            json!({"type": "image", "data": vectorcraft_format::base64_encode(png), "mimeType": "image/png"}),
+            json!({"type": "image", "data": pluma_format::base64_encode(png), "mimeType": "image/png"}),
             json!({"type": "text", "text": info.to_string()}),
         ],
         is_error: false,

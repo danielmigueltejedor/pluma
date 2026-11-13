@@ -7,15 +7,15 @@
 //! `color` (the highlight color: `#rrggbb`, or a layer color's name such as "Red") and `width`
 //! (the highlight's width in screen pixels).
 
+use pluma_color::Color;
+use pluma_doc::LAYER_COLORS;
+use pluma_tools::builder::LP_SELECT_WIDTH_RANGE;
 use serde_json::{Map, Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::LAYER_COLORS;
-use vectorcraft_tools::builder::LP_SELECT_WIDTH_RANGE;
 
 use super::tile_edge_color::{checked, resolve};
 use super::{DialogSpec, form, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the Live Paint Selection Tool Options.
 pub const KIND: &str = "livePaintSelectionOptions";
@@ -32,19 +32,19 @@ const LABEL_W: f32 = 60.0;
 pub(super) const SPEC: DialogSpec = DialogSpec { heading, body, confirm, min_width: 300.0, ..DialogSpec::FORM };
 
 fn heading(_: &Dialog) -> String {
-    let label = vectorcraft_tools::tool_info(TOOL).map_or("", |t| t.label);
+    let label = pluma_tools::tool_info(TOOL).map_or("", |t| t.label);
     crate::i18n::fmt(tl!("{tool} Options"), &[("tool", tl!(label))])
 }
 
 /// Open the Live Paint Selection Tool Options with the tool's current values.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let o = app.session.tool_options_of(TOOL);
     let fields: Map<String, Value> = KEYS.iter().filter_map(|key| Some((key.to_string(), o.get(*key)?.clone()))).collect();
     app.ui.dialog = Some(Dialog { kind: KIND.into(), fields });
     Ok(json!({ "dialog": KIND }))
 }
 
-fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     form::check(ui, d, "selectFills", tl!("Select Fills"));
     form::check(ui, d, "selectStrokes", tl!("Select Strokes"));
     ui.add_space(6.0);
@@ -75,7 +75,7 @@ fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: set the tool's options, or an error for a `color` that is not a color.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.fields.contains_key("color") {
         checked(&d.str("color"))?;
     }
@@ -86,17 +86,17 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
-    use vectorcraft_tools::{Overlay, PointerEvent, PointerKind};
+    use pluma_engine::Session;
+    use pluma_tools::{Overlay, PointerEvent, PointerKind};
 
     /// The labels the open dialog paints.
-    fn painted(app: &mut VectorcraftApp) -> String {
+    fn painted(app: &mut PlumaApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
     }
 
     #[test]
     fn double_clicking_the_tool_opens_its_options_and_ok_sets_them() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         // Two squares side by side, made a Live Paint group: two faces and the edge between them.
         for x in [0, 100] {
@@ -106,7 +106,7 @@ mod tests {
         app.run("livePaint.make", json!({})).unwrap();
         app.run("select.set", json!({"ids": []})).unwrap();
         app.select_tool(TOOL);
-        let click = |app: &mut VectorcraftApp, x: f64| {
+        let click = |app: &mut PlumaApp, x: f64| {
             let view = app.view_info();
             crate::canvas::dispatch(app, &PointerEvent::new(PointerKind::Down, x, 100.0), view);
             crate::canvas::dispatch(app, &PointerEvent::new(PointerKind::Up, x, 100.0), view);
@@ -147,7 +147,7 @@ mod tests {
     /// `#rrggbb` still sets them.
     #[test]
     fn a_color_with_an_alpha_part_is_refused() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("tool.options", json!({"tool": TOOL})).unwrap();
         let d = app.ui.dialog.as_mut().unwrap();

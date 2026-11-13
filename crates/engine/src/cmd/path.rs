@@ -3,9 +3,9 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, Scaling};
+use pluma_geom::{Anchor, AnchorKind, PathData, Point, SubPath, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, Scaling};
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, Point, SubPath, Vec2};
 
 use super::create::anchor_from_json;
 use super::draw2::usize_opt;
@@ -148,7 +148,7 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-pub(super) fn path_mut(d: &mut vectorcraft_doc::Document, id: NodeId) -> Result<&mut PathData> {
+pub(super) fn path_mut(d: &mut pluma_doc::Document, id: NodeId) -> Result<&mut PathData> {
     let n = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
     match &mut n.kind {
         NodeKind::Path { path, live, .. } => {
@@ -233,12 +233,12 @@ pub(crate) fn move_anchors(s: &mut Session, p: &Value) -> Result<Value> {
     // `patterns` (default: General › Transform Pattern Tiles) is on.
     let whole = s.doc()?.selection.whole();
     let sc = Scaling { patterns: super::object::transform_patterns(s, p, &whole)?, ..Scaling::default() };
-    transform_anchors(s, "Move", vectorcraft_geom::Affine::translate(d), sc)?;
+    transform_anchors(s, "Move", pluma_geom::Affine::translate(d), sc)?;
     // Transform Again repeats a move that moved something; a drag records it when it commits.
     let st = s.doc_mut()?;
     if st.interaction.is_none() && (d.x != 0.0 || d.y != 0.0) {
         let options = json!({ "copy": false, "patterns": sc.patterns });
-        st.last_transform = Some(crate::LastTransform::Matrix(vectorcraft_geom::Affine::translate(d), options));
+        st.last_transform = Some(crate::LastTransform::Matrix(pluma_geom::Affine::translate(d), options));
         st.last_perspective = None;
     }
     ok()
@@ -247,12 +247,12 @@ pub(crate) fn move_anchors(s: &mut Session, p: &Value) -> Result<Value> {
 /// Apply `xf` to the direct-selected anchors, their handles with them, and (with `sc`) to the
 /// objects selected whole (those with no entry in the selection's `anchors`). An object inside
 /// another selected object, such as a path in a selected group, moves once, with that object.
-pub(crate) fn transform_anchors(s: &mut Session, label: &str, xf: vectorcraft_geom::Affine, sc: Scaling) -> Result<()> {
+pub(crate) fn transform_anchors(s: &mut Session, label: &str, xf: pluma_geom::Affine, sc: Scaling) -> Result<()> {
     let sel = s.doc()?.selection.clone();
     let ids = super::edit::outermost(&s.doc()?.doc, sel.objects.clone());
     let c = xf.as_coeffs();
     let is_translation = (c[0] - 1.0).abs() < 1e-9 && c[1].abs() < 1e-9 && c[2].abs() < 1e-9 && (c[3] - 1.0).abs() < 1e-9;
-    let delta = vectorcraft_geom::Vec2::new(c[4], c[5]);
+    let delta = pluma_geom::Vec2::new(c[4], c[5]);
     s.edit(label, |doc, _| {
         for id in &ids {
             match sel.anchors.get(id) {
@@ -316,7 +316,7 @@ fn move_anchor(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Move", |d, _| {
         let path = path_mut(d, id)?;
         let a = path.anchor_mut(si, ai).ok_or_else(|| EngineError::Other("no such anchor".into()))?;
-        *a = a.transform(vectorcraft_geom::Affine::translate(pos - a.p));
+        *a = a.transform(pluma_geom::Affine::translate(pos - a.p));
         // A pixel-aligned path, or the pixel-aligned compound path that holds it, snaps to the
         // pixel grid again.
         let top = compound_or_self(d, id);
@@ -396,7 +396,7 @@ fn selected_paths(s: &Session) -> Result<Vec<NodeId>> {
 }
 
 /// The paths in the subtrees of `ids` (in groups and compound paths too), each once.
-pub(super) fn paths_in(d: &vectorcraft_doc::Document, ids: &[NodeId]) -> Vec<NodeId> {
+pub(super) fn paths_in(d: &pluma_doc::Document, ids: &[NodeId]) -> Vec<NodeId> {
     let mut out = BTreeSet::new();
     for n in ids.iter().filter_map(|id| d.node(*id)) {
         n.walk(&mut |c| {
@@ -1186,13 +1186,13 @@ fn convert_anchors(s: &mut Session, p: &Value) -> Result<Value> {
             let Some(NodeKind::Blend { children, spec }) = d.node_mut(*id).map(|n| &mut n.kind) else { continue };
             // A spine from Replace Spine keeps its points and its keys spread along it: only the
             // handles change, and the keys are not pinned to points.
-            if vectorcraft_doc::live::blend_spine(children, spec).is_some_and(|(_, anchors)| anchors.is_none()) {
+            if pluma_doc::live::blend_spine(children, spec).is_some_and(|(_, anchors)| anchors.is_none()) {
                 if let Some(sp) = spec.spine.as_mut().and_then(|p| p.subpaths.first_mut()) {
                     convert(sp);
                 }
                 continue;
             }
-            let Some((mut path, anchors)) = vectorcraft_doc::live::pin_spine(children, spec) else { continue };
+            let Some((mut path, anchors)) = pluma_doc::live::pin_spine(children, spec) else { continue };
             let pinned = path.clone();
             let Some(sp) = path.subpaths.first_mut() else { continue };
             convert(sp);
@@ -1385,7 +1385,7 @@ pub(super) fn without_segments(sp: SubPath, removed: &BTreeSet<usize>) -> Vec<Su
     result
 }
 
-fn open_run(mut anchors: Vec<vectorcraft_geom::Anchor>) -> Option<SubPath> {
+fn open_run(mut anchors: Vec<pluma_geom::Anchor>) -> Option<SubPath> {
     if anchors.len() < 2 {
         return None;
     }
@@ -1420,9 +1420,9 @@ fn reshape(s: &mut Session, p: &Value) -> Result<Value> {
         let total = pos.last().copied().unwrap_or(0.0);
         // The default reach is the subpath's size, as before, now measured along it.
         let r = radius.unwrap_or_else(|| {
-            let mut bp = vectorcraft_geom::BezPath::new();
+            let mut bp = pluma_geom::BezPath::new();
             sp.to_bezpath_into(&mut bp);
-            let b = vectorcraft_geom::Shape::bounding_box(&bp);
+            let b = pluma_geom::Shape::bounding_box(&bp);
             (b.width().hypot(b.height()) / 2.0).max(1.0)
         });
         let from = pos.get(grabbed).copied().unwrap_or(0.0);

@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_geom::{Point, Rect, shapes};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_geom::{Point, Rect, shapes};
 
 use crate::{Appearance, CharStyle, Node, NodeId, NodeKind, TextObject};
 

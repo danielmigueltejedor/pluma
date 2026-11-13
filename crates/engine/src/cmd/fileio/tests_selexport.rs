@@ -3,8 +3,8 @@
 //! the clipping paths, opacity masks, effects, opacity and blend modes of the layers and groups that
 //! hold them.
 
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_geom::Rect;
 
 use super::*;
 
@@ -32,7 +32,7 @@ fn clipped(s: &mut Session) -> (u64, u64) {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap_or_else(|| panic!("no dataBase64 in {v}"))).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap_or_else(|| panic!("no dataBase64 in {v}"))).unwrap()
 }
 
 fn rect_of(v: &Value) -> Rect {
@@ -42,7 +42,7 @@ fn rect_of(v: &Value) -> Rect {
 
 /// What the canvas draws of the whole document over `r`, at 1 px per point.
 fn canvas(s: &Session, r: Rect) -> image::RgbaImage {
-    let img = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, r, 1.0, false);
+    let img = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, r, 1.0, false);
     image::load_from_memory(&img.to_png().unwrap()).unwrap().to_rgba8()
 }
 
@@ -82,7 +82,7 @@ fn export_selection_of_a_clipped_object_keeps_its_clip() {
     assert!(text.contains("<clipPath") && text.contains("clip-path"), "the SVG clips the square: {text}");
     // Opened again, the SVG draws what the canvas draws.
     let mut t = Session::new();
-    run(&mut t, "document.open", json!({"name": "sel.svg", "dataBase64": vectorcraft_format::base64_encode(&svg)}));
+    run(&mut t, "document.open", json!({"name": "sel.svg", "dataBase64": pluma_format::base64_encode(&svg)}));
     let board = t.doc().unwrap().doc.artboards[0].rect;
     let reopened = canvas(&t, board);
     let mut png = vec![];
@@ -157,7 +157,7 @@ fn export_selection_across_clip_groups_and_of_whole_ones() {
 fn a_selected_clipping_path_and_a_blend_object_export_on_their_own() {
     let mut s = session();
     let (square, group) = clipped(&mut s);
-    let circle = s.doc().unwrap().doc.node(vectorcraft_doc::NodeId(group)).unwrap().children().unwrap()[0].id.0;
+    let circle = s.doc().unwrap().doc.node(pluma_doc::NodeId(group)).unwrap().children().unwrap()[0].id.0;
     assert_ne!(circle, square);
     // The clipping path alone: the clip group's other art stays out.
     run(&mut s, "select.set", json!({"ids": [circle]}));
@@ -245,7 +245,7 @@ fn a_selection_on_a_non_printing_layer_exports_to_pdf() {
     run(&mut s, "select.set", json!({"ids": [square]}));
     let pdf = b64(&run(&mut s, "document.exportSelection", json!({"format": "pdf", "createLayers": false, "preserveEditing": false})));
     let mut t = Session::new();
-    run(&mut t, "document.open", json!({"name": "sel.pdf", "dataBase64": vectorcraft_format::base64_encode(&pdf)}));
+    run(&mut t, "document.open", json!({"name": "sel.pdf", "dataBase64": pluma_format::base64_encode(&pdf)}));
     let page = t.doc().unwrap().doc.artboards[0].rect;
     let mut png = vec![];
     canvas(&t, page).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
@@ -282,7 +282,7 @@ fn a_text_export_of_the_selection_leaves_out_a_type_clipping_path() {
     run(&mut s, "object.clippingMask.make", json!({"ids": [clip, inner]}));
     let mut first = None;
     s.doc().unwrap().doc.layers[0].walk(&mut |n| {
-        if matches!(n.kind, vectorcraft_doc::NodeKind::Group { clip: true, .. }) {
+        if matches!(n.kind, pluma_doc::NodeKind::Group { clip: true, .. }) {
             first = n.children().and_then(|c| c.first()).map(|c| c.id.0);
         }
     });
@@ -366,10 +366,10 @@ fn selected_only_keeps_holders_and_takes_a_blend_object_alone() {
     run(&mut s, "select.set", json!({"ids": [a]}));
     let svg = run(&mut s, "document.serialize", json!({"format": "svg", "selectedOnly": true}))["text"].as_str().unwrap().to_string();
     let mut t = Session::new();
-    run(&mut t, "document.open", json!({"name": "a.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())}));
+    run(&mut t, "document.open", json!({"name": "a.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes())}));
     let mut paths = 0;
     for l in &t.doc().unwrap().doc.layers {
-        l.walk(&mut |n| paths += usize::from(matches!(n.kind, vectorcraft_doc::NodeKind::Path { .. })));
+        l.walk(&mut |n| paths += usize::from(matches!(n.kind, pluma_doc::NodeKind::Path { .. })));
     }
     assert_eq!(paths, 1, "the blend object alone, without the steps: {svg}");
 }

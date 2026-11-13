@@ -3,8 +3,8 @@
 
 use crate::*;
 use kurbo::{Affine, Point, Rect, Shape};
-use vectorcraft_doc::{CharStyle, RubyAlign, RubyPosition, RubySpan, TextKind};
-use vectorcraft_geom::PathData;
+use pluma_doc::{CharStyle, RubyAlign, RubyPosition, RubySpan, TextKind};
+use pluma_geom::PathData;
 
 fn db() -> &'static FontDb {
     FontDb::global()
@@ -72,7 +72,7 @@ fn horizontal_ruby_sits_above_the_base_and_grows_the_line() {
 /// not over the bullet and the gap before them.
 #[test]
 fn ruby_over_a_list_item_leaves_out_its_bullet() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let mut t = ruby_text("漢字", 6, "かんじ", 20.0);
     t.para.list = Some(ParaList::bulleted(Bullet::Dot));
     t.para.left_indent = 18.0;

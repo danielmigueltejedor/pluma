@@ -160,7 +160,7 @@ pub use save_pdf::{open as open_save_pdf, open_preset as open_pdf_preset};
 pub use tools::open_tool_dialog;
 
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 type DialogResult = Result<Value, String>;
 
@@ -181,18 +181,18 @@ pub(crate) enum DialogAction {
 /// differs.
 pub(crate) struct DialogSpec {
     /// Draws its own window instead of the shared frame (the frame fields below are then unused).
-    pub window: Option<fn(&mut VectorcraftApp, &egui::Context)>,
+    pub window: Option<fn(&mut PlumaApp, &egui::Context)>,
     /// The heading (and window title), in the UI language: the spec translates its own text and
     /// leaves names in it (a document's, a plug-in's) as they are.
     pub heading: fn(&Dialog) -> String,
     /// Optional heading band inside the shared window; normal dialogs use `modal::heading`.
     pub header: Option<fn(&mut egui::Ui, &str)>,
     /// Draws the fields. Returns true to close the dialog as Cancel would.
-    pub body: fn(&mut VectorcraftApp, &mut egui::Ui, &mut Dialog) -> bool,
+    pub body: fn(&mut PlumaApp, &mut egui::Ui, &mut Dialog) -> bool,
     /// Optional body with inline buttons; replaces `body` and the shared footer.
-    pub body_with_actions: Option<fn(&mut VectorcraftApp, &mut egui::Ui, &mut Dialog) -> DialogAction>,
+    pub body_with_actions: Option<fn(&mut PlumaApp, &mut egui::Ui, &mut Dialog) -> DialogAction>,
     /// OK, Enter or `ui.dialog.confirm`: applies the dialog and closes it when done.
-    pub confirm: fn(&mut VectorcraftApp, &Dialog) -> DialogResult,
+    pub confirm: fn(&mut PlumaApp, &Dialog) -> DialogResult,
     /// The OK button's label. None: no OK button, Enter does nothing and Cancel reads "Close".
     pub ok: Option<&'static str>,
     /// The Cancel button's label when it is not "Cancel" ("No"). Only with an `ok`.
@@ -205,7 +205,7 @@ pub(crate) struct DialogSpec {
     /// Puts the fields back to their defaults. While Alt (Option on macOS) is held, the Cancel
     /// button of a dialog with an `ok` reads Reset; Reset (or `ui.dialogReset`) runs this and the
     /// dialog stays open.
-    pub reset: Option<fn(&VectorcraftApp, &mut Dialog)>,
+    pub reset: Option<fn(&PlumaApp, &mut Dialog)>,
     pub min_width: f32,
     pub max_width: Option<f32>,
     /// The body runs a live preview interaction that Cancel rolls back.
@@ -218,9 +218,9 @@ pub(crate) struct DialogSpec {
     pub passes: fn(&Dialog, &str) -> bool,
     /// The OK button's label when it depends on the app (Export for Screens' "Download" on the
     /// web); `ok` when none. Only with an `ok`.
-    pub ok_label: Option<fn(&VectorcraftApp) -> &'static str>,
+    pub ok_label: Option<fn(&PlumaApp) -> &'static str>,
     /// Can OK (or Enter) apply the dialog as it is? None: always. The body says why not.
-    pub ok_enabled: Option<fn(&VectorcraftApp, &Dialog) -> bool>,
+    pub ok_enabled: Option<fn(&PlumaApp, &Dialog) -> bool>,
     /// What a dialog draws at the left end of its button row, level with the buttons, instead of
     /// in its body (Transform Each's Preview checkbox).
     pub footer_left: Option<fn(&mut egui::Ui, &mut Dialog)>,
@@ -257,7 +257,7 @@ impl DialogSpec {
     };
 
     /// A dialog that draws its own window and confirms through its module.
-    const fn window(show: fn(&mut VectorcraftApp, &egui::Context), confirm: fn(&mut VectorcraftApp, &Dialog) -> DialogResult) -> Self {
+    const fn window(show: fn(&mut PlumaApp, &egui::Context), confirm: fn(&mut PlumaApp, &Dialog) -> DialogResult) -> Self {
         Self { window: Some(show), confirm, ..Self::FORM }
     }
 }
@@ -523,7 +523,7 @@ pub fn field_names(d: &Dialog) -> Vec<String> {
 }
 
 /// Run a command and close the dialog (whether or not the command succeeded).
-fn run_and_close(app: &mut VectorcraftApp, id: &str, params: Value) -> DialogResult {
+fn run_and_close(app: &mut PlumaApp, id: &str, params: Value) -> DialogResult {
     let r = app.run(id, params);
     app.ui.dialog = None;
     r
@@ -542,7 +542,7 @@ pub(crate) fn parent(d: &Dialog) -> Option<Dialog> {
 /// sets them as choosing it in the dialog does (Export for Screens' `exportPreset`), a change
 /// to Export for Screens' sub-folder controls ends an applied preset's item folders, as it does in
 /// the dialog, and Transform Each's Relative / Absolute keeps the Scale fields' size.
-pub(crate) fn field_set(app: &mut VectorcraftApp, field: &str, old: Option<&Value>) -> Result<(), String> {
+pub(crate) fn field_set(app: &mut PlumaApp, field: &str, old: Option<&Value>) -> Result<(), String> {
     if app.ui.dialog.as_ref().is_some_and(|d| d.kind == transform_each::KIND) {
         transform_each::field_set(app, field, old);
         return Ok(());
@@ -562,7 +562,7 @@ pub(crate) fn field_set(app: &mut VectorcraftApp, field: &str, old: Option<&Valu
 
 /// Close the open dialog as Cancel does, rolling back a live preview and showing the dialog it was
 /// opened over (`ui.dialog.cancel`).
-pub fn cancel(app: &mut VectorcraftApp) {
+pub fn cancel(app: &mut PlumaApp) {
     missing_fonts::requeue_replaced(app);
     // More Settings' pop-up and Save Preset end on their own; New Document stays.
     if app.ui.dialog.as_mut().is_some_and(new_document::close_popup) {
@@ -595,14 +595,14 @@ pub fn cancel(app: &mut VectorcraftApp) {
 }
 
 /// Whether the open dialog has a Reset ([`DialogSpec::reset`]).
-pub(crate) fn can_reset(app: &VectorcraftApp) -> bool {
+pub(crate) fn can_reset(app: &PlumaApp) -> bool {
     app.ui.dialog.as_ref().is_some_and(|d| spec(&d.kind).reset.is_some())
 }
 
 /// Reset (`ui.dialogReset`, or Cancel while Alt or Option is held): the open dialog's fields go
 /// back to their defaults and it stays open → the dialog; an error when no dialog is open or the
 /// open one has no Reset.
-pub(crate) fn reset(app: &mut VectorcraftApp) -> DialogResult {
+pub(crate) fn reset(app: &mut PlumaApp) -> DialogResult {
     let Some(mut d) = app.ui.dialog.clone() else { return Err("no dialog open".into()) };
     let Some(reset) = spec(&d.kind).reset else { return Err("the open dialog has no Reset".into()) };
     reset(app, &mut d);
@@ -612,7 +612,7 @@ pub(crate) fn reset(app: &mut VectorcraftApp) -> DialogResult {
 }
 
 /// Apply the open dialog (OK).
-pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
+pub fn confirm(app: &mut PlumaApp) -> DialogResult {
     missing_fonts::requeue_replaced(app);
     let Some(d) = app.ui.dialog.clone() else { return Err("no dialog open".into()) };
     // A file dialog it shows off the UI thread confirms the dialog as it is again.
@@ -626,7 +626,7 @@ pub fn confirm(app: &mut VectorcraftApp) -> DialogResult {
 /// that dialog is gone, and with no dialog open the choice about a stopped plug-in that another
 /// dialog replaced opens again, else the next document's Missing Fonts dialog (one dialog at a
 /// time).
-pub(crate) fn settle(app: &mut VectorcraftApp) {
+pub(crate) fn settle(app: &mut PlumaApp) {
     crate::placing::settle_swatch_paste(app);
     missing_fonts::requeue_replaced(app);
     missing_fonts::stop_when_closed(app);
@@ -641,7 +641,7 @@ pub(crate) const AFTER_PANEL: &str = "__afterPanel";
 
 /// Marks the open dialog, if any, as one a save panel opened ([`AFTER_PANEL`]): the Enter that
 /// closed the panel, still held, doesn't confirm it.
-pub(crate) fn opened_by_panel(app: &mut VectorcraftApp) {
+pub(crate) fn opened_by_panel(app: &mut PlumaApp) {
     if let Some(d) = app.ui.dialog.as_mut() {
         d.fields.insert(AFTER_PANEL.into(), json!(true));
     }
@@ -649,7 +649,7 @@ pub(crate) fn opened_by_panel(app: &mut VectorcraftApp) {
 
 /// Draws the active dialog and handles shared initial focus, keyboard shortcuts and actions.
 /// Inline actions and footer buttons use the same confirmation and preview rollback paths.
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     crate::shortcuts::hold_back_keys(app, ctx);
     about::show(app, ctx);
     settle(app);

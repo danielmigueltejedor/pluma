@@ -4,16 +4,16 @@
 //! that reopen, and Other Library… turns down files it can't read.
 
 use egui::{Event, Modifiers, PointerButton, Pos2, Rect, vec2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::brushes::BrushLibraries;
 use super::library_panel::{self, LibraryKind, LibraryPanel, last_open};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::PanelDrag;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app
 }
@@ -44,7 +44,7 @@ fn frame(ctx: &egui::Context, events: Vec<Event>, time: f64, mut draw: impl FnMu
 
 /// The centre of the open library panel's tile of brush `name` (a new window takes a sizing frame
 /// first).
-fn tile(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, time: f64) -> Pos2 {
+fn tile(app: &mut PlumaApp, ctx: &egui::Context, name: &str, time: f64) -> Pos2 {
     for t in [time, time + 0.25] {
         frame(ctx, vec![], t, |ui| library_panel::show_window(app, ui.ctx()));
     }
@@ -52,23 +52,23 @@ fn tile(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, time: f64) ->
     ctx.read_response(id).unwrap_or_else(|| panic!("no tile for {name}")).rect.center()
 }
 
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
     let at = tile(app, ctx, name, time);
     let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers };
     let events = vec![Event::ModifiersChanged(modifiers), Event::PointerMoved(at), button(true), button(false)];
     frame(ctx, events, time + 0.5, |ui| library_panel::show_window(app, ui.ctx()));
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
-fn has(app: &VectorcraftApp, name: &str) -> bool {
-    vectorcraft_brush::find(&app.session.doc().unwrap().doc, name).is_some()
+fn has(app: &PlumaApp, name: &str) -> bool {
+    pluma_brush::find(&app.session.doc().unwrap().doc, name).is_some()
 }
 
-fn count(app: &VectorcraftApp) -> usize {
-    vectorcraft_brush::library(&app.session.doc().unwrap().doc).len()
+fn count(app: &PlumaApp) -> usize {
+    pluma_brush::library(&app.session.doc().unwrap().doc).len()
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn clicking_a_library_brush_adds_it_to_the_documents_brushes_in_one_step() {
     click(&mut app, &ctx, "Striped Ribbon", Modifiers::NONE, 4.0);
     assert_eq!(undo_len(&app), undo + 1);
     let st = app.session.doc().unwrap();
-    let n = st.doc.node(vectorcraft_doc::NodeId(path)).unwrap();
+    let n = st.doc.node(pluma_doc::NodeId(path)).unwrap();
     assert_eq!(n.appearance.stroke().and_then(|s| s.brush.clone()).as_deref(), Some("Striped Ribbon"));
     assert!(st.doc.pattern("Pinstripes").is_some(), "with the pattern its art is filled with");
     // Modifier clicks only select; Add to Brushes adds the selection.
@@ -142,7 +142,7 @@ fn the_window_menu_and_the_brushes_panel_open_brush_libraries() {
         assert!(texts.iter().any(|x| x.ends_with(t)), "{t}: {texts:?}");
     }
     // Without brushes there is nothing to save.
-    let all: Vec<String> = vectorcraft_brush::library(&app.session.doc().unwrap().doc).into_iter().map(|b| b.name).collect();
+    let all: Vec<String> = pluma_brush::library(&app.session.doc().unwrap().doc).into_iter().map(|b| b.name).collect();
     app.run("brush.delete", json!({ "names": all })).unwrap();
     let entries = crate::menus::menu_entries(&app);
     assert!(entries.iter().any(|e| under(e) && e.command.as_deref() == Some("ui.saveBrushLibrary") && !e.enabled));
@@ -175,8 +175,8 @@ fn save_brushes_writes_a_user_library_that_reopens_and_adds_to_another_document(
     // Reopened in a library panel, its brush goes into another document.
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("window.userBrushLibrary1", json!({})).unwrap();
-    assert_eq!(last_open(&app.ui).map(|p| p.id.as_str()), Some("user/Pens.vectorcraft"));
-    let (name, lib) = BrushLibraries::get(&app, "user/Pens.vectorcraft").unwrap();
+    assert_eq!(last_open(&app.ui).map(|p| p.id.as_str()), Some("user/Pens.pluma"));
+    let (name, lib) = BrushLibraries::get(&app, "user/Pens.pluma").unwrap();
     assert_eq!((name.as_str(), lib.len()), ("Pens", 1), "only the selected brush");
     let undo = undo_len(&app);
     click(&mut app, &ctx, "Quill", Modifiers::NONE, 1.0);
@@ -193,9 +193,9 @@ fn other_library_opens_a_documents_brushes_and_reports_unreadable_files() {
     let mut app = app();
     app.run("brush.new", json!({"type": "bristle", "name": "Mop"})).unwrap();
     let brushes = count(&app);
-    let doc = dir.join("Studio.vectorcraft");
+    let doc = dir.join("Studio.pluma");
     let b64 = app.run("document.serialize", json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    std::fs::write(&doc, vectorcraft_format::base64_decode(&b64).unwrap()).unwrap();
+    std::fs::write(&doc, pluma_format::base64_decode(&b64).unwrap()).unwrap();
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let r = app.run("window.brushLibrary.other", json!({"path": doc.to_string_lossy()})).unwrap();
     assert_eq!((r["name"].as_str(), r["count"].as_u64()), (Some("Studio"), Some(brushes as u64)));
@@ -204,7 +204,7 @@ fn other_library_opens_a_documents_brushes_and_reports_unreadable_files() {
     let other = BrushLibraries::list(&app).into_iter().find(|l| l.id == open.id).unwrap();
     assert_eq!(other.submenu, Some("Other Libraries"));
     // A file that isn't a document is an error, and opens no panel.
-    let bad = dir.join("Broken.vectorcraft");
+    let bad = dir.join("Broken.pluma");
     std::fs::write(&bad, b"not a document").unwrap();
     app.run("window.brushLibrary", json!({"library": null})).unwrap();
     assert!(app.run("window.brushLibrary.other", json!({"path": bad.to_string_lossy()})).is_err());
@@ -231,21 +231,21 @@ fn library_panels_serialise_and_hash_their_brushes_once() {
     let ctx = context();
     // A document of MANY art brushes whose art is filled with a pattern, as a library.
     app.run("brush.addFromLibrary", json!({"library": "art-ribbons", "name": "Striped Ribbon"})).unwrap();
-    let striped = vectorcraft_brush::find(&app.session.doc().unwrap().doc, "Striped Ribbon").unwrap();
+    let striped = pluma_brush::find(&app.session.doc().unwrap().doc, "Striped Ribbon").unwrap();
     app.session
         .edit("Brushes", |d, _| {
-            let many: Vec<_> = (0..MANY).map(|i| vectorcraft_brush::Brush { name: format!("Ribbon {i}"), ..striped.clone() }).collect();
-            vectorcraft_brush::store(d, &many);
+            let many: Vec<_> = (0..MANY).map(|i| pluma_brush::Brush { name: format!("Ribbon {i}"), ..striped.clone() }).collect();
+            pluma_brush::store(d, &many);
             Ok(())
         })
         .unwrap();
-    let path = dir.join("Many.vectorcraft");
+    let path = dir.join("Many.pluma");
     let b64 = app.run("document.serialize", json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    std::fs::write(&path, vectorcraft_format::base64_decode(&b64).unwrap()).unwrap();
+    std::fs::write(&path, pluma_format::base64_decode(&b64).unwrap()).unwrap();
     let r = app.run("window.brushLibrary.other", json!({"path": path.to_string_lossy()})).unwrap();
     assert_eq!(r["count"].as_u64(), Some(MANY as u64));
     let id = last_open(&app.ui).unwrap().id.clone();
-    let show = |app: &mut VectorcraftApp, t: f64| {
+    let show = |app: &mut PlumaApp, t: f64| {
         frame(&ctx, vec![], t, |ui| library_panel::show_window(app, ui.ctx()));
     };
     keyed();
@@ -265,7 +265,7 @@ fn library_panels_serialise_and_hash_their_brushes_once() {
     // The document it was loaded from edited: the library doesn't change.
     app.session
         .edit("Brushes", |d, _| {
-            vectorcraft_brush::store(d, &[]);
+            pluma_brush::store(d, &[]);
             Ok(())
         })
         .unwrap();

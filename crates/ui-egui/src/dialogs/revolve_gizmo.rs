@@ -2,18 +2,18 @@
 //! Inflate, Rotate). Gestures edit fields;
 //! the existing effect preview applies commands and owns OK, Cancel and undo.
 use egui::{Align2, FontId, Id, Pos2, Rect, Sense, Stroke, Vec2, vec2};
+use pluma_effects::REVOLVE;
+use pluma_geom::Point;
+use pluma_three_d::Revolve;
 use serde_json::json;
-use vectorcraft_effects::REVOLVE;
-use vectorcraft_geom::Point;
-use vectorcraft_three_d::Revolve;
 
-use crate::{VectorcraftApp, canvas::Xf, state::Dialog, theme::Tokens};
+use crate::{PlumaApp, canvas::Xf, state::Dialog, theme::Tokens};
 
 const KEYS: [&str; 3] = ["rotationX", "rotationY", "rotationZ"];
 const SAMPLES: usize = 96;
 
 pub(crate) fn active(d: &Dialog) -> bool {
-    d.kind == "effect" && vectorcraft_effects::is_three_d(&d.str("__effect"))
+    d.kind == "effect" && pluma_effects::is_three_d(&d.str("__effect"))
 }
 
 pub(crate) fn lighting(d: &Dialog) -> bool {
@@ -23,11 +23,7 @@ pub(crate) fn lighting(d: &Dialog) -> bool {
 /// Does the effect take light: Shading on, or for Extrude & Bevel (Classic) a Diffuse or Plastic
 /// surface?
 fn lit(d: &Dialog) -> bool {
-    if d.str("__effect") == vectorcraft_effects::CLASSIC_EXTRUDE {
-        matches!(d.str("surface").as_str(), "diffuse" | "plastic")
-    } else {
-        d.bool("shade")
-    }
+    if d.str("__effect") == pluma_effects::CLASSIC_EXTRUDE { matches!(d.str("surface").as_str(), "diffuse" | "plastic") } else { d.bool("shade") }
 }
 
 pub(crate) fn hint(d: &Dialog) -> &'static str {
@@ -87,11 +83,11 @@ struct Geometry {
     radius: f32,
     rings: [Ring; 3],
     xf: Xf,
-    bounds: vectorcraft_geom::Rect,
+    bounds: pluma_geom::Rect,
 }
 
 impl Geometry {
-    fn new(app: &VectorcraftApp, d: &Dialog) -> Option<Self> {
+    fn new(app: &PlumaApp, d: &Dialog) -> Option<Self> {
         let state = app.session.active()?;
         let node = state.doc.node(*state.selection.objects.first()?)?;
         let bounds = node.geometric_bounds()?;
@@ -198,7 +194,7 @@ fn snap_height(height: f64, snap: bool) -> f64 {
     (if snap { (height / 15.0).round() * 15.0 } else { height }).clamp(0.0, 90.0)
 }
 
-pub(super) fn show(app: &VectorcraftApp, ctx: &egui::Context, d: &mut Dialog) {
+pub(super) fn show(app: &PlumaApp, ctx: &egui::Context, d: &mut Dialog) {
     let light_mode = lighting(d);
     if !d.bool("preview") || (light_mode && !lit(d)) {
         clear(ctx);
@@ -431,8 +427,8 @@ fn paint_light(ui: &egui::Ui, d: &Dialog, g: Geometry, active: Option<usize>, dr
     painter.rect_filled(Rect::from_min_size(name_pos - vec2(4.0, 2.0), galley.size() + vec2(8.0, 4.0)), 3.0, t.panel);
     painter.galley(name_pos, galley, t.warning);
     if drag.is_some() {
-        let [rotation, height] = [("lightRotation", vectorcraft_three_d::DEFAULT_LIGHT.0), ("lightHeight", vectorcraft_three_d::DEFAULT_LIGHT.1)]
-            .map(|(k, v)| d.f64(k, v));
+        let [rotation, height] =
+            [("lightRotation", pluma_three_d::DEFAULT_LIGHT.0), ("lightHeight", pluma_three_d::DEFAULT_LIGHT.1)].map(|(k, v)| d.f64(k, v));
         let text = format!("{} {rotation:.1}°   {} {height:.1}°", tl!("Rotation"), tl!("Height"));
         let galley = painter.layout_no_wrap(text, FontId::proportional(11.5), t.text_strong);
         let pos = g.center + vec2(0.0, radius + 56.0);

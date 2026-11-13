@@ -1,9 +1,9 @@
-use super::{CacheKey, Cursor, Mods, Point, VectorcraftApp};
+use super::{CacheKey, Cursor, Mods, PlumaApp, Point};
 
 /// The active tool's cursor at the pointer, as `mods` make it. While the view moves (`still`
 /// false), the cursor the tool last gave for the same tool and keys stays: asking the tool again
 /// would hit-test the art under the pointer at every frame of the move (#2452).
-pub(super) fn hover_cursor(app: &mut VectorcraftApp, mods: Mods, view: vectorcraft_engine::ViewInfo, still: bool) -> Option<Cursor> {
+pub(super) fn hover_cursor(app: &mut PlumaApp, mods: Mods, view: pluma_engine::ViewInfo, still: bool) -> Option<Cursor> {
     let id = app.session.tool_id();
     if !still
         && let Some((was, with, c)) = app.canvas.hover_cursor

@@ -1,11 +1,11 @@
 //! Linked dimensions: generated groups share the existing text/path render and export pipeline.
 use super::{CommandSpec, EngineError, Result, Session, cmd, has_doc};
+use pluma_color::{Color, Paint};
+use pluma_doc::dimension::{ArrowStyle, Dimension, DimensionMode, DimensionOptions, DimensionSource, LineType, TextAlignment, TextPosition};
+use pluma_doc::{Appearance, Arrowhead, CharStyle, ColorMode, Dash, Document, Node, NodeId, NodeKind, TextObject};
+use pluma_geom::{Affine, BezPath, PathData, Point, Vec2};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::dimension::{ArrowStyle, Dimension, DimensionMode, DimensionOptions, DimensionSource, LineType, TextAlignment, TextPosition};
-use vectorcraft_doc::{Appearance, Arrowhead, CharStyle, ColorMode, Dash, Document, Node, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Vec2};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -342,8 +342,8 @@ fn paint(c: [u8; 3], mode: ColorMode) -> Paint {
         ColorMode::Rgb => rgb,
         ColorMode::Cmyk if c == [0, 0, 0] => Color::cmyk(0.0, 0.0, 0.0, 1.0),
         ColorMode::Cmyk => {
-            let cms = vectorcraft_color::cms::active();
-            cms.convert(&rgb, vectorcraft_color::cms::Model::Cmyk, cms.settings().intent)
+            let cms = pluma_color::cms::active();
+            cms.convert(&rgb, pluma_color::cms::Model::Cmyk, cms.settings().intent)
         }
     })
 }
@@ -362,7 +362,7 @@ fn appearance(o: &DimensionOptions, mode: ColorMode, ext: bool, arrows: bool) ->
         st.dash = match kind {
             LineType::Dashed => Some(Dash { pattern: vec![width * 5.0, width * 3.0], ..Default::default() }),
             LineType::Dotted => {
-                st.cap = vectorcraft_doc::LineCap::Round;
+                st.cap = pluma_doc::LineCap::Round;
                 Some(Dash { pattern: vec![0.0, width * 3.0], ..Default::default() })
             }
             LineType::Solid => None,
@@ -377,7 +377,7 @@ fn appearance(o: &DimensionOptions, mode: ColorMode, ext: bool, arrows: bool) ->
             st.start_arrow = head;
             st.end_arrow = head;
             st.arrow_scale = (o.arrow_scale, o.arrow_scale);
-            st.arrow_align = vectorcraft_doc::appearance::ArrowAlign::Tip;
+            st.arrow_align = pluma_doc::appearance::ArrowAlign::Tip;
         }
     }
     a
@@ -463,7 +463,7 @@ fn artwork(doc: &mut Document, d: &Dimension, old: &[NodeId]) -> Result<Vec<Arc<
         ..Default::default()
     };
     let mut text = TextObject::point(Point::ZERO, &label, style);
-    text.para.justify = vectorcraft_doc::Justify::Center;
+    text.para.justify = pluma_doc::Justify::Center;
     text.system_layout = doc.setup.system_layout;
     super::typecmd::refresh_bounds(&mut text);
     // Centre the label's box on its anchor point, along the line.

@@ -5,13 +5,13 @@
 //! Fields: `name`, `user` (save to the user library folder), `selectedOnly` and `names` (the styles
 //! selected in the Graphic Styles panel), `__user` (there is a user library folder).
 
+use pluma_doc::style_libs::STYLES_EXT;
 use serde_json::Value;
-use vectorcraft_doc::style_libs::STYLES_EXT;
 
 use super::DialogSpec;
 use super::save_swatch_library::{destination, fields, name_row, params, save};
 use super::swatch_options::grid;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 
 /// The dialog kind of Save Graphic Style Library.
@@ -22,13 +22,13 @@ pub(super) const SPEC: DialogSpec =
 
 /// Open Save Graphic Style Library for the document's styles (`names`: the ones selected in the
 /// panel).
-pub fn open(app: &mut VectorcraftApp, names: Vec<String>) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, names: Vec<String>) -> Result<Value, String> {
     let fields = fields(app, app.session.style_libraries.user_dir().is_some(), names)?;
     app.ui.dialog = Some(Dialog::new(KIND, fields));
     Ok(Value::Null)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     grid(ui, |ui| {
         name_row(ui, d);
         destination(ui, d, tl!("Selected Styles Only"));
@@ -36,6 +36,6 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     save(app, d, "graphicStyle.saveLibrary", STYLES_EXT, params(d))
 }

@@ -8,7 +8,7 @@ pub(super) const MARKER_BUDGET: usize = 200_000;
 
 /// Each series' marker design art, when the document has the design.
 pub(super) fn marker_designs(d: &Document, g: &GraphSpec) -> Vec<Option<Arc<Node>>> {
-    let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, vectorcraft_doc::MAX_GRAPH_SERIES);
+    let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, pluma_doc::MAX_GRAPH_SERIES);
     (0..nser)
         .map(|s| {
             let name = g.series_markers.get(s)?.as_deref()?;
@@ -19,7 +19,7 @@ pub(super) fn marker_designs(d: &Document, g: &GraphSpec) -> Vec<Option<Arc<Node
 
 /// How many objects the marker designs `designs` add to graph `g`: a copy per data point and legend swatch.
 pub(super) fn marker_cost(g: &GraphSpec, designs: &[Option<Arc<Node>>]) -> usize {
-    let points = g.rows.len().min(vectorcraft_doc::MAX_GRAPH_CATEGORIES) + 1;
+    let points = g.rows.len().min(pluma_doc::MAX_GRAPH_CATEGORIES) + 1;
     designs.iter().flatten().map(|a| a.count().saturating_mul(points)).fold(0, usize::saturating_add)
 }
 
@@ -53,7 +53,7 @@ pub(super) fn set_marker(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "graph.marker";
     let id = target(s, p, C)?;
     let mut spec = spec_of(s, id)?;
-    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(vectorcraft_doc::MAX_GRAPH_SERIES);
+    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(pluma_doc::MAX_GRAPH_SERIES);
     let picked = picked_series(s, p, id, count, C)?;
     let names = design_names(&s.doc()?.doc);
     let Some(v) = p.get("design") else {

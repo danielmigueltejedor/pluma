@@ -24,15 +24,15 @@
 //! `__settings` names the format whose Format Settings show ("" when closed), `__savePreset` is the
 //! name being typed to save a preset (absent when not saving).
 
+use pluma_engine::cmd::fileio::{self, ArtboardPick, ScreenSize, pdf};
+use pluma_engine::cmd::params::{drop_unread_row_options, screen_formats};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::fileio::{self, ArtboardPick, ScreenSize, pdf};
-use vectorcraft_engine::cmd::params::{drop_unread_row_options, screen_formats};
 
 use super::{DialogSpec, form, png_options, svg_options};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
     heading: |_| tl!("Export for Screens").into(),
@@ -66,10 +66,10 @@ const FORMATS: [(&str, &str, Option<u8>, bool); 14] = [
     ("PDF Print", "pdf", None, true),
     ("EPS", "eps", None, false),
     ("AI", "ai", None, false),
-    ("VectorCraft", "vectorcraft", None, false),
+    ("Pluma", "pluma", None, false),
 ];
 const FORMAT_LABELS: [&str; 14] =
-    ["PNG", "PNG 8", "JPG 100", "JPG 80", "JPG 50", "WebP", "GIF", "TIFF", "SVG", "PDF", "PDF Print", "EPS", "AI", "VectorCraft"];
+    ["PNG", "PNG 8", "JPG 100", "JPG 80", "JPG 50", "WebP", "GIF", "TIFF", "SVG", "PDF", "PDF Print", "EPS", "AI", "Pluma"];
 
 /// The printer's marks a PDF Print row writes: trim marks, registration targets, colour bars and
 /// page information.
@@ -107,7 +107,7 @@ pub(crate) fn saved_rows(saved: &Map<String, Value>) -> (Vec<Value>, Option<&str
 }
 
 /// Open the dialog on its Assets tab with `checked` assets checked (every asset when `None`).
-pub(crate) fn open_assets(app: &mut VectorcraftApp, checked: Option<&[u64]>) {
+pub(crate) fn open_assets(app: &mut PlumaApp, checked: Option<&[u64]>) {
     open(app);
     let shown: Vec<u64> = app.session.active().map(|st| picture_assets(st).iter().map(|a| a.id).collect()).unwrap_or_default();
     if let Some(d) = app.ui.dialog.as_mut() {
@@ -126,7 +126,7 @@ pub(crate) fn open_assets(app: &mut VectorcraftApp, checked: Option<&[u64]>) {
 /// 1x, into the Desktop, with Create Sub-folders on), every asset checked. While the Artboard tool
 /// is in use, the artboards it has selected (the rows the Artboards panel highlights) are the ones
 /// chosen instead.
-pub fn open(app: &mut VectorcraftApp) {
+pub fn open(app: &mut PlumaApp) {
     let (n, saved, assets) = app
         .session
         .active()
@@ -191,7 +191,7 @@ pub fn open(app: &mut VectorcraftApp) {
 /// (without quality and image maps: the rows choose quality, a map is another file), the SVG
 /// Options' first-use ones (without artboards and images: a linked image is another file), or the
 /// default PDF preset.
-fn defaults(app: &VectorcraftApp, id: &str) -> Map<String, Value> {
+fn defaults(app: &PlumaApp, id: &str) -> Map<String, Value> {
     let mut o = match (id, fileio::format(id)) {
         ("svg", _) => svg_options::first_use(),
         ("pdf", _) => Map::from_iter([("preset".to_string(), json!(pdf::DEFAULT_PRESET))]),
@@ -205,7 +205,7 @@ fn defaults(app: &VectorcraftApp, id: &str) -> Map<String, Value> {
 }
 
 /// The format's defaults with the document's saved choices overlaid.
-pub(crate) fn saved_options(app: &VectorcraftApp, saved: &Map<String, Value>, id: &str) -> Map<String, Value> {
+pub(crate) fn saved_options(app: &PlumaApp, saved: &Map<String, Value>, id: &str) -> Map<String, Value> {
     let mut options = defaults(app, id);
     // TIFF's new defaults must not mask an existing shared anti-aliasing choice.
     if id == "tiff"
@@ -277,13 +277,13 @@ pub(super) fn range_text(boards: &[bool]) -> String {
 }
 
 /// The export presets: `[{name, builtIn, settings}]` (built-in first).
-pub(super) fn export_presets(app: &mut VectorcraftApp) -> Value {
+pub(super) fn export_presets(app: &mut PlumaApp) -> Value {
     app.run("document.exportPresets.list", json!({})).ok().and_then(|r| r.get("presets").cloned()).unwrap_or_else(|| json!([]))
 }
 
 /// The `document.exportForScreens` params the dialog describes (the web: no folder, one ZIP for
 /// several files).
-pub(super) fn params(app: &VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+pub(super) fn params(app: &PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (mut p, files) = settings_params(app, d)?;
     if io::is_web(app) {
         p.insert("zip".into(), json!(files > 1));
@@ -300,13 +300,13 @@ pub(super) fn params(app: &VectorcraftApp, d: &Dialog) -> Result<Value, String> 
 
 /// The params of [`params`] without the destination (what is exported, at which sizes, and how the
 /// files are named and sorted), and how many files that is.
-fn settings_params(app: &VectorcraftApp, d: &Dialog) -> Result<(Map<String, Value>, usize), String> {
+fn settings_params(app: &PlumaApp, d: &Dialog) -> Result<(Map<String, Value>, usize), String> {
     let (p, files, _) = selection_params(app, d)?;
     Ok((p, files))
 }
 
 /// [`settings_params`] and how many artboards or assets are chosen.
-fn selection_params(app: &VectorcraftApp, d: &Dialog) -> Result<(Map<String, Value>, usize, usize), String> {
+fn selection_params(app: &PlumaApp, d: &Dialog) -> Result<(Map<String, Value>, usize, usize), String> {
     let n = app.session.active().map_or(0, |st| st.doc.artboards.len());
     let rows = d.fields.get("formats").and_then(Value::as_array).cloned().unwrap_or_default();
     if rows.is_empty() {
@@ -375,7 +375,7 @@ fn folders(d: &Dialog) -> &'static str {
 }
 
 /// Export; the dialog stays open when the export fails.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let p = params(app, d)?;
     let r = io::export_for_screens(app, p);
     if r.is_ok() {
@@ -384,7 +384,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     r
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let tab = TABS.iter().position(|k| *k == d.str("tab")).unwrap_or(0);
     ui.horizontal_top(|ui| {
@@ -451,7 +451,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// How many artboards or assets are chosen and how many files the export writes (0 while the
 /// settings choose nothing to export).
-fn counts(app: &VectorcraftApp, d: &Dialog) -> (usize, usize) {
+fn counts(app: &PlumaApp, d: &Dialog) -> (usize, usize) {
     match selection_params(app, d) {
         Ok((_, files, pieces)) => (pieces, files),
         Err(_) => (if d.str("tab") == "assets" { checked_assets(app, d).len() } else { 0 }, 0),
@@ -459,7 +459,7 @@ fn counts(app: &VectorcraftApp, d: &Dialog) -> (usize, usize) {
 }
 
 /// Clear Selection: no artboard (or, on the Assets tab, no asset) is checked.
-fn clear_selection(app: &VectorcraftApp, d: &mut Dialog, tab: usize) {
+fn clear_selection(app: &PlumaApp, d: &mut Dialog, tab: usize) {
     if tab == 1 {
         d.fields.insert("assets".into(), json!([]));
     } else {
@@ -475,7 +475,7 @@ fn set_select(d: &mut Dialog, select: &str) {
 }
 
 /// The checked artboards, one per artboard (all checked when the field is short).
-fn boards(app: &VectorcraftApp, d: &Dialog) -> Vec<bool> {
+fn boards(app: &PlumaApp, d: &Dialog) -> Vec<bool> {
     let n = app.session.active().map_or(0, |st| st.doc.artboards.len());
     let mut boards: Vec<bool> =
         d.fields.get("boards").and_then(Value::as_array).map(|a| a.iter().map(|b| b.as_bool().unwrap_or(false)).collect()).unwrap_or_default();
@@ -485,7 +485,7 @@ fn boards(app: &VectorcraftApp, d: &Dialog) -> Vec<bool> {
 
 /// Select: All or a Range (which checks the artboards it names), Include Bleed, Include Artboard
 /// Fill and Full Document.
-fn select_options(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn select_options(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let n = app.session.active().map_or(0, |st| st.doc.artboards.len());
     let select = d.str("select");
     widgets::dim_label(ui, tl!("Select:"));
@@ -517,7 +517,7 @@ fn select_options(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
 
 /// The artboards' thumbnails, each with its checkbox, number and name, in a grid or a list;
 /// checking them picks them as the range (all of them: All). Dimmed with Full Document.
-fn artboard_tiles(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, list: bool) {
+fn artboard_tiles(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, list: bool) {
     let mut boards = boards(app, d);
     let before = boards.clone();
     let names: Vec<String> = app.session.active().map(|s| s.doc.artboards.iter().map(|a| a.name.clone()).collect()).unwrap_or_default();
@@ -597,18 +597,18 @@ fn tiles(
 
 /// The document's assets exported as pictures, in panel order: 3D assets export as mesh files from
 /// the Asset Export panel (`assets.export3D`).
-fn picture_assets(st: &vectorcraft_engine::DocState) -> Vec<&vectorcraft_doc::ExportAsset> {
+fn picture_assets(st: &pluma_engine::DocState) -> Vec<&pluma_doc::ExportAsset> {
     st.doc.assets.iter().filter(|a| a.format_3d.is_none()).collect()
 }
 
 /// The checked picture assets that are still in the document, in panel order.
-fn checked_assets(app: &VectorcraftApp, d: &Dialog) -> Vec<u64> {
+fn checked_assets(app: &PlumaApp, d: &Dialog) -> Vec<u64> {
     let on: Vec<u64> = d.fields.get("assets").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).collect()).unwrap_or_default();
     app.session.active().map(|st| picture_assets(st).iter().map(|a| a.id).filter(|id| on.contains(id)).collect()).unwrap_or_default()
 }
 
 /// The Assets tab: each picture asset's thumbnail with its checkbox and name, in a grid or a list.
-fn assets(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, list: bool) {
+fn assets(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, list: bool) {
     let Some(st) = app.session.active() else { return };
     let shown = picture_assets(st);
     if shown.is_empty() {
@@ -652,7 +652,7 @@ fn assets(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, list: bool) {
 
 /// Export to: the folder (typed or picked), Open Location after Export, and Create Sub-folders,
 /// a folder per scale or per format; the web downloads instead.
-fn destination(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn destination(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     widgets::dim_label(ui, tl!("Export to:"));
     if io::is_web(app) {
         widgets::dim_label(ui, tl!("Your browser downloads the files (several as one .zip)."));
@@ -724,7 +724,7 @@ pub(crate) enum PresetPick {
 /// The format presets (the ☰ by iOS and Android): apply a built-in or saved one (its rows, their
 /// settings, the prefix and the sub-folders), save the dialog's rows as one, or delete the saved
 /// one applied last.
-fn preset_menu(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn preset_menu(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     // Presets saved, deleted or imported elsewhere (a command, a file opened) show at once.
     let mut list = d.fields.remove("__exportPresets").unwrap_or_default();
     preset_list(&mut list, &app.session.prefs.screen_export_presets);
@@ -759,7 +759,7 @@ fn preset_menu(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
 }
 
 /// The row that names a format preset being saved (Save Preset… in the ☰ menu).
-fn save_preset_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn save_preset_row(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     if !d.fields.contains_key("__savePreset") {
         return;
     }
@@ -783,7 +783,7 @@ fn save_preset_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) 
 /// Import Preset… (the Asset Export panel's): the presets of a picked file are added to the saved
 /// ones → the names added
 /// (none on the web, where the picked file arrives later and imports through `io::open_bytes`).
-pub(crate) fn import_presets(app: &mut VectorcraftApp) -> Result<Vec<String>, String> {
+pub(crate) fn import_presets(app: &mut PlumaApp) -> Result<Vec<String>, String> {
     if let Some(f) = app.services.open_async.as_mut() {
         f();
         return Ok(vec![]);
@@ -796,7 +796,7 @@ pub(crate) fn import_presets(app: &mut VectorcraftApp) -> Result<Vec<String>, St
 
 /// Export Preset… (the Asset Export panel's): preset `name` written to a picked file named after
 /// it (the web downloads it) → where it went.
-pub(crate) fn export_preset(app: &mut VectorcraftApp, name: &str) -> Result<String, String> {
+pub(crate) fn export_preset(app: &mut PlumaApp, name: &str) -> Result<String, String> {
     io::save_command_output_named(app, "document.exportPresets.export", &preset_file_name(name), json!({ "names": [name] }))
 }
 
@@ -804,7 +804,7 @@ pub(crate) fn export_preset(app: &mut VectorcraftApp, name: &str) -> Result<Stri
 /// Export Library… makes a library's (`library::file_stem_for`), with the `.vcexportpresets`
 /// extension.
 pub(crate) fn preset_file_name(name: &str) -> String {
-    format!("{}.{}", vectorcraft_engine::cmd::library::file_stem_for(name), fileio::SCREEN_EXPORT_PRESET_FORMAT)
+    format!("{}.{}", pluma_engine::cmd::library::file_stem_for(name), fileio::SCREEN_EXPORT_PRESET_FORMAT)
 }
 
 /// `list` (the rows of `document.exportPresets.list`) made the rows for the saved presets `saved`:
@@ -827,7 +827,7 @@ pub(crate) fn preset_list(list: &mut Value, saved: &[fileio::ScreenExportPreset]
 /// `ui.dialog.set` of `exportPreset` in the open dialog: the preset it names is applied as a pick
 /// in the ☰ menu applies it, and `""` is none. A name that is not a preset's is an error, and
 /// `ui.dialog.set` then leaves the dialog as it was.
-pub(super) fn preset_set(app: &mut VectorcraftApp) -> Result<(), String> {
+pub(super) fn preset_set(app: &mut PlumaApp) -> Result<(), String> {
     let Some(mut d) = app.ui.dialog.take() else { return Ok(()) };
     let list = fileio::screen_export_preset_list(&app.session.prefs.screen_export_presets);
     let name = d.str("exportPreset");
@@ -849,7 +849,7 @@ pub(super) fn preset_set(app: &mut VectorcraftApp) -> Result<(), String> {
 
 /// Act on what the format presets menu of dialog `d` asked for. Save keeps the applied preset's
 /// keys that the dialog does not show (a file name pattern, Full Document, a folder).
-pub(super) fn preset_pick(app: &mut VectorcraftApp, d: &mut Dialog, pick: PresetPick) {
+pub(super) fn preset_pick(app: &mut PlumaApp, d: &mut Dialog, pick: PresetPick) {
     let done = match pick {
         PresetPick::Apply(preset) => {
             apply_preset(d, &preset);
@@ -1116,7 +1116,7 @@ fn format_settings(ui: &mut egui::Ui, d: &mut Dialog, id: &str) {
 }
 
 /// A small cached rendering of artboard `i` (keyed by document revision).
-pub(super) fn artboard_thumb(app: &mut VectorcraftApp, ctx: &egui::Context, i: usize) -> Option<egui::TextureHandle> {
+pub(super) fn artboard_thumb(app: &mut PlumaApp, ctx: &egui::Context, i: usize) -> Option<egui::TextureHandle> {
     let st = app.session.active()?;
     let key = egui::Id::unique(("ab-thumb", i, st.revision));
     if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(key)) {

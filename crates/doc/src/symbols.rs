@@ -6,7 +6,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use vectorcraft_geom::{Affine, Rect};
+use pluma_geom::{Affine, Rect};
 
 use crate::{AppearanceItem, Document, MAX_SYMBOL_NODES, Node, NodeKind, SYMBOL_HALF};
 
@@ -250,7 +250,7 @@ impl<'a> SymbolBoxes<'a> {
     /// How far the visual box of an instance of the symbol named `name` grows in boxes made by
     /// [`Self::with_brush_art`]: `16 × max(w, 1) + 8` for the widest stroke `w` that
     /// [`Self::brush_width`] finds, as far as the renderer grows the cull bounds of a brushed path
-    /// (`brush_fx::cull_bounds` in vectorcraft-render). 0 in other boxes, while symbol art is
+    /// (`brush_fx::cull_bounds` in pluma-render). 0 in other boxes, while symbol art is
     /// measured, and when the art has no brushed stroke.
     pub(crate) fn brush_pad(&self, name: &str) -> f64 {
         if !self.brush_art.get() {
@@ -476,8 +476,8 @@ fn art_box(art: &Arc<Node>, symbols: &SymbolBoxes) -> Option<ArtBox> {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_geom::shapes;
+    use pluma_color::{Color, Paint};
+    use pluma_geom::shapes;
 
     use super::*;
     use crate::{Appearance, Symbol};

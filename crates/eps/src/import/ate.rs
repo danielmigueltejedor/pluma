@@ -24,12 +24,12 @@
 use std::collections::BTreeMap;
 
 use kurbo::{BezPath, CubicBez, ParamCurve, ParamCurveArclen};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{
+use pluma_color::{Color, Paint};
+use pluma_doc::{
     CharStyle, HyphenationOptions, JustificationOptions, Justify, Node, NodeId, NodeKind, ParaDirection, ParaStyle, PathAlign, PathEffect, TabAlign,
     TabStop, TextKind, TextObject, TextRun,
 };
-use vectorcraft_geom::{Affine, PathData, Point, Rect};
+use pluma_geom::{Affine, PathData, Point, Rect};
 
 /// Longest story read (bytes).
 pub(crate) const MAX_STORY: usize = 1 << 20;
@@ -315,7 +315,7 @@ struct AreaFrame {
     column_gutter: Option<f64>,
     /// Key 10, the first baseline (`0` its kind, `1` its minimum). Without it the first baseline
     /// is Ascent.
-    first_baseline: Option<(vectorcraft_doc::FirstBaseline, f64)>,
+    first_baseline: Option<(pluma_doc::FirstBaseline, f64)>,
 }
 
 /// Longest gutter or first-baseline minimum, as `text.areaOptions` caps them: read in the units of
@@ -327,11 +327,11 @@ impl AreaFrame {
     fn read(carries: &Val) -> AreaFrame {
         // A whole number, at most `max`.
         let whole = |v: &Val, max: f64| v.num().filter(|n| n.fract() == 0.0 && *n >= 0.0).map(|n| n.min(max) as usize);
-        let max = vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS;
+        let max = pluma_doc::AreaOptions::MAX_ROWS_COLUMNS;
         let count = |k: &str| carries.get(k).and_then(|v| whole(v, max as f64)).filter(|n| *n >= 1);
         let length = |v: Option<&Val>| v.and_then(Val::num).filter(|n| *n >= 0.0).map(|n| n.min(MAX_AREA_LENGTH));
         let first_baseline = carries.get("10").and_then(|b| {
-            use vectorcraft_doc::FirstBaseline as F;
+            use pluma_doc::FirstBaseline as F;
             let kind = match whole(b.get("0")?, 99.0)? {
                 0 => F::Fixed,
                 2 => F::CapHeight,
@@ -353,7 +353,7 @@ impl AreaFrame {
     }
 
     /// Sets the options it keeps on `area`, its lengths at `scale` (document points to a unit).
-    fn apply(&self, area: &mut vectorcraft_doc::AreaOptions, scale: f64) {
+    fn apply(&self, area: &mut pluma_doc::AreaOptions, scale: f64) {
         if let Some(n) = self.rows {
             area.rows = n;
         }
@@ -411,7 +411,7 @@ const MAX_TAB_POSITION: f64 = 100_000.0;
 /// every paragraph that has them. The paragraphs past it take the default stops, with a warning.
 const MAX_STORY_TABS: usize = 1 << 20;
 /// The warning when [`MAX_STORY_TABS`] leaves tab stops out.
-pub(crate) const TABS_LEFT_OUT: &str = "tab stops past VectorCraft's limits were left out";
+pub(crate) const TABS_LEFT_OUT: &str = "tab stops past Pluma's limits were left out";
 
 /// The text of one story, in the units of the text document.
 #[derive(Debug)]
@@ -851,7 +851,7 @@ fn length_fraction(segments: &[[f64; 8]], t: f64) -> f64 {
 /// The spacing (Type on a Path Options › Spacing) that the layout `f` of type on a path implies.
 /// The file closes its glyphs up round the outside of a curve and opens them up round the inside,
 /// even where its frame keeps no spacing; the text engine spaces glyphs that way by the spacing
-/// (`vectorcraft_text`'s `path_steps`): between two glyphs' centres, the path's length `s`, their
+/// (`pluma_text`'s `path_steps`): between two glyphs' centres, the path's length `s`, their
 /// advances' mean `a` and how far it turns `t` (away from their tops) make `s + t × spacing = a`.
 /// Fitted over every pair of the layout's glyphs; none where the path doesn't turn under them.
 /// The length `s` is on the path: Align to Path moves the baselines off it, by the distance `G`
@@ -1146,18 +1146,17 @@ impl Story {
     /// Area type that the file lays lines out in, in a frame too short for its first line as it is
     /// laid out here: a font that isn't available shows in the fallback font, whose lines may be
     /// taller, and type that doesn't fit its frame isn't drawn. The frame is made taller, from its
-    /// top, by what the first line needs (`vectorcraft_text::fit_first_line`). Whether it was.
+    /// top, by what the first line needs (`pluma_text::fit_first_line`). Whether it was.
     pub(super) fn fit_first_line(&self, t: &mut TextObject) -> bool {
-        !self.lines.is_empty() && vectorcraft_text::fit_first_line(vectorcraft_text::FontDb::global(), t)
+        !self.lines.is_empty() && pluma_text::fit_first_line(pluma_text::FontDb::global(), t)
     }
 
     /// Area type of one frame that the file lays more lines out in than fit here: in the fallback
     /// font, or a last line whose descent the file lets pass the frame's bottom. The frame is made
-    /// taller from its bottom (`vectorcraft_text::fit_source_lines`) so the file's lines show.
+    /// taller from its bottom (`pluma_text::fit_source_lines`) so the file's lines show.
     /// Whether it was.
     pub(super) fn fit_last_lines(&self, t: &mut TextObject) -> bool {
-        matches!(self.frames.as_slice(), [FrameKind::Area(..)])
-            && vectorcraft_text::fit_source_lines(vectorcraft_text::FontDb::global(), t, self.lines.len())
+        matches!(self.frames.as_slice(), [FrameKind::Area(..)]) && pluma_text::fit_source_lines(pluma_text::FontDb::global(), t, self.lines.len())
     }
 
     /// Were tab stops past [`MAX_STORY_TABS`] left out of its paragraphs (so far: making its text
@@ -1179,16 +1178,16 @@ impl Story {
             return false;
         }
         let NodeKind::Text(t) = &mut node.kind else { return false };
-        if !matches!(t.kind, TextKind::Area { .. }) || t.area.vertical_align != vectorcraft_doc::VerticalAlign::Top {
+        if !matches!(t.kind, TextKind::Area { .. }) || t.area.vertical_align != pluma_doc::VerticalAlign::Top {
             return false;
         }
         let Some((_, (x, y))) = self.line_starts(template).into_iter().next() else { return false };
         let at = to_doc * Point::new(x, y);
-        let db = vectorcraft_text::FontDb::global();
+        let db = pluma_text::FontDb::global();
         // A frame too short for the line lays nothing out: as the line needs it (see `fit_first_line`).
         let mut probe = TextObject::clone(t);
-        vectorcraft_text::fit_first_line(db, &mut probe);
-        let laid = vectorcraft_text::layout(db, &probe);
+        pluma_text::fit_first_line(db, &mut probe);
+        let laid = pluma_text::layout(db, &probe);
         let Some(first) = laid.lines.first().filter(|l| l.region == 0) else { return false };
         // Where the first baseline goes in the layout's line space. Vertical type's line space is a
         // quarter turn from the document (a line's height is how far left of the frame's right edge
@@ -1199,7 +1198,7 @@ impl Story {
         if (want - first.baseline).abs() <= SAME || !min.is_finite() || min <= 0.0 {
             return false;
         }
-        t.area.first_baseline = vectorcraft_doc::FirstBaseline::Fixed;
+        t.area.first_baseline = pluma_doc::FirstBaseline::Fixed;
         t.area.first_baseline_min = min;
         true
     }
@@ -1277,7 +1276,7 @@ fn para_style(p: &Para, scale: f64) -> ParaStyle {
 /// lengths (size, leading, baseline shift, stroke width) scaled by `scale`.
 fn char_style(s: &Style, scale: f64) -> CharStyle {
     let (family, style) = s.font.as_deref().map_or_else(|| (CharStyle::default().font_family, "Regular".to_string()), crate::family_style);
-    let family = vectorcraft_text::FontDb::global().find_family(&family).unwrap_or(family);
+    let family = pluma_text::FontDb::global().find_family(&family).unwrap_or(family);
     CharStyle {
         font_family: family,
         font_style: style,
@@ -1295,7 +1294,7 @@ fn char_style(s: &Style, scale: f64) -> CharStyle {
         stroke_width: if s.stroke.is_some() { s.stroke_width * scale } else { 0.0 },
         all_caps: s.caps == 2,
         // At the default Small Caps size of Document Setup: the file's own isn't read.
-        small_caps: (s.caps == 1).then(|| vectorcraft_doc::DocSetup::default().small_caps_size),
+        small_caps: (s.caps == 1).then(|| pluma_doc::DocSetup::default().small_caps_size),
         tate_chu_yoko: s.tate_chu_yoko,
         standard_vertical_roman: s.standard_vertical_roman,
         ..CharStyle::default()
@@ -1719,7 +1718,7 @@ mod tests {
         let mut node = st.node(NodeId(1), frame, (0.0, 0.0), Affine::IDENTITY).unwrap();
         st.flip_on_path(&mut node, frame);
         let NodeKind::Text(t) = node.kind else { panic!("not type") };
-        let vectorcraft_doc::TextKind::OnPath { path, .. } = &t.kind else { panic!("type on a path") };
+        let pluma_doc::TextKind::OnPath { path, .. } = &t.kind else { panic!("type on a path") };
         let Some(kurbo::PathEl::MoveTo(first)) = path.to_bezpath().elements().first().copied() else { panic!("a path") };
         (first.x + CANVAS_CENTRE, t.kind.path_span().unwrap())
     }
@@ -1803,7 +1802,7 @@ mod tests {
         assert!((half - 0.5).abs() < 1e-3, "{half}");
         let (t, full) = on_path("type", on_path_frame(&circle(), [1.0, 5.0]).unwrap());
         assert!((full - 1.0).abs() < 1e-9, "{full}");
-        assert!(!vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).overflow, "a short line fits a full turn");
+        assert!(!pluma_text::layout(pluma_text::FontDb::global(), &t).overflow, "a short line fits a full turn");
     }
 
     /// An open path keeps clamping: a range past its end stops at it.
@@ -2098,7 +2097,7 @@ mod tests {
     fn baselines_of(story: &Story) -> Vec<f64> {
         let Some(node) = story.node(NodeId(1), 0, (0.0, 0.0), Affine::IDENTITY) else { return vec![] };
         let NodeKind::Text(t) = &node.kind else { return vec![] };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).baselines().iter().map(|b| b.0.y).collect()
+        pluma_text::layout(pluma_text::FontDb::global(), t).baselines().iter().map(|b| b.0.y).collect()
     }
 
     /// Auto leading stays auto: each line takes the paragraph's share of the largest type on it, as
@@ -2185,12 +2184,12 @@ mod tests {
         let s = story("Heading\r", &[0.0], &Para::default());
         let area = |height: f64| {
             let mut t = TextObject::point(Point::ZERO, "Heading", CharStyle { size: 13.0, ..CharStyle::default() });
-            t.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(Rect::new(10.0, 20.0, 210.0, 20.0 + height)) };
+            t.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(Rect::new(10.0, 20.0, 210.0, 20.0 + height)) };
             t
         };
         let height =
             |t: &TextObject| if let TextKind::Area { frame } = &t.kind { frame.bounds().map(|b| (b.x0, b.y0, b.x1, b.height())) } else { None };
-        let lines = |t: &TextObject| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).lines.len();
+        let lines = |t: &TextObject| pluma_text::layout(pluma_text::FontDb::global(), t).lines.len();
         let mut t = area(13.0);
         assert_eq!(lines(&t), 0, "nothing of it shows");
         assert!(s.fit_first_line(&mut t));
@@ -2209,22 +2208,22 @@ mod tests {
     /// grows from its bottom so the third shows. Only when the story's one frame is area type.
     #[test]
     fn the_last_lines_the_file_sets_in_its_frame_show() {
-        let db = vectorcraft_text::FontDb::global();
+        let db = pluma_text::FontDb::global();
         let area = |height: f64| {
             let mut t = TextObject::point(Point::ZERO, "one\ntwo\nthree", CharStyle { size: 13.0, ..CharStyle::default() });
-            t.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(Rect::new(10.0, 20.0, 210.0, 20.0 + height)) };
+            t.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(Rect::new(10.0, 20.0, 210.0, 20.0 + height)) };
             t
         };
-        let tall = vectorcraft_text::layout(db, &area(400.0));
+        let tall = pluma_text::layout(db, &area(400.0));
         let third = &tall.lines[2];
         let mut t = area(third.baseline - 20.0 + third.descent / 2.0);
-        assert_eq!(vectorcraft_text::layout(db, &t).lines.len(), 2);
+        assert_eq!(pluma_text::layout(db, &t).lines.len(), 2);
         let mut s = story("one\rtwo\rthree\r", &[0.0, 15.6, 31.2], &Para::default());
         // A point-type frame (the helper's) isn't fitted.
         assert!(!s.fit_last_lines(&mut t));
         s.frames = vec![FrameKind::Area(vec![], AreaFrame::default())];
         assert!(s.fit_last_lines(&mut t));
-        assert_eq!(vectorcraft_text::layout(db, &t).lines.len(), 3);
+        assert_eq!(pluma_text::layout(db, &t).lines.len(), 3);
         // A story threaded through two frames: its lines are the first frame's alone.
         let mut t = area(third.baseline - 20.0 + third.descent / 2.0);
         s.frames.push(FrameKind::Area(vec![], AreaFrame::default()));
@@ -2248,7 +2247,7 @@ mod tests {
             let mut node = s.node(NodeId(0), 0, template, to_doc).unwrap();
             let placed = s.place_first_line(&mut node, 0, template, to_doc);
             let NodeKind::Text(t) = node.kind else { panic!("area type") };
-            let l = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+            let l = pluma_text::layout(pluma_text::FontDb::global(), &t);
             (placed, l.lines.first().map(|l| l.baseline), t.area.first_baseline)
         };
         let mut s = story("Heading\r", &[], &Para::default());
@@ -2257,11 +2256,11 @@ mod tests {
         s.lines = vec![(10.0, 20.0)];
         let (_, Some(own), _) = first(&s) else { panic!("a line") };
         s.lines = vec![(10.0, own)];
-        assert_eq!(first(&s), (false, Some(own), vectorcraft_doc::FirstBaseline::Ascent));
+        assert_eq!(first(&s), (false, Some(own), pluma_doc::FirstBaseline::Ascent));
         // Higher in the file: there.
         s.lines = vec![(10.0, own - 3.0)];
         let (placed, at, fb) = first(&s);
-        assert!(placed && fb == vectorcraft_doc::FirstBaseline::Fixed, "{fb:?}");
+        assert!(placed && fb == pluma_doc::FirstBaseline::Fixed, "{fb:?}");
         assert!(at.is_some_and(|y| (y - (own - 3.0)).abs() < 1e-6), "{at:?} for {}", own - 3.0);
     }
 
@@ -2290,7 +2289,7 @@ mod tests {
 
     /// The area options of the text object a story of `frames` comes in as at frame `frame`, the
     /// art's units `scale` document points each.
-    fn area_of(frames: Vec<FrameKind>, frame: usize, scale: f64) -> vectorcraft_doc::AreaOptions {
+    fn area_of(frames: Vec<FrameKind>, frame: usize, scale: f64) -> pluma_doc::AreaOptions {
         let mut s = story("Some area type\r", &[], &Para::default());
         s.frames = frames;
         let to_doc = Affine::scale(scale) * Affine::new([1.0, 0.0, 0.0, -1.0, 0.0, 0.0]);
@@ -2314,7 +2313,7 @@ mod tests {
 
     #[test]
     fn area_frame_first_baseline_kinds_and_minimum_are_read() {
-        use vectorcraft_doc::FirstBaseline as F;
+        use pluma_doc::FirstBaseline as F;
         for (code, kind) in [(0, F::Fixed), (2, F::CapHeight), (3, F::Leading), (4, F::XHeight)] {
             let a = area_of(vec![area_frame(&format!("/10 << /0 {code} /1 30 >>"))], 0, 2.0);
             assert_eq!((a.first_baseline, a.first_baseline_min), (kind, 60.0), "code {code}");
@@ -2338,7 +2337,7 @@ mod tests {
         let mut s = story("Heading\r", &[], &Para::default());
         s.frames = vec![area_frame("")];
         let NodeKind::Text(t) = s.node(NodeId(0), 0, template, to_doc).unwrap().kind else { panic!("area type") };
-        let own = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).lines.first().map(|l| l.baseline).unwrap();
+        let own = pluma_text::layout(pluma_text::FontDb::global(), &t).lines.first().map(|l| l.baseline).unwrap();
         let placed_in = |frames: &[&str]| {
             let mut s = story("Heading\r", &[], &Para::default());
             s.frames = frames.iter().map(|o| area_frame(o)).collect();
@@ -2350,17 +2349,17 @@ mod tests {
             (placed, t.area.first_baseline)
         };
         let placed = |options: &str| placed_in(&[options]);
-        assert_eq!(placed("/10 << /0 2 /1 0 >>"), (false, vectorcraft_doc::FirstBaseline::CapHeight));
+        assert_eq!(placed("/10 << /0 2 /1 0 >>"), (false, pluma_doc::FirstBaseline::CapHeight));
         // Without one (Ascent), or with one that isn't read, the line goes where the file has it.
-        assert_eq!(placed(""), (true, vectorcraft_doc::FirstBaseline::Fixed));
-        assert_eq!(placed("/10 << /0 5 /1 0 >>"), (true, vectorcraft_doc::FirstBaseline::Fixed));
+        assert_eq!(placed(""), (true, pluma_doc::FirstBaseline::Fixed));
+        assert_eq!(placed("/10 << /0 5 /1 0 >>"), (true, pluma_doc::FirstBaseline::Fixed));
         // Another frame of the thread keeping one doesn't count for the first.
-        assert_eq!(placed_in(&["", "/10 << /0 2 /1 0 >>"]), (true, vectorcraft_doc::FirstBaseline::Fixed));
+        assert_eq!(placed_in(&["", "/10 << /0 2 /1 0 >>"]), (true, pluma_doc::FirstBaseline::Fixed));
     }
 
     #[test]
     fn area_frame_options_that_cannot_be_read_keep_their_defaults() {
-        let defaults = vectorcraft_doc::AreaOptions::default();
+        let defaults = pluma_doc::AreaOptions::default();
         let bad = [
             "/3 0 /4 2.5 /7 -1 /8 (x)",
             "/3 NaN /4 inf /7 NaN /8 -inf /10 [ 1 2 ]",
@@ -2383,7 +2382,7 @@ mod tests {
 
     #[test]
     fn area_frame_without_options_comes_in_as_before() {
-        assert_eq!(area_of(vec![area_frame("")], 0, 1.0), vectorcraft_doc::AreaOptions::default());
+        assert_eq!(area_of(vec![area_frame("")], 0, 1.0), pluma_doc::AreaOptions::default());
         assert_eq!(area_frame(""), FrameKind::Area(area_segments(), AreaFrame::default()));
     }
 
@@ -2403,9 +2402,9 @@ mod tests {
         let frames = vec![area_frame("/3 2 /7 10 /8 10 /10 << /0 0 /1 12 >>"), area_frame("/4 3 /7 6 /8 8")];
         let (first, second) = (area_of(frames.clone(), 0, 1.0), area_of(frames, 1, 1.0));
         assert_eq!((first.rows, first.columns, first.gutter, first.row_gutter), (2, 1, 10.0, None));
-        assert_eq!((first.first_baseline, first.first_baseline_min), (vectorcraft_doc::FirstBaseline::Fixed, 12.0));
+        assert_eq!((first.first_baseline, first.first_baseline_min), (pluma_doc::FirstBaseline::Fixed, 12.0));
         assert_eq!((second.rows, second.columns, second.gutter, second.row_gutter), (1, 3, 8.0, Some(6.0)));
-        assert_eq!(second.first_baseline, vectorcraft_doc::FirstBaseline::Ascent);
+        assert_eq!(second.first_baseline, pluma_doc::FirstBaseline::Ascent);
     }
 
     /// Vertical area type: the file's first line is its first column's centre line, so far left of
@@ -2427,7 +2426,7 @@ mod tests {
             let placed = place && s.place_first_line(&mut node, 0, template, to_doc);
             let NodeKind::Text(t) = node.kind else { panic!("area type") };
             assert!(t.vertical);
-            let l = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+            let l = pluma_text::layout(pluma_text::FontDb::global(), &t);
             (placed, l.baselines().first().map(|b| b.0.x), t.area.first_baseline)
         };
         let mut s = story("§§\r", &[], &Para::default());
@@ -2440,11 +2439,11 @@ mod tests {
         // The file's column where this lays it out on its own (so far left of the anchor, the
         // frame's top right): nothing changes.
         s.lines = vec![(0.0, 210.0 - own)];
-        assert_eq!(first(&s, true), (false, Some(own), vectorcraft_doc::FirstBaseline::Ascent));
+        assert_eq!(first(&s, true), (false, Some(own), pluma_doc::FirstBaseline::Ascent));
         // Further right in the file: there.
         s.lines = vec![(0.0, 210.0 - own - 3.0)];
         let (placed, at, fb) = first(&s, true);
-        assert!(placed && fb == vectorcraft_doc::FirstBaseline::Fixed, "{fb:?}");
+        assert!(placed && fb == pluma_doc::FirstBaseline::Fixed, "{fb:?}");
         assert!(at.is_some_and(|x| (x - (own + 3.0)).abs() < 1e-6), "{at:?} for {}", own + 3.0);
         // Scaled characters (a column of another width) go there too.
         s.runs[0].1.v_scale = 2.0;

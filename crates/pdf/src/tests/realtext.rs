@@ -3,12 +3,12 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Gradient, GradientPaint, Paint};
+use pluma_doc::text::{Bullet, NumberStyle, ParaList};
+use pluma_doc::{CharStyle, Document, Effect, Node, NodeKind, ParaStyle, TextKind, TextObject, TextRun};
+use pluma_geom::{Affine, BezPath, PathData, Point, Rect, shapes};
+use pluma_text::{FALLBACK_FAMILY, FontDb};
 use serde_json::json;
-use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
-use vectorcraft_doc::{CharStyle, Document, Effect, Node, NodeKind, ParaStyle, TextKind, TextObject, TextRun};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect, shapes};
-use vectorcraft_text::{FALLBACK_FAMILY, FontDb};
 
 use crate::*;
 
@@ -102,7 +102,7 @@ fn type_copied_by_a_transform_effect_is_written_as_text() {
 /// when `hyphenate` is set.
 fn hyphenated(text: &str, style: CharStyle, hyphenate: bool) -> TextObject {
     let mut t = TextObject::point(Point::ZERO, text, style);
-    t.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(Rect::new(20.0, 20.0, 140.0, 280.0)) };
+    t.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(Rect::new(20.0, 20.0, 140.0, 280.0)) };
     t.xf = Affine::IDENTITY;
     t.para.hyphenate = hyphenate;
     t
@@ -115,7 +115,7 @@ fn drawn_with_hyphens(d: &Document) -> (String, Vec<Point>) {
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
             let text = t.plain_text();
-            for g in &vectorcraft_text::layout(FontDb::global(), t).glyphs {
+            for g in &pluma_text::layout(FontDb::global(), t).glyphs {
                 if g.len == 0 {
                     drawn.push('-');
                     hyphens.push(t.xf * g.origin);
@@ -134,7 +134,7 @@ fn hyphen_origins(d: &Document) -> Vec<Point> {
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
             let text = t.plain_text();
-            let lay = vectorcraft_text::layout(FontDb::global(), t);
+            let lay = pluma_text::layout(FontDb::global(), t);
             out.extend(lay.glyphs.iter().filter(|g| g.len > 0 && text.get(g.byte..).is_some_and(|s| s.starts_with('-'))).map(|g| t.xf * g.origin));
         }
     });
@@ -181,8 +181,8 @@ fn line_break_hyphens_of_right_to_left_lines_are_written_as_text_where_the_canva
     };
     let text = "שלוםעולם\u{AD}גדולמאוד\u{AD}ומאוד ירושלים\u{AD}שלזהב\u{AD}ובתלאביב";
     let mut t = hyphenated(text, CharStyle { font_family: face.family.clone(), ..style(14.0) }, true);
-    t.para.justify = vectorcraft_doc::Justify::Auto;
-    let lines = vectorcraft_text::layout(db, &t).lines.len();
+    t.para.justify = pluma_doc::Justify::Auto;
+    let lines = pluma_text::layout(db, &t).lines.len();
     let d = doc(vec![t]);
     let (_, hyphens) = drawn_with_hyphens(&d);
     assert!(!hyphens.is_empty(), "the lines break at soft hyphens");
@@ -216,12 +216,12 @@ fn kashidas_are_not_written_as_hyphens() {
     };
     let text = "كتب ورد محمد";
     let mut t = TextObject::point(Point::ZERO, text, CharStyle { font_family: face.family.clone(), ..style(20.0) });
-    t.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(Rect::new(20.0, 20.0, 320.0, 280.0)) };
+    t.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(Rect::new(20.0, 20.0, 320.0, 280.0)) };
     t.xf = Affine::IDENTITY;
-    t.para.justify = vectorcraft_doc::Justify::JustifyAll;
-    t.para.kashida = vectorcraft_doc::text::Kashida::Medium;
+    t.para.justify = pluma_doc::Justify::JustifyAll;
+    t.para.kashida = pluma_doc::text::Kashida::Medium;
     let tatweel = face.glyph_for('\u{0640}');
-    if !vectorcraft_text::layout(db, &t).glyphs.iter().any(|g| g.len == 0 && g.gid == tatweel) {
+    if !pluma_text::layout(db, &t).glyphs.iter().any(|g| g.len == 0 && g.gid == tatweel) {
         return;
     }
     let back = texts(&import_as(&pdf(&doc(vec![t]), false).bytes, TextAs::Text));
@@ -256,12 +256,12 @@ fn type_without_line_break_hyphens_comes_back_without_hyphens() {
 /// not written as a hyphen: reopened, the type holds one hyphen for each line-break hyphen only.
 #[test]
 fn list_markers_are_not_written_as_line_break_hyphens() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let text = "Extraordinarily comprehensive typographical considerations notwithstanding everything.";
     for bullet in [Bullet::Dash, Bullet::Dot] {
         let mut t = hyphenated(text, style(14.0), true);
         t.para.list = Some(ParaList::bulleted(bullet));
-        let lay = vectorcraft_text::layout(FontDb::global(), &t);
+        let lay = pluma_text::layout(FontDb::global(), &t);
         assert!(!lay.markers.is_empty(), "{bullet:?}: the paragraph has a marker");
         let breaks = lay.glyphs.iter().enumerate().filter(|&(i, g)| g.len == 0 && lay.marker_of(i).is_none()).count();
         assert!(breaks > 0, "{bullet:?}: the layout hyphenates");
@@ -323,7 +323,7 @@ fn marker_origins(d: &Document) -> Vec<Vec<Point>> {
     let mut out = vec![];
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
-            let lay = vectorcraft_text::layout(FontDb::global(), t);
+            let lay = pluma_text::layout(FontDb::global(), t);
             for m in &lay.markers {
                 out.push(m.glyphs.clone().filter(|&i| i != m.tab).map(|i| t.xf * lay.glyphs[i].origin).collect());
             }
@@ -339,7 +339,7 @@ fn glyph_chars(d: &Document) -> Vec<(char, Point)> {
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
             let text = t.plain_text();
-            for g in vectorcraft_text::layout(FontDb::global(), t).glyphs.iter().filter(|g| g.len > 0) {
+            for g in pluma_text::layout(FontDb::global(), t).glyphs.iter().filter(|g| g.len > 0) {
                 if let Some(c) = text.get(g.byte..).and_then(|s| s.chars().next()) {
                     out.push((c, t.xf * g.origin));
                 }
@@ -398,7 +398,7 @@ fn list_markers_are_written_as_text_where_the_canvas_draws_them() {
 fn a_right_to_left_number_is_written_as_text_where_the_canvas_draws_it() {
     let hebrew = "שלום עולם";
     let mut plain = listed(hebrew, &[None]);
-    plain.edit_paras(None, |p| p.justify = vectorcraft_doc::Justify::Auto);
+    plain.edit_paras(None, |p| p.justify = pluma_doc::Justify::Auto);
     let mut numbered = plain.clone();
     numbered.edit_paras(None, |p| p.list = Some(ParaList::numbered(NumberStyle::Arabic)));
     numbered.list_count = 11;
@@ -450,7 +450,7 @@ fn numbers_in_threaded_frames_are_written_as_text_in_each_frame() {
     let (mut a, mut b) = (frame(Rect::new(20.0, 20.0, 180.0, 80.0)), frame(Rect::new(200.0, 20.0, 360.0, 280.0)));
     let text = format!("One\nTwo\n{}\nFour", "The quick brown fox jumps over the lazy dog. ".repeat(4));
     let story = vec![TextRun { text, style: style(12.0), inline: None }];
-    let parts = vectorcraft_text::thread::distribute(FontDb::global(), &[&a, &b], &story, &vec![numbered; 4]);
+    let parts = pluma_text::thread::distribute(FontDb::global(), &[&a, &b], &story, &vec![numbered; 4]);
     for (f, part) in [&mut a, &mut b].into_iter().zip(&parts) {
         f.runs = part.runs.clone();
         f.set_paragraph_styles(part.paras.clone());
@@ -462,7 +462,7 @@ fn numbers_in_threaded_frames_are_written_as_text_in_each_frame() {
     let mut drawn: Vec<String> = vec![];
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
-            drawn.extend(vectorcraft_text::layout(FontDb::global(), t).markers.into_iter().map(|m| m.text));
+            drawn.extend(pluma_text::layout(FontDb::global(), t).markers.into_iter().map(|m| m.text));
         }
     });
     assert!(drawn.contains(&"4.".to_string()), "{drawn:?}");
@@ -495,7 +495,7 @@ fn a_number_in_oldstyle_figures_is_written_as_its_digits() {
     for r in &mut t.runs {
         r.style.features = vec!["onum".into()];
     }
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
+    let lay = pluma_text::layout(FontDb::global(), &t);
     let one = &lay.glyphs[lay.markers[0].glyphs.start];
     let face = FontDb::global().face_by_id(one.font_id).unwrap();
     assert_ne!(face.glyph_for('1'), one.gid, "an oldstyle 1, not the character map's");
@@ -547,7 +547,7 @@ fn overprinting_runs_are_written_or_left_out_as_other_runs_are() {
     };
     let written = |mut t: TextObject| {
         // The export culls type by the laid-out bounds that the engine keeps in `cached_bounds`.
-        t.cached_bounds = Some(vectorcraft_text::layout(FontDb::global(), &t).bounds);
+        t.cached_bounds = Some(pluma_text::layout(FontDb::global(), &t).bounds);
         let mut d = doc(vec![t]);
         d.artboards[0].rect = Rect::new(0.0, 0.0, 50.0, 50.0);
         pdf(&d, false).bytes
@@ -565,7 +565,7 @@ fn overprinting_runs_are_written_or_left_out_as_other_runs_are() {
 /// the instance's glyphs where the outlines would be, not the default instance's (#296).
 #[test]
 fn variable_font_instances_are_real_text_in_their_own_glyphs() {
-    use vectorcraft_text::test_fonts::{VARIABLE_CHARS, VARIABLE_FAMILY, variable_font};
+    use pluma_text::test_fonts::{VARIABLE_CHARS, VARIABLE_FAMILY, variable_font};
     FontDb::global().add_font(variable_font().unwrap());
     let mut widths = vec![];
     for s in ["Regular", "Bold"] {
@@ -587,7 +587,7 @@ fn variable_font_instances_are_real_text_in_their_own_glyphs() {
 /// where its outlines would, between the named instances on either side.
 #[test]
 fn variable_font_settings_are_real_text_in_their_own_glyphs() {
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, VARIABLE_CHARS, two_axis_font};
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY, VARIABLE_CHARS, two_axis_font};
     FontDb::global().add_font(two_axis_font().unwrap());
     let mut widths = vec![];
     for (s, wght) in [("Regular", None), ("Regular", Some(650.0)), ("Bold", None)] {
@@ -673,7 +673,7 @@ fn fonts_whose_licence_forbids_embedding_fall_back_to_outlines() {
 fn type_with_outline_object_is_written_as_paths_with_no_font() {
     let mut d = doc(vec![TextObject::point(Point::new(20.0, 60.0), "Hello World", style(24.0))]);
     let id = d.layers[0].children().unwrap()[0].id;
-    d.node_mut(id).unwrap().appearance.effects.push(vectorcraft_doc::Effect { id: "path.outlineObject".into(), params: json!({}), visible: true });
+    d.node_mut(id).unwrap().appearance.effects.push(pluma_doc::Effect { id: "path.outlineObject".into(), params: json!({}), visible: true });
     let r = pdf(&d, false);
     let text = String::from_utf8_lossy(&r.bytes);
     assert!(!text.contains("/FontFile") && !text.contains("/Font"), "no font");
@@ -748,7 +748,7 @@ fn pdf_a_takes_real_text() {
 /// A named instance comes back as live type in that style (not the default instance's).
 #[test]
 fn a_variable_font_instance_comes_back_in_its_own_style() {
-    use vectorcraft_text::test_fonts::{VARIABLE_CHARS, VARIABLE_FAMILY, variable_font};
+    use pluma_text::test_fonts::{VARIABLE_CHARS, VARIABLE_FAMILY, variable_font};
     FontDb::global().add_font(variable_font().unwrap());
     let st = CharStyle { font_family: VARIABLE_FAMILY.into(), font_style: "Bold".into(), ..style(48.0) };
     let d = doc(vec![TextObject::point(Point::new(20.0, 80.0), VARIABLE_CHARS, st)]);
@@ -845,7 +845,7 @@ fn slanted_type_reopens_as_type_that_still_leans() {
 /// names the version, which the family and style alone don't pick.
 #[test]
 fn type_in_another_installed_version_reopens_in_that_version() {
-    use vectorcraft_text::test_fonts::{TWIN_FAMILY, TWIN_VERSIONS, twin_font};
+    use pluma_text::test_fonts::{TWIN_FAMILY, TWIN_VERSIONS, twin_font};
     // The newer version first: the one the family and style resolve to.
     FontDb::global().add_font(twin_font(true).unwrap());
     FontDb::global().add_font(twin_font(false).unwrap());
@@ -868,7 +868,7 @@ fn origins(d: &Document) -> Vec<Point> {
     let mut out = vec![];
     d.walk(|n| {
         if let NodeKind::Text(t) = &n.kind {
-            out.extend(vectorcraft_text::layout(FontDb::global(), t).glyphs.iter().map(|g| t.xf * g.origin));
+            out.extend(pluma_text::layout(FontDb::global(), t).glyphs.iter().map(|g| t.xf * g.origin));
         }
     });
     out
@@ -1073,7 +1073,7 @@ fn mark_stream(bytes: &[u8]) -> (usize, Vec<String>, Vec<String>) {
 
 /// Every contour, including each dot and harakat, must stay at the outline export's position.
 fn mark_placement(real: &[u8], outlined: &[u8]) {
-    use vectorcraft_geom::{PathEl, Shape};
+    use pluma_geom::{PathEl, Shape};
     let contours = |bytes: &[u8]| {
         let mut boxes = vec![];
         import_as(bytes, TextAs::Outlines).walk(|n| {
@@ -1113,7 +1113,7 @@ fn mark_placement(real: &[u8], outlined: &[u8]) {
 
 fn check_mark_clusters(text: &str) {
     let Some(t) = mark_text(text) else { return };
-    let layout = vectorcraft_text::layout(FontDb::global(), &t);
+    let layout = pluma_text::layout(FontDb::global(), &t);
     let face = FontDb::global().face("Noto Sans Arabic", "Regular").unwrap();
     assert!(layout.glyphs.iter().all(|g| g.font_id == face.id() && g.gid != 0), "no fallback or missing glyphs");
     assert_eq!(layout.lines.len(), 1);
@@ -1165,7 +1165,7 @@ fn mark_text_mixed_arabic_latin_and_digits_are_mapped_once() {
 fn mark_text_columns_and_rotations_keep_their_boundaries() {
     let mut vertical = TextObject::point(Point::new(200.0, 30.0), "§§\n§§", style(24.0));
     vertical.vertical = true;
-    let layout = vectorcraft_text::layout(FontDb::global(), &vertical);
+    let layout = pluma_text::layout(FontDb::global(), &vertical);
     assert_eq!(layout.lines.len(), 2);
     let d = doc(vec![vertical]);
     let r = pdf(&d, false);
@@ -1177,7 +1177,7 @@ fn mark_text_columns_and_rotations_keep_their_boundaries() {
     arc.curve_to((100.0, 80.0), (260.0, 80.0), (320.0, 200.0));
     let mut t = TextObject::point(Point::ZERO, "CURVE", style(24.0));
     t.kind = TextKind::OnPath { path: PathData::from_bezpath(&arc), start: 0.0, end: None };
-    let layout = vectorcraft_text::layout(FontDb::global(), &t);
+    let layout = pluma_text::layout(FontDb::global(), &t);
     assert!(layout.glyphs.windows(2).all(|w| (w[0].angle - w[1].angle).abs() > 1e-4));
     let d = doc(vec![t]);
     let r = pdf(&d, false);

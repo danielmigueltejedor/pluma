@@ -1,10 +1,10 @@
 use super::grid::{clip_segment, pref_color};
 use super::outline::{OVERLAY_MAX_ANCHORS, c32, stroke_path};
-use super::{Color32, CornerRadius, Node, NodeKind, Overlay, Point, Pos2, Rect, Shape, Stroke, StrokeKind, Tokens, VectorcraftApp, Xf, pos2, vec2};
+use super::{Color32, CornerRadius, Node, NodeKind, Overlay, PlumaApp, Point, Pos2, Rect, Shape, Stroke, StrokeKind, Tokens, Xf, pos2, vec2};
 
 /// Type → Show Hidden Characters: spaces as dots, ¶ at paragraph ends, # at the end of a story.
 /// The marks of each text object are kept from one frame to the next ([`HiddenChars`]).
-pub(super) fn hidden_chars_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn hidden_chars_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(st) = app.session.active() else { return };
     let clip = p.clip_rect();
     let color = Color32::from_rgb(0x4f, 0x9d, 0xff);
@@ -15,7 +15,7 @@ pub(super) fn hidden_chars_overlay(app: &mut VectorcraftApp, p: &egui::Painter, 
     let mut last = std::mem::take(&mut kept.marks);
     // The inputs are read before any layout: when fonts load during this frame, the next frame
     // lays all type out again.
-    let inputs = (vectorcraft_text::FontDb::global().generation(), vectorcraft_text::hyphenation_exceptions());
+    let inputs = (pluma_text::FontDb::global().generation(), pluma_text::hyphenation_exceptions());
     if kept.inputs != inputs {
         last.clear();
         kept.inputs = inputs;
@@ -56,11 +56,11 @@ pub(super) fn hidden_chars_overlay(app: &mut VectorcraftApp, p: &egui::Painter, 
 /// fonts or the hyphenation exceptions change.
 #[derive(Default)]
 pub struct HiddenChars {
-    /// The fonts' generation ([`vectorcraft_text::FontDb::generation`]) and the hyphenation
+    /// The fonts' generation ([`pluma_text::FontDb::generation`]) and the hyphenation
     /// exceptions the marks were laid out with.
     pub(super) inputs: (u64, String),
     /// Each text object drawn, by id: the node it was laid out from and its marks.
-    pub(super) marks: std::collections::HashMap<vectorcraft_doc::NodeId, (std::sync::Arc<Node>, std::sync::Arc<HiddenMarks>)>,
+    pub(super) marks: std::collections::HashMap<pluma_doc::NodeId, (std::sync::Arc<Node>, std::sync::Arc<HiddenMarks>)>,
 }
 
 /// One text object's marks in document space: a dot over each space, and ¶ or # after the lines
@@ -73,9 +73,9 @@ pub(super) struct HiddenMarks {
 
 impl HiddenMarks {
     /// Lay out `tx` and place its marks.
-    pub(super) fn of(tx: &vectorcraft_doc::TextObject) -> Self {
+    pub(super) fn of(tx: &pluma_doc::TextObject) -> Self {
         let mut marks = Self::default();
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), tx);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), tx);
         if lay.on_path {
             return marks;
         }
@@ -106,12 +106,12 @@ impl HiddenMarks {
 }
 
 /// Edit › Spelling › Auto Spell Check: a red wavy line under each word of the visible type its
-/// dictionaries don't know ([`vectorcraft_engine::cmd::spelling::misspellings`], what
+/// dictionaries don't know ([`pluma_engine::cmd::spelling::misspellings`], what
 /// `text.spelling.check` lists), in the run's language, without the active document's Ignore All
 /// words. Type with effects isn't underlined
 /// ([Check and correct spelling](https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/check-and-correct-spelling.html)).
 /// Each text object's lines are kept from one frame to the next ([`SpellingMarks`]).
-pub(super) fn spelling_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn spelling_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf) {
     let kept = &mut app.canvas.spelling;
     let Some(st) = app.session.active() else {
         *kept = SpellingMarks::default();
@@ -121,9 +121,9 @@ pub(super) fn spelling_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: 
     // `last` holds the lines of the last frame; the objects this frame doesn't draw are dropped.
     let mut last = std::mem::take(&mut kept.lines);
     let inputs = SpellingInputs {
-        fonts: vectorcraft_text::FontDb::global().generation(),
-        hyphenation: vectorcraft_text::hyphenation_exceptions(),
-        dictionary: vectorcraft_engine::cmd::spelling::dictionary_generation(),
+        fonts: pluma_text::FontDb::global().generation(),
+        hyphenation: pluma_text::hyphenation_exceptions(),
+        dictionary: pluma_engine::cmd::spelling::dictionary_generation(),
         doc: st.uid,
         // Ignore All only adds words while the document is open.
         ignored: st.spelling_ignored.len(),
@@ -162,7 +162,7 @@ pub(super) fn spelling_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: 
 /// eye) on the type or on one of its fills or strokes, as the helpx page says "Auto spell check
 /// isn't available for text with effects applied".
 fn auto_spell_checks(n: &Node) -> bool {
-    let shown = |fx: &[vectorcraft_doc::Effect]| fx.iter().any(|e| e.visible);
+    let shown = |fx: &[pluma_doc::Effect]| fx.iter().any(|e| e.visible);
     !shown(&n.appearance.effects) && !n.appearance.items.iter().any(|i| shown(i.effects()))
 }
 
@@ -170,14 +170,14 @@ fn auto_spell_checks(n: &Node) -> bool {
 /// object whose glyphs `p` is on, when that object isn't locked and Auto Spell Check marks it and
 /// its word at `p` is one it underlines, with what its language's dictionary suggests instead. For the context menu's suggestions, Ignore All and Add
 /// to Dictionary ([Check and correct spelling](https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/check-and-correct-spelling.html)).
-pub(crate) fn misspelled_word_at(app: &mut VectorcraftApp, p: Point) -> Option<crate::state::ContextSpelling> {
+pub(crate) fn misspelled_word_at(app: &mut PlumaApp, p: Point) -> Option<crate::state::ContextSpelling> {
     let st = app.session.active()?;
     // The topmost type whose glyphs `p` is on, and whether it or a layer or group holding it is
     // locked: a word under other type isn't the one right-clicked, whether that type's word there
     // is right or not.
-    let mut top: Option<(vectorcraft_doc::NodeId, bool)> = None;
+    let mut top: Option<(pluma_doc::NodeId, bool)> = None;
     // Back to front as drawn at `p`: an Intertwine group's members by their tier there, those of
-    // one tier in their stacking order ([`vectorcraft_doc::intertwine`]).
+    // one tier in their stacking order ([`pluma_doc::intertwine`]).
     fn walk(nodes: &[std::sync::Arc<Node>], p: Point, locked: bool, f: &mut impl FnMut(&Node, bool)) {
         for n in nodes.iter().filter(|n| n.visible) {
             let locked = locked || n.locked;
@@ -185,7 +185,7 @@ pub(crate) fn misspelled_word_at(app: &mut VectorcraftApp, p: Point) -> Option<c
             let Some(children) = n.children() else { continue };
             if matches!(n.kind, NodeKind::Intertwine { .. }) {
                 let mut drawn = children.to_vec();
-                drawn.sort_by_key(|c| vectorcraft_doc::intertwine::tier_at(c, p));
+                drawn.sort_by_key(|c| pluma_doc::intertwine::tier_at(c, p));
                 walk(&drawn, p, locked, f);
             } else {
                 walk(children, p, locked, f);
@@ -198,8 +198,8 @@ pub(crate) fn misspelled_word_at(app: &mut VectorcraftApp, p: Point) -> Option<c
         if n.geometric_bounds().is_none_or(|b| !b.contains(p)) {
             return;
         }
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), tx);
-        let on = vectorcraft_text::selection_quads(&lay, 0, tx.plain_text().len()).iter().any(|q| in_quad(q.map(|c| tx.xf * c), p));
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), tx);
+        let on = pluma_text::selection_quads(&lay, 0, tx.plain_text().len()).iter().any(|q| in_quad(q.map(|c| tx.xf * c), p));
         if on {
             top = Some((n.id, locked));
         }
@@ -210,11 +210,10 @@ pub(crate) fn misspelled_word_at(app: &mut VectorcraftApp, p: Point) -> Option<c
     if locked || !auto_spell_checks(n) {
         return None;
     }
-    let (words, _) = vectorcraft_engine::cmd::spelling::misspellings(tx, &st.spelling_ignored, MAX_UNDERLINED);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), tx);
-    let w = words
-        .into_iter()
-        .find(|w| vectorcraft_text::selection_quads(&lay, w.range.start, w.range.end).iter().any(|q| in_quad(q.map(|c| tx.xf * c), p)))?;
+    let (words, _) = pluma_engine::cmd::spelling::misspellings(tx, &st.spelling_ignored, MAX_UNDERLINED);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), tx);
+    let w =
+        words.into_iter().find(|w| pluma_text::selection_quads(&lay, w.range.start, w.range.end).iter().any(|q| in_quad(q.map(|c| tx.xf * c), p)))?;
     let word = tx.plain_text().get(w.range.clone())?.to_string();
     let uid = st.uid;
     let suggestions = app
@@ -243,15 +242,15 @@ const MAX_UNDERLINED: usize = 1_000;
 
 /// The document-space segments under the unknown words of `tx`: for each word, the bottom edge of
 /// each piece of it on a line, from the start of the line to its end.
-fn underlines(tx: &vectorcraft_doc::TextObject, ignored: &std::collections::BTreeSet<String>) -> Vec<(Point, Point)> {
-    let (words, _) = vectorcraft_engine::cmd::spelling::misspellings(tx, ignored, MAX_UNDERLINED);
+fn underlines(tx: &pluma_doc::TextObject, ignored: &std::collections::BTreeSet<String>) -> Vec<(Point, Point)> {
+    let (words, _) = pluma_engine::cmd::spelling::misspellings(tx, ignored, MAX_UNDERLINED);
     if words.is_empty() {
         return vec![];
     }
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), tx);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), tx);
     words
         .iter()
-        .flat_map(|w| vectorcraft_text::selection_quads(&lay, w.range.start, w.range.end))
+        .flat_map(|w| pluma_text::selection_quads(&lay, w.range.start, w.range.end))
         // Clockwise from the top left: q[3] and q[2] are the bottom left and right.
         .map(|q| (tx.xf * q[3], tx.xf * q[2]))
         .collect()
@@ -280,12 +279,12 @@ fn wavy_line(p: &egui::Painter, a: Pos2, b: Pos2, stroke: Stroke) {
 /// changes, all type is checked again.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct SpellingInputs {
-    /// The fonts' generation ([`vectorcraft_text::FontDb::generation`]).
+    /// The fonts' generation ([`pluma_text::FontDb::generation`]).
     fonts: u64,
     /// The hyphenation exceptions, which move line breaks.
     hyphenation: String,
     /// The custom dictionary's generation
-    /// ([`vectorcraft_engine::cmd::spelling::dictionary_generation`]).
+    /// ([`pluma_engine::cmd::spelling::dictionary_generation`]).
     dictionary: u64,
     /// The document the lines are of.
     doc: u64,
@@ -300,7 +299,7 @@ pub(super) struct SpellingInputs {
 pub struct SpellingMarks {
     pub(super) inputs: Option<SpellingInputs>,
     /// Each text object drawn, by id: the node it was checked in and its lines in document space.
-    pub(super) lines: std::collections::HashMap<vectorcraft_doc::NodeId, (std::sync::Arc<Node>, Underlines)>,
+    pub(super) lines: std::collections::HashMap<pluma_doc::NodeId, (std::sync::Arc<Node>, Underlines)>,
 }
 
 /// One text object's Auto Spell Check lines: the document-space ends of each.
@@ -308,13 +307,13 @@ pub(super) type Underlines = std::sync::Arc<Vec<(Point, Point)>>;
 
 /// View › Show Text Threads: for each thread with a selected frame, a line in its first frame's
 /// layer colour from each frame's out port to the next frame's in port, both showing the arrow of a
-/// threaded port, where the tools draw the ports of selected type ([`vectorcraft_tools::text`]).
-/// Only frames with ports ([`vectorcraft_tools::text::ported`]) are joined: a link to or from a
+/// threaded port, where the tools draw the ports of selected type ([`pluma_tools::text`]).
+/// Only frames with ports ([`pluma_tools::text::ported`]) are joined: a link to or from a
 /// frame in perspective, which has none, gets no line. With more than
-/// [`vectorcraft_tools::text::PORTS_MAX`] such frames selected the tools draw no ports, and only
+/// [`pluma_tools::text::PORTS_MAX`] such frames selected the tools draw no ports, and only
 /// the lines are drawn here. `zoom`: screen pixels to the document unit.
-pub(super) fn thread_overlays(app: &VectorcraftApp, zoom: f64) -> Vec<Overlay> {
-    use vectorcraft_tools::text::{Port, PortState, port_centre, ported, ports_shown, push_port};
+pub(super) fn thread_overlays(app: &PlumaApp, zoom: f64) -> Vec<Overlay> {
+    use pluma_tools::text::{Port, PortState, port_centre, ported, ports_shown, push_port};
     let Some(st) = app.session.active() else { return vec![] };
     let px = 1.0 / zoom.max(1e-9);
     let boxes = ports_shown(&st.doc, &st.selection.objects);
@@ -340,7 +339,7 @@ pub(super) fn thread_overlays(app: &VectorcraftApp, zoom: f64) -> Vec<Overlay> {
 
 /// View → Show Live Paint Gaps: the gaps of the selected Live Paint groups in each group's Gap
 /// Preview Color ([`crate::dialogs::live_paint_gaps::selected_gaps`]). Cached per revision.
-pub(super) fn live_paint_gap_overlays(app: &mut VectorcraftApp) -> Vec<Overlay> {
+pub(super) fn live_paint_gap_overlays(app: &mut PlumaApp) -> Vec<Overlay> {
     let Some(st) = app.session.active() else { return vec![] };
     let key = (st.uid, st.revision);
     let gaps = match &app.canvas.live_paint_gaps {
@@ -357,7 +356,7 @@ pub(super) fn live_paint_gap_overlays(app: &mut VectorcraftApp) -> Vec<Overlay> 
 /// Simplify's Show Original Path: the paths its preview ran on, as they were before it, in a band
 /// 3 screen points wide of their layer's color at 40%, under the selection's outlines. Nothing is drawn
 /// when they have more than [`OVERLAY_MAX_ANCHORS`] anchor points.
-pub(super) fn original_path_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn original_path_overlay(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
     let paths = crate::dialogs::path_ops::original_paths(app);
     let Some(st) = app.session.active().filter(|_| paths.iter().map(|(_, path)| path.anchor_count()).sum::<usize>() <= OVERLAY_MAX_ANCHORS) else {
         return;
@@ -369,8 +368,8 @@ pub(super) fn original_path_overlay(app: &VectorcraftApp, p: &egui::Painter, xf:
 
 /// The 9-slice guides of the symbol edited in symbol editing mode: four thin dotted lines across
 /// its art's box, with any tool, whether ruler guides are shown or hidden. The Selection tool drags
-/// them ([`vectorcraft_tools::nineslice`]) at the places drawn here.
-pub(super) fn nine_slice_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+/// them ([`pluma_tools::nineslice`]) at the places drawn here.
+pub(super) fn nine_slice_overlay(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(e) = app.session.active().and_then(|st| st.doc.edited_nine_slice()) else { return };
     let color = Tokens::get(p.ctx()).selection;
     for (_, a, b) in e.lines() {
@@ -387,7 +386,7 @@ pub(super) fn nine_slice_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &X
 /// The slices (unless View → Hide Slices): user and object slices outlined in the Slices
 /// preferences' line colour, auto slices dashed and dimmer, each numbered at its top left (Show
 /// Slice Numbers); selected slices have a bolder outline. The layout is cached per revision.
-pub(super) fn slice_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn slice_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(st) = app.session.active() else { return };
     let key = (st.uid, st.revision);
     let slices = match &app.canvas.slices {
@@ -407,7 +406,7 @@ pub(super) fn slice_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf
     let selected = &st.selection.slices;
     let objects = &st.selection.objects;
     for a in slices.iter() {
-        let auto = a.source == vectorcraft_doc::SliceSource::Auto;
+        let auto = a.source == pluma_doc::SliceSource::Auto;
         let on = a.id.is_some_and(|id| selected.contains(&id) || objects.contains(&id));
         let q = xf.quad(a.rect);
         let ring: Vec<Pos2> = q.iter().chain(q.first()).copied().collect();
@@ -431,14 +430,14 @@ pub(super) fn slice_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf
 /// The print tiling (View → Show Print Tiling, or the Print Tiling tool): each page of the
 /// document's print settings as `print.preview` lays it out, its paper edge and its imageable
 /// area dashed, numbered at its top left; tiles outside the tile range dimmer. Cached per revision.
-pub(super) fn print_tiling_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn print_tiling_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(st) = app.session.active() else { return };
     let key = (st.uid, st.revision);
     let pages = match &app.canvas.print_tiling {
         Some((k, pages)) if *k == key => pages.clone(),
         _ => {
             // Settings that can't print have no pages to show.
-            let pages = std::sync::Arc::new(vectorcraft_engine::cmd::printtiling::pages(&st.doc).unwrap_or_default());
+            let pages = std::sync::Arc::new(pluma_engine::cmd::printtiling::pages(&st.doc).unwrap_or_default());
             app.canvas.print_tiling = Some((key, pages.clone()));
             pages
         }
@@ -464,12 +463,12 @@ const PRINT_TILING: Color32 = Color32::from_gray(96);
 
 /// A Shaper Group's mode widget (Shaper and Selection tools), drawn with selection edges shown or
 /// hidden: an arrow pointing right in Face Selection mode and left in Construction mode.
-pub(super) fn shaper_widget_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn shaper_widget_overlay(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
     let Some(st) = app.session.active() else { return };
     if matches!(app.session.tool_id(), "shaper" | "selection")
-        && let Some(w) = vectorcraft_tools::shaperwidget::ShaperWidget::of(&st.doc, &st.selection, st.isolation, xf.zoom)
+        && let Some(w) = pluma_tools::shaperwidget::ShaperWidget::of(&st.doc, &st.selection, st.isolation, xf.zoom)
     {
-        let (c, r) = (xf.to_screen(w.at), vectorcraft_tools::shaperwidget::RADIUS_PX);
+        let (c, r) = (xf.to_screen(w.at), pluma_tools::shaperwidget::RADIUS_PX);
         let color = c32(st.doc.layer_color(w.group));
         p.circle_filled(c, r, Color32::WHITE);
         p.circle_stroke(c, r, Stroke::new(1.0, color));
@@ -480,12 +479,12 @@ pub(super) fn shaper_widget_overlay(app: &VectorcraftApp, p: &egui::Painter, xf:
 }
 
 /// High-contrast live controls, using the same geometry as the Selection tool's hit testing.
-pub(super) fn mirror_axis_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf) {
+pub(super) fn mirror_axis_overlay(app: &PlumaApp, p: &egui::Painter, xf: &Xf) {
     if app.session.tool_id() != "selection" || !app.ui.view.bounding_box {
         return;
     }
     let Some(st) = app.session.active() else { return };
-    let Some(axis) = vectorcraft_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, xf.zoom) else { return };
+    let Some(axis) = pluma_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, xf.zoom) else { return };
     let t = Tokens::get(p.ctx());
     let ends = axis.ends.map(|q| xf.to_screen(q));
     let center = xf.to_screen(axis.center);
@@ -497,8 +496,8 @@ pub(super) fn mirror_axis_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &
         p.line_segment([a, b], Stroke::new(2.0, t.selection));
     }
     for end in ends {
-        p.circle_filled(end, vectorcraft_tools::mirror::HANDLE_RADIUS, t.measure_bg);
-        p.circle_stroke(end, vectorcraft_tools::mirror::HANDLE_RADIUS, Stroke::new(2.0, t.selection));
+        p.circle_filled(end, pluma_tools::mirror::HANDLE_RADIUS, t.measure_bg);
+        p.circle_stroke(end, pluma_tools::mirror::HANDLE_RADIUS, Stroke::new(2.0, t.selection));
     }
     let handle = egui::Rect::from_center_size(center, vec2(12.0, 12.0));
     p.rect_filled(handle, 2.0, t.selection);
@@ -507,8 +506,8 @@ pub(super) fn mirror_axis_overlay(app: &VectorcraftApp, p: &egui::Painter, xf: &
 
 /// A selected grid repeat's row, column and corner handles and its spacing sliders (#2691), at
 /// the places the Selection tool's hit testing finds them.
-pub(super) fn grid_repeat_overlay(app: &mut VectorcraftApp, p: &egui::Painter, xf: &Xf) {
-    use vectorcraft_tools::repeat_grid::{GridHandles, GridPart, HANDLE_RADIUS, SLIDER_HALF};
+pub(super) fn grid_repeat_overlay(app: &mut PlumaApp, p: &egui::Painter, xf: &Xf) {
+    use pluma_tools::repeat_grid::{GridHandles, GridPart, HANDLE_RADIUS, SLIDER_HALF};
     if app.session.tool_id() != "selection" || !app.ui.view.bounding_box {
         return;
     }
@@ -524,7 +523,7 @@ pub(super) fn grid_repeat_overlay(app: &mut VectorcraftApp, p: &egui::Painter, x
         }
         if part.is_slider() {
             // A bar across the gap's middle, square to the spacing it sets.
-            let along = if part == GridPart::HSpacing { vectorcraft_geom::Vec2::new(0.0, half) } else { vectorcraft_geom::Vec2::new(half, 0.0) };
+            let along = if part == GridPart::HSpacing { pluma_geom::Vec2::new(0.0, half) } else { pluma_geom::Vec2::new(half, 0.0) };
             let ends = [xf.to_screen(at - along), xf.to_screen(at + along)];
             p.line_segment(ends, Stroke::new(6.0, t.measure_bg));
             p.line_segment(ends, Stroke::new(2.5, t.selection));

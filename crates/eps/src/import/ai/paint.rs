@@ -28,8 +28,8 @@
 use std::collections::{HashMap, HashSet};
 
 use kurbo::{Affine, Point, Vec2};
-use vectorcraft_color::gradient::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
-use vectorcraft_color::{Color, Paint};
+use pluma_color::gradient::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+use pluma_color::{Color, Paint};
 
 use super::lex::{Lexer, Tok};
 use super::obj::{NameEncoding, Names, V};
@@ -88,7 +88,7 @@ pub(super) fn separation_ink(vals: &[V], names: &mut Names) -> Option<(Paint, Op
         return None;
     }
     if is_registration(&name) {
-        let paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint: 1.0 };
+        let paint = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint: 1.0 };
         return Some((paint, None));
     }
     // A process plate is its CMYK colour, not a spot ink: no swatch of its name.
@@ -104,7 +104,7 @@ pub(super) fn separation_ink(vals: &[V], names: &mut Names) -> Option<(Paint, Op
 }
 
 fn is_registration(name: &str) -> bool {
-    matches!(name, vectorcraft_color::swatch::REGISTRATION | "Registration" | "/All" | "All" | "/[Registration]")
+    matches!(name, pluma_color::swatch::REGISTRATION | "Registration" | "/All" | "All" | "/[Registration]")
 }
 
 /// `c m y k (name) tint x` or `c m y k [r g b | L a b] (name) tint type Xx` (type 1: RGB, 2: Lab);
@@ -118,7 +118,7 @@ fn named(vals: &[V], rgb: Option<bool>, names: &mut Names) -> Option<(Paint, Opt
     let tint = 1.0 - unit(*after.first()?);
     if is_registration(&name.text()?) {
         let full = Color::cmyk(1.0, 1.0, 1.0, 1.0);
-        let paint = Paint::Solid { color: full.tinted(tint), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint };
+        let paint = Paint::Solid { color: full.tinted(tint), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint };
         return Some((paint, None));
     }
     let n = before.len();
@@ -158,7 +158,7 @@ fn registration(op: &str, vals: &[V]) -> Option<(Paint, Option<Named>)> {
         1.0 - t.clamp(0.0, 1.0) as f32
     };
     let full = Color::cmyk(1.0, 1.0, 1.0, 1.0);
-    Some((Paint::Solid { color: full.tinted(tint), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint }, None))
+    Some((Paint::Solid { color: full.tinted(tint), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint }, None))
 }
 
 /// The colour of a gradient stop's colour values and style.

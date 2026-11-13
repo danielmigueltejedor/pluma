@@ -6,12 +6,12 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::pattern::pattern_paint;
-use vectorcraft_doc::{Appearance, Document, Node, NodeKind, PatternDef, Symbol};
-use vectorcraft_geom::{Affine, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, editing, export, export_full, import};
-use vectorcraft_testkit::raster::{Image, assert_similar, render_artboard};
+use pluma_color::{Color, Paint};
+use pluma_doc::pattern::pattern_paint;
+use pluma_doc::{Appearance, Document, Node, NodeKind, PatternDef, Symbol};
+use pluma_geom::{Affine, Rect, shapes};
+use pluma_svg::{ExportOptions, editing, export, export_full, import};
+use pluma_testkit::raster::{Image, assert_similar, render_artboard};
 
 /// The exported SVG rendered by resvg on white at 1 px/pt.
 fn resvg_render(svg: &str, w: u32, h: u32) -> Image {
@@ -83,7 +83,7 @@ fn a_scaled_nine_slice_instance_is_written_as_the_canvas_draws_it() {
     let art: Vec<Arc<Node>> = rects.iter().map(|(r, c)| Arc::new(Node::path(d.alloc_id(), shapes::rectangle(*r), fill(*c)))).collect();
     let group = Node::group(d.alloc_id(), art);
     d.symbols.push(Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(group) });
-    d.set_symbol_nine_slice("Panel", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    d.set_symbol_nine_slice("Panel", Some(pluma_doc::SymbolNineSlice::default()));
     instance(&mut d, "Panel", Affine::translate((20.0, 20.0)) * Affine::scale_non_uniform(2.0, 1.5));
     let svg = export(&d, &ExportOptions::default());
     assert_eq!(svg.matches("<use ").count(), 0, "{svg}");
@@ -125,15 +125,15 @@ fn a_nine_slice_instance_past_the_object_limit_is_left_out() {
         let mut d = Document::new(300.0, 200.0);
         let leaf = Arc::new(Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)), Appearance::default()));
         let inner = Arc::new(Node::group(d.alloc_id(), vec![leaf; mask_objects]));
-        let mut mask = vectorcraft_doc::OpacityMask::new(Node::group(d.alloc_id(), vec![inner; mask_objects]), true);
+        let mut mask = pluma_doc::OpacityMask::new(Node::group(d.alloc_id(), vec![inner; mask_objects]), true);
         (mask.linked, mask.disabled) = (false, true);
-        let gradient = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default())));
+        let gradient = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::default())));
         let mut square =
             Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::basic(gradient, Paint::None, 0.0));
         square.extras_mut().mask = Some(Box::new(mask));
         let art = Node::group(d.alloc_id(), vec![Arc::new(square)]);
         d.symbols.push(Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
-        d.set_symbol_nine_slice("Panel", Some(vectorcraft_doc::SymbolNineSlice::default()));
+        d.set_symbol_nine_slice("Panel", Some(pluma_doc::SymbolNineSlice::default()));
         instance(&mut d, "Panel", Affine::translate((20.0, 20.0)) * Affine::scale_non_uniform(2.0, 1.5));
         d
     };
@@ -160,16 +160,16 @@ fn nine_slice_instances_share_one_object_limit_in_an_export() {
         let mut d = Document::new(300.0, 200.0);
         let leaf = Arc::new(Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)), Appearance::default()));
         let inner = Arc::new(Node::group(d.alloc_id(), vec![leaf; mask_objects]));
-        let mut mask = vectorcraft_doc::OpacityMask::new(Node::group(d.alloc_id(), vec![inner; mask_objects]), true);
+        let mut mask = pluma_doc::OpacityMask::new(Node::group(d.alloc_id(), vec![inner; mask_objects]), true);
         // A linked mask moves with its art, which lets "Outer" share a def.
         (mask.linked, mask.disabled) = (layout == "outer", true);
-        let gradient = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default())));
+        let gradient = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::default())));
         let mut square =
             Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::basic(gradient, Paint::None, 0.0));
         square.extras_mut().mask = Some(Box::new(mask));
         let art = Node::group(d.alloc_id(), vec![Arc::new(square)]);
         d.symbols.push(Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(art) });
-        d.set_symbol_nine_slice("Panel", Some(vectorcraft_doc::SymbolNineSlice::default()));
+        d.set_symbol_nine_slice("Panel", Some(pluma_doc::SymbolNineSlice::default()));
         let xf = |x: f64| Affine::translate((x, 20.0)) * Affine::scale_non_uniform(2.0, 1.5);
         for x in plain {
             instance(&mut d, "Panel", xf(*x));
@@ -180,7 +180,7 @@ fn nine_slice_instances_share_one_object_limit_in_an_export() {
             let below = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 300.0, 200.0)), Appearance::default());
             let top = panel(&mut d, 60.0);
             let mut group = Node::group(d.alloc_id(), vec![below.into(), top.into()]);
-            group.knockout = vectorcraft_doc::Knockout::On;
+            group.knockout = pluma_doc::Knockout::On;
             d.insert(Some(l), usize::MAX, group).unwrap();
         } else if layout == "outer" {
             let art = Node::group(d.alloc_id(), vec![panel(&mut d, 20.0).into()]);
@@ -221,7 +221,7 @@ fn instances_the_def_cant_stand_for_get_their_own_art() {
     let mut stained = instance(&mut d, "My Mark", Affine::translate((40.0, 20.0)));
     stained.appearance = Appearance::basic(Paint::solid(Color::rgb8(255, 0, 0)), Paint::None, 0.0).into();
     stained.appearance.items.retain(|i| i.is_fill());
-    if let vectorcraft_doc::AppearanceItem::Fill(f) = &mut stained.appearance.items[0] {
+    if let pluma_doc::AppearanceItem::Fill(f) = &mut stained.appearance.items[0] {
         f.opacity = 0.5;
     }
     let id = stained.id;
@@ -267,7 +267,7 @@ fn expanded(d: &Document) -> Document {
     for c in l.children_mut().unwrap().iter_mut() {
         if let NodeKind::SymbolInstance { symbol, xf } = &c.kind {
             let sym = d.symbols.iter().find(|s| s.name == *symbol).unwrap();
-            let mut art = vectorcraft_brush::instance_art(&sym.art, c);
+            let mut art = pluma_brush::instance_art(&sym.art, c);
             art.transform(*xf, false);
             *c = Arc::new(art);
         }
@@ -282,7 +282,7 @@ fn masks_in_symbols_move_with_the_art_when_linked() {
         let fill = |c| Appearance::basic(Paint::solid(c), Paint::None, 0.0);
         let mut art = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 60.0, 60.0)), fill(Color::rgb8(200, 0, 0)));
         let shape = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 60.0)), fill(Color::WHITE));
-        let mut mask = vectorcraft_doc::OpacityMask::new(shape, true);
+        let mut mask = pluma_doc::OpacityMask::new(shape, true);
         mask.linked = linked;
         art.extras_mut().mask = Some(Box::new(mask));
         d.symbols.push(Symbol { dynamic: false, name: "Half".into(), art: Arc::new(art) });
@@ -308,7 +308,7 @@ fn a_mask_in_a_scaled_instance_covers_the_strokes_at_their_weight() {
         shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 100.0)),
         Appearance::basic(Paint::solid(Color::WHITE), Paint::None, 0.0),
     );
-    art.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(shape, false)));
+    art.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(shape, false)));
     d.symbols.push(Symbol { dynamic: false, name: "Framed".into(), art: Arc::new(art) });
     instance(&mut d, "Framed", Affine::translate((50.0, 50.0)) * Affine::scale(0.2));
     let svg = export(&d, &ExportOptions::default());
@@ -340,7 +340,7 @@ fn layered() -> Document {
     let a = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 40.0, 40.0)), fill(Color::rgb8(255, 0, 0)));
     let l = d.layers[0].id;
     d.insert(Some(l), 0, a).unwrap();
-    let mut hidden = Node::layer(d.alloc_id(), "Notes", vectorcraft_doc::LayerColor::Preset(1));
+    let mut hidden = Node::layer(d.alloc_id(), "Notes", pluma_doc::LayerColor::Preset(1));
     let b = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(50.0, 50.0, 90.0, 90.0)), fill(Color::rgb8(0, 0, 255)));
     hidden.children_mut().unwrap().push(Arc::new(b));
     hidden.visible = false;
@@ -356,8 +356,8 @@ fn hidden_layers_are_kept_hidden_when_asked() {
     // Page isolation wraps the layers in one more group.
     let mut isolated = d.clone();
     isolated.page_isolate = true;
-    let styles = [vectorcraft_svg::Styling::PresentationAttributes, vectorcraft_svg::Styling::InlineStyle, vectorcraft_svg::Styling::InternalCss];
-    for (d, styling) in styles.iter().map(|s| (&d, *s)).chain([(&isolated, vectorcraft_svg::Styling::InternalCss)]) {
+    let styles = [pluma_svg::Styling::PresentationAttributes, pluma_svg::Styling::InlineStyle, pluma_svg::Styling::InternalCss];
+    for (d, styling) in styles.iter().map(|s| (&d, *s)).chain([(&isolated, pluma_svg::Styling::InternalCss)]) {
         let kept = export(d, &ExportOptions { hidden_layers: true, styling, ..Default::default() });
         assert!(kept.contains("id=\"Notes\"") && kept.contains("display") && kept.matches("<rect").count() == 2, "{kept}");
         // Viewers don't show it.
@@ -413,7 +413,7 @@ fn hidden_objects_and_data_attributes_round_trip() {
     // An export leaves the hidden objects out, their data with them; the others keep theirs.
     let plain = export(&d, &ExportOptions::default());
     assert!(!plain.contains("arm-raised") && !plain.contains("eye-closed") && plain.contains("data-pivot=\"60,100\""), "{plain}");
-    let styles = [vectorcraft_svg::Styling::PresentationAttributes, vectorcraft_svg::Styling::InlineStyle, vectorcraft_svg::Styling::InternalCss];
+    let styles = [pluma_svg::Styling::PresentationAttributes, pluma_svg::Styling::InlineStyle, pluma_svg::Styling::InternalCss];
     for styling in styles {
         // Kept (Save, or asked), they are written hidden and come back hidden, with every attribute.
         let kept = export(&d, &ExportOptions { hidden_layers: true, styling, ..Default::default() });
@@ -578,7 +578,7 @@ fn sublayered() -> Document {
         Arc::new(Node::path(d.alloc_id(), shapes::rectangle(Rect::new(x, x, x + 10.0, x + 10.0)), ap))
     };
     let layer = |children: Vec<Arc<Node>>, d: &mut Document, name: &str| {
-        let mut l = Node::layer(d.alloc_id(), name, vectorcraft_doc::LayerColor::Preset(3));
+        let mut l = Node::layer(d.alloc_id(), name, pluma_doc::LayerColor::Preset(3));
         *l.children_mut().unwrap() = children;
         l
     };
@@ -622,7 +622,7 @@ fn sublayers_round_trip() {
         "  Path",
     ];
     assert_eq!(outline(&d), expected);
-    let styles = [vectorcraft_svg::Styling::PresentationAttributes, vectorcraft_svg::Styling::InlineStyle, vectorcraft_svg::Styling::InternalCss];
+    let styles = [pluma_svg::Styling::PresentationAttributes, pluma_svg::Styling::InlineStyle, pluma_svg::Styling::InternalCss];
     for styling in styles {
         // Saved with the hidden sublayer: the same tree comes back.
         let kept = export(&d, &ExportOptions { hidden_layers: true, styling, ..Default::default() });
@@ -634,7 +634,7 @@ fn sublayers_round_trip() {
             if let NodeKind::Layer { color, .. } = &n.kind
                 && n.name.as_deref() != Some("Top")
             {
-                assert_eq!(*color, vectorcraft_doc::LayerColor::Preset(0), "{:?}", n.name);
+                assert_eq!(*color, pluma_doc::LayerColor::Preset(0), "{:?}", n.name);
             }
         });
         assert!(back.layers[0].children().unwrap()[2].clips());
@@ -709,7 +709,7 @@ fn editing_data_notices_edits_made_elsewhere() {
     let svg = export_full(&d, &opts, Some(b"native bytes")).svg;
     assert!(svg.contains("<![CDATA[") && svg.contains(" hash=\""), "{svg}");
     let e = editing(&svg).unwrap();
-    assert!(e.intact && e.data == vectorcraft_svg::base64_encode(b"native bytes"));
+    assert!(e.intact && e.data == pluma_svg::base64_encode(b"native bytes"));
     // Re-indented, with other line endings: still the same picture.
     let reformatted = svg.replace("\n  ", "\r\n\t\t");
     assert!(editing(&reformatted).unwrap().intact);
@@ -723,6 +723,6 @@ fn editing_data_notices_edits_made_elsewhere() {
     let retitled = svg.replacen("<dc:format>", "<dc:creator>someone</dc:creator><dc:format>", 1);
     assert!(editing(&retitled).unwrap().intact);
     // Unique ids hash the final output.
-    let unique = export_full(&d, &ExportOptions { object_ids: vectorcraft_svg::ObjectIds::Unique, ..opts }, Some(b"native bytes")).svg;
+    let unique = export_full(&d, &ExportOptions { object_ids: pluma_svg::ObjectIds::Unique, ..opts }, Some(b"native bytes")).svg;
     assert!(editing(&unique).unwrap().intact);
 }

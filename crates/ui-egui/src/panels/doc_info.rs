@@ -7,7 +7,7 @@ use egui::Ui;
 use serde_json::{Value, json};
 
 use super::{pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
 
@@ -32,7 +32,7 @@ pub(crate) fn row(ui: &mut Ui, label: &str, value: String) {
 }
 
 /// `document.info` with its categories, fetched again only when the document or the scope changes.
-fn info(app: &mut VectorcraftApp, ctx: &egui::Context, sel_only: bool) -> Option<Value> {
+fn info(app: &mut PlumaApp, ctx: &egui::Context, sel_only: bool) -> Option<Value> {
     let st = app.session.active()?;
     let key = Some((st.uid, st.revision, sel_only));
     let mut c: Cache = pstate(ctx, "docinfo-cache");
@@ -44,7 +44,7 @@ fn info(app: &mut VectorcraftApp, ctx: &egui::Context, sel_only: bool) -> Option
     Some(c.info)
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let sel_only: bool = pstate(ui.ctx(), "docinfo-sel");
     let category: String = pstate(ui.ctx(), "docinfo-category");
     let Some(i) = info(app, ui.ctx(), sel_only) else {
@@ -103,7 +103,7 @@ fn named_rows(id: &str, rows: &[Value]) -> std::ops::Range<usize> {
 
 /// `docInfo.save {path?, selectionOnly?, category?}`: write the text report (only `category` when given,
 /// else every category) to `path`, else a picked file (the web downloads it) → `{path}`.
-pub(crate) fn save_report(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn save_report(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let sel_only = p.get("selectionOnly").and_then(Value::as_bool).unwrap_or(false);
     let mut q = json!({ "format": "text", "selectionOnly": sel_only });
     if let Some(c) = p.get("category").and_then(Value::as_str).filter(|c| !c.is_empty()) {
@@ -119,7 +119,7 @@ pub(crate) fn save_report(app: &mut VectorcraftApp, p: &Value) -> Result<Value, 
     Ok(json!({ "path": path }))
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let sel: bool = pstate(ui.ctx(), "docinfo-sel");
     if menu_item(ui, tl!("Selection Only"), true, sel) {
         set_pstate(ui.ctx(), "docinfo-sel", !sel);
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn draws_headless() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi"})).unwrap();
         let ctx = egui::Context::default();
@@ -163,7 +163,7 @@ mod tests {
     /// language: an artboard named like a label ("Units") is still a name.
     #[test]
     fn names_in_rows_are_told_from_labels() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("artboard.setProps", &json!({"index": 0, "name": "Units"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi"})).unwrap();
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn categories_filter_the_panel_and_save_writes_the_report() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi"})).unwrap();
         let text = crate::tests_labels::painted_text(&mut app, show);
@@ -214,7 +214,7 @@ mod tests {
 
     /// The report the panel menu's Save… writes with category `category` shown ("" for All
     /// Categories) and Selection Only set to `sel_only`.
-    fn saved_from_menu(app: &mut VectorcraftApp, category: &str, sel_only: bool) -> String {
+    fn saved_from_menu(app: &mut PlumaApp, category: &str, sel_only: bool) -> String {
         let written: std::rc::Rc<std::cell::RefCell<Vec<u8>>> = Default::default();
         let w = written.clone();
         app.services.write = Some(Box::new(move |_: &str, b: &[u8]| {
@@ -226,7 +226,7 @@ mod tests {
         crate::theme::install_fonts(&ctx);
         set_pstate(&ctx, "docinfo-category", category.to_string());
         set_pstate(&ctx, "docinfo-sel", sel_only);
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(236.0, 800.0));
             let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| menu(app, ui));
             out.textures_delta.clear();
@@ -247,7 +247,7 @@ mod tests {
     /// writes every category.
     #[test]
     fn save_writes_the_category_the_panel_shows() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
         let text = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi"})).unwrap()["id"].clone();

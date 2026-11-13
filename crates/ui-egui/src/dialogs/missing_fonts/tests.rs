@@ -1,26 +1,26 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::findfiles::Rules;
+use pluma_engine::Session;
+use pluma_engine::cmd::findfiles::Rules;
 
 use super::*;
 
-fn frame(app: &mut VectorcraftApp) -> String {
+fn frame(app: &mut PlumaApp) -> String {
     crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
 }
 
 /// A fresh temporary folder (canonical, as a search reports it).
 fn folder(tag: &str) -> PathBuf {
-    let dir = vectorcraft_testkit::temp_dir(&format!("missing-fonts-{tag}"));
+    let dir = pluma_testkit::temp_dir(&format!("missing-fonts-{tag}"));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    vectorcraft_engine::cmd::findfiles::plain(std::fs::canonicalize(&dir).unwrap())
+    pluma_engine::cmd::findfiles::plain(std::fs::canonicalize(&dir).unwrap())
 }
 
 /// An app that reads files and whose searches may go anywhere in `root`, on two threads.
-fn app_for(root: &Path) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_for(root: &Path) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
     app.session.search_rules = Some(Rules { user_content: vec![root.to_path_buf()], ..Rules::default() });
     app.session.search_threads = Some(2);
@@ -37,7 +37,7 @@ fn png() -> Vec<u8> {
 
 /// Save a new document with type in `font` at `path`, with a linked image that is then deleted
 /// when `link`.
-fn save_doc(app: &mut VectorcraftApp, path: &Path, font: &str, link: bool) {
+fn save_doc(app: &mut PlumaApp, path: &Path, font: &str, link: bool) {
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let pic = path.with_extension("png");
     if link {
@@ -53,7 +53,7 @@ fn save_doc(app: &mut VectorcraftApp, path: &Path, font: &str, link: bool) {
     app.run("file.close", json!({})).unwrap();
 }
 
-fn open(app: &mut VectorcraftApp, path: &Path) {
+fn open(app: &mut PlumaApp, path: &Path) {
     crate::io::open_path(app, &path.to_string_lossy()).unwrap();
 }
 
@@ -62,7 +62,7 @@ fn open(app: &mut VectorcraftApp, path: &Path) {
 /// search's default `maxSeconds` of 60, which would end a search that does not end by itself.
 const WAIT: Duration = Duration::from_secs(30);
 
-fn kind(app: &VectorcraftApp) -> Option<&str> {
+fn kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
@@ -70,7 +70,7 @@ fn kind(app: &VectorcraftApp) -> Option<&str> {
 fn missing_fonts_are_asked_about_after_the_missing_links() {
     let root = folder("after-links");
     let mut app = app_for(&root);
-    let doc = root.join("doc.vectorcraft");
+    let doc = root.join("doc.pluma");
     save_doc(&mut app, &doc, "No Such Font Family", true);
     open(&mut app, &doc);
     assert_eq!(kind(&app), Some(super::super::missing_links::KIND));
@@ -96,9 +96,9 @@ fn the_documents_fonts_folder_is_offered_and_searched_off_the_ui_thread() {
     let root = folder("package");
     let font = root.join("pkg").join("Fonts").join("sub").join("Findme.otf");
     std::fs::create_dir_all(font.parent().unwrap()).unwrap();
-    std::fs::write(&font, vectorcraft_testkit::fonts::renamed("Findme Sans 3")).unwrap();
+    std::fs::write(&font, pluma_testkit::fonts::renamed("Findme Sans 3")).unwrap();
     let mut app = app_for(&root);
-    let doc = root.join("pkg/doc.vectorcraft");
+    let doc = root.join("pkg/doc.pluma");
     save_doc(&mut app, &doc, "Findme Sans 3", false);
     open(&mut app, &doc);
     let next = app.ui.dialog.as_ref().filter(|d| d.kind == KIND).expect("Missing Fonts at once: no links missing").str("fontsNextToDocument");
@@ -120,7 +120,7 @@ fn the_documents_fonts_folder_is_offered_and_searched_off_the_ui_thread() {
     for label in ["Findme.otf", "Copy only fonts you own or are licensed to install.", "Add Fonts"] {
         assert!(text.contains(label), "{label} in {text}");
     }
-    // Adding needs VectorCraft's Fonts folder, which only the apps set.
+    // Adding needs Pluma's Fonts folder, which only the apps set.
     let e = super::super::confirm(&mut app).unwrap_err();
     assert!(e.contains("isn't set here"), "{e}");
     assert_eq!(kind(&app), Some(KIND));
@@ -135,7 +135,7 @@ fn find_fonts_opens_find_font_on_the_missing_font() {
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 40, "text": "Here", "font": "Source Sans 3"})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 80, "text": "Gone", "font": "Zz Missing Family"})).unwrap();
-    let doc = root.join("doc.vectorcraft");
+    let doc = root.join("doc.pluma");
     app.run("document.save", json!({"path": doc.to_string_lossy()})).unwrap();
     // Opened afresh: an open file would only come to the front (#5369).
     app.run("file.close", json!({})).unwrap();
@@ -160,7 +160,7 @@ fn find_fonts_opens_find_font_on_the_missing_font() {
 fn find_fonts_works_on_the_dialog_s_own_document() {
     let root = folder("find-fonts-tab");
     let mut app = app_for(&root);
-    let (a, b) = (root.join("a.vectorcraft"), root.join("b.vectorcraft"));
+    let (a, b) = (root.join("a.pluma"), root.join("b.pluma"));
     save_doc(&mut app, &a, "Alpha Missing Family", false);
     save_doc(&mut app, &b, "Beta Missing Family", true);
     open(&mut app, &a);
@@ -211,11 +211,11 @@ fn closing_the_dialog_stops_its_search() {
 fn one_dialog_at_a_time_document_by_document() {
     let root = folder("queue");
     let mut app = app_for(&root);
-    let (a, b) = (root.join("a.vectorcraft"), root.join("b.vectorcraft"));
+    let (a, b) = (root.join("a.pluma"), root.join("b.pluma"));
     save_doc(&mut app, &a, "Alpha Missing Family", false);
     save_doc(&mut app, &b, "Beta Missing Family", true);
     open(&mut app, &a);
-    let family = |app: &VectorcraftApp| app.ui.dialog.as_ref().and_then(|d| d.fields["fonts"][0]["family"].as_str().map(str::to_string));
+    let family = |app: &PlumaApp| app.ui.dialog.as_ref().and_then(|d| d.fields["fonts"][0]["family"].as_str().map(str::to_string));
     assert_eq!(family(&app).as_deref(), Some("Alpha Missing Family"));
     // The second document's linked files are asked about first; then each document's fonts.
     open(&mut app, &b);
@@ -242,18 +242,18 @@ fn one_dialog_at_a_time_document_by_document() {
 fn the_question_comes_back_after_a_dialog_that_took_its_place() {
     let root = folder("replaced");
     let mut app = app_for(&root);
-    let doc = root.join("a.vectorcraft");
+    let doc = root.join("a.pluma");
     save_doc(&mut app, &doc, "Alpha Missing Family", false);
     let pdf = || {
-        let page = || vectorcraft_testkit::pdf::PdfPage::new(100.0, 100.0, "0 g 0 0 10 10 re f");
-        vectorcraft_testkit::pdf::pdf(&[page(), page()], None)
+        let page = || pluma_testkit::pdf::PdfPage::new(100.0, 100.0, "0 g 0 0 10 10 re f");
+        pluma_testkit::pdf::pdf(&[page(), page()], None)
     };
     let opened = |name: &str, path: Option<String>, bytes: Vec<u8>| (crate::place::DropTarget::Open, (name.to_string(), path, bytes));
-    let files = vec![opened("a.vectorcraft", Some(doc.to_string_lossy().into_owned()), std::fs::read(&doc).unwrap()), opened("b.pdf", None, pdf())];
+    let files = vec![opened("a.pluma", Some(doc.to_string_lossy().into_owned()), std::fs::read(&doc).unwrap()), opened("b.pdf", None, pdf())];
     crate::place::drop_files(&mut app, files);
     assert_eq!(kind(&app), Some(super::super::import_pdf::KIND));
     super::super::cancel(&mut app);
-    let family = |app: &VectorcraftApp| app.ui.dialog.as_ref().filter(|d| d.kind == KIND).map(|d| d.fields["fonts"][0]["family"].clone());
+    let family = |app: &PlumaApp| app.ui.dialog.as_ref().filter(|d| d.kind == KIND).map(|d| d.fields["fonts"][0]["family"].clone());
     assert_eq!(family(&app), Some(json!("Alpha Missing Family")));
     // The same when a frame drew the other dialog before it closed.
     crate::io::open_bytes(&mut app, "c.pdf", &pdf(), None).unwrap();
@@ -306,7 +306,7 @@ fn a_search_folder_that_fails_is_not_tried_again() {
 fn reopening_an_open_document_does_not_ask_about_its_fonts_again() {
     let root = folder("reopen");
     let mut app = app_for(&root);
-    let doc = root.join("doc.vectorcraft");
+    let doc = root.join("doc.pluma");
     save_doc(&mut app, &doc, "No Such Font Family", false);
     open(&mut app, &doc);
     assert_eq!(kind(&app), Some(KIND));
@@ -323,7 +323,7 @@ fn reopening_an_open_document_does_not_ask_about_its_fonts_again() {
 fn edit_original_asks_about_the_placed_documents_fonts() {
     let root = folder("edit-original");
     let mut app = app_for(&root);
-    let badge = root.join("badge.vectorcraft");
+    let badge = root.join("badge.pluma");
     save_doc(&mut app, &badge, "Badge Missing Family", false);
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("file.place", json!({"path": badge.to_string_lossy(), "link": true})).unwrap();
@@ -353,7 +353,7 @@ fn files_go_with_their_fonts_by_name() {
 /// A folder search's counts use the forms the language's plural rule picks for each count.
 #[test]
 fn search_counts_use_each_count_form() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let mut progress_text = |code: &str, n: u64| {
         crate::i18n::set_current(crate::i18n::Lang::from_code(code).unwrap());
         let d = Dialog::new(KIND, json!({"state": "done", "searched": {"folders": n, "files": n}, "unreadable": n}));
@@ -375,7 +375,7 @@ fn search_counts_use_each_count_form() {
 
 #[test]
 fn the_web_says_how_many_fonts_are_missing() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 40, "text": "Gone", "font": "No Such Font Family"})).unwrap();
     after_open_for(&mut app, &json!({}), true);

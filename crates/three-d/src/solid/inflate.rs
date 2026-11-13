@@ -88,11 +88,11 @@ fn inflated(p: Puff, bounds: Rect, o: Inflate, view: View, reach: f64, mesh: boo
     #[cfg(test)]
     INFLATED.with(|n| n.set(n.get() + 1));
     let Puff { rings, edges, cell, nx, ny, m, height } = p;
-    let outline: Vec<(Rect, vectorcraft_geom::SubPath)> = rings
+    let outline: Vec<(Rect, pluma_geom::SubPath)> = rings
         .iter()
         .filter_map(|r| {
             let b = r.iter().skip(1).fold(Rect::from_points(*r.first()?, *r.first()?), |b, p| b.union_pt(*p));
-            Some((b, vectorcraft_geom::SubPath::polyline(r, true)))
+            Some((b, pluma_geom::SubPath::polyline(r, true)))
         })
         .collect();
     // When no shape puffs (no volume, or shapes too narrow for the grid), every front (and a back

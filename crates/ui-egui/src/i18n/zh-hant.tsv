@@ -12,10 +12,10 @@
 # Clean-room: every entry was written from the plain meaning of the English label using the
 # vector-drawing vocabulary in everyday use in Taiwan (錨點, 路徑, 筆畫, 填色, 工作區域, 路徑管理員 ...).
 # No proprietary localisation resource, string table or product UI was consulted or copied; add
-# entries the same way. Product and technology names (VectorCraft, ArtCraft, SVG, OpenType, CMYK,
+# entries the same way. Product and technology names (Pluma, Nodalia, SVG, OpenType, CMYK,
 # Lab ...) and paper sizes (Letter, Tabloid) stay in Latin letters; the trailing "…" of dialog
 # commands is kept. Full-width punctuation (，。：) inside sentences; half-width parentheses and
-# the " · " separators as in the English. Terms shared with PhotoCraft use the same words as its
+# the " · " separators as in the English. Terms shared with Lienzo use the same words as its
 # zh-hant catalog (圖層, 選取, 偏好設定, 混合模式 ...), so the two apps read alike.
 	Glowing Edges…	發光邊緣…
 	Glowing Edges	發光邊緣
@@ -61,7 +61,7 @@
 	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	數值較小時會貼近筆畫，較大時則錨點較少、曲線較平滑。
 	A new preset starting from the selected one	以所選預設集為基礎建立新預設集
 	A saved copy of the selected preset	所選預設集的已儲存拷貝
-	About VectorCraft	關於 VectorCraft
+	About Pluma	關於 Pluma
 	above	以上
 	Absolute Position	絕對位置
 	Accurate	精確
@@ -171,7 +171,7 @@ font-technology	Variable	可變
 	Appearance Panel	外觀面板
 	Appearance panel	外觀面板
 	Applies when the linked file is relinked or updated.	重新連結或更新連結檔案時套用。
-	Applies the next time VectorCraft starts.	下次啟動 VectorCraft 時生效。
+	Applies the next time Pluma starts.	下次啟動 Pluma 時生效。
 	Apply	套用
 	Apply Brush	套用筆刷
 	Apply Character Style	套用字元樣式
@@ -208,8 +208,7 @@ font-technology	Variable	可變
 	Artboard {number}	工作區域 {number}
 	Artboard:	工作區域：
 	Artboards	工作區域
-	ArtCraft Website	ArtCraft 網站
-	ArtCraft website	ArtCraft 網站
+	Pluma Website	Pluma 網站
 	Artwork Colors	圖稿顏色
 	As Multiple Assets	作為多個資產
 	As Single Asset	作為單一資產
@@ -384,7 +383,7 @@ font-technology	Variable	可變
 	Check Script	檢查指令碼
 	Check Script…	檢查指令碼…
 	Copy Report	複製報告
-	VectorCraft read this script without running it.	VectorCraft 已讀取此指令碼，但沒有執行。
+	Pluma read this script without running it.	Pluma 已讀取此指令碼，但沒有執行。
 	Needs nothing beyond plain JavaScript	只需要一般的 JavaScript
 	Needs the script language's own objects or directives	需要指令碼語言本身的物件或指示詞
 	Needs the document model	需要文件模型
@@ -783,7 +782,6 @@ font-technology	Variable	可變
 	Discard Empty Type	捨棄空白文字
 	Discard Recovered Documents	捨棄已復原的文件
 	Discard White Overprint in Output	輸出時捨棄白色疊印
-	Discord	Discord
 	Discretionary Hyphen	選擇性連字號
 	Discretionary Ligatures	任意連字
 	Display All Blacks Accurately	精確顯示所有黑色
@@ -1245,7 +1243,7 @@ file-filter	Print presets	列印預設集
 file-filter	Export presets	轉存預設集
 file-filter	SVG Compressed	壓縮 SVG
 file-filter	PDF-compatible .ai	PDF 相容 .ai
-file-filter	VectorCraft Template	VectorCraft 範本
+file-filter	Pluma Template	Pluma 範本
 file-filter	Templates	範本
 	Flattener Preview	平面化預視
 	Flip Across	跨軸翻轉
@@ -1685,9 +1683,6 @@ file-filter	Templates	範本
 	Italian	義大利文
 	Japanese	日文
 	Join	連接
-	Join Our Discord	加入我們的 Discord
-	Join our Discord	加入我們的 Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	加入 Discord 上的 ArtCraft 社群 (discord.gg/artcraft)
 	Join the lines of each paragraph	合併每個段落的各行
 	Join Tool	連接工具
 	Justification…	對齊設定…
@@ -1737,15 +1732,15 @@ file-filter	Templates	範本
 @msg	its type is to come in as outlines, which only its page has	其文字需以外框匯入，而只有其頁面含有外框
 @msg	{_1} files	{_1} 檔案
 @msg	A browser with WebGPU or WebGL2 is required.	需要支援 WebGPU 或 WebGL2 的瀏覽器。
-@msg	Loading VectorCraft…	正在載入 VectorCraft…
+@msg	Loading Pluma…	正在載入 Pluma…
 @msg	Reload the page to go on (changes not saved yet may be lost).	請重新載入頁面以繼續 (尚未儲存的變更可能會遺失)。
 @msg	The graphics were lost and couldn't be restarted.	圖形已遺失，且無法重新啟動。
 @msg	The graphics were lost and have been restarted	圖形已遺失，現已重新啟動
-@msg	VectorCraft failed to start: {e}	VectorCraft 無法啟動：{e}
+@msg	Pluma failed to start: {e}	Pluma 無法啟動：{e}
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	您未儲存的變更保留在此瀏覽器中：重新載入頁面即可取回。
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	最先嘗試的圖形處理器無法顯示視窗，因此 VectorCraft 已改在 {summary} 上重新啟動
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft 上次啟動時在 {name} 上於視窗出現前結束，因此這次在 {summary} 上啟動。若要再次嘗試該圖形處理器，請變更「偏好設定 › 效能 › 圖形處理器」，或設定 WGPU_BACKEND 後再啟動
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft 上次啟動時在列出圖形處理器期間結束，因此這次只以 OpenGL 在 {summary} 上啟動。若要再次嘗試其他圖形後端，請變更「偏好設定 › 效能 › 圖形處理器」，或設定 WGPU_BACKEND 後再啟動
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	最先嘗試的圖形處理器無法顯示視窗，因此 Pluma 已改在 {summary} 上重新啟動
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma 上次啟動時在 {name} 上於視窗出現前結束，因此這次在 {summary} 上啟動。若要再次嘗試該圖形處理器，請變更「偏好設定 › 效能 › 圖形處理器」，或設定 WGPU_BACKEND 後再啟動
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma 上次啟動時在列出圖形處理器期間結束，因此這次只以 OpenGL 在 {summary} 上啟動。若要再次嘗試其他圖形後端，請變更「偏好設定 › 效能 › 圖形處理器」，或設定 WGPU_BACKEND 後再啟動
 @msg	not a DXF drawing	不是 DXF 圖面
 @msg	scale must be a number from {_1} to {_2}, not {s}	scale 必須是 {_1} 到 {_2} 之間的數字，而非 {s}
 @msg	the artboard to fit must be a positive size up to {_1} pt	要符合的工作區域尺寸必須為正數，且不超過 {_1} pt
@@ -2058,15 +2053,15 @@ file-filter	Templates	範本
 @msg	it has more than {MAX_NODES} objects	它有超過 {MAX_NODES} 個物件
 @msg	it has no layers	它沒有圖層
 @msg	it has too many values in a row	它連續的值過多
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	它含有 {_1}，VectorCraft 目前尚無法從中讀取
+@msg	it has {_1}, which Pluma doesn't read from it yet	它含有 {_1}，Pluma 目前尚無法從中讀取
 @msg	its objects are nested too deeply	其物件巢狀層級過深
 @msg	its section ending with `%{end}` doesn't end	其以 `%{end}` 結尾的區段沒有結束
-@msg	an image VectorCraft can't read was left out	已略過 VectorCraft 無法讀取的影像
+@msg	an image Pluma can't read was left out	已略過 Pluma 無法讀取的影像
 @msg	graphs come in as plain art, without their data or settings	圖表以一般圖稿匯入，不保留其資料與設定
 @msg	an image whose data is cut short was left out	已略過資料不完整的影像
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	為保留圖層，{_1} × {_2} 像素的內嵌影像已縮小為 {_3} × {_4} 像素
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	檔案中未定義漸層「{name}」：已改用單色替代
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	VectorCraft 尚無法讀取的筆刷未加入「筆刷」面板 ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	Pluma 尚無法讀取的筆刷未加入「筆刷」面板 ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	具有多個填色或筆畫、可變寬度筆畫、效果或筆刷的物件已依其繪製外觀匯入 ({_1})：其外觀目前尚無法編輯
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	名稱 `{name}` 不是 UTF-8，已依 {label} 讀取：若顯示不正確，請以其他 legacyNameEncoding 開啟檔案
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	名稱 `{name}` 不是 UTF-8，且部分內容在 {label} 中也無效：請以其他 legacyNameEncoding 開啟檔案
@@ -2101,7 +2096,7 @@ file-filter	Templates	範本
 @msg	the program asks for a resource that isn't defined	程式要求了未定義的資源
 @msg	a calculation has no result, as in a division by zero	計算沒有結果，例如除以零
 @msg	the operator looks for a mark on the stack and finds none	運算子在堆疊中找不到標記
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	它使用了 `{at}`，VectorCraft 的 PostScript 讀取器無法辨識
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	它使用了 `{at}`，Pluma 的 PostScript 讀取器無法辨識
 @msg	the file was read up to an error ({why}): what follows it was left out	檔案已讀取到發生錯誤處 ({why})：之後的內容已略過
 @msg	this file's PostScript couldn't be read ({why}): {what}	無法讀取此檔案的 PostScript ({why})：{what}
 @msg	it has no page	它沒有頁面
@@ -2123,7 +2118,7 @@ file-filter	Templates	範本
 @msg	its Windows metafile preview was opened instead, which may simplify the art	已改為開啟其 Windows 中繼檔預覽，圖稿可能因此簡化
 @msg	its preview was placed instead, at screen resolution	已改為以螢幕解析度置入其預覽
 @msg	shadings of more than 4096 patches or triangles were left out	已略過超過 4096 個面片或三角形的著色
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	它在 {procs} 中使用了 `{at}`，VectorCraft 的 PostScript 讀取器無法辨識
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	它在 {procs} 中使用了 `{at}`，Pluma 的 PostScript 讀取器無法辨識
 @msg	the export region is not finite	匯出區域不是有限值
 @msg	a page out of range	頁面超出範圍
 @msg	a page's placement is not finite	頁面的位置不是有限值
@@ -2132,10 +2127,10 @@ file-filter	Templates	範本
 @msg	the preview image is empty	預覽影像是空的
 @msg	the thumbnail image is malformed	縮圖影像格式錯誤
 @msg	can't encode the document: {0}	無法編碼文件：{0}
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	無法儲存版本 {0}：VectorCraft 寫入的版本為 {MIN_VERSION} 到 {VERSION}
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	檔案版本 {0} 比此 VectorCraft 支援的版本 ({VERSION}) 更新
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	無法儲存版本 {0}：Pluma 寫入的版本為 {MIN_VERSION} 到 {VERSION}
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	檔案版本 {0} 比此 Pluma 支援的版本 ({VERSION}) 更新
 @msg	invalid image data for `{0}`	`{0}` 的影像資料無效
-@msg	not a VectorCraft file: {0}	不是 VectorCraft 檔案：{0}
+@msg	not a Pluma file: {0}	不是 Pluma 檔案：{0}
 @msg	the compressed file unpacks to more than {_1} MB	壓縮檔解壓縮後超過 {_1} MB
 @msg	`{key}: {top}` and `options.{key}: {inner}` disagree: give the option once	`{key}: {top}` 與 `options.{key}: {inner}` 不一致：該選項只能指定一次
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	版本 {0} 的檔案無法壓縮：只有版本 {COMPRESSED_SINCE} 及更新版本才能開啟壓縮檔
@@ -2183,7 +2178,7 @@ file-filter	Templates	範本
 @msg	plug-in output: {0}	增效模組輸出：{0}
 @msg	plug-in parameters: {0}	增效模組參數：{0}
 @msg	plug-in trapped: {0}	增效模組執行時發生錯誤 (trap)：{0}
-@msg	is not an image VectorCraft reads	不是 VectorCraft 可讀取的影像
+@msg	is not an image Pluma reads	不是 Pluma 可讀取的影像
 @msg	not found	找不到
 @msg	SVG parse error: {0}	SVG 剖析錯誤：{0}
 @msg	decimals must be {_1}–{_2} (got {_3})	decimals 必須為 {_1}–{_2} (收到 {_3})
@@ -2355,7 +2350,7 @@ file-filter	Templates	範本
 @msg	the action set file is larger than 8 MiB	動作組檔案大於 8 MiB
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`：參考將大於 {MAX_BYTES} 位元組
 @msg	the action set file holds more than 1,000 actions	動作組檔案包含超過 1,000 個動作
-@msg	the action set file needs a later version of VectorCraft	動作組檔案需要較新版本的 VectorCraft
+@msg	the action set file needs a later version of Pluma	動作組檔案需要較新版本的 Pluma
 @msg	an action in the action set file has more than 10,000 steps	動作組檔案中有動作超過 10,000 個步驟
 @msg	choose a folder to export to	請選擇要匯出至的資料夾
 @msg	the selection has no URL (or they differ)	選取範圍沒有 URL (或其 URL 各不相同)
@@ -2433,7 +2428,7 @@ file-filter	Templates	範本
 @msg	Couldn't place {name}: the document it was dropped on was closed	無法置入 {name}：放置它的文件已關閉
 @msg	Couldn't place {name}: the document it was placed in was closed	無法置入 {name}：要置入的文件已關閉
 @msg	no files to place	沒有要置入的檔案
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` 不是 VectorCraft 文件、PDF 或 PDF 相容的 .ai 檔案
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` 不是 Pluma 文件、PDF 或 PDF 相容的 .ai 檔案
 @msg	paths: give at least one file	paths：請提供至少一個檔案
 @msg	replace: the object to replace was changed or deleted	replace：要取代的物件已被變更或刪除
 @msg	Couldn't place {name}: {e}	無法置入 {name}：{e}
@@ -2447,7 +2442,7 @@ file-filter	Templates	範本
 @msgplural	Opened with {n} note: {first}|Opened with {n} notes: {first}	已開啟，附有 {n} 則註解：{first}
 @msgplural	Saved {path} with {n} note: {first}|Saved {path} with {n} notes: {first}	已儲存 {path}，附有 {n} 則註解：{first}
 @msg	Saving recovery data for {_1}	正在儲存 {_1} 的復原資料
-@msg	This shortcut file is in a form VectorCraft can't read.	VectorCraft 無法讀取此快速鍵檔案的格式。
+@msg	This shortcut file is in a form Pluma can't read.	Pluma 無法讀取此快速鍵檔案的格式。
 @msg	bad shortcut	快速鍵無效
 @msg	can't parse shortcut `{c}`	無法剖析快速鍵 `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	無法剖析 `{k}` 的快速鍵 `{s}`
@@ -2455,7 +2450,7 @@ file-filter	Templates	範本
 @msg	the open dialog has no Reset	開啟的對話框沒有「重設」按鈕
 @msg	no file reader	沒有檔案讀取器
 @msg	no file writer	沒有檔案寫入器
-@msg	not a VectorCraft shortcut set (missing `overrides`)	不是 VectorCraft 快速鍵組 (沒有 `overrides`)
+@msg	not a Pluma shortcut set (missing `overrides`)	不是 Pluma 快速鍵組 (沒有 `overrides`)
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	不是快速鍵組：文字開頭不是斜線名稱和左大括號
 @msg	shortcut for `{k}` must be a string	`{k}` 的快速鍵必須是字串
 @msg	tool shortcuts must be a single key (optionally with Shift)	工具快速鍵必須是單一按鍵 (可搭配 Shift)
@@ -2479,13 +2474,13 @@ file-filter	Templates	範本
 @msg	unknown workspace (one of {_1})	未知的工作區 (應為 {_1} 其中之一)
 @msg	workspace name can't be empty	工作區名稱不能是空的
 @msg	No fonts are missing in this document	此文件中沒有遺失的字體
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft 不會搜尋其他應用程式或系統的資料夾：{path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft 不會搜尋「使用者」中的 Shared 或 Public 資料夾：{path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma 不會搜尋其他應用程式或系統的資料夾：{path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma 不會搜尋「使用者」中的 Shared 或 Public 資料夾：{path}
 @msg	{path} is not a folder	{path} 不是資料夾
 @msg	the search couldn't start: try again in a moment	無法開始搜尋：請稍後再試
 @msg	searching a folder isn't available on the web	網頁版無法搜尋資料夾
 @msg	every search thread stopped on an internal error (please report this bug)	所有搜尋執行緒都因內部錯誤而停止 (請回報此錯誤)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	此處未設定 VectorCraft 的字體資料夾：桌面應用程式和 vectorcraft-cli 會設定它
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	此處未設定 Pluma 的字體資料夾：桌面應用程式和 pluma-cli 會設定它
 @msg	choose the font files to add	請選擇要加入的字體檔案
 @msg	not a file	不是檔案
 @msg	not a font file	不是字體檔案
@@ -2564,7 +2559,7 @@ file-filter	Templates	範本
 @msg	invalid native panel set	原生面板組無效
 @msg	missing panel layout	沒有面板配置
 @msg	unsupported native docking operation	不支援的原生停駐操作
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	壓縮檔解壓縮後超過 VectorCraft 的讀取上限 (文件 {_1} MB，每個影像 {_2} MB)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	壓縮檔解壓縮後超過 Pluma 的讀取上限 (文件 {_1} MB，每個影像 {_2} MB)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	文件過大，無法壓縮儲存 ({0})：請關閉「使用壓縮」後儲存
 @msg	the file stopped being read (please report this bug)	檔案讀取已中斷 (請回報此錯誤)
 @msg	the image can't be read as a texture	無法將影像當作紋理讀取
@@ -2648,7 +2643,7 @@ file-filter	Templates	範本
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	匯入快速鍵組
 	Import Shortcut Set…	匯入快速鍵組…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	檔案中的每個項目都會對應到 VectorCraft 的工具、指令或面板。請檢查對應結果，並回答其餘項目。
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	檔案中的每個項目都會對應到 Pluma 的工具、指令或面板。請檢查對應結果，並回答其餘項目。
 	Keys	按鍵
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	檔案以代碼記錄按鍵與輔助鍵。請檢查建議的意義，並回答尚未得知的代碼。
 	Click, then press the key this code stands for (Esc cancels)	按一下，然後按下此代碼代表的按鍵 (Esc 取消)
@@ -2659,7 +2654,7 @@ file-filter	Templates	範本
 	Shortcuts	快速鍵
 	Shortcut	快速鍵
 	In the File	檔案中的名稱
-	In VectorCraft	VectorCraft 中的對應
+	In Pluma	Pluma 中的對應
 	Needs Attention Only	僅顯示需要處理的項目
 	Ready	就緒
 	Needs a choice	需要選擇
@@ -2668,7 +2663,7 @@ file-filter	Templates	範本
 	Tools take a single key (optionally with Shift)	工具只能指定單一按鍵 (可搭配 Shift)
 	A later row takes this shortcut	後面的列會使用此快速鍵
 	Same item as a later row	與後面某一列的項目相同
-	Start from VectorCraft Defaults	從 VectorCraft 預設值開始
+	Start from Pluma Defaults	從 Pluma 預設值開始
 	Add to the Current Shortcuts	加入目前的快速鍵
 	Remember My Choices	記住我的選擇
 	{ready} of {total} ready	{total} 個中有 {ready} 個就緒
@@ -3349,7 +3344,7 @@ file-filter	Templates	範本
 	Paragraph Style Options	段落樣式選項
 	Paragraph Styles	段落樣式
 	Paragraph Symbol	段落符號
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft 的一部分。MIT OR Apache-2.0。字體：Source Sans 3、Inter、JetBrains Mono (OFL)。圖示：Lucide (ISC) + VectorCraft。
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia 的一部分。MIT OR Apache-2.0。字體：Source Sans 3、Inter、JetBrains Mono (OFL)。圖示：Lucide (ISC) + Pluma。
 	Password	密碼
 	Paste	貼上
 	Paste in Back	貼至後方
@@ -3552,7 +3547,7 @@ digits	Malayalam	馬來亞拉姆數字
 	Quarter Space	四分之一空格
 	Quick Actions	快速動作
 	Quickly start a new file	快速開始新檔案
-	Quit VectorCraft	結束 VectorCraft
+	Quit Pluma	結束 Pluma
 	Radar Graph Tool	雷達圖工具
 	Radial	放射狀
 	Radial Glows	放射狀光暈
@@ -3683,7 +3678,7 @@ digits	Malayalam	馬來亞拉姆數字
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	有 {n} 個資料夾或檔案無法讀取
 	The search stopped at its limit: search a smaller folder.	搜尋已達上限而停止：請搜尋較小的資料夾。
 	Copy only fonts you own or are licensed to install.	只複製您擁有或已取得安裝授權的字體。
-	VectorCraft copies the fonts to {folder}.	VectorCraft 會將字體複製到 {folder}。
+	Pluma copies the fonts to {folder}.	Pluma 會將字體複製到 {folder}。
 	Registered Trademark Symbol	註冊商標符號
 	Registration marks	對位標記
 	Registry name:	登錄名稱：
@@ -3805,9 +3800,9 @@ digits	Malayalam	馬來亞拉姆數字
 	Revert	回復
 	Revert to the saved version of “{name}”?	要回復為「{name}」已儲存的版本嗎？
 	Replace “{name}”, the file this document was opened from?	要取代「{name}」（開啟此文件的來源檔案）嗎？
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	開啟時略過了 VectorCraft 尚無法讀取的內容（{what}），取代該檔案會永久遺失這些內容。若要保留，請以其他名稱儲存。
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	開啟時略過了 Pluma 尚無法讀取的內容（{what}），取代該檔案會永久遺失這些內容。若要保留，請以其他名稱儲存。
 	“{name}” already exists. Replace it?	「{name}」已存在。要取代它嗎？
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	儲存面板中的名稱是「{typed}」，VectorCraft 隨後加上了檔案類型的副檔名。取代該檔案會覆寫其內容。
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	儲存面板中的名稱是「{typed}」，Pluma 隨後加上了檔案類型的副檔名。取代該檔案會覆寫其內容。
 	Revolve…	迴轉…
 	RGB Color	RGB 色彩
 	Right	右
@@ -3968,7 +3963,7 @@ digits	Malayalam	馬來亞拉姆數字
 	Saves the current bars, toolbar and panel layout.	儲存目前的列、工具列與面板配置。
 	Save…	儲存…
 	Saving	正在儲存
-	Saving Poster.vectorcraft	正在儲存 Poster.vectorcraft
+	Saving Poster.pluma	正在儲存 Poster.pluma
 	Saving recovery data for {}	正在儲存 {} 的復原資料
 	Saving {}	正在儲存 {}
 	Scale	縮放
@@ -4651,7 +4646,7 @@ digits	Malayalam	馬來亞拉姆數字
 	Update Changed Links	更新已變更的連結
 @plural	{n} linked image changed on disk. Show the new version?|{n} linked images changed on disk. Show the new versions?	有 {n} 個連結影像已在磁碟上變更。要顯示新版本嗎？
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	連結的圖片在找到其檔案之前顯示檔案中儲存的低解析度預覽：請在「連結」面板中重新連結
-@msg	linked type areas past VectorCraft's limits were left out	超出 VectorCraft 限制的串連文字區域已略過
+@msg	linked type areas past Pluma's limits were left out	超出 Pluma 限制的串連文字區域已略過
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	在文字物件內變更書寫方向的文字會依其第一個字元的方向開啟
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	在串連區域、繞圖文字或複合路徑中用作遮色片的文字不會剪裁
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	檔案中沒有預覽的連結圖片在找到其檔案之前顯示預留位置：請在「連結」面板中重新連結
@@ -4753,11 +4748,10 @@ digits	Malayalam	馬來亞拉姆數字
 	Vector Halftone	向量半色調
 	Vector Halftone…	向量半色調…
 	Vector illustration — fast, open, scriptable.	向量插圖：快速、開放、可用指令碼操控。
-	VectorCraft	VectorCraft
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft 上次未正常結束。下列文件有未儲存的變更：
-	VectorCraft Help…	VectorCraft 說明…
-	VectorCraft on getartcraft.com	getartcraft.com 上的 VectorCraft
-	VectorCraft on GitHub	GitHub 上的 VectorCraft
+	Pluma	Pluma
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma 上次未正常結束。下列文件有未儲存的變更：
+	Pluma Help…	Pluma 說明…
+	Pluma on GitHub	GitHub 上的 Pluma
 	Vectors	向量
 	Version {version} — open-source vector illustration in pure Rust.	版本 {version} — 以純 Rust 打造的開放原始碼向量插畫軟體。
 	Version:	版本：
@@ -4798,7 +4792,7 @@ digits	Malayalam	馬來亞拉姆數字
 	Web Snap:	網頁靠齊：
 	Weight	寬度
 	Weight:	寬度：
-	Welcome to VectorCraft	歡迎使用 VectorCraft
+	Welcome to Pluma	歡迎使用 Pluma
 	When pasting text	貼上文字時
 	White	白色
 	Widget Position:	Widget 位置：
@@ -5003,7 +4997,7 @@ axis	Both	兩者
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	服務
-	Hide VectorCraft	隱藏 VectorCraft
+	Hide Pluma	隱藏 Pluma
 	Zoom	縮放
 	Bring All to Front	將全部移至最前
 	Settings	設定
@@ -5011,7 +5005,7 @@ axis	Both	兩者
 	On: one locked object showing the document, updated when it changes.	開啟：以單一鎖定物件顯示文件，文件變更時隨之更新。
 	Off: an editable copy of its art, embedded in this document.	關閉：將其圖稿的可編輯副本內嵌在此文件中。
 	Images: link to the file instead of only embedding it.	影像：連結至檔案，而不只是嵌入。
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft 文件：單一鎖定物件，檔案變更時隨之更新。
+	Pluma documents: one locked object, updated when the file changes.	Pluma 文件：單一鎖定物件，檔案變更時隨之更新。
 	A file dialog is open: choose there first	檔案對話方塊已開啟：請先在其中選擇
 	The document was closed while its file dialog was open	檔案對話方塊開啟期間，文件已關閉
 	The dialog was closed before its file dialog answered	檔案對話方塊回應之前，對話方塊已關閉
@@ -5134,8 +5128,8 @@ axis	Both	兩者
 effect	Soft	柔和
 	Edge	邊緣
 	System Title Bar	系統標題列
-	VectorCraft Title Bar on Every Desktop	在所有桌面上使用 VectorCraft 標題列
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	設定了環境變數 VECTORCRAFT_TITLEBAR 時，由它選擇標題列。
+	Pluma Title Bar on Every Desktop	在所有桌面上使用 Pluma 標題列
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	設定了環境變數 PLUMA_TITLEBAR 時，由它選擇標題列。
 	System Title Bar takes precedence over this option while it is on.	開啟系統標題列時，它優先於此選項。
 	Value Axis	數值軸
 	On Left Side	左側
@@ -6173,7 +6167,7 @@ breakText	Glyphs	字符
 	Malayalam	馬來亞拉姆文
 	Odia	歐利亞文
 	Urdu	烏都文
-	VectorCraft {release} and later (version {n})	VectorCraft {release} 及更新版本 (版本 {n})
+	Pluma {release} and later (version {n})	Pluma {release} 及更新版本 (版本 {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	將所有開啟的文件匯出為 PDF
 	Export All Open Documents as SVG	將所有開啟的文件匯出為 SVG
@@ -6325,14 +6319,14 @@ breakText	Glyphs	字符
 	Safe Mode	安全模式
 	Help › Safe Mode…	說明 › 安全模式…
 	Enable on Re-launch	下次啟動時啟用
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	VectorCraft 上次啟動時在載入增效模組 {name} 期間停止。該增效模組不一定是原因。
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Pluma 上次啟動時在載入增效模組 {name} 期間停止。該增效模組不一定是原因。
 	Disable and Continue	停用並繼續
 	Start Normally	正常啟動
 	Start in Safe Mode	以安全模式啟動
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft 處於安全模式：在正常啟動之前，不會載入或執行任何增效模組。
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma 處於安全模式：在正常啟動之前，不會載入或執行任何增效模組。
 	Disabled plug-ins	已停用的增效模組
 	No plug-ins are disabled.	沒有停用的增效模組。
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	安全模式已開啟：在 VectorCraft 正常啟動之前，增效模組不會載入或執行
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	安全模式已開啟：在 Pluma 正常啟動之前，增效模組不會載入或執行
 @msg	give `id` or `file` (see plugin.safeMode)	請提供 `id` 或 `file` (請參閱 plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	該增效模組未停用 (請參閱 plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	無法為下次啟動儲存已停用的增效模組

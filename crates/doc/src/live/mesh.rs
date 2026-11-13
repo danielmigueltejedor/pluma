@@ -379,7 +379,7 @@ fn top_object_corner_anchor(h_in: Point, a: Point, h_out: Point) -> bool {
 /// either end. `order` gives where each segment's first anchor and the segment itself come in the
 /// outline as drawn, which may run the other way; on a tie the one met first there wins.
 fn top_object_corner(segs: &[(CubicBez, bool)], order: &[(usize, usize)], r: Rect, q: Point) -> f64 {
-    use vectorcraft_geom::kurbo::ParamCurveNearest;
+    use pluma_geom::kurbo::ParamCurveNearest;
     let n = segs.len();
     if n == 0 {
         return 0.0;
@@ -1013,7 +1013,7 @@ impl GradientMesh {
     /// The point of the mesh's outer edge nearest `p`: its squared distance from `p`, and its
     /// boundary patch and local (u, v).
     fn nearest_edge(&self, p: Point) -> Option<(f64, usize, usize, f64, f64)> {
-        use vectorcraft_geom::kurbo::ParamCurveNearest;
+        use pluma_geom::kurbo::ParamCurveNearest;
         let (rows, cols) = (self.rows as usize, self.cols as usize);
         let mut best: Option<(f64, usize, usize, f64, f64)> = None;
         let mut take = |e: CubicBez, at: (usize, usize, Option<f64>, Option<f64>)| {
@@ -1199,7 +1199,7 @@ impl GradientMesh {
 
 /// Union of the geometric bounds of `nodes`.
 pub fn nodes_bounds(nodes: &[Arc<Node>]) -> Option<Rect> {
-    nodes.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.geometric_bounds()))
+    nodes.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, c.geometric_bounds()))
 }
 
 /// A `(rows+1)×(cols+1)` grid over `r` (row-major).

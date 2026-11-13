@@ -4,9 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
+use pluma_doc::{Document, ImageObject, LinkInfo, NodeKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, ImageObject, LinkInfo, NodeKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -15,7 +15,7 @@ pub(crate) struct Folder(pub(crate) PathBuf);
 
 impl Folder {
     pub(crate) fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-links-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-links-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Self(dir)
@@ -75,7 +75,7 @@ pub(crate) fn bounds(s: &Session, id: NodeId) -> Rect {
 
 /// The colour at the centre of the active document's artboard.
 pub(crate) fn centre_colour(doc: &Document) -> [u8; 3] {
-    let img = vectorcraft_render::Renderer::new().render_region(doc, Rect::new(0.0, 0.0, 400.0, 300.0), 1.0, true);
+    let img = pluma_render::Renderer::new().render_region(doc, Rect::new(0.0, 0.0, 400.0, 300.0), 1.0, true);
     let [r, g, b, _] = img.pixel(200, 150);
     [r, g, b]
 }
@@ -108,11 +108,11 @@ fn a_placed_link_records_the_file_and_the_document_saves_only_a_preview() {
     let im = image(&s, id);
     let link = im.link.clone().unwrap();
     assert_eq!((link.path.as_str(), link.size), (pic.as_str(), Some(bytes.len() as u64)));
-    assert_eq!(link.hash.as_deref(), Some(vectorcraft_doc::links::hash_bytes(&bytes).as_str()));
+    assert_eq!(link.hash.as_deref(), Some(pluma_doc::links::hash_bytes(&bytes).as_str()));
     assert!(link.modified.is_some_and(|m| m > 1_600_000_000_000), "{link:?}");
     let blob = &s.doc().unwrap().doc.images[&im.key];
     assert!(blob.proxy.is_some() && !blob.is_proxy(), "full pixels, with a preview to save");
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     let mut saved: Value = serde_json::from_slice(&std::fs::read(&doc_path).unwrap()).unwrap();
     let entry = &saved["images"][&im.key];
@@ -229,11 +229,11 @@ fn the_relative_path_finds_the_file_after_the_folder_moves() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    save(&mut s, &a.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
     // Move the document with its links: the old folder is gone.
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
-    let r = open(&mut s, &b.file("poster.vectorcraft"));
+    let r = open(&mut s, &b.file("poster.pluma"));
     assert_eq!((r["missingLinks"].clone(), r["modifiedLinks"].clone()), (json!([]), json!([])), "{r}");
     let moved = b.file("art/photo.png");
     let im = image(&s, id);
@@ -256,29 +256,29 @@ fn a_missing_link_keeps_its_relative_path_when_the_moved_document_is_saved() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    save(&mut s, &a.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
     // Move the document and its links, then take the links away.
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
     std::fs::rename(b.0.join("art"), away.0.join("art")).unwrap();
-    let r = open(&mut s, &b.file("poster.vectorcraft"));
+    let r = open(&mut s, &b.file("poster.pluma"));
     assert_eq!(r["missingLinks"][0]["name"].as_str(), Some("photo.png"), "{r}");
-    save(&mut s, &b.file("poster.vectorcraft"));
+    save(&mut s, &b.file("poster.pluma"));
     std::fs::create_dir_all(b.0.join("copies")).unwrap();
-    save(&mut s, &b.file("copies/poster.vectorcraft"));
+    save(&mut s, &b.file("copies/poster.pluma"));
     let relative = |path: &str| {
         let mut saved: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         saved_image(&mut saved)["link"]["relative"].as_str().map(str::to_string)
     };
-    assert_eq!(relative(&b.file("poster.vectorcraft")).as_deref(), Some("art/photo.png"));
-    assert_eq!(relative(&b.file("copies/poster.vectorcraft")).as_deref(), Some("../art/photo.png"));
+    assert_eq!(relative(&b.file("poster.pluma")).as_deref(), Some("art/photo.png"));
+    assert_eq!(relative(&b.file("copies/poster.pluma")).as_deref(), Some("../art/photo.png"));
     // Saved again where the last save put it, the file is still named from the folder it was read from.
     s.execute("document.save", &json!({})).unwrap();
-    assert_eq!(relative(&b.file("copies/poster.vectorcraft")).as_deref(), Some("../art/photo.png"));
+    assert_eq!(relative(&b.file("copies/poster.pluma")).as_deref(), Some("../art/photo.png"));
     // The links come back: both saved documents find the file.
     std::fs::rename(away.0.join("art"), b.0.join("art")).unwrap();
     let moved = b.file("art/photo.png");
-    for doc in [b.file("poster.vectorcraft"), b.file("copies/poster.vectorcraft")] {
+    for doc in [b.file("poster.pluma"), b.file("copies/poster.pluma")] {
         let r = open(&mut s, &doc);
         assert_eq!(&r["missingLinks"], &json!([]), "{doc}: {r}");
         assert_eq!(Path::new(&image(&s, id).link.unwrap().path), Path::new(&moved), "{doc}");
@@ -295,7 +295,7 @@ fn a_file_found_elsewhere_then_missing_keeps_the_place_it_was_found() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    let doc = dir.file("poster.vectorcraft");
+    let doc = dir.file("poster.pluma");
     save(&mut s, &doc);
     let beside = dir.file("photo.png");
     std::fs::rename(&pic, &beside).unwrap();
@@ -319,9 +319,9 @@ fn a_file_update_links_finds_after_a_save_elsewhere_keeps_its_place() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    save(&mut s, &a.file("poster.vectorcraft"));
-    open(&mut s, &a.file("poster.vectorcraft"));
-    let doc = b.file("poster.vectorcraft");
+    save(&mut s, &a.file("poster.pluma"));
+    open(&mut s, &a.file("poster.pluma"));
+    let doc = b.file("poster.pluma");
     save(&mut s, &doc);
     let beside = b.file("photo.png");
     std::fs::rename(&pic, &beside).unwrap();
@@ -344,12 +344,12 @@ fn a_file_found_beside_the_last_save_is_written_where_it_was_found() {
     write(&a.file("art/photo.png"), &png(600, 300, RED));
     let mut s = session();
     place(&mut s, &a.file("art/photo.png"));
-    save(&mut s, &a.file("poster.vectorcraft"));
-    open(&mut s, &a.file("poster.vectorcraft"));
-    save(&mut s, &b.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
+    open(&mut s, &a.file("poster.pluma"));
+    save(&mut s, &b.file("poster.pluma"));
     std::fs::rename(a.0.join("art"), b.0.join("art")).unwrap();
-    save(&mut s, &c.file("poster.vectorcraft"));
-    let r = open(&mut s, &c.file("poster.vectorcraft"));
+    save(&mut s, &c.file("poster.pluma"));
+    let r = open(&mut s, &c.file("poster.pluma"));
     assert_eq!(&r["missingLinks"], &json!([]), "{r}");
 }
 
@@ -365,17 +365,17 @@ fn a_missing_link_comes_back_where_the_document_saved_elsewhere_looks_for_it() {
     write(&a.file("art/photo.png"), &png(600, 300, RED));
     let mut s = session();
     place(&mut s, &a.file("art/photo.png"));
-    save(&mut s, &a.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
     std::fs::rename(b.0.join("art"), away.0.join("art")).unwrap();
-    open(&mut s, &b.file("poster.vectorcraft"));
-    save(&mut s, &c.file("poster.vectorcraft"));
+    open(&mut s, &b.file("poster.pluma"));
+    save(&mut s, &c.file("poster.pluma"));
     std::fs::rename(away.0.join("art"), b.0.join("art")).unwrap();
     let r = s.execute("links.check", &json!({})).unwrap();
     let found = r["links"][0]["found"].as_str().map(Path::new);
     assert_eq!((r["missing"].as_u64(), found), (Some(0), Some(Path::new(&b.file("art/photo.png")))), "{r}");
-    let r = open(&mut s, &c.file("poster.vectorcraft"));
+    let r = open(&mut s, &c.file("poster.pluma"));
     assert_eq!(&r["missingLinks"], &json!([]), "{r}");
 }
 
@@ -429,18 +429,18 @@ fn links_outside_the_layers_find_their_files_after_the_folder_moves() {
         out
     };
     assert_eq!(paths(&s), files(&a));
-    save(&mut s, &a.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
     // Move the document with its links: the old folder is gone.
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
-    let r = open(&mut s, &b.file("poster.vectorcraft"));
+    let r = open(&mut s, &b.file("poster.pluma"));
     assert_eq!((r["missingLinks"].clone(), r["modifiedLinks"].clone()), (json!([]), json!([])), "{r}");
     assert_eq!(paths(&s), files(&b), "the links follow the files");
     // Saved again and moved again.
-    save(&mut s, &b.file("poster.vectorcraft"));
+    save(&mut s, &b.file("poster.pluma"));
     std::fs::remove_dir_all(&c.0).unwrap();
     std::fs::rename(&b.0, &c.0).unwrap();
-    let r = open(&mut s, &c.file("poster.vectorcraft"));
+    let r = open(&mut s, &c.file("poster.pluma"));
     assert_eq!((r["missingLinks"].clone(), r["modifiedLinks"].clone()), (json!([]), json!([])), "{r}");
     assert_eq!(paths(&s), files(&c));
 }
@@ -459,11 +459,11 @@ fn a_symbols_link_to_a_moved_and_modified_file_takes_its_new_path() {
     let id = place(&mut s, &pic);
     s.execute("symbol.new", &json!({"name": "Mark", "ids": [id.0]})).unwrap();
     let id = place(&mut s, &pic);
-    save(&mut s, &a.file("poster.vectorcraft"));
+    save(&mut s, &a.file("poster.pluma"));
     write(&pic, &png(30, 30, BLUE));
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
-    let r = open(&mut s, &b.file("poster.vectorcraft"));
+    let r = open(&mut s, &b.file("poster.pluma"));
     assert_eq!((r["modifiedLinks"].clone(), r["updatedLinks"][0]["ids"].clone()), (json!([]), json!([id.0])), "{r}");
     let moved = PathBuf::from(b.file("art/photo.png"));
     let blue = png(30, 30, BLUE);
@@ -473,7 +473,7 @@ fn a_symbols_link_to_a_moved_and_modified_file_takes_its_new_path() {
         images.push((PathBuf::from(&l.path), l.size, l.hash.clone(), im.width, im.height, im.key.clone()));
     });
     let key = image(&s, id).key;
-    let new = (moved, Some(blue.len() as u64), Some(vectorcraft_doc::links::hash_bytes(&blue)), 30, 30, key);
+    let new = (moved, Some(blue.len() as u64), Some(pluma_doc::links::hash_bytes(&blue)), 30, 30, key);
     assert_eq!(images, [new.clone(), new], "the layers' image, then the symbol's");
 }
 
@@ -489,7 +489,7 @@ fn a_symbols_link_without_a_relative_path_follows_the_moved_file() {
     let id = place(&mut s, &pic);
     s.execute("symbol.new", &json!({"name": "Mark", "ids": [id.0]})).unwrap();
     place(&mut s, &pic);
-    let doc_path = a.file("poster.vectorcraft");
+    let doc_path = a.file("poster.pluma");
     save(&mut s, &doc_path);
     // Removes the relative path of every link under `v` → how many it removed.
     fn unrelative(v: &mut Value) -> usize {
@@ -511,7 +511,7 @@ fn a_symbols_link_without_a_relative_path_follows_the_moved_file() {
     std::fs::write(&doc_path, serde_json::to_vec(&saved).unwrap()).unwrap();
     std::fs::remove_dir_all(&b.0).unwrap();
     std::fs::rename(&a.0, &b.0).unwrap();
-    let r = open(&mut s, &b.file("poster.vectorcraft"));
+    let r = open(&mut s, &b.file("poster.pluma"));
     assert_eq!((r["missingLinks"].clone(), r["modifiedLinks"].clone()), (json!([]), json!([])), "{r}");
     let mut paths = vec![];
     s.doc().unwrap().doc.visit_images(|_, im| paths.push(PathBuf::from(&im.link.as_ref().unwrap().path)));
@@ -559,7 +559,7 @@ fn update_links_reads_files_again_inside_symbols_patterns_and_masks() {
         out.sort();
         out
     };
-    let shown = |name: &str, bytes: &[u8], size| (name.to_string(), Some(bytes.len() as u64), Some(vectorcraft_doc::links::hash_bytes(bytes)), size);
+    let shown = |name: &str, bytes: &[u8], size| (name.to_string(), Some(bytes.len() as u64), Some(pluma_doc::links::hash_bytes(bytes)), size);
     let logo_now = shown("logo.png", &green, (40, 20));
     let photo_now = shown("photo.png", &blue, (60, 20));
     assert_eq!(images(&s), [logo_now.clone(), logo_now, photo_now.clone(), photo_now]);
@@ -584,7 +584,7 @@ fn a_missing_link_renders_its_preview_and_relinks() {
     let mut s = session();
     let id = place(&mut s, &pic);
     let placed = bounds(&s, id);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(&pic).unwrap();
     let r = open(&mut s, &doc_path);
@@ -662,7 +662,7 @@ fn relink_missing_links_from_this_folder_finds_the_others_by_name() {
             place(&mut s, &dir.file(n))
         })
         .collect();
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     // d.png stays where it was: it isn't missing.
     for n in &names[..3] {
@@ -718,7 +718,7 @@ fn relink_each_with_copy_copies_nothing_when_a_file_cant_be_read() {
     write(&two, &png(60, 30, RED));
     let mut s = session();
     let (a, c) = (place(&mut s, &one), place(&mut s, &two));
-    save(&mut s, &dir.file("doc/poster.vectorcraft"));
+    save(&mut s, &dir.file("doc/poster.pluma"));
     let (x, bad) = (dir.file("new/x.png"), dir.file("new/broken.png"));
     write(&x, &png(60, 30, BLUE));
     write(&bad, b"not an image");
@@ -771,9 +771,9 @@ fn a_classic_mac_path_is_found_by_its_file_name() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     place(&mut s, &pic);
-    let mut v: Value = serde_json::from_slice(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let mut v: Value = serde_json::from_slice(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     saved_image(&mut v)["link"] = json!({ "path": CLASSIC });
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     write(&doc_path, &serde_json::to_vec(&v).unwrap());
     let r = open(&mut s, &doc_path);
     let id = s.doc().unwrap().doc.layers[0].children().unwrap()[0].id;
@@ -821,7 +821,7 @@ fn a_linked_file_whose_pixels_cant_be_read_is_not_shown() {
     let mut s = session();
     let id = place(&mut s, &pic);
     let shown = image(&s, id);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     let cut = dir.file("cut.png");
     write(&cut, &cut_png(300, 100));
@@ -845,7 +845,7 @@ fn a_modified_link_follows_the_update_links_preference() {
     let mut s = session();
     let id = place(&mut s, &pic);
     let placed = bounds(&s, id);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     write(&pic, &png(400, 400, BLUE));
     let c = s.execute("links.check", &json!({})).unwrap();
@@ -885,7 +885,7 @@ fn low_res_proxy_eps_keeps_unchanged_preview_and_automatic_update_reads_modified
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     s.execute("prefs.set", &json!({"key": "lowResProxyEps", "value": true})).unwrap();
     s.execute("prefs.set", &json!({"key": "updateLinks", "value": "askWhenModified"})).unwrap();
@@ -909,7 +909,7 @@ fn low_res_proxy_eps_export_uses_full_resolution_from_the_linked_file() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     s.execute("prefs.set", &json!({"key": "lowResProxyEps", "value": true})).unwrap();
     let r = open(&mut s, &doc_path);
@@ -923,7 +923,7 @@ fn low_res_proxy_eps_export_uses_full_resolution_from_the_linked_file() {
         image::ImageReader::new(std::io::Cursor::new(full.images[&key].bytes.as_ref())).with_guessed_format().unwrap().into_dimensions().unwrap();
     assert_eq!(dim, (600, 300));
     let png_out = s.execute("document.export", &json!({"format": "png"})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(png_out["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(png_out["dataBase64"].as_str().unwrap()).unwrap();
     let rendered = image::load_from_memory(&bytes).unwrap();
     assert!(rendered.width() >= 400 && rendered.height() >= 300);
     assert!(near(centre_colour(&s.doc().unwrap().doc), RED), "canvas still shows the preview");
@@ -965,7 +965,7 @@ fn export_reads_a_changed_svg_link_into_its_own_images_only() {
     write(&dir.file("b.png"), &png(600, 300, RED));
     let mut s = session();
     open(&mut s, &svg_path);
-    let doc_path = dir.file("art.vectorcraft");
+    let doc_path = dir.file("art.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(dir.file("a.png")).unwrap();
     let blue = png(600, 300, BLUE);
@@ -1007,7 +1007,7 @@ fn a_file_read_for_opening_has_its_links_read_and_its_type_laid_out() {
     let r = s.execute("text.create", &json!({"x": 20, "y": 40, "text": "Linked files and type. ".repeat(12), "area": area})).unwrap();
     let text = NodeId(r["id"].as_u64().unwrap());
     s.execute("text.areaOptions", &json!({"ids": [text.0], "columns": 2})).unwrap();
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(&gone).unwrap();
     write(&changed, &png(200, 200, RED));
@@ -1043,23 +1043,23 @@ fn a_file_read_for_opening_has_its_links_read_and_its_type_laid_out() {
 #[test]
 fn type_read_for_opening_has_the_layout_of_a_font_database_with_no_plans() {
     let dir = Folder::new("read-for-open-plans");
-    let style = vectorcraft_doc::CharStyle { size: 100.0, ..Default::default() };
-    let manual = vectorcraft_doc::CharStyle { kerning: Some(0.0), ..style.clone() };
-    let turkish = vectorcraft_doc::CharStyle { language: Some("tr".into()), ..style.clone() };
+    let style = pluma_doc::CharStyle { size: 100.0, ..Default::default() };
+    let manual = pluma_doc::CharStyle { kerning: Some(0.0), ..style.clone() };
+    let turkish = pluma_doc::CharStyle { language: Some("tr".into()), ..style.clone() };
     let mut doc = Document::new(800.0, 600.0);
     let layer = doc.layers[0].id;
     for (text, style) in [("AVAV", &style), ("AVAV", &manual), ("office", &turkish), ("To Wa", &style), ("To Wa", &manual)] {
-        let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(20.0, 120.0), text, style.clone());
+        let t = pluma_doc::TextObject::point(pluma_geom::Point::new(20.0, 120.0), text, style.clone());
         let id = doc.alloc_id();
-        doc.insert(Some(layer), usize::MAX, vectorcraft_doc::Node::new(id, NodeKind::Text(Box::new(t)))).unwrap();
+        doc.insert(Some(layer), usize::MAX, pluma_doc::Node::new(id, NodeKind::Text(Box::new(t)))).unwrap();
     }
-    let doc_path = dir.file("type.vectorcraft");
-    let bytes = vectorcraft_format::save_file(&doc);
+    let doc_path = dir.file("type.pluma");
+    let bytes = pluma_format::save_file(&doc);
     let file = cmd::fileio::read_for_open(&doc_path, &bytes, Some(doc_path.clone()), &Value::Null, false, false).unwrap();
     let mut seen = 0;
     file.document().walk(|node| {
         if let NodeKind::Text(t) = &node.kind {
-            let fresh = vectorcraft_text::layout(&vectorcraft_text::FontDb::with_font_dirs(vec![]), t);
+            let fresh = pluma_text::layout(&pluma_text::FontDb::with_font_dirs(vec![]), t);
             assert_eq!(t.cached_bounds, Some(fresh.bounds), "{:?}", t.plain_text());
             assert_eq!(t.cached_baselines, fresh.baselines(), "{:?}", t.plain_text());
             seen += 1;
@@ -1077,7 +1077,7 @@ fn links_from_older_files_load_and_keep_their_pixels() {
     let mut s = session();
     s.execute("file.place", &json!({"path": pic, "at": [200, 150], "link": false})).unwrap();
     // As older versions saved a link: the path alone, the pixels embedded.
-    let mut v: Value = serde_json::from_slice(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let mut v: Value = serde_json::from_slice(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     saved_image(&mut v)["link"] = json!(pic);
     v["format"] = json!("drawcraft");
     let legacy = serde_json::to_vec(&v).unwrap();
@@ -1107,12 +1107,12 @@ fn without_a_file_system_the_saved_preview_shows() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    let saved = vectorcraft_format::save(&s.doc().unwrap().doc, false);
+    let saved = pluma_format::save(&s.doc().unwrap().doc, false);
     std::fs::remove_file(&pic).unwrap();
-    let doc = vectorcraft_format::load(&saved).unwrap();
+    let doc = pluma_format::load(&saved).unwrap();
     assert!(doc.images.values().all(|b| b.is_proxy()));
     assert!(near(centre_colour(&doc), RED), "the preview renders");
-    let r = s.execute("document.open", &json!({"name": "poster.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&saved)})).unwrap();
+    let r = s.execute("document.open", &json!({"name": "poster.pluma", "dataBase64": pluma_format::base64_encode(&saved)})).unwrap();
     assert_eq!(r["missingLinks"][0]["ids"], json!([id.0]));
     assert!(near(centre_colour(&s.doc().unwrap().doc), RED));
     // Exports carry the preview.
@@ -1135,7 +1135,7 @@ fn relative_paths_are_written_against_the_saved_file() {
         placement: Default::default(),
         pixels: None,
     };
-    d.insert(Some(lid), 0, vectorcraft_doc::Node::new(nid, NodeKind::Image(Box::new(im)))).unwrap();
+    d.insert(Some(lid), 0, pluma_doc::Node::new(nid, NodeKind::Image(Box::new(im)))).unwrap();
     let rel = |dest: String| {
         let d = cmd::links::with_relative_paths(&d, Default::default(), &dest).unwrap_or_else(|| d.clone());
         match &d.node(nid).unwrap().kind {
@@ -1143,12 +1143,12 @@ fn relative_paths_are_written_against_the_saved_file() {
             _ => None,
         }
     };
-    assert_eq!(rel(format!("{root}{sep}doc.vectorcraft")).as_deref(), Some("art/a.png"));
-    assert_eq!(rel(format!("{root}{sep}docs{sep}deep{sep}doc.vectorcraft")).as_deref(), Some("../../art/a.png"));
-    assert_eq!(rel(format!("{root}{sep}art{sep}doc.vectorcraft")).as_deref(), Some("a.png"));
+    assert_eq!(rel(format!("{root}{sep}doc.pluma")).as_deref(), Some("art/a.png"));
+    assert_eq!(rel(format!("{root}{sep}docs{sep}deep{sep}doc.pluma")).as_deref(), Some("../../art/a.png"));
+    assert_eq!(rel(format!("{root}{sep}art{sep}doc.pluma")).as_deref(), Some("a.png"));
     if cfg!(windows) {
-        assert_eq!(rel("D:\\other\\doc.vectorcraft".into()), None, "another drive");
-        assert_eq!(rel("c:\\WORK\\doc.vectorcraft".into()).as_deref(), Some("art/a.png"), "without case");
+        assert_eq!(rel("D:\\other\\doc.pluma".into()), None, "another drive");
+        assert_eq!(rel("c:\\WORK\\doc.pluma".into()).as_deref(), Some("art/a.png"), "without case");
     }
 }
 
@@ -1159,7 +1159,7 @@ fn a_placed_document_brings_its_links_with_the_files_pixels() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     place(&mut s, &pic);
-    let doc_path = dir.file("part.vectorcraft");
+    let doc_path = dir.file("part.pluma");
     save(&mut s, &doc_path);
     let mut s = session();
     // As an editable copy (placed linked, it stays one locked object).
@@ -1177,7 +1177,7 @@ fn a_placed_document_brings_its_links_with_the_files_pixels() {
 /// saved without PDF compatibility, placed without Link, reads the found file too.
 #[test]
 fn links_of_an_imported_file_are_read_where_they_are_found() {
-    use vectorcraft_testkit::ai;
+    use pluma_testkit::ai;
     let dir = Folder::new("imported");
     let pic = dir.file("photo.png").replace('\\', "/");
     // A 2×1 preview (premultiplied ARGB: a blue at half opacity) of a file of 600 × 300 px placed at
@@ -1221,7 +1221,7 @@ fn links_of_an_imported_file_are_read_where_they_are_found() {
 /// `poster.ai` in `dir`, a `.ai` file another app wrote, placing `src/photo.png` (relative to it)
 /// under a path that no longer exists → its path.
 fn imported_with_placed_file(dir: &Folder) -> String {
-    use vectorcraft_testkit::ai;
+    use pluma_testkit::ai;
     std::fs::create_dir_all(dir.0.join("src")).unwrap();
     let place = "%AI5_BeginPlace\n%%FileType: 1\n[0.1 0 0 -0.1 20 80] 0 0 600 300 4 4 0\n(/no/such/folder/src/photo.png)`\n\
          %%IncludeFile:/no/such/folder/src/photo.png\n%AI17_Begin_Content_if_version_gt:24 12\n%AI28_BeginPlacedRelativePath\n(src/)\n\
@@ -1255,7 +1255,7 @@ fn links_of_an_imported_file_are_found_by_their_relative_folder() {
     assert_eq!((l.path.as_str(), l.relative.as_deref()), ("/no/such/folder/src/photo.png", Some("src/photo.png")));
     assert!(proxy && l.size.is_none() && l.modified.is_none() && l.hash.is_none(), "{l:?}");
     // Saved beside it while the file is missing, the document keeps the folder the file is in.
-    let native = dir.file("poster.vectorcraft");
+    let native = dir.file("poster.pluma");
     save(&mut s, &native);
     let mut saved: Value = serde_json::from_slice(&std::fs::read(&native).unwrap()).unwrap();
     assert_eq!(saved_image(&mut saved)["link"]["relative"].as_str(), Some("src/photo.png"));
@@ -1269,7 +1269,7 @@ fn links_of_an_imported_file_are_found_by_their_relative_folder() {
     let (l, proxy) = link(&s);
     assert!(!proxy, "the file's pixels, not the preview");
     assert_eq!(l.path.replace('\\', "/"), pic);
-    assert_eq!((l.size, l.hash.clone()), (Some(bytes.len() as u64), Some(vectorcraft_doc::links::hash_bytes(&bytes))));
+    assert_eq!((l.size, l.hash.clone()), (Some(bytes.len() as u64), Some(pluma_doc::links::hash_bytes(&bytes))));
     assert!(l.modified.is_some(), "{l:?}");
 }
 
@@ -1291,7 +1291,7 @@ fn a_recovered_copy_of_an_imported_file_keeps_its_links_folder() {
     s.recovery.set_store(store);
     let r = s.execute("file.recovery.restore", &json!({})).unwrap();
     assert_eq!(r["restored"].as_array().map(Vec::len), Some(1), "{r}");
-    let native = dir.file("poster.vectorcraft");
+    let native = dir.file("poster.pluma");
     save(&mut s, &native);
     let mut saved: Value = serde_json::from_slice(&std::fs::read(&native).unwrap()).unwrap();
     assert_eq!(saved_image(&mut saved)["link"]["relative"].as_str(), Some("src/photo.png"));

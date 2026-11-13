@@ -9,7 +9,7 @@ use super::types::{
     PatternHead, Place, Raster, SKIPPED, SymbolHead, VERSIONED_UNENDED,
 };
 use super::{Arc, BrushArtColors, Global, Lexer, Node, NodeKind, PatternDef, Reader, Rect, Tok, V, marker, obj};
-use vectorcraft_doc::{NodeId, Symbol, SymbolRegistration};
+use pluma_doc::{NodeId, Symbol, SymbolRegistration};
 
 impl<'a> Reader<'a> {
     pub(super) fn push(&mut self, v: V) -> Result<(), String> {
@@ -322,8 +322,8 @@ impl<'a> Reader<'a> {
             .map(|w| std::str::from_utf8(w).ok()?.parse::<f32>().ok().filter(|n| (0.0..=1.0).contains(n)))
             .collect();
         let color = match parts.as_slice() {
-            [Some(c), Some(m), Some(y), Some(k)] if cmyk => vectorcraft_color::Color::cmyk(*c, *m, *y, *k),
-            [Some(r), Some(g), Some(b)] if !cmyk => vectorcraft_color::Color::rgb(*r, *g, *b),
+            [Some(c), Some(m), Some(y), Some(k)] if cmyk => pluma_color::Color::cmyk(*c, *m, *y, *k),
+            [Some(r), Some(g), Some(b)] if !cmyk => pluma_color::Color::rgb(*r, *g, *b),
             _ => return,
         };
         let name = self.names.bytes(&name);
@@ -621,7 +621,7 @@ impl<'a> Reader<'a> {
         let whole = !head.left_out && sub.unread.is_empty() && sub.hidden_unread.is_empty() && !kids.iter().any(|n| paints_pattern(n, 0));
         if !whole {
             let boxes = self.doc.symbol_boxes();
-            let bounds = kids.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, n.visual_bounds_with(&boxes)));
+            let bounds = kids.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, n.visual_bounds_with(&boxes)));
             drop(boxes);
             if let Some(b) = bounds.filter(|b| sane(*b) && b.area() > 0.0) {
                 self.symbol_bounds.insert(name, b);
@@ -674,7 +674,7 @@ impl<'a> Reader<'a> {
     }
 
     /// `base`, or the first free "`base` N" (N from 2) when a symbol read has that name, as
-    /// [`vectorcraft_doc::Document::unique_symbol_name`] names it, without looking at every symbol
+    /// [`pluma_doc::Document::unique_symbol_name`] names it, without looking at every symbol
     /// for each N.
     fn unique_symbol_name(&mut self, base: &str) -> String {
         let mut named = base.to_string();
@@ -691,7 +691,7 @@ impl<'a> Reader<'a> {
     }
 
     /// Give the art of the opacity masks in `n` (a copy of a symbol's, a pattern's or a brush's art, or of a clipping path, with ids of this
-    /// document, [`vectorcraft_doc::Document::reid`], which leaves masks as they are) ids of this
+    /// document, [`pluma_doc::Document::reid`], which leaves masks as they are) ids of this
     /// document too.
     pub(super) fn reid_masks(&mut self, n: &mut Node, depth: usize) {
         if depth > MAX_DEPTH {
@@ -1041,13 +1041,13 @@ pub(crate) fn symbol_art_member(n: &Node) -> Option<&Arc<Node>> {
         && n.visible
         && !n.locked
         && n.opacity == 1.0
-        && n.blend == vectorcraft_color::BlendMode::Normal
+        && n.blend == pluma_color::BlendMode::Normal
         && !n.isolate
-        && n.knockout == vectorcraft_doc::Knockout::Neutral
+        && n.knockout == pluma_doc::Knockout::Neutral
         && !n.knockout_shape
         && n.appearance.items.is_empty()
         && n.appearance.effects.is_empty()
-        && *n.extras() == vectorcraft_doc::NodeExtras::default();
+        && *n.extras() == pluma_doc::NodeExtras::default();
     plain.then_some(one)
 }
 
@@ -1066,7 +1066,7 @@ fn paints_pattern(n: &Node, depth: usize) -> bool {
 }
 
 /// Each id of `old` and its descendants → the id of the object in its place in `new`, a copy of
-/// `old` with new ids ([`vectorcraft_doc::Document::reid`]).
+/// `old` with new ids ([`pluma_doc::Document::reid`]).
 fn pair_ids(old: &Node, new: &Node, ids: &mut HashMap<NodeId, NodeId>, depth: usize) {
     ids.insert(old.id, new.id);
     if depth > MAX_DEPTH {
@@ -1181,7 +1181,7 @@ mod tests {
         assert!(nodes > 0);
         let draft = |i: usize| brush::BrushDraft {
             name: format!("Brush {i}"),
-            kind: brush::DraftKind::Art { brush: vectorcraft_brush::ArtBrush::default(), art: "A".to_string(), plain: false },
+            kind: brush::DraftKind::Art { brush: pluma_brush::ArtBrush::default(), art: "A".to_string(), plain: false },
         };
         let drafts: Vec<_> = (0..5).map(draft).collect();
         let (kept, left_out) = brush::finish_brushes_within(drafts.clone(), &reader.brush_art, None, 3 * nodes);
@@ -1258,7 +1258,7 @@ mod tests {
     #[test]
     fn envelopes_in_symbol_definitions_spend_the_imports_checks() {
         use crate::import::ai::tests::{drawn_content, envelope_content, envelope_of, straight_mesh, warp_keys};
-        use vectorcraft_doc::live::EnvelopeKind;
+        use pluma_doc::live::EnvelopeKind;
         let want = EnvelopeKind::Warp { style: "arc".into(), bend: 50.0, h: 0.0, v: 0.0, horizontal: true };
         let envelope =
             envelope_of(&straight_mesh(1, 1, (120.0, 60.0)), &warp_keys(1, 0.5, 0.0, 0.0, 0), &envelope_content(), 1, &drawn_content(&want));

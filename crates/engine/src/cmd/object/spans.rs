@@ -42,7 +42,7 @@ impl Spans {
     pub(super) fn measure(d: &Document, ids: &[NodeId], frame: &OrientedBox, strokes: bool) -> Self {
         let (symbols, without, art) = (d.symbol_boxes(), d.symbol_boxes().without_art_strokes(), d.symbol_boxes().quick());
         let to_local = frame.to_doc().inverse();
-        let measure = |n: &Node, s: &vectorcraft_doc::SymbolBoxes, visual: bool| match (frame.angle == 0.0, visual) {
+        let measure = |n: &Node, s: &pluma_doc::SymbolBoxes, visual: bool| match (frame.angle == 0.0, visual) {
             (true, false) => n.geometric_bounds_with(s),
             (true, true) => n.visual_bounds_with(s),
             (false, _) => n.bounds_in(s, to_local, visual),
@@ -98,7 +98,7 @@ impl Spans {
     pub(super) fn refit(&self, c: Point, refi: usize, size: [f64; 2], closed: (f64, f64, Point)) -> Option<(f64, f64, Point)> {
         let ([w, h], (sx, sy, at)) = (size, closed);
         let b = self.visual(c, sx, sy)?;
-        let p = vectorcraft_geom::reference_point(b, refi);
+        let p = pluma_geom::reference_point(b, refi);
         let tolerance = 1e-12 * [b.x0, b.y0, b.x1, b.y1, w, h, at.x, at.y].iter().fold(1.0, |m: f64, v| m.max(v.abs()));
         let near = |a: f64, b: f64| (a - b).abs() <= tolerance;
         let placed = near(p.x, at.x) && near(p.y, at.y);
@@ -111,7 +111,7 @@ impl Spans {
             return None;
         }
         let b = self.visual(c, tx, ty)?;
-        Some((tx, ty, vectorcraft_geom::reference_point(b, refi)))
+        Some((tx, ty, pluma_geom::reference_point(b, refi)))
     }
 
     /// The scales of 0 or more along x and y that give the visual box the size `w` × `h`, each
@@ -172,7 +172,7 @@ enum Part<'a> {
 /// measures it, it is not in perspective, and its transform keeps the art square to the frame (a
 /// turned or slanted instance is measured by the box around its turned art box). Anything else is
 /// one part. Returns false when the parts pass [`MAX_SPANS`].
-fn open<'a>(n: &'a Node, grow: f64, d: &'a Document, symbols: &vectorcraft_doc::SymbolBoxes, to_local: Affine, parts: &mut Vec<Part<'a>>) -> bool {
+fn open<'a>(n: &'a Node, grow: f64, d: &'a Document, symbols: &pluma_doc::SymbolBoxes, to_local: Affine, parts: &mut Vec<Part<'a>>) -> bool {
     if opens(n) {
         match &n.kind {
             NodeKind::Group { children, .. } => {
@@ -214,7 +214,7 @@ fn open_art<'a>(n: &'a Node, xf: Affine, grow: f64, kept: f64, parts: &mut Vec<P
 /// Whether [`open`] opens `n`: a group without a clip, a Shaper construction, effects or an opacity
 /// mask of its own, or a symbol instance without effects or an opacity mask of its own.
 fn opens(n: &Node) -> bool {
-    let visible = |effects: &[vectorcraft_doc::Effect]| effects.iter().any(|e| e.visible);
+    let visible = |effects: &[pluma_doc::Effect]| effects.iter().any(|e| e.visible);
     let effects = visible(&n.appearance.effects) || n.appearance.items.iter().any(|i| visible(i.effects()));
     let kind = match n.kind {
         NodeKind::Group { clip, .. } => !clip && n.extras().shaper.is_none(),

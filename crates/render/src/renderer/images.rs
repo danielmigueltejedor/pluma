@@ -4,8 +4,8 @@ use super::{
 };
 use crate::images;
 
-/// The color image node `n` of `doc` is colorized with ([`vectorcraft_doc::NodeExtras::colorize`]),
-/// if it is and its pixels take it ([`vectorcraft_doc::ImageBlob::takes_colorize`]), as `ink`
+/// The color image node `n` of `doc` is colorized with ([`pluma_doc::NodeExtras::colorize`]),
+/// if it is and its pixels take it ([`pluma_doc::ImageBlob::takes_colorize`]), as `ink`
 /// paints it: the display color, or on an ink plane the color's own inks, as a fill of that color
 /// paints them.
 pub(super) fn image_tint(doc: &Document, n: &Node, ink: Ink) -> Option<[u8; 3]> {
@@ -20,18 +20,18 @@ pub(super) fn image_tint(doc: &Document, n: &Node, ink: Ink) -> Option<[u8; 3]> 
 
 impl Renderer {
     /// Draw an image, colorized with `tint` when given ([`image_tint`]).
-    pub(crate) fn draw_image(&mut self, ctx: &mut RenderContext, f: &Frame, im: &vectorcraft_doc::ImageObject, tint: Option<[u8; 3]>) {
+    pub(crate) fn draw_image(&mut self, ctx: &mut RenderContext, f: &Frame, im: &pluma_doc::ImageObject, tint: Option<[u8; 3]>) {
         self.draw_image_in(ctx, f, im, None, tint, false);
     }
 
     /// Draw an image, or with `area` (a region in the document inside the image's frame, see
     /// [`plain_image`]) the image painted into that region; colorized with `tint` when given; with
-    /// `pixelated` ([`vectorcraft_doc::NodeExtras::pixelated`]) without smoothing.
+    /// `pixelated` ([`pluma_doc::NodeExtras::pixelated`]) without smoothing.
     pub(super) fn draw_image_in(
         &mut self,
         ctx: &mut RenderContext,
         f: &Frame,
-        im: &vectorcraft_doc::ImageObject,
+        im: &pluma_doc::ImageObject,
         area: Option<&(BezPath, FillRule)>,
         tint: Option<[u8; 3]>,
         pixelated: bool,
@@ -146,7 +146,7 @@ impl Renderer {
     /// Draw the mark of image `im` whose pixels can't be had ([`RenderOptions::mark_undecoded_images`]):
     /// a light gray box over its frame, crossed from corner to corner with a gray hairline, and
     /// with `area` (see [`Self::draw_image_in`]) only inside that region.
-    fn draw_undecoded_mark(&mut self, ctx: &mut RenderContext, f: &Frame, im: &vectorcraft_doc::ImageObject, area: Option<&(BezPath, FillRule)>) {
+    fn draw_undecoded_mark(&mut self, ctx: &mut RenderContext, f: &Frame, im: &pluma_doc::ImageObject, area: Option<&(BezPath, FillRule)>) {
         let (w, h) = (im.width as f64, im.height as f64);
         if let Some((bp, rule)) = area {
             ctx.set_transform(f.view);
@@ -173,7 +173,7 @@ impl Renderer {
     /// art's image takes): drawing `derived` draws the recoloured pixels, made when first drawn and
     /// kept with the decoded images. Names past a limit drop the art made with them too, so it is
     /// made again.
-    pub(crate) fn adjusted_image(&mut self, key: &str, derived: String, hash: u64, map: &vectorcraft_effects::ColorMap) {
+    pub(crate) fn adjusted_image(&mut self, key: &str, derived: String, hash: u64, map: &pluma_effects::ColorMap) {
         if self.adjusts.contains_key(&derived) {
             return;
         }
@@ -191,7 +191,7 @@ impl Renderer {
         &mut self,
         doc: &Document,
         key: &str,
-        own: Option<&vectorcraft_doc::ImageBlob>,
+        own: Option<&pluma_doc::ImageBlob>,
         grey: bool,
         touch: bool,
     ) -> Option<(images::ImageKey, Arc<Pixmap>)> {
@@ -240,7 +240,7 @@ impl Renderer {
 
     /// The key [`Self::image_pixmap`] gives the pixels of image `key` (or `own`) and their size, without
     /// making or looking at them: `None` until the image has been decoded.
-    fn image_key(&self, doc: &Document, key: &str, own: Option<&vectorcraft_doc::ImageBlob>, grey: bool) -> Option<(images::ImageKey, (u16, u16))> {
+    fn image_key(&self, doc: &Document, key: &str, own: Option<&pluma_doc::ImageBlob>, grey: bool) -> Option<(images::ImageKey, (u16, u16))> {
         let (key, size) = match own.or_else(|| doc.images.get(key)) {
             Some(blob) => {
                 let (key, _, size) = blob_key(blob);
@@ -262,7 +262,7 @@ impl Renderer {
         &self,
         f: &Frame,
         key: &str,
-        own: Option<&vectorcraft_doc::ImageBlob>,
+        own: Option<&pluma_doc::ImageBlob>,
         grey: bool,
         tint: Option<[u8; 3]>,
         m: Affine,
@@ -284,7 +284,7 @@ impl Renderer {
         &self,
         f: &Frame,
         key: &str,
-        own: Option<&vectorcraft_doc::ImageBlob>,
+        own: Option<&pluma_doc::ImageBlob>,
         grey: bool,
         tint: Option<[u8; 3]>,
         m: Affine,
@@ -299,7 +299,7 @@ impl Renderer {
 
     /// Whether the shared store notes image `key` (or `own`), or the image an adjusted image is
     /// made from, as one whose pixels can't be decoded. Nothing is decoded.
-    fn noted_undecodable(&self, doc: &Document, key: &str, own: Option<&vectorcraft_doc::ImageBlob>) -> bool {
+    fn noted_undecodable(&self, doc: &Document, key: &str, own: Option<&pluma_doc::ImageBlob>) -> bool {
         match own.or_else(|| doc.images.get(key)) {
             Some(blob) => {
                 let content = blob_key(blob).0.content;
@@ -336,7 +336,7 @@ fn shown_pixmap(
     pm: Arc<Pixmap>,
     grey: bool,
     tint: Option<[u8; 3]>,
-    blob: Option<&vectorcraft_doc::ImageBlob>,
+    blob: Option<&pluma_doc::ImageBlob>,
 ) -> Arc<Pixmap> {
     let (key, pm) = match tint {
         Some(rgb) => colorized_pixmap(key, &pm, rgb),
@@ -361,7 +361,7 @@ fn shown_pixmap(
 /// own inks (made from the whole image's).
 fn in_view(
     f: &Frame,
-    im: &vectorcraft_doc::ImageObject,
+    im: &pluma_doc::ImageObject,
     key: &images::ImageKey,
     pm: &Pixmap,
     grey: bool,
@@ -375,7 +375,7 @@ fn in_view(
     // The view in the level's pixels, a couple wider for smoothing at its edge.
     let to_level = (im.xf * Affine::scale_non_uniform(im.width as f64 / f64::from(w), im.height as f64 / f64::from(h))).inverse();
     let v = f.visible;
-    let corners = [(v.x0, v.y0), (v.x1, v.y0), (v.x1, v.y1), (v.x0, v.y1)].map(|c| to_level * vectorcraft_geom::Point::from(c));
+    let corners = [(v.x0, v.y0), (v.x1, v.y0), (v.x1, v.y1), (v.x0, v.y1)].map(|c| to_level * pluma_geom::Point::from(c));
     let (x0, x1) = corners.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), p| (a.min(p.x), b.max(p.x)));
     let (y0, y1) = corners.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), p| (a.min(p.y), b.max(p.y)));
     if ![x0, x1, y0, y1].iter().all(|v| v.is_finite()) {
@@ -400,7 +400,7 @@ fn window_pixmap(
     (cols, rows): ([u32; 2], [u32; 2]),
     grey: bool,
     tint: Option<[u8; 3]>,
-    blob: Option<&vectorcraft_doc::ImageBlob>,
+    blob: Option<&pluma_doc::ImageBlob>,
 ) -> Shown {
     let (w, h) = (u32::from(pm.width()), u32::from(pm.height()));
     let t = images::TILE;

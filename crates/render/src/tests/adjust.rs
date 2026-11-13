@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::text::{CharStyle, TextObject};
+use pluma_doc::{Appearance, Effect, ImageBlob, ImageObject, Node, NodeKind, Symbol};
+use pluma_geom::{Point, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::text::{CharStyle, TextObject};
-use vectorcraft_doc::{Appearance, Effect, ImageBlob, ImageObject, Node, NodeKind, Symbol};
-use vectorcraft_geom::{Point, shapes};
 
 use crate::*;
 

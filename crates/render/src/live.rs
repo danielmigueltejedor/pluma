@@ -1,7 +1,7 @@
 //! Live objects in the renderer.
 //!
-//! Blends and envelopes are evaluated by `vectorcraft_doc::live` (through
-//! `vectorcraft_effects::expand_live`, as the exporters do) and the resulting objects cached by
+//! Blends and envelopes are evaluated by `pluma_doc::live` (through
+//! `pluma_effects::expand_live`, as the exporters do) and the resulting objects cached by
 //! `Arc` identity of the live node and by the inputs from outside it that [`resources_key`] hashes:
 //! the symbols, patterns and placed files it shows, the fonts for type, the plug-ins for plug-in
 //! effects, and the color settings (so the steps keep
@@ -18,10 +18,10 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::{Arc, Weak};
 
-use vectorcraft_doc::live::{GradientMesh, MeshQuad};
-use vectorcraft_doc::placed_document::ReadDocument;
-use vectorcraft_doc::{Document, Node, NodeKind};
-use vectorcraft_geom::{Affine, BezPath, Point, Vec2};
+use pluma_doc::live::{GradientMesh, MeshQuad};
+use pluma_doc::placed_document::ReadDocument;
+use pluma_doc::{Document, Node, NodeKind};
+use pluma_geom::{Affine, BezPath, Point, Vec2};
 use vello_cpu::RenderContext;
 use vello_cpu::peniko;
 
@@ -98,7 +98,7 @@ pub fn expand_live(n: &Node) -> Vec<Node> {
 /// its inputs, see [`Renderer::live_found`]) reads from the document, placed files,
 /// the fonts, the plug-ins and the color settings, hashed: the art of the symbols, the tilings of
 /// the patterns and the reads of the placed files it shows ([`hash_resources`]), the font
-/// generation ([`vectorcraft_text::FontDb::generation`]) when it shows type or a placed file, the
+/// generation ([`pluma_text::FontDb::generation`]) when it shows type or a placed file, the
 /// plug-in revision ([`crate::effects::plugin_revision`]) and `names` (the hash of the document's
 /// swatch and pattern names, [`DocInputs`]) when it shows an object with a plug-in effect, since a
 /// plug-in that paints its pieces ([`crate::effects::has_painted_plugin_effect`]) draws them only
@@ -133,7 +133,7 @@ impl Walked {
         let mut h = DefaultHasher::new();
         self.hash.hash(&mut h);
         if self.text {
-            vectorcraft_text::FontDb::global().generation().hash(&mut h);
+            pluma_text::FontDb::global().generation().hash(&mut h);
         }
         if self.plugins {
             crate::effects::plugin_revision().hash(&mut h);
@@ -162,7 +162,7 @@ struct Shown {
 /// Hash into `h` what the evaluation of `n` reads from the document and from placed files: the
 /// tilings ([`crate::pattern::hash_tiling`]) of the patterns in the fills and strokes of its
 /// objects and of type's characters, the address of each symbol instance's art, and the address of
-/// the read of each placed file that [`vectorcraft_doc::PlacedDocument::art`] shows (none before
+/// the read of each placed file that [`pluma_doc::PlacedDocument::art`] shows (none before
 /// the file is read). It walks `n` and then, one at a time from a list, the opacity-mask, pattern
 /// and symbol art it finds, each pattern and each symbol's art once ([`first_seen`]). `shown`
 /// records the type, placed files, reads and plug-in effects found.
@@ -178,7 +178,7 @@ fn hash_resources<'a>(doc: &'a Document, n: &'a Node, shown: &mut Shown, h: &mut
             };
             let paints = c.appearance.items.iter().map(|i| i.paint()).chain(runs.iter().flat_map(|r| [&r.style.fill, &r.style.stroke]));
             for paint in paints {
-                if let vectorcraft_color::Paint::Pattern { pattern, .. } = paint
+                if let pluma_color::Paint::Pattern { pattern, .. } = paint
                     && let Some(def) = doc.pattern(pattern)
                     && first_seen(&mut shown.seen, std::ptr::from_ref(def) as usize)
                 {
@@ -196,7 +196,7 @@ fn hash_resources<'a>(doc: &'a Document, n: &'a Node, shown: &mut Shown, h: &mut
                     }
                 }
                 NodeKind::PlacedDocument(p) => {
-                    let read = vectorcraft_doc::placed_document::read_cached(p);
+                    let read = pluma_doc::placed_document::read_cached(p);
                     read.as_ref().map(|r| Arc::as_ptr(r) as usize).hash(h);
                     shown.reads.extend(read.as_ref().map(Arc::downgrade));
                     shown.text = true;
@@ -245,7 +245,7 @@ const MESH_RASTER_MAX_PIXELS: usize = 4 << 20;
 /// one buffer, so the caller draws the quads.
 fn draw_mesh_raster(ctx: &mut RenderContext, f: &Frame, m: &GradientMesh, quads: &[MeshQuad], alpha: f32) -> bool {
     let outline = m.outline().to_bezpath();
-    let dev = f.view.transform_rect_bbox(vectorcraft_geom::Shape::bounding_box(&outline));
+    let dev = f.view.transform_rect_bbox(pluma_geom::Shape::bounding_box(&outline));
     if ![dev.x0, dev.y0, dev.x1, dev.y1].iter().all(|v| v.is_finite()) {
         return false;
     }
@@ -289,9 +289,9 @@ fn draw_mesh_raster(ctx: &mut RenderContext, f: &Frame, m: &GradientMesh, quads:
 /// edge twice, a darker line.
 fn grown_outline(path: &BezPath, grow: f64) -> BezPath {
     let mut rings: Vec<Vec<Point>> = Vec::new();
-    vectorcraft_geom::kurbo::flatten(path, 0.1, |el| match el {
-        vectorcraft_geom::PathEl::MoveTo(p) => rings.push(vec![p]),
-        vectorcraft_geom::PathEl::LineTo(p) => {
+    pluma_geom::kurbo::flatten(path, 0.1, |el| match el {
+        pluma_geom::PathEl::MoveTo(p) => rings.push(vec![p]),
+        pluma_geom::PathEl::LineTo(p) => {
             if let Some(r) = rings.last_mut()
                 && r.last().is_none_or(|q| (*q - p).hypot() > 1e-9)
             {
@@ -525,9 +525,9 @@ impl Renderer {
         let knockout = !f.opts.outline
             && matches!(a.kind, NodeKind::Blend { .. })
             && a.knockout.resolve(self.knockout)
-            && vectorcraft_doc::live::steps_knockout_shows(&self.live_expanded(f.doc, a, true));
+            && pluma_doc::live::steps_knockout_shows(&self.live_expanded(f.doc, a, true));
         let enclosing = std::mem::replace(&mut self.knockout, knockout);
-        if !f.opts.outline && (opacity < 1.0 || a.blend != vectorcraft_color::BlendMode::Normal || a.isolate || knockout) {
+        if !f.opts.outline && (opacity < 1.0 || a.blend != pluma_color::BlendMode::Normal || a.isolate || knockout) {
             let blends = self.blends_through(a);
             let bounds = if blends { self.bounds_of(f.symbols, a) } else { None };
             let comp = crate::group::Composite { blend: a.blend, opacity, isolated: a.isolate, blends, bounds, ..Default::default() };
@@ -654,10 +654,10 @@ mod tests {
     fn a_mesh_patch_of_slivers_leaves_no_holes_with_hard_edges() {
         // GUARDS: patches that narrow to slivers (here fanning out from nearly one point) draw as many sub-pixel quads;
         // with hard edges each was dropped below half coverage, leaving holes through the mesh.
-        use vectorcraft_doc::live::MeshPoint;
+        use pluma_doc::live::MeshPoint;
         let point = |x: f64, y: f64, handles: [(f64, f64); 4]| MeshPoint {
-            p: vectorcraft_geom::Point::new(x, y),
-            color: vectorcraft_color::Color::rgb(0.7, 0.8, 0.9),
+            p: pluma_geom::Point::new(x, y),
+            color: pluma_color::Color::rgb(0.7, 0.8, 0.9),
             opacity: 1.0,
             handles: handles.map(|(x, y)| Vec2::new(x, y)),
         };
@@ -749,7 +749,7 @@ mod tests {
     /// A grown square covers half a pixel more on every side, whichever way it winds.
     #[test]
     fn an_outline_grows_by_half_a_pixel_both_ways_round() {
-        for square in [vectorcraft_geom::shapes::rectangle(Rect::new(2.0, 3.0, 10.0, 8.0)).to_bezpath(), {
+        for square in [pluma_geom::shapes::rectangle(Rect::new(2.0, 3.0, 10.0, 8.0)).to_bezpath(), {
             let mut p = BezPath::new();
             p.move_to((2.0, 3.0));
             p.line_to((2.0, 8.0));
@@ -758,13 +758,13 @@ mod tests {
             p.close_path();
             p
         }] {
-            let b = vectorcraft_geom::Shape::bounding_box(&grown_outline(&square, 0.5));
+            let b = pluma_geom::Shape::bounding_box(&grown_outline(&square, 0.5));
             assert!((b.x0 - 1.5).abs() < 1e-6 && (b.y0 - 2.5).abs() < 1e-6, "{b:?}");
             assert!((b.x1 - 10.5).abs() < 1e-6 && (b.y1 - 8.5).abs() < 1e-6, "{b:?}");
         }
     }
-    use vectorcraft_doc::{Appearance, EnvelopeKind, Symbol};
-    use vectorcraft_geom::{Affine, Rect, shapes};
+    use pluma_doc::{Appearance, EnvelopeKind, Symbol};
+    use pluma_geom::{Affine, Rect, shapes};
 
     /// The key of an envelope around the first of 5,000 symbols, each showing the next, is found on
     /// a 256 KiB stack, and it changes when the last symbol's art changes.

@@ -5,7 +5,7 @@
 
 use super::geom::{Cubic, bez};
 use kurbo::{CubicBez, ParamCurveNearest, Vec2};
-use vectorcraft_geom::Point;
+use pluma_geom::Point;
 
 /// From this depth a run still over the tolerance is cut in the middle, which bounds the recursion
 /// at this depth plus the logarithm of the run's length.

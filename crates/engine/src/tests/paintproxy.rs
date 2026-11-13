@@ -1,9 +1,9 @@
 //! Fill/Stroke proxy commands: invert, complement, last colour/gradient, swap/default on type and
 //! the Session's recent colours.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::NodeKind;
 use serde_json::json;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::NodeKind;
 
 use crate::*;
 
@@ -18,7 +18,7 @@ fn rect(s: &mut Session) -> NodeId {
     NodeId(r["id"].as_u64().unwrap())
 }
 
-fn node(s: &Session, id: NodeId) -> vectorcraft_doc::Node {
+fn node(s: &Session, id: NodeId) -> pluma_doc::Node {
     s.doc().unwrap().doc.node(id).unwrap().clone()
 }
 

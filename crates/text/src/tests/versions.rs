@@ -3,7 +3,7 @@
 //! the other version is set in it.
 
 use kurbo::Point;
-use vectorcraft_doc::CharStyle;
+use pluma_doc::CharStyle;
 
 use crate::test_fonts::{TWIN_FAMILY as FAMILY, TWIN_VERSIONS as VERSIONS, twin_font};
 use crate::*;

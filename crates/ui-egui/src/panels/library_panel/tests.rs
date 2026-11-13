@@ -1,13 +1,13 @@
 use egui::{Event, Modifiers, PointerButton, Pos2, vec2};
+use pluma_color::Paint;
+use pluma_engine::Session;
 use serde_json::Value;
-use vectorcraft_color::Paint;
-use vectorcraft_engine::Session;
 
 use super::*;
 use crate::panels::swatches::SwatchLibraries;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app
 }
@@ -19,7 +19,7 @@ fn context() -> egui::Context {
 }
 
 /// One frame of the library panel with `events` and `modifiers` held.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, modifiers: Modifiers, time: f64) {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>, modifiers: Modifiers, time: f64) {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 800.0)));
     let events = std::iter::once(Event::ModifiersChanged(modifiers)).chain(events).collect();
     let input = egui::RawInput { events, time: Some(time), screen_rect, ..Default::default() };
@@ -28,13 +28,13 @@ fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, modi
 }
 
 /// The panel opened last.
-fn shown(app: &VectorcraftApp) -> String {
+fn shown(app: &PlumaApp) -> String {
     last_open(&app.ui).expect("a library panel is open").panel()
 }
 
 /// Click the tile or row of `name` in the panel opened last with `modifiers` (frames from
 /// `time` to `time + 0.5`; a new window takes a sizing frame first).
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
     frame(app, ctx, vec![], Modifiers::NONE, time);
     frame(app, ctx, vec![], Modifiers::NONE, time + 0.25);
     let at = ctx.read_response(tile_id(&shown(app), name)).unwrap_or_else(|| panic!("no tile for {name}")).rect.center();
@@ -42,7 +42,7 @@ fn click(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, modifiers: M
     frame(app, ctx, vec![Event::PointerMoved(at), button(true), button(false)], modifiers, time + 0.5);
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
@@ -95,7 +95,7 @@ fn a_clicked_library_color_becomes_the_color_guides_base() {
     let mut app = app();
     let ctx = context();
     app.run("window.swatchLibrary", json!({"library": "pastels"})).unwrap();
-    app.ui.color_guide_base = Some(vectorcraft_color::Color::WHITE);
+    app.ui.color_guide_base = Some(pluma_color::Color::WHITE);
     click(&mut app, &ctx, "Pastel Teal", Modifiers::NONE, 0.0);
     let teal = app.session.doc().unwrap().doc.swatch("Pastel Teal").and_then(|w| w.paint.color()).unwrap();
     assert_eq!(crate::panels::color_guide::base_color(&app), teal);
@@ -181,7 +181,7 @@ fn the_window_submenu_lists_every_library() {
         .filter(|e| e.path == ["Window", "Swatch Libraries"] && e.command.as_deref() == Some("window.swatchLibrary"))
         .map(|e| e.params["library"].clone())
         .collect();
-    let all = vectorcraft_engine::cmd::swatchlib::libraries(&app.session);
+    let all = pluma_engine::cmd::swatchlib::libraries(&app.session);
     let listed = |category: &str| all.iter().filter(|l| l.category == category).map(|l| json!(l.id)).collect::<Vec<_>>();
     assert_eq!(ids, listed("builtIn"));
     assert_eq!(ids, SWATCH_IDS.map(|i| json!(i)));
@@ -209,7 +209,7 @@ fn save_dialog_writes_user_libraries_that_the_window_menu_lists() {
     let _ = std::fs::remove_dir_all(&dir);
     let mut app = app();
     app.session.swatch_libraries.set_user_dir(Some(dir.to_string_lossy().to_string()));
-    let user_items = |app: &VectorcraftApp| -> Vec<(String, String)> {
+    let user_items = |app: &PlumaApp| -> Vec<(String, String)> {
         crate::menus::menu_entries(app)
             .into_iter()
             .filter(|e| e.path == ["Window", "Swatch Libraries", "User Defined"])
@@ -248,7 +248,7 @@ fn saving_to_a_file_and_opening_a_palette_file() {
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("ui.saveSwatchLibrary", json!({})).unwrap();
     let d = app.ui.dialog.as_mut().unwrap();
@@ -279,7 +279,7 @@ fn saving_to_a_file_and_opening_a_palette_file() {
     for l in SwatchLibraries::list(&app) {
         assert_eq!(builtin_library(&l.id), !matches!(l.submenu, Some("User Defined" | "Other Libraries")), "{}", l.id);
     }
-    assert!(!builtin_library(&open.id) && builtin_library(vectorcraft_engine::cmd::swatchlib::DOCUMENT_SWATCHES));
+    assert!(!builtin_library(&open.id) && builtin_library(pluma_engine::cmd::swatchlib::DOCUMENT_SWATCHES));
 }
 
 #[test]
@@ -294,7 +294,7 @@ fn the_save_dialog_writes_swatch_exchange_files() {
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("ui.saveSwatchLibrary", json!({})).unwrap();
     let d = app.ui.dialog.as_mut().unwrap();
@@ -305,7 +305,7 @@ fn the_save_dialog_writes_swatch_exchange_files() {
     crate::dialogs::confirm(&mut app).unwrap();
     let (path, bytes) = written.borrow()[0].clone();
     assert_eq!(path, "/tmp/Brand Kit.ase", "the save panel suggests the name");
-    let lib = vectorcraft_color::palette_io::read_bytes(&bytes, "x").unwrap();
+    let lib = pluma_color::palette_io::read_bytes(&bytes, "x").unwrap();
     let solid = app.session.doc().unwrap().doc.swatches_iter().filter(|w| w.paint.color().is_some()).count();
     assert_eq!(lib.len(), solid, "every solid color of the document");
     // The web downloads the file under that name.
@@ -318,7 +318,7 @@ fn the_save_dialog_writes_swatch_exchange_files() {
         })),
         ..Default::default()
     };
-    let mut web = VectorcraftApp::new(Session::new(), services);
+    let mut web = PlumaApp::new(Session::new(), services);
     web.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     web.run("ui.saveSwatchLibrary", json!({})).unwrap();
     let d = web.ui.dialog.as_mut().unwrap();
@@ -332,7 +332,7 @@ fn the_save_dialog_writes_swatch_exchange_files() {
 fn swatch_exchange_files_without_a_path_open_in_the_library_panel() {
     // A file opened on the web has no path; open_bytes passes its bytes as dataBase64.
     let mut app = app();
-    crate::io::open_bytes(&mut app, "Brand.ase", &vectorcraft_testkit::ase::sample(), None).unwrap();
+    crate::io::open_bytes(&mut app, "Brand.ase", &pluma_testkit::ase::sample(), None).unwrap();
     let open = last_open(&app.ui).cloned().unwrap();
     assert_eq!(open.id, "loaded/Brand.ase");
     let (_, lib) = SwatchLibraries::get(&app, &open.id).unwrap();
@@ -340,7 +340,7 @@ fn swatch_exchange_files_without_a_path_open_in_the_library_panel() {
     assert_eq!(app.session.documents().len(), 1, "not opened as a document");
 }
 
-fn docking(app: &VectorcraftApp) -> &craft_ui::docking::Layout<String> {
+fn docking(app: &PlumaApp) -> &craft_ui::docking::Layout<String> {
     app.ui.docking.as_ref().expect("library panels live in the shared layout")
 }
 
@@ -348,7 +348,7 @@ fn panel_of(reply: Value) -> String {
     reply["panel"].as_str().expect("the reply names the panel").to_string()
 }
 
-fn groups(app: &VectorcraftApp) -> Vec<Vec<String>> {
+fn groups(app: &PlumaApp) -> Vec<Vec<String>> {
     docking(app).floating.iter().map(crate::panel_docking::window_panels).collect()
 }
 
@@ -400,7 +400,7 @@ fn accessible() -> egui::Context {
 }
 
 /// One frame of `draw` with `events`, after the frames `ctx` ran.
-fn draw_frame(app: &mut VectorcraftApp, ctx: &egui::Context, draw: &dyn Fn(&mut VectorcraftApp, &mut Ui), events: Vec<Event>) -> egui::FullOutput {
+fn draw_frame(app: &mut PlumaApp, ctx: &egui::Context, draw: &dyn Fn(&mut PlumaApp, &mut Ui), events: Vec<Event>) -> egui::FullOutput {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 800.0)));
     let time = Some(ctx.input(|i| i.time) + 0.1);
     let mut out = ctx.run_ui(egui::RawInput { events, time, screen_rect, ..Default::default() }, |ui| draw(app, ui));
@@ -409,7 +409,7 @@ fn draw_frame(app: &mut VectorcraftApp, ctx: &egui::Context, draw: &dyn Fn(&mut 
 }
 
 /// Whether the control `draw` shows that screen readers name `label` is enabled, and its center.
-fn control(app: &mut VectorcraftApp, ctx: &egui::Context, draw: &dyn Fn(&mut VectorcraftApp, &mut Ui), label: &str) -> (bool, Pos2) {
+fn control(app: &mut PlumaApp, ctx: &egui::Context, draw: &dyn Fn(&mut PlumaApp, &mut Ui), label: &str) -> (bool, Pos2) {
     draw_frame(app, ctx, draw, vec![]);
     let out = draw_frame(app, ctx, draw, vec![]);
     let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
@@ -419,16 +419,16 @@ fn control(app: &mut VectorcraftApp, ctx: &egui::Context, draw: &dyn Fn(&mut Vec
 }
 
 /// A click at `at` in a frame of `draw`.
-fn click_at(app: &mut VectorcraftApp, ctx: &egui::Context, draw: &dyn Fn(&mut VectorcraftApp, &mut Ui), at: Pos2) {
+fn click_at(app: &mut PlumaApp, ctx: &egui::Context, draw: &dyn Fn(&mut PlumaApp, &mut Ui), at: Pos2) {
     let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
     draw_frame(app, ctx, draw, vec![Event::PointerMoved(at)]);
     draw_frame(app, ctx, draw, vec![button(true), button(false)]);
 }
 
 /// The app restarted with the preferences `app` saves.
-fn restarted(app: &VectorcraftApp) -> VectorcraftApp {
+fn restarted(app: &PlumaApp) -> PlumaApp {
     let saved: crate::UiState = serde_json::from_slice(&serde_json::to_vec(&app.ui).unwrap()).unwrap();
-    let mut next = VectorcraftApp::new(Session::new(), Default::default());
+    let mut next = PlumaApp::new(Session::new(), Default::default());
     next.ui = saved.sanitized();
     restore(&mut next);
     next
@@ -503,9 +503,9 @@ fn a_persistent_panel_whose_file_is_gone_is_listed_as_missing_until_located() {
     let shown = format!("Missing: {}", gpl.to_string_lossy());
     assert!(text.contains(&shown), "{text}");
     let ctx = accessible();
-    let body = |app: &mut VectorcraftApp, ui: &mut Ui| show(app, ui, &brand);
+    let body = |app: &mut PlumaApp, ui: &mut Ui| show(app, ui, &brand);
     assert!(!control(&mut next, &ctx, &body, "Locate Library…").0, "dimmed without an open dialog");
-    let panel_menu = |app: &mut VectorcraftApp, ui: &mut Ui| menu(app, ui, &brand);
+    let panel_menu = |app: &mut PlumaApp, ui: &mut Ui| menu(app, ui, &brand);
     assert!(!control(&mut next, &ctx, &panel_menu, "Next Library").0, "no library to step from");
     let mut next = restarted(&next);
     assert!(is_open(&next.ui, &brand), "still listed after another restart");
@@ -525,7 +525,7 @@ fn a_persistent_panel_whose_file_is_gone_is_listed_as_missing_until_located() {
     let s = settings(&next.ui, "swatches", id).cloned().unwrap();
     assert_eq!((s.path, s.persistent, s.view), (Some(moved.to_string_lossy().into_owned()), true, Some(View::SmallList)));
     assert!(settings(&next.ui, "swatches", gone).is_none());
-    let located_menu = |app: &mut VectorcraftApp, ui: &mut Ui| menu(app, ui, &located);
+    let located_menu = |app: &mut PlumaApp, ui: &mut Ui| menu(app, ui, &located);
     assert!(control(&mut next, &ctx, &located_menu, "Next Library").0);
     let last = restarted(&next);
     assert!(is_open(&last.ui, &located) && last.ui.status.is_empty(), "{}", last.ui.status);

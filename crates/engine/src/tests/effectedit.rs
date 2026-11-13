@@ -1,8 +1,8 @@
 //! Appearance editing depth: moving and copying effects between the object and its fills and
 //! strokes, duplicating and removing several items, Show All Hidden Attributes.
 
+use pluma_doc::Node;
 use serde_json::{Value, json};
-use vectorcraft_doc::Node;
 
 use crate::*;
 

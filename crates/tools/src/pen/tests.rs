@@ -1,10 +1,10 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
+use pluma_doc::Selection;
 
 #[test]
 fn press_inside_drag_threshold_places_a_corner() {
-    let (d, s) = (vectorcraft_doc::Document::new(500.0, 500.0), Selection::default());
+    let (d, s) = (pluma_doc::Document::new(500.0, 500.0), Selection::default());
     let paint = paint();
     let cx = ToolContext { zoom: 1.0, smart_guides: false, snap_to_point: false, snap_to_pixel: false, snap_to_grid: false, ..cx(&d, &s, &paint) };
     let mut pen = PenTool::default();
@@ -19,7 +19,7 @@ fn press_inside_drag_threshold_places_a_corner() {
 fn snapped_last_endpoint_converts_active_path_after_raw_miss() {
     let first = Point::new(100.0, 300.0);
     let last = Point::new(200.0, 400.0);
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
     d.grid.spacing = 100.0;
     d.grid.subdivisions = 1;
     let paint = paint();
@@ -64,10 +64,10 @@ fn raw_other_endpoint_wins_before_snapped_active_last_endpoint() {
     let first = Point::new(100.0, 300.0);
     let last = Point::new(200.0, 400.0);
     let raw = Point::new(237.0, 403.0);
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
     let other = d.alloc_id();
-    let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&[raw, Point::new(337.0, 403.0)], false));
-    d.insert(Some(d.layers[0].id), 2, vectorcraft_doc::Node::path(other, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&[raw, Point::new(337.0, 403.0)], false));
+    d.insert(Some(d.layers[0].id), 2, pluma_doc::Node::path(other, path, pluma_doc::Appearance::default_art())).unwrap();
     d.grid.spacing = 100.0;
     d.grid.subdivisions = 1;
     let paint = paint();
@@ -102,7 +102,7 @@ fn raw_other_endpoint_wins_before_snapped_active_last_endpoint() {
 fn snapped_first_endpoint_closes_active_path_after_raw_miss() {
     let first = Point::new(100.0, 300.0);
     let last = Point::new(200.0, 400.0);
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
     d.grid.spacing = 100.0;
     d.grid.subdivisions = 1;
     let paint = paint();
@@ -147,10 +147,10 @@ fn raw_other_endpoint_wins_before_snapped_active_first_endpoint() {
     let first = Point::new(100.0, 300.0);
     let last = Point::new(200.0, 400.0);
     let raw = Point::new(63.0, 303.0);
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[first, Point::new(200.0, 300.0), last], false));
     let other = d.alloc_id();
-    let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&[raw, Point::new(63.0, 403.0)], false));
-    d.insert(Some(d.layers[0].id), 2, vectorcraft_doc::Node::path(other, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&[raw, Point::new(63.0, 403.0)], false));
+    d.insert(Some(d.layers[0].id), 2, pluma_doc::Node::path(other, path, pluma_doc::Appearance::default_art())).unwrap();
     d.grid.spacing = 100.0;
     d.grid.subdivisions = 1;
     let paint = paint();
@@ -199,8 +199,8 @@ fn alt_pressed_mid_drag_keeps_the_incoming_handle() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::shapes::line(Point::new(10.0, 300.0), Point::new(60.0, 300.0));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let line = pluma_geom::shapes::line(Point::new(10.0, 300.0), Point::new(60.0, 300.0));
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -228,7 +228,7 @@ fn alt_pressed_mid_drag_keeps_the_incoming_handle() {
 
 #[test]
 fn space_pressed_inside_the_drag_threshold_moves_the_anchor_by_the_next_move_only() {
-    let (d, s) = (vectorcraft_doc::Document::new(500.0, 500.0), Selection::default());
+    let (d, s) = (pluma_doc::Document::new(500.0, 500.0), Selection::default());
     let paint = paint();
     let cx = ToolContext { zoom: 1.0, smart_guides: false, snap_to_point: false, snap_to_pixel: false, snap_to_grid: false, ..cx(&d, &s, &paint) };
     let space = Mods { space: true, ..Mods::default() };
@@ -267,8 +267,8 @@ fn space_moves_the_anchor_being_placed() {
     // moves with it.
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let line = vectorcraft_geom::shapes::line(Point::new(10.0, 300.0), Point::new(60.0, 300.0));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let line = pluma_geom::shapes::line(Point::new(10.0, 300.0), Point::new(60.0, 300.0));
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, line, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let cx = cx(&d, &s, &p);
@@ -288,12 +288,12 @@ fn space_moves_the_anchor_being_placed() {
 }
 
 /// A document with an open path of `anchors`, selected, being drawn by a Pen.
-fn drawing(anchors: vectorcraft_geom::SubPath) -> (vectorcraft_doc::Document, NodeId, Selection) {
+fn drawing(anchors: pluma_geom::SubPath) -> (pluma_doc::Document, NodeId, Selection) {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let path = vectorcraft_geom::PathData::single(anchors);
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let path = pluma_geom::PathData::single(anchors);
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     (d, id, s)
@@ -306,7 +306,7 @@ fn set_out(id: NodeId, ai: usize, x: f64, y: f64) -> Action {
 #[test]
 fn clicking_the_last_anchor_retracts_its_handle_and_dragging_pulls_a_new_one() {
     // The last anchor is smooth: handles at 40 and 80 either side of (60, 300).
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false);
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false);
     sp.anchors[1].h_in = Point::new(40.0, 300.0);
     sp.anchors[1].h_out = Point::new(80.0, 300.0);
     let (d, id, s) = drawing(sp);
@@ -332,7 +332,7 @@ fn clicking_the_last_anchor_retracts_its_handle_and_dragging_pulls_a_new_one() {
 /// #544: picking the terminal anchor uses the pointer, even when new points snap elsewhere.
 #[test]
 fn terminal_anchor_conversion_precedes_grid_snapping() {
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(13.0, 303.0), Point::new(63.0, 303.0)], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(13.0, 303.0), Point::new(63.0, 303.0)], false));
     d.grid.spacing = 100.0;
     d.grid.subdivisions = 1;
     let p = paint();
@@ -357,10 +357,10 @@ fn terminal_anchor_conversion_precedes_grid_snapping() {
 
 #[test]
 fn smart_guides_cannot_steal_a_terminal_anchor_press() {
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
     let other = d.alloc_id();
-    let rect = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(66.0, 300.0, 76.0, 310.0));
-    d.insert(Some(d.layers[0].id), 2, vectorcraft_doc::Node::path(other, rect, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let rect = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(66.0, 300.0, 76.0, 310.0));
+    d.insert(Some(d.layers[0].id), 2, pluma_doc::Node::path(other, rect, pluma_doc::Appearance::default_art())).unwrap();
     let p = paint();
     let cx = cx(&d, &s, &p);
     let pos = Point::new(63.0, 300.0);
@@ -381,7 +381,7 @@ fn overlapping_endpoint_tolerances_pick_the_nearest_end() {
     for zoom in [0.5, 1.0, 2.0] {
         let first = Point::new(100.0, 300.0);
         let last = Point::new(100.0 + 6.0 / zoom, 300.0);
-        let (d, id, selection) = drawing(vectorcraft_geom::SubPath::polyline(&[first, last], false));
+        let (d, id, selection) = drawing(pluma_geom::SubPath::polyline(&[first, last], false));
         for grid in [false, true] {
             let cx = ToolContext {
                 zoom,
@@ -424,7 +424,7 @@ fn overlapping_endpoint_tolerances_continue_from_the_nearest_end() {
     for zoom in [0.5, 1.0, 2.0] {
         let first = Point::new(100.0, 300.0);
         let last = Point::new(100.0 + 6.0 / zoom, 300.0);
-        let (d, id, selection) = drawing(vectorcraft_geom::SubPath::polyline(&[first, last], false));
+        let (d, id, selection) = drawing(pluma_geom::SubPath::polyline(&[first, last], false));
         for grid in [false, true] {
             let cx = ToolContext {
                 zoom,
@@ -453,7 +453,7 @@ fn overlapping_endpoint_tolerances_continue_from_the_nearest_end() {
 #[test]
 fn coincident_endpoints_keep_the_prior_tie_choice() {
     let at = Point::new(100.0, 300.0);
-    let (d, id, selection) = drawing(vectorcraft_geom::SubPath::polyline(&[at, at], false));
+    let (d, id, selection) = drawing(pluma_geom::SubPath::polyline(&[at, at], false));
     let paint = paint();
     for zoom in [0.5, 1.0, 2.0] {
         let cx = ToolContext { zoom, smart_guides: false, snap_to_point: false, ..cx(&d, &selection, &paint) };
@@ -471,7 +471,7 @@ fn coincident_endpoints_keep_the_prior_tie_choice() {
 
 #[test]
 fn terminal_anchor_uses_the_selection_tolerance_at_each_zoom() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
     let p = paint();
     for zoom in [0.5, 2.0] {
         let cx = ToolContext { zoom, selection_tolerance: 8.0, smart_guides: false, snap_to_point: false, ..cx(&d, &s, &p) };
@@ -498,7 +498,7 @@ fn terminal_anchor_uses_the_selection_tolerance_at_each_zoom() {
 /// Upstream's point radius grows with the drawn anchor; cursor and press keep agreeing.
 #[test]
 fn enlarged_anchor_radius_is_used_for_endpoints_and_alt_conversion() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
     let p = paint();
     for zoom in [0.5, 1.0, 2.0] {
         let cx = ToolContext { zoom, selection_tolerance: 1.0, anchor_size: 7, smart_guides: false, snap_to_point: false, ..cx(&d, &s, &p) };
@@ -533,7 +533,7 @@ fn enlarged_anchor_radius_is_used_for_endpoints_and_alt_conversion() {
 /// #516: Alt on the terminal anchor borrows Anchor Point, just like the other anchors.
 #[test]
 fn alt_on_the_terminal_anchor_pulls_symmetric_handles() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     let alt = Mods { alt: true, ..Mods::default() };
@@ -554,7 +554,7 @@ fn alt_on_the_terminal_anchor_pulls_symmetric_handles() {
 
 #[test]
 fn ending_during_a_pen_gesture_commits_and_clears_it() {
-    let (d, _, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
+    let (d, _, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     for terminal in [false, true] {
@@ -581,7 +581,7 @@ fn ending_during_a_pen_gesture_commits_and_clears_it() {
 #[test]
 fn a_drag_from_the_first_anchor_always_closes() {
     let pts = [Point::new(100.0, 300.0), Point::new(200.0, 300.0), Point::new(200.0, 400.0)];
-    let (mut d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&pts, false));
+    let (mut d, id, s) = drawing(pluma_geom::SubPath::polyline(&pts, false));
     let p = paint();
     let mut t = PenTool { drawing: true, ..PenTool::default() };
     let a = t.pointer(&cx(&d, &s, &p), &PointerEvent::new(PointerKind::Down, 101.0, 301.0));
@@ -603,7 +603,7 @@ fn a_drag_from_the_first_anchor_always_closes() {
 
 #[test]
 fn a_one_anchor_path_does_not_close_on_itself() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     let mut t = PenTool { drawing: true, ..PenTool::default() };
@@ -617,11 +617,11 @@ fn clicking_a_selected_blend_spine_adds_a_point() {
     let (mut d, _) = doc_with_rect();
     let l = d.layers[0].id;
     let key = |id: NodeId, x: f64| {
-        let r = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
-        std::sync::Arc::new(vectorcraft_doc::Node::path(id, r, vectorcraft_doc::Appearance::default_art()))
+        let r = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 300.0, x + 20.0, 320.0));
+        std::sync::Arc::new(pluma_doc::Node::path(id, r, pluma_doc::Appearance::default_art()))
     };
     let (g, k1, k2) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-    d.insert(Some(l), 1, vectorcraft_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 100.0), key(k2, 200.0)], spec: Default::default() }))
+    d.insert(Some(l), 1, pluma_doc::Node::new(g, NodeKind::Blend { children: vec![key(k1, 100.0), key(k2, 200.0)], spec: Default::default() }))
         .unwrap();
     let mut s = Selection::default();
     s.set([g]);
@@ -647,8 +647,8 @@ fn clicking_a_selected_path_adds_or_deletes_an_anchor() {
     let l = d.layers[0].id;
     let id = d.alloc_id();
     let pts = [Point::new(300.0, 400.0), Point::new(350.0, 300.0), Point::new(400.0, 400.0)];
-    let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&pts, false));
-    d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&pts, false));
+    d.insert(Some(l), 1, pluma_doc::Node::path(id, path, pluma_doc::Appearance::default_art())).unwrap();
     let mut s = Selection::default();
     s.set([id]);
     let p = paint();
@@ -684,7 +684,7 @@ fn clicking_a_selected_path_adds_or_deletes_an_anchor() {
 /// there), in line with another object's centre; Shift slides it along its 45° step into line.
 #[test]
 fn anchors_snap_to_smart_guides() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     let mut t = PenTool { drawing: true, ..PenTool::default() };
@@ -712,8 +712,8 @@ fn anchors_snap_to_smart_guides() {
 #[test]
 fn alt_over_a_shown_handle_or_an_anchor_converts() {
     // The middle anchor is smooth: handles at (150, 100) and (250, 100) round (200, 100).
-    let mut sp = vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 200.0), Point::new(200.0, 100.0), Point::new(300.0, 200.0)], false);
-    sp.anchors[1] = vectorcraft_geom::Anchor::smooth(Point::new(200.0, 100.0), Point::new(250.0, 100.0));
+    let mut sp = pluma_geom::SubPath::polyline(&[Point::new(100.0, 200.0), Point::new(200.0, 100.0), Point::new(300.0, 200.0)], false);
+    sp.anchors[1] = pluma_geom::Anchor::smooth(Point::new(200.0, 100.0), Point::new(250.0, 100.0));
     let (d, id, mut s) = drawing(sp);
     let p = paint();
     let alt = Mods { alt: true, ..Mods::default() };
@@ -752,7 +752,7 @@ fn alt_over_a_shown_handle_or_an_anchor_converts() {
 /// while drawing too; Alt away from paths still places an anchor.
 #[test]
 fn alt_over_a_segment_reshapes_it() {
-    let (d, id, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
+    let (d, id, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(100.0, 300.0), Point::new(200.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     let alt = Mods { alt: true, ..Mods::default() };
@@ -782,11 +782,11 @@ fn alt_over_a_segment_reshapes_it() {
 /// drag with Direct Selection), but never another open path selected meanwhile.
 #[test]
 fn the_pen_draws_on_the_path_it_began_only() {
-    let (mut d, a, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
+    let (mut d, a, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0), Point::new(60.0, 300.0)], false));
     let l = d.layers[0].id;
     let b = d.alloc_id();
-    let line = vectorcraft_geom::shapes::line(Point::new(10.0, 400.0), Point::new(60.0, 400.0));
-    d.insert(Some(l), 2, vectorcraft_doc::Node::path(b, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+    let line = pluma_geom::shapes::line(Point::new(10.0, 400.0), Point::new(60.0, 400.0));
+    d.insert(Some(l), 2, pluma_doc::Node::path(b, line, pluma_doc::Appearance::default_art())).unwrap();
     let p = paint();
     let mut t = PenTool { drawing: true, ..PenTool::default() };
     let cx_a = cx(&d, &s, &p);
@@ -810,7 +810,7 @@ fn the_pen_draws_on_the_path_it_began_only() {
 /// badge, and the asterisk comes back once the path is finished.
 #[test]
 fn the_new_path_asterisk_shows_only_before_a_path_is_started() {
-    let (d, _, s) = drawing(vectorcraft_geom::SubPath::polyline(&[Point::new(10.0, 300.0)], false));
+    let (d, _, s) = drawing(pluma_geom::SubPath::polyline(&[Point::new(10.0, 300.0)], false));
     let p = paint();
     let cx = cx(&d, &s, &p);
     let empty = Point::new(250.0, 450.0);
@@ -836,17 +836,15 @@ fn continuing_a_compound_member_at_its_first_anchor_reverses_that_path_by_id() {
     let l = d.layers[0].id;
     let (a, b, compound) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
     let two_subpaths = |x: f64| {
-        vectorcraft_geom::PathData::new(vec![
-            vectorcraft_geom::SubPath::polyline(&[Point::new(x, 300.0), Point::new(x + 100.0, 300.0)], false),
-            vectorcraft_geom::SubPath::polyline(&[Point::new(x, 350.0), Point::new(x + 100.0, 350.0)], false),
+        pluma_geom::PathData::new(vec![
+            pluma_geom::SubPath::polyline(&[Point::new(x, 300.0), Point::new(x + 100.0, 300.0)], false),
+            pluma_geom::SubPath::polyline(&[Point::new(x, 350.0), Point::new(x + 100.0, 350.0)], false),
         ])
     };
-    let path = |id, x| std::sync::Arc::new(vectorcraft_doc::Node::path(id, two_subpaths(x), vectorcraft_doc::Appearance::default_art()));
-    let mut c = vectorcraft_doc::Node::new(
-        compound,
-        NodeKind::Compound { children: vec![path(a, 10.0), path(b, 300.0)], rule: vectorcraft_geom::FillRule::NonZero },
-    );
-    c.appearance = vectorcraft_doc::Appearance::default_art().into();
+    let path = |id, x| std::sync::Arc::new(pluma_doc::Node::path(id, two_subpaths(x), pluma_doc::Appearance::default_art()));
+    let mut c =
+        pluma_doc::Node::new(compound, NodeKind::Compound { children: vec![path(a, 10.0), path(b, 300.0)], rule: pluma_geom::FillRule::NonZero });
+    c.appearance = pluma_doc::Appearance::default_art().into();
     d.insert(Some(l), 1, c).unwrap();
     let p = paint();
     // The member path alone is the selection, as a direct selection inside the compound leaves it.

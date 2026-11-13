@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::{FilePick, Services, theme};
@@ -9,7 +9,7 @@ use crate::{FilePick, Services, theme};
 type Written = Rc<RefCell<Vec<(String, Vec<u8>)>>>;
 
 /// A desktop app whose save panel answers `picked` and records what it was shown.
-fn desktop(picked: &'static str) -> (VectorcraftApp, Written, Rc<RefCell<Vec<FilePick>>>) {
+fn desktop(picked: &'static str) -> (PlumaApp, Written, Rc<RefCell<Vec<FilePick>>>) {
     let (written, picks) = (Written::default(), Rc::new(RefCell::new(vec![])));
     let (w, p) = (written.clone(), picks.clone());
     let services = Services {
@@ -27,7 +27,7 @@ fn desktop(picked: &'static str) -> (VectorcraftApp, Written, Rc<RefCell<Vec<Fil
 }
 
 /// A browser app: saves are downloads.
-fn web() -> (VectorcraftApp, Written) {
+fn web() -> (PlumaApp, Written) {
     let written = Written::default();
     let w = written.clone();
     let services = Services {
@@ -40,15 +40,15 @@ fn web() -> (VectorcraftApp, Written) {
     (with_art(services), written)
 }
 
-fn with_art(services: Services) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), services);
+fn with_art(services: Services) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     app
 }
 
 /// One headless frame of the dialog layer; `enter` presses OK.
-fn frame(app: &mut VectorcraftApp, enter: bool) {
+fn frame(app: &mut PlumaApp, enter: bool) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let events = if enter {
@@ -60,7 +60,7 @@ fn frame(app: &mut VectorcraftApp, enter: bool) {
     out.textures_delta.clear();
 }
 
-fn dialog(app: &VectorcraftApp) -> &Dialog {
+fn dialog(app: &PlumaApp) -> &Dialog {
     app.ui.dialog.as_ref().expect("a dialog is open")
 }
 
@@ -72,8 +72,8 @@ fn save_as_svg_opens_svg_options_then_writes_svg() {
     // The save panel offers every save format, the document's own first.
     let pick = &picks.borrow()[0];
     let labels: Vec<&str> = pick.filters.iter().map(|f| f.0.as_str()).collect();
-    assert_eq!(labels, ["VectorCraft", "VectorCraft Template", "PDF", "SVG", "SVG Compressed", "PDF-compatible .ai", "EPS"]);
-    assert_eq!(pick.name, "Untitled-1.vectorcraft");
+    assert_eq!(labels, ["Pluma", "Pluma Template", "PDF", "SVG", "SVG Compressed", "PDF-compatible .ai", "EPS"]);
+    assert_eq!(pick.name, "Untitled-1.pluma");
     let d = dialog(&app);
     assert_eq!((d.kind.as_str(), d.str("path").as_str(), d.str("mode").as_str()), ("svgOptions", "art.svg", "save"));
     assert!(written.borrow().is_empty(), "nothing is written before OK");
@@ -141,7 +141,7 @@ fn legacy_ai_saves_the_artboards_checked_in_its_picker() {
     if let Some(dir) = std::env::var_os("CRAFT_UI_SAVE_OPTIONS_SHOT") {
         let mut ready = false;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(900.0, 760.0)).wgpu().build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !ready {
                     theme::install_fonts(ui.ctx());
                     theme::apply(ui.ctx(), theme::Brightness::MediumDark);
@@ -189,7 +189,7 @@ fn legacy_ai_saves_the_artboards_checked_in_its_picker() {
     assert_eq!(dialog(&app).fields["boards"], json!([true, false, true, false]));
 }
 
-fn board_files_of(app: &VectorcraftApp, boards: [bool; 4]) -> Vec<Option<String>> {
+fn board_files_of(app: &PlumaApp, boards: [bool; 4]) -> Vec<Option<String>> {
     let d = Dialog { kind: KIND.into(), fields: [("path".to_string(), json!("art.ai"))].into_iter().collect() };
     board_files(app, &d, &boards)
 }
@@ -197,9 +197,9 @@ fn board_files_of(app: &VectorcraftApp, boards: [bool; 4]) -> Vec<Option<String>
 #[test]
 fn the_enter_that_closed_the_save_panel_does_not_confirm_the_options() {
     let (mut app, written, _) = desktop("again.ai");
-    let dir = vectorcraft_testkit::temp_dir("ai-options-enter");
+    let dir = pluma_testkit::temp_dir("ai-options-enter");
     let orig = dir.join("orig.ai");
-    std::fs::write(&orig, vectorcraft_testkit::ai::ai(&vectorcraft_testkit::ai::sample_data(), vectorcraft_testkit::ai::page_pdf())).unwrap();
+    std::fs::write(&orig, pluma_testkit::ai::ai(&pluma_testkit::ai::sample_data(), pluma_testkit::ai::page_pdf())).unwrap();
     app.run("document.open", json!({"path": orig.to_string_lossy()})).unwrap();
     assert_eq!(app.run("file.saveAs", json!({})).unwrap()["pending"], KIND);
     frame(&mut app, true);
@@ -214,41 +214,38 @@ fn the_enter_that_closed_the_save_panel_does_not_confirm_the_options() {
 
 #[test]
 fn save_a_copy_and_template_suggest_their_names() {
-    let (mut app, written, picks) = desktop("copy.vectorcraft");
-    let folder = vectorcraft_testkit::temp_dir("save-template-dialog");
+    let (mut app, written, picks) = desktop("copy.pluma");
+    let folder = pluma_testkit::temp_dir("save-template-dialog");
     app.session.prefs.templates_folder = folder.to_string_lossy().into_owned();
     app.run("file.saveCopy", json!({})).unwrap();
-    assert_eq!(picks.borrow()[0].name, "Untitled-1 copy.vectorcraft");
+    assert_eq!(picks.borrow()[0].name, "Untitled-1 copy.pluma");
     assert!(app.ui.dialog.is_none(), "the native format has no options");
-    assert!(vectorcraft_format::sniff(&written.borrow()[0].1));
-    assert!(vectorcraft_format::pdf_content(&written.borrow()[0].1).is_some());
+    assert!(pluma_format::sniff(&written.borrow()[0].1));
+    assert!(pluma_format::pdf_content(&written.borrow()[0].1).is_some());
     assert!(app.session.active().unwrap().path.is_none() && app.session.active().unwrap().is_dirty());
     app.run("file.saveAsTemplate", json!({})).unwrap();
     let pick = &picks.borrow()[1];
     assert_eq!(pick.name, "Untitled-1 template.vctemplate");
     assert_eq!(pick.folder.as_deref().map(std::path::Path::new), Some(folder.as_path()));
-    assert_eq!(
-        pick.filters,
-        crate::FilePick::filters([("VectorCraft Template", &["vctemplate"][..]), ("PDF-compatible .ait template", &["ait"][..])])
-    );
+    assert_eq!(pick.filters, crate::FilePick::filters([("Pluma Template", &["vctemplate"][..]), ("PDF-compatible .ait template", &["ait"][..])]));
     assert_eq!(written.borrow()[1].0, "copy.vctemplate", "the picked name, its extension replaced with the template's");
 }
 
 #[test]
 fn save_as_template_writes_ait_when_it_is_picked() {
     let (mut app, written, _) = desktop("flyer.ait");
-    app.session.prefs.templates_folder = vectorcraft_testkit::temp_dir("save-template-ait").to_string_lossy().into_owned();
+    app.session.prefs.templates_folder = pluma_testkit::temp_dir("save-template-ait").to_string_lossy().into_owned();
     app.run("file.saveAsTemplate", json!({})).unwrap();
     assert!(app.ui.dialog.is_none(), "a template asks no options");
     let (path, bytes) = written.borrow()[0].clone();
     assert_eq!(path, "flyer.ait", "the picked name is kept");
-    assert!(bytes.starts_with(b"%PDF") && vectorcraft_pdf::editing(&bytes).is_some(), "a PDF carrying the document");
+    assert!(bytes.starts_with(b"%PDF") && pluma_pdf::editing(&bytes).is_some(), "a PDF carrying the document");
     assert!(app.session.active().unwrap().path.is_none() && app.session.active().unwrap().is_dirty());
     // The web's dialog picks the format: .vctemplate first, .ait beside it.
     let (mut app, written) = web();
     app.run("file.saveAsTemplate", json!({})).unwrap();
     assert_eq!((heading(dialog(&app)).as_str(), dialog(&app).str("format").as_str()), ("Save as Template", "template"));
-    assert_eq!(template_labels(), ["VectorCraft Template", "PDF-compatible .ait template"]);
+    assert_eq!(template_labels(), ["Pluma Template", "PDF-compatible .ait template"]);
     frame(&mut app, false);
     let mut d = app.ui.dialog.take().unwrap();
     switch_format(&mut app, &mut d, "ait");
@@ -285,13 +282,13 @@ fn the_native_options_have_no_precision_row() {
 /// replaced with the template's, as Save As replaces the extension of a format it doesn't write.
 #[test]
 fn save_as_template_replaces_a_save_formats_extension() {
-    for (picked, saved) in [("card.pdf", "card.vctemplate"), ("card.vectorcraft", "card.vctemplate"), ("card.svg", "card.vctemplate")] {
+    for (picked, saved) in [("card.pdf", "card.vctemplate"), ("card.pluma", "card.vctemplate"), ("card.svg", "card.vctemplate")] {
         let (mut app, written, _) = desktop(picked);
-        app.session.prefs.templates_folder = vectorcraft_testkit::temp_dir("save-template-ext").to_string_lossy().into_owned();
+        app.session.prefs.templates_folder = pluma_testkit::temp_dir("save-template-ext").to_string_lossy().into_owned();
         app.run("file.saveAsTemplate", json!({})).unwrap();
         let (path, bytes) = written.borrow()[0].clone();
         assert_eq!(path, saved, "typed {picked}");
-        assert!(vectorcraft_format::load(&bytes).is_ok_and(|d| d.template), "typed {picked}: a native template");
+        assert!(pluma_format::load(&bytes).is_ok_and(|d| d.template), "typed {picked}: a native template");
     }
 }
 
@@ -300,7 +297,7 @@ fn web_save_as_names_the_file_and_picks_the_format() {
     let (mut app, written) = web();
     app.run("file.saveAs", json!({})).unwrap();
     let d = dialog(&app);
-    assert_eq!((heading(d).as_str(), d.str("path").as_str(), d.str("format").as_str()), ("Save As", "Untitled-1.vectorcraft", "vectorcraft"));
+    assert_eq!((heading(d).as_str(), d.str("path").as_str(), d.str("format").as_str()), ("Save As", "Untitled-1.pluma", "vectorcraft"));
     frame(&mut app, false);
     let mut d = app.ui.dialog.take().unwrap();
     switch_format(&mut app, &mut d, "pdf");
@@ -357,23 +354,23 @@ fn eps_save_as_keeps_page_options_and_writes_eps_without_export_only_switches() 
     assert!(app.ui.dialog.is_none());
     let saved = written.borrow();
     assert_eq!(saved[0].0, "art.eps");
-    assert!(vectorcraft_eps::native(&saved[0].1).is_some());
+    assert!(pluma_eps::native(&saved[0].1).is_some());
     assert_eq!(app.session.active().unwrap().format, "eps");
 }
 
-/// #4931: a native file's Version is a menu of the versions VectorCraft writes, the current one
+/// #4931: a native file's Version is a menu of the versions Pluma writes, the current one
 /// first and chosen, each named by the releases that read it. An older version without
 /// compression saves plain, whatever Use Compression held.
 #[test]
-fn native_version_is_a_menu_of_the_versions_vectorcraft_writes() {
+fn native_version_is_a_menu_of_the_versions_pluma_writes() {
     let listed: Vec<u32> = NATIVE_VERSIONS.iter().map(|(n, _)| *n).collect();
-    let writable: Vec<u32> = (vectorcraft_format::MIN_VERSION..=vectorcraft_format::VERSION).rev().collect();
-    assert_eq!(listed, writable, "every version VectorCraft writes, newest first");
-    let (mut app, written, _) = desktop("art.vectorcraft");
+    let writable: Vec<u32> = (pluma_format::MIN_VERSION..=pluma_format::VERSION).rev().collect();
+    assert_eq!(listed, writable, "every version Pluma writes, newest first");
+    let (mut app, written, _) = desktop("art.pluma");
     assert_eq!(app.run("file.saveAs", json!({})).unwrap()["pending"], KIND);
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| super::super::show(app, ui.ctx()));
-    assert!(text.contains("VectorCraft 0.8 and later (version 4)"), "{text}");
-    assert_eq!(native_version_of(dialog(&app)), vectorcraft_format::VERSION);
+    assert!(text.contains("Pluma 0.8 and later (version 4)"), "{text}");
+    assert_eq!(native_version_of(dialog(&app)), pluma_format::VERSION);
     let d = app.ui.dialog.as_mut().unwrap();
     d.fields.insert("version".into(), json!(2));
     d.fields.insert("compress".into(), json!(true));
@@ -389,7 +386,7 @@ fn native_version_is_a_menu_of_the_versions_vectorcraft_writes() {
 /// so in the "Can't save" alert, in the reason's words without the command's, and writes nothing.
 #[test]
 fn a_refused_save_says_so_in_an_alert() {
-    let (mut app, written, _) = desktop("art.vectorcraft");
+    let (mut app, written, _) = desktop("art.pluma");
     assert_eq!(app.run("file.saveAs", json!({})).unwrap()["pending"], KIND);
     app.ui.dialog.as_mut().unwrap().fields.insert("version".into(), json!(55));
     frame(&mut app, false);
@@ -397,7 +394,7 @@ fn a_refused_save_says_so_in_an_alert() {
     let d = dialog(&app);
     assert_eq!(
         (d.kind.as_str(), d.str("message").as_str(), d.str("detail").as_str()),
-        (crate::dialogs::confirm::MESSAGE, "Can't save “art.vectorcraft”.", "can't save version 55: VectorCraft writes versions 1 to 4")
+        (crate::dialogs::confirm::MESSAGE, "Can't save “art.pluma”.", "can't save version 55: Pluma writes versions 1 to 4")
     );
     assert!(written.borrow().is_empty());
     let st = app.session.active().unwrap();

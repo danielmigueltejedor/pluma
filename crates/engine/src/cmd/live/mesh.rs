@@ -93,7 +93,7 @@ pub(super) fn mesh_create(s: &mut Session, p: &Value) -> Result<Value> {
 /// Create Gradient Mesh on an embedded image: a `rows` × `cols` mesh over the picture's rectangle
 /// (placed with the image's transform), each point taking the average colour and opacity of the
 /// area around it. Linked images are refused: the documentation allows embedded ones only.
-fn image_mesh(d: &Document, im: &vectorcraft_doc::ImageObject, rows: u32, cols: u32) -> std::result::Result<GradientMesh, &'static str> {
+fn image_mesh(d: &Document, im: &pluma_doc::ImageObject, rows: u32, cols: u32) -> std::result::Result<GradientMesh, &'static str> {
     if im.link.is_some() {
         return Err("a linked image can't become a gradient mesh: embed it first");
     }

@@ -1,10 +1,10 @@
 //! Strokes on type in SVG: character stroke options on live text (and back), runs that differ
 //! from the first, and the object's own strokes drawn over the glyph outlines.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{AppearanceItem, CharStyle, Dash, Document, LineCap, LineJoin, Node, NodeKind, StrokeLayer, TextObject, TextRun};
-use vectorcraft_geom::Point;
-use vectorcraft_svg::{ExportOptions, export, import};
+use pluma_color::{Color, Paint};
+use pluma_doc::{AppearanceItem, CharStyle, Dash, Document, LineCap, LineJoin, Node, NodeKind, StrokeLayer, TextObject, TextRun};
+use pluma_geom::Point;
+use pluma_svg::{ExportOptions, export, import};
 
 fn text_doc(t: TextObject, items: Vec<AppearanceItem>) -> Document {
     let mut d = Document::new(300.0, 200.0);
@@ -82,7 +82,7 @@ fn a_run_without_the_first_runs_stroke_resets_it() {
 /// as aligned strokes on paths are; outlined type carries it on its glyphs.
 #[test]
 fn an_aligned_character_stroke_keeps_the_text_live() {
-    use vectorcraft_doc::StrokeAlign;
+    use pluma_doc::StrokeAlign;
     for (align, side) in [(StrokeAlign::Outside, "mask=\"url(#"), (StrokeAlign::Inside, "clip-path=\"url(#")] {
         let style = CharStyle { size: 40.0, stroke: Paint::solid(Color::BLACK), stroke_width: 2.0, stroke_align: align, ..Default::default() };
         let mut t = TextObject::point(Point::new(20.0, 100.0), "Live", style);

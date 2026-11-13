@@ -1,7 +1,7 @@
 //! OpenType feature selection (the OpenType panel), resolved per character style.
 
 use harfrust::{Feature, Tag};
-use vectorcraft_doc::CharStyle;
+use pluma_doc::CharStyle;
 
 /// Tracking (in 1/1000 em) outside which standard ligatures are dropped automatically: tighter
 /// than the first, looser than the second.
@@ -355,8 +355,8 @@ mod tests {
         }
     }
     use crate::{FontDb, layout};
-    use vectorcraft_doc::TextObject;
-    use vectorcraft_geom::Point;
+    use pluma_doc::TextObject;
+    use pluma_geom::Point;
 
     fn glyphs(features: &[&str]) -> usize {
         let st = CharStyle { font_family: "Source Serif 4".into(), features: features.iter().map(|s| s.to_string()).collect(), ..Default::default() };
@@ -385,7 +385,7 @@ mod tests {
         // A tag that isn't one (from a file) shapes without a language.
         assert_eq!((count(Some("tr; DROP")), count(Some(""))), (1, 1));
         let mut t = TextObject::point(Point::ZERO, "", st(None));
-        t.runs = vec![vectorcraft_doc::TextRun::new("fi", st(Some("tr"))), vectorcraft_doc::TextRun::new("fi", st(None))];
+        t.runs = vec![pluma_doc::TextRun::new("fi", st(Some("tr"))), pluma_doc::TextRun::new("fi", st(None))];
         let glyphs = layout(FontDb::global(), &t).glyphs;
         let per_run: Vec<usize> = (0..2).map(|r| glyphs.iter().filter(|g| g.run == r).count()).collect();
         assert_eq!(per_run, [2, 1]);

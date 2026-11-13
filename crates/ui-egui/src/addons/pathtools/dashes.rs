@@ -4,7 +4,7 @@
 use egui::Ui;
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::widgets;
@@ -26,7 +26,7 @@ pub(crate) fn fields() -> Value {
 pub(crate) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Divide into Dashes").to_string(), body, confirm, preview: true, min_width: 280.0, ..DialogSpec::FORM };
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     widgets::label_row(ui, tl!("Dash:"), LABEL_W, |ui| {
         form::length_within(ui, d, "dash", unit, FIELD_W, Some(DASHES));
@@ -43,21 +43,21 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: run the command (keep its preview) and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     form::commit_preview(app, COMMAND, form::params(d))
 }
 
 #[cfg(test)]
 mod tests {
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
 
     use crate::tests_labels::painted_text;
-    use crate::{VectorcraftApp, menus};
+    use crate::{PlumaApp, menus};
 
     #[test]
     fn divide_into_dashes_opens_its_dialog_previews_and_runs_on_ok() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         let anchors = json!([{"x": 0, "y": 0}, {"x": 100, "y": 0}]);
         let id = app.run("path.create", json!({"anchors": anchors})).unwrap()["id"].as_u64().unwrap();
@@ -71,7 +71,7 @@ mod tests {
         for s in ["Divide into Dashes", "Dash:", "Gap:", "Fit to Corners and Ends", "Remove Gaps", "Preview"] {
             assert!(shown.contains(s), "{s} in {shown}");
         }
-        let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().unwrap().len();
+        let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().unwrap().len();
         let d = app.ui.dialog.as_mut().unwrap();
         d.fields.insert("dash".into(), json!(25));
         d.fields.insert("preview".into(), json!(true));

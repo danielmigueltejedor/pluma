@@ -2,11 +2,11 @@
 //! straight spine becomes a path on the first edit), keys picked and edited live, Release keeping
 //! the spine as a path.
 
+use pluma_color::Paint;
+use pluma_doc::live::BlendSpec;
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::live::BlendSpec;
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::{Point, Rect};
 
 use crate::*;
 
@@ -44,7 +44,7 @@ fn blend(s: &mut Session) -> (NodeId, NodeId, NodeId) {
 }
 
 fn steps(s: &Session, g: NodeId) -> Vec<Node> {
-    vectorcraft_doc::live::expand_live(&node(s, g))
+    pluma_doc::live::expand_live(&node(s, g))
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn spine_anchor_conversion_preserves_keys_and_undo() {
     let sp = spec(&s, g);
     assert_eq!(sp.key_anchors, keys_before);
     let middle = sp.spine.as_ref().unwrap().subpaths[0].anchors[1];
-    assert_eq!(middle.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(middle.kind, pluma_geom::AnchorKind::Smooth);
     assert_eq!(middle.p, point_before);
     assert_eq!(middle.h_in, point_before - (Point::new(55.0, 35.0) - point_before));
     assert_eq!(middle.h_out, Point::new(55.0, 35.0));
@@ -125,7 +125,7 @@ fn spine_anchor_conversion_preserves_keys_and_undo() {
     s.execute("object.blend.spine.convertAnchor", &json!({"id": g.0, "anchor": 1, "to": "corner"})).unwrap();
     let corner = spec(&s, g).spine.unwrap().subpaths[0].anchors[1];
     assert!(!corner.has_in() && !corner.has_out());
-    assert_eq!(corner.kind, vectorcraft_geom::AnchorKind::Corner);
+    assert_eq!(corner.kind, pluma_geom::AnchorKind::Corner);
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn moving_a_key_point_moves_the_key_and_the_other_way_round() {
     s.execute("object.move", &json!({"dx": 0, "dy": 50})).unwrap();
     let n = node(&s, g);
     let NodeKind::Blend { children, spec } = &n.kind else { panic!() };
-    let (path, _) = vectorcraft_doc::live::blend_spine(children, spec).unwrap();
+    let (path, _) = pluma_doc::live::blend_spine(children, spec).unwrap();
     assert_eq!(path.subpaths[0].anchors[1].p, Point::new(105.0, 55.0));
     assert!(s.execute("object.blend.spine.moveAnchor", &json!({"id": g.0, "anchor": 9, "x": 0, "y": 0})).is_err());
     assert!(s.execute("object.blend.spine.moveAnchor", &json!({"id": g.0, "anchor": 0, "x": f64::MAX, "y": 0})).is_err());
@@ -253,7 +253,7 @@ fn spine_edits_refuse_a_boolean_given_as_text() {
     }
     s.execute("object.blend.spine.moveAnchor", &json!({"id": g.0, "anchor": 1, "handle": "out", "x": 75, "y": 40, "independent": null})).unwrap();
     let a = spec(&s, g).spine.unwrap().subpaths[0].anchors[1];
-    assert_eq!((a.h_out, a.kind), (Point::new(75.0, 40.0), vectorcraft_geom::AnchorKind::Smooth), "the point stays smooth");
+    assert_eq!((a.h_out, a.kind), (Point::new(75.0, 40.0), pluma_geom::AnchorKind::Smooth), "the point stays smooth");
     s.execute("object.blend.spine.reshapeSegment", &json!({"id": g.0, "segment": 0, "dy": 40, "perpendicular": null})).unwrap();
 }
 
@@ -376,12 +376,12 @@ fn direct_selection_picks_keys_and_edits_update_the_blend_live() {
     let mut s = session();
     let (a, _, g) = blend(&mut s);
     s.execute("paint.setFill", &json!({"ids": [a.0], "color": "#000000"})).ok();
-    let opt = vectorcraft_doc::hit::HitOptions::default();
-    let h = vectorcraft_doc::hit::hit_test(&s.doc().unwrap().doc, Point::new(3.0, 3.0), opt).unwrap();
+    let opt = pluma_doc::hit::HitOptions::default();
+    let h = pluma_doc::hit::hit_test(&s.doc().unwrap().doc, Point::new(3.0, 3.0), opt).unwrap();
     assert_eq!((h.leaf, h.top_object(None)), (a, g), "the key is hit; the Selection tool still takes the blend");
-    let h = vectorcraft_doc::hit::hit_test(&s.doc().unwrap().doc, Point::new(55.0, 5.0), opt).unwrap();
+    let h = pluma_doc::hit::hit_test(&s.doc().unwrap().doc, Point::new(55.0, 5.0), opt).unwrap();
     assert_eq!(h.leaf, g, "a step hits as the blend");
-    let mut r = vectorcraft_render::Renderer::new();
+    let mut r = pluma_render::Renderer::new();
     let before = r.render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 120.0, 20.0), 1.0, true).pixel(55, 5);
     s.execute("paint.setFill", &json!({"ids": [a.0], "color": "#ff0000"})).unwrap();
     let after = r.render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 120.0, 20.0), 1.0, true).pixel(55, 5);
@@ -394,7 +394,7 @@ fn key_anchors_round_trip() {
     let (_, _, g) = blend(&mut s);
     s.execute("object.blend.spine.addAnchor", &json!({"id": g.0, "x": 55, "y": 5})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert_eq!(&back.layers, &d.layers);
     let old: BlendSpec = serde_json::from_value(json!({"spine": {"subpaths": []}})).unwrap();
     assert!(old.key_anchors.is_empty());
@@ -409,7 +409,7 @@ fn a_straight_spine_segment_bends_into_a_curve() {
     s.execute("object.blend.spine.reshapeSegment", &json!({"segment": 0, "t": 0.5, "dx": 0, "dy": 40})).unwrap();
     let spine = spec(&s, g).spine.unwrap();
     let seg = spine.subpaths[0].segment(0);
-    use vectorcraft_geom::kurbo::ParamCurve;
+    use pluma_geom::kurbo::ParamCurve;
     assert!(seg.eval(0.5).distance(Point::new(55.0, 45.0)) < 1e-9, "{seg:?}");
     assert!(center(&steps(&s, g)[1]).y > 20.0, "the step follows the curve");
     for bad in [json!({"segment": 1, "dy": 10}), json!({"segment": 0, "dx": f64::MAX, "dy": f64::MAX}), json!({"segment": -1})] {
@@ -428,6 +428,6 @@ fn a_spine_segment_bends_with_perpendicular_handles() {
     let (a, b) = (sp.anchors[0], sp.anchors[1]);
     let (ha, hb) = (a.h_out - a.p, b.h_in - b.p);
     assert!(ha.x.abs() < 1e-9 && hb.x.abs() < 1e-9 && (ha.y - hb.y).abs() < 1e-9, "{sp:?}");
-    use vectorcraft_geom::kurbo::ParamCurve;
+    use pluma_geom::kurbo::ParamCurve;
     assert!(sp.segment(0).eval(0.5).distance(Point::new(55.0, 45.0)) < 1e-9, "{sp:?}");
 }

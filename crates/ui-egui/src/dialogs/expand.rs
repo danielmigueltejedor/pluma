@@ -8,12 +8,12 @@
 //! `__gradient` (Fill has a gradient fill to expand), and `__fill_symbol`, `__stroke_symbol`,
 //! `__gradient_symbol` (only the art of symbol instances holds it, so the option needs Object on).
 
+use pluma_engine::cmd::expand::{DEFAULT_STEPS, MAX_STEPS};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::expand::{DEFAULT_STEPS, MAX_STEPS};
 
 use super::{DialogSpec, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Expand.
 pub const KIND: &str = "expand";
@@ -34,7 +34,7 @@ pub(crate) fn appearance_first() -> &'static str {
 /// Open Expand for the selection, every option on (as `object.expand {}` does). A selection with
 /// appearance attributes (effects, several fills or strokes…) refuses with [`appearance_first`]:
 /// the menu item is dimmed for it.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let info = app.session.execute("object.expand.info", &json!({})).map_err(|e| e.to_string())?;
     if info["appearance"] == json!(true) {
         return Err(appearance_first().into());
@@ -51,7 +51,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let set = |d: &mut Dialog, key: &str, v: Value| {
         d.fields.insert(key.into(), v);
     };
@@ -112,23 +112,23 @@ fn params(d: &Dialog) -> Value {
     })
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     run_and_close(app, CMD, params(d))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
-    use vectorcraft_engine::doc::NodeKind;
+    use pluma_engine::Session;
+    use pluma_engine::doc::NodeKind;
 
-    fn frame(app: &mut VectorcraftApp) -> String {
+    fn frame(app: &mut PlumaApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
     }
 
     #[test]
     fn opens_with_what_applies_and_ok_expands_the_gradient_to_a_mesh() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 100, "height": 60})).unwrap();
         app.run("paint.setFill", json!({"gradient": {"kind": "linear"}})).unwrap();
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn expand_gradient_to_is_disabled_for_a_pattern_fill_alone() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let dot = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap()["id"].clone();
         app.run("object.pattern.make", json!({"ids": [dot], "name": "Dots", "width": 20, "height": 20, "edit": false})).unwrap();
@@ -178,7 +178,7 @@ mod tests {
     /// Object expands the instance.
     #[test]
     fn stroke_for_a_symbol_instances_art_needs_object() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 100, "height": 60})).unwrap();
         app.run("paint.setFill", json!({"none": true})).unwrap();
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn the_command_palette_opens_it_and_ui_expand_dialog_too() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 100, "height": 60})).unwrap();
         app.run("ui.expandDialog", json!({})).unwrap();
@@ -210,7 +210,7 @@ mod tests {
     }
 
     /// A line with a stroke and a Zig Zag effect is selected (#3089).
-    fn zig_zag_line(app: &mut VectorcraftApp) {
+    fn zig_zag_line(app: &mut PlumaApp) {
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("path.create", json!({"d": "M 20 100 L 180 100"})).unwrap();
         app.run("paint.setFill", json!({"none": true})).unwrap();
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn expand_waits_for_expand_appearance_on_a_line_with_an_effect() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         zig_zag_line(&mut app);
         assert!(!crate::menus::enabled(&app, "ui.expandDialog"), "Expand… is dimmed for the Zig Zag effect");
         assert!(crate::menus::enabled(&app, "effect.expandAppearance"));
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn expand_is_dimmed_for_two_fills_but_not_for_a_plain_rectangle() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 100, "height": 60})).unwrap();
         assert!(crate::menus::enabled(&app, "ui.expandDialog"), "a basic appearance");

@@ -1,10 +1,10 @@
 //! Gradients through commands: lossless, validated params (M3.14), transforms (M3.15), the active
 //! proxy and type (M3.16) and the interactive annotator (M3.17).
 
+use pluma_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_geom::Point;
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -19,7 +19,7 @@ fn rect(s: &mut Session, x: f64, y: f64, w: f64, h: f64) -> NodeId {
     NodeId(r["id"].as_u64().unwrap())
 }
 
-fn node(s: &Session, id: NodeId) -> &vectorcraft_doc::Node {
+fn node(s: &Session, id: NodeId) -> &pluma_doc::Node {
     s.doc().unwrap().doc.node(id).unwrap()
 }
 
@@ -88,7 +88,7 @@ fn three_stops() -> GradientPaint {
 }
 
 fn gradient_param(g: &GradientPaint) -> Value {
-    json!({ "gradient": vectorcraft_tools::params::gradient_params(g) })
+    json!({ "gradient": pluma_tools::params::gradient_params(g) })
 }
 
 #[test]
@@ -241,8 +241,8 @@ fn free_distort_maps_gradients_once() {
     // An affine distort (a sheared parallelogram) maps the gradient exactly like object.transform.
     s.execute("object.distort", &json!({"corners": [[20, 0], [120, 0], [100, 100], [0, 100]]})).unwrap();
     let g = fill_geom(&s, id);
-    let mut want = GradientGeom::fit(GradientKind::Linear, vectorcraft_geom::Rect::new(0.0, 0.0, 100.0, 100.0), 0.0);
-    want.transform(vectorcraft_geom::Affine::new([1.0, 0.0, -0.2, 1.0, 20.0, 0.0]), GradientKind::Linear);
+    let mut want = GradientGeom::fit(GradientKind::Linear, pluma_geom::Rect::new(0.0, 0.0, 100.0, 100.0), 0.0);
+    want.transform(pluma_geom::Affine::new([1.0, 0.0, -0.2, 1.0, 20.0, 0.0]), GradientKind::Linear);
     assert!(g.start.distance(want.start) < 1e-6 && g.end.distance(want.end) < 1e-6, "{g:?} vs {want:?}");
 }
 
@@ -253,9 +253,9 @@ fn text(s: &mut Session, x: f64, y: f64) -> NodeId {
     NodeId(r["id"].as_u64().unwrap())
 }
 
-fn text_obj(s: &Session, id: NodeId) -> &vectorcraft_doc::TextObject {
+fn text_obj(s: &Session, id: NodeId) -> &pluma_doc::TextObject {
     match &node(s, id).kind {
-        vectorcraft_doc::NodeKind::Text(t) => t,
+        pluma_doc::NodeKind::Text(t) => t,
         k => panic!("not text: {k:?}"),
     }
 }
@@ -460,14 +460,14 @@ fn dither_is_a_fill_gradient_option_that_saves_and_loads() {
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     // The params carry it, so a swatch and a copied paint keep it.
     let g = fill_gradient(&s, id);
-    assert_eq!(vectorcraft_tools::params::gradient_params(&g)["dither"], json!(true));
+    assert_eq!(pluma_tools::params::gradient_params(&g)["dither"], json!(true));
     let mut q = gradient_param(&g);
     q["name"] = json!("Smooth");
     s.execute("swatch.new", &q).unwrap();
     let Some(Paint::Gradient(sw)) = s.doc().unwrap().doc.swatch("Smooth").map(|w| w.paint.clone()) else { panic!("a gradient swatch") };
     assert!(sw.gradient.dither);
     // Saved and opened again.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Paint::Gradient(saved) = back.node(id).unwrap().appearance.fill_paint() else { panic!("a gradient fill") };
     assert!(saved.gradient.dither, "the native file keeps dither");
     // Written only when on, so files without it (older ones) open with it off.
@@ -514,7 +514,7 @@ fn an_outlined_stroke_leaves_dither_behind() {
 /// anything but classic or perceptual is refused without editing.
 #[test]
 fn method_is_a_gradient_option_that_saves_and_loads() {
-    use vectorcraft_color::GradientMethod;
+    use pluma_color::GradientMethod;
     let mut s = session();
     let id = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
     let stops = json!([{"offset": 0, "color": "#0000ff"}, {"offset": 1, "color": "#ffff00"}]);
@@ -527,14 +527,14 @@ fn method_is_a_gradient_option_that_saves_and_loads() {
     assert_eq!(g.gradient.stops.len(), 2, "the stops stay as they were");
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     // The params carry it, so a swatch and a copied paint keep it.
-    assert_eq!(vectorcraft_tools::params::gradient_params(&g)["method"], json!("perceptual"));
+    assert_eq!(pluma_tools::params::gradient_params(&g)["method"], json!("perceptual"));
     let mut q = gradient_param(&g);
     q["name"] = json!("Even");
     s.execute("swatch.new", &q).unwrap();
     let Some(Paint::Gradient(sw)) = s.doc().unwrap().doc.swatch("Even").map(|w| w.paint.clone()) else { panic!("a gradient swatch") };
     assert_eq!(sw.gradient.method, GradientMethod::Perceptual);
     // Saved and opened again.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Paint::Gradient(saved) = back.node(id).unwrap().appearance.fill_paint() else { panic!("a gradient fill") };
     assert_eq!(saved.gradient.method, GradientMethod::Perceptual, "the native file keeps the method");
     // Strokes take it too.
@@ -554,12 +554,12 @@ fn method_is_a_gradient_option_that_saves_and_loads() {
     assert_eq!(node(&s, id).appearance, before);
     s.execute("paint.editGradient", &json!({"method": "Classic", "stroke": false})).unwrap();
     assert_eq!(fill_gradient(&s, id).gradient.method, GradientMethod::Classic);
-    assert!(vectorcraft_tools::params::gradient_params(&fill_gradient(&s, id)).get("method").is_none());
+    assert!(pluma_tools::params::gradient_params(&fill_gradient(&s, id)).get("method").is_none());
     // With dither: one edit sets both, and the params carry both back.
     s.execute("paint.editGradient", &json!({"method": "perceptual", "dither": true, "stroke": false})).unwrap();
     let g = fill_gradient(&s, id);
     assert!(g.gradient.dither && g.gradient.method == GradientMethod::Perceptual);
-    let p = vectorcraft_tools::params::gradient_params(&g);
+    let p = pluma_tools::params::gradient_params(&g);
     assert_eq!((&p["method"], &p["dither"]), (&json!("perceptual"), &json!(true)));
     s.execute("paint.setFill", &json!({"gradient": p})).unwrap();
     let back = fill_gradient(&s, id);

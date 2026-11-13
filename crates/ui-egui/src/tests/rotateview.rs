@@ -3,10 +3,10 @@
 //! View › Rotate View to Selection (`view.rotateToSelection`) turns the view to the angle of the
 //! selection's bounding box.
 
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// These are the status bar's angles and their labels, in the status bar's order.
 const ANGLES: [(&str, f64); 12] = [
@@ -24,21 +24,21 @@ const ANGLES: [(&str, f64); 12] = [
     ("-90°", -90.0),
 ];
 
-fn with_document() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services::default());
+fn with_document() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app
 }
 
 /// Send a control request and keep its success/error value for protocol assertions.
-fn control_response(app: &mut VectorcraftApp, ctx: &egui::Context, method: &str, params: Value) -> Value {
+fn control_response(app: &mut PlumaApp, ctx: &egui::Context, method: &str, params: Value) -> Value {
     let (request, _) = crate::control::ControlRequest::new(method, params);
     let crate::control::Outcome::Done(reply) = crate::control::handle(app, ctx, &request) else { panic!("not done") };
     reply
 }
 
 /// Returns the labels of the View › Rotate View items that are checked.
-fn checked(app: &VectorcraftApp) -> Vec<&'static str> {
+fn checked(app: &PlumaApp) -> Vec<&'static str> {
     ANGLES.iter().filter(|(_, a)| menus::checked(app, "view.rotate", &json!({ "angle": a })) == Some(true)).map(|(l, _)| *l).collect()
 }
 
@@ -58,7 +58,7 @@ fn view_rotate_turns_the_view_to_any_angle() {
         assert_eq!(app.run("view.rotate", p.clone()).unwrap_err(), "`angle` must be a number", "{p}");
     }
     assert_eq!(app.view().unwrap().rotation, 12.5, "an error leaves the view as it was");
-    let mut empty = VectorcraftApp::new(Session::new(), crate::Services::default());
+    let mut empty = PlumaApp::new(Session::new(), crate::Services::default());
     assert_eq!(empty.run("view.rotate", json!({"angle": 30})).unwrap_err(), "no document");
 }
 
@@ -70,7 +70,7 @@ fn control_rotate_view_gesture_turns_the_canvas_and_reset_restores_it() {
     let ctx = egui::Context::default();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
     let view = app.view_mut().unwrap();
-    view.center = vectorcraft_geom::Point::new(200.0, 150.0);
+    view.center = pluma_geom::Point::new(200.0, 150.0);
     view.zoom = 1.0;
     let revision = app.session.active().unwrap().revision;
     let send = super::synthetic::control;
@@ -89,7 +89,7 @@ fn control_rotate_view_gesture_turns_the_canvas_and_reset_restores_it() {
     );
     let view = app.view().unwrap();
     assert!((view.rotation - 90.0).abs() < 1e-3, "{}", view.rotation);
-    assert_eq!(view.center, vectorcraft_geom::Point::new(200.0, 150.0));
+    assert_eq!(view.center, pluma_geom::Point::new(200.0, 150.0));
     assert_eq!(view.zoom, 1.0);
     assert_eq!(app.session.active().unwrap().revision, revision, "navigation does not edit the document");
     let reset = control_response(&mut app, &ctx, "engine.execute", json!({"command": "view.rotateReset", "params": {}}));
@@ -105,7 +105,7 @@ fn control_rotate_view_keeps_press_coordinates_and_shift_snapping_across_request
     let ctx = egui::Context::default();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
     let view = app.view_mut().unwrap();
-    view.center = vectorcraft_geom::Point::new(200.0, 150.0);
+    view.center = pluma_geom::Point::new(200.0, 150.0);
     view.zoom = 1.0;
     view.rotation = 30.0;
     let send = super::synthetic::control;
@@ -164,7 +164,7 @@ fn control_rotate_view_rejects_malformed_packets_without_leaving_a_press() {
         let ctx = egui::Context::default();
         app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
         let view = app.view_mut().unwrap();
-        view.center = vectorcraft_geom::Point::new(200.0, 150.0);
+        view.center = pluma_geom::Point::new(200.0, 150.0);
         view.zoom = 1.0;
         super::synthetic::control(&mut app, &ctx, "ui.tool.select", json!({"tool": "rotateView"}));
         super::synthetic::control(&mut app, &ctx, "ui.pointer", json!({"events": [{"kind": "down", "x": 300, "y": 150}]}));
@@ -185,7 +185,7 @@ fn control_rotate_view_screen_events_require_a_live_press() {
     let ctx = egui::Context::default();
     app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)));
     let view = app.view_mut().unwrap();
-    view.center = vectorcraft_geom::Point::new(1200.0, 900.0);
+    view.center = pluma_geom::Point::new(1200.0, 900.0);
     view.zoom = 2.0;
     let send = super::synthetic::control;
     send(&mut app, &ctx, "ui.tool.select", json!({"tool": "rotateView"}));
@@ -260,7 +260,7 @@ fn rotate_view_without_an_angle_asks_for_one() {
     assert!(app.ui.dialog.is_none());
     assert_eq!(app.view().unwrap().rotation, -45.0);
     // Without a document no dialog opens, and the status bar shows "no document".
-    let mut empty = VectorcraftApp::new(Session::new(), crate::Services::default());
+    let mut empty = PlumaApp::new(Session::new(), crate::Services::default());
     menus::invoke(&mut empty, "view.rotate", json!({}));
     assert!(empty.ui.dialog.is_none());
     assert_eq!(empty.ui.status, "no document");
@@ -268,26 +268,26 @@ fn rotate_view_without_an_angle_asks_for_one() {
 
 #[test]
 fn rotate_view_needs_a_document() {
-    let empty = VectorcraftApp::new(Session::new(), crate::Services::default());
+    let empty = PlumaApp::new(Session::new(), crate::Services::default());
     assert!(!menus::enabled(&empty, "view.rotate"));
     assert_eq!(menus::checked(&empty, "view.rotate", &json!({"angle": 0})), Some(false), "a check item without a document");
     assert!(menus::enabled(&with_document(), "view.rotate"));
 }
 
 /// Selects the object `id` alone and turns it by `angle` degrees.
-fn turn(app: &mut VectorcraftApp, id: &Value, angle: f64) {
+fn turn(app: &mut PlumaApp, id: &Value, angle: f64) {
     app.run("select.set", json!({ "ids": [id] })).unwrap();
     app.run("object.rotate", json!({ "angle": angle })).unwrap();
 }
 
 /// Draws a 120 × 60 pt rectangle at `x` and returns its id.
-fn rectangle(app: &mut VectorcraftApp, x: f64) -> Value {
+fn rectangle(app: &mut PlumaApp, x: f64) -> Value {
     app.run("shape.rectangle", json!({"x": x, "y": 80, "width": 120, "height": 60})).unwrap()["id"].clone()
 }
 
 /// Says whether the sides of the selection's bounding box run across and down the window, as the
 /// canvas draws the box in the active view.
-fn square_on_screen(app: &VectorcraftApp) -> bool {
+fn square_on_screen(app: &PlumaApp) -> bool {
     let st = app.session.active().unwrap();
     let corners = st.doc.oriented_bounds(&st.selection.objects, false).unwrap().corners();
     let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
@@ -299,7 +299,7 @@ fn square_on_screen(app: &VectorcraftApp) -> bool {
 
 /// Runs Rotate View to Selection and returns the angle it reports, after checking that the view is
 /// turned to that angle and that it is the selection's angle `document.inspect` reports.
-fn rotate_to_selection(app: &mut VectorcraftApp) -> f64 {
+fn rotate_to_selection(app: &mut PlumaApp) -> f64 {
     let shared = app.run("document.inspect", json!({})).unwrap()["selectionRotation"].as_f64().unwrap();
     let angle = app.run("view.rotateToSelection", json!({})).unwrap()["angle"].as_f64().unwrap();
     assert_eq!((angle, app.view().unwrap().rotation), (shared, shared));
@@ -347,7 +347,7 @@ fn rotate_view_to_selection_needs_a_selected_object() {
     assert_eq!(app.run("view.rotateToSelection", json!({})).unwrap_err(), "nothing selected");
     assert_eq!(app.view().unwrap().rotation, 15.0, "an error leaves the view as it was");
 
-    let mut empty = VectorcraftApp::new(Session::new(), crate::Services::default());
+    let mut empty = PlumaApp::new(Session::new(), crate::Services::default());
     assert!(!menus::enabled(&empty, "view.rotateToSelection"));
     assert_eq!(empty.run("view.rotateToSelection", json!({})).unwrap_err(), "no document");
     // The command palette lists it.
@@ -369,7 +369,7 @@ fn only_the_submenu_name_needs_translating() {
 /// The window, with a 400 × 300 document whose view is turned to 30°, and the Selection tool. Each
 /// frame comes the given number of seconds, zero or more, after the one before it.
 struct Window {
-    app: VectorcraftApp,
+    app: PlumaApp,
     ctx: egui::Context,
     time: f64,
 }
@@ -420,7 +420,7 @@ fn key(key: egui::Key, repeat: bool) -> Vec<egui::Event> {
     [true, false].map(|pressed| egui::Event::Key { key, physical_key: None, pressed, repeat, modifiers: Default::default() }).to_vec()
 }
 
-fn selected(app: &VectorcraftApp) -> usize {
+fn selected(app: &PlumaApp) -> usize {
     app.session.active().unwrap().selection.objects.len()
 }
 
@@ -475,7 +475,7 @@ fn one_escape_resets_a_rotated_view() {
     w.app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 40, "height": 40})).unwrap();
     w.app.select_tool("objectsOnPath");
     let view = w.app.view_info();
-    let over = vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::Move, 150.0, 140.0);
+    let over = pluma_tools::PointerEvent::new(pluma_tools::PointerKind::Move, 150.0, 140.0);
     w.app.session.pointer(&over, view).unwrap();
     assert!(!w.app.session.overlays(view).is_empty(), "Objects on Path highlights the path under the pointer");
     w.escape(0.0);

@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::Color;
+use pluma_color::swatch::REGISTRATION;
+use pluma_doc::overprint::{OverprintBlack, is_white};
+use pluma_doc::{ColorMode, Node, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_doc::overprint::{OverprintBlack, is_white};
-use vectorcraft_doc::{ColorMode, Node, NodeKind};
 
 use super::super::super::colorcmds::{Recolor, Scope};
 use super::super::super::overprint::edit_counted;

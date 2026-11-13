@@ -114,7 +114,7 @@ fn colours_come_from_the_selection_and_paint_it() {
 /// The spot swatch of object `id`'s fill: its name, whether it is spot, the paint's tint.
 fn spot_of(s: &Session, id: &Value) -> (String, bool, f32) {
     match paint_of(s, id, false) {
-        vectorcraft_color::Paint::Solid { swatch: Some(name), tint, .. } => {
+        pluma_color::Paint::Solid { swatch: Some(name), tint, .. } => {
             let spot = s.doc().unwrap().doc.swatch(&name).is_some_and(|w| w.spot);
             (name, spot, tint)
         }
@@ -133,7 +133,7 @@ fn a_spot_colour_stays_spot_in_another_document() {
     let mut s = session();
     s.libraries.set_dir(Some(folder.clone()));
     let lib = run(&mut s, "library.create", json!({"name": "Inks"}))["id"].as_str().unwrap().to_string();
-    let ink = vectorcraft_color::Color::cmyk(0.0, 1.0, 0.0, 0.0);
+    let ink = pluma_color::Color::cmyk(0.0, 1.0, 0.0, 0.0);
     run(&mut s, "swatch.new", json!({"name": "Kiss-cut", "color": ink, "spot": true}));
     let a = run(&mut s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
     run(&mut s, "paint.setFill", json!({"swatch": "Kiss-cut", "ids": [a]}));
@@ -175,15 +175,15 @@ fn a_spot_colour_stays_spot_in_another_document() {
 }
 
 /// The fill (`stroke`: stroke) paint of object `id`.
-fn paint_of(s: &Session, id: &Value, stroke: bool) -> vectorcraft_color::Paint {
+fn paint_of(s: &Session, id: &Value, stroke: bool) -> pluma_color::Paint {
     let n = s.doc().unwrap().doc.node(NodeId(id.as_u64().unwrap())).unwrap().clone();
     if stroke { n.appearance.stroke().unwrap().paint.clone() } else { n.appearance.fill().unwrap().paint.clone() }
 }
 
 /// The gradient of paint `p`.
-fn gradient(p: &vectorcraft_color::Paint) -> &vectorcraft_color::GradientPaint {
+fn gradient(p: &pluma_color::Paint) -> &pluma_color::GradientPaint {
     match p {
-        vectorcraft_color::Paint::Gradient(g) => g,
+        pluma_color::Paint::Gradient(g) => g,
         other => panic!("not a gradient: {other:?}"),
     }
 }
@@ -234,9 +234,9 @@ fn a_gradient_goes_into_a_library_and_paints_another_object() {
 /// its hex, a gradient with its stops.
 #[test]
 fn colors_and_gradients_come_from_compound_paths_groups_and_colorized_objects() {
+    use pluma_color::{Color, Paint};
+    use pluma_doc::{Node, NodeKind};
     use std::sync::Arc;
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_doc::{Node, NodeKind};
     let mut s = session();
     let lib = run(&mut s, "library.create", json!({}))["id"].as_str().unwrap().to_string();
     let solid = run(&mut s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
@@ -254,7 +254,7 @@ fn colors_and_gradients_come_from_compound_paths_groups_and_colorized_objects() 
             let source = d.node(src).unwrap().clone();
             let fill = source.appearance.fill().unwrap().paint.clone();
             let gradient = matches!(fill, Paint::Gradient(_));
-            let member = |d: &mut vectorcraft_doc::Document| {
+            let member = |d: &mut pluma_doc::Document| {
                 let mut m = source.clone();
                 (m.id, m.appearance) = (d.alloc_id(), Default::default());
                 Arc::new(m)
@@ -376,11 +376,11 @@ fn a_pattern_item_defines_its_pattern_in_a_new_document() {
     let d = &s.doc().unwrap().doc;
     assert_eq!(d.pattern("Dots").unwrap().art.len(), art.len());
     assert!(d.swatch("Dots").is_some(), "its swatch comes along");
-    assert!(matches!(paint_of(&s, &b, false), vectorcraft_color::Paint::Pattern { ref pattern, .. } if pattern == "Dots"));
+    assert!(matches!(paint_of(&s, &b, false), pluma_color::Paint::Pattern { ref pattern, .. } if pattern == "Dots"));
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     // Used again, on the stroke: the same pattern.
     run(&mut s, "library.use", json!({"library": lib, "kind": "fillPattern", "item": "Dots", "to": "stroke"}));
-    assert!(matches!(paint_of(&s, &b, true), vectorcraft_color::Paint::Pattern { ref pattern, .. } if pattern == "Dots"));
+    assert!(matches!(paint_of(&s, &b, true), pluma_color::Paint::Pattern { ref pattern, .. } if pattern == "Dots"));
     assert_eq!(s.doc().unwrap().doc.patterns.len(), 1);
     run(&mut s, "edit.undo", json!({}));
     run(&mut s, "edit.undo", json!({}));
@@ -397,7 +397,7 @@ fn a_pattern_item_defines_its_pattern_in_a_new_document() {
     let r = run(&mut s, "library.use", json!({"library": lib, "kind": "fillPattern", "item": "Dots"}));
     let renamed = r["pattern"].as_str().unwrap().to_string();
     assert_ne!(renamed, "Dots");
-    assert!(matches!(paint_of(&s, &c, false), vectorcraft_color::Paint::Pattern { ref pattern, .. } if *pattern == renamed));
+    assert!(matches!(paint_of(&s, &c, false), pluma_color::Paint::Pattern { ref pattern, .. } if *pattern == renamed));
     assert_eq!(s.doc().unwrap().doc.patterns.len(), 2);
 }
 
@@ -418,7 +418,7 @@ fn a_pattern_item_paints_its_pattern_over_a_color_swatch_of_its_name() {
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
     for sw in &mut doc.swatches {
         if sw.name == "Dots" {
-            sw.paint = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.0, 1.0, 0.0));
+            sw.paint = pluma_color::Paint::solid(pluma_color::Color::rgb(0.0, 1.0, 0.0));
         }
     }
     assert!(doc.pattern("Dots").is_some());
@@ -427,7 +427,7 @@ fn a_pattern_item_paints_its_pattern_over_a_color_swatch_of_its_name() {
     let r = run(&mut s, "library.use", json!({"library": lib, "kind": "fillPattern", "item": "Dots"}));
     let used = r["pattern"].as_str().unwrap().to_string();
     let paint = paint_of(&s, &b, false);
-    assert!(matches!(paint, vectorcraft_color::Paint::Pattern { ref pattern, .. } if *pattern == used), "{paint:?}");
+    assert!(matches!(paint, pluma_color::Paint::Pattern { ref pattern, .. } if *pattern == used), "{paint:?}");
 }
 
 /// A pattern used in a document that holds it without a swatch (as an imported SVG can) gets its
@@ -443,7 +443,7 @@ fn a_pattern_item_adds_the_swatch_of_a_pattern_the_document_holds_without_one() 
     run(&mut s, "paint.setFill", json!({"swatch": "Dots", "ids": [a]}));
     run(&mut s, "select.set", json!({"ids": [a]}));
     run(&mut s, "library.add", json!({"library": lib, "kind": "fillPattern"}));
-    let is_dots = |w: &vectorcraft_color::Swatch| matches!(&w.paint, vectorcraft_color::Paint::Pattern { pattern, .. } if pattern == "Dots");
+    let is_dots = |w: &pluma_color::Swatch| matches!(&w.paint, pluma_color::Paint::Pattern { pattern, .. } if pattern == "Dots");
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).swatches.retain(|w| !is_dots(w));
     let b = run(&mut s, "shape.rectangle", json!({"x": 100, "y": 100, "width": 40, "height": 40}))["id"].clone();
     run(&mut s, "select.set", json!({"ids": [b]}));
@@ -490,7 +490,7 @@ fn library_gradients_and_patterns_round_trip_and_damaged_ones_fail_cleanly() {
     let stop = |o: f64| json!({"offset": o, "color": {"model": "rgb", "r": 1, "g": 0, "b": 0}});
     let paint = |stops: Vec<Value>| json!({"gradient": {"kind": "Linear", "stops": stops}, "angle": 30});
     let doc = s.doc().unwrap().doc.clone();
-    let empty = vectorcraft_format::base64_encode(&vectorcraft_format::save(&doc, false));
+    let empty = pluma_format::base64_encode(&pluma_format::save(&doc, false));
     let messy = json!({
         "name": "Messy",
         "gradients": [
@@ -540,7 +540,7 @@ fn text_styles_come_from_the_selected_type_and_apply_in_one_step() {
     assert_eq!(r["style"], name);
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     let size = |s: &Session| match &s.doc().unwrap().doc.node(NodeId(u.as_u64().unwrap())).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(t) => t.runs[0].style.size,
+        pluma_doc::NodeKind::Text(t) => t.runs[0].style.size,
         _ => 0.0,
     };
     assert_eq!(size(&s), 31.0);
@@ -631,7 +631,7 @@ fn a_library_style_named_with_spaces_comes_in_trimmed() {
     }
     let d = &s.doc().unwrap().doc;
     assert_eq!((d.char_styles[0].name.as_str(), d.para_styles[0].name.as_str()), ("Body", "Body"));
-    let vectorcraft_doc::NodeKind::Text(text) = &d.node(NodeId(t.as_u64().unwrap())).unwrap().kind else { panic!("not text") };
+    let pluma_doc::NodeKind::Text(text) = &d.node(NodeId(t.as_u64().unwrap())).unwrap().kind else { panic!("not text") };
     assert_eq!((text.runs[0].style.size, text.runs[0].style.style_name.as_deref()), (31.0, Some("Body")));
 }
 
@@ -852,7 +852,7 @@ fn a_new_item_is_added_where_it_is_dropped() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn an_add_that_cannot_be_placed_makes_no_library() {
-    let folder = vectorcraft_testkit::temp_dir("library-add-unplaced").to_string_lossy().to_string();
+    let folder = pluma_testkit::temp_dir("library-add-unplaced").to_string_lossy().to_string();
     let mut s = session();
     s.libraries.set_dir(Some(folder.clone()));
     for bad in [json!({"kind": "fillColor", "color": "#808080", "group": "Nope"}), json!({"kind": "fillColor", "color": "#808080", "after": "Nope"})]
@@ -891,7 +891,7 @@ fn a_library_is_exported_and_imported() {
         assert_eq!(a[k], b[k], "{k}");
     }
     // Again: the next number; given a name, that name.
-    let b64 = vectorcraft_format::base64_encode(data.as_bytes());
+    let b64 = pluma_format::base64_encode(data.as_bytes());
     assert_eq!(run(&mut s, "library.import", json!({"dataBase64": b64}))["name"], "Brand (3)");
     assert_eq!(run(&mut s, "library.import", json!({"data": data, "name": "Client"}))["name"], "Client");
     // Its graphic places in another document.
@@ -922,7 +922,7 @@ fn imported_libraries_are_made_consistent() {
         "name": "  ",
         "colors": [{"name": "Red", "color": {"model": "rgb", "r": 1, "g": 0, "b": 0}}, {"name": "Red", "color": {"model": "rgb", "r": 0, "g": 1, "b": 0}}, {"name": "", "color": {"model": "rgb", "r": 0, "g": 0, "b": 1}}],
         "graphics": [
-            {"id": "g", "name": "A", "width": 1, "height": 1, "data": "", "thumbnail": vectorcraft_format::base64_encode(&png)},
+            {"id": "g", "name": "A", "width": 1, "height": 1, "data": "", "thumbnail": pluma_format::base64_encode(&png)},
             {"id": "g", "name": "B", "width": -5, "height": 1, "data": ""}
         ],
         "groups": [
@@ -959,7 +959,7 @@ fn a_library_of_one_repeated_name_imports_numbered() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn a_library_is_exported_to_a_file_and_imported_from_it() {
-    let dir = vectorcraft_testkit::temp_dir("library-export");
+    let dir = pluma_testkit::temp_dir("library-export");
     let path = dir.join("Brand.vclibrary").to_string_lossy().to_string();
     let (mut s, g, ..) = brand();
     run(&mut s, "library.createGroup", json!({"name": "Logos", "items": [{"kind": "graphic", "item": g}]}));

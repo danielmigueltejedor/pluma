@@ -10,15 +10,15 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use pluma_color::cms::Model;
+use pluma_color::freeform::spread_scale;
+use pluma_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, Paint};
+use pluma_doc::appearance::{AppearanceItem, FillLayer};
+use pluma_doc::live::GradientMesh;
+use pluma_doc::pattern::{PatternDef, place_art};
+use pluma_doc::{Appearance, Document, Node, NodeId, NodeKind, Scaling};
+use pluma_geom::{Affine, PathData, Point, Rect, SubPath, Vec2, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::Model;
-use vectorcraft_color::freeform::spread_scale;
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::appearance::{AppearanceItem, FillLayer};
-use vectorcraft_doc::live::GradientMesh;
-use vectorcraft_doc::pattern::{PatternDef, place_art};
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, Scaling};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, SubPath, Vec2, shapes};
 
 use super::dimension::EndedLink;
 use super::edit::selected_roots;
@@ -157,7 +157,7 @@ impl Expandable {
             let Some(sym) = d.symbols.iter().find(|s| &s.name == symbol) else { continue };
             let mut a = Self::default();
             if !inst.extras().symbol_overrides.is_empty() {
-                a.add(d, &vectorcraft_doc::symbol_overrides::dynamic_art(&sym.art, inst));
+                a.add(d, &pluma_doc::symbol_overrides::dynamic_art(&sym.art, inst));
             } else if seen.insert(symbol.clone()) {
                 a.add(d, &sym.art);
             }
@@ -396,7 +396,7 @@ fn expand_gradient_fills(s: &mut Session, to: GradientTo) -> Result<()> {
 /// gradient fill can be expanded. A path that live-effect plug-ins paint is expanded piece by piece
 /// ([`expand_pieces`]).
 fn expand_fills(d: &mut Document, l: &Node, to: GradientTo) -> Option<Node> {
-    if vectorcraft_render::effects::has_painted_effects(l) {
+    if pluma_render::effects::has_painted_effects(l) {
         return expand_pieces(d, l, usize::MAX, |d, piece, _| expand_piece_fills(d, piece, to));
     }
     expand_piece_fills(d, l, to)
@@ -477,12 +477,12 @@ fn gradient_art(d: &mut Document, l: &Node, path: &PathData, bounds: Rect, f: &F
 }
 
 /// Path `l`, which live-effect plug-ins paint, as the art the canvas draws
-/// ([`reshape`](vectorcraft_render::effects::reshape)) with ids of its own, each piece of the art
+/// ([`reshape`](pluma_render::effects::reshape)) with ids of its own, each piece of the art
 /// replaced by what `expand` makes of it (`expand` gets the piece and how many objects it may become;
 /// `None` keeps the piece with its own paints). `None` when the art would hold more than `budget`
 /// objects or no piece expands.
 fn expand_pieces(d: &mut Document, l: &Node, budget: usize, mut expand: impl FnMut(&mut Document, &Node, usize) -> Option<Node>) -> Option<Node> {
-    let art = vectorcraft_render::effects::reshape(Some(d), l, None)?;
+    let art = pluma_render::effects::reshape(Some(d), l, None)?;
     let mut art = d.reid(&art);
     art.locked = l.locked;
     let mut left = budget.checked_sub(art.count_with_masks())?;
@@ -521,7 +521,7 @@ fn expand_piece_leaves(
 /// pieces name are looked up in `doc`. This merges the pieces of such a plug-in into one path, so a
 /// path that one paints goes through [`expand_pieces`] instead.
 pub(crate) fn reshaped(doc: &Document, l: &Node) -> Option<Node> {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_carrying, has_geometry, is_geometry};
+    use pluma_render::effects::{GeomContext, apply_geometry_carrying, has_geometry, is_geometry};
     if !has_geometry(&l.appearance.effects) {
         return None;
     }
@@ -547,7 +547,7 @@ pub(crate) fn fill_shape(
     path: &PathData,
     bounds: Rect,
 ) -> Option<(Node, PathData, Rect, AppearanceItem)> {
-    use vectorcraft_render::effects::{GeomContext, apply_geometry_carrying, has_geometry};
+    use pluma_render::effects::{GeomContext, apply_geometry_carrying, has_geometry};
     if !has_geometry(item.effects()) {
         return Some((l.clone(), path.clone(), bounds, item.clone()));
     }
@@ -575,8 +575,8 @@ fn with_path(l: &Node, path: PathData) -> Node {
 
 /// The effects of fill `f` that stay on its expanded art: all but its geometry effects, which
 /// shape the outline it paints ([`fill_shape`]).
-fn fill_effects(f: &FillLayer) -> Vec<vectorcraft_doc::Effect> {
-    f.effects.iter().filter(|e| !vectorcraft_render::effects::is_geometry(&e.id)).cloned().collect()
+fn fill_effects(f: &FillLayer) -> Vec<pluma_doc::Effect> {
+    f.effects.iter().filter(|e| !pluma_render::effects::is_geometry(&e.id)).cloned().collect()
 }
 
 /// Replace every pattern fill of the selected paths by the tiles it paints (see [`expand_patterns`]).
@@ -607,7 +607,7 @@ fn expand_pattern_fills(s: &mut Session) -> Result<()> {
 /// groups or layers and in template layers stay as they are. A pattern fill in tile art counts
 /// too, down to the [`PATTERN_LEVELS`] the canvas draws, and the tile art the expansion makes is
 /// expanded again for it. A pattern fill stays, and a live object stays live, when its art would
-/// take the expanded art past [`MAX_GENERATED`](vectorcraft_doc::live::MAX_GENERATED) objects.
+/// take the expanded art past [`MAX_GENERATED`](pluma_doc::live::MAX_GENERATED) objects.
 /// Returns how many objects changed.
 pub(crate) fn expand_transparent_image_patterns(
     d: &mut Document,
@@ -615,7 +615,7 @@ pub(crate) fn expand_transparent_image_patterns(
     see_through: &BTreeSet<String>,
     colorize: &dyn Fn(&Document, &Node) -> bool,
 ) -> Result<usize> {
-    expand_transparent_image_patterns_within(d, root, see_through, colorize, vectorcraft_doc::live::MAX_GENERATED)
+    expand_transparent_image_patterns_within(d, root, see_through, colorize, pluma_doc::live::MAX_GENERATED)
 }
 
 /// [`expand_transparent_image_patterns`] with the expanded art held to `budget` objects.
@@ -659,7 +659,7 @@ pub(crate) fn expand_transparent_image_patterns_within(
 }
 
 /// How many levels of patterns the canvas draws: a pattern fill in the art of a pattern, and so
-/// on, as [`vectorcraft_render`] draws them.
+/// on, as [`pluma_render`] draws them.
 const PATTERN_LEVELS: u32 = 3;
 
 /// Whether a layer of `d` holds a pattern fill that [`expand_transparent_image_patterns`] would
@@ -698,7 +698,7 @@ fn drawn(n: &Node) -> bool {
 
 /// Expand the shown blends, envelopes, repeats and Intertwine groups under `root` that hold a
 /// pattern fill [`holds_transparent_image_patterns`] counts with `levels` into the art the exporters write for
-/// them ([`expand_live_deep`](vectorcraft_render::effects::expand_live_deep), under one budget for
+/// them ([`expand_live_deep`](pluma_render::effects::expand_live_deep), under one budget for
 /// everything nested in each), so the shapes they draw are leaves. The objects that art holds count
 /// in `made`, and an object whose art would take `made` past `budget` stays live. Returns how many
 /// were expanded.
@@ -754,7 +754,7 @@ fn expand_live_with_transparent_image_patterns(
         let Some(n) = d.node(*id) else { continue };
         // Random Transform effects take their seed from the ids: bake them first ([`bake_seeded`]),
         // and leave the object live when that can't be done.
-        let Some(mut g) = bake_seeded(d, &vectorcraft_render::effects::expand_live_deep(Some(d), n)) else { continue };
+        let Some(mut g) = bake_seeded(d, &pluma_render::effects::expand_live_deep(Some(d), n)) else { continue };
         // An object whose art would take the expanded art past the budget stays live.
         let size = g.count_with_masks();
         if size > budget - made.get() {
@@ -840,7 +840,7 @@ fn expand_patterns(d: &mut Document, l: &Node) -> Option<Node> {
 /// items, as does a pattern fill whose tiles would take the tiles of `l` past `budget` objects. A
 /// path that live-effect plug-ins paint is expanded piece by piece ([`expand_pieces`]).
 fn expand_patterns_where(d: &mut Document, l: &Node, which: impl Fn(&Document, &AppearanceItem) -> bool, budget: usize) -> Option<Node> {
-    if vectorcraft_render::effects::has_painted_effects(l) {
+    if pluma_render::effects::has_painted_effects(l) {
         return expand_pieces(d, l, budget, |d, piece, room| expand_piece_patterns(d, piece, &which, room));
     }
     expand_piece_patterns(d, l, which, budget)
@@ -935,14 +935,14 @@ fn pattern_tiles(d: &mut Document, def: &PatternDef, xf: Affine, bounds: Rect, b
     let Some(def) = seeds_baked(d, def) else {
         return Some(vec![]);
     };
-    let brushes = vectorcraft_brush::library(d);
+    let brushes = pluma_brush::library(d);
     let def = random_brushes_baked(d, &brushes, def);
     let def = &*def;
     let per_tile = def.art.iter().map(|a| a.count_with_masks()).sum::<usize>();
     if def.offsets_covering(xf.inverse().transform_rect_bbox(bounds)).len().saturating_mul(per_tile) > budget {
         return None;
     }
-    let scaling = Scaling { strokes: true, effects: Some(vectorcraft_render::effects::scale_effect), patterns: true, ..Scaling::default() };
+    let scaling = Scaling { strokes: true, effects: Some(pluma_render::effects::scale_effect), patterns: true, ..Scaling::default() };
     if scales_evenly(xf) && (moves_only(xf) || !def.art.iter().any(|a| has_geometry_effects(a))) {
         return Some(def.instances_in_with(xf, bounds, scaling));
     }
@@ -962,7 +962,7 @@ fn pattern_tiles(d: &mut Document, def: &PatternDef, xf: Affine, bounds: Rect, b
 }
 
 /// Pattern `def` with each path in its art (opacity masks included) that has a random Transform
-/// effect baked into filled art ([`bake_appearance`](vectorcraft_render::effects::bake_appearance))
+/// effect baked into filled art ([`bake_appearance`](pluma_render::effects::bake_appearance))
 /// while it keeps its own id: the effect takes its seed from the id, and the canvas draws the art
 /// with those ids for every tile, while the tiles get ids of their own. `None` when something
 /// other than a path has such an effect. The swatches and patterns that live-effect plug-ins
@@ -981,7 +981,7 @@ fn seeds_baked<'a>(d: &Document, def: &'a PatternDef) -> Option<std::borrow::Cow
 /// takes its seed from the path's points, and the canvas draws the art there for every tile.
 fn random_brushes_baked<'a>(
     d: &mut Document,
-    brushes: &[vectorcraft_brush::Brush],
+    brushes: &[pluma_brush::Brush],
     def: std::borrow::Cow<'a, PatternDef>,
 ) -> std::borrow::Cow<'a, PatternDef> {
     if !def.art.iter().any(|a| has_random_brush(brushes, a)) {
@@ -994,8 +994,8 @@ fn random_brushes_baked<'a>(
 
 /// Does brush `name` of `brushes` draw different art for different points: a calligraphic or
 /// scatter brush with Random variation, or a bristle brush?
-fn draws_random_art(brushes: &[vectorcraft_brush::Brush], name: &str) -> bool {
-    use vectorcraft_brush::{BrushKind, Variation};
+fn draws_random_art(brushes: &[pluma_brush::Brush], name: &str) -> bool {
+    use pluma_brush::{BrushKind, Variation};
     brushes.iter().find(|b| b.name == name).is_some_and(|b| match &b.kind {
         BrushKind::Calligraphic(c) => c.modes().contains(&Variation::Random),
         BrushKind::Scatter(s) => s.modes().contains(&Variation::Random),
@@ -1005,22 +1005,22 @@ fn draws_random_art(brushes: &[vectorcraft_brush::Brush], name: &str) -> bool {
 }
 
 /// Is `n` a path with a visible stroke whose brush varies at random ([`draws_random_art`])?
-fn random_brushed(brushes: &[vectorcraft_brush::Brush], n: &Node) -> bool {
-    let random = |st: &vectorcraft_doc::appearance::StrokeLayer| st.visible && st.brush.as_deref().is_some_and(|b| draws_random_art(brushes, b));
+fn random_brushed(brushes: &[pluma_brush::Brush], n: &Node) -> bool {
+    let random = |st: &pluma_doc::appearance::StrokeLayer| st.visible && st.brush.as_deref().is_some_and(|b| draws_random_art(brushes, b));
     matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. })
         && n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if random(st)))
 }
 
 /// Does `n`, something in it or one of their opacity masks have a stroke whose brush varies at
 /// random ([`random_brushed`])?
-fn has_random_brush(brushes: &[vectorcraft_brush::Brush], n: &Node) -> bool {
+fn has_random_brush(brushes: &[pluma_brush::Brush], n: &Node) -> bool {
     random_brushed(brushes, n)
         || n.extras().mask.as_ref().is_some_and(|m| has_random_brush(brushes, &m.art))
         || (!matches!(n.kind, NodeKind::Compound { .. }) && n.children().is_some_and(|c| c.iter().any(|c| has_random_brush(brushes, c))))
 }
 
 /// `n` with the paths in it whose brush varies at random [`prepared`] ([`random_brushes_baked`]).
-fn bake_random_brushes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &Node) -> Node {
+fn bake_random_brushes(d: &mut Document, brushes: &[pluma_brush::Brush], n: &Node) -> Node {
     if !has_random_brush(brushes, n) {
         return n.clone();
     }
@@ -1041,7 +1041,7 @@ fn bake_random_brushes(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n
 
 /// Does `n`, something in it or one of their opacity masks have a visible geometry effect?
 fn has_geometry_effects(n: &Node) -> bool {
-    let geometry = |e: &vectorcraft_doc::Effect| e.visible && vectorcraft_render::effects::is_geometry(&e.id);
+    let geometry = |e: &pluma_doc::Effect| e.visible && pluma_render::effects::is_geometry(&e.id);
     n.appearance.effects.iter().any(geometry)
         || n.appearance.items.iter().any(|i| i.effects().iter().any(geometry))
         || n.extras().mask.as_ref().is_some_and(|m| has_geometry_effects(&m.art))
@@ -1063,7 +1063,7 @@ fn moves_only(a: Affine) -> bool {
 }
 
 /// Is `e` a visible Transform effect with Random on (which takes its seed from the object's id)?
-pub(crate) fn seeded(e: &vectorcraft_doc::Effect) -> bool {
+pub(crate) fn seeded(e: &pluma_doc::Effect) -> bool {
     e.visible && e.id == "distort.transform" && e.params.get("random").and_then(Value::as_bool) == Some(true)
 }
 
@@ -1091,7 +1091,7 @@ fn bake_seeded(d: &Document, n: &Node) -> Option<Node> {
         if !matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }) {
             return None;
         }
-        vectorcraft_render::effects::bake_appearance(Some(d), n)?
+        pluma_render::effects::bake_appearance(Some(d), n)?
     } else {
         n.clone()
     };
@@ -1109,9 +1109,9 @@ fn bake_seeded(d: &Document, n: &Node) -> Option<Node> {
 /// Does `n`, something in it or one of their opacity masks have a visible effect that [`prepared`]
 /// cannot bake: a raster or 3D effect, or a geometry effect on something other than a path?
 fn has_unbakeable_effects(n: &Node) -> bool {
-    use vectorcraft_render::effects::{is_geometry, is_raster, is_three_d};
+    use pluma_render::effects::{is_geometry, is_raster, is_three_d};
     let path = matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. });
-    let unbakeable = |e: &vectorcraft_doc::Effect| e.visible && (is_raster(&e.id) || is_three_d(&e.id) || (!path && is_geometry(&e.id)));
+    let unbakeable = |e: &pluma_doc::Effect| e.visible && (is_raster(&e.id) || is_three_d(&e.id) || (!path && is_geometry(&e.id)));
     n.appearance.effects.iter().any(unbakeable)
         || n.appearance.items.iter().any(|i| i.effects().iter().any(unbakeable))
         || n.extras().mask.as_ref().is_some_and(|m| has_unbakeable_effects(&m.art))
@@ -1121,7 +1121,7 @@ fn has_unbakeable_effects(n: &Node) -> bool {
 /// Tile art `n` ready for a turn, flip, stretch or shear: the strokes and geometry effects of its
 /// paths baked ([`baked`], [`outline_brushed`]) and its live shapes turned into plain paths (a
 /// stretch would rebuild their corners round), in its opacity masks too.
-fn prepared(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &Node) -> Node {
+fn prepared(d: &mut Document, brushes: &[pluma_brush::Brush], n: &Node) -> Node {
     let mut t = baked(d, n);
     outline_brushed(d, brushes, &mut t);
     drop_live(&mut t);
@@ -1130,7 +1130,7 @@ fn prepared(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &Node) ->
 }
 
 /// The opacity masks of `n` and of everything in it [`prepared`].
-fn prepare_masks(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &mut Node) {
+fn prepare_masks(d: &mut Document, brushes: &[pluma_brush::Brush], n: &mut Node) {
     if let Some(m) = n.extras_if_any().and_then(|e| e.mask.as_mut()) {
         m.art = Arc::new(prepared(d, brushes, &m.art));
     }
@@ -1141,7 +1141,7 @@ fn prepare_masks(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &mut
 
 /// `n` with each path in it that has a brushed stroke turned into filled art and brush art
 /// ([`outline_strokes`]).
-fn outline_brushed(d: &mut Document, brushes: &[vectorcraft_brush::Brush], n: &mut Node) {
+fn outline_brushed(d: &mut Document, brushes: &[pluma_brush::Brush], n: &mut Node) {
     if matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }) {
         let brushed = n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if st.brush.is_some()));
         if brushed && let Some(o) = outline_strokes(d, brushes, n) {
@@ -1163,10 +1163,10 @@ fn scales_evenly(a: Affine) -> bool {
 }
 
 /// `n` with the strokes and geometry effects of each path in it baked into filled art
-/// ([`bake_appearance`](vectorcraft_render::effects::bake_appearance)), with the swatches and
+/// ([`bake_appearance`](pluma_render::effects::bake_appearance)), with the swatches and
 /// patterns that live-effect plug-ins painting their pieces name looked up in `d`.
 fn baked(d: &Document, n: &Node) -> Node {
-    if let Some(b) = vectorcraft_render::effects::bake_appearance(Some(d), n) {
+    if let Some(b) = pluma_render::effects::bake_appearance(Some(d), n) {
         return b;
     }
     let mut n = n.clone();
@@ -1194,7 +1194,7 @@ fn tile_art(d: &mut Document, l: &Node, f: &FillLayer, tiles: &[Node]) -> Option
 /// The colour and opacity gradient fill `g` paints at a document point of an object whose box is
 /// `bounds`, as the canvas draws it (the end colours continue past the ends). Colours stay in the
 /// color model their stops share; display RGB where models differ. Freeform points mix in the
-/// model they share ([`vectorcraft_color::Freeform::model_field`]); where their models differ, the
+/// model they share ([`pluma_color::Freeform::model_field`]); where their models differ, the
 /// RGB color they mix to is stored in `doc_model` (the document's model) the way `paint.setFill`
 /// stores an RGB color ([`super::paint::stored_color`]).
 pub(crate) fn gradient_sampler(g: &GradientPaint, bounds: Rect, doc_model: Model) -> Box<dyn Fn(Point) -> (Color, f32) + '_> {
@@ -1280,7 +1280,7 @@ impl Frame {
         let (mut t0, mut t1) = range(&|c| (c - geom.start).dot(along) / along.hypot2());
         let (s0, s1) = range(&|c| (c - geom.start).dot(normal));
         if radial {
-            let geom = vectorcraft_color::GradientGeom { end: geom.start + along, ..geom };
+            let geom = pluma_color::GradientGeom { end: geom.start + along, ..geom };
             (t0, t1) = (0.0, range(&|c| geom.param_at(GradientKind::Radial, c)).1);
         }
         // Keep a sliver of span so the art maps back invertibly.

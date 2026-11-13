@@ -1,4 +1,4 @@
-//! JavaScript for VectorCraft's scripts: an ECMAScript 5.1 lexer and parser
+//! JavaScript for Pluma's scripts: an ECMAScript 5.1 lexer and parser
 //! (<https://262.ecma-international.org/5.1/>), with the legacy forms of Annex B that older scripts
 //! use (octal literals and escapes outside strict mode, function declarations in blocks, the
 //! lenient regular expression patterns).

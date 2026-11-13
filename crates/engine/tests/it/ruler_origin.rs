@@ -1,9 +1,9 @@
 //! #1212: ruler coordinates are saved metadata, independent of the artwork's coordinates.
 
+use pluma_doc::RulerMode;
+use pluma_engine::Session;
+use pluma_format::{SaveOptions, load, save, save_with};
 use serde_json::{Value, json};
-use vectorcraft_doc::RulerMode;
-use vectorcraft_engine::Session;
-use vectorcraft_format::{SaveOptions, load, save, save_with};
 
 fn session() -> Session {
     let mut s = Session::new();
@@ -192,7 +192,7 @@ fn the_ruler_mode_is_saved_and_files_from_before_it_measure_globally() {
     // A file written before the choice existed has no `rulers` key: its rulers measured globally.
     let mut old = serde_json::to_value(&*doc).unwrap();
     old.as_object_mut().unwrap().remove("rulers");
-    let old: vectorcraft_doc::Document = serde_json::from_value(old).unwrap();
+    let old: pluma_doc::Document = serde_json::from_value(old).unwrap();
     assert_eq!(old.rulers, RulerMode::Global);
     assert_eq!(old.ruler_origin_for(1), old.ruler_origin_or_zero());
 }
@@ -202,12 +202,12 @@ fn stored_origins_out_of_range_fall_back_to_the_artboard_corner() {
     let mut s = two_boards();
     let mut doc = s.doc().unwrap().doc.clone();
     let id = doc.artboards[1].id;
-    for bad in [vectorcraft_geom::Vec2::new(f64::NAN, 0.0), vectorcraft_geom::Vec2::new(0.0, 9.0e6)] {
+    for bad in [pluma_geom::Vec2::new(f64::NAN, 0.0), pluma_geom::Vec2::new(0.0, 9.0e6)] {
         std::sync::Arc::make_mut(&mut doc).artboard_ruler_origins.insert(id, bad);
-        assert_eq!(doc.ruler_origin_for(1), vectorcraft_geom::Point::new(700.0, -250.0));
+        assert_eq!(doc.ruler_origin_for(1), pluma_geom::Point::new(700.0, -250.0));
     }
     // An index past the artboards uses the first one; no artboard at all, the global zero point.
-    assert_eq!(doc.ruler_origin_for(9), vectorcraft_geom::Point::ZERO);
+    assert_eq!(doc.ruler_origin_for(9), pluma_geom::Point::ZERO);
     std::sync::Arc::make_mut(&mut doc).artboards.clear();
     assert_eq!(doc.ruler_origin_for(0), doc.ruler_origin_or_zero());
     let _ = origin_of(&mut s, 0);

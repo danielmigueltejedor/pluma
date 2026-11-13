@@ -30,7 +30,7 @@ This page is the contract for plug-in authors and the reference for the host (`c
 | `plugin.list` | `{}` | `{"plugins": [{id, name, version, kind, author, description, params, paramsSchema, effect?, format?, extensions?, budget?, commands?, size, source, api, paintOutput?, permissions, hash, cacheBytes}], "folder": report}` (`api` is the manifest's [plug-in API level](#permissions); `budget: "heavy"` for a [heavy filter](#heavy-filters); `commands` lists its [commands](#commands); `paintOutput: true` marks a [painted live effect](#painted-live-effects); `permissions` lists what it [may do](#permissions), `hash` is the module's SHA-256; `cacheBytes` is the size of its [cache](#settings-and-cache)) |
 | `plugin.info` | `{"id"}` | One plug-in: the `plugin.list` entry plus `manifest`, `defaults` and `lastError` (a live effect's last failure). |
 | `plugin.run` | `{"id", "params"?: {…}, "ids"?: [...]}` (plug-in params may also be top-level keys) | Runs an object filter on the selection (or `ids`; an `ids` that is not a list of object ids is an error). One undo step; the result is selected, except the objects it locked or made guides. |
-| `plugin.install` | `{"path": "/x/y.wasm"}` (desktop) or `{"dataBase64": "…", "name"?}`, `"replace"?: bool`, `"allowHeavy": bool = false`, `"grant"?: [permission]`, `"hash"?: "sha256 hex"` | Validates and installs a module; returns its `plugin.list` entry. The desktop app and `vectorcraft-cli` keep it in the `Plug-ins` folder next to the preferences, so it is installed again after a restart (#2541). A module with other bytes than the plug-in installed with its id, or, with none installed, one whose id has [settings and a cache](#settings-and-cache) in the `Plug-ins` folder, installs only with `replace: true`, once the user agreed; it takes that plug-in's place and gets its settings and cache. The same module installs again without `replace`, and `replace: false` refuses a module whose id is installed. A [heavy filter](#heavy-filters) installs only with `allowHeavy: true`. A plug-in whose manifest lists [permissions](#permissions) installs only when `grant` lists every one of them, unless a grant is already recorded for a module with the same SHA-256. A request's `grant` and `allowHeavy` are refused except in a session started with `vectorcraft-cli --allow-plugin-grants`. With `hash`, a module whose SHA-256 differs is refused. |
+| `plugin.install` | `{"path": "/x/y.wasm"}` (desktop) or `{"dataBase64": "…", "name"?}`, `"replace"?: bool`, `"allowHeavy": bool = false`, `"grant"?: [permission]`, `"hash"?: "sha256 hex"` | Validates and installs a module; returns its `plugin.list` entry. The desktop app and `pluma-cli` keep it in the `Plug-ins` folder next to the preferences, so it is installed again after a restart (#2541). A module with other bytes than the plug-in installed with its id, or, with none installed, one whose id has [settings and a cache](#settings-and-cache) in the `Plug-ins` folder, installs only with `replace: true`, once the user agreed; it takes that plug-in's place and gets its settings and cache. The same module installs again without `replace`, and `replace: false` refuses a module whose id is installed. A [heavy filter](#heavy-filters) installs only with `allowHeavy: true`. A plug-in whose manifest lists [permissions](#permissions) installs only when `grant` lists every one of them, unless a grant is already recorded for a module with the same SHA-256. A request's `grant` and `allowHeavy` are refused except in a session started with `pluma-cli --allow-plugin-grants`. With `hash`, a module whose SHA-256 differs is refused. |
 | `plugin.inspect` | as `plugin.install`: `{"path"}` or `{"dataBase64", "name"?}` | Validates a module without installing it; returns the `plugin.list` entry it would have, plus `needsApproval` (true when installing it needs a person's approval) and `needsReplace` (true when `plugin.install` needs `replace: true`). |
 | `plugin.remove` | `{"id"}` | Uninstalls, and deletes it from the `Plug-ins` folder with its [settings and cache](#settings-and-cache). |
 | `plugin.clearCache` | `{"id"?}` | Deletes every entry in the [cache](#settings-and-cache) of plug-in `id`, or of every installed plug-in; settings stay. Returns `{"cleared": [id], "bytesFreed"}`. |
@@ -119,7 +119,7 @@ the object is drawn as if the effect weren't there, and the record is kept for w
 
 The host is [`wasmi`](https://github.com/wasmi-labs/wasmi), a pure-Rust WebAssembly interpreter
 (MIT OR Apache-2.0). It builds for `wasm32-unknown-unknown` too, so plug-ins also run in the web build. Limits
-(`vectorcraft_plugins::Limits`, defaults):
+(`pluma_plugins::Limits`, defaults):
 
 | Limit | Default | On violation |
 |---|---|---|
@@ -129,7 +129,7 @@ The host is [`wasmi`](https://github.com/wasmi-labs/wasmi), a pure-Rust WebAssem
 | Output | 64 MiB of JSON | `Limit("output size")` |
 | Instructions (fuel) | 50 M per call + 4,000 per input byte for `vc_run`; a [heavy filter](#heavy-filters) 1 G + 4,000 per byte; an export or import 10 G + 4,000 per byte | `Limit("instruction budget")` |
 | Wall clock | 60 s per filter run, 5 s per live-effect run, 300 s per heavy filter run, export or import (desktop; checked every 20 M instructions) | `Limit("time budget")` |
-| Import input | 128 MiB of the file (`vectorcraft_plugins::import::MAX_INPUT_BYTES`) | the file doesn't open; a larger file named by `path` is not read past that |
+| Import input | 128 MiB of the file (`pluma_plugins::import::MAX_INPUT_BYTES`) | the file doesn't open; a larger file named by `path` is not read past that |
 | Call depth | 1,024 frames | trap |
 | Module shape | wasmi's strict limits (≤ 10,000 functions, 1 memory, …) | rejected |
 
@@ -143,12 +143,12 @@ Some filters do heavy but legitimate work, such as routing a plotter's pen, pack
 simulation, which a minute and 50 M instructions don't cover. Such a filter declares `"budget": "heavy"` in its
 manifest (only a filter may: a live effect runs whenever the document is drawn, an exporter has an export's budget and
 an importer an import's). Each of its runs gets 1 G instructions (20 times a light run's) plus the 4,000 per input byte, and 300 s
-(`vectorcraft_plugins::{HEAVY_FUEL, HEAVY_WALL_TIME_MS}`). Its output can't add to the budget: the host learns how
+(`pluma_plugins::{HEAVY_FUEL, HEAVY_WALL_TIME_MS}`). Its output can't add to the budget: the host learns how
 much there is only once the run has ended.
 
 - **Installing asks first.** Install Plug-in… and File › Open show what the filter asks for, and install it once the
   user clicks OK (see [Permissions](#permissions) for who can). `plugin.install` refuses it without `allowHeavy: true`,
-  and refuses `allowHeavy` from a request except in a session started with `vectorcraft-cli --allow-plugin-grants`
+  and refuses `allowHeavy` from a request except in a session started with `pluma-cli --allow-plugin-grants`
   (`plugin.inspect` shows the budget beforehand). A filter kept in the `Plug-ins` folder was agreed to and is installed again
   at startup. The Additional Plug-ins Folder skips heavy filters with a note in its report, since loading a folder
   asks nobody.
@@ -200,7 +200,7 @@ capability model proposed for Lienzo plug-ins
   change what it installs.
 - `plugin.install` refuses the module, naming the permissions it needs, unless this module already has a recorded grant
   (`plugin.inspect`'s `needsApproval` tells it beforehand). A request's `grant` is refused too: `plugin.install` takes
-  it only with the approval the dialog gives. A `vectorcraft-cli mcp` or `run` started with `--allow-plugin-grants`
+  it only with the approval the dialog gives. A `pluma-cli mcp` or `run` started with `--allow-plugin-grants`
   takes `grant` and `allowHeavy` from any request; only the person starting the process can set that flag, and it
   doesn't apply to a running app. `mcp` refuses the flag together with `--automation-read-root` or
   `--automation-write-root`: a server confined to folders has no plug-in store, so it reads no `grants.json`, and a
@@ -208,7 +208,7 @@ capability model proposed for Lienzo plug-ins
   mode and the CLI install a module that lists permissions only when its hash is recorded in the shared `grants.json`.
   A person's approval in the desktop app records it, and so does a `grant` accepted under `--allow-plugin-grants`. A
   recorded grant counts as approved in later sessions without the flag and in the desktop app. With
-  `VECTORCRAFT_NO_PREFS` set there is no store, and a `grant` accepted under the flag lasts for that session only.
+  `PLUMA_NO_PREFS` set there is no store, and a `grant` accepted under the flag lasts for that session only.
   With `--allow-plugin-grants`, pass `hash` set to the `plugin.inspect` entry's `hash` so that the module installed is
   the one the user saw.
 - **Replacing asks first.** When the file is another module than the plug-in installed with its id, or, with none
@@ -326,7 +326,7 @@ still returns `1`. `vc_progress`, `vc_cancelled` and `vc_log` need `progress`; t
   it reaches another tenth of a percent; with an unknown total, each change of `done` is passed on. After 2,000 reports
   in a run, one change in 1,000 is passed on, and so is the first report after the total becomes known or unknown. A
   live effect's progress is not shown, since it is drawn as part of something else.
-- Log lines go to the app's log (target `vectorcraft_plugins`) as `<plug-in id>: <text>`, with control and
+- Log lines go to the app's log (target `pluma_plugins`) as `<plug-in id>: <text>`, with control and
   bidirectional characters escaped. The whole text must be UTF-8. A line shows its first 1,024 bytes, as at most 1,024
   characters with the escapes, and ends with `…` when it is cut. A run writes at most 200 lines and 32 KiB of shown
   text, and the host reads at most 1 MiB of log text in a run; past any of these, one "log truncated" line is written
@@ -370,7 +370,7 @@ A live effect runs while the art draws, so keep the entries it uses small.
   automatic eviction: a write past a cap fails with `-4`, and the plug-in or the user clears entries. A cache write
   also fails with `-4` when the `cache` folder holds more than 8,192 items; clearing the cache removes every file in
   it.
-- The desktop app and `vectorcraft-cli` keep them in a folder named from the id under `storage/` in the `Plug-ins`
+- The desktop app and `pluma-cli` keep them in a folder named from the id under `storage/` in the `Plug-ins`
   folder (ids that differ only in case get two folders): `settings.json` and a
   `cache` folder with one file per entry, named by the host. A settings file that is too large or doesn't parse is
   moved to `settings.unreadable.json`, replacing an earlier one there, and the settings start empty. A link in that
@@ -481,7 +481,7 @@ from before these give geometry only). The paints are read only: an effect may d
 fill's colour to decide its shape, but it changes only the geometry, unless it declares `paintOutput` ([painted live
 effects](#painted-live-effects)).
 
-An **exporter** gets something else: the native `.vectorcraft` document JSON without indentation, optional preview/PDF
+An **exporter** gets something else: the native `.pluma` document JSON without indentation, optional preview/PDF
 renditions or save-preference metadata (the format is documented in [`crates/format/src/lib.rs`](../crates/format/src/lib.rs)). That is every layer, object,
 appearance and effect record, artboard, swatch and symbol, so an exporter reads whatever the document holds; it checks
 `version`, since a later host may write a newer one. Images of 8 KiB or more are listed in `images` with their MIME
@@ -723,7 +723,7 @@ crates/plugins/example/build.sh      # cargo build --release --target wasm32-unk
 The script also refreshes `crates/plugins/tests/fixtures/desaturate.wasm`, the test fixture built from that source.
 The crate is not a workspace member. Any language that targets core WebAssembly works (C, Zig, AssemblyScript,
 WAT…), as long as the module imports nothing but the host imports: in Rust, `std` on `wasm32-unknown-unknown` is fine as long as it never
-touches WASI. `vectorcraft_plugins::wat::module` is the skeleton of a plug-in in WebAssembly text, which the tests
+touches WASI. `pluma_plugins::wat::module` is the skeleton of a plug-in in WebAssembly text, which the tests
 build their plug-ins from; `wat::echo_exporter` is an exporter whose file is its input or its parameters (with a
 base64 encoder written out in WebAssembly text), which the tests read back what the host hands a plug-in with, and
 `wat::when_given` a plug-in whose output depends on whether its input or parameters hold a given text, which shows in a

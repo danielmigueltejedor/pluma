@@ -34,8 +34,8 @@
 //! `channel` that the effect doesn't have are refused by `effect.apply` and `effect.setParams`
 //! themselves ([`check_effect_color`], [`check_effect_channel`]).
 
+use pluma_apischema::shown_key;
 use serde_json::Value;
-use vectorcraft_apischema::shown_key;
 
 use super::{bad, command_specs, find_command};
 use crate::Result;
@@ -270,10 +270,10 @@ pub(crate) fn unknown(id: &str, key: &str, keys: &[&str]) -> crate::EngineError 
 /// unknown effect is the command's to report.
 pub fn check_effect_params(id: &str, effect: &str, params: &Value) -> Result<()> {
     let Value::Object(given) = params else { return Ok(()) };
-    if effect.starts_with(vectorcraft_plugins::effect::PREFIX) {
+    if effect.starts_with(pluma_plugins::effect::PREFIX) {
         return Ok(());
     }
-    let Some(info) = vectorcraft_render::effects::effect_info(effect) else { return Ok(()) };
+    let Some(info) = pluma_render::effects::effect_info(effect) else { return Ok(()) };
     let defaults = info.defaults.as_object();
     let mut keys: Vec<&str> = defaults.into_iter().flat_map(|d| d.keys().map(String::as_str)).collect();
     // A description that doesn't parse names no more keys (the tests rule that out).
@@ -295,26 +295,26 @@ pub fn check_effect_params(id: &str, effect: &str, params: &Value) -> Result<()>
         }
     }
     // An SVG filter's XML is one drawable <filter> element.
-    if effect == vectorcraft_render::effects::SVG_FILTER
+    if effect == pluma_render::effects::SVG_FILTER
         && let Some(xml) = given.get("xml")
     {
         let xml = xml.as_str().ok_or_else(|| bad(id, "`xml` must be a string"))?;
-        vectorcraft_render::effects::svg_filter::check(xml).map_err(|e| bad(id, e))?;
+        pluma_render::effects::svg_filter::check(xml).map_err(|e| bad(id, e))?;
     }
-    if effect == vectorcraft_render::effects::SVG_FILTER
+    if effect == pluma_render::effects::SVG_FILTER
         && let Some(scale) = given.get("scale")
         && !scale.as_f64().is_some_and(|k| (0.001..=1000.0).contains(&k))
     {
         return Err(bad(id, "`scale` must be a number from 0.001 to 1000"));
     }
-    if effect == vectorcraft_render::effects::SVG_FILTER
+    if effect == pluma_render::effects::SVG_FILTER
         && let Some(origin) = given.get("origin")
         && !origin.as_array().is_some_and(|o| o.len() == 2 && o.iter().all(|v| v.as_f64().is_some_and(f64::is_finite)))
     {
         return Err(bad(id, "`origin` must be [x, y] in points"));
     }
     // Its name is the filter's id.
-    if effect == vectorcraft_render::effects::SVG_FILTER && given.contains_key("name") && !given.contains_key("xml") {
+    if effect == pluma_render::effects::SVG_FILTER && given.contains_key("name") && !given.contains_key("xml") {
         return Err(bad(id, "an SVG filter is named by its id: give `xml` with `name`"));
     }
     check_effect_color(id, effect, params)?;
@@ -327,12 +327,12 @@ pub fn check_effect_params(id: &str, effect: &str, params: &Value) -> Result<()>
 /// default color for any other value, except that an array of three or more entries draws an
 /// entry that isn't a number as 0.
 ///
-/// [`Color::from_hex`]: vectorcraft_color::Color::from_hex
+/// [`Color::from_hex`]: pluma_color::Color::from_hex
 fn is_effect_color(v: &Value) -> bool {
     match v {
-        Value::String(s) => vectorcraft_color::Color::from_hex(s).is_some(),
+        Value::String(s) => pluma_color::Color::from_hex(s).is_some(),
         Value::Array(a) => a.len() >= 3 && a.iter().take(3).all(Value::is_number),
-        Value::Object(_) => serde_json::from_value::<vectorcraft_color::Color>(v.clone()).is_ok(),
+        Value::Object(_) => serde_json::from_value::<pluma_color::Color>(v.clone()).is_ok(),
         _ => false,
     }
 }
@@ -354,33 +354,33 @@ pub(crate) fn check_effect_color(id: &str, effect: &str, params: &Value) -> Resu
 /// Does built-in effect `effect` have a `color` parameter (one whose default is a string)? Plug-in
 /// effects have none here.
 pub(crate) fn effect_takes_color(effect: &str) -> bool {
-    !effect.starts_with(vectorcraft_plugins::effect::PREFIX)
-        && vectorcraft_render::effects::effect_info(effect).is_some_and(|info| info.defaults.get("color").is_some_and(Value::is_string))
+    !effect.starts_with(pluma_plugins::effect::PREFIX)
+        && pluma_render::effects::effect_info(effect).is_some_and(|info| info.defaults.get("color").is_some_and(Value::is_string))
 }
 
 /// The color that built-in effect `effect` draws with `params`: their `color`, else the effect's
 /// default color. `None` when the effect has no `color` parameter ([`effect_takes_color`]) or
 /// `params` hold a `color` it can't read ([`is_effect_color`]).
-pub(crate) fn effect_color(effect: &str, params: &Value) -> Option<vectorcraft_color::Color> {
+pub(crate) fn effect_color(effect: &str, params: &Value) -> Option<pluma_color::Color> {
     if !effect_takes_color(effect) || params.get("color").is_some_and(|v| !is_effect_color(v)) {
         return None;
     }
-    let merged = vectorcraft_render::effects::merged_params(effect, params);
-    Some(vectorcraft_render::effects::color_param(&merged, vectorcraft_color::Color::BLACK))
+    let merged = pluma_render::effects::merged_params(effect, params);
+    Some(pluma_render::effects::color_param(&merged, pluma_color::Color::BLACK))
 }
 
 /// The `channel` in `params` of Levels or Curves (`effect`), as command `id` was given it: a
 /// parameter error naming the channels unless the effect reads it
-/// ([`vectorcraft_render::effects::is_channel`]); the effect draws any other value as RGB.
+/// ([`pluma_render::effects::is_channel`]); the effect draws any other value as RGB.
 /// `effect.apply` and `effect.setParams` run this themselves before they edit, as they run
 /// [`check_effect_color`].
 pub(crate) fn check_effect_channel(id: &str, effect: &str, params: &Value) -> Result<()> {
     let key = "channel";
     let Some(v) = params.get(key) else { return Ok(()) };
-    if !matches!(effect, "adjust.levels" | "adjust.curves") || v.as_str().is_some_and(vectorcraft_render::effects::is_channel) {
+    if !matches!(effect, "adjust.levels" | "adjust.curves") || v.as_str().is_some_and(pluma_render::effects::is_channel) {
         return Ok(());
     }
-    Err(bad(id, format!("`{key}` must be one of {}", vectorcraft_render::effects::CHANNELS.join(", "))))
+    Err(bad(id, format!("`{key}` must be one of {}", pluma_render::effects::CHANNELS.join(", "))))
 }
 
 /// Commands whose params aren't checked yet (#1442): they read keys in ways the audit of the
@@ -518,7 +518,7 @@ pub const UNCHECKED: &[&str] = &[
 /// The object options of a PDF export, key by key: the Save PDF settings as a preset stores them,
 /// with the passwords it leaves out.
 fn pdf_option_tree() -> Value {
-    let mut tree = serde_json::to_value(vectorcraft_pdf::PdfSettings::default()).unwrap_or_default();
+    let mut tree = serde_json::to_value(pluma_pdf::PdfSettings::default()).unwrap_or_default();
     if let Some(security) = tree.get_mut("security").and_then(Value::as_object_mut) {
         security.extend(["openPassword", "permissionsPassword"].map(|k| (k.to_string(), Value::Null)));
     }
@@ -633,7 +633,7 @@ fn option_trees() -> Value {
     let mut trees = pdf_option_tree();
     if let Some(tree) = trees.as_object_mut() {
         tree.insert("flattener".into(), serde_json::to_value(super::flatten::FlattenOptions::default()).unwrap_or_default());
-        let mut svg = serde_json::to_value(vectorcraft_svg::ExportOptions::default()).unwrap_or_default();
+        let mut svg = serde_json::to_value(pluma_svg::ExportOptions::default()).unwrap_or_default();
         if let Some(svg) = svg.as_object_mut() {
             svg.extend(super::fileio::ARTBOARD_PARAMS.iter().chain(&["useArtboards"]).map(|k| (k.to_string(), Value::Null)));
         }

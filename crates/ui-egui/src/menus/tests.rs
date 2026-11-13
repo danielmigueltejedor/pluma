@@ -3,7 +3,7 @@ use crate::theme;
 
 #[test]
 fn help_bar_toggle_is_independent_and_saved_in_workspaces() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     assert!(app.ui.help_bar);
     assert_eq!(checked(&app, "window.helpBar", &Value::Null), Some(true));
     assert_eq!(run_ui_command(&mut app, "window.helpBar", &Value::Null).unwrap().unwrap(), json!(false));
@@ -26,7 +26,7 @@ fn help_bar_toggle_is_independent_and_saved_in_workspaces() {
 
 /// One headless frame of the in-window menu bar; returns its titles (left to right) as
 /// (rect, id of the title's popup).
-fn bar_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(egui::Rect, egui::Id)> {
+fn bar_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(egui::Rect, egui::Id)> {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 700.0));
     let mut layer = None;
     let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| {
@@ -64,7 +64,7 @@ fn file_ends_with_exit() {
 /// No application menu in the window (as in Illustrator): the bar starts at File.
 #[test]
 fn the_bar_starts_at_file() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -86,12 +86,12 @@ fn the_bar_starts_at_file() {
     for t in titles {
         assert!(shown.iter().any(|s| s == t), "{t} missing from {shown:?}");
     }
-    assert!(!shown.iter().any(|s| s == "VectorCraft"), "{shown:?}");
+    assert!(!shown.iter().any(|s| s == "Pluma"), "{shown:?}");
 }
 
 #[test]
 fn hovering_another_title_switches_the_open_menu() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -100,7 +100,7 @@ fn hovering_another_title_switches_the_open_menu() {
     // No application menu in the window: the bar starts at File on every platform.
     assert_eq!(titles.len(), menu_tree().len() - 1);
     let (file, edit, object) = (titles[0].0.center(), titles[1].0.center(), titles[2].0.center());
-    let frames = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frames = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut t = bar_frame(app, &ctx, events);
         for _ in 0..2 {
             t = bar_frame(app, &ctx, vec![]);
@@ -173,7 +173,7 @@ fn names_in_menus_are_not_interface_labels() {
 
 #[test]
 fn last_effect_dialog_and_view_toggles() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     assert!(!enabled(&app, "effect.last"));
@@ -206,7 +206,7 @@ fn undo_and_redo_name_the_step_as_the_history_panel_does() {
     let mut app = app_with_a_rectangle();
     app.run("effect.apply", json!({"effect": "stylize.feather"})).unwrap();
     assert_eq!(app.session.active().unwrap().history.undo.last().map(|h| h.label.as_str()), Some("Feather"));
-    let shown = |app: &VectorcraftApp, id: &'static str| {
+    let shown = |app: &PlumaApp, id: &'static str| {
         let item = c(if id == "edit.undo" { "Undo" } else { "Redo" }, id);
         match entry(app, &item) {
             Some(Entry::Item(row)) => row.label.to_string(),
@@ -230,7 +230,7 @@ fn undo_and_redo_name_the_step_as_the_history_panel_does() {
 /// type inside a selected group too.
 #[test]
 fn optical_margin_alignment_is_a_checked_type_menu_item() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let ids: Vec<&str> = menu_tree()
         .into_iter()
@@ -265,7 +265,7 @@ fn optical_margin_alignment_is_a_checked_type_menu_item() {
 /// Type › Optical Margin Alignment menu check uses `shared_text_flag`; mixed values stay unchecked.
 #[test]
 fn optical_margin_alignment_menu_unchecked_when_shared_flag_none() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let off = app.run("text.create", json!({"x": 10, "y": 40, "text": "Off"})).unwrap()["id"].clone();
     let on = app.run("text.create", json!({"x": 10, "y": 80, "text": "On"})).unwrap()["id"].clone();
@@ -281,7 +281,7 @@ fn optical_margin_alignment_menu_unchecked_when_shared_flag_none() {
 /// Type › Orientation menu checks use `shared_text_flag`; mixed values leave both unchecked.
 #[test]
 fn type_orientation_menu_unchecked_when_shared_vertical_none() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let h = app.run("text.create", json!({"x": 10, "y": 40, "text": "H"})).unwrap()["id"].clone();
     let v = app.run("text.create", json!({"x": 10, "y": 80, "text": "V", "vertical": true})).unwrap()["id"].clone();
@@ -296,7 +296,7 @@ fn type_orientation_menu_unchecked_when_shared_vertical_none() {
 
 #[test]
 fn type_orientation_menu_unchecked_for_three_object_mixed_selections() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let v0 = app.run("text.create", json!({"x": 10, "y": 40, "text": "v0", "vertical": true})).unwrap()["id"].clone();
     let h1 = app.run("text.create", json!({"x": 10, "y": 80, "text": "h1"})).unwrap()["id"].clone();
@@ -327,7 +327,7 @@ fn panel_ids_are_case_insensitive_and_labels_work() {
     assert_eq!(normalize_panel("  Stroke  "), Some("stroke"));
     assert_eq!(normalize_panel("nope"), None);
 
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app.run("window.panel", json!({"panel": "Layers"})).unwrap();
     assert_eq!(app.ui.dock_tab, crate::state::DockTab::Layers);
@@ -347,9 +347,9 @@ fn panel_ids_are_case_insensitive_and_labels_work() {
 /// isn't in an icon column, and leave it showing when it already does.
 #[test]
 fn color_settings_and_assign_profile_show_the_separations_panel() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
-    let shown = |app: &VectorcraftApp| checked(app, "window.panel", &json!({"panel": "separations"})).unwrap();
+    let shown = |app: &PlumaApp| checked(app, "window.panel", &json!({"panel": "separations"})).unwrap();
     assert!(!shown(&app));
     for id in ["edit.colorSettings", "edit.colorSettings", "edit.assignProfile"] {
         app.run(id, json!({})).unwrap();
@@ -359,12 +359,12 @@ fn color_settings_and_assign_profile_show_the_separations_panel() {
 
 #[test]
 fn saved_views_store_and_restore_the_view() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     {
         let v = app.view_mut().unwrap();
         v.zoom = 3.0;
-        v.center = vectorcraft_geom::Point::new(120.0, 80.0);
+        v.center = pluma_geom::Point::new(120.0, 80.0);
     }
     app.run("view.saved.new", json!({"name": "Detail"})).unwrap();
     assert!(enabled(&app, "view.goto1") && !enabled(&app, "view.goto2"));
@@ -381,7 +381,7 @@ fn saved_views_store_and_restore_the_view() {
 /// after Materials…, and nowhere else.
 #[test]
 fn classic_extrude_bevel_is_in_the_3d_classic_submenu() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let entries = menu_entries(&app);
     let classic: Vec<_> = entries.iter().filter(|e| e.params.get("effect").and_then(Value::as_str) == Some("threeD.classicExtrude")).collect();
@@ -397,12 +397,12 @@ fn classic_extrude_bevel_is_in_the_3d_classic_submenu() {
 /// one brings back its zoom, centre and rotation after the view changed.
 #[test]
 fn every_saved_view_is_listed_at_the_bottom_of_the_view_menu() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     for i in 1..=25 {
         {
             let v = app.view_mut().unwrap();
-            (v.zoom, v.center, v.rotation) = (i as f64 / 4.0, vectorcraft_geom::Point::new(10.0 * i as f64, -5.0 * i as f64), i as f64);
+            (v.zoom, v.center, v.rotation) = (i as f64 / 4.0, pluma_geom::Point::new(10.0 * i as f64, -5.0 * i as f64), i as f64);
         }
         invoke(&mut app, "view.saved.new", json!({}));
         crate::dialogs::confirm(&mut app).unwrap();
@@ -420,7 +420,7 @@ fn every_saved_view_is_listed_at_the_bottom_of_the_view_menu() {
     app.ui.dialog = None;
     {
         let v = app.view_mut().unwrap();
-        (v.zoom, v.center, v.rotation) = (1.0, vectorcraft_geom::Point::new(0.0, 0.0), 0.0);
+        (v.zoom, v.center, v.rotation) = (1.0, pluma_geom::Point::new(0.0, 0.0), 0.0);
     }
     assert_eq!(app.run("view.goto25", json!({})).unwrap()["name"], "View 25");
     let v = app.view().unwrap();
@@ -431,7 +431,7 @@ fn every_saved_view_is_listed_at_the_bottom_of_the_view_menu() {
 /// way Edit Selection… does.
 #[test]
 fn edit_views_opens_its_dialog_on_the_saved_views() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     assert!(!enabled(&app, "view.saved.edit"));
     invoke(&mut app, "view.saved.edit", json!({}));
@@ -452,8 +452,8 @@ fn edit_views_opens_its_dialog_on_the_saved_views() {
     assert!(shown_state(&app, "view.goto2", &Value::Null).is_none());
 }
 
-fn app_with_a_rectangle() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+fn app_with_a_rectangle() -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     app
@@ -553,7 +553,7 @@ fn select_same_link_block_series_selects_a_thread_from_the_menu() {
     assert_eq!((entry.path, entry.label.as_str()), (vec!["Select".to_string(), "Same".to_string()], "Link Block Series"));
     // A rectangle selected: no type, so the item is off.
     assert!(!enabled(&app, "select.same.linkBlockSeries"));
-    let frame = |app: &mut VectorcraftApp, x: i32| {
+    let frame = |app: &mut PlumaApp, x: i32| {
         app.run("text.create", json!({"x": x, "y": 40, "text": "words ".repeat(40), "area": {"width": 60, "height": 30}})).unwrap()["id"].clone()
     };
     let (a, b) = (frame(&mut app, 0), frame(&mut app, 100));
@@ -574,7 +574,7 @@ fn select_same_text_fill_and_stroke_color_follows_text_stroke_color_in_the_menu(
     let entry = at("select.same.textFillAndStrokeColor").map(|i| &entries[i]).expect("menu entry");
     assert_eq!((entry.path.clone(), entry.label.as_str()), (vec!["Select".to_string(), "Same".to_string()], "Text Fill & Stroke Color"));
     assert_eq!(at("select.same.textStrokeColor").map(|i| i + 1), at("select.same.textFillAndStrokeColor"));
-    let text = |app: &mut VectorcraftApp, y: i32, fill: &str, stroke: &str| {
+    let text = |app: &mut PlumaApp, y: i32, fill: &str, stroke: &str| {
         let id = app.run("text.create", json!({"x": 0, "y": y, "text": "type"})).unwrap()["id"].clone();
         app.run("text.setRangeStyle", json!({"id": id.clone(), "start": 0, "end": 4, "fill": fill, "stroke": stroke})).unwrap();
         id
@@ -605,9 +605,9 @@ fn edit_selection_opens_its_dialog_on_the_saved_selections() {
 
 #[test]
 fn recent_fonts_and_corner_widget_toggle() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
-    let fams = vectorcraft_text::FontDb::global().families();
+    let fams = pluma_text::FontDb::global().families();
     let (a, b) = (fams[0].clone(), fams[fams.len() - 1].clone());
     app.run("text.create", json!({"x": 10, "y": 10, "text": "Hi"})).unwrap();
     app.run("text.setStyle", json!({"font": a})).unwrap();
@@ -626,7 +626,7 @@ fn recent_fonts_and_corner_widget_toggle() {
 /// writes General › Use Precise Cursors, the value the dialog and the saved preferences read.
 #[test]
 fn precise_cursors_command_toggles_the_preference() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     assert!(!app.session.prefs.use_precise_cursors);
     assert_eq!(app.run("view.preciseCursors", json!({})).unwrap(), json!(true));
     assert!(app.session.prefs.use_precise_cursors);
@@ -658,9 +658,9 @@ fn precise_cursors_command_is_listed_and_assignable_in_the_shortcut_editor() {
 /// The command is a preference, not an edit: no undo step, no unsaved changes, with a document open.
 #[test]
 fn precise_cursors_command_is_not_an_edit() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
-    let steps = |app: &VectorcraftApp| {
+    let steps = |app: &PlumaApp| {
         let st = app.session.active().unwrap();
         (st.history.undo.len(), st.history.redo.len(), st.is_dirty())
     };
@@ -675,26 +675,26 @@ fn precise_cursors_command_is_not_an_edit() {
 /// selection to the middle; off, they keep the view's centre.
 #[test]
 fn zoom_to_selection_centres_the_selection() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 20, "width": 40, "height": 20})).unwrap();
-    let center = |app: &VectorcraftApp| app.view().unwrap().center;
+    let center = |app: &PlumaApp| app.view().unwrap().center;
     let start = center(&app);
     app.run("prefs.set", json!({"key": "zoomToSelection", "value": false})).unwrap();
     app.run("view.zoomIn", json!({})).unwrap();
     assert_eq!(center(&app), start, "off: the view's centre stays");
     app.run("prefs.set", json!({"key": "zoomToSelection", "value": true})).unwrap();
     app.run("view.zoomOut", json!({})).unwrap();
-    assert_eq!(center(&app), vectorcraft_geom::Point::new(30.0, 30.0), "on: the selection's centre");
+    assert_eq!(center(&app), pluma_geom::Point::new(30.0, 30.0), "on: the selection's centre");
 }
 
 /// Preferences › Type › Number of Recent Fonts (#394): Type › Recent Fonts lists that many.
 #[test]
 fn number_of_recent_fonts_sets_how_many_are_listed() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     app.ui.recent_fonts = (1..=15).map(|i| format!("Font {i}")).collect();
-    let listed = |app: &VectorcraftApp| RECENT_FONT_IDS.iter().filter(|id| enabled(app, id)).count();
+    let listed = |app: &PlumaApp| RECENT_FONT_IDS.iter().filter(|id| enabled(app, id)).count();
     assert_eq!(listed(&app), 10, "10 by default");
     for n in [15, 2] {
         app.run("prefs.set", json!({"key": "recentFontsCount", "value": n})).unwrap();
@@ -708,8 +708,8 @@ fn number_of_recent_fonts_sets_how_many_are_listed() {
 fn recent_files_track_opens_and_saves() {
     let dir = std::env::temp_dir().join(format!("dc-recent-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let mut app = VectorcraftApp::new(
-        vectorcraft_engine::Session::new(),
+    let mut app = PlumaApp::new(
+        pluma_engine::Session::new(),
         crate::Services {
             read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
             write: Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string()))),
@@ -717,12 +717,12 @@ fn recent_files_track_opens_and_saves() {
         },
     );
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
-    let (a, b) = (dir.join("a.vectorcraft"), dir.join("b.vectorcraft"));
+    let (a, b) = (dir.join("a.pluma"), dir.join("b.pluma"));
     for p in [&a, &b, &a] {
         app.run("file.saveAs", json!({"path": p.to_string_lossy()})).unwrap();
     }
     assert_eq!(app.ui.recent_files, [a.to_string_lossy(), b.to_string_lossy()]);
-    assert_eq!(dynamic_label(&app, "file.openRecent2", ""), "b.vectorcraft");
+    assert_eq!(dynamic_label(&app, "file.openRecent2", ""), "b.pluma");
     assert!(enabled(&app, "file.openRecent2") && !enabled(&app, "file.openRecent3"));
     app.run("file.openRecent2", json!({})).unwrap();
     assert_eq!(app.session.documents().len(), 2);
@@ -738,9 +738,7 @@ fn every_bound_menu_command_exists() {
         for it in items {
             match it {
                 Item::Cmd(_, id, _)
-                    if vectorcraft_engine::find_command(id).is_none()
-                        && !UI_COMMANDS.iter().any(|c| c.0 == *id)
-                        && !id.starts_with("object.path.") =>
+                    if pluma_engine::find_command(id).is_none() && !UI_COMMANDS.iter().any(|c| c.0 == *id) && !id.starts_with("object.path.") =>
                 {
                     bad.push(id.to_string());
                 }
@@ -769,7 +767,7 @@ fn shortcut_pretty() {
 /// with no form asking for a preset's name.
 #[test]
 fn image_trace_make_traces_with_the_default_preset() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     for cmd in ["imageTrace.make", "imageTrace.makeAndExpand"] {
         let e = menu_entries(&app).into_iter().find(|e| e.command.as_deref() == Some(cmd)).unwrap();
@@ -780,7 +778,7 @@ fn image_trace_make_traces_with_the_default_preset() {
 
 #[test]
 fn expand_appearance_is_an_object_menu_item_only() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let paths: Vec<Vec<String>> =
         menu_entries(&app).into_iter().filter(|e| e.command.as_deref() == Some("effect.expandAppearance")).map(|e| e.path).collect();
@@ -790,12 +788,12 @@ fn expand_appearance_is_an_object_menu_item_only() {
 /// Isolation keeps the Lock and Hide actions available for selected members.
 #[test]
 fn lock_and_hide_menus_are_enabled_in_isolation_mode() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 80, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
     app.run("select.none", json!({})).unwrap();
-    let lock_unselected = |app: &VectorcraftApp| crate::menus::enabled(app, "object.lock.unselected");
+    let lock_unselected = |app: &PlumaApp| crate::menus::enabled(app, "object.lock.unselected");
     assert!(!lock_unselected(&app), "nothing selected");
     app.run("select.set", json!({"ids": [a, b.clone()]})).unwrap();
     assert!(lock_unselected(&app), "selection present");
@@ -822,7 +820,7 @@ fn lock_and_hide_menus_are_enabled_in_isolation_mode() {
             "object.showAll"
         ]
     );
-    let shown = |app: &VectorcraftApp| -> Vec<bool> {
+    let shown = |app: &PlumaApp| -> Vec<bool> {
         let entries = menu_entries(app);
         lock_and_hide
             .iter()
@@ -845,7 +843,7 @@ fn lock_and_hide_menus_are_enabled_in_isolation_mode() {
 #[test]
 fn menus_are_as_wide_as_their_items() {
     // Items size the popup to the widest label and shortcut instead of the widest a menu may be.
-    let app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 1000.0));
@@ -870,7 +868,7 @@ fn menus_are_as_wide_as_their_items() {
 fn long_menus_scroll_inside_a_short_window() {
     // The Window menu is taller than a 600 pt window: it stops above the bottom edge and
     // scrolls instead of running off screen.
-    let app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let tree = menu_tree();
@@ -903,7 +901,7 @@ fn long_menus_scroll_inside_a_short_window() {
 /// document as before.
 #[test]
 fn unlock_all_and_show_all_clicked_with_shift_alt_act_within_the_group() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
@@ -955,7 +953,7 @@ fn unlock_all_and_show_all_clicked_with_shift_alt_act_within_the_group() {
 /// no document open it is greyed out.
 #[test]
 fn new_window_opens_a_view_of_the_current_document() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     assert!(!enabled(&app, "window.newWindow"), "no document to open a window on");
     assert_eq!(app.run("window.newWindow", json!({})).unwrap_err(), "no document open");
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();

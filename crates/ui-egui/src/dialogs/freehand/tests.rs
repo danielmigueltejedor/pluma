@@ -1,8 +1,8 @@
 use super::*;
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app
 }
@@ -31,13 +31,13 @@ fn blob_tip_fields_confirm_and_cancel() {
 #[test]
 fn the_tip_preview_is_as_flat_as_the_tip_the_brush_draws() {
     for roundness in [-5.0, 0.0, 0.05, 0.1, 1.0, 50.0, 100.0, 120.0] {
-        let drawn = vectorcraft_tools::draw2::blob_tip(0.0, roundness).as_coeffs()[3] as f32;
+        let drawn = pluma_tools::draw2::blob_tip(0.0, roundness).as_coeffs()[3] as f32;
         assert!((blob_tip_short_ratio(roundness) - drawn).abs() < 1e-6, "roundness {roundness}: drawn {drawn}");
     }
 }
 
 /// The labels the open dialog paints.
-fn painted(app: &mut VectorcraftApp) -> String {
+fn painted(app: &mut PlumaApp) -> String {
     crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
 }
 
@@ -164,25 +164,25 @@ fn live_curve_fitting_off_shows_the_points_until_the_release_fits_them() {
     // The anchors of the newest path while a wave around height `y0` is drawn and after the
     // release, with nothing selected (a stroke starting at the end of a selected path would
     // continue it).
-    let draw = |app: &mut VectorcraftApp, y0: f64| {
+    let draw = |app: &mut PlumaApp, y0: f64| {
         app.run("select.set", json!({"ids": []})).unwrap();
         app.select_tool("pencil");
         let view = app.view_info();
         let pts: Vec<_> = (0..=40).map(|i| (20.0 + i as f64 * 8.0, y0 + 30.0 * (i as f64 * 0.25).sin())).collect();
-        let pointer = |kind, (x, y)| vectorcraft_tools::PointerEvent::new(kind, x, y);
-        let newest = |app: &VectorcraftApp| {
+        let pointer = |kind, (x, y)| pluma_tools::PointerEvent::new(kind, x, y);
+        let newest = |app: &PlumaApp| {
             let doc = &app.session.doc().unwrap().doc;
             doc.layers[0].children().unwrap().last().unwrap().path_data().unwrap().subpaths[0].anchors.clone()
         };
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, pts[0]), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, pts[0]), view);
         for p in &pts[1..] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, *p), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, *p), view);
         }
         let drawing = newest(app);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, pts[40]), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, pts[40]), view);
         (drawing, newest(app))
     };
-    let corners = |anchors: &[vectorcraft_geom::Anchor]| anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p);
+    let corners = |anchors: &[pluma_geom::Anchor]| anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p);
     // On by default: the Pencil's dialog shows it and the Paintbrush's does not.
     app.run("tool.options", json!({"tool": "pencil"})).unwrap();
     assert!(painted(&mut app).contains("Live curve fitting"));
@@ -209,17 +209,17 @@ fn a_new_fidelity_changes_what_the_pencil_draws() {
     let mut app = app();
     // The anchors of a wave drawn around height `y0`, with nothing selected (a stroke starting
     // at the end of a selected path would continue it).
-    let anchors = |app: &mut VectorcraftApp, y0: f64| {
+    let anchors = |app: &mut PlumaApp, y0: f64| {
         app.run("select.set", json!({"ids": []})).unwrap();
         app.select_tool("pencil");
         let view = app.view_info();
         let pts: Vec<_> = (0..=40).map(|i| (20.0 + i as f64 * 8.0, y0 + 30.0 * (i as f64 * 0.25).sin())).collect();
-        let pointer = |kind, (x, y)| vectorcraft_tools::PointerEvent::new(kind, x, y);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, pts[0]), view);
+        let pointer = |kind, (x, y)| pluma_tools::PointerEvent::new(kind, x, y);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, pts[0]), view);
         for p in &pts[1..] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, *p), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, *p), view);
         }
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, pts[40]), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, pts[40]), view);
         let doc = &app.session.doc().unwrap().doc;
         doc.layers[0].children().unwrap().last().unwrap().path_data().map_or(0, |p| p.subpaths.iter().map(|s| s.anchors.len()).sum::<usize>())
     };
@@ -237,17 +237,17 @@ fn a_new_fidelity_changes_what_the_pencil_draws() {
 fn a_new_fidelity_changes_what_the_blob_brush_draws() {
     let mut app = app();
     // The anchors of the blob a jittery wave paints around height `y0`.
-    let anchors = |app: &mut VectorcraftApp, y0: f64| {
+    let anchors = |app: &mut PlumaApp, y0: f64| {
         app.select_tool("blobBrush");
         let view = app.view_info();
         let jitter = |i: i32| if i % 2 == 0 { 1.0 } else { -1.0 };
         let pts: Vec<_> = (0..=40).map(|i| (20.0 + f64::from(i) * 8.0, y0 + 30.0 * (f64::from(i) * 0.25).sin() + jitter(i))).collect();
-        let pointer = |kind, (x, y)| vectorcraft_tools::PointerEvent::new(kind, x, y);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, pts[0]), view);
+        let pointer = |kind, (x, y)| pluma_tools::PointerEvent::new(kind, x, y);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, pts[0]), view);
         for p in &pts[1..] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, *p), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, *p), view);
         }
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, pts[40]), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, pts[40]), view);
         let doc = &app.session.doc().unwrap().doc;
         doc.layers[0].children().unwrap().last().unwrap().path_data().map_or(0, |p| p.subpaths.iter().map(|s| s.anchors.len()).sum::<usize>())
     };
@@ -268,15 +268,15 @@ fn a_new_fidelity_changes_what_the_blob_brush_draws() {
 fn the_new_path_is_selected_only_with_keep_selected_on() {
     let mut app = app();
     // A stroke of `tool` along height `y0`; the ids selected afterwards and the new path's id.
-    let stroke = |app: &mut VectorcraftApp, tool: &str, y0: f64| {
+    let stroke = |app: &mut PlumaApp, tool: &str, y0: f64| {
         app.select_tool(tool);
         let view = app.view_info();
-        let pointer = |kind, x| vectorcraft_tools::PointerEvent::new(kind, x, y0);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, 20.0), view);
+        let pointer = |kind, x| pluma_tools::PointerEvent::new(kind, x, y0);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, 20.0), view);
         for x in [60.0, 100.0, 140.0] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, x), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, x), view);
         }
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, 180.0), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, 180.0), view);
         let st = app.session.doc().unwrap();
         (st.selection.objects.clone(), st.doc.layers[0].children().unwrap().last().unwrap().id)
     };
@@ -307,22 +307,22 @@ fn the_new_path_is_selected_only_with_keep_selected_on() {
 fn the_blob_brush_options_set_what_a_stroke_merges_with_and_selects() {
     let mut app = app();
     // A Blob Brush stroke across the canvas at height 100; the ids selected afterwards.
-    let stroke = |app: &mut VectorcraftApp| {
+    let stroke = |app: &mut PlumaApp| {
         app.select_tool("blobBrush");
         let view = app.view_info();
-        let pointer = |kind, x| vectorcraft_tools::PointerEvent::new(kind, x, 100.0);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, 20.0), view);
+        let pointer = |kind, x| pluma_tools::PointerEvent::new(kind, x, 100.0);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, 20.0), view);
         for x in [80.0, 140.0, 200.0, 260.0] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, x), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, x), view);
         }
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, 300.0), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, 300.0), view);
         app.session.doc().unwrap().selection.objects.clone()
     };
-    let ids = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.id).collect::<Vec<_>>();
+    let ids = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.id).collect::<Vec<_>>();
     // Two blobs the stroke crosses, drawn with the same color.
-    let blob = |app: &mut VectorcraftApp, x: f64| {
+    let blob = |app: &mut PlumaApp, x: f64| {
         let r = app.run("path.blob", json!({"points": [[x, 60], [x, 140]], "size": 20})).unwrap();
-        vectorcraft_doc::NodeId(r["id"].as_u64().unwrap())
+        pluma_doc::NodeId(r["id"].as_u64().unwrap())
     };
     let (a, b) = (blob(&mut app, 100.0), blob(&mut app, 240.0));
     app.run("tool.options", json!({"tool": "blobBrush"})).unwrap();
@@ -370,19 +370,19 @@ fn the_blob_brush_and_eraser_size_can_follow_the_pen_pressure() {
 fn the_eraser_options_set_the_tips_angle_and_roundness() {
     let mut app = app();
     // The width of the gap a vertical Eraser drag cuts through the middle of a 100 pt square.
-    let erase = |app: &mut VectorcraftApp| {
+    let erase = |app: &mut PlumaApp| {
         app.run("select.set", json!({"ids": []})).unwrap();
         let r = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
         let id = r["id"].as_u64().unwrap();
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.select_tool("eraser");
         let view = app.view_info();
-        let pointer = |kind, y| vectorcraft_tools::PointerEvent::new(kind, 150.0, y);
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Down, 50.0), view);
+        let pointer = |kind, y| pluma_tools::PointerEvent::new(kind, 150.0, y);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Down, 50.0), view);
         for y in [100.0, 150.0, 200.0] {
-            crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Drag, y), view);
+            crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Drag, y), view);
         }
-        crate::canvas::dispatch(app, &pointer(vectorcraft_tools::PointerKind::Up, 250.0), view);
+        crate::canvas::dispatch(app, &pointer(pluma_tools::PointerKind::Up, 250.0), view);
         let st = app.session.doc().unwrap();
         let bounds: Vec<_> = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)?.path_data()?.control_bounds()).collect();
         let [a, b] = bounds[..] else { panic!("two halves: {bounds:?}") };

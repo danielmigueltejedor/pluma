@@ -4,13 +4,13 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use pluma_doc::{Appearance, Document, Node};
+use pluma_engine::Session;
+use pluma_geom::{Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, Document, Node};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::{Rect, shapes};
 
 use crate::control::ControlRequest;
-use crate::{Services, VectorcraftApp, background, io};
+use crate::{PlumaApp, Services, background, io};
 
 pub(crate) type Files = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 
@@ -30,7 +30,7 @@ impl Gate {
 }
 
 /// An app whose thread-safe writer records files once `gate` opens.
-fn app(gate: Gate) -> (VectorcraftApp, Files) {
+fn app(gate: Gate) -> (PlumaApp, Files) {
     let files = Files::default();
     let f = files.clone();
     let services = Services {
@@ -42,7 +42,7 @@ fn app(gate: Gate) -> (VectorcraftApp, Files) {
         })),
         ..Default::default()
     };
-    (VectorcraftApp::new(Session::new(), services), files)
+    (PlumaApp::new(Session::new(), services), files)
 }
 
 /// A document of `n` paths.
@@ -66,23 +66,23 @@ fn a_50k_path_save_returns_at_once_and_the_file_appears_later() {
     let gate = Gate::default();
     let (mut app, files) = app(gate.clone());
     app.session.add_document(paths(50_000), None);
-    let r = app.run("file.save", json!({"path": "/docs/big.vectorcraft"})).unwrap();
-    assert_eq!((r["background"].as_bool(), r["path"].as_str()), (Some(true), Some("/docs/big.vectorcraft")));
+    let r = app.run("file.save", json!({"path": "/docs/big.pluma"})).unwrap();
+    assert_eq!((r["background"].as_bool(), r["path"].as_str()), (Some(true), Some("/docs/big.pluma")));
     assert!(written(&files).is_empty(), "nothing written yet");
     assert_eq!(app.background.jobs.len(), 1);
-    assert!(app.ui.status.starts_with("Saving big.vectorcraft"));
+    assert!(app.ui.status.starts_with("Saving big.pluma"));
     // The file is the document's once it is written (and its dates are stamped then, #1721: until
     // then this document, never edited, is as it was).
     assert!(!app.session.doc().unwrap().is_dirty() && app.session.doc().unwrap().path.is_none());
     gate.open();
     background::wait_all(&mut app);
-    assert_eq!(written(&files), ["/docs/big.vectorcraft"]);
+    assert_eq!(written(&files), ["/docs/big.pluma"]);
     let st = app.session.doc().unwrap();
     assert!(!st.is_dirty());
-    assert_eq!(st.path.as_deref(), Some("/docs/big.vectorcraft"));
-    assert_eq!(app.ui.status, "Saved /docs/big.vectorcraft");
+    assert_eq!(st.path.as_deref(), Some("/docs/big.pluma"));
+    assert_eq!(app.ui.status, "Saved /docs/big.pluma");
     let bytes = files.lock().unwrap()[0].1.clone();
-    assert_eq!(vectorcraft_format::load(&bytes).unwrap().node_count(), 50_001);
+    assert_eq!(pluma_format::load(&bytes).unwrap().node_count(), 50_001);
 }
 
 #[test]
@@ -91,13 +91,13 @@ fn the_dirty_state_follows_the_snapshot() {
     let (mut app, files) = app(gate.clone());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
-    app.run("file.save", json!({"path": "/docs/a.vectorcraft"})).unwrap();
+    app.run("file.save", json!({"path": "/docs/a.pluma"})).unwrap();
     // Edited while the file is written: still modified afterwards.
     app.run("shape.rectangle", json!({"x": 20, "y": 0, "width": 10, "height": 10})).unwrap();
     gate.open();
     background::wait_all(&mut app);
     assert!(app.session.doc().unwrap().is_dirty(), "the edit came after the snapshot");
-    let saved = vectorcraft_format::load(&files.lock().unwrap()[0].1).unwrap();
+    let saved = pluma_format::load(&files.lock().unwrap()[0].1).unwrap();
     assert_eq!(saved.node_count(), 2, "the file holds the snapshot");
     // Undoing back to the snapshot is clean again.
     app.run("edit.undo", json!({})).unwrap();
@@ -118,7 +118,7 @@ fn exports_run_in_the_background_and_the_preference_turns_both_off() {
     // Preferences off: at once, through the ordinary writer (which this app refuses).
     app.session.execute("prefs.set", &json!({"values": {"backgroundSave": false, "backgroundExport": false}})).unwrap();
     assert!(io::export(&mut app, Some("svg"), Some("/out/b.svg".into()), &json!({})).is_err());
-    assert!(app.run("file.save", json!({"path": "/docs/x.vectorcraft"})).is_err());
+    assert!(app.run("file.save", json!({"path": "/docs/x.pluma"})).is_err());
     assert!(app.background.jobs.is_empty());
 }
 
@@ -138,11 +138,11 @@ fn a_background_save_names_its_format_and_unused_options_at_once() {
     assert_eq!(warnings[1], "`compress` was not used: SVG files don't read it", "{r}");
     gate.open();
     background::wait_all(&mut app);
-    let r = app.run("file.save", json!({"path": "/out/b.vectorcraft", "compress": true})).unwrap();
+    let r = app.run("file.save", json!({"path": "/out/b.pluma", "compress": true})).unwrap();
     assert_eq!((r["background"].as_bool(), r["format"].as_str()), (Some(true), Some("vectorcraft")), "{r}");
     assert_eq!(r["warnings"], json!([]), "{r}");
     background::wait_all(&mut app);
-    assert_eq!(written(&files), ["/out/a.svg", "/out/b.vectorcraft"]);
+    assert_eq!(written(&files), ["/out/a.svg", "/out/b.pluma"]);
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn a_cancelled_export_writes_nothing() {
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     // The first export holds the worker at the gate, past its last check: it still writes.
     io::export(&mut app, Some("svg"), Some("/out/first.svg".into()), &json!({})).unwrap();
@@ -178,7 +178,7 @@ fn quitting_waits_for_background_saves() {
     let gate = Gate::default();
     let (mut app, files) = app(gate.clone());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
-    app.run("file.save", json!({"path": "/docs/q.vectorcraft"})).unwrap();
+    app.run("file.save", json!({"path": "/docs/q.pluma"})).unwrap();
     let opener = gate.clone();
     let release = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(50));
@@ -189,11 +189,11 @@ fn quitting_waits_for_background_saves() {
     release.join().unwrap();
     assert!(r.is_null(), "{r}");
     assert_eq!(app.ui.status, "quit");
-    assert_eq!(written(&files), ["/docs/q.vectorcraft"]);
+    assert_eq!(written(&files), ["/docs/q.pluma"]);
 }
 
 /// The status bar's texts in one headless frame.
-pub(super) fn status_bar_texts(app: &mut VectorcraftApp) -> Vec<String> {
+pub(super) fn status_bar_texts(app: &mut PlumaApp) -> Vec<String> {
     fn texts(s: &egui::Shape, out: &mut Vec<String>) {
         match s {
             egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -215,10 +215,10 @@ fn the_status_bar_shows_progress() {
     let gate = Gate::default();
     let (mut app, _) = app(gate.clone());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
-    app.run("file.save", json!({"path": "/docs/p.vectorcraft"})).unwrap();
+    app.run("file.save", json!({"path": "/docs/p.pluma"})).unwrap();
     io::export(&mut app, Some("svg"), Some("/out/p.svg".into()), &json!({})).unwrap();
     let busy = status_bar_texts(&mut app);
-    assert!(busy.iter().any(|t| t == "Saving p.vectorcraft… (+1)"), "{busy:?}");
+    assert!(busy.iter().any(|t| t == "Saving p.pluma… (+1)"), "{busy:?}");
     gate.open();
     background::wait_all(&mut app);
     let done = status_bar_texts(&mut app);
@@ -227,7 +227,7 @@ fn the_status_bar_shows_progress() {
 
 /// An app with a control channel: its UI-thread writer records files (or fails with `fail`), and
 /// its thread-safe writer does the same once `gate` opens.
-fn controlled(gate: Gate, fail: Option<&'static str>) -> (VectorcraftApp, std::sync::mpsc::Sender<ControlRequest>, Files) {
+fn controlled(gate: Gate, fail: Option<&'static str>) -> (PlumaApp, std::sync::mpsc::Sender<ControlRequest>, Files) {
     controlled_with(gate, fail, None)
 }
 
@@ -236,7 +236,7 @@ fn controlled_with(
     gate: Gate,
     fail: Option<&'static str>,
     wrote: Option<std::sync::mpsc::Sender<()>>,
-) -> (VectorcraftApp, std::sync::mpsc::Sender<ControlRequest>, Files) {
+) -> (PlumaApp, std::sync::mpsc::Sender<ControlRequest>, Files) {
     let files = Files::default();
     let (f, g) = (files.clone(), files.clone());
     let services = Services {
@@ -261,14 +261,14 @@ fn controlled_with(
         ..Default::default()
     };
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), services).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), services).with_control(rx);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
     (app, tx, files)
 }
 
 /// One request through the control channel, as the app's frame drains it.
-fn request(app: &mut VectorcraftApp, tx: &std::sync::mpsc::Sender<ControlRequest>, method: &str, params: Value) -> Value {
+fn request(app: &mut PlumaApp, tx: &std::sync::mpsc::Sender<ControlRequest>, method: &str, params: Value) -> Value {
     let (req, reply) = ControlRequest::new(method, params);
     tx.send(req).unwrap();
     app.drain_control(&egui::Context::default());
@@ -281,27 +281,27 @@ fn request(app: &mut VectorcraftApp, tx: &std::sync::mpsc::Sender<ControlRequest
 fn control_saves_and_exports_with_wait_reply_once_written() {
     let gate = Gate::default();
     let (mut app, tx, files) = controlled(gate.clone(), None);
-    let r = request(&mut app, &tx, "app.save", json!({"path": "/docs/w.vectorcraft", "wait": true}));
+    let r = request(&mut app, &tx, "app.save", json!({"path": "/docs/w.pluma", "wait": true}));
     assert_eq!(r["ok"], true, "{r}");
-    assert!(r["result"].get("background").is_none() && r["result"]["path"] == "/docs/w.vectorcraft", "{r}");
-    assert_eq!(written(&files), ["/docs/w.vectorcraft"], "written before the reply");
+    assert!(r["result"].get("background").is_none() && r["result"]["path"] == "/docs/w.pluma", "{r}");
+    assert_eq!(written(&files), ["/docs/w.pluma"], "written before the reply");
     let st = app.session.doc().unwrap();
-    assert!(!st.is_dirty() && st.path.as_deref() == Some("/docs/w.vectorcraft"));
-    assert_eq!(app.ui.status, "Saved /docs/w.vectorcraft");
+    assert!(!st.is_dirty() && st.path.as_deref() == Some("/docs/w.pluma"));
+    assert_eq!(app.ui.status, "Saved /docs/w.pluma");
     let r = request(&mut app, &tx, "app.export", json!({"path": "/out/w.svg", "wait": true}));
     assert_eq!(r["ok"], true, "{r}");
     assert!(r["result"].get("background").is_none() && r["result"]["path"] == "/out/w.svg", "{r}");
-    assert_eq!(written(&files), ["/docs/w.vectorcraft", "/out/w.svg"]);
+    assert_eq!(written(&files), ["/docs/w.pluma", "/out/w.svg"]);
     assert!(app.background.jobs.is_empty());
 
-    for (method, path) in [("app.save", "/docs/later.vectorcraft"), ("app.export", "/out/later.svg")] {
+    for (method, path) in [("app.save", "/docs/later.pluma"), ("app.export", "/out/later.svg")] {
         let r = request(&mut app, &tx, method, json!({"path": path, "wait": false}));
         assert_eq!(r["result"]["background"], true, "{method}: {r}");
     }
     assert_eq!(written(&files).len(), 2, "the gate holds the worker");
     gate.open();
     background::wait_all(&mut app);
-    assert_eq!(written(&files), ["/docs/w.vectorcraft", "/out/w.svg", "/docs/later.vectorcraft", "/out/later.svg"]);
+    assert_eq!(written(&files), ["/docs/w.pluma", "/out/w.svg", "/docs/later.pluma", "/out/later.svg"]);
 }
 
 /// An export with `wait: true` to the file a background export is still writing replies after both
@@ -343,11 +343,11 @@ fn a_panic_while_waiting_leaves_background_saves_on() {
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| background::in_foreground(&mut app, |_| panic!("an encoder bug"))));
     assert!(r.is_err());
-    let r = app.run("file.save", json!({"path": "/docs/after.vectorcraft"})).unwrap();
+    let r = app.run("file.save", json!({"path": "/docs/after.pluma"})).unwrap();
     assert_eq!(r["background"], true, "{r}");
     gate.open();
     background::wait_all(&mut app);
-    assert_eq!(written(&files), ["/docs/after.vectorcraft"]);
+    assert_eq!(written(&files), ["/docs/after.pluma"]);
 }
 
 /// A save or export with `wait: true` that fails replies with the error.
@@ -356,14 +356,14 @@ fn control_saves_and_exports_with_wait_reply_with_the_error() {
     let gate = Gate::default();
     gate.open();
     let (mut app, tx, files) = controlled(gate, Some("disk full"));
-    for (method, path) in [("app.save", "/docs/f.vectorcraft"), ("app.export", "/out/f.svg")] {
+    for (method, path) in [("app.save", "/docs/f.pluma"), ("app.export", "/out/f.svg")] {
         let r = request(&mut app, &tx, method, json!({"path": path, "wait": true}));
         assert_eq!(r["ok"], false, "{method}: {r}");
         assert!(r["error"].as_str().unwrap().contains("disk full"), "{method}: {r}");
     }
     assert!(app.session.doc().unwrap().path.is_none(), "the document keeps no file");
     // Without it the reply comes first, and the failure only reaches the status bar.
-    let r = request(&mut app, &tx, "app.save", json!({"path": "/docs/f.vectorcraft"}));
+    let r = request(&mut app, &tx, "app.save", json!({"path": "/docs/f.pluma"}));
     assert_eq!(r["result"]["background"], true, "{r}");
     background::wait_all(&mut app);
     assert!(written(&files).is_empty());
@@ -375,7 +375,7 @@ fn control_saves_and_exports_with_wait_reply_with_the_error() {
 fn control_saves_and_exports_refuse_a_wait_that_is_not_a_boolean() {
     let gate = Gate::default();
     let (mut app, tx, files) = controlled(gate.clone(), None);
-    for (method, path) in [("app.save", "/docs/y.vectorcraft"), ("app.export", "/out/y.svg")] {
+    for (method, path) in [("app.save", "/docs/y.pluma"), ("app.export", "/out/y.svg")] {
         for wait in [json!("yes"), json!(1), json!({})] {
             let r = request(&mut app, &tx, method, json!({"path": path, "wait": wait}));
             assert_eq!(r["ok"], false, "{method} {wait}: {r}");
@@ -384,20 +384,20 @@ fn control_saves_and_exports_refuse_a_wait_that_is_not_a_boolean() {
     }
     assert!(app.background.jobs.is_empty() && written(&files).is_empty(), "nothing saved or exported");
     assert!(app.session.doc().unwrap().path.is_none());
-    for (method, path) in [("app.save", "/docs/n.vectorcraft"), ("app.export", "/out/n.svg")] {
+    for (method, path) in [("app.save", "/docs/n.pluma"), ("app.export", "/out/n.svg")] {
         let r = request(&mut app, &tx, method, json!({"path": path, "wait": null}));
         assert_eq!(r["result"]["background"], true, "{method}: {r}");
     }
     gate.open();
     background::wait_all(&mut app);
-    assert_eq!(written(&files), ["/docs/n.vectorcraft", "/out/n.svg"]);
+    assert_eq!(written(&files), ["/docs/n.pluma", "/out/n.svg"]);
 }
 
 #[test]
 fn bad_options_fail_before_going_to_the_background() {
     let (mut app, files) = app(Gate::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
-    for bad in [json!({"path": "/docs/v.vectorcraft", "version": 9}), json!({"path": "/docs/v.vectorcraft", "version": 1, "compress": true})] {
+    for bad in [json!({"path": "/docs/v.pluma", "version": 9}), json!({"path": "/docs/v.pluma", "version": 1, "compress": true})] {
         assert!(app.run("file.save", bad.clone()).is_err(), "{bad}");
     }
     assert!(app.background.jobs.is_empty() && written(&files).is_empty());

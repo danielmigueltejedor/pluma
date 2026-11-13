@@ -1,6 +1,6 @@
 //! Curved projected rings shared by a cap and its adjoining body faces.
 
-use vectorcraft_geom::{CubicBez, ParamCurve, Shape};
+use pluma_geom::{CubicBez, ParamCurve, Shape};
 
 use super::{BezPath, Face, PathData, Point, Rect, Revolve, V3, Vec2, eye_distance, perspective_scale, project_face};
 

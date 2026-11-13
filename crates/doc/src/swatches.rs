@@ -10,8 +10,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Color, Paint, Swatch, tint_percent};
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Color, Paint, Swatch, tint_percent};
 
 use crate::{AppearanceItem, Document, Node, NodeId, NodeKind};
 
@@ -23,10 +23,10 @@ impl Document {
     pub fn swatches_iter_mut(&mut self) -> impl Iterator<Item = &mut Swatch> {
         self.swatches.iter_mut().chain(self.swatch_groups.iter_mut().flat_map(|g| g.swatches.iter_mut()))
     }
-    /// Swatch `name`, the built-in Registration swatch ([`vectorcraft_color::swatch::registration`])
+    /// Swatch `name`, the built-in Registration swatch ([`pluma_color::swatch::registration`])
     /// included.
     pub fn swatch(&self, name: &str) -> Option<&Swatch> {
-        self.swatches_iter().find(|s| s.name == name).or_else(|| (name == REGISTRATION).then(vectorcraft_color::swatch::registration))
+        self.swatches_iter().find(|s| s.name == name).or_else(|| (name == REGISTRATION).then(pluma_color::swatch::registration))
     }
     pub fn swatch_mut(&mut self, name: &str) -> Option<&mut Swatch> {
         self.swatches_iter_mut().find(|s| s.name == name)
@@ -46,8 +46,8 @@ impl Document {
     pub fn linked_color(&self, color: Color, spot: bool) -> Color {
         match color {
             Color::Lab { .. } if spot && !self.spot_use_lab => {
-                let cms = vectorcraft_color::cms::active();
-                cms.convert(&color, vectorcraft_color::cms::Model::Cmyk, cms.settings().intent)
+                let cms = pluma_color::cms::active();
+                cms.convert(&color, pluma_color::cms::Model::Cmyk, cms.settings().intent)
             }
             _ => color,
         }
@@ -439,8 +439,8 @@ fn map_trees(v: &mut [Arc<Node>], f: &mut LinkFn) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::SwatchGroup;
-    use vectorcraft_geom::{Rect, shapes};
+    use pluma_color::SwatchGroup;
+    use pluma_geom::{Rect, shapes};
 
     use super::*;
     use crate::Appearance;
@@ -519,7 +519,7 @@ mod tests {
         names.insert("R=255 G=0 B=0 3");
         d.swatch_groups.push(SwatchGroup { name: "R=255 G=0 B=0 3".into(), swatches: vec![] });
         let tint = Paint::Solid { color: red, swatch: Some("Brand".into()), tint: 0.4 };
-        let gradient = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(Default::default())));
+        let gradient = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(Default::default())));
         let paints = [Paint::solid(red), Paint::solid(red), gradient.clone(), tint.clone(), Paint::solid(red), gradient.clone(), tint, gradient];
         let mut added = vec![];
         for paint in paints {

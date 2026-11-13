@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use super::DialogSpec;
 use crate::panels::actions::{COLORS, FUNCTION_KEYS, FunctionKey};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of New Action.
 pub const KIND: &str = "actionNew";
@@ -30,14 +30,14 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Whether New Action can open: there is a set to put the action in and nothing is recording.
-pub fn can_open(app: &VectorcraftApp) -> bool {
+pub fn can_open(app: &PlumaApp) -> bool {
     !app.ui.action_sets.is_empty() && app.ui.recording.is_none()
 }
 
 /// Opens New Action for the current set, else the first set, named "Action N" with the first
 /// number from the set's action count plus one that no action of the set uses, with no function
 /// key and no color.
-pub fn open(app: &mut VectorcraftApp) -> Result<(), String> {
+pub fn open(app: &mut PlumaApp) -> Result<(), String> {
     if app.ui.recording.is_some() {
         return Err("an action is already recording".into());
     }
@@ -51,7 +51,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<(), String> {
     Ok(())
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::label_row(ui, "Name:", LABEL_W, |ui| {
         super::form::text(ui, d, "name", 200.0);
     });
@@ -105,7 +105,7 @@ pub(super) fn key_and_color_params(d: &Dialog) -> Value {
     })
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let name = d.str("name").trim().to_string();
     // Record is disabled without a name; `ui.dialog.confirm` keeps the dialog open the same way.
     if name.is_empty() {

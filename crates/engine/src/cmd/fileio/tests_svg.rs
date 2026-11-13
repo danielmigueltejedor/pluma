@@ -31,7 +31,7 @@ pub(super) fn image_session() -> Session {
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "dot.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+    s.execute("document.open", &json!({"name": "dot.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
     s
 }
 
@@ -56,7 +56,7 @@ fn every_option_changes_the_output() {
     changed(&mut s, json!({"responsive": true}), &|o| !o.contains(" width=\"200\"") && o.contains("viewBox=\"0 0 200 100\""));
     changed(&mut s, json!({"useArtboards": false}), &|o| !o.contains("viewBox=\"0 0 200 100\""));
     changed(&mut s, json!({"metadata": true}), &|o| o.contains("<metadata>") && o.contains("<dc:format>image/svg+xml</dc:format>"));
-    changed(&mut s, json!({"preserveEditing": true}), &|o| o.contains(vectorcraft_svg::EDITING_NS));
+    changed(&mut s, json!({"preserveEditing": true}), &|o| o.contains(pluma_svg::EDITING_NS));
     s.execute("text.create", &json!({"x": 20, "y": 80, "text": "Hi"})).unwrap();
     let with_text = svg(&mut s, json!({}));
     assert!(with_text.contains("<text"));
@@ -133,7 +133,7 @@ fn preserve_editing_reopens_the_native_document() {
     let mut s = session(2);
     s.execute("artboard.setProps", &json!({"index": 1, "name": "Back"})).unwrap();
     let text = svg(&mut s, json!({"preserveEditing": true}));
-    let r = s.execute("document.open", &json!({"name": "both.svg", "dataBase64": vectorcraft_format::base64_encode(text.as_bytes())})).unwrap();
+    let r = s.execute("document.open", &json!({"name": "both.svg", "dataBase64": pluma_format::base64_encode(text.as_bytes())})).unwrap();
     assert_eq!(r["format"], "svg");
     let doc = &s.doc().unwrap().doc;
     assert_eq!(doc.artboards.len(), 2, "both artboards came back");
@@ -141,7 +141,7 @@ fn preserve_editing_reopens_the_native_document() {
     assert_eq!(doc.title, "both.svg");
     // Without it the SVG is imported (one artboard).
     let text = svg(&mut s, json!({}));
-    s.execute("document.open", &json!({"name": "plain.svg", "dataBase64": vectorcraft_format::base64_encode(text.as_bytes())})).unwrap();
+    s.execute("document.open", &json!({"name": "plain.svg", "dataBase64": pluma_format::base64_encode(text.as_bytes())})).unwrap();
     assert_eq!(s.doc().unwrap().doc.artboards.len(), 1);
 }
 
@@ -218,12 +218,12 @@ fn save_writes_svg_and_remembers_its_options() {
     s.execute("shape.ellipse", &json!({"x": 100, "y": 10, "width": 30, "height": 30})).unwrap();
     s.execute("document.save", &json!({})).unwrap();
     let text = std::fs::read_to_string(&path).unwrap();
-    assert!(text.contains("<style>") && vectorcraft_testkit::svg_shapes(&text) == 2, "Save reuses the options: {text}");
+    assert!(text.contains("<style>") && pluma_testkit::svg_shapes(&text) == 2, "Save reuses the options: {text}");
     assert!(s.execute("document.save", &json!({"path": dir.join("x.png").to_string_lossy()})).is_err(), "PNG is an export");
     // A native save switches back.
-    let native = dir.join("doc.vectorcraft").to_string_lossy().to_string();
+    let native = dir.join("doc.pluma").to_string_lossy().to_string();
     s.execute("document.save", &json!({"path": native})).unwrap();
-    assert!(vectorcraft_format::sniff(&std::fs::read(&native).unwrap()));
+    assert!(pluma_format::sniff(&std::fs::read(&native).unwrap()));
     assert_eq!(
         Value::Object(s.doc().unwrap().save_options.clone()),
         json!({"pdfCompatible":true}),
@@ -237,7 +237,7 @@ fn formats_list_the_svg_options_with_their_defaults() {
     let mut s = Session::new();
     let r = s.execute("document.formats", &json!({})).unwrap();
     let svg = r["formats"].as_array().unwrap().iter().find(|f| f["id"] == "svg").unwrap();
-    let defaults = serde_json::to_value(vectorcraft_svg::ExportOptions::default()).unwrap();
+    let defaults = serde_json::to_value(pluma_svg::ExportOptions::default()).unwrap();
     for (k, v) in defaults.as_object().unwrap() {
         assert_eq!(&svg["options"][k]["default"], v, "{k}");
     }
@@ -250,7 +250,7 @@ fn formats_list_the_svg_options_with_their_defaults() {
 fn fewer_tspans_reaches_the_writer() {
     let mut s = Session::new();
     let src = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="10" y="40" font-size="12">plain <tspan fill="#ff0000">red</tspan> plain</text></svg>"##;
-    s.execute("document.open", &json!({"name": "two-runs.svg", "dataBase64": vectorcraft_format::base64_encode(src.as_bytes())})).unwrap();
+    s.execute("document.open", &json!({"name": "two-runs.svg", "dataBase64": pluma_format::base64_encode(src.as_bytes())})).unwrap();
     let placed = |svg: &str| svg.matches("<tspan x=").count();
     assert_eq!(placed(&svg(&mut s, json!({}))), 3, "a tspan per style run");
     assert_eq!(placed(&svg(&mut s, json!({"fewerTspans": true}))), 1, "a tspan per line");
@@ -258,8 +258,8 @@ fn fewer_tspans_reaches_the_writer() {
 
 /// Gunzip SVGZ bytes.
 fn gunzip(bytes: &[u8]) -> String {
-    assert!(vectorcraft_svg::is_svgz(bytes), "gzip magic");
-    vectorcraft_svg::text_of(bytes).unwrap().into_owned()
+    assert!(pluma_svg::is_svgz(bytes), "gzip magic");
+    pluma_svg::text_of(bytes).unwrap().into_owned()
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn svgz_is_the_svg_export_gzipped() {
     let opts = json!({"styling": "css", "range": "2"});
     let mut p = opts.clone();
     p["format"] = json!("svgz");
-    let svgz = vectorcraft_format::base64_decode(s.execute("document.serialize", &p).unwrap()["dataBase64"].as_str().unwrap()).unwrap();
+    let svgz = pluma_format::base64_decode(s.execute("document.serialize", &p).unwrap()["dataBase64"].as_str().unwrap()).unwrap();
     assert_eq!(gunzip(&svgz), svg(&mut s, opts));
     // The format comes from the extension too, and Save writes it.
     let dir = tmp_dir("svgz");
@@ -288,25 +288,25 @@ fn svgz_opens_and_pastes_like_svg() {
     s.execute("shape.ellipse", &json!({"x": 100, "y": 20, "width": 40, "height": 30})).unwrap();
     let text = svg(&mut s, json!({}));
     let open = |s: &mut Session, name: &str, bytes: &[u8]| {
-        s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).unwrap();
+        s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap();
         let mut doc = (*s.doc().unwrap().doc).clone();
         doc.title.clear();
-        vectorcraft_format::save(&doc, false)
+        pluma_format::save(&doc, false)
     };
     let plain = open(&mut s, "a.svg", text.as_bytes());
     // Detected by the magic bytes whatever the name says.
-    assert_eq!(open(&mut s, "a.svg", &vectorcraft_svg::compress(&text)), plain);
-    assert_eq!(open(&mut s, "a.svgz", &vectorcraft_svg::compress(&text)), plain);
-    let r = s.execute("clipboard.importSvg", &json!({"dataBase64": vectorcraft_format::base64_encode(&vectorcraft_svg::compress(&text))})).unwrap();
+    assert_eq!(open(&mut s, "a.svg", &pluma_svg::compress(&text)), plain);
+    assert_eq!(open(&mut s, "a.svgz", &pluma_svg::compress(&text)), plain);
+    let r = s.execute("clipboard.importSvg", &json!({"dataBase64": pluma_format::base64_encode(&pluma_svg::compress(&text))})).unwrap();
     assert_eq!(r["count"], 2);
-    assert!(s.execute("document.open", &json!({"name": "bad.svgz", "dataBase64": vectorcraft_format::base64_encode(&[0x1f, 0x8b, 1, 2])})).is_err());
+    assert!(s.execute("document.open", &json!({"name": "bad.svgz", "dataBase64": pluma_format::base64_encode(&[0x1f, 0x8b, 1, 2])})).is_err());
 }
 
 #[test]
 fn svg_darkness_preserves_source_model_and_gradient_appearance() {
-    use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-    use vectorcraft_doc::{ColorMode, Effect};
-    use vectorcraft_geom::Rect;
+    use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+    use pluma_doc::{ColorMode, Effect};
+    use pluma_geom::Rect;
     for kind in ["rgb", "cmykSource", "gradient", "cmykDocument"] {
         let mut s = session(1);
         s.edit("paint source", |d, _| {
@@ -339,10 +339,10 @@ fn svg_darkness_preserves_source_model_and_gradient_appearance() {
         } else {
             assert!(text.contains("<image"), "{kind}: the shadow must preserve rendered appearance");
         }
-        let back = vectorcraft_svg::import(&text).unwrap();
+        let back = pluma_svg::import(&text).unwrap();
         let region = Rect::new(0.0, 0.0, 200.0, 100.0);
-        let expected = vectorcraft_render::Renderer::new().render_region(&native, region, 1.0, true);
-        let actual = vectorcraft_render::Renderer::new().render_region(&back, region, 1.0, true);
+        let expected = pluma_render::Renderer::new().render_region(&native, region, 1.0, true);
+        let actual = pluma_render::Renderer::new().render_region(&back, region, 1.0, true);
         for x in 80..115 {
             let (a, b) = (actual.pixel(x, 30), expected.pixel(x, 30));
             assert!(a.iter().zip(b).all(|(a, b)| a.abs_diff(b) <= 8), "{kind} at {x}: {a:?} vs {b:?}");
@@ -352,7 +352,7 @@ fn svg_darkness_preserves_source_model_and_gradient_appearance() {
 
 #[test]
 fn svg_darkness_uses_rendered_shadow_in_non_srgb_working_space() {
-    const CHILD: &str = "VECTORCRAFT_TEST_SHADOW_RGB_PROFILE";
+    const CHILD: &str = "PLUMA_TEST_SHADOW_RGB_PROFILE";
     if std::env::var_os(CHILD).is_none() {
         // Color settings are process-wide: exercise this profile in a separate test process.
         let output = std::process::Command::new(std::env::current_exe().unwrap())
@@ -368,7 +368,7 @@ fn svg_darkness_uses_rendered_shadow_in_non_srgb_working_space() {
         );
         return;
     }
-    use vectorcraft_color::{Color, Paint, cms};
+    use pluma_color::{Color, Paint, cms};
     let settings = cms::ColorSettings { rgb: cms::WIDE_GAMUT_RGB.into(), ..Default::default() };
     cms::set_active(&settings).unwrap();
     assert!(!cms::active().rgb_is_srgb());
@@ -378,7 +378,7 @@ fn svg_darkness_uses_rendered_shadow_in_non_srgb_working_space() {
         let n = d.node_mut(id).unwrap();
         n.appearance.fill_mut().unwrap().paint = Paint::solid(Color::rgb(0.8, 0.4, 0.2));
         n.appearance.items.retain(|i| i.is_fill());
-        n.appearance.effects = vec![vectorcraft_doc::Effect {
+        n.appearance.effects = vec![pluma_doc::Effect {
             id: "stylize.dropShadow".into(),
             visible: true,
             params: json!({"shade":"darkness","darkness":25,"x":60,"y":0,"blur":0,"opacity":100,"mode":"normal"}),
@@ -386,13 +386,13 @@ fn svg_darkness_uses_rendered_shadow_in_non_srgb_working_space() {
         Ok(())
     })
     .unwrap();
-    let region = vectorcraft_geom::Rect::new(0.0, 0.0, 200.0, 100.0);
-    let expected = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 1.0, true);
+    let region = pluma_geom::Rect::new(0.0, 0.0, 200.0, 100.0);
+    let expected = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 1.0, true);
     let text = svg(&mut s, json!({}));
     assert!(text.contains("<image"), "a non-sRGB source must preserve its adjusted rendered colors");
     cms::set_active(&cms::ColorSettings::default()).unwrap();
-    let back = vectorcraft_svg::import(&text).unwrap();
-    let actual = vectorcraft_render::Renderer::new().render_region(&back, region, 1.0, true);
+    let back = pluma_svg::import(&text).unwrap();
+    let actual = pluma_render::Renderer::new().render_region(&back, region, 1.0, true);
     for x in 80..115 {
         let (a, b) = (actual.pixel(x, 30), expected.pixel(x, 30));
         assert!(a.iter().zip(b).all(|(a, b)| a.abs_diff(b) <= 8), "at {x}: {a:?} vs {b:?}");

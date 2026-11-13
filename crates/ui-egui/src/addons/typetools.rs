@@ -5,7 +5,7 @@
 use egui::Ui;
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::menus::Item;
 use crate::state::Dialog;
@@ -55,7 +55,7 @@ fn attribute(key: &str) -> &'static Attribute {
 
 /// The dialog's fields to start with: Font Size from 12 to 36 pt in a straight ramp, and a new
 /// seed each time the document has changed, so running it again varies a random result.
-pub(crate) fn fields(app: &VectorcraftApp) -> Value {
+pub(crate) fn fields(app: &PlumaApp) -> Value {
     let seed = app.session.active().map_or(0, |st| st.revision % SEEDS);
     json!({
         "attribute": "size", "__shown": "size", "from": 12, "to": 36, "shape": "straight", "seed": seed, "skipSpaces": true,
@@ -65,7 +65,7 @@ pub(crate) fn fields(app: &VectorcraftApp) -> Value {
 pub(crate) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Text Tweaker").to_string(), body, confirm, preview: true, min_width: 320.0, ..DialogSpec::FORM };
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let widths = (LABEL_W, 170.0);
     let options: Vec<(&str, &str)> = ATTRIBUTES.iter().map(|a| (a.0, a.1)).collect();
     form::choice(ui, d, "attribute", tl!("Attribute:"), widths, &options);
@@ -97,7 +97,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: run the command (keep its preview) and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     form::commit_preview(app, COMMAND, form::params(d))
 }
 

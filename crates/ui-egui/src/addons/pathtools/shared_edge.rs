@@ -2,11 +2,11 @@
 //! coincidence, and Keep Shared Points Together.
 
 use egui::Ui;
+use pluma_tools::addons::shared_edge::{COINCIDENCE, DIAMETER, DIAMETER_RANGE, ID, MAX_COINCIDENCE};
 use serde_json::{Value, json};
-use vectorcraft_tools::addons::shared_edge::{COINCIDENCE, DIAMETER, DIAMETER_RANGE, ID, MAX_COINCIDENCE};
 
 use super::run;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets;
 
 /// The menu's command: the tool, with the panel its values are in.
@@ -16,12 +16,12 @@ const FIELD_W: f32 = 96.0;
 const LABEL_W: f32 = 80.0;
 
 /// Object › Plug-ins › Path Precision Tools › Shared Edge Merge Tool.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     app.select_tool(ID);
     app.run("window.panel", json!({ "panel": super::ID }))
 }
 
-pub(super) fn section(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(super) fn section(app: &mut PlumaApp, ui: &mut Ui) {
     let options = app.session.tool_options_of(ID);
     let diameter = options["diameter"].as_f64().unwrap_or(DIAMETER);
     let tolerance = options["tolerance"].as_f64().unwrap_or(COINCIDENCE);

@@ -4,14 +4,14 @@
 //! accepted schema; no Affinity software or files were used.
 
 use crate::text_fixture::*;
-use vectorcraft_affinity::{
+use pluma_affinity::{
     Document, Error, Limits,
     model::{Kind, Node},
     read,
     synth::{self, F, Method, tag},
 };
 
-type Field = (vectorcraft_affinity::stream::Tag, F);
+type Field = (pluma_affinity::stream::Tag, F);
 
 /// A document of one spread holding `nodes`, plus these other archive entries.
 fn file(nodes: Vec<F>, entries: &[(&str, &[u8])]) -> Vec<u8> {
@@ -72,7 +72,7 @@ fn table(frame: F) -> F {
     F::Obj(tag(b"TxtT"), vec![(tag(b"StSt"), story("A")), (tag(b"TxtH"), frame)])
 }
 
-fn tables(d: &Document) -> Vec<&vectorcraft_affinity::model::Table> {
+fn tables(d: &Document) -> Vec<&pluma_affinity::model::Table> {
     all(&d.spreads[0].nodes).into_iter().filter_map(|n| if let Kind::Table(t) = &n.kind { Some(t) } else { None }).collect()
 }
 

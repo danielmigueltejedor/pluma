@@ -1,8 +1,8 @@
 use super::*;
 use crate::{Appearance, Node};
+use pluma_color::{Color, Paint};
+use pluma_geom::shapes;
 use std::sync::Arc;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_geom::shapes;
 
 #[test]
 fn hits_topmost() {
@@ -43,12 +43,12 @@ fn long_plain_stroke_hits_its_middle_and_curved_end() {
     let mut d = Document::new(200.0, 200.0);
     let l = d.layers[0].id;
     let id = d.alloc_id();
-    let mut sp = vectorcraft_geom::SubPath::polyline(&(0..=4097).map(|i| Point::new(i as f64 * 10.0, 0.0)).collect::<Vec<_>>(), false);
+    let mut sp = pluma_geom::SubPath::polyline(&(0..=4097).map(|i| Point::new(i as f64 * 10.0, 0.0)).collect::<Vec<_>>(), false);
     sp.anchors[4096].h_out = Point::new(40960.0, 100.0);
     sp.anchors[4097].h_in = Point::new(40970.0, 100.0);
-    sp.anchors.push(vectorcraft_geom::Anchor::corner(Point::new(40970.0, 100.0)));
-    sp.anchors.push(vectorcraft_geom::Anchor::corner(Point::new(0.0, 100.0)));
-    let path = vectorcraft_geom::PathData::single(sp);
+    sp.anchors.push(pluma_geom::Anchor::corner(Point::new(40970.0, 100.0)));
+    sp.anchors.push(pluma_geom::Anchor::corner(Point::new(0.0, 100.0)));
+    let path = pluma_geom::PathData::single(sp);
     let look = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
     d.insert(Some(l), 0, Node::path(id, path, look)).unwrap();
     let outline = HitOptions { outline: true, ..Default::default() };
@@ -63,7 +63,7 @@ fn long_plain_stroke_hits_its_middle_and_curved_end() {
 fn coincident_anchors_remain_hittable_as_an_outline() {
     let mut d = Document::new(200.0, 200.0);
     let id = d.alloc_id();
-    let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&[Point::new(50.0, 50.0); 2], false));
+    let path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&[Point::new(50.0, 50.0); 2], false));
     let look = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
     d.insert(d.layers.first().map(|l| l.id), 0, Node::path(id, path, look)).unwrap();
     let at = Point::new(50.0, 50.0);
@@ -293,7 +293,7 @@ fn a_marquee_must_meet_the_clipping_path_itself() {
     let clipped = |pts: &[(f64, f64)], closed: bool, art: Rect| {
         let mut d = Document::new(200.0, 200.0);
         let l = d.layers[0].id;
-        let mut mask = vectorcraft_geom::BezPath::new();
+        let mut mask = pluma_geom::BezPath::new();
         mask.move_to(pts[0]);
         for &p in &pts[1..] {
             mask.line_to(p);
@@ -301,7 +301,7 @@ fn a_marquee_must_meet_the_clipping_path_itself() {
         if closed {
             mask.close_path();
         }
-        let mask = Node::path(d.alloc_id(), vectorcraft_geom::PathData::from_bezpath(&mask), Appearance::default());
+        let mask = Node::path(d.alloc_id(), pluma_geom::PathData::from_bezpath(&mask), Appearance::default());
         let art = Node::path(d.alloc_id(), shapes::rectangle(art), Appearance::default_art());
         let g = d.alloc_id();
         let mut clip = Node::group(g, vec![Arc::new(mask), Arc::new(art)]);
@@ -454,7 +454,7 @@ fn a_marquee_meets_blends_and_envelopes_by_their_box() {
             fidelity: 100.0,
             editing: false,
             options: Default::default(),
-            frame: Box::new(vectorcraft_geom::Affine::IDENTITY),
+            frame: Box::new(pluma_geom::Affine::IDENTITY),
         },
     );
     d.insert(Some(l), 1, e).unwrap();
@@ -552,7 +552,7 @@ fn evaluated_art_past_the_kept_size_is_not_kept() {
                 Point::new(x + 5.0 + 5.0 * a.cos(), 300.0 + 5.0 * a.sin())
             })
             .collect();
-        let path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&points, true));
+        let path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&points, true));
         Arc::new(Node::path(id, path, stroked.clone()))
     };
     let blend = d.alloc_id();
@@ -580,13 +580,13 @@ fn evaluated_art_is_not_kept_while_a_placed_document_may_show_in_it() {
     let spec = crate::live::BlendSpec { spacing: crate::live::BlendSpacing::Steps(200), ..Default::default() };
     d.insert(Some(l), 0, Node::new(blend, NodeKind::Blend { children: keys, spec: Box::new(spec) })).unwrap();
     let placed = crate::PlacedDocument {
-        link: crate::LinkInfo::new("/art/logo.vectorcraft"),
+        link: crate::LinkInfo::new("/art/logo.pluma"),
         key: "logo".into(),
         bounding: false,
         page_box: crate::PageBox::Crop,
         width: 80.0,
         height: 40.0,
-        xf: vectorcraft_geom::Affine::IDENTITY,
+        xf: pluma_geom::Affine::IDENTITY,
         placement: Default::default(),
     };
     let art = Arc::new(Node::new(d.alloc_id(), NodeKind::PlacedDocument(Box::new(placed))));
@@ -636,7 +636,7 @@ fn a_kept_evaluation_is_stale_after_a_swatch_changes() {
     assert!(!e.is_of(&d, &n, 7));
     let mut d = Document::new(100.0, 100.0);
     let e = kept_evaluation(&d, &n);
-    d.swatch_groups.push(vectorcraft_color::SwatchGroup { name: "Added".into(), swatches: vec![] });
+    d.swatch_groups.push(pluma_color::SwatchGroup { name: "Added".into(), swatches: vec![] });
     assert!(!e.is_of(&d, &n, 7));
 }
 
@@ -847,7 +847,7 @@ fn path_only_leaves_out_fills() {
     let (a, c) = (d.alloc_id(), d.alloc_id());
     d.insert(Some(l), 0, Node::path(a, shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 50.0)), Appearance::default_art())).unwrap();
     let inner = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(100.0, 0.0, 150.0, 50.0)), Appearance::default());
-    let mut compound = Node::new(c, NodeKind::Compound { children: vec![Arc::new(inner)], rule: vectorcraft_geom::FillRule::NonZero });
+    let mut compound = Node::new(c, NodeKind::Compound { children: vec![Arc::new(inner)], rule: pluma_geom::FillRule::NonZero });
     compound.appearance = Appearance::default_art().into();
     d.insert(Some(l), 9, compound).unwrap();
     let path_only = HitOptions { path_only: true, ..Default::default() };
@@ -867,7 +867,7 @@ fn path_only_picks_paths_through_images() {
     let (path, image) = (d.alloc_id(), d.alloc_id());
     d.insert(Some(l), 0, Node::path(path, shapes::rectangle(Rect::new(20.0, 20.0, 60.0, 60.0)), Appearance::default_art())).unwrap();
     // 100×50 pixels, scaled to 100×100 and moved to (10, 10): over the whole path.
-    let xf = vectorcraft_geom::Affine::translate((10.0, 10.0)) * vectorcraft_geom::Affine::scale_non_uniform(1.0, 2.0);
+    let xf = pluma_geom::Affine::translate((10.0, 10.0)) * pluma_geom::Affine::scale_non_uniform(1.0, 2.0);
     let im = crate::ImageObject { key: "k".into(), width: 100, height: 50, xf, link: None, placement: Default::default(), pixels: None };
     d.insert(Some(l), 1, Node::new(image, NodeKind::Image(Box::new(im)))).unwrap();
     let path_only = HitOptions { path_only: true, ..Default::default() };
@@ -925,7 +925,7 @@ fn type_path_only_picks_type_on_its_path() {
 #[test]
 fn type_path_only_picks_every_baseline() {
     use crate::{CharStyle, PerspectiveAttachment, TextKind, TextObject};
-    use vectorcraft_geom::{Affine, Homography};
+    use pluma_geom::{Affine, Homography};
     let mut d = Document::new(400.0, 400.0);
     let l = d.layers[0].id;
     let mut add = |t: TextObject, perspective: Option<Affine>| {
@@ -1130,7 +1130,7 @@ fn objects_at_finds_symbol_instances_by_their_art() {
     let art = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(100.0, 60.0, 140.0, 80.0)), Appearance::default_art());
     d.symbols.push(crate::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
     let (layer, top, inner, group) = (d.layers[0].id, d.alloc_id(), d.alloc_id(), d.alloc_id());
-    let instance = |id, dy: f64| Node::new(id, NodeKind::SymbolInstance { symbol: "Far".into(), xf: vectorcraft_geom::Affine::translate((0.0, dy)) });
+    let instance = |id, dy: f64| Node::new(id, NodeKind::SymbolInstance { symbol: "Far".into(), xf: pluma_geom::Affine::translate((0.0, dy)) });
     d.insert(Some(layer), 0, instance(top, 0.0)).unwrap();
     d.insert(Some(layer), 1, Node::group(group, vec![Arc::new(instance(inner, 100.0))])).unwrap();
     let opt = HitOptions::default();
@@ -1157,7 +1157,7 @@ fn objects_at_edit_contents_uses_general_order() {
             fidelity: 100.0,
             editing: true,
             options: Default::default(),
-            frame: Box::new(vectorcraft_geom::Affine::IDENTITY),
+            frame: Box::new(pluma_geom::Affine::IDENTITY),
         },
     );
     d.insert(Some(layer), usize::MAX, e).unwrap();
@@ -1276,8 +1276,8 @@ impl Rng {
 
 /// A closed blob of `n` smooth anchors round `c` (radius about `r`), turning either way, with
 /// handles long enough that its control points reach past its curves.
-fn blob(rng: &mut Rng, c: Point, r: f64, n: usize, clockwise: bool) -> vectorcraft_geom::SubPath {
-    use vectorcraft_geom::{Anchor, Vec2};
+fn blob(rng: &mut Rng, c: Point, r: f64, n: usize, clockwise: bool) -> pluma_geom::SubPath {
+    use pluma_geom::{Anchor, Vec2};
     let anchors = (0..n)
         .map(|i| {
             let k = if clockwise { i as f64 } else { (n - i) as f64 };
@@ -1288,12 +1288,12 @@ fn blob(rng: &mut Rng, c: Point, r: f64, n: usize, clockwise: bool) -> vectorcra
             Anchor::smooth(p, p + t)
         })
         .collect();
-    vectorcraft_geom::SubPath::new(anchors, true)
+    pluma_geom::SubPath::new(anchors, true)
 }
 
 /// A document with one compound path of `members` blobs (some of them holes), its id and the
 /// members' paths.
-fn compound_doc(members: usize, rule: vectorcraft_geom::FillRule, appearance: Appearance) -> (Document, NodeId, Vec<vectorcraft_geom::PathData>) {
+fn compound_doc(members: usize, rule: pluma_geom::FillRule, appearance: Appearance) -> (Document, NodeId, Vec<pluma_geom::PathData>) {
     let mut d = Document::new(800.0, 800.0);
     let l = d.layers[0].id;
     let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
@@ -1302,7 +1302,7 @@ fn compound_doc(members: usize, rule: vectorcraft_geom::FillRule, appearance: Ap
     for i in 0..members {
         let c = Point::new(20.0 + rng.next() * 600.0, 20.0 + rng.next() * 600.0);
         let r = 3.0 + rng.next() * 9.0;
-        let pd = vectorcraft_geom::PathData::single(blob(&mut rng, c, r, 3 + i % 4, i % 3 != 0));
+        let pd = pluma_geom::PathData::single(blob(&mut rng, c, r, 3 + i % 4, i % 3 != 0));
         children.push(Arc::new(Node::path(d.alloc_id(), pd.clone(), Appearance::default())));
         paths.push(pd);
     }
@@ -1316,7 +1316,7 @@ fn compound_doc(members: usize, rule: vectorcraft_geom::FillRule, appearance: Ap
 /// What a click on compound path `n` gave before compound paths were culled by their control
 /// points and their members near the click: the whole path assembled (`full`), culled by its
 /// reach measured along the curves.
-fn compound_hit_before(n: &Node, full: &vectorcraft_geom::BezPath, p: Point, opt: HitOptions) -> Option<HitKind> {
+fn compound_hit_before(n: &Node, full: &pluma_geom::BezPath, p: Point, opt: HitOptions) -> Option<HitKind> {
     let NodeKind::Compound { rule, .. } = &n.kind else { return None };
     if !n.reach_bounds().is_none_or(|b| b.inflate(opt.tol, opt.tol).contains(p)) {
         return None;
@@ -1333,8 +1333,8 @@ fn compound_hit_before(n: &Node, full: &vectorcraft_geom::BezPath, p: Point, opt
 /// The points a test clicks for `paths`: random ones over them and past them, and, for some
 /// members, their anchors, points just over the tolerance from them, and the corners and edge
 /// midpoints of their control and curve boxes, on them and grown by the tolerance.
-fn probe_points(paths: &[vectorcraft_geom::PathData], tol: f64, random: usize, every: usize) -> Vec<Point> {
-    let all = paths.iter().filter_map(vectorcraft_geom::PathData::control_bounds).reduce(|a, b| a.union(b)).unwrap().inflate(30.0, 30.0);
+fn probe_points(paths: &[pluma_geom::PathData], tol: f64, random: usize, every: usize) -> Vec<Point> {
+    let all = paths.iter().filter_map(pluma_geom::PathData::control_bounds).reduce(|a, b| a.union(b)).unwrap().inflate(30.0, 30.0);
     let mut rng = Rng(7);
     let mut pts: Vec<Point> = (0..random).map(|_| Point::new(all.x0 + rng.next() * all.width(), all.y0 + rng.next() * all.height())).collect();
     for pd in paths.iter().step_by(every) {
@@ -1360,7 +1360,7 @@ fn probe_points(paths: &[vectorcraft_geom::PathData], tol: f64, random: usize, e
 /// rules, in outline mode and with Object Selection by Path Only.
 #[test]
 fn culled_compound_hits_as_the_whole_path() {
-    use vectorcraft_geom::FillRule;
+    use pluma_geom::FillRule;
     for (rule, opt) in [
         (FillRule::NonZero, HitOptions::default()),
         (FillRule::EvenOdd, HitOptions { tol: 0.5, ..Default::default() }),
@@ -1374,16 +1374,16 @@ fn culled_compound_hits_as_the_whole_path() {
         // and bottom: `Rect::contains` leaves them out) never hit, even exactly `tol` from the
         // outline; now it hits there as on the near edges. Those points are clicked too, and
         // checked against the distance alone.
-        let far = vectorcraft_geom::Shape::bounding_box(&full).inflate(opt.tol, opt.tol);
+        let far = pluma_geom::Shape::bounding_box(&full).inflate(opt.tol, opt.tol);
         let mut pts = probe_points(&paths, opt.tol, 200, 120);
-        let rightmost = paths.iter().filter_map(vectorcraft_geom::PathData::bounds).max_by(|a, b| a.x1.total_cmp(&b.x1)).unwrap();
+        let rightmost = paths.iter().filter_map(pluma_geom::PathData::bounds).max_by(|a, b| a.x1.total_cmp(&b.x1)).unwrap();
         pts.push(Point::new(far.x1, rightmost.center().y));
         let (mut hits, mut kinds) = (0, HashSet::new());
         for p in pts {
             let before = compound_hit_before(n, &full, p, opt);
             let now = hit_test(&d, p, opt);
             if p.x == far.x1 || p.y == far.y1 {
-                let outline = vectorcraft_geom::hit::distance_to_outline(&full, p) <= opt.tol;
+                let outline = pluma_geom::hit::distance_to_outline(&full, p) <= opt.tol;
                 assert_eq!(now.is_some(), outline || before.is_some(), "{rule:?} {opt:?} on the far edge at {p:?}");
                 continue;
             }
@@ -1402,7 +1402,7 @@ fn culled_compound_hits_as_the_whole_path() {
 /// they were culled by their reach measured along the curves.
 #[test]
 fn wide_strokes_hit_past_the_control_points() {
-    use vectorcraft_geom::{Anchor, PathData, SubPath};
+    use pluma_geom::{Anchor, PathData, SubPath};
     let mut d = Document::new(400.0, 400.0);
     let l = d.layers[0].id;
     let stroke = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 40.0);
@@ -1420,7 +1420,7 @@ fn wide_strokes_hit_past_the_control_points() {
         .map(|c| Arc::new(Node::path(d.alloc_id(), PathData::single(blob(&mut rng, c, 4.0, 4, true)), Appearance::default())))
         .collect();
     let compound = d.alloc_id();
-    let mut node = Node::new(compound, NodeKind::Compound { children: members, rule: vectorcraft_geom::FillRule::NonZero });
+    let mut node = Node::new(compound, NodeKind::Compound { children: members, rule: pluma_geom::FillRule::NonZero });
     node.appearance = stroke.into();
     d.insert(Some(l), 9, node).unwrap();
     let symbols = d.symbol_boxes();
@@ -1465,7 +1465,7 @@ fn cull_box_holds_the_reach_of_paths_and_compound_paths() {
     let holds =
         |outer: Rect, inner: Rect| outer.x0 - E <= inner.x0 && outer.y0 - E <= inner.y0 && inner.x1 <= outer.x1 + E && inner.y1 <= outer.y1 + E;
     let stroke = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 12.0);
-    let (mut d, id, _) = compound_doc(200, vectorcraft_geom::FillRule::NonZero, stroke.clone());
+    let (mut d, id, _) = compound_doc(200, pluma_geom::FillRule::NonZero, stroke.clone());
     let path_id = d.alloc_id();
     let symbols = d.symbol_boxes();
     let n = d.node(id).unwrap();
@@ -1477,7 +1477,7 @@ fn cull_box_holds_the_reach_of_paths_and_compound_paths() {
     }
     // A stroked plain path, its handles reaching past its curves.
     let mut rng = Rng(11);
-    let path = Node::path(path_id, vectorcraft_geom::PathData::single(blob(&mut rng, Point::new(50.0, 50.0), 20.0, 5, true)), stroke);
+    let path = Node::path(path_id, pluma_geom::PathData::single(blob(&mut rng, Point::new(50.0, 50.0), 20.0, 5, true)), stroke);
     let (cull, reach) = (cull_reach(&path, &symbols).unwrap(), path.reach_bounds_with(&symbols).unwrap());
     assert!(holds(cull, reach), "{cull:?} does not hold {reach:?}");
     assert_eq!(checked, 201);
@@ -1498,15 +1498,15 @@ fn an_object_a_clipping_layer_in_symbol_art_hides_is_not_picked_there() {
     let root = Node::group(d.alloc_id(), vec![Arc::new(layer)]);
     d.symbols.push(crate::Symbol { dynamic: true, name: "Clipped".into(), art: Arc::new(root) });
     let inst = d.alloc_id();
-    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Clipped".into(), xf: vectorcraft_geom::Affine::IDENTITY })).unwrap();
+    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Clipped".into(), xf: pluma_geom::Affine::IDENTITY })).unwrap();
     let n = d.node(inst).unwrap();
     let opt = HitOptions::default();
     assert_eq!(symbol_part_at(&d, n, Point::new(50.0, 50.0), opt), Some(vec![0, 1]), "where the mask shows the art");
     assert_eq!(symbol_part_at(&d, n, Point::new(150.0, 50.0), opt), None, "where the mask hides it");
-    let b = vectorcraft_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[0, 1]).unwrap());
+    let b = pluma_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[0, 1]).unwrap());
     assert!((b.x1 - 100.0).abs() < 1e-6, "the outline is cut to the mask: {b:?}");
     // Its outline inside the group around the layer is cut too.
-    let b = vectorcraft_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[0]).unwrap());
+    let b = pluma_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[0]).unwrap());
     assert!((b.x1 - 100.0).abs() < 1e-6, "the layer's outline is cut to the mask: {b:?}");
 }
 
@@ -1515,7 +1515,7 @@ fn an_object_a_clipping_layer_in_symbol_art_hides_is_not_picked_there() {
 /// canvas draws nothing of it. At the art's natural size the same art is picked.
 #[test]
 fn symbol_art_past_the_object_limit_picks_nothing() {
-    use vectorcraft_color::{Gradient, GradientPaint};
+    use pluma_color::{Gradient, GradientPaint};
     let mut d = Document::new(400.0, 400.0);
     let l = d.layers[0].id;
     let leaf = Arc::new(Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)), Appearance::default_art()));
@@ -1532,9 +1532,9 @@ fn symbol_art_past_the_object_limit_picks_nothing() {
     d.set_symbol_nine_slice("Big", Some(crate::SymbolNineSlice::default()));
     let scaled = d.alloc_id();
     let natural = d.alloc_id();
-    let xf = vectorcraft_geom::Affine::scale_non_uniform(2.0, 1.5);
+    let xf = pluma_geom::Affine::scale_non_uniform(2.0, 1.5);
     d.insert(Some(l), 0, Node::new(scaled, NodeKind::SymbolInstance { symbol: "Big".into(), xf })).unwrap();
-    d.insert(Some(l), 0, Node::new(natural, NodeKind::SymbolInstance { symbol: "Big".into(), xf: vectorcraft_geom::Affine::IDENTITY })).unwrap();
+    d.insert(Some(l), 0, Node::new(natural, NodeKind::SymbolInstance { symbol: "Big".into(), xf: pluma_geom::Affine::IDENTITY })).unwrap();
     assert!(d.place_symbol_art("Big", &d.symbols[0].art, xf).is_none(), "the art is past the limit");
     let opt = HitOptions::default();
     let n = d.node(scaled).unwrap();
@@ -1552,7 +1552,7 @@ fn symbol_art_past_the_object_limit_picks_nothing() {
 /// the guides on its own would pass [`crate::MAX_SYMBOL_NODES`] objects.
 #[test]
 fn objects_of_a_clip_group_in_one_cell_are_placed_with_it() {
-    use vectorcraft_color::{Gradient, GradientPaint};
+    use pluma_color::{Gradient, GradientPaint};
     let mut d = Document::new(400.0, 400.0);
     let l = d.layers[0].id;
     let leaf = Arc::new(Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)), Appearance::default_art()));
@@ -1570,14 +1570,14 @@ fn objects_of_a_clip_group_in_one_cell_are_placed_with_it() {
     d.symbols.push(crate::Symbol { dynamic: true, name: "Corner".into(), art: Arc::new(root) });
     d.set_symbol_nine_slice("Corner", Some(crate::SymbolNineSlice::default()));
     let inst = d.alloc_id();
-    let xf = vectorcraft_geom::Affine::scale_non_uniform(2.0, 1.5);
+    let xf = pluma_geom::Affine::scale_non_uniform(2.0, 1.5);
     d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Corner".into(), xf })).unwrap();
     let m = d.symbol_slice_map("Corner", xf).unwrap();
     assert!(m.most_placed(&big, &d) > crate::MAX_SYMBOL_NODES, "the object alone is past the limit");
     assert!(d.place_symbol_art("Corner", &d.symbols[0].art, xf).is_some(), "the art is drawn");
     let n = d.node(inst).unwrap();
     assert_eq!(symbol_part_at(&d, n, Point::new(10.0, 10.0), HitOptions::default()), Some(vec![1, 1]));
-    let b = vectorcraft_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[1, 1]).unwrap());
+    let b = pluma_geom::kurbo::Shape::bounding_box(&symbol_part_outline(&d, n, &[1, 1]).unwrap());
     assert!((b.x1 - 20.0).abs() < 1e-6 && (b.y1 - 20.0).abs() < 1e-6, "cut to the clip in its corner: {b:?}");
 }
 
@@ -1601,7 +1601,7 @@ fn a_shaper_groups_original_shapes_in_symbol_art_are_not_picked() {
     let root = Node::group(d.alloc_id(), vec![Arc::new(group)]);
     d.symbols.push(crate::Symbol { dynamic: true, name: "Shaped".into(), art: Arc::new(root) });
     let inst = d.alloc_id();
-    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Shaped".into(), xf: vectorcraft_geom::Affine::IDENTITY })).unwrap();
+    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Shaped".into(), xf: pluma_geom::Affine::IDENTITY })).unwrap();
     let n = d.node(inst).unwrap();
     let opt = HitOptions::default();
     assert_eq!(symbol_part_at(&d, n, Point::new(130.0, 50.0), opt), None, "over the erased original shape");

@@ -1,7 +1,7 @@
 use kurbo::{BezPath, Point, Shape, Vec2};
-use vectorcraft_color::{Color, Gradient, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{ArrowAlign, Arrowhead, Dash, LineCap, LineJoin, StrokeAlign, StrokeGradientMode, StrokeLayer, WidthProfile};
-use vectorcraft_geom::FillRule;
+use pluma_color::{Color, Gradient, GradientPaint, GradientStop, Paint};
+use pluma_doc::{ArrowAlign, Arrowhead, Dash, LineCap, LineJoin, StrokeAlign, StrokeGradientMode, StrokeLayer, WidthProfile};
+use pluma_geom::FillRule;
 
 use super::*;
 

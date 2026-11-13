@@ -3,9 +3,9 @@
 //! symbols their art uses along, one undo step, deduped, renamed on a clash, applied), other
 //! documents' brushes, and files that can't be read.
 
+use pluma_brush::BrushKind;
+use pluma_doc::{NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_brush::BrushKind;
-use vectorcraft_doc::{NodeId, NodeKind};
 
 use crate::*;
 
@@ -19,7 +19,7 @@ fn run(s: &mut Session, id: &str, p: Value) -> Value {
     s.execute(id, &p).unwrap_or_else(|e| panic!("{id} {p}: {e}"))
 }
 
-fn doc(s: &Session) -> &vectorcraft_doc::Document {
+fn doc(s: &Session) -> &pluma_doc::Document {
     &s.doc().unwrap().doc
 }
 
@@ -28,11 +28,11 @@ fn undo_len(s: &Session) -> usize {
 }
 
 fn brushes(s: &Session) -> Vec<String> {
-    vectorcraft_brush::library(doc(s)).into_iter().map(|b| b.name).collect()
+    pluma_brush::library(doc(s)).into_iter().map(|b| b.name).collect()
 }
 
-fn brush(s: &Session, name: &str) -> vectorcraft_brush::Brush {
-    vectorcraft_brush::find(doc(s), name).unwrap_or_else(|| panic!("no brush {name}"))
+fn brush(s: &Session, name: &str) -> pluma_brush::Brush {
+    pluma_brush::find(doc(s), name).unwrap_or_else(|| panic!("no brush {name}"))
 }
 
 fn strs(v: &Value) -> Vec<&str> {
@@ -40,12 +40,12 @@ fn strs(v: &Value) -> Vec<&str> {
 }
 
 /// The patterns a brush's art fills with.
-fn art_patterns(b: &vectorcraft_brush::Brush) -> Vec<String> {
+fn art_patterns(b: &pluma_brush::Brush) -> Vec<String> {
     let mut out = vec![];
     for a in b.art() {
         a.walk(&mut |n| {
             for it in &n.appearance.items {
-                if let vectorcraft_color::Paint::Pattern { pattern, .. } = it.paint() {
+                if let pluma_color::Paint::Pattern { pattern, .. } = it.paint() {
                     out.push(pattern.clone());
                 }
             }
@@ -63,20 +63,20 @@ fn folder(name: &str) -> std::path::PathBuf {
 
 /// Pattern `name` (a 4 pt dot of `color` in a 10 pt tile) with its swatch, as one step.
 fn add_pattern(s: &mut Session, name: &str, color: &str) {
-    let color = vectorcraft_color::Color::from_hex(color).unwrap();
+    let color = pluma_color::Color::from_hex(color).unwrap();
     s.edit("Pattern", |d, _| {
-        let dot = vectorcraft_doc::Node::path(
+        let dot = pluma_doc::Node::path(
             d.alloc_id(),
-            vectorcraft_geom::shapes::ellipse(vectorcraft_geom::Rect::new(0.0, 0.0, 4.0, 4.0)),
-            vectorcraft_doc::Appearance::basic(vectorcraft_color::Paint::solid(color), vectorcraft_color::Paint::None, 0.0),
+            pluma_geom::shapes::ellipse(pluma_geom::Rect::new(0.0, 0.0, 4.0, 4.0)),
+            pluma_doc::Appearance::basic(pluma_color::Paint::solid(color), pluma_color::Paint::None, 0.0),
         );
-        let def = vectorcraft_doc::PatternDef {
-            tile: vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0),
-            ..vectorcraft_doc::PatternDef::new(name, vec![std::sync::Arc::new(dot)])
+        let def = pluma_doc::PatternDef {
+            tile: pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0),
+            ..pluma_doc::PatternDef::new(name, vec![std::sync::Arc::new(dot)])
         };
-        d.swatches.push(vectorcraft_color::Swatch {
+        d.swatches.push(pluma_color::Swatch {
             name: name.into(),
-            paint: vectorcraft_color::Paint::Pattern { pattern: name.into(), xf: Default::default() },
+            paint: pluma_color::Paint::Pattern { pattern: name.into(), xf: Default::default() },
             global: false,
             spot: false,
         });
@@ -118,11 +118,11 @@ fn the_builtin_libraries_are_original_brushes_generated_in_code() {
         assert!(lib.len() >= 4, "{id}");
         for b in &lib.brushes {
             assert_eq!(b.kind.type_id(), kind, "{}", b.name);
-            let mut line = vectorcraft_geom::BezPath::new();
+            let mut line = pluma_geom::BezPath::new();
             line.move_to((0.0, 0.0));
             line.curve_to((60.0, -40.0), (140.0, 40.0), (200.0, 0.0));
-            let stroke = vectorcraft_doc::StrokeLayer::new(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), 1.0);
-            assert!(!vectorcraft_brush::stroke_pieces(&lib.doc, b, &line, &stroke).is_empty(), "{} draws nothing", b.name);
+            let stroke = pluma_doc::StrokeLayer::new(pluma_color::Paint::solid(pluma_color::Color::BLACK), 1.0);
+            assert!(!pluma_brush::stroke_pieces(&lib.doc, b, &line, &stroke).is_empty(), "{} draws nothing", b.name);
         }
     }
     // The resources their art uses come with them: Striped Ribbon's pattern, Sparkles' symbol.
@@ -134,7 +134,7 @@ fn the_builtin_libraries_are_original_brushes_generated_in_code() {
     assert!(matches!(&sparkles.art.kind, NodeKind::SymbolInstance { symbol, .. } if symbol == "Sparkle"));
     assert!(shapes.doc.symbols.iter().any(|x| x.name == "Sparkle"));
     // None of them is a default brush.
-    let defaults: Vec<&str> = vectorcraft_brush::defaults().iter().map(|b| b.name.as_str()).collect();
+    let defaults: Vec<&str> = pluma_brush::defaults().iter().map(|b| b.name.as_str()).collect();
     for id in ids {
         let (_, lib) = cmd::brushlib::library(&s, id).unwrap();
         assert!(lib.brushes.iter().all(|b| !defaults.contains(&b.name.as_str())), "{id}");
@@ -148,21 +148,21 @@ fn a_saved_library_reopens_and_its_brushes_join_another_document_in_one_step() {
     let mut s = kit();
     s.brush_libraries.set_user_dir(Some(dir.to_string_lossy().to_string()));
     let r = run(&mut s, "brush.saveLibrary", json!({"user": true, "name": "Inks", "names": ["My Nib", "Dotted Band"]}));
-    assert_eq!((r["library"].as_str(), r["count"].as_u64()), (Some("user/Inks.vectorcraft"), Some(2)));
+    assert_eq!((r["library"].as_str(), r["count"].as_u64()), (Some("user/Inks.pluma"), Some(2)));
     let path = r["path"].as_str().unwrap().to_string();
     let list = run(&mut s, "brush.libraries", json!({}));
     let user: Vec<&Value> = list["libraries"].as_array().unwrap().iter().filter(|l| l["category"] == "user").collect();
     assert_eq!(user.len(), 1);
     assert_eq!((user[0]["name"].as_str(), user[0]["count"].as_u64()), (Some("Inks"), Some(2)));
     // The file is a document: the two brushes and the pattern their art uses, no art.
-    let saved = vectorcraft_format::load(&std::fs::read(&path).unwrap()).unwrap();
-    let names: Vec<String> = vectorcraft_brush::library(&saved).into_iter().map(|b| b.name).collect();
+    let saved = pluma_format::load(&std::fs::read(&path).unwrap()).unwrap();
+    let names: Vec<String> = pluma_brush::library(&saved).into_iter().map(|b| b.name).collect();
     assert_eq!(names, ["My Nib", "Dotted Band"]);
     assert_eq!(saved.patterns.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["Dots"]);
     assert!(saved.layers.iter().all(|l| l.children().is_none_or(|c| c.is_empty())));
     // Loading the file gives that User Defined library.
     let r = run(&mut s, "brush.loadLibrary", json!({ "path": path }));
-    assert_eq!((r["library"].as_str(), r["name"].as_str()), (Some("user/Inks.vectorcraft"), Some("Inks")));
+    assert_eq!((r["library"].as_str(), r["name"].as_str()), (Some("user/Inks.pluma"), Some("Inks")));
 
     // Into a new document: Dotted Band and its pattern, as one step.
     run(&mut s, "file.new", json!({"width": 100, "height": 100}));
@@ -184,7 +184,7 @@ fn a_saved_library_reopens_and_its_brushes_join_another_document_in_one_step() {
     run(&mut s, "edit.redo", json!({}));
     // Again: already there, so no step and no copy.
     let before = undo_len(&s);
-    let r = run(&mut s, "brush.addFromLibrary", json!({"library": "user/Inks.vectorcraft", "names": ["Dotted Band", "My Nib", "Dotted Band"]}));
+    let r = run(&mut s, "brush.addFromLibrary", json!({"library": "user/Inks.pluma", "names": ["Dotted Band", "My Nib", "Dotted Band"]}));
     assert_eq!((strs(&r["names"]), strs(&r["existing"]), strs(&r["added"])), (vec!["Dotted Band", "My Nib"], vec!["Dotted Band"], vec!["My Nib"]));
     assert_eq!(undo_len(&s), before + 1, "My Nib was new");
     let before = undo_len(&s);
@@ -225,10 +225,10 @@ fn library_brushes_bring_their_patterns_and_symbols_rename_clashes_and_apply() {
     let r = run(&mut s, "brush.addFromLibrary", json!({"library": "art-ribbons", "names": ["Striped Ribbon", "Wave"]}));
     assert_eq!((strs(&r["names"]), strs(&r["existing"])), (vec!["Striped Ribbon", "Wave 2"], vec!["Striped Ribbon", "Wave 2"]));
     assert_eq!(undo_len(&s), before);
-    assert!(doc(&s).pattern("Pinstripes 3").is_none() && vectorcraft_brush::find(doc(&s), "Striped Ribbon 2").is_none());
+    assert!(doc(&s).pattern("Pinstripes 3").is_none() && pluma_brush::find(doc(&s), "Striped Ribbon 2").is_none());
     // Undo of the first add takes the brushes, the pattern and the brush stroke back.
     run(&mut s, "edit.undo", json!({}));
-    assert!(vectorcraft_brush::find(doc(&s), "Striped Ribbon").is_none() && doc(&s).pattern("Pinstripes 2").is_none());
+    assert!(pluma_brush::find(doc(&s), "Striped Ribbon").is_none() && doc(&s).pattern("Pinstripes 2").is_none());
     assert!(doc(&s).node(NodeId(path)).unwrap().appearance.stroke().is_none_or(|st| st.brush.is_none()));
     // A scatter brush brings the symbol it scatters.
     let r = run(&mut s, "brush.addFromLibrary", json!({"library": "Scatter Shapes", "name": "Sparkles"}));
@@ -279,7 +279,7 @@ fn pasted_brushed_art_brings_the_patterns_its_brush_art_uses() {
     run(&mut s, "edit.copy", json!({}));
     run(&mut s, "file.new", json!({"width": 200, "height": 200}));
     run(&mut s, "edit.paste", json!({}));
-    assert!(vectorcraft_brush::find(doc(&s), "Dotted Band").is_some());
+    assert!(pluma_brush::find(doc(&s), "Dotted Band").is_some());
     assert!(doc(&s).pattern("Dots").is_some(), "the brush's art is filled with it");
 }
 
@@ -289,7 +289,7 @@ fn other_documents_brushes_load_and_unreadable_files_are_errors() {
     // Another document's brushes load as a library, without its art.
     let b64 = run(&mut s, "document.serialize", json!({}))["dataBase64"].as_str().unwrap().to_string();
     let count = brushes(&s).len();
-    let r = run(&mut s, "brush.loadLibrary", json!({"dataBase64": b64, "name": "Poster.vectorcraft"}));
+    let r = run(&mut s, "brush.loadLibrary", json!({"dataBase64": b64, "name": "Poster.pluma"}));
     assert_eq!((r["name"].as_str(), r["count"].as_u64()), (Some("Poster"), Some(count as u64)));
     let (_, lib) = cmd::brushlib::library(&s, r["library"].as_str().unwrap()).unwrap();
     assert!(lib.doc.layers.iter().all(|l| l.children().is_none_or(|c| c.is_empty())));
@@ -297,13 +297,13 @@ fn other_documents_brushes_load_and_unreadable_files_are_errors() {
     // An SVG has the default brushes, as it does opened.
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="10" height="10"/></svg>"##;
     let r = run(&mut s, "brush.loadLibrary", json!({"data": svg, "name": "Box.svg"}));
-    assert_eq!(r["count"].as_u64(), Some(vectorcraft_brush::defaults().len() as u64), "{r}");
+    assert_eq!(r["count"].as_u64(), Some(pluma_brush::defaults().len() as u64), "{r}");
     // Files that aren't documents, missing files and damaged native files are errors.
     assert!(s.execute("brush.loadLibrary", &json!({"data": "hello", "name": "x.txt"})).is_err());
-    assert!(s.execute("brush.loadLibrary", &json!({"path": "/no/such/Library.vectorcraft"})).is_err());
+    assert!(s.execute("brush.loadLibrary", &json!({"path": "/no/such/Library.pluma"})).is_err());
     let dir = folder("bad");
     std::fs::create_dir_all(&dir).unwrap();
-    let bad = dir.join("Broken.vectorcraft");
+    let bad = dir.join("Broken.pluma");
     std::fs::write(&bad, b"{\"format\": \"vectorcraft\", \"doc\": 7").unwrap();
     assert!(s.execute("brush.loadLibrary", &json!({"path": bad.to_string_lossy()})).is_err());
     // A damaged file in the user folder isn't listed.
@@ -322,6 +322,6 @@ fn other_documents_brushes_load_and_unreadable_files_are_errors() {
     // Without a path the library comes back as the file's bytes.
     let mut s = kit();
     let r = run(&mut s, "brush.saveLibrary", json!({"names": ["My Nib"]}));
-    let bytes = vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
-    assert_eq!(vectorcraft_brush::library(&vectorcraft_format::load(&bytes).unwrap()).len(), 1);
+    let bytes = pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
+    assert_eq!(pluma_brush::library(&pluma_format::load(&bytes).unwrap()).len(), 1);
 }

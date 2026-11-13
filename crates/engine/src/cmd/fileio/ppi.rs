@@ -236,7 +236,7 @@ fn bmp(b: &[u8]) -> Option<(f64, f64)> {
 /// `png` with a `pHYs` chunk declaring `ppi` right after the header (any existing one is replaced).
 pub fn with_png_resolution(png: &[u8], (x, y): (f64, f64)) -> Vec<u8> {
     let Some(head) = be32(png, 8).and_then(|len| slice(png, 0, 20usize.checked_add(len as usize)?)) else { return png.to_vec() };
-    let chunk = vectorcraft_render::encode::png::phys_chunk(x, y);
+    let chunk = pluma_render::encode::png::phys_chunk(x, y);
     let mut out = Vec::with_capacity(png.len() + chunk.len());
     out.extend_from_slice(head);
     out.extend_from_slice(&chunk);
@@ -298,7 +298,7 @@ mod tests {
     /// resolution is written as EXIF instead and this reader still finds it (#3084).
     #[test]
     fn a_cmyk_jpeg_keeps_its_resolution_without_jfif() {
-        use vectorcraft_render::encode::jpeg::{self, ColorModel, JpegOptions};
+        use pluma_render::encode::jpeg::{self, ColorModel, JpegOptions};
         let o = JpegOptions { color_model: ColorModel::Cmyk, ..Default::default() };
         let jpg = jpeg::encode(&[0; 4 * 4], 2, 2, 90, Some(240.0), &o).unwrap();
         assert!(!jpg.windows(5).any(|w| w == b"JFIF\0"), "no JFIF on a CMYK file");

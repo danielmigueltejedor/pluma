@@ -1,7 +1,7 @@
 # Russian (ru) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
 #
-# Clean-room: written from the meaning of VectorCraft's English labels in neutral, international
+# Clean-room: written from the meaning of Pluma's English labels in neutral, international
 # Russian, using the feature names Russian-speaking users of vector illustration software know
 # (Монтажная область, Образцы, Обводка, Заливка, Обработка контуров, Узор, Набор, Опорная точка,
 # Перо, Прямое выделение). Shortcut keys keep their key-cap names (Shift, Alt, Ctrl, Esc).
@@ -101,7 +101,7 @@
 	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	Меньшее значение точнее повторяет обводку; большее даёт меньше точек и более гладкие кривые.
 	A new preset starting from the selected one	Новый набор на основе выбранного
 	A saved copy of the selected preset	Сохранённая копия выбранного набора
-	About VectorCraft	О программе VectorCraft
+	About Pluma	О программе Pluma
 	above	сверху
 	Absolute Position	Абсолютная позиция
 	Accurate	Точный
@@ -211,7 +211,7 @@ font-technology	Variable	Вариативные
 	Appearance Panel	Панель «Оформление»
 	Appearance panel	Панель «Оформление»
 	Applies when the linked file is relinked or updated.	Применяется при повторной привязке или обновлении связанного файла.
-	Applies the next time VectorCraft starts.	Применяется при следующем запуске VectorCraft.
+	Applies the next time Pluma starts.	Применяется при следующем запуске Pluma.
 	Apply	Применить
 	Apply Brush	Применить кисть
 	Apply Character Style	Применить стиль символа
@@ -248,8 +248,7 @@ font-technology	Variable	Вариативные
 	Artboard {number}	Монтажная область {number}
 	Artboard:	Монтажная область:
 	Artboards	Монтажные области
-	ArtCraft Website	Веб-сайт ArtCraft
-	ArtCraft website	Веб-сайт ArtCraft
+	Pluma Website	Веб-сайт Pluma
 	Artwork Colors	Цвета рисунка
 	As Multiple Assets	Как несколько ресурсов
 	As Single Asset	Как один ресурс
@@ -420,7 +419,7 @@ font-technology	Variable	Вариативные
 	Check Script	Проверить сценарий
 	Check Script…	Проверить сценарий…
 	Copy Report	Копировать отчёт
-	VectorCraft read this script without running it.	VectorCraft прочитал этот сценарий, не запуская его.
+	Pluma read this script without running it.	Pluma прочитал этот сценарий, не запуская его.
 	Needs nothing beyond plain JavaScript	Нужен только обычный JavaScript
 	Needs the script language's own objects or directives	Нужны собственные объекты или директивы языка сценариев
 	Needs the document model	Нужна модель документа
@@ -819,7 +818,6 @@ font-technology	Variable	Вариативные
 	Discard Empty Type	Отменить пустой текст
 	Discard Recovered Documents	Отменить восстановленные документы
 	Discard White Overprint in Output	Отменить наложение белого при выводе
-	Discord	Discord
 	Discretionary Hyphen	Мягкий перенос
 	Discretionary Ligatures	Дискреционные лигатуры
 	Display All Blacks Accurately	Отображать все чёрные точно
@@ -1278,7 +1276,7 @@ file-filter	Print presets	Наборы печати
 file-filter	Export presets	Наборы настроек экспорта
 file-filter	SVG Compressed	Сжатый SVG
 file-filter	PDF-compatible .ai	.ai, совместимый с PDF
-file-filter	VectorCraft Template	Шаблон VectorCraft
+file-filter	Pluma Template	Шаблон Pluma
 file-filter	Templates	Шаблоны
 	Flattener Preview	Предварительный просмотр объединения
 	Flip Across	Отразить поперёк
@@ -1718,9 +1716,6 @@ file-filter	Templates	Шаблоны
 	Italian	Итальянский
 	Japanese	Японский
 	Join	Соединить
-	Join Our Discord	Присоединяйтесь к нашему Discord
-	Join our Discord	Присоединяйтесь к нашему Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Присоединяйтесь к сообществу ArtCraft в Discord (discord.gg/artcraft)
 	Join the lines of each paragraph	Соединять строки каждого абзаца
 	Join Tool	Инструмент «Соединение»
 	Justification…	Выключка…
@@ -1748,7 +1743,7 @@ file-filter	Templates	Шаблоны
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	Импорт набора сочетаний клавиш
 	Import Shortcut Set…	Импортировать набор сочетаний клавиш…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Каждая запись файла сопоставляется с инструментом, командой или панелью VectorCraft. Проверьте сопоставления и ответьте на оставшиеся вопросы.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Каждая запись файла сопоставляется с инструментом, командой или панелью Pluma. Проверьте сопоставления и ответьте на оставшиеся вопросы.
 	Keys	Клавиши
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Файл записывает клавиши и модификаторы в виде кодов. Проверьте предложенные значения и укажите коды, которые ещё неизвестны.
 	Click, then press the key this code stands for (Esc cancels)	Щёлкните, затем нажмите клавишу, которую обозначает этот код (Esc отменяет)
@@ -1759,7 +1754,7 @@ file-filter	Templates	Шаблоны
 	Shortcuts	Сочетания клавиш
 	Shortcut	Сочетание клавиш
 	In the File	В файле
-	In VectorCraft	В VectorCraft
+	In Pluma	В Pluma
 	Needs Attention Only	Только требующие внимания
 	Ready	Готово
 	Needs a choice	Нужен выбор
@@ -1768,7 +1763,7 @@ file-filter	Templates	Шаблоны
 	Tools take a single key (optionally with Shift)	Инструментам назначается одна клавиша (можно с Shift)
 	A later row takes this shortcut	Это сочетание забирает строка ниже
 	Same item as a later row	Тот же элемент, что и в строке ниже
-	Start from VectorCraft Defaults	Начать со значений VectorCraft по умолчанию
+	Start from Pluma Defaults	Начать со значений Pluma по умолчанию
 	Add to the Current Shortcuts	Добавить к текущим сочетаниям клавиш
 	Remember My Choices	Запомнить мой выбор
 	{ready} of {total} ready	Готово: {ready} из {total}
@@ -2430,7 +2425,7 @@ file-filter	Templates	Шаблоны
 	Paragraph Style Options	Параметры стиля абзаца
 	Paragraph Styles	Стили абзацев
 	Paragraph Symbol	Символ абзаца
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Часть ArtCraft. MIT OR Apache-2.0. Шрифты: Source Sans 3, Inter, JetBrains Mono (OFL). Значки: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Часть Nodalia. MIT OR Apache-2.0. Шрифты: Source Sans 3, Inter, JetBrains Mono (OFL). Значки: Lucide (ISC) + Pluma.
 	Password	Пароль
 	Paste	Вставить
 	Paste in Back	Вставить позади
@@ -2630,7 +2625,7 @@ digits	Malayalam	Малаялам
 	Quarter Space	Четвертная шпация
 	Quick Actions	Быстрые действия
 	Quickly start a new file	Быстро создать новый файл
-	Quit VectorCraft	Выйти из VectorCraft
+	Quit Pluma	Выйти из Pluma
 	Radar Graph Tool	Инструмент «Лепестковая диаграмма»
 	Radial	Радиальный
 	Radial Glows	Радиальные свечения
@@ -2761,7 +2756,7 @@ digits	Malayalam	Малаялам
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	Не удалось прочитать папок или файлов: {n}|Не удалось прочитать папок или файлов: {n}|Не удалось прочитать папок или файлов: {n}
 	The search stopped at its limit: search a smaller folder.	Поиск остановился на пределе: выберите папку поменьше.
 	Copy only fonts you own or are licensed to install.	Копируйте только шрифты, которые принадлежат вам или которые вы вправе устанавливать по лицензии.
-	VectorCraft copies the fonts to {folder}.	VectorCraft копирует шрифты в {folder}.
+	Pluma copies the fonts to {folder}.	Pluma копирует шрифты в {folder}.
 	Registered Trademark Symbol	Символ зарегистрированного товарного знака
 	Registration marks	Метки совмещения
 	Registry name:	Имя в реестре:
@@ -2883,9 +2878,9 @@ digits	Malayalam	Малаялам
 	Revert	Вернуть
 	Revert to the saved version of “{name}”?	Вернуться к сохранённой версии «{name}»?
 	Replace “{name}”, the file this document was opened from?	Заменить «{name}» — файл, из которого открыт этот документ?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	При открытии было пропущено то, что VectorCraft пока не умеет читать ({what}), поэтому замена файла потеряет это навсегда. Чтобы сохранить это, сохраните документ под другим именем.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	При открытии было пропущено то, что Pluma пока не умеет читать ({what}), поэтому замена файла потеряет это навсегда. Чтобы сохранить это, сохраните документ под другим именем.
 	“{name}” already exists. Replace it?	«{name}» уже существует. Заменить?
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	Имя в окне сохранения было «{typed}», а VectorCraft добавил расширение типа файла. Замена файла перезапишет его содержимое.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	Имя в окне сохранения было «{typed}», а Pluma добавил расширение типа файла. Замена файла перезапишет его содержимое.
 	Revolve…	Вращение…
 	RGB Color	Цвет RGB
 	Right	Справа
@@ -3046,7 +3041,7 @@ digits	Malayalam	Малаялам
 	Saves the current bars, toolbar and panel layout.	Сохраняет текущее расположение панелей, панели инструментов и панелей.
 	Save…	Сохранить…
 	Saving	Сохранение
-	Saving Poster.vectorcraft	Сохранение Poster.vectorcraft
+	Saving Poster.pluma	Сохранение Poster.pluma
 	Saving recovery data for {}	Сохранение данных восстановления для {}
 	Saving {}	Сохранение {}
 	Scale	Масштабировать
@@ -3814,10 +3809,9 @@ digits	Malayalam	Малаялам
 	Vector Halftone	Векторный полутон
 	Vector Halftone…	Векторный полутон…
 	Vector illustration — fast, open, scriptable.	Векторная иллюстрация — быстрая, открытая, программируемая.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft не завершился нормально в прошлый раз. В этих документах были несохранённые изменения:
-	VectorCraft Help…	Справка VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft на getartcraft.com
-	VectorCraft on GitHub	VectorCraft на GitHub
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma не завершился нормально в прошлый раз. В этих документах были несохранённые изменения:
+	Pluma Help…	Справка Pluma…
+	Pluma on GitHub	Pluma на GitHub
 	Vectors	Векторы
 	Version {version} — open-source vector illustration in pure Rust.	Версия {version} — векторная иллюстрация с открытым исходным кодом на чистом Rust.
 	Version:	Версия:
@@ -3857,7 +3851,7 @@ digits	Malayalam	Малаялам
 	Web Snap:	Привязка к web:
 	Weight	Толщина
 	Weight:	Толщина:
-	Welcome to VectorCraft	Добро пожаловать в VectorCraft
+	Welcome to Pluma	Добро пожаловать в Pluma
 	When pasting text	При вставке текста
 	White	Белый
 	Widget Position:	Положение виджета:
@@ -4198,7 +4192,7 @@ axis	Both	Оба
 @msg	Split Into Grid: select paths large enough for the grid	Разделение на сетку: выделите контуры, достаточно большие для сетки
 @msg	Targa files are RGB: colorModel rgb	файлы Targa являются RGB: colorModel rgb
 @msg	Text Wrap: select a wrap object	Обтекание текстом: выделите объект обтекания
-@msg	This shortcut file is in a form VectorCraft can't read.	Этот файл сочетаний клавиш записан в формате, который VectorCraft не может прочитать.
+@msg	This shortcut file is in a form Pluma can't read.	Этот файл сочетаний клавиш записан в формате, который Pluma не может прочитать.
 @msg	`antiAlias` must be "none", "sharp", "crisp" or "strong"	`antiAlias` должно быть "none", "sharp", "crisp" или "strong"
 @msg	`aspect` must be a number (%)	`aspect` должно быть числом (%)
 @msg	`at` must be [x, y]	`at` должно быть [x, y]
@@ -4329,7 +4323,7 @@ axis	Both	Оба
 @msg	can't encode the document: {0}	не удалось закодировать документ: {0}
 @msg	can't parse shortcut `{c}`	не удалось разобрать сочетание `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	не удалось разобрать сочетание `{s}` для `{k}`
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	не удалось сохранить версию {0}: VectorCraft записывает версии от {MIN_VERSION} до {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	не удалось сохранить версию {0}: Pluma записывает версии от {MIN_VERSION} до {VERSION}
 @msg	can't write .{ext} images	не удалось записать изображения .{ext}
 @msg	cannot distort a zero-size bounding box	нельзя исказить ограничительную рамку нулевого размера
 @msg	cannot read PDF: {0}	не удалось прочитать PDF: {0}
@@ -4356,7 +4350,7 @@ axis	Both	Оба
 @msg	empty brush stroke	пустой мазок кисти
 @msg	empty cutter	пустой резак
 @msg	empty path	пустой контур
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	версия файла {0} новее, чем поддерживает этот VectorCraft ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	версия файла {0} новее, чем поддерживает этот Pluma ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	произвольной точке {i} нужны `at` [x, y] и допустимый `color`
 @msg	freeform line {i} must be an array of point indices	произвольная линия {i} должна быть массивом индексов точек
 @msg	give both `start` and `end` [x, y] (or neither)	укажите и `start`, и `end` [x, y] (или ни одного)
@@ -4377,9 +4371,9 @@ axis	Both	Оба
 @msg	invalid PDF setting: {0}	недопустимый параметр PDF: {0}
 @msg	invalid image data for `{0}`	недопустимые данные изображения для `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	недопустимые параметры для `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	не является изображением, которое читает VectorCraft
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	использует `{at}`, которое не знает читатель PostScript в VectorCraft
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	использует `{at}`, которое не знает читатель PostScript в VectorCraft, в {procs}
+@msg	is not an image Pluma reads	не является изображением, которое читает Pluma
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	использует `{at}`, которое не знает читатель PostScript в Pluma
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	использует `{at}`, которое не знает читатель PostScript в Pluma, в {procs}
 @msg	its Windows metafile preview was opened instead, which may simplify the art	вместо этого было открыто его предварительное представление метафайла Windows, что может упростить рисунок
 @msg	its preview was placed instead, at screen resolution	вместо этого было помещено его предварительное представление в разрешении экрана
 @msg	join needs open paths	соединение требует открытых контуров
@@ -4436,7 +4430,7 @@ axis	Both	Оба
 @msg	no file system here	здесь нет файловой системы
 @msg	no file writer	нет средства записи файлов
 @msg	no files to place	нет файлов для размещения
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` не является документом VectorCraft, PDF или файлом .ai, совместимым с PDF
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` не является документом Pluma, PDF или файлом .ai, совместимым с PDF
 @msg	no format to export to	нет формата для экспорта
 @msg	no free recovery area	нет свободной области восстановления
 @msg	no gradient stop or freeform point is selected	не выделена ни точка перехода градиента, ни произвольная точка
@@ -4481,7 +4475,7 @@ axis	Both	Оба
 @msg	the action set file is larger than 8 MiB	файл набора действий больше 8 MiB
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: справочник был бы больше {MAX_BYTES} байт
 @msg	the action set file holds more than 1,000 actions	файл набора действий содержит более 1000 действий
-@msg	the action set file needs a later version of VectorCraft	для файла набора действий нужна более новая версия VectorCraft
+@msg	the action set file needs a later version of Pluma	для файла набора действий нужна более новая версия Pluma
 @msg	an action in the action set file has more than 10,000 steps	в файле набора действий есть действие более чем из 10 000 шагов
 @msg	no such anchor	такой опорной точки нет
 @msg	no such artboard	такой монтажной области нет
@@ -4513,8 +4507,8 @@ axis	Both	Оба
 @msg	node {_1} is not text	узел {_1} не является текстом
 @msg	node {_1} is on a locked artboard	узел {_1} находится на заблокированной монтажной области
 @msg	not a DXF drawing	не является чертежом DXF
-@msg	not a VectorCraft file: {0}	не является файлом VectorCraft: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	не является набором сочетаний клавиш VectorCraft (отсутствует `overrides`)
+@msg	not a Pluma file: {0}	не является файлом Pluma: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	не является набором сочетаний клавиш Pluma (отсутствует `overrides`)
 @msg	not a blend	это не переход
 @msg	not a graphic style library (format `{_1}`)	не является библиотекой графических стилей (формат `{_1}`)
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	это не набор сочетаний клавиш: текст не начинается с имени с косой чертой и открывающей фигурной скобки
@@ -4807,11 +4801,11 @@ axis	Both	Оба
 @msg	Sent to {_1}	Отправлено в {_1}
 @msg	{_1} files	{_1} файлов
 @msg	The graphics were lost and have been restarted	Графика была потеряна и перезапущена
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	Графический процессор, выбранный первым, не смог показать окно, поэтому VectorCraft запустился снова на {summary}
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Прошлый запуск VectorCraft завершился на {name} до появления окна, поэтому VectorCraft запустился на {summary}. Чтобы снова попробовать этот графический процессор, измените Настройки › Производительность › Графический процессор или запустите приложение с заданной переменной WGPU_BACKEND
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Прошлый запуск VectorCraft завершился во время перечисления графических процессоров, поэтому VectorCraft запустился на {summary} только с OpenGL. Чтобы снова попробовать другие графические интерфейсы, измените Настройки › Производительность › Графический процессор или запустите приложение с заданной переменной WGPU_BACKEND
-@msg	Loading VectorCraft…	Загрузка VectorCraft…
-@msg	VectorCraft failed to start: {e}	VectorCraft не удалось запустить: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	Графический процессор, выбранный первым, не смог показать окно, поэтому Pluma запустился снова на {summary}
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Прошлый запуск Pluma завершился на {name} до появления окна, поэтому Pluma запустился на {summary}. Чтобы снова попробовать этот графический процессор, измените Настройки › Производительность › Графический процессор или запустите приложение с заданной переменной WGPU_BACKEND
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Прошлый запуск Pluma завершился во время перечисления графических процессоров, поэтому Pluma запустился на {summary} только с OpenGL. Чтобы снова попробовать другие графические интерфейсы, измените Настройки › Производительность › Графический процессор или запустите приложение с заданной переменной WGPU_BACKEND
+@msg	Loading Pluma…	Загрузка Pluma…
+@msg	Pluma failed to start: {e}	Pluma не удалось запустить: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	Требуется браузер с WebGPU или WebGL2.
 @msg	The graphics were lost and couldn't be restarted.	Графика была потеряна, и её не удалось перезапустить.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Ваши несохранённые изменения сохраняются в этом браузере: перезагрузите страницу, чтобы вернуть их.
@@ -4842,21 +4836,21 @@ axis	Both	Оба
 @msg	it has more than {MAX_NODES} objects	в них больше {MAX_NODES} объектов
 @msg	it has no layers	в них нет слоёв
 @msg	it has too many values in a row	в них слишком много значений подряд
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	в них есть {_1}, которые VectorCraft пока не читает
+@msg	it has {_1}, which Pluma doesn't read from it yet	в них есть {_1}, которые Pluma пока не читает
 @msg	its objects are nested too deeply	объекты в них вложены слишком глубоко
 @msg	its section ending with `%{end}` doesn't end	раздел, заканчивающийся на `%{end}`, не заканчивается
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	кисти, которые VectorCraft пока не умеет читать, не добавлены в панель «Кисти» ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	кисти, которые Pluma пока не умеет читать, не добавлены в панель «Кисти» ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	объекты с несколькими заливками или обводками, обводками переменной ширины, эффектами или кистями импортированы в нарисованном виде ({_1}): их оформление пока нельзя редактировать
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	имя `{name}` не в UTF-8 и прочитано как {label}: если оно выглядит неверно, откройте файл с другим legacyNameEncoding
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	имя `{name}` не в UTF-8, и его части недопустимы и в {label}: откройте файл с другим legacyNameEncoding
 @msg	more names that aren't UTF-8 were read as {label} ({count})	другие имена не в UTF-8 прочитаны как {label} ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	градиент «{name}» не определён в файле: вместо него используется сплошной цвет
-@msg	an image VectorCraft can't read was left out	изображение, которое VectorCraft не может прочитать, пропущено
+@msg	an image Pluma can't read was left out	изображение, которое Pluma не может прочитать, пропущено
 @msg	graphs come in as plain art, without their data or settings	диаграммы импортируются как обычная графика, без их данных и настроек
 @msg	an image whose data is cut short was left out	изображение с обрезанными данными пропущено
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	встроенное изображение {_1} × {_2} пикселей уменьшено до {_3} × {_4} пикселей, чтобы сохранить слои
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	связанные изображения показываются как сохранённый в файле просмотр низкого разрешения, пока их файлы не найдены: восстановите связи на панели «Связи»
-@msg	linked type areas past VectorCraft's limits were left out	связанные текстовые области за пределами ограничений VectorCraft пропущены
+@msg	linked type areas past Pluma's limits were left out	связанные текстовые области за пределами ограничений Pluma пропущены
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	текст, меняющий направление письма внутри текстового объекта, открывается в направлении своего первого символа
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	текст, используемый как маска в связанных областях, обтекающем тексте или составном контуре, не обрезает
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	связанные изображения без просмотра в файле показываются как заполнитель, пока их файлы не найдены: восстановите связи на панели «Связи»
@@ -4865,13 +4859,13 @@ axis	Both	Оба
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	этот файл сохранён без совместимости с PDF, и его данные редактирования не удаётся прочитать ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	не удалось прочитать PDF-часть ({_1}): файл открыт из его данных для редактирования
 @msg	No fonts are missing in this document	В этом документе нет отсутствующих шрифтов
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft не ищет в папках других приложений и системы: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft не ищет в папках Shared и Public внутри Users: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma не ищет в папках других приложений и системы: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma не ищет в папках Shared и Public внутри Users: {path}
 @msg	{path} is not a folder	{path} не является папкой
 @msg	the search couldn't start: try again in a moment	не удалось начать поиск: повторите попытку чуть позже
 @msg	searching a folder isn't available on the web	поиск в папке недоступен в веб-версии
 @msg	every search thread stopped on an internal error (please report this bug)	все потоки поиска остановились из-за внутренней ошибки (сообщите об этой ошибке)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	Папка Fonts VectorCraft здесь не задана: её задают настольное приложение и vectorcraft-cli
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Папка Fonts Pluma здесь не задана: её задают настольное приложение и pluma-cli
 @msg	choose the font files to add	выберите файлы шрифтов для добавления
 @msg	not a file	не файл
 @msg	not a font file	не файл шрифта
@@ -4884,7 +4878,7 @@ axis	Both	Оба
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	Службы
-	Hide VectorCraft	Скрыть VectorCraft
+	Hide Pluma	Скрыть Pluma
 	Zoom	Масштаб
 	Bring All to Front	Все окна на передний план
 	Settings	Настройки
@@ -4892,7 +4886,7 @@ axis	Both	Оба
 	On: one locked object showing the document, updated when it changes.	Вкл.: один заблокированный объект, показывающий документ и обновляемый при его изменении.
 	Off: an editable copy of its art, embedded in this document.	Выкл.: редактируемая копия его рисунка, внедрённая в этот документ.
 	Images: link to the file instead of only embedding it.	Изображения: связывать с файлом вместо простого внедрения.
-	VectorCraft documents: one locked object, updated when the file changes.	Документы VectorCraft: один заблокированный объект, обновляемый при изменении файла.
+	Pluma documents: one locked object, updated when the file changes.	Документы Pluma: один заблокированный объект, обновляемый при изменении файла.
 	A file dialog is open: choose there first	Открыто окно выбора файла: сначала сделайте выбор в нём
 	The document was closed while its file dialog was open	Документ был закрыт, пока было открыто его окно выбора файла
 	The dialog was closed before its file dialog answered	Диалоговое окно было закрыто до того, как ответило его окно выбора файла
@@ -5013,8 +5007,8 @@ axis	Both	Оба
 	Bottom Right	Снизу справа
 	Edge	Край
 	System Title Bar	Системная строка заголовка
-	VectorCraft Title Bar on Every Desktop	Строка заголовка VectorCraft на любом рабочем столе
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Пока переменная среды VECTORCRAFT_TITLEBAR задана, строку заголовка выбирает она.
+	Pluma Title Bar on Every Desktop	Строка заголовка Pluma на любом рабочем столе
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Пока переменная среды PLUMA_TITLEBAR задана, строку заголовка выбирает она.
 	System Title Bar takes precedence over this option while it is on.	Пока включена «Системная строка заголовка», она имеет приоритет над этим параметром.
 	Value Axis	Ось значений
 	On Left Side	Слева
@@ -5172,7 +5166,7 @@ lighting	Light	Свет
 	Edge Intensity	Интенсивность краёв
 	Posterization	Постеризация
 	Highlight Area	Область светов
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	сжатый файл распаковывается в объём больше, чем читает VectorCraft ({_1} МБ документа, {_2} МБ на изображение)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	сжатый файл распаковывается в объём больше, чем читает Pluma ({_1} МБ документа, {_2} МБ на изображение)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	документ слишком велик для сохранения со сжатием ({0}): сохраните его с выключенным параметром «Использовать сжатие»
 @msg	the file stopped being read (please report this bug)	чтение файла прервалось (пожалуйста, сообщите об этой ошибке)
 	Concentric Dividers:	Концентрические разделители:
@@ -5891,7 +5885,7 @@ axis	Y Axis	Ось Y
 	Inserting, deleting and rotating pages	Вставка, удаление и поворот страниц
 	Joins:	Соединения:
 	Justify	Выравнивание по ширине
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Документ остается редактируемым: VectorCraft откроет PDF снова без потерь. Для файлов, которые вы будете править.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	Документ остается редактируемым: Pluma откроет PDF снова без потерь. Для файлов, которые вы будете править.
 	Keyboard Shortcuts	Сочетания клавиш
 	Kite	Воздушный змей
 	Lab Spot Colors	Плашечные цвета Lab
@@ -6031,10 +6025,10 @@ axis	Y Axis	Ось Y
 	Up (right reading)	Вверх (прямое чтение)
 	Use Default	По умолчанию
 	Variation	Вариант
-	VectorCraft Default	VectorCraft по умолчанию
-	VectorCraft Defaults	Стандартные VectorCraft
-	VectorCraft Generic CMYK (SWOP-like)	Общий CMYK VectorCraft (как SWOP)
-	VectorCraft Swatches (.vcswatches)	Образцы VectorCraft (.vcswatches)
+	Pluma Default	Pluma по умолчанию
+	Pluma Defaults	Стандартные Pluma
+	Pluma Generic CMYK (SWOP-like)	Общий CMYK Pluma (как SWOP)
+	Pluma Swatches (.vcswatches)	Образцы Pluma (.vcswatches)
 	Vertical Align	Вертикальное выравнивание
 	Vertical Area Type	Вертикальный текст в области
 	Vertical Type	Вертикальный текст
@@ -6511,7 +6505,7 @@ breakText	Glyphs	Глифы
 	Malayalam	Малаялам
 	Odia	Ория
 	Urdu	Урду
-	VectorCraft {release} and later (version {n})	VectorCraft {release} и новее (версия {n})
+	Pluma {release} and later (version {n})	Pluma {release} и новее (версия {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Экспортировать все открытые документы в PDF
 	Export All Open Documents as SVG	Экспортировать все открытые документы в SVG
@@ -6594,7 +6588,7 @@ breakText	Glyphs	Глифы
 	Color Table (4 colors)	Таблица цветов (4 цвета)
 	Create PDF layers from top-level layers	Создавать PDF-слои из слоёв верхнего уровня
 	Current Colors (0)	Текущие цвета (0)
-	Differences from VectorCraft Default:	Отличия от значений VectorCraft по умолчанию:
+	Differences from Pluma Default:	Отличия от значений Pluma по умолчанию:
 	Differences from [Default]:	Отличия от [По умолчанию]:
 	Dimension Lines	Размерные линии
 	Dimension Text	Размерный текст
@@ -6626,7 +6620,7 @@ breakText	Glyphs	Глифы
 	PDF/X-1a:2001	PDF/X-1a:2001
 	PDF/X-3:2002	PDF/X-3:2002
 	PDF/X-4:2010	PDF/X-4:2010
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Часть ArtCraft. MIT OR Apache-2.0. Шрифты: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Значки: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Часть Nodalia. MIT OR Apache-2.0. Шрифты: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Значки: Lucide (ISC) + Pluma.
 	Phone 375×812	Телефон 375×812
 	Photo Low Fidelity	Фото (низкое качество)
 	Preparing the image…	Подготовка изображения…
@@ -6659,7 +6653,7 @@ breakText	Glyphs	Глифы
 	Tracing the colors…	Трассировка цветов…
 	UTF-16 (Unicode)	UTF-16 (Unicode)
 	Units & Scale	Единицы и масштаб
-	VectorCraft Updates	Обновления VectorCraft
+	Pluma Updates	Обновления Pluma
 	Video 1920×1080	Видео 1920×1080
 	Video 3840×2160	Видео 3840×2160
 	Web 1280×720	Веб 1280×720
@@ -6673,7 +6667,7 @@ breakText	Glyphs	Глифы
 	[PDF/X-3:2002]	[PDF/X-3:2002]
 	[PDF/X-4:2010]	[PDF/X-4:2010]
 	[Smallest File Size]	[Минимальный размер файла]
-	[VectorCraft Default]	[Значения VectorCraft по умолчанию]
+	[Pluma Default]	[Значения Pluma по умолчанию]
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
 @id	file.close	Закрыть файл
 @id	pathfinder.add	Объединить
@@ -6775,14 +6769,14 @@ shape	Open	Открытый
 	Safe Mode	Безопасный режим
 	Help › Safe Mode…	Справка › Безопасный режим…
 	Enable on Re-launch	Включить при следующем запуске
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	Последний запуск VectorCraft остановился во время загрузки модуля {name}. Возможно, причина не в нём.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Последний запуск Pluma остановился во время загрузки модуля {name}. Возможно, причина не в нём.
 	Disable and Continue	Отключить и продолжить
 	Start Normally	Запустить в обычном режиме
 	Start in Safe Mode	Запустить в безопасном режиме
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft работает в безопасном режиме: модули не загружаются и не выполняются, пока программа не будет запущена в обычном режиме.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma работает в безопасном режиме: модули не загружаются и не выполняются, пока программа не будет запущена в обычном режиме.
 	Disabled plug-ins	Отключённые модули
 	No plug-ins are disabled.	Нет отключённых модулей.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Безопасный режим включён: модули не загружаются и не выполняются, пока VectorCraft не будет запущен в обычном режиме
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Безопасный режим включён: модули не загружаются и не выполняются, пока Pluma не будет запущен в обычном режиме
 @msg	give `id` or `file` (see plugin.safeMode)	укажите `id` или `file` (см. plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	этот модуль не отключён (см. plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	Не удалось сохранить отключённые модули для следующего запуска

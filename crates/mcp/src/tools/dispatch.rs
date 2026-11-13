@@ -299,7 +299,7 @@ pub fn call_tool(b: &mut dyn Backend, name: &str, args: &Value) -> ToolResult {
         Value::Null => &empty,
         _ => return ToolResult::error("tool arguments must be a JSON object"),
     };
-    match vectorcraft_engine::guard::catch_panic(|| dispatch(b, name, a)) {
+    match pluma_engine::guard::catch_panic(|| dispatch(b, name, a)) {
         Ok(Ok(r)) => r,
         Ok(Err(e)) => ToolResult::error(format!("{name}: {e}")),
         Err(e) => ToolResult::error(format!("internal error in `{name}`: {e} (please report this bug)")),
@@ -352,7 +352,7 @@ fn command_batch(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     // The objects the drawing steps made (#2113).
     let mut created: Vec<Value> = vec![];
     for step in steps {
-        let result = vectorcraft_engine::guard::catch_panic(|| {
+        let result = pluma_engine::guard::catch_panic(|| {
             let args = step.as_object().ok_or("each step must be an object")?;
             if args.keys().any(|k| k != "id" && k != "params") {
                 return Err("unknown step argument (expected id, params)".into());
@@ -360,7 +360,7 @@ fn command_batch(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
             let id = req_str(args, "id")?;
             let params = match args.get("params") {
                 None | Some(Value::Null) => json!({}),
-                Some(v @ Value::Object(_)) => vectorcraft_engine::steps::resolve(v, &values)?,
+                Some(v @ Value::Object(_)) => pluma_engine::steps::resolve(v, &values)?,
                 Some(_) => return Err("`params` must be an object".into()),
             };
             match id {
@@ -442,7 +442,7 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     }
     let r = b.call("ui.render", p)?;
     let encoded = r.get("pngBase64").and_then(Value::as_str).ok_or("renderer returned no image")?;
-    let png = vectorcraft_format::base64_decode(encoded).ok_or("renderer returned bad base64")?;
+    let png = pluma_format::base64_decode(encoded).ok_or("renderer returned bad base64")?;
     // The render was asked for at most 4096 a side.
     let img = super::handlers::decode_png(&png, 8192).map_err(|e| format!("read preview: {e}"))?;
     let img = if img.width() > max || img.height() > max { img.thumbnail(max, max) } else { img };

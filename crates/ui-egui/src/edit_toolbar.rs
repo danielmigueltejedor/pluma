@@ -19,12 +19,12 @@ use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use egui::{DragAndDrop, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use pluma_tools::{TOOL_GROUPS, ToolInfo, tool_info};
 use serde_json::{Value, json};
-use vectorcraft_tools::{TOOL_GROUPS, ToolInfo, tool_info};
 
 use crate::state::{ToolbarCategory, ToolbarEdits};
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, icons, widgets};
+use crate::{PlumaApp, icons, widgets};
 
 /// A tool's row in the drawer: its icon, name and shortcut.
 const ROW: f32 = 26.0;
@@ -106,7 +106,7 @@ fn category(name: &str) -> Option<&'static str> {
 
 /// The current toolbar's slots as Edit Toolbar left them, laid out as `toolbar::slots` lays them
 /// out (the category name on each category's first slot); `None` while it is as it ships.
-pub(crate) fn edited_slots(app: &VectorcraftApp) -> Option<Vec<(Option<&'static str>, Vec<&'static str>)>> {
+pub(crate) fn edited_slots(app: &PlumaApp) -> Option<Vec<(Option<&'static str>, Vec<&'static str>)>> {
     let edits = &app.ui.toolbar_edits;
     let cats = if app.ui.toolbar_advanced { &edits.advanced } else { &edits.basic };
     let mut out = vec![];
@@ -146,7 +146,7 @@ pub(crate) fn sanitize(edits: &mut ToolbarEdits) {
 
 /// Change the current toolbar with `f`: an edit that gives back the toolbar as it ships forgets
 /// the edits. Returns the toolbar's slots.
-fn edit(app: &mut VectorcraftApp, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
+fn edit(app: &mut PlumaApp, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
     let advanced = app.ui.toolbar_advanced;
     let slot = current(&mut app.ui.toolbar_edits, advanced);
     let mut cats = slot.clone().unwrap_or_else(|| shipped(advanced));
@@ -158,7 +158,7 @@ fn edit(app: &mut VectorcraftApp, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> R
 
 /// Change the toolbar made with New Toolbar called `name` with `f`, and the groups torn off it with
 /// it ([`crate::custom_toolbars::keep_strips`]). Returns its slots.
-fn edit_custom(app: &mut VectorcraftApp, name: &str, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
+fn edit_custom(app: &mut PlumaApp, name: &str, f: impl FnOnce(&mut Vec<ToolbarCategory>) -> Result<(), String>) -> Result<Value, String> {
     let bar = crate::custom_toolbars::find_mut(&mut app.ui, name).ok_or_else(|| format!("no toolbar named `{name}`"))?;
     let mut cats = vec![ToolbarCategory { name: None, slots: bar.slots.clone() }];
     f(&mut cats)?;
@@ -169,7 +169,7 @@ fn edit_custom(app: &mut VectorcraftApp, name: &str, f: impl FnOnce(&mut Vec<Too
 }
 
 /// Change the toolbar the `toolbar` param names (none: the current Basic or Advanced toolbar).
-fn edit_target(app: &mut VectorcraftApp, p: &Value, f: impl FnOnce(&mut Vec<ToolbarCategory>, bool) -> Result<(), String>) -> Result<Value, String> {
+fn edit_target(app: &mut PlumaApp, p: &Value, f: impl FnOnce(&mut Vec<ToolbarCategory>, bool) -> Result<(), String>) -> Result<Value, String> {
     match crate::custom_toolbars::target(&app.ui, p)? {
         Some(name) => edit_custom(app, &name, |cats| f(cats, false)),
         None => {
@@ -180,12 +180,12 @@ fn edit_target(app: &mut VectorcraftApp, p: &Value, f: impl FnOnce(&mut Vec<Tool
 }
 
 /// The current toolbar's slots, each a list of tool ids (`toolbar.*` commands return it).
-fn slots_json(app: &VectorcraftApp) -> Value {
+fn slots_json(app: &PlumaApp) -> Value {
     json!(crate::toolbar::slots(app).into_iter().map(|(_, s)| s).collect::<Vec<_>>())
 }
 
 /// The tools of the toolbar the drawer edits: one made with New Toolbar, or the Tools panel's.
-fn target_tools(app: &VectorcraftApp) -> BTreeSet<&'static str> {
+fn target_tools(app: &PlumaApp) -> BTreeSet<&'static str> {
     match crate::custom_toolbars::drawer_target(&app.ui).and_then(|name| crate::custom_toolbars::find(&app.ui, name)) {
         Some(bar) => bar.slots.iter().flatten().filter_map(|id| tool_info(id).map(|t| t.id)).collect(),
         None => crate::toolbar::slots(app).into_iter().flat_map(|(_, s)| s).collect(),
@@ -253,7 +253,7 @@ fn tool_param(p: &Value) -> Result<&'static str, String> {
 }
 
 /// The Edit Toolbar commands; `None` for other ids.
-pub(crate) fn command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
+pub(crate) fn command(app: &mut PlumaApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     Some(match id {
         "window.editToolbar" => (|| {
             let open = crate::menus::opt_bool(p, "open")?;
@@ -344,7 +344,7 @@ pub(crate) fn drop_target(slots: &[(usize, Rect)], at: Pos2, cols: usize) -> (Op
 
 /// While a tool is dragged over the toolbar (`bounds`; `toolbar`: one made with New Toolbar): mark
 /// where it would go, and on the release put it there (`toolbar.addTool`).
-pub(crate) fn toolbar_drop(app: &mut VectorcraftApp, ui: &Ui, slots: &[(usize, Rect)], cols: usize, bounds: Rect, toolbar: Option<&str>) {
+pub(crate) fn toolbar_drop(app: &mut PlumaApp, ui: &Ui, slots: &[(usize, Rect)], cols: usize, bounds: Rect, toolbar: Option<&str>) {
     let Some(drag) = DragAndDrop::payload::<ToolDrag>(ui.ctx()) else { return };
     let Some(at) = ui.ctx().pointer_interact_pos().filter(|p| bounds.contains(*p)) else { return };
     let t = Tokens::get(ui.ctx());
@@ -401,7 +401,7 @@ fn heading(id: &str) -> &'static str {
     if let Some((cat, _)) = crate::toolbar::BASIC.iter().find(|(_, slots)| slots.iter().any(|s| s.contains(&id))) {
         return cat;
     }
-    if let Some(addon) = vectorcraft_tools::addons::heading(id) {
+    if let Some(addon) = pluma_tools::addons::heading(id) {
         return addon;
     }
     match id {
@@ -420,7 +420,7 @@ fn sections() -> &'static [(&'static str, Vec<&'static ToolInfo>)] {
     static SECTIONS: OnceLock<Vec<(&'static str, Vec<&'static ToolInfo>)>> = OnceLock::new();
     SECTIONS.get_or_init(|| {
         let mut out: Vec<(&'static str, Vec<&'static ToolInfo>)> = crate::toolbar::BASIC.iter().map(|(cat, _)| (*cat, vec![])).collect();
-        for tool in vectorcraft_tools::catalog::all_tools() {
+        for tool in pluma_tools::catalog::all_tools() {
             let h = heading(tool.id);
             match out.iter_mut().find(|(c, _)| *c == h) {
                 Some((_, tools)) => tools.push(tool),
@@ -442,7 +442,7 @@ fn groups() -> &'static [Heading] {
     static GROUPS: OnceLock<Vec<Heading>> = OnceLock::new();
     GROUPS.get_or_init(|| {
         let mut out: Vec<Heading> = sections().iter().map(|(cat, _)| (*cat, vec![])).collect();
-        for g in TOOL_GROUPS.iter().chain(vectorcraft_tools::addons::GROUPS) {
+        for g in TOOL_GROUPS.iter().chain(pluma_tools::addons::GROUPS) {
             let Some(first) = g.first() else { continue };
             let count = |h: &str| g.iter().filter(|t| heading(t.id) == h).count();
             let h = g.iter().map(|t| heading(t.id)).fold(heading(first.id), |best, h| if count(h) > count(best) { h } else { best });
@@ -458,7 +458,7 @@ fn groups() -> &'static [Heading] {
 
 /// The All Tools drawer beside the toolbar, its top by the ••• button (higher when that would put
 /// it past the window's bottom), while `tools_drawer` is on.
-pub(crate) fn drawer(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn drawer(app: &mut PlumaApp, ctx: &egui::Context) {
     if !app.ui.tools_drawer {
         return;
     }
@@ -607,7 +607,7 @@ pub(crate) fn drawer(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// The drawer menu's Basic or Advanced: the menu item of the other toolbar switches the Tools panel
 /// to it, and the drawer goes on to edit the Tools panel's toolbar, also from a toolbar made with
 /// New Toolbar.
-fn pick_layout(app: &mut VectorcraftApp, advanced: bool) -> Result<(), String> {
+fn pick_layout(app: &mut PlumaApp, advanced: bool) -> Result<(), String> {
     if crate::custom_toolbars::drawer_target(&app.ui).is_some() {
         app.run("window.editToolbar", json!({ "open": true }))?;
     }

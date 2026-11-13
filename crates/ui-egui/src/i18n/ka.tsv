@@ -1,7 +1,7 @@
 # Georgian (ka) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
 #
-# Clean-room: every entry is written from the meaning of VectorCraft's English label, following
+# Clean-room: every entry is written from the meaning of Pluma's English label, following
 # the shared Georgian glossary of the Craft apps (commands as verbal nouns: შენახვა, გახსნა; no
 # capitals, Georgian has none); no other application's Georgian localisation was consulted or
 # copied. Drafted with AI assistance (Claude); not yet reviewed by a native speaker.
@@ -16,17 +16,16 @@
 # OpenType, the built-in workspace names and the bracketed perspective grid preset names. Keep
 # placeholders, ellipses and the leading/trailing spaces of fragments when editing.
 	Glowing Edges…	მანათობელი კიდეები…
-	About VectorCraft	VectorCraft-ის შესახებ
+	About Pluma	Pluma-ის შესახებ
 	Align to Path	ტრაექტორიაზე სწორება
 	Cut Path at Selected Anchor Points	ტრაექტორიის გაჭრა მონიშნულ საყრდენ წერტილებზე
-	Join Our Discord	შემოგვიერთდით Discord-ზე
 	Language	ენა
 	UI Brightness	ინტერფეისის სიკაშკაშე
 	Dark	ბნელი
 	Medium Dark	საშუალოდ ბნელი
 	Medium Light	საშუალოდ ღია
 	Light	ღია
-	Quit VectorCraft	VectorCraft-იდან გასვლა
+	Quit Pluma	Pluma-იდან გასვლა
 # Artwork drag between document tabs.
 	Drop Artwork	ნამუშევრის განთავსება
 @msg	{key} must be [x, y] with finite coordinates	{key} უნდა იყოს [x, y] სასრული კოორდინატებით
@@ -695,11 +694,10 @@
 	Save Swatch Library…	ფერის ნიმუშების ბიბლიოთეკის შენახვა…
 	Symbol Libraries	სიმბოლოების ბიბლიოთეკები
 	Help	დახმარება
-	ArtCraft Website	ArtCraft-ის ვებსაიტი
-	VectorCraft on getartcraft.com	VectorCraft getartcraft.com-ზე
-	VectorCraft on GitHub	VectorCraft GitHub-ზე
+	Pluma Website	Pluma-ს ვებსაიტი
+	Pluma on GitHub	Pluma GitHub-ზე
 	Search Commands…	ბრძანებების ძიება…
-	VectorCraft Help…	VectorCraft-ის დახმარება…
+	Pluma Help…	Pluma-ის დახმარება…
 	Automatic	ავტომატური
 	Isolate Selected Group	მონიშნული ჯგუფის იზოლირება
 	Exit Isolation Mode	იზოლაციის რეჟიმიდან გამოსვლა
@@ -750,7 +748,7 @@
 	Dock Control Bar	მართვის ზოლის მიმაგრება
 	Float Tool Group	მცურავი ხელსაწყოთა ჯგუფი
 	Services	სერვისები
-	Hide VectorCraft	VectorCraft-ის დამალვა
+	Hide Pluma	Pluma-ის დამალვა
 	Hide Others	სხვების დამალვა
 	Minimize	ჩაკეცვა
 	Zoom	მასშტაბი
@@ -805,8 +803,8 @@
 	Stained Glass…	ვიტრაჟი…
 	Texturizer…	ტექსტურირება…
 	System Title Bar	სისტემის სათაურის ზოლი
-	VectorCraft Title Bar on Every Desktop	VectorCraft-ის სათაურის ზოლი ყველა სამუშაო მაგიდაზე
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	სანამ გარემოს ცვლადი VECTORCRAFT_TITLEBAR დაყენებულია, სათაურის ზოლს ის ირჩევს.
+	Pluma Title Bar on Every Desktop	Pluma-ის სათაურის ზოლი ყველა სამუშაო მაგიდაზე
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	სანამ გარემოს ცვლადი PLUMA_TITLEBAR დაყენებულია, სათაურის ზოლს ის ირჩევს.
 	System Title Bar takes precedence over this option while it is on.	სანამ სისტემის სათაურის ზოლი ჩართულია, მას ამ პარამეტრზე უპირატესობა აქვს.
 	Exit	გასვლა
 	Distort	დეფორმაცია
@@ -1918,7 +1916,7 @@ digits	Malayalam	მალაიალამური
 	Select All Bound Objects	ყველა დაკავშირებული ობიექტის მონიშვნა
 	Multiple objects	რამდენიმე ობიექტი
 	Graphics: {adapter}	გრაფიკა: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft-ის ნაწილი. MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono (OFL). ხატულები: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia-ის ნაწილი. MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono (OFL). ხატულები: Lucide (ISC) + Pluma.
 	Version {version} — open-source vector illustration in pure Rust.	ვერსია {version} — ღია კოდის ვექტორული ილუსტრაცია სუფთა Rust-ზე.
 	Align to Page	გვერდზე სწორება
 	Smooth Color	ფერის გლუვი გადასვლა
@@ -2245,7 +2243,7 @@ digits	Malayalam	მალაიალამური
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	ვერ წაიკითხა საქაღალდეები ან ფაილები: {n}
 	The search stopped at its limit: search a smaller folder.	ძიება ზღვარზე შეჩერდა: მოძებნეთ უფრო პატარა საქაღალდეში.
 	Copy only fonts you own or are licensed to install.	დააკოპირეთ მხოლოდ ის შრიფტები, რომლებიც გეკუთვნით ან რომელთა დაყენების ლიცენზია გაქვთ.
-	VectorCraft copies the fonts to {folder}.	VectorCraft შრიფტებს აკოპირებს აქ: {folder}.
+	Pluma copies the fonts to {folder}.	Pluma შრიფტებს აკოპირებს აქ: {folder}.
 @plural	Apply to All ({n} more missing)|Apply to All ({n} more missing)	ყველაზე გამოყენება (კიდევ დაკარგული: {n})
 	Ignore	უგულებელყოფა
 	Linked File Not Found	დაკავშირებული ფაილი ვერ მოიძებნა
@@ -2334,7 +2332,7 @@ digits	Malayalam	მალაიალამური
 	On: one locked object showing the document, updated when it changes.	ჩართული: ერთი ჩაკეტილი ობიექტი, რომელიც დოკუმენტს აჩვენებს და მისი ცვლილებისას ახლდება.
 	Off: an editable copy of its art, embedded in this document.	გამორთული: მისი ნახატის რედაქტირებადი ასლი, ჩაშენებული ამ დოკუმენტში.
 	Images: link to the file instead of only embedding it.	გამოსახულებები: ფაილის ბმული მხოლოდ ჩაშენების ნაცვლად.
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft-ის დოკუმენტები: ერთი ჩაკეტილი ობიექტი, რომელიც ფაილის ცვლილებისას ახლდება.
+	Pluma documents: one locked object, updated when the file changes.	Pluma-ის დოკუმენტები: ერთი ჩაკეტილი ობიექტი, რომელიც ფაილის ცვლილებისას ახლდება.
 	Alignment:	სწორება:
 	Applies when the linked file is relinked or updated.	მოქმედებს, როცა დაკავშირებული ფაილი ხელახლა უკავშირდება ან ახლდება.
 	Bounds (Fill Proportionally)	საზღვრები (პროპორციული შევსება)
@@ -2471,7 +2469,7 @@ digits	Malayalam	მალაიალამური
 	3 Color Job	3-ფერიანი ბეჭდვა
 	Recover Documents	დოკუმენტების აღდგენა
 	Restored documents open unsaved: save them to keep them.	აღდგენილი დოკუმენტები შეუნახავად იხსნება: შესანარჩუნებლად შეინახეთ ისინი.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft ბოლოს ნორმალურად არ დახურულა. ამ დოკუმენტებს შეუნახავი ცვლილებები ჰქონდა:
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma ბოლოს ნორმალურად არ დახურულა. ამ დოკუმენტებს შეუნახავი ცვლილებები ჰქონდა:
 	Do you want to save the changes you made to “{name}”?	შევინახო „{name}“-ში შეტანილი ცვლილებები?
 	Don't Save	არ შეინახო
 	Your changes will be lost if you don't save them.	თუ ცვლილებებს არ შეინახავთ, ისინი დაიკარგება.
@@ -3574,7 +3572,7 @@ axis	Both	ორივე
 	Width	სიგანე
 	:	:
 effect	Regular	ჩვეულებრივი
-	Saving Poster.vectorcraft	Poster.vectorcraft-ის შენახვა
+	Saving Poster.pluma	Poster.pluma-ის შენახვა
 	Community	საზოგადოება
 	Hide Bar	ზოლის დამალვა
 	More Options	მეტი პარამეტრი
@@ -3586,11 +3584,7 @@ effect	Regular	ჩვეულებრივი
 	Quickly start a new file	ახალი ფაილის სწრაფად შექმნა
 	Recent Files	ბოლოს გახსნილი ფაილები
 	Vector illustration — fast, open, scriptable.	ვექტორული ილუსტრაცია — სწრაფი, ღია, სკრიპტებით მართვადი.
-	Welcome to VectorCraft	კეთილი იყოს თქვენი მობრძანება VectorCraft-ში
-	ArtCraft website	ArtCraft-ის ვებსაიტი
-	Discord	Discord
-	Join our Discord	შემოგვიერთდით Discord-ზე
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	შემოუერთდით ArtCraft-ის საზოგადოებას Discord-ზე (discord.gg/artcraft)
+	Welcome to Pluma	კეთილი იყოს თქვენი მობრძანება Pluma-ში
 	Source code on GitHub	საწყისი კოდი GitHub-ზე
 	All Tools	ყველა ხელსაწყო
 	Draw	ხატვა
@@ -3633,7 +3627,7 @@ font-technology	Variable	ცვლადი
 	Installed plug-in {}	დაინსტალირდა პლაგინი {}
 	Revert to the saved version of “{name}”?	დაბრუნდეს „{name}“-ის შენახული ვერსია?
 	Replace “{name}”, the file this document was opened from?	ჩანაცვლდეს „{name}“, ფაილი, რომლიდანაც ეს დოკუმენტი გაიხსნა?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	გახსნისას გამოტოვდა ის, რისი წაკითხვაც VectorCraft-ს ჯერ არ შეუძლია ({what}), ამიტომ ჩანაცვლება მას სამუდამოდ დაკარგავს. შესანარჩუნებლად შეინახეთ სხვა სახელით.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	გახსნისას გამოტოვდა ის, რისი წაკითხვაც Pluma-ს ჯერ არ შეუძლია ({what}), ამიტომ ჩანაცვლება მას სამუდამოდ დაკარგავს. შესანარჩუნებლად შეინახეთ სხვა სახელით.
 	Saved {path}	შენახულია: {path}
 	Saving	შენახვა
 	Saving {}	ინახება: {}
@@ -3641,7 +3635,7 @@ font-technology	Variable	ცვლადი
 	Dashed Line	ტირეებიანი ხაზი
 	Panel menu	პანელის მენიუ
 	Unembed…	ჩაშენების მოხსნა…
-	Applies the next time VectorCraft starts.	ძალაში შევა VectorCraft-ის მომდევნო გაშვებისას.
+	Applies the next time Pluma starts.	ძალაში შევა Pluma-ის მომდევნო გაშვებისას.
 	Enable Contextual Task Bar	კონტექსტური ამოცანების ზოლის ჩართვა
 	Next	შემდეგი
 	OK	OK
@@ -4045,7 +4039,7 @@ font-technology	Variable	ცვლადი
 @msg	can't encode the document: {0}	დოკუმენტის კოდირება ვერ ხერხდება: {0}
 @msg	can't parse shortcut `{c}`	მალსახმობის `{c}` ანალიზი ვერ ხერხდება
 @msg	can't parse shortcut `{s}` for `{k}`	მალსახმობის `{s}` ანალიზი `{k}`-სთვის ვერ ხერხდება
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	ვერსიის {0} შენახვა ვერ ხერხდება: VectorCraft წერს ვერსიებს {MIN_VERSION}-დან {VERSION}-მდე
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	ვერსიის {0} შენახვა ვერ ხერხდება: Pluma წერს ვერსიებს {MIN_VERSION}-დან {VERSION}-მდე
 @msg	can't write .{ext} images	.{ext} გამოსახულებების ჩაწერა ვერ ხერხდება
 @msg	cannot distort a zero-size bounding box	ნულოვანი ზომის შემომსაზღვრელი ჩარჩოს დეფორმაცია შეუძლებელია
 @msg	cannot read PDF: {0}	PDF-ის წაკითხვა ვერ ხერხდება: {0}
@@ -4070,7 +4064,7 @@ font-technology	Variable	ცვლადი
 @msg	empty brush stroke	ცარიელი ფუნჯის შტრიხი
 @msg	empty cutter	ცარიელი საჭრელი
 @msg	empty path	ცარიელი ტრაექტორია
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	ფაილის ვერსია {0} უფრო ახალია, ვიდრე ამ VectorCraft-ის მხარდაჭერილი ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	ფაილის ვერსია {0} უფრო ახალია, ვიდრე ამ Pluma-ის მხარდაჭერილი ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	თავისუფალ წერტილს {i} სჭირდება `at` [x, y] და სწორი `color`
 @msg	freeform line {i} must be an array of point indices	თავისუფალი ხაზი {i} უნდა იყოს წერტილების ინდექსების მასივი
 @msg	give both `start` and `end` [x, y] (or neither)	მიუთითეთ `start` და `end` [x, y] ორივე (ან არცერთი)
@@ -4089,9 +4083,9 @@ font-technology	Variable	ცვლადი
 @msg	invalid PDF setting: {0}	PDF-ის არასწორი პარამეტრი: {0}
 @msg	invalid image data for `{0}`	არასწორი გამოსახულების მონაცემები `{0}`-სთვის
 @msg	invalid parameters for `{cmd}`: {msg}	`{cmd}`: არასწორი პარამეტრები — {msg}
-@msg	is not an image VectorCraft reads	ეს არ არის გამოსახულება, რომელსაც VectorCraft კითხულობს
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	ის იყენებს `{at}`-ს, რომელიც VectorCraft-ის PostScript-ის წამკითხველმა არ იცის
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	ის იყენებს `{at}`-ს, რომელიც VectorCraft-ის PostScript-ის წამკითხველმა არ იცის, {procs}-ში
+@msg	is not an image Pluma reads	ეს არ არის გამოსახულება, რომელსაც Pluma კითხულობს
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	ის იყენებს `{at}`-ს, რომელიც Pluma-ის PostScript-ის წამკითხველმა არ იცის
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	ის იყენებს `{at}`-ს, რომელიც Pluma-ის PostScript-ის წამკითხველმა არ იცის, {procs}-ში
 @msg	its Windows metafile preview was opened instead, which may simplify the art	სამაგიეროდ გაიხსნა მისი Windows metafile გადახედვა, რამაც შეიძლება ნახატი გაამარტივოს
 @msg	its preview was placed instead, at screen resolution	სამაგიეროდ განთავსდა მისი გადახედვა, ეკრანის გარჩევადობით
 @msg	join needs open paths	შეერთებას ღია ტრაექტორიები სჭირდება
@@ -4146,7 +4140,7 @@ font-technology	Variable	ცვლადი
 @msg	no file system here	აქ ფაილური სისტემა არ არის
 @msg	no file writer	ფაილის ჩამწერი არ არის
 @msg	no files to place	განსათავსებელი ფაილები არ არის
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` არ არის VectorCraft-ის დოკუმენტი, PDF ან PDF-თან თავსებადი .ai ფაილი
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` არ არის Pluma-ის დოკუმენტი, PDF ან PDF-თან თავსებადი .ai ფაილი
 @msg	no format to export to	ექსპორტის ფორმატი არ არის
 @msg	no free recovery area	აღდგენის თავისუფალი არე არ არის
 @msg	no gradient stop or freeform point is selected	გრადიენტის გადასვლის წერტილი ან თავისუფალი წერტილი მონიშნული არ არის
@@ -4190,7 +4184,7 @@ font-technology	Variable	ცვლადი
 @msg	the action set file is larger than 8 MiB	მოქმედებების ნაკრების ფაილი 8 MiB-ზე დიდია
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: ცნობარი {MAX_BYTES} ბაიტზე დიდი იქნებოდა
 @msg	the action set file holds more than 1,000 actions	მოქმედებების ნაკრების ფაილი 1000-ზე მეტ მოქმედებას შეიცავს
-@msg	the action set file needs a later version of VectorCraft	მოქმედებების ნაკრების ფაილს VectorCraft-ის უფრო ახალი ვერსია სჭირდება
+@msg	the action set file needs a later version of Pluma	მოქმედებების ნაკრების ფაილს Pluma-ის უფრო ახალი ვერსია სჭირდება
 @msg	an action in the action set file has more than 10,000 steps	მოქმედებების ნაკრების ფაილში ერთ-ერთ მოქმედებას 10 000-ზე მეტი ნაბიჯი აქვს
 @msg	no such anchor	ასეთი საყრდენი წერტილი არ არის
 @msg	no such artboard	ასეთი სამუშაო დაფა არ არის
@@ -4218,8 +4212,8 @@ font-technology	Variable	ცვლადი
 @msg	node {_1} is not text	კვანძი {_1} ტექსტი არ არის
 @msg	node {_1} is on a locked artboard	კვანძი {_1} ჩაკეტილ სამუშაო დაფაზეა
 @msg	not a DXF drawing	ეს არ არის DXF ნახაზი
-@msg	not a VectorCraft file: {0}	ეს არ არის VectorCraft-ის ფაილი: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	ეს არ არის VectorCraft-ის მალსახმობების ნაკრები (აკლია `overrides`)
+@msg	not a Pluma file: {0}	ეს არ არის Pluma-ის ფაილი: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	ეს არ არის Pluma-ის მალსახმობების ნაკრები (აკლია `overrides`)
 @msg	not a graphic style library (format `{_1}`)	ეს არ არის გრაფიკული სტილების ბიბლიოთეკა (ფორმატი `{_1}`)
 @msg	not a stored central record	ეს არ არის შენახული ცენტრალური ჩანაწერი
 @msg	not a valid plug-in module: {0}	ეს არ არის პლაგინის სწორი მოდული: {0}
@@ -4485,9 +4479,9 @@ font-technology	Variable	ცვლადი
 @msg	Sent to {_1}	გაგზავნილია: {_1}
 @msg	{_1} files	ფაილები: {_1}
 @msg	The graphics were lost and have been restarted	გრაფიკა დაიკარგა და ხელახლა გაეშვა
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	პირველად ნაცდმა გრაფიკულმა პროცესორმა ფანჯარა ვერ აჩვენა, ამიტომ VectorCraft ხელახლა გაეშვა: {summary}
-@msg	Loading VectorCraft…	VectorCraft იტვირთება…
-@msg	VectorCraft failed to start: {e}	VectorCraft-ის გაშვება ვერ მოხერხდა: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	პირველად ნაცდმა გრაფიკულმა პროცესორმა ფანჯარა ვერ აჩვენა, ამიტომ Pluma ხელახლა გაეშვა: {summary}
+@msg	Loading Pluma…	Pluma იტვირთება…
+@msg	Pluma failed to start: {e}	Pluma-ის გაშვება ვერ მოხერხდა: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	საჭიროა ბრაუზერი WebGPU-ით ან WebGL2-ით.
 @msg	The graphics were lost and couldn't be restarted.	გრაფიკა დაიკარგა და ხელახლა ვერ გაეშვა.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	შეუნახავი ცვლილებები ამ ბრაუზერშია შენახული: დასაბრუნებლად გადატვირთეთ გვერდი.
@@ -4518,16 +4512,16 @@ font-technology	Variable	ცვლადი
 @msg	it has more than {MAX_NODES} objects	მას {MAX_NODES}-ზე მეტი ობიექტი აქვს
 @msg	it has no layers	მას შრეები არ აქვს
 @msg	it has too many values in a row	მას ერთ რიგში ზედმეტად ბევრი მნიშვნელობა აქვს
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	მას აქვს {_1}, რასაც VectorCraft მისგან ჯერ ვერ კითხულობს
+@msg	it has {_1}, which Pluma doesn't read from it yet	მას აქვს {_1}, რასაც Pluma მისგან ჯერ ვერ კითხულობს
 @msg	its objects are nested too deeply	მისი ობიექტები ზედმეტად ღრმადაა ჩადგმული
 @msg	its section ending with `%{end}` doesn't end	მისი სექცია, რომელიც `%{end}`-ით მთავრდება, არ სრულდება
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	ფუნჯები, რომლებსაც VectorCraft ჯერ ვერ კითხულობს, ფუნჯების პანელში არ დაემატა ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	ფუნჯები, რომლებსაც Pluma ჯერ ვერ კითხულობს, ფუნჯების პანელში არ დაემატა ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	რამდენიმე შევსების ან კონტურის, ცვლადი სისქის კონტურის, ეფექტის ან ფუნჯის მქონე ობიექტები შემოვიდა დახატული სახით ({_1}): მათი იერსახე ჯერ არ რედაქტირდება
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	სახელი `{name}` არ არის UTF-8 და წაკითხულია როგორც {label}: თუ არასწორად გამოიყურება, გახსენით ფაილი სხვა legacyNameEncoding-ით
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	სახელი `{name}` არ არის UTF-8 და მისი ნაწილები არც {label}-ში არის სწორი: გახსენით ფაილი სხვა legacyNameEncoding-ით
 @msg	more names that aren't UTF-8 were read as {label} ({count})	სხვა სახელები, რომლებიც არ არის UTF-8, წაკითხულია როგორც {label} ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	გრადიენტი „{name}“ ფაილში განსაზღვრული არ არის: მის ნაცვლად ერთგვაროვანი ფერია
-@msg	an image VectorCraft can't read was left out	გამოსახულება, რომელსაც VectorCraft ვერ კითხულობს, გამოტოვებულია
+@msg	an image Pluma can't read was left out	გამოსახულება, რომელსაც Pluma ვერ კითხულობს, გამოტოვებულია
 @msg	graphs come in as plain art, without their data or settings	დიაგრამები შემოდის როგორც ჩვეულებრივი გრაფიკა, მათი მონაცემებისა და პარამეტრების გარეშე
 @msg	an image whose data is cut short was left out	გამოსახულება, რომლის მონაცემებიც შეკვეცილია, გამოტოვებულია
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	ჩაშენებული გამოსახულება ზომით {_1} × {_2} პიქსელი შემცირდა {_3} × {_4} პიქსელამდე, რომ შრეები შენარჩუნდეს
@@ -4535,13 +4529,13 @@ font-technology	Variable	ცვლადი
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	ეს ფაილი PDF-თავსებადობის გარეშეა შენახული და მისი რედაქტირების მონაცემების წაკითხვა ვერ ხერხდება ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	PDF ნაწილის წაკითხვა ვერ მოხერხდა ({_1}): ფაილი რედაქტირების მონაცემებიდან გაიხსნა
 @msg	No fonts are missing in this document	ამ დოკუმენტში შრიფტები არ აკლია
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft არ ეძებს სხვა აპების ან სისტემის საქაღალდეებში: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft არ ეძებს Users-ის Shared ან Public საქაღალდეში: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma არ ეძებს სხვა აპების ან სისტემის საქაღალდეებში: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma არ ეძებს Users-ის Shared ან Public საქაღალდეში: {path}
 @msg	{path} is not a folder	{path} საქაღალდე არ არის
 @msg	the search couldn't start: try again in a moment	ძიება ვერ დაიწყო: ცოტა ხანში სცადეთ ხელახლა
 @msg	searching a folder isn't available on the web	საქაღალდეში ძიება ვებში მიუწვდომელია
 @msg	every search thread stopped on an internal error (please report this bug)	ძიების ყველა ნაკადი შიდა შეცდომით შეჩერდა (გთხოვთ, შეგვატყობინოთ ეს ხარვეზი)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	VectorCraft-ის შრიფტების საქაღალდე აქ დაყენებული არ არის: მას აყენებს სამაგიდო აპი და vectorcraft-cli
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Pluma-ის შრიფტების საქაღალდე აქ დაყენებული არ არის: მას აყენებს სამაგიდო აპი და pluma-cli
 @msg	choose the font files to add	აირჩიეთ დასამატებელი შრიფტის ფაილები
 @msg	not a file	ფაილი არ არის
 @msg	not a font file	შრიფტის ფაილი არ არის
@@ -4689,7 +4683,7 @@ font-technology	Variable	ცვლადი
 	All shortcuts reset to defaults.	ყველა მალსახმობი ნაგულისხმევზე დაბრუნდა.
 	Imported. Press OK to keep the imported set.	შემოტანილია. შემოტანილი ნაკრების შესანარჩუნებლად დააჭირეთ OK-ს.
 	⚠ {chord} was already used by {names} — it has been removed there.	{chord} უკვე გამოიყენებოდა აქ: {names} — იქიდან მოცილებულია.
-	VectorCraft Defaults	VectorCraft-ის ნაგულისხმევი
+	Pluma Defaults	Pluma-ის ნაგულისხმევი
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	ერთზე მეტჯერ მინიჭებული მალსახმობები: {n}
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	„სიმულაცია“ ბეჭდავს ზედდაბეჭდვებს ისე, როგორც ზედდაბეჭდვის გადახედვა აჩვენებს; სეპარაცია მათ ყოველთვის ინარჩუნებს. პრესეტი ბეჭდვამდე აბრტყელებს გამჭვირვალობას (PostScript ფაილები მას ყოველთვის აბრტყელებს).
 	Preserve	შენარჩუნება
@@ -4908,7 +4902,7 @@ font-technology	Variable	ცვლადი
 	Even	თანაბრად
 	Stacked	დასტად
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	დაკავშირებული გამოსახულებები ფაილში შენახულ დაბალი გარჩევადობის მინიატურას აჩვენებს, სანამ მათი ფაილები არ მოიძებნება: დაუკავშირეთ ისინი ხელახლა ბმულების პანელში
-@msg	linked type areas past VectorCraft's limits were left out	VectorCraft-ის ლიმიტების მიღმა დაკავშირებული ტექსტის არეები გამოტოვებულია
+@msg	linked type areas past Pluma's limits were left out	Pluma-ის ლიმიტების მიღმა დაკავშირებული ტექსტის არეები გამოტოვებულია
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	ტექსტი, რომელიც ტექსტური ობიექტის შიგნით ცვლის წერის მიმართულებას, იხსნება მისი პირველი სიმბოლოს მიმართულებით
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	დაკავშირებულ არეებში, გარსშემოვლებულ ტექსტში ან შედგენილ ტრაექტორიაში ნიღბად გამოყენებული ტექსტი არ ჭრის
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	დაკავშირებული გამოსახულებები, რომელთა მინიატურაც ფაილში არ არის, ადგილის შემნახველს აჩვენებს, სანამ მათი ფაილები არ მოიძებნება: დაუკავშირეთ ისინი ხელახლა ბმულების პანელში
@@ -4921,7 +4915,7 @@ font-technology	Variable	ცვლადი
 	Artistic	მხატვრული
 	Film Grain…	ფირის მარცვლოვნება…
 	Highlight Area	ნათელი არე
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	შეკუმშული ფაილი იმაზე მეტად იშლება, ვიდრე VectorCraft კითხულობს ({_1} მბ დოკუმენტი, {_2} მბ თითო გამოსახულებაზე)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	შეკუმშული ფაილი იმაზე მეტად იშლება, ვიდრე Pluma კითხულობს ({_1} მბ დოკუმენტი, {_2} მბ თითო გამოსახულებაზე)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	დოკუმენტი შეკუმშვით შესანახად ზედმეტად დიდია ({0}): შეინახეთ გამორთული „შეკუმშვის გამოყენებით“
 @msg	the file stopped being read (please report this bug)	ფაილის წაკითხვა შეწყდა (გთხოვთ, შეგვატყობინოთ ამ შეცდომის შესახებ)
 	Concentric Dividers:	კონცენტრული გამყოფები:
@@ -4988,7 +4982,7 @@ file-filter	Print presets	ბეჭდვის პრესეტები
 file-filter	Export presets	ექსპორტის პრესეტები
 file-filter	SVG Compressed	შეკუმშული SVG
 file-filter	PDF-compatible .ai	PDF-თან თავსებადი .ai
-file-filter	VectorCraft Template	VectorCraft-ის შაბლონი
+file-filter	Pluma Template	Pluma-ის შაბლონი
 file-filter	Templates	შაბლონები
 diagnostics	render	რენდერი
 diagnostics	ui	ინტერფეისი
@@ -5030,7 +5024,7 @@ mark-style	Japanese	იაპონური
 	High Fidelity Photo	მაღალი სიზუსტის ფოტო
 	Image Trace (Make and Expand)	გამოსახულების ვექტორიზაცია (შექმნა და გაშლა)
 	Joins:	შეერთებები:
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	დოკუმენტს რედაქტირებადს ტოვებს: VectorCraft PDF-ს ხელახლა ხსნის ყველაფრის შენარჩუნებით. ფაილებისთვის, რომლებსაც კიდევ დაარედაქტირებთ.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	დოკუმენტს რედაქტირებადს ტოვებს: Pluma PDF-ს ხელახლა ხსნის ყველაფრის შენარჩუნებით. ფაილებისთვის, რომლებსაც კიდევ დაარედაქტირებთ.
 	Lab Spot Colors	Lab სპოტ-ფერები
 	Lasso	ლასო
 	Length:	სიგრძე:
@@ -5070,9 +5064,9 @@ mark-style	Japanese	იაპონური
 	Touch Type	სენსორული ტექსტი
 	UTF-16 (Unicode)	UTF-16 (Unicode)
 	Variation	ვარიაცია
-	VectorCraft Default	VectorCraft-ის ნაგულისხმევი
-	VectorCraft Generic CMYK (SWOP-like)	VectorCraft-ის ზოგადი CMYK (SWOP-ის მსგავსი)
-	VectorCraft Swatches (.vcswatches)	VectorCraft-ის ფერის ნიმუშები (.vcswatches)
+	Pluma Default	Pluma-ის ნაგულისხმევი
+	Pluma Generic CMYK (SWOP-like)	Pluma-ის ზოგადი CMYK (SWOP-ის მსგავსი)
+	Pluma Swatches (.vcswatches)	Pluma-ის ფერის ნიმუშები (.vcswatches)
 	Vertical Area Type	ვერტიკალური არის ტექსტი
 	Vertical Type	ვერტიკალური ტექსტი
 	Vertical Type on a Path	ვერტიკალური ტექსტი ტრაექტორიაზე
@@ -5086,7 +5080,7 @@ mark-style	Japanese	იაპონური
 	Check Script	სკრიპტის შემოწმება
 	Check Script…	სკრიპტის შემოწმება…
 	Copy Report	ანგარიშის კოპირება
-	VectorCraft read this script without running it.	VectorCraft-მა ეს სკრიპტი წაიკითხა მისი გაშვების გარეშე.
+	Pluma read this script without running it.	Pluma-მა ეს სკრიპტი წაიკითხა მისი გაშვების გარეშე.
 	Needs nothing beyond plain JavaScript	საკმარისია ჩვეულებრივი JavaScript
 	Needs the script language's own objects or directives	სჭირდება სკრიპტის ენის საკუთარი ობიექტები ან დირექტივები
 	Needs the document model	სჭირდება დოკუმენტის მოდელი
@@ -5184,14 +5178,14 @@ imageTrace	Outline	კონტური
 	Coloring Controls	ფერის მართვის ელემენტები
 	Draw Mode Controls	ხატვის რეჟიმის მართვის ელემენტები
 	Drawer menu	ხელსაწყოების ჩამოსაშლელი მენიუ
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	ფაილის თითოეულ ჩანაწერს შეესაბამება VectorCraft-ის ხელსაწყო, ბრძანება ან პანელი. შეამოწმეთ შესაბამისობები და უპასუხეთ დარჩენილს.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	ფაილის თითოეულ ჩანაწერს შეესაბამება Pluma-ის ხელსაწყო, ბრძანება ან პანელი. შეამოწმეთ შესაბამისობები და უპასუხეთ დარჩენილს.
 	Enhanced	გაუმჯობესებული
 	Fill and Stroke Controls	შევსებისა და კონტურის მართვის ელემენტები
 	Forget Import Matches	იმპორტის შესაბამისობების დავიწყება
 	Import Matches	იმპორტის შესაბამისობები
 	Import Shortcut Set	მალსახმობების ნაკრების იმპორტი
 	Import Shortcut Set…	მალსახმობების ნაკრების იმპორტი…
-	In VectorCraft	VectorCraft-ში
+	In Pluma	Pluma-ში
 	In the File	ფაილში
 	Keys	კლავიშები
 	Light behind the object	სინათლე ობიექტის უკან
@@ -5218,7 +5212,7 @@ imageTrace	Outline	კონტური
 	Shortcuts	მალსახმობები
 	Single Corner Radius	კუთხის ერთიანი რადიუსი
 	Softness	სირბილე
-	Start from VectorCraft Defaults	VectorCraft-ის ნაგულისხმევიდან დაწყება
+	Start from Pluma Defaults	Pluma-ის ნაგულისხმევიდან დაწყება
 	The file is too large to read in full, so only its first part is listed.	ფაილი სრულად წასაკითხად ზედმეტად დიდია, ამიტომ მხოლოდ მისი პირველი ნაწილია ნაჩვენები.
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	ფაილი კლავიშებსა და მოდიფიკატორებს კოდებით წერს. შეამოწმეთ შემოთავაზებული მნიშვნელობები და უპასუხეთ ჯერ უცნობ კოდებს.
 	Toolbar: Show Controls	ხელსაწყოთა ზოლი: მართვის ელემენტების ჩვენება
@@ -5229,7 +5223,7 @@ imageTrace	Outline	კონტური
 	from your earlier imports	თქვენი წინა იმპორტებიდან
 	not known yet	ჯერ უცნობია
 	{ready} of {total} ready	მზადაა: {ready} / {total}
-@msg	This shortcut file is in a form VectorCraft can't read.	მალსახმობების ეს ფაილი ისეთ ფორმატშია, რომელსაც VectorCraft ვერ კითხულობს.
+@msg	This shortcut file is in a form Pluma can't read.	მალსახმობების ეს ფაილი ისეთ ფორმატშია, რომელსაც Pluma ვერ კითხულობს.
 @msg	control must be fillStroke, coloring, drawMode or screenMode	control უნდა იყოს fillStroke, coloring, drawMode ან screenMode
 @msg	give a fraction `t` from 0 to 1	მიუთითეთ წილი `t` 0-დან 1-მდე
 @msg	give the path `id`	მიუთითეთ ტრაექტორიის `id`
@@ -5489,8 +5483,8 @@ imageTrace	Outline	კონტური
 @msg	more than one action is named “{_1}”	„{_1}“ ერთზე მეტი მოქმედების სახელია
 @msg	no symbol named `{n}`	სიმბოლო სახელით `{n}` არ არის
 @msg	no saved selection recalled	შენახული მონიშვნა გამოძახებული არ არის
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft-ის ბოლო გაშვება ფანჯრის გამოჩენამდე შეწყდა (გრაფიკული პროცესორი: {name}), ამიტომ VectorCraft გაეშვა: {summary}. ამ გრაფიკული პროცესორის ხელახლა საცდელად შეცვალეთ პარამეტრები › წარმადობა › გრაფიკული პროცესორი ან გაუშვით WGPU_BACKEND ცვლადის მითითებით
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft-ის ბოლო გაშვება გრაფიკული პროცესორების ჩამოთვლისას შეწყდა, ამიტომ VectorCraft გაეშვა მხოლოდ OpenGL-ით: {summary}. სხვა გრაფიკული ინტერფეისების ხელახლა საცდელად შეცვალეთ პარამეტრები › წარმადობა › გრაფიკული პროცესორი ან გაუშვით WGPU_BACKEND ცვლადის მითითებით
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma-ის ბოლო გაშვება ფანჯრის გამოჩენამდე შეწყდა (გრაფიკული პროცესორი: {name}), ამიტომ Pluma გაეშვა: {summary}. ამ გრაფიკული პროცესორის ხელახლა საცდელად შეცვალეთ პარამეტრები › წარმადობა › გრაფიკული პროცესორი ან გაუშვით WGPU_BACKEND ცვლადის მითითებით
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma-ის ბოლო გაშვება გრაფიკული პროცესორების ჩამოთვლისას შეწყდა, ამიტომ Pluma გაეშვა მხოლოდ OpenGL-ით: {summary}. სხვა გრაფიკული ინტერფეისების ხელახლა საცდელად შეცვალეთ პარამეტრები › წარმადობა › გრაფიკული პროცესორი ან გაუშვით WGPU_BACKEND ცვლადის მითითებით
 @msg	the image can't be read as a texture	გამოსახულების ტექსტურად წაკითხვა ვერ ხერხდება
 # Upstream sync 2026-10-18 (5e681065): SVG Interactivity, Live Paint gaps, graph column designs, Cutout/Neon Glow/Poster Edges, undo step names, blend spine errors.
 	Add Event	მოვლენის დამატება
@@ -5652,7 +5646,7 @@ imageTrace	Outline	კონტური
 	Symbol Stainer	სიმბოლოების შეფერადება
 	Symbol Styler	სიმბოლოების სტილიზაცია
 	Text Orientation	ტექსტის ორიენტაცია
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	შენახვის პანელში სახელი იყო „{typed}“; VectorCraft-მა ფაილის ტიპის გაფართოება დაამატა. ფაილის ჩანაცვლება მის შიგთავსს გადააწერს.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	შენახვის პანელში სახელი იყო „{typed}“; Pluma-მა ფაილის ტიპის გაფართოება დაამატა. ფაილის ჩანაცვლება მის შიგთავსს გადააწერს.
 	Thread Text	ტექსტის დაკავშირება
 	Trackpad Gesture to Rotate View	ხედის შემობრუნება ტრეკპადის ჟესტით
 	Hold a Tool Shortcut to Use the Tool Temporarily	ხელსაწყოს დროებით გამოყენება მისი მალსახმობის დაჭერით
@@ -6531,7 +6525,7 @@ breakText	Glyphs	გლიფები
 	Malayalam	მალაიალამური
 	Odia	ორია
 	Urdu	ურდუ
-	VectorCraft {release} and later (version {n})	VectorCraft {release} და უფრო ახალი (ვერსია {n})
+	Pluma {release} and later (version {n})	Pluma {release} და უფრო ახალი (ვერსია {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	ყველა ღია დოკუმენტის ექსპორტი PDF-ად
 	Export All Open Documents as SVG	ყველა ღია დოკუმენტის ექსპორტი SVG-ად
@@ -6595,7 +6589,7 @@ breakText	Glyphs	გლიფები
 	HEX	HEX
 	Help Bar	დახმარების ზოლი
 	Check for Updates…	განახლებების შემოწმება…
-	VectorCraft Updates	VectorCraft-ის განახლებები
+	Pluma Updates	Pluma-ის განახლებები
 	Preparing the image…	გამოსახულების მომზადება…
 	Tracing the colors…	ფერების ვექტორიზაცია…
 	Invalid panel layout; restored the default dock	პანელების განლაგება არასწორია; აღდგენილია ნაგულისხმევი დოკი
@@ -6627,13 +6621,13 @@ font-script	Japanese	იაპონური
 	Automate	ავტომატიზაცია
 	Color Table (4 colors)	ფერების ცხრილი (ფერი: 4)
 	Current Colors (0)	მიმდინარე ფერები (0)
-	Differences from VectorCraft Default:	განსხვავებები VectorCraft-ის ნაგულისხმევთან:
+	Differences from Pluma Default:	განსხვავებები Pluma-ის ნაგულისხმევთან:
 	Differences from [Default]:	განსხვავებები [ნაგულისხმევი]-თან:
 	Dot Gain 15%	Dot Gain 15%
 	Expand 1 Selected	1 მონიშნული ობიექტის გაშლა
 	Graphic Styles (4)	გრაფიკული სტილები (4)
 	Gray Gamma 2.2	Gray Gamma 2.2
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft-ის ნაწილი. MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). ხატულები: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia-ის ნაწილი. MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). ხატულები: Lucide (ISC) + Pluma.
 	Phone 375×812	ტელეფონი 375×812
 	Photo Low Fidelity	დაბალი სიზუსტის ფოტო
 	Print & Proof	ბეჭდვა და კორექტურა
@@ -6666,7 +6660,7 @@ font-script	Japanese	იაპონური
 	[PDF/X-1a:2001]	[PDF/X-1a:2001]
 	[PDF/X-3:2002]	[PDF/X-3:2002]
 	[PDF/X-4:2010]	[PDF/X-4:2010]
-	[VectorCraft Default]	[VectorCraft-ის ნაგულისხმევი]
+	[Pluma Default]	[Pluma-ის ნაგულისხმევი]
 @msg	give corners of the path: anchors between two straight sides	მიუთითეთ ტრაექტორიის კუთხეები: საყრდენი წერტილები ორ სწორ გვერდს შორის
 	Release Type on a Path…	ტექსტის ტრაექტორიიდან მოხსნა…
 	Release Type on a Path	ტექსტის ტრაექტორიიდან მოხსნა
@@ -6747,14 +6741,14 @@ font-script	Japanese	იაპონური
 	Safe Mode	უსაფრთხო რეჟიმი
 	Help › Safe Mode…	დახმარება › უსაფრთხო რეჟიმი…
 	Enable on Re-launch	ჩართვა შემდეგ გაშვებისას
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	VectorCraft-ის ბოლო გაშვება შეჩერდა, როცა პლაგინი {name} იტვირთებოდა. შესაძლოა, მიზეზი ის არ იყოს.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Pluma-ის ბოლო გაშვება შეჩერდა, როცა პლაგინი {name} იტვირთებოდა. შესაძლოა, მიზეზი ის არ იყოს.
 	Disable and Continue	გამორთვა და გაგრძელება
 	Start Normally	ჩვეულებრივ გაშვება
 	Start in Safe Mode	უსაფრთხო რეჟიმში გაშვება
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft უსაფრთხო რეჟიმშია: პლაგინები არ იტვირთება და არ ეშვება, სანამ პროგრამა ჩვეულებრივ არ გაეშვება.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma უსაფრთხო რეჟიმშია: პლაგინები არ იტვირთება და არ ეშვება, სანამ პროგრამა ჩვეულებრივ არ გაეშვება.
 	Disabled plug-ins	გამორთული პლაგინები
 	No plug-ins are disabled.	გამორთული პლაგინები არ არის.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	უსაფრთხო რეჟიმი ჩართულია: პლაგინები არ იტვირთება და არ ეშვება, სანამ VectorCraft ჩვეულებრივ არ გაეშვება
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	უსაფრთხო რეჟიმი ჩართულია: პლაგინები არ იტვირთება და არ ეშვება, სანამ Pluma ჩვეულებრივ არ გაეშვება
 @msg	give `id` or `file` (see plugin.safeMode)	მიუთითეთ `id` ან `file` (იხ. plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	ეს პლაგინი გამორთული არ არის (იხ. plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	გამორთული პლაგინების შენახვა შემდეგი გაშვებისთვის ვერ მოხერხდა

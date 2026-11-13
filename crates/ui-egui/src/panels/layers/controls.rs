@@ -1,13 +1,13 @@
 use super::model::{ObjectKind, RowState, names, parse_names, toggled};
 use super::{
-    Document, HashSet, LayersDrag, Node, NodeId, NodeKind, PanelDrag, Sense, Stroke, Ui, Value, VectorcraftApp, View, json, last_selected,
-    see_selection, vec2, widgets,
+    Document, HashSet, LayersDrag, Node, NodeId, NodeKind, PanelDrag, PlumaApp, Sense, Stroke, Ui, Value, View, json, last_selected, see_selection,
+    vec2, widgets,
 };
 
 /// The Filter button, lit while a filter is on, and its popup: Clear All, the object kinds under
 /// By Object and the row states under By Layer, each ticked or not. A tick, or Clear All, runs
 /// `ui.layersFilter`; the popup stays open until a click outside it or Escape.
-pub(super) fn filter_button(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(super) fn filter_button(app: &mut PlumaApp, ui: &mut Ui) {
     let f = app.ui.layers_filter.clone();
     let button = widgets::icon_button(ui, "dc-filter", tl!("Filter"), f.is_on(), 24.0);
     let mut set = None;
@@ -40,7 +40,7 @@ pub(super) fn filter_button(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// The bottom bar: the layer count and the panel's buttons.
-pub(super) fn bottom_bar(app: &mut VectorcraftApp, ui: &mut Ui, view: &View, doc: &Document, actions: &mut Vec<(String, Value)>) {
+pub(super) fn bottom_bar(app: &mut PlumaApp, ui: &mut Ui, view: &View, doc: &Document, actions: &mut Vec<(String, Value)>) {
     let t = &view.t;
     let (bar, _) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::hover());
     ui.painter().line_segment([bar.left_top(), bar.right_top()], Stroke::new(1.0, t.divider));
@@ -116,7 +116,7 @@ pub(super) fn bottom_bar(app: &mut VectorcraftApp, ui: &mut Ui, view: &View, doc
 type MenuItem<'a> = (&'a str, &'a str, Value, bool, bool);
 
 /// The Layers panel's (≡) menu.
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else { return };
     let doc = st.doc.clone();
     let rows = st.highlighted_rows();
@@ -245,7 +245,7 @@ pub(super) fn collect_for_export_menu(ui: &mut Ui, enabled: bool, mut run: impl 
 
 /// Save Selection › Save Selection…, Update Selection and Edit Selection…, enabled and run as in
 /// the Select menu, then the active document's saved selections: choosing one recalls it.
-fn save_selection_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn save_selection_menu(app: &mut PlumaApp, ui: &mut Ui) {
     ui.menu_button(format!("   {}", tl!("Save Selection")), |ui| {
         widgets::menu_scroll(ui, |ui| {
             for (label, id) in [("Save Selection…", "select.save"), ("Update Selection", "select.update"), ("Edit Selection…", "select.editSaved")]
@@ -274,7 +274,7 @@ fn save_selection_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// `ui.layersExpand {ids?, open?}`: open (or close) rows of the active document's Layers panel;
 /// without `ids`, every row that holds others.
-pub fn expand(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn expand(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     let open = p.get("open").and_then(Value::as_bool).unwrap_or(true);
     let ids: Vec<u64> = match p.get("ids").and_then(Value::as_array) {
@@ -301,7 +301,7 @@ pub fn expand(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 /// name ([`ObjectKind::ALL`], [`RowState::ALL`]). A key left out or set to null keeps its list; any
 /// other value that is not an array of those names is an error, and then nothing changes.
 /// → {objects, layers}
-pub fn set_filter(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn set_filter(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let objects = parse_names(p, "objects", &ObjectKind::ALL)?;
     let layers = parse_names(p, "layers", &RowState::ALL)?;
     let f = &mut app.ui.layers_filter;

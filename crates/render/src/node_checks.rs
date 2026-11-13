@@ -22,7 +22,7 @@ pub(crate) fn single_plain_fill(n: &Node) -> bool {
         AppearanceItem::Fill(f) => f.visible && !f.paint.is_none(),
         AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0,
     });
-    matches!((painted.next(), painted.next()), (Some(AppearanceItem::Fill(f)), None) if f.blend == vectorcraft_color::BlendMode::Normal && f.opacity >= 1.0 && !matches!(f.paint, vectorcraft_color::Paint::Pattern { .. }))
+    matches!((painted.next(), painted.next()), (Some(AppearanceItem::Fill(f)), None) if f.blend == pluma_color::BlendMode::Normal && f.opacity >= 1.0 && !matches!(f.paint, pluma_color::Paint::Pattern { .. }))
 }
 
 /// A knockout element whose opaque paint covers exactly its knockout shape. The caller limits
@@ -30,16 +30,13 @@ pub(crate) fn single_plain_fill(n: &Node) -> bool {
 pub(crate) fn opaque_knockout_fill(n: &Node) -> bool {
     matches!(n.kind, NodeKind::Path { guide: false, .. } | NodeKind::Compound { .. })
         && n.opacity >= 1.0
-        && n.blend == vectorcraft_color::BlendMode::Normal
+        && n.blend == pluma_color::BlendMode::Normal
         && !n.isolate
         && n.extras().mask.is_none()
         && !crate::fx::has_fx(n)
         && !crate::fx::has_object_fx(n)
         && single_plain_fill(n)
-        && n.appearance
-            .items
-            .iter()
-            .any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && matches!(f.paint, vectorcraft_color::Paint::Solid { .. })))
+        && n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && matches!(f.paint, pluma_color::Paint::Solid { .. })))
 }
 
 /// Number of visible painted fill/stroke items (opacity folding is exact only for one). A dashed
@@ -51,11 +48,11 @@ pub(crate) fn painted_items(n: &Node) -> usize {
         .items
         .iter()
         .filter(|i| match i {
-            AppearanceItem::Fill(f) => f.visible && !f.paint.is_none() && matches!(f.paint, vectorcraft_color::Paint::Solid { .. }),
-            AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0 && matches!(s.paint, vectorcraft_color::Paint::Solid { .. }),
+            AppearanceItem::Fill(f) => f.visible && !f.paint.is_none() && matches!(f.paint, pluma_color::Paint::Solid { .. }),
+            AppearanceItem::Stroke(s) => s.visible && !s.paint.is_none() && s.width > 0.0 && matches!(s.paint, pluma_color::Paint::Solid { .. }),
         })
         .count()
-        .max(if n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && !matches!(f.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None)) || matches!(i, AppearanceItem::Stroke(s) if s.visible && (!matches!(s.paint, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None) || (s.dash.is_some() && s.brush.is_some() && !s.paint.is_none())))) { 2 } else { 0 })
+        .max(if n.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Fill(f) if f.visible && !matches!(f.paint, pluma_color::Paint::Solid { .. } | pluma_color::Paint::None)) || matches!(i, AppearanceItem::Stroke(s) if s.visible && (!matches!(s.paint, pluma_color::Paint::Solid { .. } | pluma_color::Paint::None) || (s.dash.is_some() && s.brush.is_some() && !s.paint.is_none())))) { 2 } else { 0 })
 }
 
 /// Whether `st` is one of `n`'s own strokes (the strokes of the brush art drawn for `n` are not).
@@ -78,7 +75,7 @@ pub(crate) fn place(art: &Node, xf: Affine, scale_strokes: bool, inst: Option<&N
 /// with an inline graphic, an image, a placed document, or an object or a fill or stroke with a
 /// visible raster effect?
 pub(crate) fn depends_on_document(n: &Node) -> bool {
-    let raster = |fx: &[vectorcraft_doc::Effect]| fx.iter().any(|e| e.visible && effects::is_raster(&e.id));
+    let raster = |fx: &[pluma_doc::Effect]| fx.iter().any(|e| e.visible && effects::is_raster(&e.id));
     let mut depends = false;
     n.walk(&mut |c| {
         depends |= match &c.kind {
@@ -109,7 +106,7 @@ pub(crate) fn holds_instance(n: &Node) -> bool {
 
 /// Is `a` left out of a frame `doc` draws with `opts`, before any culling: hidden, a template or
 /// guide the view hides, drawn hidden, or the instance its symbol is being edited from?
-pub(crate) fn left_out(opts: &crate::RenderOptions, doc: &vectorcraft_doc::Document, a: &Node) -> bool {
+pub(crate) fn left_out(opts: &crate::RenderOptions, doc: &pluma_doc::Document, a: &Node) -> bool {
     let view_item = (opts.skip_templates || opts.hide_templates) && matches!(a.kind, NodeKind::Layer { template: true, .. })
         || (opts.skip_templates || opts.hide_guides) && matches!(a.kind, NodeKind::Path { guide: true, .. });
     !a.visible || view_item || opts.hidden.contains(&a.id) || edited_instance(opts, doc, a.id)
@@ -117,7 +114,7 @@ pub(crate) fn left_out(opts: &crate::RenderOptions, doc: &vectorcraft_doc::Docum
 
 /// Symbol editing mode on screen: is `id` the instance editing was entered from, which is not drawn
 /// (with its masks and effects), since the editing layer holds a copy of its art in its place?
-fn edited_instance(opts: &crate::RenderOptions, doc: &vectorcraft_doc::Document, id: vectorcraft_doc::NodeId) -> bool {
+fn edited_instance(opts: &crate::RenderOptions, doc: &pluma_doc::Document, id: pluma_doc::NodeId) -> bool {
     opts.isolated.is_some() && doc.symbol_edit.as_ref().is_some_and(|e| e.instance == Some(id))
 }
 
@@ -142,10 +139,10 @@ pub(crate) fn holds_plugin_effect(n: &Node) -> bool {
     holds
 }
 
-/// A symbol instance's stain ([`vectorcraft_brush::stain`]) as bits for a cache key: its color
+/// A symbol instance's stain ([`pluma_brush::stain`]) as bits for a cache key: its color
 /// model, the color's components and the amount (all 0 without a stain).
-pub(crate) fn stain_bits(stain: Option<(vectorcraft_color::Color, f32)>) -> [u32; 6] {
-    use vectorcraft_color::Color;
+pub(crate) fn stain_bits(stain: Option<(pluma_color::Color, f32)>) -> [u32; 6] {
+    use pluma_color::Color;
     let Some((color, amount)) = stain else { return [0; 6] };
     let (model, [p, q, r, s]) = match color {
         Color::Rgb { r, g, b } => (1, [r, g, b, 0.0]),

@@ -9,7 +9,7 @@ use super::screens::ScreenSize;
 use super::*;
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 /// A document of `artboards` 40×30 pt artboards side by side with a 20 pt square on the first.
@@ -227,7 +227,7 @@ fn a_saved_document_exports_under_its_file_name() {
     s.execute("file.info", &json!({"title": "Logo: final version"})).unwrap();
     let dir = std::env::temp_dir().join(format!("vc-screens-filename-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    s.execute("document.save", &json!({"path": dir.join("my-logo.vectorcraft").to_string_lossy()})).unwrap();
+    s.execute("document.save", &json!({"path": dir.join("my-logo.pluma").to_string_lossy()})).unwrap();
     for (p, name) in [
         (json!({"name": "<filename>__<name>", "formats": [{"format": "png"}]}), "my-logo__Artboard 1.png"),
         (json!({"fullDocument": true, "formats": [{"format": "png"}]}), "my-logo.png"),
@@ -517,7 +517,7 @@ fn full_document_gives_one_file_per_format() {
     let f = files(&r);
     let title = super::file_stem(&s.doc().unwrap().doc.title);
     assert_eq!(names(&r), [format!("x-{title}.pdf"), format!("x-{title}@2x.png"), format!("x-{title}.svg")]);
-    assert_eq!(vectorcraft_pdf::import(&f[0].1).unwrap().artboards.len(), 3, "one page per artboard, whatever the range");
+    assert_eq!(pluma_pdf::import(&f[0].1).unwrap().artboards.len(), 3, "one page per artboard, whatever the range");
     // The bounds of the art: the square and its 1 pt stroke.
     assert_eq!(size(&f[1].1), (42, 42));
     // Nothing visible: nothing to export but the PDF.
@@ -685,7 +685,7 @@ fn format_settings_apply_to_their_rows_and_rows_win() {
 /// The format ids `text` lists as `a|b|c` after `start`, up to `end`, sorted.
 fn listed(text: &str, start: &str, end: char) -> Vec<String> {
     let (_, rest) = text.split_once(start).unwrap_or_else(|| panic!("no `{start}` in {text}"));
-    let mut ids: Vec<String> = rest.split(end).next().unwrap_or_default().split('|').map(|f| f.trim().to_string()).collect();
+    let mut ids: Vec<String> = rest.split(end).next().unwrap_or_default().split('|').map(|f| super::tests::native_id(f.trim())).collect();
     ids.sort();
     ids
 }
@@ -713,7 +713,7 @@ fn the_params_and_the_refusal_list_every_format_a_row_writes() {
     assert!(!refusals.is_empty());
     for msg in refusals {
         let list = msg.strip_prefix("Export for Screens writes ").unwrap_or_else(|| panic!("{msg}"));
-        let mut ids: Vec<String> = list.replace(" or ", ", ").split(", ").map(str::to_string).collect();
+        let mut ids: Vec<String> = list.replace(" or ", ", ").split(", ").map(super::tests::native_id).collect();
         ids.sort();
         assert_eq!(ids, written, "{msg}");
     }
@@ -737,7 +737,7 @@ fn zip_downloads_round_trip() {
     for ((name, zipped), (_, returned)) in entries.iter().zip(&plain) {
         if name.ends_with(".pdf") {
             // A PDF carries the time it was written.
-            assert_eq!(vectorcraft_pdf::import(zipped).unwrap().artboards.len(), 1, "{name}");
+            assert_eq!(pluma_pdf::import(zipped).unwrap().artboards.len(), 1, "{name}");
         } else {
             assert_eq!(zipped, returned, "{name}");
         }
@@ -834,15 +834,15 @@ fn a_cancel_after_the_last_file_returns_nothing() {
     let rows = json!([{"format": "svg"}, {"format": "svg"}]);
     for p in [json!({ "formats": rows }), json!({ "formats": rows, "zip": true }), json!({ "formats": rows, "zip": true, "folder": folder })] {
         let prepared = s.prepare_screen_export("document.exportForScreens", &p).unwrap();
-        let token = vectorcraft_doc::cancel::CancelToken::new();
+        let token = pluma_doc::cancel::CancelToken::new();
         let on_last = token.clone();
-        let sink: vectorcraft_doc::cancel::ProgressSink = std::rc::Rc::new(move |done, total, _| {
+        let sink: pluma_doc::cancel::ProgressSink = std::rc::Rc::new(move |done, total, _| {
             if done + 1 == total {
                 on_last.cancel();
             }
         });
         let mut written = vec![];
-        let r = vectorcraft_doc::cancel::scope(&token, Some(sink), || {
+        let r = pluma_doc::cancel::scope(&token, Some(sink), || {
             prepared.write(&mut |path: &str, _: &[u8]| {
                 written.push(path.to_string());
                 Ok(())
@@ -865,15 +865,15 @@ fn a_cancel_after_the_last_file_keeps_a_finished_folder_export() {
     let folder = dir.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
     let p = json!({ "formats": [{"format": "svg"}, {"format": "svg"}], "folder": folder });
     let prepared = s.prepare_screen_export("document.exportForScreens", &p).unwrap();
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     let on_last = token.clone();
-    let sink: vectorcraft_doc::cancel::ProgressSink = std::rc::Rc::new(move |done, total, _| {
+    let sink: pluma_doc::cancel::ProgressSink = std::rc::Rc::new(move |done, total, _| {
         if done + 1 == total {
             on_last.cancel();
         }
     });
     let mut written = vec![];
-    let r = vectorcraft_doc::cancel::scope(&token, Some(sink), || {
+    let r = pluma_doc::cancel::scope(&token, Some(sink), || {
         prepared.write(&mut |path: &str, _: &[u8]| {
             written.push(path.to_string());
             Ok(())
@@ -932,11 +932,11 @@ fn the_document_remembers_its_export_settings() {
     assert!(s.execute("document.exportForScreens", &json!({"range": "9"})).is_err());
     assert_eq!(s.execute("document.exportSettings", &json!({})).unwrap()["settings"], json!({"range": "1"}));
     // Saved with the document (native round trip); older files have none.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(doc.export_settings, s.doc().unwrap().doc.export_settings);
-    let plain = String::from_utf8(vectorcraft_format::save(&vectorcraft_doc::Document::new(5.0, 5.0), false)).unwrap();
+    let plain = String::from_utf8(pluma_format::save(&pluma_doc::Document::new(5.0, 5.0), false)).unwrap();
     assert!(!plain.contains("export_settings") && !plain.contains("exportSettings"), "not written when empty");
-    assert!(vectorcraft_format::load(plain.as_bytes()).unwrap().export_settings.is_empty());
+    assert!(pluma_format::load(plain.as_bytes()).unwrap().export_settings.is_empty());
 }
 
 /// Export PDFs As › Single file: with several artboards, a PDF row writes them as the pages of one
@@ -952,7 +952,7 @@ fn single_file_pdfs_hold_every_chosen_artboard() {
     let pdf: Vec<&(String, Vec<u8>)> = got.iter().filter(|(n, _)| n.ends_with(".pdf")).collect();
     assert_eq!(pdf.len(), 1, "{:?}", names(&r));
     assert_eq!(pdf[0].0, format!("{title}.pdf"));
-    assert_eq!(vectorcraft_pdf::import(&pdf[0].1).unwrap().artboards.len(), 2, "one page per artboard");
+    assert_eq!(pluma_pdf::import(&pdf[0].1).unwrap().artboards.len(), 2, "one page per artboard");
     assert_eq!(got.iter().filter(|(n, _)| n.ends_with(".png")).count(), 2);
     let r = export(&mut s, json!({"range": "2", "pdfs": "single", "formats": [{"format": "pdf"}]}));
     assert_eq!(names(&r), ["Artboard-2.pdf"]);

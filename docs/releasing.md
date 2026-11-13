@@ -8,7 +8,7 @@ installers for macOS, Windows, Linux (including Flatpak bundles and a RISC-V tar
 publishes it.
 
 User-facing names say **Pluma**. Files, binaries and ids stay lowercase
-(`vectorcraft-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.vectorcraft`).
+(`pluma-<version>-<platform>-<arch>.<ext>`, `dev.danielmiguelt.Pluma`).
 
 ## Cutting a release
 
@@ -46,19 +46,19 @@ and no draft release is created.
 
 | Platform | Artifacts | Built on |
 |---|---|---|
-| macOS 11+ (universal: Apple silicon and Intel) | `vectorcraft-<v>-macos-universal.dmg`, `vectorcraft-cli-<v>-macos-universal.zip` | `macos-15` |
-| Windows x64 | `vectorcraft-<v>-windows-x64.msi`, `vectorcraft-<v>-windows-x64-portable.zip` | `windows-latest` |
-| Windows x86 (32-bit) | `vectorcraft-<v>-windows-x86.msi`, `vectorcraft-<v>-windows-x86-portable.zip` | `windows-latest` |
-| Windows on ARM64 | `vectorcraft-<v>-windows-arm64.msi`, `vectorcraft-<v>-windows-arm64-portable.zip` | `windows-latest` (cross-compiled) |
-| Linux x86_64 | `vectorcraft-<v>-linux-x86_64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04` |
-| Linux aarch64 | `vectorcraft-<v>-linux-aarch64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04-arm` |
-| Linux riscv64 | `vectorcraft-<v>-linux-riscv64.tar.gz` (cross-compiled, glibc >= 2.39; CLI smoke-tested under QEMU) | `ubuntu-24.04` |
-| Linux AppImage updates | `vectorcraft-<v>-linux-{x86_64,aarch64}.AppImage.zsync` | with the AppImages |
-| Flatpak x86_64, aarch64 | `vectorcraft-<v>-linux-{x86_64,aarch64}.flatpak` | `ubuntu-24.04`, `ubuntu-24.04-arm` (repackages the Linux tarball) |
-| FreeBSD 14 x86_64 | `vectorcraft-<v>-freebsd-x86_64.tar.gz` | a FreeBSD 14.3 VM on `ubuntu-latest` |
-| Web | `vectorcraft-web-<v>.zip`, a static site (see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
+| macOS 11+ (universal: Apple silicon and Intel) | `pluma-<v>-macos-universal.dmg`, `pluma-cli-<v>-macos-universal.zip` | `macos-15` |
+| Windows x64 | `pluma-<v>-windows-x64.msi`, `pluma-<v>-windows-x64-portable.zip` | `windows-latest` |
+| Windows x86 (32-bit) | `pluma-<v>-windows-x86.msi`, `pluma-<v>-windows-x86-portable.zip` | `windows-latest` |
+| Windows on ARM64 | `pluma-<v>-windows-arm64.msi`, `pluma-<v>-windows-arm64-portable.zip` | `windows-latest` (cross-compiled) |
+| Linux x86_64 | `pluma-<v>-linux-x86_64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04` |
+| Linux aarch64 | `pluma-<v>-linux-aarch64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04-arm` |
+| Linux riscv64 | `pluma-<v>-linux-riscv64.tar.gz` (cross-compiled, glibc >= 2.39; CLI smoke-tested under QEMU) | `ubuntu-24.04` |
+| Linux AppImage updates | `pluma-<v>-linux-{x86_64,aarch64}.AppImage.zsync` | with the AppImages |
+| Flatpak x86_64, aarch64 | `pluma-<v>-linux-{x86_64,aarch64}.flatpak` | `ubuntu-24.04`, `ubuntu-24.04-arm` (repackages the Linux tarball) |
+| FreeBSD 14 x86_64 | `pluma-<v>-freebsd-x86_64.tar.gz` | a FreeBSD 14.3 VM on `ubuntu-latest` |
+| Web | `pluma-web-<v>.zip`, a static site (see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
 
-`vectorcraft --version` and `vectorcraft-cli --version` print the version from `Cargo.toml`.
+`pluma --version` and `pluma-cli --version` print the version from `Cargo.toml`.
 
 **Fonts.** Every build job checks out [craft-fonts](https://github.com/storytold/craft-fonts) at a
 pinned commit (the `ref:` of its craft-fonts checkout step) and builds with `CRAFT_FONTS_DIR` and
@@ -73,15 +73,15 @@ The build option is in
 `packaging/macos/package.sh` builds `aarch64-apple-darwin` and `x86_64-apple-darwin` with
 `MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo` and assembles `Pluma.app`:
 
-- `Info.plist` is generated from `Info.plist.in` (bundle id `ai.storyteller.vectorcraft`,
+- `Info.plist` is generated from `Info.plist.in` (bundle id `dev.danielmiguelt.Pluma`,
   `LSMinimumSystemVersion` 11.0, the version and the build commit). The icon is
-  `assets/app-icon/vectorcraft.icns`. `cargo xtask bundle` fills in the same template for its
+  `assets/app-icon/pluma.icns`. `cargo xtask bundle` fills in the same template for its
   development app.
 - **Document types:** `Info.plist.in` declares every format File › Open reads, so Finder opens
   them with Pluma (double-click, Open With, a drop on the Dock icon). Pluma owns its own
   formats and is an alternate for the others. A test keeps the list in step with the engine's
   `OPEN_EXTS`. AppKit hands the files to the app as open-document events, which
-  `apps/vectorcraft/src/open_documents.rs` opens like files named on the command line.
+  `apps/pluma/src/open_documents.rs` opens like files named on the command line.
 - **Signing** goes inside-out with the hardened runtime and a secure timestamp: the executable
   first, then the bundle, with no `--deep` on the final signature. The entitlements
   (`entitlements.plist`) are deliberately empty.
@@ -92,7 +92,7 @@ The build option is in
   `codesign --verify --strict --deep` (#1085). Its Finder window (background, icon size and positions) comes from
   [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `Pluma`
   without the version, which the window's background needs; the DMG file name keeps the version.
-- **CLI:** the universal `vectorcraft-cli` is signed the same way, zipped, and the zip is
+- **CLI:** the universal `pluma-cli` is signed the same way, zipped, and the zip is
   notarized. A bare executable can't hold a stapled ticket, so Gatekeeper looks the CLI's ticket up
   online the first time a downloaded copy runs.
 
@@ -111,27 +111,27 @@ so neither the MSI nor the portable zip needs the Visual C++ redistributable. Th
 to the target triple, so host build scripts aren't affected.
 
 - Before packaging, the script checks each binary's PE machine type against `-Arch` (an x64 build
-  can never ship labelled arm64), that `vectorcraft.exe` is a GUI program (no console window) and
-  that `vectorcraft-cli.exe` is a console program.
-- **Portable zip:** it ships `packaging/windows/portable.txt` beside `vectorcraft.exe`. That
+  can never ship labelled arm64), that `pluma.exe` is a GUI program (no console window) and
+  that `pluma-cli.exe` is a console program.
+- **Portable zip:** it ships `packaging/windows/portable.txt` beside `pluma.exe`. That
   marker (or a `Pluma.portable` file) switches on portable mode, as in Lienzo: `ui.json`
   and the folders next to it (Swatches, Graphic Styles, Fonts, Data Recovery, logs…) go to
-  `VectorCraftData\` next to the exe instead of `%APPDATA%\Pluma`. The first time
-  `VectorCraftData` is created, the settings already in `%APPDATA%\Pluma` are copied into it
+  `PlumaData\` next to the exe instead of `%APPDATA%\Pluma`. The first time
+  `PlumaData` is created, the settings already in `%APPDATA%\Pluma` are copied into it
   (the originals stay), so someone updating a portable zip from before the marker keeps their
   settings. If that folder isn't writable the app logs a warning and uses `%APPDATA%`. Deleting
-  `portable.txt` returns settings to the user profile (the `VectorCraftData` folder is left as it
-  is). The MSI has no marker. `VECTORCRAFT_CONFIG_DIR` still wins, `VECTORCRAFT_NO_PREFS` never
+  `portable.txt` returns settings to the user profile (the `PlumaData` folder is left as it
+  is). The MSI has no marker. `PLUMA_CONFIG_DIR` still wins, `PLUMA_NO_PREFS` never
   looks for the marker, and a portable copy skips the one-time read of the old Pluma settings.
-  The logic is in `apps/vectorcraft/src/profile.rs`. On the other platforms the marker goes where
+  The logic is in `apps/pluma/src/profile.rs`. On the other platforms the marker goes where
   the user sees the app, never inside it: on macOS next to `Pluma.app` (nothing is written
   inside the signed bundle), for an AppImage next to the `.AppImage` file (`$APPIMAGE`; the mounted
   executable's own folder is read-only). Flatpak isn't supported: `/app` is read-only and the
   sandbox has no folder "beside the app", so a Flatpak install always uses its own config folder.
-- `vectorcraft.wxs` (WiX) is a dual-scope package (per-user by default into
-  `%LOCALAPPDATA%\Programs\ArtCraft\Pluma`, per-machine into `Program Files\ArtCraft\Pluma` (`Program Files (x86)` for the 32-bit build),
+- `pluma.wxs` (WiX) is a dual-scope package (per-user by default into
+  `%LOCALAPPDATA%\Programs\Nodalia\Pluma`, per-machine into `Program Files\Nodalia\Pluma` (`Program Files (x86)` for the 32-bit build),
   see `packaging/windows/INSTALLATION.md`) with a Start Menu shortcut
-  and an App Paths entry (Win+R `vectorcraft`). Same-version upgrades are allowed, so release
+  and an App Paths entry (Win+R `pluma`). Same-version upgrades are allowed, so release
   candidates replace each other.
 - Double-clicking the MSI opens a setup wizard (WixUI_InstallDir without the licence page; the scope page appears only for a new full-UI install, not for
   maintenance, uninstall or reduced and silent runs):
@@ -139,13 +139,13 @@ to the target triple, so host build scripts aren't affected.
   upgrades in `HKLM` or `HKCU\Software\Pluma\InstallDir` according to scope),
   Shortcuts (a ticked "Create a desktop shortcut" box), Ready, a progress page, and a Finish page
   that says where to find the app, with a ticked "Launch Pluma" box. The pages name the full
-  version (`vectorcraft.en-us.wxl`). `package.ps1` draws the wizard's banner and side bitmaps from
+  version (`pluma.en-us.wxl`). `package.ps1` draws the wizard's banner and side bitmaps from
   the app icon, so no WiX stock art ships. `msiexec /qn` still installs silently, with the desktop
   shortcut unless `INSTALLDESKTOPSHORTCUT=""` is passed. Building needs the WiX UI and Util
   extensions: `wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2`.
 - The ARM64 build is cross-compiled on the x64 runner. `.github/workflows/windows-arm64.yml`
   installs that MSI on a Windows 11 ARM64 runner, checks that both installed programs are ARM64,
-  runs `vectorcraft-cli --version` natively and uninstalls.
+  runs `pluma-cli --version` natively and uninstalls.
 - **Signing:** `packaging/windows/sign.ps1` signs both `.exe` files and then the `.msi` with
   `signtool` (SHA-256, RFC 3161 timestamp), using whichever material is present:
   1. a `.pfx` certificate (`WINDOWS_CERTIFICATE`, base64, and `WINDOWS_CERTIFICATE_PASSWORD`), or
@@ -165,7 +165,7 @@ AppStream metainfo, the MIME type for Pluma documents, the icons and the licence
 
 **Document types.** The desktop entry's `MimeType` lists every format File › Open reads but PSD,
 PSB, `.ps` PostScript, Targa, PCX, Pixar, JPEG 2000 and HEIC/HEIF, so file managers list Pluma under Open With for them.
-`ai.storyteller.vectorcraft.mime.xml` declares the types that shared-mime-info lacks: Pluma
+`dev.danielmiguelt.Pluma.mime.xml` declares the types that shared-mime-info lacks: Pluma
 documents and templates, `.ait` templates and Affinity files (`application/x-affinity`). An `.af`
 file gets the Affinity type by its content, and `.afdesign` and `.afpub` files by their extension.
 A test keeps both files in step with the engine's `OPEN_EXTS`.
@@ -195,10 +195,10 @@ Before publishing a Linux release:
 **RISC-V.** The `linux-riscv64` job cross-compiles `riscv64gc-unknown-linux-gnu` on `ubuntu-24.04`
 against riscv64 libraries from ports.ubuntu.com (so the floor there is glibc 2.39) and runs
 `package.sh --formats tar` with `CROSS_ARCH`, `CROSS_TARGET`, `CROSS_COMPILE` and
-`EMULATOR=qemu-riscv64` set: a `.tar.gz` only, with `vectorcraft-cli --version` run under QEMU.
+`EMULATOR=qemu-riscv64` set: a `.tar.gz` only, with `pluma-cli --version` run under QEMU.
 
 **AppImage updates.** Each AppImage embeds the update information
-`gh-releases-zsync|storytold|vectorcraft|latest|vectorcraft-*-linux-<arch>.AppImage.zsync`
+`gh-releases-zsync|storytold|pluma|latest|pluma-*-linux-<arch>.AppImage.zsync`
 (appimagetool `-u`), and `package.sh` writes the matching `.zsync` beside it when `zsyncmake` (the
 `zsync` package) is installed. [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate)
 and AppImageLauncher then download only the changed blocks from the newest published,
@@ -206,10 +206,10 @@ non-pre-release release. The job checks both are there.
 
 **Flatpak.** The `flatpak` jobs (x86_64 on `ubuntu-24.04`, aarch64 on `ubuntu-24.04-arm`) take the
 Linux job's tarball and repackage it with `packaging/linux/flatpak-bundle.sh` and
-`packaging/linux/flatpak/ai.storyteller.vectorcraft.bundle.yml` into a single-file bundle
-(`flatpak install --user vectorcraft-<v>-linux-<arch>.flatpak`), then install it and run
-`vectorcraft-cli --version` in the sandbox. No Rust build happens there, so the bundle carries the
-same binaries as the AppImage. `packaging/linux/flatpak/ai.storyteller.vectorcraft.yml` is the
+`packaging/linux/flatpak/dev.danielmiguelt.Pluma.bundle.yml` into a single-file bundle
+(`flatpak install --user pluma-<v>-linux-<arch>.flatpak`), then install it and run
+`pluma-cli --version` in the sandbox. No Rust build happens there, so the bundle carries the
+same binaries as the AppImage. `packaging/linux/flatpak/dev.danielmiguelt.Pluma.yml` is the
 from-source manifest for a Flathub submission (its header says how to build it); packaging-lint
 keeps the runtime and sandbox permissions of the two manifests identical.
 
@@ -218,11 +218,11 @@ keeps the runtime and sandbox permissions of the two manifests identical.
 GitHub has no FreeBSD runners, so the job builds in a FreeBSD 14.3 VM on `ubuntu-latest` (the same
 image as `.github/workflows/freebsd.yml`). `packaging/freebsd/package.sh` writes a
 `/usr/local`-style tree; users install it with
-`tar -xzf vectorcraft-*-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local`.
+`tar -xzf pluma-*-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local`.
 
 ### Web
 
-The web job builds `apps/vectorcraft-web` with trunk and zips the static site
+The web job builds `apps/pluma-web` with trunk and zips the static site
 (`packaging/web/package.sh`). [`packaging/web/README.md`](../packaging/web/README.md) covers
 hosting: any path works, `.wasm` must be served as `application/wasm`, and the sample header
 files for common hosts.

@@ -34,11 +34,11 @@
 use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use pluma_doc::hit::hit_test;
+use pluma_doc::{NodeId, NodeKind, Quotes, TextKind, TextObject, TextRun};
+use pluma_geom::{BezPath, Point, Rect, Shape};
+use pluma_text::{FontDb, TextLayout, edit};
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::hit_test;
-use vectorcraft_doc::{NodeId, NodeKind, Quotes, TextKind, TextObject, TextRun};
-use vectorcraft_geom::{BezPath, Point, Rect, Shape};
-use vectorcraft_text::{FontDb, TextLayout, edit};
 
 use crate::guides::DrawSnap;
 use crate::{Action, Cursor, ImeSurrounding, Mods, Overlay, PointerEvent, PointerKind, SurroundingUnit, Tool, ToolContext, ToolKey};
@@ -94,7 +94,7 @@ struct TypedList {
     end: usize,
     /// The plain text with the typed characters, before the list started.
     text: String,
-    list: vectorcraft_doc::text::ParaList,
+    list: pluma_doc::text::ParaList,
 }
 
 /// An undo step that changed the text of the type object the tool edits, in the order the history
@@ -291,7 +291,7 @@ impl TypeTool {
         {
             return l.clone();
         }
-        let l = Arc::new(vectorcraft_text::layout(FontDb::global(), t));
+        let l = Arc::new(pluma_text::layout(FontDb::global(), t));
         *c = Some(((fonts, t.clone()), l.clone()));
         l
     }
@@ -493,7 +493,7 @@ impl TypeTool {
         let para = text.get(..a)?.matches('\n').count();
         let list = t.para_at(para).list?;
         let level = i32::try_from(list.depth()).ok()? + by;
-        let max = i32::try_from(vectorcraft_doc::text::LIST_LEVELS).ok()?;
+        let max = i32::try_from(pluma_doc::text::LIST_LEVELS).ok()?;
         if !(1..=max).contains(&level) {
             return Some(vec![]);
         }
@@ -745,7 +745,7 @@ impl TypeTool {
             TextKind::Area { frame } => frame.bounds().is_some_and(|b| b.inflate(tol, tol).contains(local)),
             _ => lay.bounds.inflate(tol, tol).contains(local),
         };
-        inside.then(|| vectorcraft_text::hit_byte(&lay, local))
+        inside.then(|| pluma_text::hit_byte(&lay, local))
     }
 
     fn select_word_or_para(&mut self, cx: &ToolContext, para: bool) {
@@ -759,7 +759,7 @@ impl TypeTool {
     /// The path whose outline is under `p`, and whether it is closed: within the isolated group
     /// being edited, and no guide while guides are hidden or locked ([`ToolContext::hit_options`]).
     fn path_at(cx: &ToolContext, p: Point) -> Option<(NodeId, bool)> {
-        let h = hit_test(cx.doc, p, vectorcraft_doc::hit::HitOptions { tol: cx.tol(4.0), outline: true, ..cx.hit_options() })?;
+        let h = hit_test(cx.doc, p, pluma_doc::hit::HitOptions { tol: cx.tol(4.0), outline: true, ..cx.hit_options() })?;
         match &cx.doc.node(h.leaf)?.kind {
             NodeKind::Path { path, .. } => Some((h.leaf, path.is_closed())),
             _ => None,
@@ -783,10 +783,10 @@ impl TypeTool {
     /// edit, selecting the type); None when no type is under `p`. A click among the characters
     /// edits them, whatever Type Object Selection by Path Only says.
     fn edit_at(&mut self, cx: &ToolContext, p: Point) -> Option<Vec<Action>> {
-        let h = hit_test(cx.doc, p, vectorcraft_doc::hit::HitOptions { type_path_only: false, ..cx.hit_options() })?;
+        let h = hit_test(cx.doc, p, pluma_doc::hit::HitOptions { type_path_only: false, ..cx.hit_options() })?;
         let Some(NodeKind::Text(t)) = cx.doc.node(h.leaf).map(|n| &n.kind) else { return None };
         let lay = self.layout(t);
-        let byte = vectorcraft_text::hit_byte(&lay, t.xf.inverse() * p);
+        let byte = pluma_text::hit_byte(&lay, t.xf.inverse() * p);
         let mut out = self.finish(cx);
         self.start_editing(h.leaf, byte);
         self.remember(cx);
@@ -810,7 +810,7 @@ impl TypeTool {
         // New type is set along General › Constrain Angle's axes (none at 0° or a whole turn): an
         // area's box measured along them, turned about its top-left corner, point type about its
         // first baseline's start.
-        let axes = vectorcraft_geom::constrain_axes(cx.constrain_angle);
+        let axes = pluma_geom::constrain_axes(cx.constrain_angle);
         let back = axes.map(|a| a.inverse());
         let area = drag
             .map(|d| match back {
@@ -840,7 +840,7 @@ impl TypeTool {
             }
             None => json!({"x": at.x, "y": at.y, "text": ""}),
         };
-        if let Some(rotation) = vectorcraft_geom::constrain_rotation(cx.constrain_angle) {
+        if let Some(rotation) = pluma_geom::constrain_rotation(cx.constrain_angle) {
             params["rotation"] = json!(rotation);
         }
         params["vertical"] = json!(vertical);

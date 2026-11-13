@@ -1,7 +1,7 @@
 //! Absurd but finite or non-finite numeric parameters: no panic, hang or runaway allocation.
 
-use vectorcraft_geom::{PathData, Point, SubPath};
-use vectorcraft_pathops::*;
+use pluma_geom::{PathData, Point, SubPath};
+use pluma_pathops::*;
 
 const HOSTILE: [f64; 9] = [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -0.0, 1e-300, 1e300, -1e300, f64::MAX];
 

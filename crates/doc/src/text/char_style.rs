@@ -147,7 +147,7 @@ pub struct CharStyle {
     /// saved without one reads as. A tag the list doesn't have, from a file, is kept and has no
     /// hyphenation. New type takes the document's language (Document Setup), else the default
     /// language of Preferences › Hyphenation. Saved only when set. Each run hyphenates in its own
-    /// language (`vectorcraft_text::hyphen`).
+    /// language (`pluma_text::hyphen`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
     /// Another glyph of the font for the run's first character (Glyphs panel › Show › Alternates

@@ -7,7 +7,7 @@
 use egui::{Align, Layout, Ui};
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::panels::{empty_state, pstate, set_pstate};
 use crate::widgets::{self, dim_label};
@@ -31,7 +31,7 @@ fn tools() -> [(&'static str, &'static str, Value); 3] {
 
 /// Replace Missing Fonts' options: the default type font.
 fn replace_fonts() -> Value {
-    json!({ "font": vectorcraft_doc::CharStyle::default().font_family })
+    json!({ "font": pluma_doc::CharStyle::default().font_family })
 }
 
 /// A row of the panel's text tools: a label above (if any), then its buttons (label, what a
@@ -139,7 +139,7 @@ struct Results {
 }
 
 /// Run the check (in `scope`, or the default one) → its results.
-fn check(app: &mut VectorcraftApp, scope: Option<&str>) -> Results {
+fn check(app: &mut PlumaApp, scope: Option<&str>) -> Results {
     let p = scope.map_or_else(|| json!({}), |s| json!({ "scope": s }));
     let mut r = Results { checked: true, doc: app.session.active_index().unwrap_or(0), ..Results::default() };
     r.revision = app.session.active().map_or(0, |d| d.revision);
@@ -155,7 +155,7 @@ fn check(app: &mut VectorcraftApp, scope: Option<&str>) -> Results {
 }
 
 /// Fix the issues of `kinds` in the last check's scope, then check that scope again.
-fn fix(app: &mut VectorcraftApp, r: &Results, kinds: Vec<String>) -> Results {
+fn fix(app: &mut PlumaApp, r: &Results, kinds: Vec<String>) -> Results {
     match app.run("addon.cleanup.fix", json!({ "scope": r.scope, "kinds": kinds })) {
         Ok(v) => {
             let fixed = v["total"].as_u64().unwrap_or(0).to_string();
@@ -184,7 +184,7 @@ enum Action {
     Run(&'static str, &'static str, Value),
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else {
         empty_state(ui, "sparkles", tl!("No document"), tl!("Open a document to check it for issues."));
         return;

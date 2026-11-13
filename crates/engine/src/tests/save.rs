@@ -3,9 +3,9 @@
 
 use std::path::PathBuf;
 
+use pluma_doc::SavedView;
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_doc::SavedView;
-use vectorcraft_geom::Point;
 
 use crate::cmd::fileio::{SaveMode, save_plan};
 use crate::*;
@@ -33,7 +33,7 @@ fn path(d: &std::path::Path, name: &str) -> String {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 fn objects(s: &Session) -> usize {
@@ -99,14 +99,14 @@ fn save_as_takes_on_path_format_and_options() {
     let _ = std::fs::remove_dir_all(d);
 }
 
-/// #4523: a new document's VectorCraft Options start as the last native save used them (not its
+/// #4523: a new document's Pluma Options start as the last native save used them (not its
 /// artboard range, nor Use Compression, which its preference decides).
 #[test]
 fn a_new_document_offers_the_native_options_used_last() {
     let d = dir("lastnative");
     let mut s = session();
     let opts = json!({"preview": true, "embedProfiles": false, "pdfCompatible": true, "separateArtboards": true, "range": "1"});
-    s.execute("file.saveAs", &json!({"path": path(&d, "a.vectorcraft"), "options": opts})).unwrap();
+    s.execute("file.saveAs", &json!({"path": path(&d, "a.pluma"), "options": opts})).unwrap();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let o = s.execute("file.formatOptions", &json!({"format": "vectorcraft"})).unwrap();
     let value = |k: &str| o["options"][k]["value"].clone();
@@ -122,12 +122,12 @@ fn a_new_document_offers_the_native_options_used_last() {
 fn another_format_without_a_path_hands_the_bytes_back() {
     let d = dir("otherfmt");
     let mut s = session();
-    let native = path(&d, "a.vectorcraft");
+    let native = path(&d, "a.pluma");
     s.execute("document.save", &json!({"path": native})).unwrap();
     let r = s.execute("document.save", &json!({"format": "svg"})).unwrap();
     assert!(String::from_utf8(b64(&r)).unwrap().starts_with("<?xml"));
     assert_eq!(r["name"], "a.svg");
-    assert!(vectorcraft_format::sniff(&std::fs::read(&native).unwrap()), "the native file isn't overwritten with SVG");
+    assert!(pluma_format::sniff(&std::fs::read(&native).unwrap()), "the native file isn't overwritten with SVG");
     let _ = std::fs::remove_dir_all(d);
 }
 
@@ -135,16 +135,16 @@ fn another_format_without_a_path_hands_the_bytes_back() {
 fn save_a_copy_keeps_the_path_title_and_modified_state() {
     let d = dir("copy");
     let mut s = session();
-    let native = path(&d, "poster.vectorcraft");
+    let native = path(&d, "poster.pluma");
     s.execute("document.save", &json!({"path": native})).unwrap();
     rect(&mut s);
     let r = s.execute("file.saveCopy", &json!({})).unwrap();
-    assert_eq!((r["name"].as_str(), r["folder"].as_str()), (Some("poster copy.vectorcraft"), Some(d.to_string_lossy().as_ref())));
+    assert_eq!((r["name"].as_str(), r["folder"].as_str()), (Some("poster copy.pluma"), Some(d.to_string_lossy().as_ref())));
     let copy = path(&d, "poster copy.svg");
     s.execute("file.saveCopy", &json!({"path": copy})).unwrap();
     assert!(std::fs::read_to_string(&copy).unwrap().starts_with("<?xml"));
     let st = s.doc().unwrap();
-    assert_eq!((st.path.as_deref(), st.format, st.title()), (Some(native.as_str()), "vectorcraft", "poster.vectorcraft".to_string()));
+    assert_eq!((st.path.as_deref(), st.format, st.title()), (Some(native.as_str()), "vectorcraft", "poster.pluma".to_string()));
     assert!(st.is_dirty(), "a copy leaves the document modified");
     let _ = std::fs::remove_dir_all(d);
 }
@@ -154,7 +154,7 @@ fn revert_reloads_the_saved_file_in_the_same_tab() {
     let d = dir("revert");
     let mut s = session();
     rect(&mut s);
-    let native = path(&d, "a.vectorcraft");
+    let native = path(&d, "a.pluma");
     s.execute("document.save", &json!({"path": native})).unwrap();
     assert!(s.execute("file.revert", &json!({})).is_err(), "nothing to revert");
     s.execute("file.new", &json!({})).unwrap();
@@ -186,7 +186,7 @@ fn revert_reloads_the_saved_file_in_the_same_tab() {
 fn templates_suggest_a_name_in_the_templates_folder_and_open_untitled() {
     let d = dir("tpl");
     let mut s = session();
-    let source = path(&d, "flyer.vectorcraft");
+    let source = path(&d, "flyer.pluma");
     s.execute("document.save", &json!({"path": source})).unwrap();
     s.prefs.templates_folder = path(&d, "Templates");
     let r = s.execute("file.saveAsTemplate", &json!({})).unwrap();
@@ -211,18 +211,18 @@ fn templates_suggest_a_name_in_the_templates_folder_and_open_untitled() {
     // With no preference the folder is under the user's home (where there is one).
     s.prefs.templates_folder.clear();
     if let Some(f) = crate::cmd::fileio::templates_folder(&s.prefs) {
-        assert!(f.ends_with("VectorCraft Templates"), "{f}");
+        assert!(f.ends_with("Pluma Templates"), "{f}");
     }
     let _ = std::fs::remove_dir_all(d);
 }
 
 /// A native file as an older version wrote it: under the former name, or format version 1.
 fn old_file(legacy: bool) -> Vec<u8> {
-    let text = String::from_utf8(vectorcraft_format::save(&vectorcraft_doc::Document::new(50.0, 50.0), false)).unwrap();
+    let text = String::from_utf8(pluma_format::save(&pluma_doc::Document::new(50.0, 50.0), false)).unwrap();
     let text = if legacy {
         text.replacen("\"format\":\"vectorcraft\"", "\"format\":\"drawcraft\"", 1)
     } else {
-        text.replacen(&format!("\"version\":{}", vectorcraft_format::VERSION), "\"version\":1", 1)
+        text.replacen(&format!("\"version\":{}", pluma_format::VERSION), "\"version\":1", 1)
     };
     text.into_bytes()
 }
@@ -232,24 +232,24 @@ fn older_native_files_open_converted_and_save_under_a_new_name() {
     let d = dir("converted");
     let legacy = path(&d, "logo.drawcraft");
     std::fs::write(&legacy, old_file(true)).unwrap();
-    let v1 = path(&d, "badge.vectorcraft");
+    let v1 = path(&d, "badge.pluma");
     std::fs::write(&v1, old_file(false)).unwrap();
     let mut s = Session::new();
     s.execute("document.open", &json!({"path": legacy})).unwrap();
     assert_eq!(s.doc().unwrap().title(), "logo [Converted]");
-    // Save doesn't overwrite the old file: it asks for a .vectorcraft name.
+    // Save doesn't overwrite the old file: it asks for a .pluma name.
     let r = s.execute("document.save", &json!({})).unwrap();
-    assert_eq!((r["name"].as_str(), r.get("path")), (Some("logo.vectorcraft"), None));
+    assert_eq!((r["name"].as_str(), r.get("path")), (Some("logo.pluma"), None));
     assert_eq!(std::fs::read(&legacy).unwrap(), old_file(true));
     let r = s.execute("document.open", &json!({"path": v1})).unwrap();
     assert_eq!(r["title"], "badge [Converted]");
-    let saved = path(&d, "badge2.vectorcraft");
+    let saved = path(&d, "badge2.pluma");
     s.execute("file.saveAs", &json!({"path": saved})).unwrap();
-    assert_eq!(s.doc().unwrap().title(), "badge2.vectorcraft");
+    assert_eq!(s.doc().unwrap().title(), "badge2.pluma");
     assert!(!s.doc().unwrap().converted);
     // A current file isn't converted; with the preference off old files open as they are.
     s.execute("document.open", &json!({"path": saved})).unwrap();
-    assert_eq!(s.doc().unwrap().title(), "badge2.vectorcraft");
+    assert_eq!(s.doc().unwrap().title(), "badge2.pluma");
     s.prefs.append_converted = false;
     s.execute("document.open", &json!({"path": legacy})).unwrap();
     assert_eq!(s.doc().unwrap().title(), "logo.drawcraft");
@@ -264,13 +264,13 @@ fn the_saved_view_round_trips_without_dirtying() {
     let view = SavedView { name: String::new(), center: Point::new(40.0, 25.0), zoom: 3.0, rotation: 15.0 };
     s.doc_mut().unwrap().view = Some(view.clone());
     assert!(!s.doc().unwrap().is_dirty(), "the view isn't an edit");
-    let native = path(&d, "v.vectorcraft");
+    let native = path(&d, "v.pluma");
     s.execute("document.save", &json!({"path": native})).unwrap();
     assert_eq!(s.doc().unwrap().doc.last_view, None, "only the written file carries it");
     s.execute("document.open", &json!({"path": native})).unwrap();
     assert_eq!(s.doc().unwrap().view.as_ref(), Some(&view));
     // Files without a view (older ones) open with none; SVG doesn't carry it.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&vectorcraft_doc::Document::new(5.0, 5.0), false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&pluma_doc::Document::new(5.0, 5.0), false)).unwrap();
     assert_eq!(doc.last_view, None);
     let svg = path(&d, "v.svg");
     s.execute("document.save", &json!({"path": svg})).unwrap();
@@ -289,10 +289,10 @@ fn open_layers_rows_round_trip_without_dirtying() {
     let g = NodeId(s.execute("object.group", &json!({})).unwrap()["id"].as_u64().unwrap());
     // A document starts with its top-level layers open, and a file keeps nothing for that.
     assert!(s.doc().unwrap().layers_open.contains(layer) && !s.doc().unwrap().layers_open.contains(g));
-    let native = path(&d, "rows.vectorcraft");
+    let native = path(&d, "rows.pluma");
     s.execute("document.save", &json!({"path": native})).unwrap();
     let bytes = std::fs::read(&native).unwrap();
-    assert_eq!(vectorcraft_format::load(&bytes).unwrap().layers_open, None);
+    assert_eq!(pluma_format::load(&bytes).unwrap().layers_open, None);
     // Opening the group and closing the layer is view state: not an edit, kept by the file.
     let st = s.doc_mut().unwrap();
     st.layers_open.set(g, true);
@@ -305,7 +305,7 @@ fn open_layers_rows_round_trip_without_dirtying() {
     let open = &again.doc().unwrap().layers_open;
     assert!(open.contains(g) && !open.contains(layer));
     // Older files (none saved) open with the top-level layers open.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&vectorcraft_doc::Document::new(5.0, 5.0), false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&pluma_doc::Document::new(5.0, 5.0), false)).unwrap();
     assert_eq!(doc.layers_open, None);
     let _ = std::fs::remove_dir_all(d);
 }
@@ -316,7 +316,7 @@ fn save_plans_suggest_names_and_folders() {
     s.execute("file.info", &json!({"title": "Map"})).unwrap();
     let plan = |s: &Session, mode, p: Value| save_plan(s, mode, &p).unwrap();
     let p = plan(&s, SaveMode::Save, json!({}));
-    assert_eq!((p.path, p.name.as_str(), p.format.id, p.folder), (None, "Map.vectorcraft", "vectorcraft", None));
+    assert_eq!((p.path, p.name.as_str(), p.format.id, p.folder), (None, "Map.pluma", "vectorcraft", None));
     assert_eq!(plan(&s, SaveMode::Copy, json!({"format": "pdf"})).name, "Map copy.pdf");
     assert_eq!(plan(&s, SaveMode::Template, json!({"format": "svg"})).format.id, "template", "a template is native or .ait");
     // A native template by default; .ait when the format, else the path, names it.
@@ -340,7 +340,7 @@ fn document_color_mode_is_one_command_with_a_hidden_alias() {
     let before = s.doc().unwrap().doc.clone();
     let r = s.execute("file.documentColorMode", &json!({"mode": "rgb", "convert": false})).unwrap();
     assert_eq!(r["changed"], 0);
-    assert_eq!(s.doc().unwrap().doc.color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(s.doc().unwrap().doc.color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.doc().unwrap().doc.layers, before.layers, "colours untouched");
     let e = s.execute("file.documentColorMode", &json!({"mode": "lab"})).unwrap_err().to_string();
     assert!(e.contains("file.documentColorMode"), "{e}");
@@ -397,7 +397,7 @@ fn a_template_places_like_a_native_file() {
 fn transparency_grid_round_trips_without_dirtying() {
     let d = dir("transparency-grid");
     let mut s = session();
-    let native = path(&d, "grid.vectorcraft");
+    let native = path(&d, "grid.pluma");
     for on in [true, false] {
         s.execute("view.transparencyGrid", &json!({"on": on})).unwrap();
         assert!(!s.doc().unwrap().is_dirty(), "the grid is view state, not an edit");
@@ -416,8 +416,8 @@ fn transparency_grid_round_trips_without_dirtying() {
         }
     }
     // A native file written before this setting existed still opens with the grid hidden.
-    let old = path(&d, "old.vectorcraft");
-    let bytes = vectorcraft_format::save(&Document::new(5.0, 5.0), false);
+    let old = path(&d, "old.pluma");
+    let bytes = pluma_format::save(&Document::new(5.0, 5.0), false);
     assert!(!String::from_utf8_lossy(&bytes).contains("transparency_grid"));
     std::fs::write(&old, bytes).unwrap();
     s.execute("document.open", &json!({"path": old})).unwrap();
@@ -444,8 +444,8 @@ fn opened_eps_saves_to_its_own_file_with_editable_data_and_page_margins() {
     assert_eq!((r["path"].as_str(), r["format"].as_str()), (Some(eps_path.as_str()), Some("eps")));
     let bytes = std::fs::read(&eps_path).unwrap();
     assert!(bytes.starts_with(b"%!PS-Adobe-3.0 EPSF-3.0"));
-    assert!(std::str::from_utf8(vectorcraft_eps::sections(&bytes).unwrap().0).unwrap().contains("%%BoundingBox: 0 0 200 100"));
-    let editing = vectorcraft_format::load(&vectorcraft_eps::native(&bytes).unwrap()).unwrap();
+    assert!(std::str::from_utf8(pluma_eps::sections(&bytes).unwrap().0).unwrap().contains("%%BoundingBox: 0 0 200 100"));
+    let editing = pluma_format::load(&pluma_eps::native(&bytes).unwrap()).unwrap();
     assert_eq!(editing.artboards[0].rect, board);
     assert_eq!(editing.layers, edited_layers);
     assert!(!s.doc().unwrap().is_dirty());
@@ -466,7 +466,7 @@ fn eps_save_keeps_all_editing_artboards_while_printing_one_page() {
     rect(&mut s);
     let r = s.execute("document.save", &json!({"format": "eps", "artboard": 1, "previewFormat": "none", "thumbnails": false})).unwrap();
     let bytes = b64(&r);
-    let native = vectorcraft_format::load(&vectorcraft_eps::native(&bytes).unwrap()).unwrap();
+    let native = pluma_format::load(&pluma_eps::native(&bytes).unwrap()).unwrap();
     assert_eq!(native.artboards.len(), 2);
     assert_eq!(native.layers, s.doc().unwrap().doc.layers);
     assert!(s.execute("document.save", &json!({"format": "eps", "range": "all"})).is_err(), "EPS is one printed page");
@@ -501,10 +501,10 @@ fn eps_save_supports_an_empty_artboard_without_cropping_its_page() {
     let mut s = session();
     let r = s.execute("document.save", &json!({"format": "eps", "previewFormat": "none", "thumbnails": false})).unwrap();
     let bytes = b64(&r);
-    let native = vectorcraft_format::load(&vectorcraft_eps::native(&bytes).unwrap()).unwrap();
+    let native = pluma_format::load(&pluma_eps::native(&bytes).unwrap()).unwrap();
     assert_eq!(native.artboards[0].rect, s.doc().unwrap().doc.artboards[0].rect);
     assert_eq!(native.node_count(), s.doc().unwrap().doc.node_count());
-    assert!(std::str::from_utf8(vectorcraft_eps::sections(&bytes).unwrap().0).unwrap().contains("%%BoundingBox: 0 0 200 100"));
+    assert!(std::str::from_utf8(pluma_eps::sections(&bytes).unwrap().0).unwrap().contains("%%BoundingBox: 0 0 200 100"));
 }
 
 #[test]
@@ -520,7 +520,7 @@ fn partially_read_eps_requires_confirmation_before_save_back() {
     assert!(s.execute("document.save", &json!({})).unwrap_err().to_string().contains("acknowledgeLoss"));
     assert_eq!(std::fs::read(&eps_path).unwrap(), original);
     s.execute("document.save", &json!({"acknowledgeLoss": true})).unwrap();
-    assert!(vectorcraft_eps::native(&std::fs::read(&eps_path).unwrap()).is_some());
+    assert!(pluma_eps::native(&std::fs::read(&eps_path).unwrap()).is_some());
     std::fs::remove_dir_all(d).unwrap();
 }
 
@@ -552,13 +552,13 @@ fn eps_save_bounds_large_page_preview_without_cropping_vector_or_editing_data() 
     // Explicit colour preview remains a colour preview; Save bounds its resolution, not the art.
     let r = s.execute("document.save", &json!({"format": "eps", "previewFormat": "tiffColor"})).unwrap();
     let bytes = b64(&r);
-    let (ps, tiff) = vectorcraft_eps::sections(&bytes).unwrap();
+    let (ps, tiff) = pluma_eps::sections(&bytes).unwrap();
     let tiff = tiff.unwrap();
     assert!(tiff.len() < 4 * 1024 * 1024 + 64 * 1024, "compatibility preview grew to {} bytes", tiff.len());
     let preview = image::load_from_memory_with_format(tiff, image::ImageFormat::Tiff).unwrap();
     assert_eq!((preview.width(), preview.height()), (1024, 1024));
     assert!(std::str::from_utf8(ps).unwrap().contains("%%BoundingBox: 0 0 4000 4000"));
-    let native = vectorcraft_format::load(&vectorcraft_eps::native(&bytes).unwrap()).unwrap();
+    let native = pluma_format::load(&pluma_eps::native(&bytes).unwrap()).unwrap();
     assert_eq!(native.artboards, s.doc().unwrap().doc.artboards);
     assert_eq!(native.layers, s.doc().unwrap().doc.layers);
 }
@@ -580,7 +580,7 @@ fn units_and_ruler_guides_survive_save_and_reopen() {
         s.execute("document.open", &json!({"path": p})).unwrap();
         let doc = &s.doc().unwrap().doc;
         let guides: Vec<_> = doc.guides.iter().map(|g| (g.vertical, g.pos)).collect();
-        assert_eq!((doc.units, guides), (vectorcraft_doc::Unit::Millimeters, vec![(true, 50.0), (false, 30.0)]), "{ext}");
+        assert_eq!((doc.units, guides), (pluma_doc::Unit::Millimeters, vec![(true, 50.0), (false, 30.0)]), "{ext}");
     }
     let _ = std::fs::remove_dir_all(d);
 }
