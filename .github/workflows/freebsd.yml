@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   freebsd:
-    uses: getnodalia/foundation/.github/workflows/freebsd.yml@ec62c63fd3206e4ed729fccf18a57170f8fa5dd6 # foundation main
+    uses: getnodalia/foundation/.github/workflows/freebsd.yml@976581262c95c0d95c0184149c0e1ba55485ccb3 # foundation main
     with:
       fonts-repository: getnodalia/foundation
       fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
