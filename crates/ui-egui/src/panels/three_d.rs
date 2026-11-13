@@ -5,12 +5,12 @@
 //! undo step, and a drag previews and commits once, when the pointer is released.
 
 use egui::Ui;
+use pluma_doc::{Effect, Node};
+use pluma_effects::{THREE_D_TYPES, is_three_d};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Effect, Node};
-use vectorcraft_effects::{THREE_D_TYPES, is_three_d};
 
 use super::{live_run, pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::widgets::{self, Live, dim_label};
 
@@ -32,7 +32,7 @@ pub(crate) struct Target {
 
 /// The 3D effect of the first selected object: its own effects first, then its fills' and
 /// strokes'. `None` without a selection or without a 3D effect.
-pub(crate) fn target(app: &VectorcraftApp) -> Option<Target> {
+pub(crate) fn target(app: &PlumaApp) -> Option<Target> {
     let st = app.session.active()?;
     let n = st.selection.objects.first().and_then(|id| st.doc.node(*id))?;
     find(n)
@@ -53,7 +53,7 @@ pub(crate) fn type_of(id: &str) -> Option<&'static str> {
 /// Picks object type `kind` for each selected object: changes its 3D effect into that type, or
 /// applies that type's effect to it when it has none, all as one undo step. An object whose 3D
 /// effect already has that type is left as it is (`effect.setParams` records nothing for it).
-pub(crate) fn set_type(app: &mut VectorcraftApp, kind: &str) -> Result<(), String> {
+pub(crate) fn set_type(app: &mut PlumaApp, kind: &str) -> Result<(), String> {
     let Some(&(_, effect)) = THREE_D_TYPES.iter().find(|(k, _)| *k == kind) else {
         let key = "threeDType";
         return Err(format!("`{key}` must be one of {}", THREE_D_TYPES.map(|(k, _)| k).join(", ")));
@@ -87,7 +87,7 @@ pub(crate) fn set_type(app: &mut VectorcraftApp, kind: &str) -> Result<(), Strin
 }
 
 /// Commits the drag in progress, when the panel has one.
-fn finish(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn finish(app: &mut PlumaApp, ctx: &egui::Context) {
     if !pstate::<Map<String, Value>>(ctx, PENDING).is_empty() {
         app.session.commit_interaction().ok();
         app.sync_views();
@@ -105,11 +105,11 @@ struct Plan {
     targets: Vec<(u64, Target, bool)>,
 }
 
-fn plan(app: &VectorcraftApp) -> Plan {
+fn plan(app: &PlumaApp) -> Plan {
     let Some(st) = app.session.active() else { return Plan { selection: vec![], targets: vec![] } };
     let selection: Vec<u64> = st.selection.objects.iter().map(|id| id.0).collect();
     let found: Vec<(u64, Target)> = st.selection.objects.iter().filter_map(|id| Some((id.0, find(st.doc.node(*id)?)?))).collect();
-    let lights = |t: &Target| vectorcraft_effects::merged_params(&t.effect, &t.params).get("lights").cloned();
+    let lights = |t: &Target| pluma_effects::merged_params(&t.effect, &t.params).get("lights").cloned();
     let first = found.first().map(|(_, t)| lights(t));
     let targets = found
         .into_iter()
@@ -127,7 +127,7 @@ fn plan(app: &VectorcraftApp) -> Plan {
 /// changed earlier in the same drag are sent again with them, to the objects the drag started
 /// with, since each preview starts again from the document as it was before the drag. A drag
 /// whose selection changes is committed first, and the change starts a new one.
-pub(crate) fn send(app: &mut VectorcraftApp, ctx: &egui::Context, changed: Map<String, Value>, dragging: bool) {
+pub(crate) fn send(app: &mut PlumaApp, ctx: &egui::Context, changed: Map<String, Value>, dragging: bool) {
     if changed.is_empty() {
         // A drag that ended without a change in its last frame is committed now.
         if !dragging {
@@ -148,7 +148,7 @@ pub(crate) fn send(app: &mut VectorcraftApp, ctx: &egui::Context, changed: Map<S
         .targets
         .iter()
         .filter_map(|(id, t, same_lights)| {
-            let takes = vectorcraft_effects::default_params(&t.effect).unwrap_or(Value::Null);
+            let takes = pluma_effects::default_params(&t.effect).unwrap_or(Value::Null);
             let params: Map<String, Value> = pending
                 .iter()
                 .filter(|(k, _)| takes.get(k.as_str()).is_some() && (k.as_str() != "lights" || *same_lights))
@@ -181,7 +181,7 @@ const DRAWN: &str = "three-d-drawn";
 /// Commits the panel's drag in progress when the panel was not drawn in this pass (it was closed
 /// or hidden during the drag), so the drag is one undo step and no preview stays open into a later
 /// pass. The app runs this at the end of every pass, after the panels.
-pub(crate) fn end_stale_drag(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn end_stale_drag(app: &mut PlumaApp, ctx: &egui::Context) {
     let drawn: Option<u64> = pstate(ctx, DRAWN);
     if drawn.is_some_and(|pass| pass != root_pass(ctx)) {
         finish(app, ctx);
@@ -201,7 +201,7 @@ const PENDING: &str = "three-d-pending";
 const UI_STATE: &str = "three-d-ui";
 
 /// The 3D and Materials panel.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     set_pstate(&ctx, DRAWN, Some(root_pass(&ctx)));
     let target = target(app);
@@ -223,7 +223,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         return;
     };
     // The applied effect's settings in the dialog's form, with the controls' own state.
-    let mut fields = vectorcraft_effects::merged_params(&t.effect, &t.params).as_object().cloned().unwrap_or_default();
+    let mut fields = pluma_effects::merged_params(&t.effect, &t.params).as_object().cloned().unwrap_or_default();
     mark_mixed(app, &mut fields);
     fields.extend(pstate::<Map<String, Value>>(&ctx, UI_STATE));
     fields.insert("__effect".into(), json!(t.effect));
@@ -249,10 +249,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// (a checkbox shows a dash) with its reset dot filled, and its reset dot, a menu choice, a checkbox click, or a number other
 /// than the default shown is a change sent to every effect. The light list (`lights`, where null
 /// is the single light) is left as it is.
-pub(crate) fn mark_mixed(app: &VectorcraftApp, fields: &mut Map<String, Value>) {
+pub(crate) fn mark_mixed(app: &PlumaApp, fields: &mut Map<String, Value>) {
     let Some(st) = app.session.active() else { return };
     for other in st.selection.objects.iter().skip(1).filter_map(|id| find(st.doc.node(*id)?)) {
-        let other = vectorcraft_effects::merged_params(&other.effect, &other.params);
+        let other = pluma_effects::merged_params(&other.effect, &other.params);
         for (key, value) in fields.iter_mut().filter(|(k, _)| k.as_str() != "lights") {
             if other.get(key.as_str()).is_some_and(|v| v != value) {
                 *value = Value::Null;

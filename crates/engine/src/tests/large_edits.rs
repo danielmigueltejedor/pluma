@@ -5,10 +5,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use pluma_doc::{Appearance, Document, LAYER_COLORS, LayerColor, Node, NodeId, NodeKind};
+use pluma_geom::{FillRule, Rect, shapes};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, Document, LAYER_COLORS, LayerColor, Node, NodeId, NodeKind};
-use vectorcraft_geom::{FillRule, Rect, shapes};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -65,7 +65,7 @@ fn in_turn(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
     a.iter().zip(b).flat_map(|(a, b)| [*a, *b]).collect()
 }
 
-/// Most walks of the document's tree ([`vectorcraft_doc::tree_walks`]) that [`soon`] allows, however
+/// Most walks of the document's tree ([`pluma_doc::tree_walks`]) that [`soon`] allows, however
 /// many objects the document holds. A command that looks its objects up one at a time walks the tree
 /// about once per object.
 const MOST_TREE_WALKS: u64 = 64;
@@ -76,7 +76,7 @@ pub(crate) fn soon<T: Send + 'static>(mut s: Session, what: &'static str, f: imp
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let r = f(&mut s);
-        tx.send((s, r, vectorcraft_doc::tree_walks())).ok();
+        tx.send((s, r, pluma_doc::tree_walks())).ok();
     });
     let (s, r, walks) = rx.recv_timeout(Duration::from_secs(300)).unwrap_or_else(|_| panic!("{what} did not finish within 300 s"));
     assert!(walks <= MOST_TREE_WALKS, "{what} walked the document's tree {walks} times");
@@ -182,7 +182,7 @@ fn duplicate_of_50000_objects_takes_few_tree_walks() {
     assert!(ids_in(&r) == copies);
     assert!(layer(&s, 0) == in_turn(&ids, &copies), "each copy directly above its object");
     assert!(selected(&s, &copies));
-    assert_eq!(bounds(&s, copies[0]), square_at(0) + vectorcraft_geom::Vec2::new(5.0, 0.0));
+    assert_eq!(bounds(&s, copies[0]), square_at(0) + pluma_geom::Vec2::new(5.0, 0.0));
     undo_gives_back(&mut s, &before);
 }
 
@@ -196,7 +196,7 @@ fn transform_with_copy_of_50000_objects_takes_few_tree_walks() {
     assert!(layer(&s, 0) == in_turn(&ids, &copies), "each copy directly above its object");
     assert!(selected(&s, &copies));
     let last = ids.len() - 1;
-    assert_eq!(bounds(&s, copies[last]), square_at(last) + vectorcraft_geom::Vec2::new(5.0, 0.0));
+    assert_eq!(bounds(&s, copies[last]), square_at(last) + pluma_geom::Vec2::new(5.0, 0.0));
     assert_eq!(bounds(&s, ids[last]), square_at(last));
     undo_gives_back(&mut s, &before);
 }
@@ -210,7 +210,7 @@ fn transform_each_with_copy_of_50000_objects_takes_few_tree_walks() {
     assert!(ids_in(&r) == copies);
     assert!(layer(&s, 0) == in_turn(&ids, &copies), "each copy directly above its object");
     assert!(selected(&s, &copies));
-    assert_eq!(bounds(&s, copies[1]), square_at(1) + vectorcraft_geom::Vec2::new(5.0, 0.0));
+    assert_eq!(bounds(&s, copies[1]), square_at(1) + pluma_geom::Vec2::new(5.0, 0.0));
     undo_gives_back(&mut s, &before);
 }
 
@@ -571,7 +571,7 @@ fn artboard_copies_and_cut_keep_order_and_ids() {
     let copies = json!([n, n + 1, n + 2, n + 3, n + 7, n + 8]);
     let copied = [json!([a, n, b, n + 1, c, n + 2, [group, d, e, f], [n + 3, n + 4, n + 5, n + 6]]), json!([g, n + 7, h, n + 8, off])];
     // The copy of h, the last object on the artboard, sits where h sits, moved by `dx`.
-    let moved_by = |s: &Session, dx: f64| bounds(s, NodeId(n + 8)) == bounds(s, NodeId(h)) + vectorcraft_geom::Vec2::new(dx, 0.0);
+    let moved_by = |s: &Session, dx: f64| bounds(s, NodeId(n + 8)) == bounds(s, NodeId(h)) + pluma_geom::Vec2::new(dx, 0.0);
 
     // Duplicate Artboard places the copy 20 pt right of the last artboard.
     let right = before.artboards.iter().map(|ab| ab.rect.x1).fold(f64::MIN, f64::max);

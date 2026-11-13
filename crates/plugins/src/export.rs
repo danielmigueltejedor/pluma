@@ -5,7 +5,7 @@
 //! name, and `document.export` writes it by its format id (`plugin.<id>`) or by one of the
 //! extensions its manifest lists. A built-in format keeps its extension: an exporter that lists
 //! `svg` too is picked by its format id. The host hands the exporter the document as the native
-//! file's JSON (`vectorcraft_format::json_part`: images of `INLINE_MAX` bytes or more without
+//! file's JSON (`pluma_format::json_part`: images of `INLINE_MAX` bytes or more without
 //! their data) and writes the bytes it returns.
 //!
 //! An export is one run the user asked for, often of a whole document, so it gets a larger budget

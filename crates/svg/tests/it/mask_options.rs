@@ -1,12 +1,12 @@
 //! Opacity-mask options survive SVG (M3.87): exported masks list the options that differ from the
-//! defaults in `data-vectorcraft-mask`, and import restores them and the original mask art (without
+//! defaults in `data-pluma-mask`, and import restores them and the original mask art (without
 //! the backdrop rectangle and inverting filter that draw the options in SVG).
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node, OpacityMask};
-use vectorcraft_geom::{Rect, shapes};
-use vectorcraft_svg::{ExportOptions, export, import_with_report};
-use vectorcraft_testkit::raster::{Image, render_artboard};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node, OpacityMask};
+use pluma_geom::{Rect, shapes};
+use pluma_svg::{ExportOptions, export, import_with_report};
+use pluma_testkit::raster::{Image, render_artboard};
 
 /// A red square masked by white art over its left half.
 fn masked(clip: bool, invert: bool) -> Document {
@@ -36,8 +36,8 @@ fn an_inverted_unclipped_mask_round_trips() {
     {
         let s = export(&masked(clip, invert), &ExportOptions::default());
         match attr {
-            Some(a) => assert!(s.contains(&format!("data-vectorcraft-mask=\"{a}\"")), "{s}"),
-            None => assert!(!s.contains("data-vectorcraft-mask"), "{s}"),
+            Some(a) => assert!(s.contains(&format!("data-pluma-mask=\"{a}\"")), "{s}"),
+            None => assert!(!s.contains("data-pluma-mask"), "{s}"),
         }
         let (back, warnings) = import_with_report(&s).unwrap();
         assert!(warnings.is_empty(), "{warnings:?}");

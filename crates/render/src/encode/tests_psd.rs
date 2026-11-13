@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{BlendMode, Color};
-use vectorcraft_doc::{Document, LayerColor, Node};
-use vectorcraft_geom::Rect;
-use vectorcraft_testkit::fixtures::DocBuilder;
+use pluma_color::{BlendMode, Color};
+use pluma_doc::{Document, LayerColor, Node};
+use pluma_geom::Rect;
+use pluma_testkit::fixtures::DocBuilder;
 
 use super::jpeg::ColorModel;
 use super::psd::{MAX_SIDE, PsdOptions};
@@ -263,7 +263,7 @@ fn guides_are_not_layers() {
     let mut b = DocBuilder::new(20.0, 20.0);
     b.rect(Rect::new(0.0, 0.0, 5.0, 5.0), Color::rgb8(0, 0, 0), |_| {});
     b.rect(Rect::new(0.0, 10.0, 20.0, 10.0), Color::rgb8(0, 0, 0), |n: &mut Node| {
-        if let vectorcraft_doc::NodeKind::Path { guide, .. } = &mut n.kind {
+        if let pluma_doc::NodeKind::Path { guide, .. } = &mut n.kind {
             *guide = true;
         }
     });

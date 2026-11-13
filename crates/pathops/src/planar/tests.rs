@@ -1,6 +1,6 @@
 use super::*;
+use pluma_geom::{Rect, shapes};
 use proptest::prelude::*;
-use vectorcraft_geom::{Rect, shapes};
 
 /// Sparse crossings add, compare and read like the dense counts they stand for.
 #[test]
@@ -625,7 +625,7 @@ fn shape_builder_stays_quick_up_to_its_cap() {
     assert!(work <= most, "{work} reads");
     // Past the cap, only the filled areas count.
     s.push(line((0.0, 0.0), (1.0, 1.0), 2));
-    s[0].path.subpaths[0].anchors.extend((0..16).map(|k| vectorcraft_geom::Anchor::corner(Point::new(100.0, f64::from(k)))));
+    s[0].path.subpaths[0].anchors.extend((0..16).map(|k| pluma_geom::Anchor::corner(Point::new(100.0, f64::from(k)))));
     assert!(shape_builder(&s, false).lines.is_empty());
 }
 
@@ -1050,7 +1050,7 @@ proptest! {
             let covering: Vec<usize> = shapes
                 .iter()
                 .enumerate()
-                .filter(|(_, s)| s.path.is_closed() && vectorcraft_geom::hit::fill_contains(&s.path.to_bezpath(), s.rule, p))
+                .filter(|(_, s)| s.path.is_closed() && pluma_geom::hit::fill_contains(&s.path.to_bezpath(), s.rule, p))
                 .map(|(i, _)| i)
                 .collect();
             prop_assert_eq!(&f.sources, &covering, "at {:?}", p);

@@ -1,7 +1,7 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_color::{GradientPaint, Paint};
-use vectorcraft_doc::{Document, Selection};
+use pluma_color::{GradientPaint, Paint};
+use pluma_doc::{Document, Selection};
 
 fn ev(kind: PointerKind, p: Point) -> PointerEvent {
     PointerEvent::new(kind, p.x, p.y)
@@ -272,10 +272,9 @@ fn a_click_inside_the_art_applies_the_gradient_from_there() {
 /// instance sends the gradient without `ids`, which the engine refuses.
 #[test]
 fn a_click_on_a_dynamic_instance_with_a_picked_object_names_no_object() {
+    use pluma_doc::{Appearance, Node, NodeId, NodeKind, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, NodeId, NodeKind, Symbol};
-    let square =
-        Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::default_art());
+    let square = Node::path(NodeId(0), pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::default_art());
     let art = Node::group(NodeId(0), vec![Arc::new(square)]);
     let (mut d, _) = doc_with_rect();
     d.symbols.push(Symbol { dynamic: true, name: "One".into(), art: Arc::new(art) });

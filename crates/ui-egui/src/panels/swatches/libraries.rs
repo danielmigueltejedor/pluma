@@ -2,8 +2,8 @@ use super::actions::deletable;
 use super::dnd::selection;
 use super::tiles::{describe, global_mark, list_icons, pattern_thumb_in};
 use super::{
-    Arc, BuiltinLibrary, GRADIENT_LIBRARIES, Item, LibraryKind, LibraryRef, PATTERN_LIBRARIES, Rect, Row, SWATCH_LIBRARIES, Swatch, SwatchLibrary,
-    Ui, Value, VectorcraftApp, json, library_panel, menu_item, patternlib, swatch_tile, swatchlib,
+    Arc, BuiltinLibrary, GRADIENT_LIBRARIES, Item, LibraryKind, LibraryRef, PATTERN_LIBRARIES, PlumaApp, Rect, Row, SWATCH_LIBRARIES, Swatch,
+    SwatchLibrary, Ui, Value, json, library_panel, menu_item, patternlib, swatch_tile, swatchlib,
 };
 
 fn library_refs(libs: Vec<swatchlib::LibraryInfo>) -> Vec<LibraryRef> {
@@ -11,14 +11,14 @@ fn library_refs(libs: Vec<swatchlib::LibraryInfo>) -> Vec<LibraryRef> {
 }
 
 /// The swatch libraries with solid colours (not the gradient-only ones), for Limit to Library.
-pub(crate) fn colour_libraries(app: &VectorcraftApp) -> Vec<LibraryRef> {
+pub(crate) fn colour_libraries(app: &PlumaApp) -> Vec<LibraryRef> {
     let has_colours = |id: &str| swatchlib::library(&app.session, id).is_some_and(|(_, lib)| lib.iter().any(|w| w.paint.color().is_some()));
     library_refs(swatchlib::libraries(&app.session).into_iter().filter(|l| l.category != "gradients" && has_colours(&l.id)).collect())
 }
 
 /// The name of library choice `key` (the document's swatches or a swatch library, as Image
 /// Trace's Document Library and Find Nearest Swatch pick one); a library that is gone shows its key.
-pub(crate) fn library_label(app: &VectorcraftApp, key: &str) -> String {
+pub(crate) fn library_label(app: &PlumaApp, key: &str) -> String {
     match limit_name(app, key) {
         Some(_) if key == swatchlib::DOCUMENT_SWATCHES => tl!(DOCUMENT_SWATCHES).to_string(),
         Some(name) => library_panel::library_name(key, &name).to_string(),
@@ -28,7 +28,7 @@ pub(crate) fn library_label(app: &VectorcraftApp, key: &str) -> String {
 
 /// The library choices: the document's swatches, then the colour libraries (`current` checked) →
 /// the key chosen.
-pub(crate) fn library_list(app: &VectorcraftApp, ui: &mut Ui, current: &str) -> Option<String> {
+pub(crate) fn library_list(app: &PlumaApp, ui: &mut Ui, current: &str) -> Option<String> {
     let document = menu_item(ui, DOCUMENT_SWATCHES, true, current == swatchlib::DOCUMENT_SWATCHES).then(|| swatchlib::DOCUMENT_SWATCHES.to_string());
     ui.separator();
     library_panel::library_items(ui, &colour_libraries(app), &|id| id == current).or(document)
@@ -39,7 +39,7 @@ pub(crate) const DOCUMENT_SWATCHES: &str = "Document Swatches";
 
 /// The name of Limit to Library choice `key` (a library id or [`swatchlib::DOCUMENT_SWATCHES`]);
 /// `None` for no limit or a library that is gone.
-pub(crate) fn limit_name(app: &VectorcraftApp, key: &str) -> Option<String> {
+pub(crate) fn limit_name(app: &PlumaApp, key: &str) -> Option<String> {
     match key {
         "" => None,
         swatchlib::DOCUMENT_SWATCHES => Some(DOCUMENT_SWATCHES.into()),
@@ -49,7 +49,7 @@ pub(crate) fn limit_name(app: &VectorcraftApp, key: &str) -> Option<String> {
 
 /// The Limit to Library key for `l`: a library's id (from its id or name), or
 /// [`swatchlib::DOCUMENT_SWATCHES`] as it is.
-pub(crate) fn limit_key(app: &VectorcraftApp, l: &str) -> Result<String, String> {
+pub(crate) fn limit_key(app: &PlumaApp, l: &str) -> Result<String, String> {
     if l == swatchlib::DOCUMENT_SWATCHES {
         return Ok(l.into());
     }
@@ -69,16 +69,16 @@ impl LibraryKind for SwatchLibraries {
     type Lib = Arc<SwatchLibrary>;
     type Item = Swatch;
 
-    fn list(app: &VectorcraftApp) -> Vec<LibraryRef> {
+    fn list(app: &PlumaApp) -> Vec<LibraryRef> {
         library_refs(swatchlib::libraries(&app.session))
     }
-    fn get(app: &VectorcraftApp, id: &str) -> Option<(String, Self::Lib)> {
+    fn get(app: &PlumaApp, id: &str) -> Option<(String, Self::Lib)> {
         swatchlib::library(&app.session, id).map(|(info, lib)| (info.name, lib))
     }
-    fn find(app: &VectorcraftApp, key: &str) -> Option<(String, String, usize)> {
+    fn find(app: &PlumaApp, key: &str) -> Option<(String, String, usize)> {
         swatchlib::library(&app.session, key).map(|(info, lib)| (info.id, info.name, lib.len()))
     }
-    fn path(app: &VectorcraftApp, id: &str) -> Option<String> {
+    fn path(app: &PlumaApp, id: &str) -> Option<String> {
         app.session.swatch_libraries.path(id).map(str::to_string)
     }
     /// Ungrouped swatches, then each colour group's folder and swatches (a group whose name
@@ -97,7 +97,7 @@ impl LibraryKind for SwatchLibraries {
         }
         out
     }
-    fn draw(_: &VectorcraftApp, ui: &Ui, r: Rect, w: &Swatch, selected: bool, hovered: bool) {
+    fn draw(_: &PlumaApp, ui: &Ui, r: Rect, w: &Swatch, selected: bool, hovered: bool) {
         swatch_tile(ui, r, &w.paint, selected, hovered);
         // A built-in pattern library's pattern, drawn from the library.
         if let Some(src) = patternlib::swatch_source(w) {
@@ -115,7 +115,7 @@ impl LibraryKind for SwatchLibraries {
     }
     /// Adds the swatch and applies it to the active proxy (Alt: the inactive one), as one step. A
     /// color swatch also becomes the Color Guide's base color.
-    fn click(app: &mut VectorcraftApp, ui: &Ui, id: &str, name: &str) {
+    fn click(app: &mut PlumaApp, ui: &Ui, id: &str, name: &str) {
         if let Some(c) = swatchlib::library(&app.session, id).and_then(|(_, lib)| lib.iter().find(|w| w.name == name).and_then(|w| w.paint.color())) {
             crate::panels::color_guide::choose_base(app, c);
         }
@@ -123,16 +123,16 @@ impl LibraryKind for SwatchLibraries {
         let apply = if crate::panels::proxy_cmd(app, alt) == "paint.setFill" { "fill" } else { "stroke" };
         add_from_library(app, json!({"library": id, "names": [name], "apply": apply, "focus": !alt}));
     }
-    fn add(app: &mut VectorcraftApp, id: &str, names: Vec<String>) {
+    fn add(app: &mut PlumaApp, id: &str, names: Vec<String>) {
         add_from_library(app, json!({"library": id, "names": names}));
     }
-    fn menu_head(app: &mut VectorcraftApp, ui: &mut Ui) {
+    fn menu_head(app: &mut PlumaApp, ui: &mut Ui) {
         if menu_item(ui, tl!("Default Swatches"), app.session.active().is_some(), false) {
             app.run("swatch.resetDefaults", json!({})).ok();
         }
         ui.separator();
     }
-    fn menu_tail(app: &mut VectorcraftApp, ui: &mut Ui) {
+    fn menu_tail(app: &mut PlumaApp, ui: &mut Ui) {
         ui.separator();
         // As a command, so its file dialog, shown off the UI thread, loads the library when it
         // answers.
@@ -148,7 +148,7 @@ impl LibraryKind for SwatchLibraries {
     }
 }
 
-fn add_from_library(app: &mut VectorcraftApp, params: Value) {
+fn add_from_library(app: &mut PlumaApp, params: Value) {
     if let Err(e) = app.run("swatch.library.add", params) {
         app.status(e);
     }
@@ -156,19 +156,19 @@ fn add_from_library(app: &mut VectorcraftApp, params: Value) {
 
 /// `window.swatchLibrary {library}`: open a swatch library in its own panel (`library` null closes
 /// every swatch library panel).
-pub(crate) fn open_library(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn open_library(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     library_panel::open_command::<SwatchLibraries>(app, p)
 }
 
 /// `swatch.library.load` params, then open the library in its panel.
-pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub(crate) fn load_library(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let r = app.run("swatch.library.load", params)?;
     open_library(app, &json!({ "library": r["library"] }))
 }
 
 /// Other Library…: load the library (or document) at `path`, else one picked in an open dialog
 /// (on the web the picked file arrives later and opens through [`crate::io::open_bytes`]).
-pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
+pub(crate) fn other_library(app: &mut PlumaApp, path: Option<String>) -> Result<Value, String> {
     match library_panel::pick_library_file(app, path, library_panel::library_pick_filters(SwatchLibraries::KIND))? {
         Some(path) => load_library(app, json!({ "path": path })),
         None => Ok(Value::Null),
@@ -179,7 +179,7 @@ pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> R
 pub(crate) const USER_SLOT: &str = "window.userSwatchLibrary";
 
 /// The User Defined library slot `id` (`window.userSwatchLibrary3`) stands for.
-pub(crate) fn user_library(app: &VectorcraftApp, id: &str) -> Option<swatchlib::LibraryInfo> {
+pub(crate) fn user_library(app: &PlumaApp, id: &str) -> Option<swatchlib::LibraryInfo> {
     library_panel::user_slot(id, USER_SLOT, swatchlib::libraries(&app.session))
 }
 

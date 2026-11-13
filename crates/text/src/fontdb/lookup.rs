@@ -252,18 +252,18 @@ impl FontDb {
 
     /// The face of character style `st`: [`Self::face_version`] of its font, instanced at its
     /// Variable Font settings ([`Self::instance`]).
-    pub fn style_face(&self, st: &vectorcraft_doc::CharStyle) -> Option<Arc<FontFace>> {
+    pub fn style_face(&self, st: &pluma_doc::CharStyle) -> Option<Arc<FontFace>> {
         let face = self.face_version(&st.font_family, &st.font_style, st.font_version.as_deref())?;
         Some(self.instance(&face, &st.font_axes))
     }
 
     /// The em size characters of style `st` are set at, in `vertical` type or not: its size, or
-    /// with a font height reference other than the em box ([`vectorcraft_doc::FontHeightReference`])
+    /// with a font height reference other than the em box ([`pluma_doc::FontHeightReference`])
     /// the size at which its face ([`Self::style_face`]) has that height
     /// ([`FontFace::font_height`]). The size itself when the face has no such height.
-    pub fn em_size(&self, st: &vectorcraft_doc::CharStyle, vertical: bool) -> f64 {
+    pub fn em_size(&self, st: &pluma_doc::CharStyle, vertical: bool) -> f64 {
         let reference = st.font_height_reference;
-        if reference == vectorcraft_doc::FontHeightReference::EmBox {
+        if reference == pluma_doc::FontHeightReference::EmBox {
             return st.size;
         }
         self.style_face(st).and_then(|f| f.font_height(reference, vertical)).map_or(st.size, |h| st.size / h)
@@ -273,8 +273,8 @@ impl FontDb {
     /// height reference; an inline graphic keeps its size. Explicit leading and baseline shift
     /// stay in points; Auto leading, tracking and kerning follow the em size. `t` itself when every
     /// run measures the em box.
-    pub fn font_heights_resolved<'a>(&self, t: &'a vectorcraft_doc::TextObject) -> std::borrow::Cow<'a, vectorcraft_doc::TextObject> {
-        use vectorcraft_doc::FontHeightReference;
+    pub fn font_heights_resolved<'a>(&self, t: &'a pluma_doc::TextObject) -> std::borrow::Cow<'a, pluma_doc::TextObject> {
+        use pluma_doc::FontHeightReference;
         if t.runs.iter().all(|r| r.style.font_height_reference == FontHeightReference::EmBox) {
             return std::borrow::Cow::Borrowed(t);
         }

@@ -3,7 +3,7 @@
 //! Find Fonts (Type › Find Font on the first of them, to replace it) and Close. Neither brings the
 //! dialog back for that open. Search Fonts Folder (the `Fonts` folder next to the document, as
 //! File › Package writes it) and Find in Folder… look for their files (`text.findFontFiles`, on
-//! separate threads), and Add Fonts copies the files the user chooses into VectorCraft's own Fonts
+//! separate threads), and Add Fonts copies the files the user chooses into Pluma's own Fonts
 //! folder (`text.addFontFiles`). Type › Find Font's Find in Folder… opens it too
 //! (`ui.findFontsInFolder`), and so does `ui.missingFontsDialog`.
 //!
@@ -23,7 +23,7 @@ use super::DialogSpec;
 use crate::picks::PickRequest;
 use crate::state::Dialog;
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the fonts a document opened without.
 pub const KIND: &str = "missingFonts";
@@ -44,15 +44,15 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 /// After a document opened (`document.open`'s result `r`): its Missing Fonts dialog waits for the
 /// dialog slot. On the web the status line shows how many fonts are missing instead, unless it
 /// shows the open's notes.
-pub fn after_open(app: &mut VectorcraftApp, r: &Value) {
+pub fn after_open(app: &mut PlumaApp, r: &Value) {
     after_open_for(app, r, cfg!(target_arch = "wasm32"));
 }
 
-fn after_open_for(app: &mut VectorcraftApp, r: &Value, web: bool) {
+fn after_open_for(app: &mut PlumaApp, r: &Value, web: bool) {
     let Some(st) = app.session.active() else { return };
     let uid = st.uid;
     if web {
-        let n = vectorcraft_engine::cmd::fontfiles::missing_fonts(&st.doc).len();
+        let n = pluma_engine::cmd::fontfiles::missing_fonts(&st.doc).len();
         if n > 0 && r["warnings"].as_array().is_none_or(Vec::is_empty) {
             app.status(crate::i18n::msg_n(
                 n as u64,
@@ -69,9 +69,9 @@ fn after_open_for(app: &mut VectorcraftApp, r: &Value, web: bool) {
 }
 
 /// The Missing Fonts dialog of the open document `uid`, when fonts it uses aren't available.
-fn dialog_for(app: &VectorcraftApp, uid: u64) -> Option<Dialog> {
+fn dialog_for(app: &PlumaApp, uid: u64) -> Option<Dialog> {
     let st = app.session.documents().iter().find(|d| d.uid == uid)?;
-    let r = vectorcraft_engine::cmd::fontfiles::missing_fonts_of(st, app.session.search_rules.as_ref());
+    let r = pluma_engine::cmd::fontfiles::missing_fonts_of(st, app.session.search_rules.as_ref());
     let fonts = r["fonts"].as_array().filter(|f| !f.is_empty())?;
     let next = r["fontsNextToDocument"].as_str().unwrap_or_default();
     Some(Dialog::new(KIND, json!({ "document": uid, "fonts": fonts, "fontsNextToDocument": next, "state": "", "chosen": [] })))
@@ -79,7 +79,7 @@ fn dialog_for(app: &VectorcraftApp, uid: u64) -> Option<Dialog> {
 
 /// With no dialog open: the dialog of the first queued document that is still open and still
 /// misses fonts.
-pub(super) fn open_next(app: &mut VectorcraftApp) {
+pub(super) fn open_next(app: &mut PlumaApp) {
     while app.ui.dialog.is_none() && !app.ui.pending_fonts.is_empty() {
         let uid = app.ui.pending_fonts.remove(0);
         app.ui.dialog = dialog_for(app, uid);
@@ -90,7 +90,7 @@ pub(super) fn open_next(app: &mut VectorcraftApp) {
 }
 
 /// Put the document `uid` at the front of the queue.
-fn queue_first(app: &mut VectorcraftApp, uid: u64) {
+fn queue_first(app: &mut PlumaApp, uid: u64) {
     app.ui.pending_fonts.retain(|u| *u != uid);
     app.ui.pending_fonts.insert(0, uid);
 }
@@ -99,7 +99,7 @@ fn queue_first(app: &mut VectorcraftApp, uid: u64) {
 /// for a file opened after the document, for example), its document goes back to the front of the
 /// queue, and the dialog opens again once no dialog is open. A dialog closed by Cancel, Add Fonts
 /// or Escape stays closed.
-pub(super) fn requeue_replaced(app: &mut VectorcraftApp) {
+pub(super) fn requeue_replaced(app: &mut PlumaApp) {
     let Some(uid) = app.ui.fonts_dialog else { return };
     let Some(d) = &app.ui.dialog else {
         app.ui.fonts_dialog = None;
@@ -112,17 +112,17 @@ pub(super) fn requeue_replaced(app: &mut VectorcraftApp) {
 }
 
 /// Stop the search the dialog started once the dialog is gone (closed, or another in its place).
-pub(super) fn stop_when_closed(app: &mut VectorcraftApp) {
+pub(super) fn stop_when_closed(app: &mut PlumaApp) {
     let Some(id) = app.ui.dialog_search else { return };
     let open = app.ui.dialog.as_ref().is_some_and(|d| d.kind == KIND && d.fields.get("search").and_then(Value::as_u64) == Some(id));
     if !open {
         app.ui.dialog_search = None;
-        vectorcraft_engine::cmd::fontfiles::stop(&mut app.session, id);
+        pluma_engine::cmd::fontfiles::stop(&mut app.session, id);
     }
 }
 
 /// `ui.missingFontsDialog`: the dialog for the active document; with `folder`, searching it.
-pub(crate) fn open_command(app: &mut VectorcraftApp, folder: Option<String>) -> Result<Value, String> {
+pub(crate) fn open_command(app: &mut PlumaApp, folder: Option<String>) -> Result<Value, String> {
     let uid = app.session.active().map(|d| d.uid).ok_or("no document open")?;
     let mut d = dialog_for(app, uid).ok_or("No fonts are missing in this document")?;
     if let Some(folder) = folder {
@@ -134,7 +134,7 @@ pub(crate) fn open_command(app: &mut VectorcraftApp, folder: Option<String>) -> 
 
 /// Show `d`, the dialog of the document `uid`, in place of the open dialog (another document's
 /// Missing Fonts dialog asks again later).
-fn show_for(app: &mut VectorcraftApp, uid: u64, d: Dialog) {
+fn show_for(app: &mut PlumaApp, uid: u64, d: Dialog) {
     requeue_replaced(app);
     if let Some(shown) = app.ui.fonts_dialog.filter(|shown| *shown != uid) {
         queue_first(app, shown);
@@ -146,7 +146,7 @@ fn show_for(app: &mut VectorcraftApp, uid: u64, d: Dialog) {
 
 /// `ui.findFontsInFolder` (Type › Find Font's Find in Folder…): ask for a folder (or take
 /// `folder`), then open the dialog for the active document, searching it.
-pub(crate) fn find_in_folder_command(app: &mut VectorcraftApp, folder: Option<String>) -> Result<Value, String> {
+pub(crate) fn find_in_folder_command(app: &mut PlumaApp, folder: Option<String>) -> Result<Value, String> {
     let uid = app.session.active().map(|d| d.uid).ok_or("no document open")?;
     // Nothing to look for: no folder is asked for.
     let mut d = dialog_for(app, uid).ok_or("No fonts are missing in this document")?;
@@ -161,7 +161,7 @@ pub(crate) fn find_in_folder_command(app: &mut VectorcraftApp, folder: Option<St
 
 /// Start looking in `folder` for the files of the dialog's fonts; what an earlier search found is
 /// dropped.
-fn start_search(app: &mut VectorcraftApp, d: &mut Dialog, folder: &str) -> Result<(), String> {
+fn start_search(app: &mut PlumaApp, d: &mut Dialog, folder: &str) -> Result<(), String> {
     let fonts: Vec<Value> = d
         .fields
         .get("fonts")
@@ -211,7 +211,7 @@ fn update(d: &mut Dialog, r: &Value) {
 
 /// While searching: the search's progress into the dialog. A search started elsewhere since
 /// stopped this one.
-fn follow(app: &mut VectorcraftApp, d: &mut Dialog) {
+fn follow(app: &mut PlumaApp, d: &mut Dialog) {
     // Polled through `session.execute`.
     let Ok(r) = app.session.execute("text.findFontFiles", &json!({})) else { return };
     if d.fields.get("search") != Some(&r["id"]) {
@@ -232,7 +232,7 @@ enum Act {
     Add,
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     if d.str("state") == "searching" {
         follow(app, d);
@@ -304,8 +304,8 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if found.iter().any(|f| f["files"].as_array().is_some_and(|files| !files.is_empty())) {
         ui.add_space(8.0);
         widgets::dim_label(ui, tl!("Copy only fonts you own or are licensed to install."));
-        if let Some(dir) = vectorcraft_text::app_font_dir() {
-            widgets::dim_name(ui, &crate::i18n::fmt(tl!("VectorCraft copies the fonts to {folder}."), &[("folder", &dir.to_string_lossy())]));
+        if let Some(dir) = pluma_text::app_font_dir() {
+            widgets::dim_name(ui, &crate::i18n::fmt(tl!("Pluma copies the fonts to {folder}."), &[("folder", &dir.to_string_lossy())]));
         }
         ui.add_space(6.0);
         if ui.add_enabled(!searching && !chosen.is_empty(), egui::Button::new(tl!("Add Fonts"))).clicked() {
@@ -366,7 +366,7 @@ pub(super) fn progress(ui: &mut egui::Ui, d: &Dialog) {
 /// Find Fonts (`discard`): Type › Find Font on the first font the document misses, to replace it;
 /// this Missing Fonts dialog doesn't come back. Otherwise (agents), with `searchFolder`: search that
 /// folder, and stay open; else Add Fonts.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.bool("discard") {
         app.ui.fonts_dialog = None;
         // Find Font works on the active document; the dialog's may be another tab.
@@ -392,8 +392,8 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     add_fonts(app, d)
 }
 
-/// Add Fonts: copy the chosen files into VectorCraft's Fonts folder and close.
-fn add_fonts(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+/// Add Fonts: copy the chosen files into Pluma's Fonts folder and close.
+fn add_fonts(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let chosen = d.fields.get("chosen").and_then(Value::as_array).cloned().unwrap_or_default();
     if chosen.is_empty() {
         return Err("choose the font files to add".into());

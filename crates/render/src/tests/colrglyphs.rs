@@ -1,11 +1,11 @@
 //! COLR colour glyphs: drawn as their layers (or, for paints documents have no form for, their
 //! image), which the type's fill doesn't paint, except in the layers in the foreground colour.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::text::{CharStyle, TextObject};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::Point;
-use vectorcraft_text::test_fonts::{COLOUR_CHAR, COLR_SWEEP_CHAR, colr_family, colr_font};
+use pluma_color::{Color, Paint};
+use pluma_doc::text::{CharStyle, TextObject};
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::Point;
+use pluma_text::test_fonts::{COLOUR_CHAR, COLR_SWEEP_CHAR, colr_family, colr_font};
 
 use crate::*;
 
@@ -13,7 +13,7 @@ use crate::*;
 /// turned by `turn` about there, on a white 160×160 page.
 fn render(v1: bool, text: char, turn: f64, opts: RenderOptions) -> Rendered {
     let _adding = crate::tests_fontchange::adding_fonts();
-    vectorcraft_text::FontDb::global().add_font(colr_font(v1).unwrap());
+    pluma_text::FontDb::global().add_font(colr_font(v1).unwrap());
     let mut d = Document::new(160.0, 160.0);
     let st = CharStyle { font_family: colr_family(v1).into(), size: 100.0, fill: Paint::solid(Color::rgb(1.0, 0.0, 1.0)), ..Default::default() };
     let mut t = TextObject::point(Point::new(20.0, 120.0), &text.to_string(), st);
@@ -93,11 +93,11 @@ fn a_sweep_glyph_draws_its_image() {
 #[test]
 fn colour_glyphs_go_with_type_that_a_geometry_effect_reshapes() {
     let _adding = crate::tests_fontchange::adding_fonts();
-    vectorcraft_text::FontDb::global().add_font(colr_font(false).unwrap());
+    pluma_text::FontDb::global().add_font(colr_font(false).unwrap());
     let mut d = Document::new(160.0, 160.0);
     let st = CharStyle { font_family: colr_family(false).into(), size: 100.0, ..Default::default() };
     let mut n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(20.0, 120.0), &COLOUR_CHAR.to_string(), st))));
-    let moved = vectorcraft_doc::Effect { id: "distort.transform".into(), params: serde_json::json!({"moveH": 40}), visible: true };
+    let moved = pluma_doc::Effect { id: "distort.transform".into(), params: serde_json::json!({"moveH": 40}), visible: true };
     let mut appearance = (*n.appearance).clone();
     appearance.effects.push(moved);
     n.appearance = appearance.into();
@@ -113,11 +113,11 @@ fn colour_glyphs_go_with_type_that_a_geometry_effect_reshapes() {
 #[test]
 fn outlined_colour_glyphs_stay_under_their_runs_fill() {
     let _adding = crate::tests_fontchange::adding_fonts();
-    vectorcraft_text::FontDb::global().add_font(colr_font(false).unwrap());
+    pluma_text::FontDb::global().add_font(colr_font(false).unwrap());
     let mut d = Document::new(160.0, 160.0);
     let st = CharStyle { font_family: colr_family(false).into(), size: 100.0, ..Default::default() };
     let n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(20.0, 120.0), &format!("{COLOUR_CHAR}F"), st))));
-    let outlined = vectorcraft_effects::outline_text(&n).unwrap();
+    let outlined = pluma_effects::outline_text(&n).unwrap();
     let kinds: Vec<bool> = outlined.children().unwrap().iter().map(|c| matches!(c.kind, NodeKind::Group { .. })).collect();
     assert_eq!(kinds, [true, false], "the colour glyph's group, then the run's path");
 }

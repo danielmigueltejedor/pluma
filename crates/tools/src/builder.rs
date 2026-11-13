@@ -1,8 +1,8 @@
 //! Shape Builder (Shift+M), Live Paint Bucket (K) and Live Paint Selection (Shift+L).
 //!
 //! The tools only emit commands (`shapeBuilder.merge`, `livePaint.fill`, `livePaint.strokeEdge`,
-//! `select.*`); the planar arrangement comes from `vectorcraft_pathops::shape_builder` (Shape
-//! Builder) and `vectorcraft_pathops::live_paint` (Live Paint).
+//! `select.*`); the planar arrangement comes from `pluma_pathops::shape_builder` (Shape
+//! Builder) and `pluma_pathops::live_paint` (Live Paint).
 //!
 //! **Live Paint groups** are ordinary groups (no special node kind): the group's name starts with
 //! [`LIVE_PAINT_PREFIX`]; its first child is a hidden group named [`SOURCES_NAME`] holding the
@@ -15,11 +15,11 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use pluma_color::{Paint, Swatch};
+use pluma_doc::{Document, Node, NodeId, NodeKind};
+use pluma_geom::{BezPath, FillRule, PathData, Point, Rect, Shape as _, SubPath};
+use pluma_pathops as po;
 use serde_json::{Value, json};
-use vectorcraft_color::{Paint, Swatch};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::{BezPath, FillRule, PathData, Point, Rect, Shape as _, SubPath};
-use vectorcraft_pathops as po;
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, json_ids};
 
@@ -207,7 +207,7 @@ struct PendingMerge {
 #[cfg(not(target_arch = "wasm32"))]
 fn spawn_merge(map: Arc<BuilderMap>, touched: Touched, gap: f64, inputs: Vec<MergeInput>) -> Option<Receiver<MergeGeometry>> {
     let (tx, done) = std::sync::mpsc::channel();
-    let spawned = std::thread::Builder::new().name("vectorcraft-shape-builder-merge".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("pluma-shape-builder-merge".into()).spawn(move || {
         // The tool may have dropped the receiver meanwhile (another tool, another document).
         let _ = tx.send(merge_geometry(&map, &touched, gap, &inputs));
     });

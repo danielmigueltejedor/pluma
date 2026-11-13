@@ -1,7 +1,7 @@
 //! Current-main import contracts across the shared reader's older Device API.
 
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Document, NodeKind};
+use pluma_color::Paint;
+use pluma_doc::{Document, NodeKind};
 
 use crate::{ImportOptions, TextAs, import_with_report};
 

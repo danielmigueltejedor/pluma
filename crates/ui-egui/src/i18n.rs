@@ -498,9 +498,9 @@ pub fn set_system_locales<S: AsRef<str>>(tags: &[S]) {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn detect_system_lang() -> Lang {
-    // `VECTORCRAFT_LOCALE` overrides everything (also handy for screenshots); then the POSIX
+    // `PLUMA_LOCALE` overrides everything (also handy for screenshots); then the POSIX
     // variables. `LANGUAGE` is a colon-separated priority list.
-    for var in ["VECTORCRAFT_LOCALE", "LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
+    for var in ["PLUMA_LOCALE", "LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] {
         let Some(v) = std::env::var(var).ok().filter(|v| !v.is_empty()) else { continue };
         // `C` / `POSIX` (and variants like `C.UTF-8`, `POSIX.UTF-8`) mean "no particular locale":
         // don't force English, fall through to the OS preferred-languages list below.

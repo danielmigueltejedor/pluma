@@ -1,14 +1,14 @@
 //! Pathfinder panel › compound shapes (`object.compoundShape.*`): Make Compound Shape (what
 //! Alt-clicking a Shape Mode button does), a member's shape mode, Release and Expand Compound
 //! Shape. A compound shape is a group marked so ([`Node::is_compound_shape`]) whose members each
-//! have a [`ShapeMode`]; `vectorcraft-effects` draws it as the area they make
+//! have a [`ShapeMode`]; `pluma-effects` draws it as the area they make
 //! ([`effects::compound_shape_area`]).
 
 use std::sync::Arc;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, ShapeMode};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, ShapeMode};
-use vectorcraft_render::effects;
 
 use super::edit::{roots_of, selected_roots};
 use super::pathops::{Style, pf_leaves, shape_node, style_of};

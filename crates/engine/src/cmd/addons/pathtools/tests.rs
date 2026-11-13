@@ -3,11 +3,11 @@
 
 use std::collections::BTreeSet;
 
+use pluma_doc::{LiveCorners, LiveShape, NodeId};
+use pluma_geom::shapes::CornerKind;
+use pluma_geom::{AnchorKind, PathData, Point};
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveCorners, LiveShape, NodeId};
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_geom::{AnchorKind, PathData, Point};
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use crate::{Session, ViewInfo};
 
@@ -278,8 +278,8 @@ fn crossings_add_anchors_or_cut_in_one_step() {
 // ---------- Parametric Shape Tool ----------
 
 /// The parametric shape object `id` is now, as the tool reads it.
-fn shape_of(s: &Session, id: NodeId) -> Option<vectorcraft_pathops::addons::pathtools::shapes::ParametricShape> {
-    vectorcraft_tools::addons::parametric_shape::read(s.doc().unwrap().doc.node(id).unwrap())
+fn shape_of(s: &Session, id: NodeId) -> Option<pluma_pathops::addons::pathtools::shapes::ParametricShape> {
+    pluma_tools::addons::parametric_shape::read(s.doc().unwrap().doc.node(id).unwrap())
 }
 
 fn star(s: &mut Session) -> NodeId {
@@ -422,11 +422,11 @@ fn the_shape_data_stays_out_of_svg_export() {
     let mut s = session();
     let id = star(&mut s);
     s.execute("object.setProps", &json!({"ids": [id.0], "data": {"pivot": "1,2"}})).unwrap();
-    let key = vectorcraft_tools::addons::parametric_shape::KEY;
+    let key = pluma_tools::addons::parametric_shape::KEY;
     let node = s.doc().unwrap().doc.node(id).unwrap().clone();
     assert!(node.extras().attrs.as_deref().is_some_and(|a| a.data.iter().any(|(k, _)| k == key)), "kept with the object");
     assert!(shape_of(&s, id).is_some(), "setting other data keeps it a shape");
-    let svg = vectorcraft_svg::export(&s.doc().unwrap().doc, &Default::default());
+    let svg = pluma_svg::export(&s.doc().unwrap().doc, &Default::default());
     assert!(svg.contains("data-pivot=\"1,2\""), "the object's own data still goes out: {svg}");
     assert!(!svg.contains(key) && !svg.contains("fp&quot;") && !svg.contains("\"fp\""), "{svg}");
 }
@@ -440,7 +440,7 @@ fn the_tool_draws_one_step_per_drag_and_arrows_change_the_count() {
     let n = steps(&s);
     s.pointer(&PointerEvent::new(PointerKind::Down, 200.0, 150.0), view).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Drag, 200.0, 100.0), view).unwrap();
-    s.tool_key(vectorcraft_tools::ToolKey::Up, vectorcraft_tools::Mods::default(), view).unwrap();
+    s.tool_key(pluma_tools::ToolKey::Up, pluma_tools::Mods::default(), view).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Drag, 200.0, 90.0), view).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Up, 200.0, 90.0), view).unwrap();
     assert_eq!(steps(&s), n + 1);
@@ -770,7 +770,7 @@ fn the_corner_tool_clicks_drags_and_removes_in_one_step_each() {
     press(&mut s, PointerKind::Up, 260.0, 260.0);
     assert_eq!(s.tool_options_of("cornerTool")["radius"], json!(40.0));
     // An Alt-marquee over the left side: both anchors, in one step.
-    let alt = vectorcraft_tools::Mods { alt: true, ..Default::default() };
+    let alt = pluma_tools::Mods { alt: true, ..Default::default() };
     for (k, x, y) in [(PointerKind::Down, 50.0, 50.0), (PointerKind::Drag, 150.0, 350.0), (PointerKind::Up, 150.0, 350.0)] {
         s.pointer(&PointerEvent::new(k, x, y).with_mods(alt), view).unwrap();
     }
@@ -938,7 +938,7 @@ fn expand_dashes_makes_an_open_path_of_each_dash_keeping_the_stroke() {
     for id in ids(&r) {
         let node = st.doc.node(id).unwrap();
         let stroke = node.appearance.stroke().unwrap();
-        assert_eq!((stroke.width, stroke.cap, stroke.dash.clone()), (3.0, vectorcraft_doc::LineCap::Round, None), "the stroke stays, dashes off");
+        assert_eq!((stroke.width, stroke.cap, stroke.dash.clone()), (3.0, pluma_doc::LineCap::Round, None), "the stroke stays, dashes off");
         assert!(!path(&s, id).subpaths[0].closed);
     }
     assert_eq!(st.selection.objects, ids(&r));
@@ -1015,7 +1015,7 @@ fn expand_dashes_turns_dots_into_paths_on_their_point_and_releases_compound_path
     assert_eq!(ids(&r).len(), 4);
     for id in ids(&r) {
         let n = st.doc.node(id).unwrap();
-        assert!(matches!(n.kind, vectorcraft_doc::NodeKind::Path { .. }), "a plain path");
+        assert!(matches!(n.kind, pluma_doc::NodeKind::Path { .. }), "a plain path");
         assert_eq!(n.appearance.stroke_width(), 2.0);
         assert!(n.appearance.stroke().unwrap().dash.is_none());
     }

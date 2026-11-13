@@ -1,5 +1,5 @@
 use super::*;
-use vectorcraft_geom::SubPath;
+use pluma_geom::SubPath;
 
 fn square(x: f64) -> PathData {
     PathData::single(SubPath::polyline(&[Point::new(x, 0.0), Point::new(x + 10.0, 0.0), Point::new(x + 10.0, 10.0), Point::new(x, 10.0)], true))
@@ -51,7 +51,7 @@ fn targets_are_selected_paths_in_paint_order() {
 #[test]
 fn objects_round_trip_through_the_json_model() {
     let (mut d, ids, _) = doc();
-    let mut g = vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default());
+    let mut g = pluma_color::GradientPaint::new(pluma_color::Gradient::default());
     g.gradient.stops[0].swatch = Some("White".into());
     d.node_mut(ids[0]).unwrap().appearance.set_stroke(Paint::Gradient(Box::new(g)));
     let input: Value = serde_json::from_slice(&encode_input(&d, &ids)).unwrap();
@@ -73,13 +73,13 @@ fn objects_round_trip_through_the_json_model() {
 fn an_unchanged_path_stays_a_live_shape() {
     let (mut d, ids, _) = doc();
     let a = ids[0];
-    let live = vectorcraft_doc::LiveShape::Rectangle {
+    let live = pluma_doc::LiveShape::Rectangle {
         w: 10.0,
         h: 10.0,
         radii: [0.0; 4],
         radii_relative: false,
         kinds: Default::default(),
-        xf: vectorcraft_geom::Affine::IDENTITY,
+        xf: pluma_geom::Affine::IDENTITY,
     };
     if let Some(NodeKind::Path { live: l, .. }) = d.node_mut(a).map(|n| &mut n.kind) {
         *l = Some(Box::new(live));
@@ -320,12 +320,12 @@ fn png(w: u32, h: u32) -> Vec<u8> {
 
 /// An image object `w` × `h` pixels showing blob `key`, linked to `link`.
 fn image_node(d: &mut Document, key: &str, (w, h): (u32, u32), link: Option<&str>) -> Node {
-    let im = vectorcraft_doc::ImageObject {
+    let im = pluma_doc::ImageObject {
         key: key.into(),
         width: w,
         height: h,
         xf: Affine::new([2.0, 0.0, 0.0, 2.0, 40.0, 60.0]),
-        link: link.map(vectorcraft_doc::LinkInfo::new),
+        link: link.map(pluma_doc::LinkInfo::new),
         placement: Default::default(),
         pixels: None,
     };
@@ -336,7 +336,7 @@ fn image_node(d: &mut Document, key: &str, (w, h): (u32, u32), link: Option<&str
 /// linked image "L", an instance "S" of symbol "Star" and an instance "G" of a symbol the document
 /// doesn't have. Returns those five too.
 fn mixed() -> (Document, Vec<NodeId>, NodeId, [NodeId; 5]) {
-    use vectorcraft_doc::{CharStyle, ParaStyle, Symbol, TextObject};
+    use pluma_doc::{CharStyle, ParaStyle, Symbol, TextObject};
     let (mut d, ids, layer) = doc();
     let mut t = TextObject::point(Point::new(5.0, 50.0), "Hi\nthere", CharStyle::default());
     t.set_paragraph_styles(vec![ParaStyle::default(), ParaStyle { space_before: 6.0, ..Default::default() }]);
@@ -388,7 +388,7 @@ fn legacy_filter_input_bytes_are_unchanged() {
 /// kind and transform; type past [`MAX_INPUT_TEXT`] or [`MAX_INPUT_RUNS`] comes without text.
 #[test]
 fn declared_type_input_has_bounded_runs_and_paragraph_styles() {
-    use vectorcraft_doc::{CharStyle, ParaStyle, TextRun};
+    use pluma_doc::{CharStyle, ParaStyle, TextRun};
     let (mut d, _, _, [text, ..]) = mixed();
     let o = encode_read_only(&d, d.node(text).unwrap()).unwrap();
     assert_eq!((&o["type"], &o["name"], &o["truncated"]), (&json!("type"), &json!("T"), &json!(false)));
@@ -466,9 +466,9 @@ fn declared_embedded_and_linked_images_have_distinct_metadata_and_pixel_omission
 /// ink alone is the profile's black, not RGB black.
 #[test]
 fn cmyk_image_pixels_go_through_the_working_cmyk_profile() {
-    use vectorcraft_color::cms::{self, lab};
+    use pluma_color::cms::{self, lab};
     let (mut d, _, layer, _) = mixed();
-    let inks = vectorcraft_doc::cmyk::Inks::new(2, 1, vec![0, 0, 0, 255, 0, 0, 0, 0]).unwrap();
+    let inks = pluma_doc::cmyk::Inks::new(2, 1, vec![0, 0, 0, 255, 0, 0, 0, 0]).unwrap();
     d.images.insert("k".into(), ImageBlob::cmyk_tiff(&inks).unwrap());
     let n = image_node(&mut d, "k", (2, 1), None);
     let id = d.insert(Some(layer), usize::MAX, n).unwrap();
@@ -524,7 +524,7 @@ fn images_fill_the_pixel_total_and_the_next_is_omitted() {
 /// doesn't fit comes with `truncated` and what it leaves still goes to the type after it.
 #[test]
 fn type_fills_the_text_total_and_what_follows_is_truncated() {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let (mut d, _, layer, _) = mixed();
     let place = |d: &mut Document, len: usize| {
         let t = TextObject::point(Point::new(0.0, 0.0), &"x".repeat(len), CharStyle::default());
@@ -555,7 +555,7 @@ fn type_fills_the_text_total_and_what_follows_is_truncated() {
 
 /// A CMYK TIFF `w` × `h` pixels of no ink.
 fn cmyk_blob(w: u32, h: u32) -> ImageBlob {
-    let inks = vectorcraft_doc::cmyk::Inks::new(w, h, vec![0; (w * h * 4) as usize]).unwrap();
+    let inks = pluma_doc::cmyk::Inks::new(w, h, vec![0; (w * h * 4) as usize]).unwrap();
     ImageBlob::cmyk_tiff(&inks).unwrap()
 }
 
@@ -633,7 +633,7 @@ fn an_image_that_fails_to_decode_takes_from_the_total() {
 /// the paragraph is one paragraph style.
 #[test]
 fn runs_in_one_paragraph_keep_their_own_leading() {
-    use vectorcraft_doc::{CharStyle, TextObject, TextRun};
+    use pluma_doc::{CharStyle, TextObject, TextRun};
     let (mut d, _, layer, _) = mixed();
     let mut t = TextObject::point(Point::new(0.0, 0.0), "", CharStyle::default());
     let leading = CharStyle { leading: Some(14.0), ..CharStyle::default() };
@@ -679,7 +679,7 @@ fn read_only_objects_are_read_from_their_place_in_the_input_and_fail_closed() {
 fn a_path_nested_past_the_json_reader_beside_a_read_only_object_passes_the_check() {
     let (mut d, ids, _, [text, ..]) = mixed();
     let params = (0..200).fold(json!(1), |inner, _| json!([inner]));
-    d.node_mut(ids[0]).unwrap().appearance.effects.push(vectorcraft_doc::Effect { id: "x".into(), params, visible: true });
+    d.node_mut(ids[0]).unwrap().appearance.effects.push(pluma_doc::Effect { id: "x".into(), params, visible: true });
     let (bytes, read_only) = encode_input_with(&d, &[ids[0], text], &[InputKind::Type], usize::MAX).unwrap();
     assert!(serde_json::from_slice::<Value>(&bytes).is_err(), "the input is deeper than the reader goes");
     let echo = serde_json::from_slice::<Value>(&bytes[read_only[&text].clone()]).unwrap();
@@ -757,7 +757,7 @@ fn object_fields_count_toward_the_input_capacity() {
 /// it comes with `truncated`, not a limit.
 #[test]
 fn fractional_colors_count_as_the_input_writes_them() {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let (mut d, ids, layer, _) = mixed();
     let style = CharStyle { fill: Paint::solid(Color::rgb(0.1, 0.2, 0.3)), ..CharStyle::default() };
     let t = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(0.0, 0.0), "Hi", style))));

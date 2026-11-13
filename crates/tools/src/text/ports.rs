@@ -47,7 +47,7 @@ pub fn port_centre(t: &TextObject, port: Port, px: f64) -> Option<Point> {
             Some(if len > 1e-9 && len.is_finite() { corner + side * (rise.min(len / 2.0) / len) } else { corner })
         }
         TextKind::OnPath { path, .. } => {
-            let arc = vectorcraft_geom::ArcPath::new(path);
+            let arc = pluma_geom::ArcPath::new(path);
             let (start, end) = t.kind.path_span()?;
             if arc.is_empty() {
                 return None;
@@ -68,7 +68,7 @@ pub fn port_centre(t: &TextObject, port: Port, px: f64) -> Option<Point> {
 /// What the in and out ports of frame `id` of `d` show, its text `overflow`ing or not: an arrow
 /// where a frame of its thread comes before (in) or after (out) it, else a red "+" in the out port
 /// of text that doesn't fit, else nothing.
-pub fn port_states(d: &vectorcraft_doc::Document, id: NodeId, overflow: bool) -> (PortState, PortState) {
+pub fn port_states(d: &pluma_doc::Document, id: NodeId, overflow: bool) -> (PortState, PortState) {
     let thread = d.text_threads.iter().find(|t| t.contains(&id));
     let at = thread.and_then(|t| t.iter().position(|x| *x == id));
     let input = if at.is_some_and(|i| i > 0) { PortState::Threaded } else { PortState::Empty };
@@ -127,7 +127,7 @@ pub const PORTS_MAX: usize = 1_000;
 /// The text of `id` in `d` when it has ports: area type or type on a path a thread can hold, not in
 /// perspective ([`crate::select::is_threadable`]). The one test for drawing ports, clicking them and
 /// counting them toward [`PORTS_MAX`].
-pub fn ported(d: &vectorcraft_doc::Document, id: NodeId) -> Option<&TextObject> {
+pub fn ported(d: &pluma_doc::Document, id: NodeId) -> Option<&TextObject> {
     match d.node(id).filter(|n| crate::select::is_threadable(n)).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
         _ => None,
@@ -136,7 +136,7 @@ pub fn ported(d: &vectorcraft_doc::Document, id: NodeId) -> Option<&TextObject> 
 
 /// Are at most [`PORTS_MAX`] of `selected` [`ported`] (counting stops past it), so that their
 /// ports show?
-pub fn ports_shown(d: &vectorcraft_doc::Document, selected: &[NodeId]) -> bool {
+pub fn ports_shown(d: &pluma_doc::Document, selected: &[NodeId]) -> bool {
     selected.iter().filter(|id| ported(d, **id).is_some()).take(PORTS_MAX + 1).count() <= PORTS_MAX
 }
 
@@ -189,7 +189,7 @@ pub fn thread_ports(marks: &mut PortMarks, cx: &ToolContext) -> Vec<Overlay> {
         let Some(t) = ported(cx.doc, *id) else { continue };
         let over = match marks.seen.remove(id) {
             Some(((g, was), over)) if g == fonts && &was == t => over,
-            _ => vectorcraft_text::layout(FontDb::global(), t).overflow,
+            _ => pluma_text::layout(FontDb::global(), t).overflow,
         };
         ports(cx, *id, t, over, &mut o);
         kept.insert(*id, ((fonts, t.clone()), over));

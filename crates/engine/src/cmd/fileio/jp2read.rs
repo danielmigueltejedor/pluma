@@ -2,7 +2,7 @@
 //! bounded before allocation and converted to RGBA for the common PNG storage path.
 
 use hayro_jpeg2000::{ColorSpace, DecodeSettings, DecoderContext, Image};
-use vectorcraft_color::cms::{IccProfile, Intent};
+use pluma_color::cms::{IccProfile, Intent};
 
 /// Recognize a JP2 signature box or the start of a raw codestream. The decoder checks the rest.
 pub(super) fn is_jpeg2000(bytes: &[u8]) -> bool {
@@ -250,7 +250,7 @@ pub(super) fn decode(bytes: &[u8], max_alloc: u64) -> Result<image::RgbaImage, S
         }
         _ => None,
     };
-    let cms = vectorcraft_color::cms::active();
+    let cms = pluma_color::cms::active();
     let mut rgba = Vec::with_capacity(usize::try_from(rgba_size).map_err(|_| too_large())?);
     for sample in samples.chunks_exact(stride as usize) {
         let at = |i: usize| sample.get(i).copied().unwrap_or(0);

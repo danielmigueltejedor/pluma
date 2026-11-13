@@ -1,7 +1,7 @@
 //! Parameter parsing, deterministic noise and path-mapping helpers.
 
+use pluma_geom::{Anchor, CubicBez, ParamCurve, PathData, Point, Rect, SubPath, Vec2};
 use serde_json::Value;
-use vectorcraft_geom::{Anchor, CubicBez, ParamCurve, PathData, Point, Rect, SubPath, Vec2};
 
 /// Number param (also accepts numeric strings such as `"10 pt"`); non-finite → default.
 pub fn num(p: &Value, key: &str, default: f64) -> f64 {
@@ -30,11 +30,11 @@ pub fn text<'a>(p: &'a Value, key: &str, default: &'a str) -> &'a str {
     p.get(key).and_then(Value::as_str).unwrap_or(default)
 }
 
-pub fn join(p: &Value, key: &str) -> vectorcraft_pathops::Join {
+pub fn join(p: &Value, key: &str) -> pluma_pathops::Join {
     match text(p, key, "miter").to_ascii_lowercase().as_str() {
-        "round" => vectorcraft_pathops::Join::Round,
-        "bevel" => vectorcraft_pathops::Join::Bevel,
-        _ => vectorcraft_pathops::Join::Miter,
+        "round" => pluma_pathops::Join::Round,
+        "bevel" => pluma_pathops::Join::Bevel,
+        _ => pluma_pathops::Join::Miter,
     }
 }
 
@@ -69,9 +69,9 @@ pub fn seg_cubic(sp: &SubPath, i: usize) -> CubicBez {
     if sp.segment_is_line(i) { CubicBez::new(c.p0, c.p0.lerp(c.p3, 1.0 / 3.0), c.p0.lerp(c.p3, 2.0 / 3.0), c.p3) } else { c }
 }
 
-/// Non-linear path mapping (shared with live envelopes in `vectorcraft-doc`), and the split of
+/// Non-linear path mapping (shared with live envelopes in `pluma-doc`), and the split of
 /// segments into pieces within an anchor budget.
-pub use vectorcraft_doc::live::{fit_piece, map_nonlinear_within, pieces};
+pub use pluma_doc::live::{fit_piece, map_nonlinear_within, pieces};
 
 /// About how many lines the renderer flattens `path` into at 1 px/pt: one for a straight
 /// segment, and for a curve the count Wang's formula gives at vello's tolerance of 0.25 px,

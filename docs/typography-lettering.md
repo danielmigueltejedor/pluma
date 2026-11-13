@@ -29,7 +29,7 @@ can use installed system fonts, while the web app uses the fonts supplied by its
    characters before using the Character panel. Press **Escape** when finished. Keep the text
    editable until its wording, font and spacing are settled.
 8. Choose **File → Save As…**, select the **Pluma** format, and save the document as
-   `lettering-editable.vectorcraft`.
+   `lettering-editable.pluma`.
 
 The desktop app scans system fonts and loads faces as needed. If you install a font while it is
 open, use **Refresh Font List** in the Character panel's menu. On the web, installing a font on your
@@ -41,7 +41,7 @@ Create Outlines replaces text with vector paths. You can reshape those paths, bu
 edit the words or choose a different font for them with the Type Tool.
 
 1. Keep the editable file saved above. Choose **File → Save As…** again, select **Pluma**,
-   and save as `lettering-outlines.vectorcraft`. Continue in this second file so later saves do not
+   and save as `lettering-outlines.pluma`. Continue in this second file so later saves do not
    overwrite your editable original.
 2. With **Selection Tool** (**V**), select the text object you want to convert.
 3. Choose **Type → Create Outlines**. The default shortcut is **Ctrl+Shift+O** on Windows and Linux,
@@ -75,8 +75,8 @@ a ligature, which becomes a single glyph outline.
 
 ## Saving and exporting your artwork
 
-- **Keep the project:** use **File → Save** to save `lettering-outlines.vectorcraft`. Retain
-  `lettering-editable.vectorcraft` separately for future wording or font changes. A native file keeps
+- **Keep the project:** use **File → Save** to save `lettering-outlines.pluma`. Retain
+  `lettering-editable.pluma` separately for future wording or font changes. A native file keeps
   editable text only where you have left text objects unconverted.
 - **Export vector artwork:** choose **File → Export → Export As…**, select **SVG** or **PDF**, and
   continue through the export options. The outlined letters are vector shapes in the output, not
@@ -108,7 +108,7 @@ lettering artwork, but exporting that artwork is only one part of making a font.
   **Edit → Undo** if the conversion is still in the undo history, or reopen your editable original.
 - **I cannot install my modified letters as a font.** They are drawing objects. SVG/PDF export
   does not add the structure required by an installable font; see [Can Pluma create a font
-  file?](#can-vectorcraft-create-a-font-file).
-- **How do I keep text editable?** Save the text in a native `.vectorcraft` file before outlining,
+  file?](#can-pluma-create-a-font-file).
+- **How do I keep text editable?** Save the text in a native `.pluma` file before outlining,
   then use a different file name for the outlined version. Saving paths in the native format does
   not turn them back into text.

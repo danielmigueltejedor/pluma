@@ -54,10 +54,10 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
+use pluma_doc::hit::{Hit, HitKind, compound_part_at, hit_test, selected_hidden_at, symbol_part_at, symbol_part_outline};
+use pluma_doc::{AnchorRef, Node, NodeId, NodeKind, Selection, symbol_overrides};
+use pluma_geom::{Anchor, PathData, PathSeg, Point, Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::{Hit, HitKind, compound_part_at, hit_test, selected_hidden_at, symbol_part_at, symbol_part_outline};
-use vectorcraft_doc::{AnchorRef, Node, NodeId, NodeKind, Selection, symbol_overrides};
-use vectorcraft_geom::{Anchor, PathData, PathSeg, Point, Rect, Vec2};
 
 use crate::bbox::move_delta;
 use crate::corners::{self, CornerDrag, over_widget};
@@ -337,7 +337,7 @@ impl DirectSelectionTool {
 
 /// Whether `id` may be picked while `scope` is isolated: it is that object, or it sits inside it.
 /// With no isolation, everything may be picked.
-pub(crate) fn in_scope(doc: &vectorcraft_doc::Document, scope: Option<NodeId>, id: NodeId) -> bool {
+pub(crate) fn in_scope(doc: &pluma_doc::Document, scope: Option<NodeId>, id: NodeId) -> bool {
     scope.is_none_or(|scope| doc.ancestry(id).is_some_and(|anc| anc.contains(&scope)))
 }
 
@@ -345,7 +345,7 @@ pub(crate) fn in_scope(doc: &vectorcraft_doc::Document, scope: Option<NodeId>, i
 /// its contents; art around it is locked and the walk does not reach it. A Shaper Group's original
 /// shapes, its first child, are left out unless they are the isolated object (Construction mode),
 /// as clicks leave them out.
-fn walk_pickable<'a>(doc: &'a vectorcraft_doc::Document, scope: Option<NodeId>, mut f: impl FnMut(&'a Node)) {
+fn walk_pickable<'a>(doc: &'a pluma_doc::Document, scope: Option<NodeId>, mut f: impl FnMut(&'a Node)) {
     fn walk<'a>(n: &'a Node, f: &mut impl FnMut(&'a Node)) {
         f(n);
         for c in n.children().into_iter().flatten().skip(usize::from(n.extras().shaper.is_some())) {
@@ -368,7 +368,7 @@ pub(crate) fn spines(cx: &ToolContext) -> Vec<(NodeId, PathData)> {
     let mut v = vec![];
     walk_pickable(cx.doc, cx.isolation, |n| {
         if let NodeKind::Blend { children, spec } = &n.kind
-            && let Some((path, _)) = vectorcraft_doc::live::blend_spine(children, spec)
+            && let Some((path, _)) = pluma_doc::live::blend_spine(children, spec)
         {
             v.push((n.id, path));
         }
@@ -407,14 +407,14 @@ fn hit_spine_handle(cx: &ToolContext, sel: (NodeId, usize), p: Point, tol: f64) 
 }
 
 /// Anchor `sel.1` of blend `sel.0`'s spine.
-fn spine_anchor(cx: &ToolContext, (id, ai): (NodeId, usize)) -> Option<vectorcraft_geom::Anchor> {
+fn spine_anchor(cx: &ToolContext, (id, ai): (NodeId, usize)) -> Option<pluma_geom::Anchor> {
     spine_path(cx, id)?.subpaths.first()?.anchors.get(ai).copied()
 }
 
 /// Blend `id`'s spine, built once for callers that look up several of its points.
 fn spine_path(cx: &ToolContext, id: NodeId) -> Option<PathData> {
     match &cx.doc.node(id)?.kind {
-        NodeKind::Blend { children, spec } => Some(vectorcraft_doc::live::blend_spine(children, spec)?.0),
+        NodeKind::Blend { children, spec } => Some(pluma_doc::live::blend_spine(children, spec)?.0),
         _ => None,
     }
 }
@@ -634,10 +634,10 @@ fn anchors_json(v: &[AnchorRef]) -> Value {
 fn crossed_segments(path: &PathData, r: Rect) -> Vec<AnchorRef> {
     let (x0, x1, y0, y1) = (r.min_x(), r.max_x(), r.min_y(), r.max_y());
     let edges = [
-        vectorcraft_geom::Line::new((r.x0, r.y0), (r.x1, r.y0)),
-        vectorcraft_geom::Line::new((r.x1, r.y0), (r.x1, r.y1)),
-        vectorcraft_geom::Line::new((r.x1, r.y1), (r.x0, r.y1)),
-        vectorcraft_geom::Line::new((r.x0, r.y1), (r.x0, r.y0)),
+        pluma_geom::Line::new((r.x0, r.y0), (r.x1, r.y0)),
+        pluma_geom::Line::new((r.x1, r.y0), (r.x1, r.y1)),
+        pluma_geom::Line::new((r.x1, r.y1), (r.x0, r.y1)),
+        pluma_geom::Line::new((r.x0, r.y1), (r.x0, r.y0)),
     ];
     let degenerate = |x: Rect| x.width() == 0.0 || x.height() == 0.0;
     let mut out = vec![];
@@ -658,11 +658,11 @@ fn crossed_segments(path: &PathData, r: Rect) -> Vec<AnchorRef> {
                 continue;
             }
             let piece = if line {
-                PathSeg::Line(vectorcraft_geom::Line::new(a.p, b.p))
+                PathSeg::Line(pluma_geom::Line::new(a.p, b.p))
             } else {
-                PathSeg::Cubic(vectorcraft_geom::CubicBez::new(a.p, a.h_out, b.h_in, b.p))
+                PathSeg::Cubic(pluma_geom::CubicBez::new(a.p, a.h_out, b.h_in, b.p))
             };
-            let bounds = vectorcraft_geom::path::segment_bounds(piece);
+            let bounds = pluma_geom::path::segment_bounds(piece);
             if bounds.intersect(r).area() <= 0.0 && !degenerate(bounds) && !degenerate(r) {
                 continue;
             }
@@ -699,7 +699,7 @@ fn next_group(cx: &ToolContext, ancestry: &[NodeId]) -> Option<NodeId> {
         .find(|id| !cx.selection.contains(*id))
 }
 
-/// Is an object of instance `id`'s art selected ([`vectorcraft_doc::Selection::symbol_part`]),
+/// Is an object of instance `id`'s art selected ([`pluma_doc::Selection::symbol_part`]),
 /// rather than the instance whole?
 fn part_picked(cx: &ToolContext, id: NodeId) -> bool {
     cx.selection.symbol_part.as_ref().is_some_and(|sp| sp.instance == id)
@@ -1359,7 +1359,7 @@ impl DirectSelectionTool {
         }
         vec![]
     }
-    fn press_object(&mut self, cx: &ToolContext, ev: &PointerEvent, p: Point, tol: f64, mut h: vectorcraft_doc::hit::Hit) -> Vec<Action> {
+    fn press_object(&mut self, cx: &ToolContext, ev: &PointerEvent, p: Point, tol: f64, mut h: pluma_doc::hit::Hit) -> Vec<Action> {
         if let Some(part) = cx.doc.node(h.leaf).and_then(|n| compound_part_at(n, p, tol)) {
             h.ancestry.push(part);
             h.leaf = part;
@@ -1466,7 +1466,7 @@ impl DirectSelectionTool {
             // them, an edge on a gridline on each axis), not that point (#3835).
             let grid = segment && (cx.snap_to_grid || cx.snap_to_pixel);
             self.partial_grid =
-                grid.then(|| MoveSnap::grid_only(vectorcraft_effects::preview::anchor_bounds_with(cx.selection, cx.doc, cx.bounds_measure())));
+                grid.then(|| MoveSnap::grid_only(pluma_effects::preview::anchor_bounds_with(cx.selection, cx.doc, cx.bounds_measure())));
         }
         let mut d = move_delta(start, p, ev.mods.shift, cx.constrain_angle);
         let unsnapped = d;
@@ -1503,7 +1503,7 @@ impl DirectSelectionTool {
             self.partial_snap = (!cx.selection.anchors.is_empty()).then(|| PointSnap::new(cx, || Targets::for_anchor_drag(cx.doc, cx.selection)));
             let grid = self.partial_snap.is_some() && grab.is_none() && (cx.snap_to_grid || cx.snap_to_pixel);
             self.partial_grid =
-                grid.then(|| MoveSnap::grid_only(vectorcraft_effects::preview::anchor_bounds_with(cx.selection, cx.doc, cx.bounds_measure())));
+                grid.then(|| MoveSnap::grid_only(pluma_effects::preview::anchor_bounds_with(cx.selection, cx.doc, cx.bounds_measure())));
             let copy = ev.mods.alt && self.partial_snap.is_none();
             out.push(Action::Begin(if copy { "Copy".into() } else { "Move".into() }));
             self.state = State::MoveObject { start, grab, hold, began: true, deselect: None };
@@ -1548,10 +1548,7 @@ impl DirectSelectionTool {
             (d, self.guides) = if ev.mods.shift { snap.snap_along(cx, hold, d, ev.mods.alt) } else { snap.snap(cx, hold, d, ev.mods.alt) };
         }
         self.snapped = snapped(d, unsnapped, ev.mods.shift, &self.guides);
-        out.push(Action::Preview(
-            "object.transform".into(),
-            json!({"matrix": matrix_json(vectorcraft_geom::Affine::translate(d)), "copy": ev.mods.alt}),
-        ));
+        out.push(Action::Preview("object.transform".into(), json!({"matrix": matrix_json(pluma_geom::Affine::translate(d)), "copy": ev.mods.alt})));
         out
     }
     fn release_move(&mut self, cx: &ToolContext, began: bool) -> Vec<Action> {
@@ -1603,7 +1600,7 @@ impl DirectSelectionTool {
         // (members of groups too), each whole, as a click selects one; with an Alt-marquee, every
         // object it touches, each whole.
         if enclosed || whole {
-            let mut touched = vectorcraft_doc::hit::marquee(cx.doc, r, cx.isolation, true);
+            let mut touched = pluma_doc::hit::marquee(cx.doc, r, cx.isolation, true);
             let editable = cx.doc.editable();
             touched.retain(|id| editable(*id));
             let picked = if enclosed { crate::select::inside(cx, r, touched) } else { touched };
@@ -1675,7 +1672,7 @@ impl DirectSelectionTool {
         }
         // Objects without anchors to pick (type, images, symbols…) are selected whole when
         // the marquee touches them, as with the Selection tool (#927).
-        for id in vectorcraft_doc::hit::marquee(cx.doc, r, cx.isolation, true) {
+        for id in pluma_doc::hit::marquee(cx.doc, r, cx.isolation, true) {
             let whole = cx.doc.node(id).is_some_and(|n| !matches!(n.kind, NodeKind::Path { .. } | NodeKind::Compound { .. }));
             if whole && !sel.iter().any(|(s, _)| *s == id) && !framed.iter().any(|(f, _)| *f == id) && !meshed.contains(&id) {
                 sel.push((id, vec![]));

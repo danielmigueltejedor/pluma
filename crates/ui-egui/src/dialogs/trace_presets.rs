@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use super::{DialogSpec, form};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Save as New Preset… and Rename… (Image Trace).
 pub const KIND: &str = "imageTracePreset";
@@ -25,7 +25,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 
 /// Open Save as New Preset… for `params` (default: the Default preset's settings), or, with
 /// `rename`, Rename… for that saved preset (OK reports a name that isn't one).
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let rename = p.get("rename").and_then(Value::as_str).map(str::trim).unwrap_or_default();
     let fields = if rename.is_empty() {
         json!({"name": app.session.new_trace_preset_name(), "rename": "", "params": p.get("params").cloned().unwrap_or(Value::Null)})
@@ -37,7 +37,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Name:"));
         form::text(ui, d, "name", 220.0);
@@ -62,7 +62,7 @@ fn params(d: &Dialog) -> Value {
 
 /// A name the save refuses (a taken one when renaming, a built-in preset's) keeps the dialog open,
 /// to be changed.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let r = app.run("imageTrace.presets.save", params(d));
     if r.is_ok() {
         app.ui.dialog = None;

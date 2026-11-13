@@ -1,6 +1,6 @@
 # Pluma MCP server
 
-`vectorcraft-cli mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio
+`pluma-cli mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio
 (newline-delimited JSON-RPC 2.0; see [Protocol](#protocol) for version negotiation). Agents use it to
 draw, inspect and look at Pluma documents.
 
@@ -8,8 +8,8 @@ It has two backends:
 
 | Mode | How | What works |
 |---|---|---|
-| **Remote** | `vectorcraft-cli mcp --connect 127.0.0.1:7979` (the app must run with `vectorcraft --control 7979`) | Everything. Tool calls are forwarded over the [control protocol](control-protocol.md), so you watch the app change live. |
-| **Headless** | `vectorcraft-cli mcp --headless` | An in-process engine session with a CPU renderer. Everything except the UI-only tools (`inspect_ui` or `ui_inspect`, `type_text`, `answer_dialog`, `open_panel`, `screenshot {window:true}` or `ui_screenshot`). |
+| **Remote** | `pluma-cli mcp --connect 127.0.0.1:7979` (the app must run with `pluma --control 7979`) | Everything. Tool calls are forwarded over the [control protocol](control-protocol.md), so you watch the app change live. |
+| **Headless** | `pluma-cli mcp --headless` | An in-process engine session with a CPU renderer. Everything except the UI-only tools (`inspect_ui` or `ui_inspect`, `type_text`, `answer_dialog`, `open_panel`, `screenshot {window:true}` or `ui_screenshot`). |
 
 With no flag, the server tries `127.0.0.1:7979` and falls back to headless. Logs go to stderr; stdout carries
 only protocol messages.
@@ -19,14 +19,14 @@ only protocol messages.
 From the repository root, with Rust 1.95+ and the platform's source-build prerequisites installed:
 
 ```sh
-cargo install --path apps/vectorcraft-cli --locked
+cargo install --path apps/pluma-cli --locked
 # POSIX shells, for Cargo's default install location:
 export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-vectorcraft-cli --help
-claude mcp add vectorcraft -- vectorcraft-cli mcp
+pluma-cli --help
+claude mcp add pluma -- pluma-cli mcp
 # or pin a mode:
-claude mcp add vectorcraft-headless -- vectorcraft-cli mcp --headless
-claude mcp add vectorcraft-app -- vectorcraft-cli mcp --connect 127.0.0.1:7979
+claude mcp add pluma-headless -- pluma-cli mcp --headless
+claude mcp add pluma-app -- pluma-cli mcp --connect 127.0.0.1:7979
 ```
 
 Cargo installs a binary, not a symlink into `target/`, so it survives `cargo clean`.
@@ -40,33 +40,33 @@ the client after changing its environment. Installing does not start or register
 Other clients use the same command in their JSON config:
 
 ```json
-{"mcpServers": {"vectorcraft": {"command": "vectorcraft-cli", "args": ["mcp"]}}}
+{"mcpServers": {"pluma": {"command": "pluma-cli", "args": ["mcp"]}}}
 ```
 
 If a client reports `ENOENT` or "Executable not found in $PATH", verify the install with
-`command -v vectorcraft-cli` (PowerShell: `Get-Command vectorcraft-cli`) in the client's
+`command -v pluma-cli` (PowerShell: `Get-Command pluma-cli`) in the client's
 environment. If that environment cannot be changed, set JSON `command` to the absolute
 installed binary path, not a literal `~` or `$HOME` expression. Avoid symlinks into
 `target/release`: cleaning the build directory breaks them. A source build alone does
 not put the CLI on `PATH`.
 
-For a live session, start the app first: `cargo run --release -p vectorcraft -- --control 7979`.
+For a live session, start the app first: `cargo run --release -p pluma -- --control 7979`.
 
 ### From an installed release
 
-The release packages ship `vectorcraft-cli` alongside the desktop app, so no build is needed:
+The release packages ship `pluma-cli` alongside the desktop app, so no build is needed:
 
 | Install | CLI |
 |---|---|
-| Windows (MSI) | `%LOCALAPPDATA%\Programs\ArtCraft\Pluma\vectorcraft-cli.exe` by default (`C:\Program Files\ArtCraft\Pluma\vectorcraft-cli.exe` for an all-users install, under `Program Files (x86)` instead for the 32-bit build, or wherever you installed it otherwise), not on `PATH` |
-| Linux (deb, rpm) | `/usr/bin/vectorcraft-cli` |
-| macOS | the separate `vectorcraft-cli-<version>-macos-<arch>.zip` release asset (the `.app` holds only the desktop app) |
+| Windows (MSI) | `%LOCALAPPDATA%\Programs\Nodalia\Pluma\pluma-cli.exe` by default (`C:\Program Files\Nodalia\Pluma\pluma-cli.exe` for an all-users install, under `Program Files (x86)` instead for the 32-bit build, or wherever you installed it otherwise), not on `PATH` |
+| Linux (deb, rpm) | `/usr/bin/pluma-cli` |
+| macOS | the separate `pluma-cli-<version>-macos-<arch>.zip` release asset (the `.app` holds only the desktop app) |
 
 ```sh
 # Windows (PowerShell), default install folder
-claude mcp add vectorcraft -- "$env:LOCALAPPDATA\Programs\ArtCraft\Pluma\vectorcraft-cli.exe" mcp
+claude mcp add pluma -- "$env:LOCALAPPDATA\Programs\Nodalia\Pluma\pluma-cli.exe" mcp
 # Linux, or macOS with the CLI unzipped onto PATH
-claude mcp add vectorcraft -- vectorcraft-cli mcp
+claude mcp add pluma -- pluma-cli mcp
 ```
 
 For a live session, start the installed app with the control port before the MCP client starts the server:
@@ -75,29 +75,29 @@ For a live session, start the installed app with the control port before the MCP
 # macOS: quit Pluma first, since `open -a` passes no arguments to an app that is already running
 open -a Pluma --args --control 7979
 # Windows (PowerShell), default install folder
-& "$env:LOCALAPPDATA\Programs\ArtCraft\Pluma\vectorcraft.exe" --control 7979
+& "$env:LOCALAPPDATA\Programs\Nodalia\Pluma\pluma.exe" --control 7979
 # Linux (deb, rpm)
-vectorcraft --control 7979
+pluma --control 7979
 ```
 
 The Dock, Start menu and desktop launchers start the app without `--control`, so the app opens no control
-port unless `VECTORCRAFT_CONTROL_PORT` is set. `vectorcraft-cli mcp` with no flag tries `127.0.0.1:7979`
+port unless `PLUMA_CONTROL_PORT` is set. `pluma-cli mcp` with no flag tries `127.0.0.1:7979`
 once, when it starts: a server that started before the app stays headless until the MCP client restarts
 it. `open -a` and PowerShell's `&` return before the app opens the port, so wait until the Pluma
 window is open before you start the MCP client. With `--connect`, a server that finds no app stops and
-prints `vectorcraft-cli: cannot connect to 127.0.0.1:7979: ` followed by the system's connection error, for
+prints `pluma-cli: cannot connect to 127.0.0.1:7979: ` followed by the system's connection error, for
 example `connection timed out`.
 
 ## Confining file access
 
 ```sh
-vectorcraft-cli mcp --automation-read-root /work/project --automation-write-root /work/project/out
-vectorcraft-cli mcp --automation-read-root /work/project --automation-read-root /work/shared-assets \
+pluma-cli mcp --automation-read-root /work/project --automation-write-root /work/project/out
+pluma-cli mcp --automation-read-root /work/project --automation-read-root /work/shared-assets \
   --automation-write-root /work/project/out --automation-write-root /tmp/scratch
 ```
 
 ```json
-{"mcpServers": {"vectorcraft": {"command": "vectorcraft-cli",
+{"mcpServers": {"pluma": {"command": "pluma-cli",
   "args": ["mcp", "--automation-read-root", "/work/project", "--automation-write-root", "/work/project/out"]}}}
 ```
 
@@ -145,7 +145,7 @@ the suite) keep the agent to the folders you give it:
 
 The flags confine the headless server and imply `--headless`; `--connect` with them is an error, since
 the server would otherwise talk to an app that isn't confined. A running app confines itself: start it
-with the same flags, `vectorcraft --control 7979 --automation-read-root <dir> --automation-write-root
+with the same flags, `pluma --control 7979 --automation-read-root <dir> --automation-write-root
 <dir>`, and connect as usual (see [Control protocol](control-protocol.md#confining-file-access)). The
 server then writes nothing itself: `screenshot {path}` asks the app to write the file.
 
@@ -205,23 +205,23 @@ arguments filled in. A missing required argument is `-32602`.
 
 ```sh
 echo '{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"poster","arguments":{"brief":"a jazz festival"}}}' \
-  | vectorcraft-cli mcp --headless
+  | pluma-cli mcp --headless
 ```
 
 ### Resource templates
 
-`vectorcraft://document` (summary), `vectorcraft://document/json` (the whole model),
-`vectorcraft://commands` (the live command catalog with enabled state) and `vectorcraft://commands/reference` (the
+`pluma://document` (summary), `pluma://document/json` (the whole model),
+`pluma://commands` (the live command catalog with enabled state) and `pluma://commands/reference` (the
 command API reference in Markdown, `text/markdown; charset=utf-8`; see [Parameter schemas](#parameter-schemas)) are
 the fixed resources. The templates read one thing at a time, which matters on a real document: the full model
 is thousands of lines an agent pays for again on every change.
 
 | `uriTemplate` | Reads |
 |---|---|
-| `vectorcraft://object/{id}` | One layer or object with its children, bounds and paint: `document.node {id, summary: true}`, the node as `document.inspect` lists it. A large container can be sliced with `run_command document.node {id, summary: true, depth?, childLimit?}` (a level that shows fewer children reports `childCount`) |
-| `vectorcraft://command/{id}` | One command: label, menu path, shortcut, parameter description, enablement |
-| `vectorcraft://effect/{id}` | One live effect with its parameters and defaults |
-| `vectorcraft://swatch/{name}` | One swatch, colour, gradient or pattern swatch (percent-encode spaces) |
+| `pluma://object/{id}` | One layer or object with its children, bounds and paint: `document.node {id, summary: true}`, the node as `document.inspect` lists it. A large container can be sliced with `run_command document.node {id, summary: true, depth?, childLimit?}` (a level that shows fewer children reports `childCount`) |
+| `pluma://command/{id}` | One command: label, menu path, shortcut, parameter description, enablement |
+| `pluma://effect/{id}` | One live effect with its parameters and defaults |
+| `pluma://swatch/{name}` | One swatch, colour, gradient or pattern swatch (percent-encode spaces) |
 
 An unknown URI is `-32002`; a template with no value, or a value that names nothing, is `-32602`.
 
@@ -304,9 +304,9 @@ place. From then on the engine's own `log` records arrive as `notifications/mess
 `logger` and `data`. A `null` level turns it back off. Nothing is sent before the client asks, and
 records queued at the old level are dropped rather than replayed at the new one.
 
-Installing the logger that receives those records is `vectorcraft-cli`'s job, not the library's: a
+Installing the logger that receives those records is `pluma-cli`'s job, not the library's: a
 crate that installed one would override whatever logger an embedder had already set up. Embedding
-`vectorcraft-mcp` directly means calling `vectorcraft_mcp::logging::install()` yourself if you want
+`pluma-mcp` directly means calling `pluma_mcp::logging::install()` yourself if you want
 log records to reach your client.
 
 ### Long calls: cancellation, progress and a busy engine
@@ -340,7 +340,7 @@ while an export runs (#2165, #2171, #2172):
   that sends a few quick calls together sees no difference. At most 64 lines wait; past that the
   server stops reading until the engine catches up.
 
-`vectorcraft_mcp::Server::serve` takes the input and the output on separate threads (`Send`), and
+`pluma_mcp::Server::serve` takes the input and the output on separate threads (`Send`), and
 `Server::with_busy_after` changes the two seconds. Calling `handle_line` directly is as before:
 one line in, one reply out, no threads.
 
@@ -464,8 +464,8 @@ opens the picker through `run_command` with the remote backend.
 | `invoke_menu` | `{command, params?}` | Invokes a menu item by command id. Includes UI commands such as `view.*` and `window.*` in remote mode. |
 | `open_panel` | `{panel}` | Remote only. `panel` is a panel id (`layers`, `swatches`, `colorGuide`, …, as `window.panel` takes) or its display label (`"Color Guide"`), in any case. |
 | `screenshot` | `{path?, scale?, artboard?, window?, max_side?, traceViews?}` | Returns MCP image content (`image/png`, base64) plus a text block. Renders the artboard with the pixels of a PNG `export` with `background: "white"` at the same scale; `traceViews:true` draws Image Trace objects in the view set with `imageTrace.setView`, as in the app's window; `window:true` captures the app window (remote only), as `ui_screenshot` does, and `max_side` (1–4096, window captures only) scales the returned image down as described for `ui_screenshot`. With `path` the backend (the headless session or the app) writes the PNG there too; a window capture written there keeps its full size with `max_side`. |
-| `open_file` | `{path, importer?, params?}` | Opens any readable file as a new active document: `.vectorcraft`/`.drawcraft`, `.vctemplate`, `.svg`/`.svgz`, `.pdf`/`.ai`, `.ait`, `.eps`/`.epsf`, `.ps`, `.dxf`, `.emf`, `.wmf`, PNG (`.png`/`.pns`), JPEG, GIF, WebP, TIFF, BMP (`.bmp`/`.dib`/`.rle`), Targa (`.tga`/`.vda`/`.icb`/`.vst`), PCX, Pixar (`.pxr`), JPEG 2000 (`.jpf`/`.jpx`/`.jp2`/`.j2k`/`.j2c`/`.jpc`), HEIC/HEIF (`.heic`/`.heif`), JPEG XL (`.jxl`), PSD (`.psd`/`.pdd`)/PSB (an image opens as a document of its pixel size; a Photoshop file as its merged image; a JPEG XL file as its first frame). Templates (`.vctemplate`, `.ait`) open as a new untitled document. PDF, `.ai` and SVG files saved with Preserve Editing reopen as the document they carry. The reply is `document.open`'s: its `warnings` say what didn't come in as it was (an EPS whose PostScript can't be read opens as its preview, and the warning names the PostScript error, the operator and the procedure). A file of an extension only an installed importer plug-in lists opens with that importer ([Plug-ins](#plug-ins)); `importer: "plugin.<id>"` opens the file with the importer it names, which must list the file's extension, also one a built-in format reads (in the app, as File › Open With does), and `params` gives that importer's parameters (their defaults when omitted). `run_command document.formats` lists the formats. |
-| `save_file` | `{path?, compress?, version?, preview?, precision?, options?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). For a native file, `compress: true` gzips it (default: the `useCompression` preference, Preferences › File Handling › Use Compression), `version` (1 to 4) writes it for an older Pluma (1 and 2 are never compressed, and `version: 2` with `compress: true` is an error), `preview: true` embeds a PNG of the first artboard, and `precision` (0 to 9) rounds path anchors and handles to that many decimal places for that save only (colors, transforms and type stay exact). `options` passes the format's save options as `run_command document.formats` lists them. When `compress`, `version`, `preview` or `precision` is given both at the top level and in `options` with different values, the call is an error (`` `compress: true` and `options.compress: false` disagree: give the option once ``) and nothing is written. A key in `options` that no save format takes is an error, and nothing is written (see Parameter keys). The save drops each option the written format doesn't read. The reply's `warnings` then name each such option given (for example `` `compress` was not used: SVG files don't read it `` for an `.svg` path, and `` `options.preview` was not used: … `` for a key in `options`; a `.ai` file reads `compress` but not `version`, `preview` or `precision`). For a `.ai` file, these warnings name the kind of `.ai` written: a legacy .ai (version 7) for `aiVersion: "7"`, a non-PDF-compatible .ai for `pdfCompatible: false`, and a PDF-compatible .ai otherwise, including a save that reuses the options the document was last saved with. `run_command document.save` and the other save commands refuse any option given beside the path and in `options` with different values, and give the same warnings for a top-level `compress`, `version`, `preview` or `precision` and for each key in `options` that the format doesn't read. The headless session and the app receive the same `app.save` params, and the app is also sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
+| `open_file` | `{path, importer?, params?}` | Opens any readable file as a new active document: `.pluma`/`.drawcraft`, `.vctemplate`, `.svg`/`.svgz`, `.pdf`/`.ai`, `.ait`, `.eps`/`.epsf`, `.ps`, `.dxf`, `.emf`, `.wmf`, PNG (`.png`/`.pns`), JPEG, GIF, WebP, TIFF, BMP (`.bmp`/`.dib`/`.rle`), Targa (`.tga`/`.vda`/`.icb`/`.vst`), PCX, Pixar (`.pxr`), JPEG 2000 (`.jpf`/`.jpx`/`.jp2`/`.j2k`/`.j2c`/`.jpc`), HEIC/HEIF (`.heic`/`.heif`), JPEG XL (`.jxl`), PSD (`.psd`/`.pdd`)/PSB (an image opens as a document of its pixel size; a Photoshop file as its merged image; a JPEG XL file as its first frame). Templates (`.vctemplate`, `.ait`) open as a new untitled document. PDF, `.ai` and SVG files saved with Preserve Editing reopen as the document they carry. The reply is `document.open`'s: its `warnings` say what didn't come in as it was (an EPS whose PostScript can't be read opens as its preview, and the warning names the PostScript error, the operator and the procedure). A file of an extension only an installed importer plug-in lists opens with that importer ([Plug-ins](#plug-ins)); `importer: "plugin.<id>"` opens the file with the importer it names, which must list the file's extension, also one a built-in format reads (in the app, as File › Open With does), and `params` gives that importer's parameters (their defaults when omitted). `run_command document.formats` lists the formats. |
+| `save_file` | `{path?, compress?, version?, preview?, precision?, options?}` | Runs `document.save`: the document's own file in its own format (native `.pluma` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.pluma`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). For a native file, `compress: true` gzips it (default: the `useCompression` preference, Preferences › File Handling › Use Compression), `version` (1 to 4) writes it for an older Pluma (1 and 2 are never compressed, and `version: 2` with `compress: true` is an error), `preview: true` embeds a PNG of the first artboard, and `precision` (0 to 9) rounds path anchors and handles to that many decimal places for that save only (colors, transforms and type stay exact). `options` passes the format's save options as `run_command document.formats` lists them. When `compress`, `version`, `preview` or `precision` is given both at the top level and in `options` with different values, the call is an error (`` `compress: true` and `options.compress: false` disagree: give the option once ``) and nothing is written. A key in `options` that no save format takes is an error, and nothing is written (see Parameter keys). The save drops each option the written format doesn't read. The reply's `warnings` then name each such option given (for example `` `compress` was not used: SVG files don't read it `` for an `.svg` path, and `` `options.preview` was not used: … `` for a key in `options`; a `.ai` file reads `compress` but not `version`, `preview` or `precision`). For a `.ai` file, these warnings name the kind of `.ai` written: a legacy .ai (version 7) for `aiVersion: "7"`, a non-PDF-compatible .ai for `pdfCompatible: false`, and a PDF-compatible .ai otherwise, including a save that reuses the options the document was last saved with. `run_command document.save` and the other save commands refuse any option given beside the path and in `options` with different values, and give the same warnings for a top-level `compress`, `version`, `preview` or `precision` and for each key in `options` that the format doesn't read. The headless session and the app receive the same `app.save` params, and the app is also sent `wait: true`: the call returns once the file is written, or with the error (such as a path outside the write root), even with Background Save on. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the Background Save preference. |
 | `export` | `{path?, format?, scale?, artboard?, range?, selection?, outlineText?, options?}` | `svg`, `svgz`, `pdf`, `ai` (the PDF-compatible `.ai` that Save writes, which carries the document when every artboard is written in order), `eps`, `dxf`, `emf`, `wmf`, `png`, `jpg`, `webp`, `gif`, `png8` (an indexed `.png`), `tiff`, `bmp`, `tga`, `psd` (layered), `txt` (the document's text), `vectorcraft` or `template` (a native template). The tool's `format` enum and `document.formats` list them, generated from the engine's format table. When `format` is omitted, it comes from the path's extension. PDF and `.ai` write one page per artboard: all of them, or `artboard` (0-based) / `range` (`"1-3, 5"`, 1-based). SVG and SVGZ write one file per chosen artboard. EPS writes one file of the visible art; with `artboard`, `range`, `options.artboards` or `options: {"useArtboards": true}` it writes one file per chosen artboard, after a central file of the visible art when there are two or more, and `useArtboards: false` keeps the one file. Rasters, DXF, EMF and WMF write one artboard, or one file per chosen artboard with `options: {"useArtboards": true}`. Rasters also take `options: {"rect": [x, y, width, height]}` (page points, y down): that area of the page at the given `ppi`/`scale`, without an artboard and without changing the document; it is refused with `artboard`, `artboards`, `range` or `useArtboards`, with a non-positive or non-finite size, and for non-raster formats. `options` carries more format options (e.g. `{"quality": 80}` for JPEG). `selection: true` exports the selected objects cropped to their bounds (the reply adds their `bounds`, and reports `format` and the encoder's `warnings` as a whole-document export does); `outlineText: true` writes SVG text as paths. Template layers are left out, live effects are kept, and exporting `vectorcraft` never changes the document's path. Without `path` the bytes come back as `dataBase64`. Both backends run the same `document.export` call. |
 | `add_text` | `{text, x?, y?, width?, height?, fit?, fitMinPercent?, path?, mode?, pathEffect?, size?, font?, color?, justify?, vertical?}` | Point type at (x, y) (`justify`: `left`, `center` or `right` starts, centres or ends each line on x); area type with `width`/`height` (`fit`: `none`, `autoHeight`, `shrinkText`, as `text.areaOptions`); or `path` + `mode` (`area`/`onPath`) to flow text in or along a path, with `pathEffect` (`rainbow`, `skew`, `3dRibbon`, `stairStep`, `gravity`; SVG export writes type on a path with any effect other than `rainbow` as outlines, with a warning); `justify` (also `auto`, `justifyAll`) aligns the paragraphs of every kind, as `text.setStyle` does later. `vertical: true` uses the existing vertical writing mode for every kind (default `false`, horizontal). Returns `{id}`, with `overflow: true` when the text doesn't fit its frame or path. |
 | `apply_effect` | `{effect?, params?, ids?}` | Appends a live effect. Without `effect`, returns the effect catalogue with parameters and defaults. |
@@ -725,7 +725,7 @@ found in the SVG's folder; only files on this computer or the SVG's network shar
 absolute paths) stay linked images (see Linked images); SVG files and `data:` SVGs become art; a file that
 can't be read becomes a placeholder in its box, named in `warnings` and `missingLinks`.
 
-Native files: `run_command document.save {compress: true}` writes a gzip-compressed `.vectorcraft` (the
+Native files: `run_command document.save {compress: true}` writes a gzip-compressed `.pluma` (the
 `useCompression` preference makes that the default for saves; compressed files open like any other, told apart by
 their content). `version: 2` or `1` writes a file older Pluma versions open (format name `pluma`, never
 compressed), and `preview: true` embeds a PNG of the first artboard, at most 256 px on its longer side.
@@ -747,14 +747,14 @@ Fixed resources and the four templates (same as [Resource templates](#resource-t
 
 | URI | Content |
 |---|---|
-| `vectorcraft://document` | `document.inspect` summary (JSON) |
-| `vectorcraft://document/json` | The complete document model (JSON) |
-| `vectorcraft://commands` | Live command catalog with enabled state |
-| `vectorcraft://commands/reference` | The command API reference (`engine.apiReference`), as Markdown (`text/markdown; charset=utf-8`) |
-| `vectorcraft://object/{id}` | One layer or object (`document.node {id, summary: true}`) |
-| `vectorcraft://command/{id}` | One command's metadata and enablement |
-| `vectorcraft://effect/{id}` | One live effect with parameters and defaults |
-| `vectorcraft://swatch/{name}` | One swatch (percent-encode spaces) |
+| `pluma://document` | `document.inspect` summary (JSON) |
+| `pluma://document/json` | The complete document model (JSON) |
+| `pluma://commands` | Live command catalog with enabled state |
+| `pluma://commands/reference` | The command API reference (`engine.apiReference`), as Markdown (`text/markdown; charset=utf-8`) |
+| `pluma://object/{id}` | One layer or object (`document.node {id, summary: true}`) |
+| `pluma://command/{id}` | One command's metadata and enablement |
+| `pluma://effect/{id}` | One live effect with parameters and defaults |
+| `pluma://swatch/{name}` | One swatch (percent-encode spaces) |
 
 ## Examples
 
@@ -883,7 +883,7 @@ Names in the editing data that aren't UTF-8 (layers, objects, artboards, colors,
 swatches, brushes, symbols, variables and data sets, and the text values of data sets) are read as Windows-1252 unless
 `document.open` takes `legacyNameEncoding`: `macintosh`, `windows-949` (also `euc-kr`), `shift_jis`, `gbk` or `big5`. An
 unknown label is refused. The `warnings` of the result name the first three such names as read and count the rest.
-`vectorcraft-cli convert --legacy-name-encoding ENC` passes it on.
+`pluma-cli convert --legacy-name-encoding ENC` passes it on.
 
 Opening a PDF (or `.ai`) imports every page as an artboard and layer; `document.open` takes `pages` ("2-3, 5", 1-based),
 `cropTo` (`bounding` (the art's bounds), `art`, `crop` (default), `trim`, `bleed`, `media`: the box each artboard gets;
@@ -967,7 +967,7 @@ Rotation) is always written as outlines, which keep the rotation; without `outli
 written as outlines, which keep the rotation, and is no longer editable text (legacy .ai text can't rotate
 characters)". An image that can't be decoded is left out of
 the file and does not show in art that is flattened or whose raster effects are expanded; `warnings` carries "an image
-couldn't be decoded and is missing from the picture" once for all such images. From the CLI: `vectorcraft-cli convert in.svg
+couldn't be decoded and is missing from the picture" once for all such images. From the CLI: `pluma-cli convert in.svg
 out.ai --ai-version 7 [--hidden-objects layer|omit|visible] [--transparent-images flatten|omit] [--outline-text]
 [--range R]`. `document.export`, `serialize`, `exportSelection` and `exportForScreens` refuse a `.ait` path or
 `format: "ait"` with an error that names `file.saveAsTemplate`, which writes it. The CLI's `run --export x.ait` and
@@ -1067,25 +1067,25 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"draw_shape","arguments":{"shape":"ellipse","x":10,"y":10,"width":100,"height":80,"fill":"#ff0000"}}}' \
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"inspect_document","arguments":{}}}' \
-  | target/release/vectorcraft-cli mcp --headless
+  | target/release/pluma-cli mcp --headless
 ```
 
 ## Headless batch CLI
 
 ```sh
-vectorcraft-cli commands                          # command catalogue (JSON)
-vectorcraft-cli run --in in.svg \
+pluma-cli commands                          # command catalogue (JSON)
+pluma-cli run --in in.svg \
   --cmd select.all --cmd paint.setFill --params '{"color":"#ff0000"}' \
   --export out.svg --export out.png --scale 2
-vectorcraft-cli run --cmd file.new --params '{"width":800,"height":600}' \
+pluma-cli run --cmd file.new --params '{"width":800,"height":600}' \
   --cmd shape.star --params '{"cx":400,"cy":300,"radius1":200,"radius2":90}' \
-  --export star.vectorcraft
+  --export star.pluma
 ```
 
 `run` prints one JSON line per step (`open`, `cmd`, `export`) and exits non-zero on the first failure, naming the step
 (counting from 0, as `"$N"` references do) and its command. `--params` applies to the `--cmd` just before it. `run`
 also accepts the host commands `file.open`, `file.save`, `file.export`, `file.exportForScreens` and `tool.select`.
-`run --in`, `convert` and `info` read every format `document.open` reads (`vectorcraft-cli --help` lists them).
+`run --in`, `convert` and `info` read every format `document.open` reads (`pluma-cli --help` lists them).
 
 ### Steps from a file or standard input
 
@@ -1094,7 +1094,7 @@ A command line has a length limit (32,767 characters on Windows), which long par
 `--commands -` from standard input:
 
 ```sh
-vectorcraft-cli run --in sheet.vectorcraft --commands steps.json --export out.pdf
+pluma-cli run --in sheet.pluma --commands steps.json --export out.pdf
 ```
 
 ```json
@@ -1114,8 +1114,8 @@ before anything runs, with the step's number and its entry (`entry 3`) or line (
 
 ### What a headless session remembers
 
-`vectorcraft-cli run` and the headless `mcp` server keep two things between runs, in folders next to the
-preferences (the folder the desktop app uses, so both see the same ones; `VECTORCRAFT_CONFIG_DIR` moves it):
+`pluma-cli run` and the headless `mcp` server keep two things between runs, in folders next to the
+preferences (the folder the desktop app uses, so both see the same ones; `PLUMA_CONFIG_DIR` moves it):
 
 - **Saved PDF presets** (`pdf.preset.save`, `.delete`, `.import`): one `.vcpdfpresets` file per preset in
   `PDF Presets`, written as the command runs. Presets saved earlier are there at the next start and work as
@@ -1127,15 +1127,15 @@ preferences (the folder the desktop app uses, so both see the same ones; `VECTOR
   copy (not while it is a working space).
 
 Not remembered: Color Settings, the document, anything else. Nothing is read or written when
-`VECTORCRAFT_NO_PREFS` is set, and a server confined with `--automation-read-root` or
+`PLUMA_NO_PREFS` is set, and a server confined with `--automation-read-root` or
 `--automation-write-root` keeps nothing either (the folders are outside its roots). A file that is damaged, too large
 (a profile over 32 MB, a presets file over 1 MB) or not a valid preset or profile is skipped and logged. When the
 desktop app starts, the presets it kept in its preferences file before this folder existed are moved into it; after
-that the folder is the one place they live, so a preset deleted by `vectorcraft-cli` is gone in the app too.
+that the folder is the one place they live, so a preset deleted by `pluma-cli` is gone in the app too.
 
 ### Reproducible output
 
-PNG, PDF, EPS, legacy `.ai`, packaged zips and saved `.vectorcraft` files record the time they were
+PNG, PDF, EPS, legacy `.ai`, packaged zips and saved `.pluma` files record the time they were
 made in (PDF `CreationDate` and `ModDate`, the PNG `Creation Time` entry, a zip entry's date, a
 document's `created` and `modified`), so the same commands run twice gave different bytes though the
 pixels matched (#2880). Setting **`SOURCE_DATE_EPOCH`** to a non-negative whole number of seconds
@@ -1143,7 +1143,7 @@ since the epoch records that instant instead of the clock, and the bytes repeat
 (<https://reproducible-builds.org/specs/source-date-epoch/>):
 
 ```sh
-SOURCE_DATE_EPOCH=1791208980 vectorcraft-cli run --cmd file.new --params '{}' --export out.pdf
+SOURCE_DATE_EPOCH=1791208980 pluma-cli run --cmd file.new --params '{}' --export out.pdf
 ```
 
 A command that takes its own date (`file.new {created}`, a save's `modified`) still wins over the
@@ -1382,7 +1382,7 @@ open isn't a step), and `$last…` from the step before. A path goes into object
 reference that names no value fails the step, so a command never runs with one left in it:
 
 ```sh
-vectorcraft-cli run --cmd file.new --params '{"width":600,"height":200}'   --cmd text.create --params '{"x":10,"y":60,"text":"plain and bold words","size":30}'   --cmd text.setRangeStyle --params '{"id":"$1.id","start":10,"end":14,"style":"Bold"}'
+pluma-cli run --cmd file.new --params '{"width":600,"height":200}'   --cmd text.create --params '{"x":10,"y":60,"text":"plain and bold words","size":30}'   --cmd text.setRangeStyle --params '{"id":"$1.id","start":10,"end":14,"style":"Bold"}'
 ```
 
 ### Parameter schemas
@@ -1431,7 +1431,7 @@ path to a value inside a list or an object, and the document and its undo histor
 An omitted value with a `default` takes it (`rotation` 0 in `view.saved.new`); the journal keeps the params as they
 were given. Saved steps played from a journal or an action keep a key the schema does not name, unless its value nests
 more than 16 levels deep, and the values of the parameters it names are checked as in a new call. The schemas of built-in commands belong to API level 2
-(`vectorcraft_engine::schemas::API_VERSION`); a change to any of them raises the level. Level 2 added
+(`pluma_engine::schemas::API_VERSION`); a change to any of them raises the level. Level 2 added
 `engine.apiReference`. Commands that plug-ins add have no schema here.
 
 `engine.apiReference {}` → `{markdown}` returns the command API reference, written from these schemas each time it
@@ -1448,7 +1448,7 @@ parameter). Text from a schema is escaped as Markdown text: each of `` \ | [ ] <
 after `www` get a backslash, and line breaks, tabs and other control characters become spaces, so a description cannot
 end a table cell or make a link, an image or HTML. A reference larger than 1 MiB (1,048,576 bytes) is an error naming
 `engine.apiReference`, and no part of it is returned. MCP serves the same text as the resource
-`vectorcraft://commands/reference`.
+`pluma://commands/reference`.
 
 ## Checking scripts written for the reference app
 
@@ -1517,7 +1517,7 @@ the included files too.
 ```
 
 ```sh
-vectorcraft-cli run --cmd script.check --params '{"path": "Tidy Layers.jsx"}'
+pluma-cli run --cmd script.check --params '{"path": "Tidy Layers.jsx"}'
 ```
 
 `script.run {path? | source?, name?, args?, answers?, maxFuel?}` runs a JavaScript file against the open documents.
@@ -1586,7 +1586,7 @@ In the app the reply is `{running: true, name}`, and the report appears later as
 ```
 
 ```sh
-vectorcraft-cli run --cmd script.run --params '{"path": "Tidy Layers.js", "args": {"margin": 12}}'
+pluma-cli run --cmd script.run --params '{"path": "Tidy Layers.js", "args": {"margin": 12}}'
 ```
 
 ## Transparency and opacity masks
@@ -1958,7 +1958,7 @@ Guides) can't be picked. An artboard guide is picked, drawn and snapped to acros
 
 ## Symbols, brushes, variables and Image Trace
 
-These families are in the live catalog (`command_list` / `vectorcraft://commands`); the prompt `trace-and-style`
+These families are in the live catalog (`command_list` / `pluma://commands`); the prompt `trace-and-style`
 already walks Image Trace. Short agent entry points:
 
 - Symbols: `symbol.list` (each row includes `registration` 0..8, `exportType`: `movieClip`|`graphic` and `type`:
@@ -2170,7 +2170,7 @@ already walks Image Trace. Short agent entry points:
   Export end the file name of a step with `format` in that `format`, in lower case and without a leading dot, when it
   is one of the format's extensions (`.svg` and `SVG` give `.svg`, `.JPEG` gives `.jpeg`), and otherwise in the
   format's first extension (`png8` gives `.png`, `template` gives `.vctemplate`). A step without `format` keeps the
-  source file's extension (`.vectorcraft` over data sets). Override Export gives a `document.exportForScreens` or
+  source file's extension (`.pluma` over data sets). Override Export gives a `document.exportForScreens` or
   `assets.export` step the `folder` `destinationFolder/<stem>`, in place of the step's own folder or an export
   preset's: one folder for each source file, named after the file without its extension, or for each data set,
   named as its files are (`datasetFileNaming`). Both names drop trailing periods and spaces (`a..svg` gives `a`). The export names
@@ -2182,7 +2182,7 @@ already walks Image Trace. Short agent entry points:
   `destinationFolder` holds source files, only a file's own output takes its name, and no export folder takes the
   name of a subfolder that holds source files: with `a..svg` and `a.svg` saved in place, `a..svg` is saved as
   `a-2.svg` and `a.svg` over itself. A file's artboard files count as its files, as for data sets: with
-  `a.vectorcraft` and `a-Artboard-1.vectorcraft` saved in place with `separateArtboards`, `a.vectorcraft` is saved
+  `a.pluma` and `a-Artboard-1.pluma` saved in place with `separateArtboards`, `a.pluma` is saved
   as `a-2`.
 - Action set files: `ui.actionSet.save {set?: index, id?, path?}` writes the Actions panel's set at `set` (0 is the
   top set; by default the current set) with its actions to an action set file at `path`, else a picked file named
@@ -2815,7 +2815,7 @@ with the same extension and bytes as one there, loads as that User Defined libra
 
 ## Symbol libraries
 
-Symbol libraries are read-only sets of symbols: one generated in code (Basic Shapes), the `.vectorcraft` files in
+Symbol libraries are read-only sets of symbols: one generated in code (Basic Shapes), the `.pluma` files in
 the user library folder of the desktop app (User Defined) and the symbols of any document loaded with
 `symbol.loadLibrary`. `symbol.libraries` lists them (`id`, `name`, `category`: `builtIn`, `user` or `loaded`, `count`)
 and `symbol.library {library}` returns one's symbols (`name`, `size`, `registration`, `exportType`; `library` is an
@@ -2830,7 +2830,7 @@ what dragging a symbol out of the library panel onto the canvas does.
 ```json
 {"name":"run_command","arguments":{"command":"symbol.addFromLibrary","params":{"library":"basic-shapes","name":"Star","place":true,"x":120,"y":80}}}
 ```
-`symbol.saveLibrary {path?, names?, name?, user?}` writes the document's symbols as a symbol library: a `.vectorcraft`
+`symbol.saveLibrary {path?, names?, name?, user?}` writes the document's symbols as a symbol library: a `.pluma`
 document holding only them and what they use; without `path` it returns `{dataBase64}`, and `user: true` saves into
 the user library folder (category `user`, User Defined). `symbol.loadLibrary {path? | data? | dataBase64?, name?}`
 loads the symbols of any document Pluma opens as a library to add from (a `.ai` or EPS whose editing data holds
@@ -2840,7 +2840,7 @@ error.
 ## Brush libraries
 
 Brush libraries are read-only sets of brushes: four generated in code (Art Ribbons, Calligraphic Nibs, Pattern
-Borders, Scatter Shapes), the `.vectorcraft` files in the user library folder of the desktop app (User Defined) and
+Borders, Scatter Shapes), the `.pluma` files in the user library folder of the desktop app (User Defined) and
 the brushes of any document loaded with `brush.loadLibrary` (a document without brushes of its own has the default
 ones). `brush.libraries` lists them (`id`, `name`, `category`: `builtIn`, `user` or `loaded`, `count`) and
 `brush.library {library}` returns one's brushes (`name`, `type`; `library` is an id or a name).
@@ -2856,7 +2856,7 @@ path, does.
 {"name":"run_command","arguments":{"command":"brush.addFromLibrary","params":{"library":"art-ribbons","name":"Striped Ribbon","apply":true}}}
 ```
 
-`brush.saveLibrary {path?, names?, name?, user?}` writes the document's brushes as a brush library: a `.vectorcraft`
+`brush.saveLibrary {path?, names?, name?, user?}` writes the document's brushes as a brush library: a `.pluma`
 document holding only them and what their art uses; without `path` it returns `{dataBase64}`, and `user: true`
 saves into the user library folder (category `user`, User Defined). `brush.loadLibrary {path? | data? |
 dataBase64?, name?}` loads the brushes of any document Pluma opens as a library to add from; a file it can't
@@ -4143,7 +4143,7 @@ The Selection & Anchor Display and General preferences apply to `pointer_gesture
 {"name":"pointer_gesture","arguments":{"tool":"selection","mods":{"cmd":true},"events":[{"kind":"down","x":175,"y":125},{"kind":"up","x":175,"y":125}]}}
 ```
 
-The preferences for the view need the desktop app (`vectorcraft-cli mcp --connect`): `zoomWithMouseWheel` (the
+The preferences for the view need the desktop app (`pluma-cli mcp --connect`): `zoomWithMouseWheel` (the
 wheel zooms about the pointer, Shift-wheel scrolls up and down, Cmd/Ctrl-wheel sideways; the control channel's
 `ui.wheel` turns the wheel), `trackpadRotateView` (on by default: a two-finger rotation on a Mac trackpad, in the
 macOS app or in Safari, turns the view about the pointer once it reaches 5°; with it off, the gesture does not turn
@@ -4352,7 +4352,7 @@ Pen's second anchor at (150, 431), in line with the square's centre.
 
 File Handling › `appendConverted` (on by default): an older native file (the former `.drawcraft` extension or an
 older format version) opens titled `<name> [Converted]`, and Save doesn't write over it: `document.save` without a
-`path` answers with a suggested `.vectorcraft` name (the app asks for one). Off, it opens under its own name and Save
+`path` answers with a suggested `.pluma` name (the app asks for one). Off, it opens under its own name and Save
 writes over it.
 
 ## Width points
@@ -4424,7 +4424,7 @@ path's direction; an inside or outside stroke spans the side it shows on). `pain
 strokeMode: "within"|"along"|"across"}` sets it (the Gradient panel's Stroke buttons), and `document.inspect` reports it
 as `strokeOptions.gradientMode`. Width profiles, dashes and arrowheads keep working: the gradient runs on through gaps
 and into the heads. Outline Stroke and Expand turn such a stroke into gradient meshes clipped to its outline; SVG and PDF
-write it as slices of linear gradients clipped to the outline (`vectorcraft_svg::export_with_report` and the PDF
+write it as slices of linear gradients clipped to the outline (`pluma_svg::export_with_report` and the PDF
 report warn about it).
 
 ```json
@@ -4928,7 +4928,7 @@ is mixed with middle gray by its alpha.
 ## Linked images
 
 A placed image linked to its file (`file.place {path}`, Link on) records the file's absolute path, its size,
-modification time and hash, and keeps a low-resolution preview (at most 256 px a side): a `.vectorcraft` save writes
+modification time and hash, and keeps a low-resolution preview (at most 256 px a side): a `.pluma` save writes
 the preview instead of the pixels, plus the path relative to the saved file. Links inside symbols, graph designs,
 patterns and opacity masks are saved with their relative paths too. `document.open` reads
 the linked files again, looking for each at its path, then at its relative path and by name in the document's folder
@@ -4991,7 +4991,7 @@ that includes a placed document fails and relinks nothing; placed documents are 
 files are. Find in Folder… in the Linked File Not Found dialog and in the Links panel menu (`ui.findLinksInFolder`) runs
 both. The web build has no folder search.
 
-Placed documents (a `.vectorcraft` file, or a PDF or `.ai` page, placed linked)
+Placed documents (a `.pluma` file, or a PDF or `.ai` page, placed linked)
 work the same way: the document keeps the file's bytes and a preview (JPEG or PNG, 1 px per point, at most 1024 px
 a side), and a save writes the preview (Include Linked Files: the file); output reads the file again, or uses the
 preview with a warning when it is gone or changed.
@@ -5069,7 +5069,7 @@ the preset's own settings; `newName` renames it; built-in presets are read-only;
 (without `path` it returns `data`), and `pdf.preset.import {path? | data? | dataBase64?, replace?}` adds a file's
 presets (names in use get a number unless `replace`). Saved presets work as `preset`
 in `document.exportPdf`, `document.pdfSettings`, `document.export`/`serialize` with format `pdf` and `.ai` saves.
-They are kept across restarts, in the desktop app and in `vectorcraft-cli` alike (see
+They are kept across restarts, in the desktop app and in `pluma-cli` alike (see
 [What a headless session remembers](#what-a-headless-session-remembers)).
 
 ```json
@@ -5225,10 +5225,10 @@ that made it, Lienzo, where it is installed, and anything else in the system's d
 ## Package and Document Info
 
 `file.package {folder?, name?, copyLinks?, linksFolder?, relink?, copyFonts?, report?}` copies a saved document (an
-unsaved one is an error) into `folder/name` (default name `<document> Folder`): `<document>.vectorcraft`, its linked
+unsaved one is an error) into `folder/name` (default name `<document> Folder`): `<document>.pluma`, its linked
 files in `Links/` (relinked: the packaged document points at the copies; the open one doesn't change), the fonts its
 type uses in `Fonts/` (fonts whose licence doesn't allow embedding are listed in `skippedFonts` instead) and
-`<document> Report.txt`. A placed `.vectorcraft` document is packaged with its own linked files and fonts, relinked to
+`<document> Report.txt`. A placed `.pluma` document is packaged with its own linked files and fonts, relinked to
 the copies (each file copied once); one that can't be read is copied as it is, and a cycle of placed documents or one
 past the nesting limit stops there, each with a line in `warnings` and the report. A `folder/name` where a packaged file
 would replace the document or one of its linked files (the document's own folder, say) is an error, and nothing is
@@ -5460,7 +5460,7 @@ Modified documents get recovery copies (`file.recovery.save`; the app runs it ev
 `autosaveRecovery` is on, skipping documents of more than 20,000 objects while `recoveryOffForComplex` is on). A copy
 goes when its document is saved, reverted or closed, so copies still there after the app quits were left by a crash.
 The copies live in the `recoveryFolder` preference's folder (default: `Data Recovery` beside the app's preferences;
-none when the app runs with `VECTORCRAFT_NO_PREFS`) or, on the web, in browser storage. `prefs.set` returns an error
+none when the app runs with `PLUMA_NO_PREFS`) or, on the web, in browser storage. `prefs.set` returns an error
 and changes nothing when a new `recoveryFolder` is missing, is not a folder, can't be listed, or is a folder that a
 folder can't be created in. It does not check an empty value or the folder the preference already holds, and the web
 build does not check folders. The folder in the example below must exist before the call.
@@ -5488,7 +5488,7 @@ folder or browser storage the commands are disabled and say how to set one.
 
 ## Native save options
 
-`document.save` / `file.saveAs` / `file.saveCopy` to a native (`.vectorcraft`, `.vctemplate`) or `.ai` file take, flat
+`document.save` / `file.saveAs` / `file.saveCopy` to a native (`.pluma`, `.vctemplate`) or `.ai` file take, flat
 or in `options` (`file.formatOptions {format}` lists them with their values):
 
 - `separateArtboards: true` also writes each artboard of `range` (`"1-3, 5"`, default `"all"`) to
@@ -5513,7 +5513,7 @@ File → Save As asks for these in the save options dialog (Pluma Options) after
 does too for a `.ai` file; Save, Save a Copy to a native file and Save as Template reuse the options as last saved (or Use Compression).
 
 ```json
-{"name":"run_command","arguments":{"command":"file.saveAs","params":{"path":"/tmp/set.vectorcraft","separateArtboards":true,"range":"2-3","includeLinked":true}}}
+{"name":"run_command","arguments":{"command":"file.saveAs","params":{"path":"/tmp/set.pluma","separateArtboards":true,"range":"2-3","includeLinked":true}}}
 {"name":"run_command","arguments":{"command":"file.saveAs","params":{"path":"/tmp/set.ai","pdfCompatible":false}}}
 ```
 
@@ -6129,8 +6129,8 @@ The custom dictionary holds words every check takes as right, in every language.
 adds one (Check Spelling's Add; one word of at most 64 characters, kept in lower case) and says whether it was new;
 `text.spelling.removeWord {word}` deletes one and `text.spelling.changeWord {word, to}` replaces one (Edit Custom
 Dictionary's Delete and Change; an error when `word` isn't there); `text.spelling.dictionary` lists them, sorted. The
-desktop app and `vectorcraft-cli` (its `mcp` and `run` sessions) keep them in `Custom Dictionary.txt` next to the
-preferences, one word per line; without preferences (`VECTORCRAFT_NO_PREFS`, the web app) they last until the app
+desktop app and `pluma-cli` (its `mcp` and `run` sessions) keep them in `Custom Dictionary.txt` next to the
+preferences, one word per line; without preferences (`PLUMA_NO_PREFS`, the web app) they last until the app
 closes. `text.spelling.ignoreAll {word}` is Ignore All: the active document's checks skip the word, in
 any case, while the document is open. It is not saved and not an undo step.
 
@@ -6919,7 +6919,7 @@ and turn, shear and flip about it (`origin`).
 ## Plug-ins
 
 WebAssembly plug-ins ([plugins.md](plugins.md)) are reached through commands; the desktop app and an unconfined
-`vectorcraft-cli` keep the ones `plugin.install` installs in a `Plug-ins` folder next to the preferences and install
+`pluma-cli` keep the ones `plugin.install` installs in a `Plug-ins` folder next to the preferences and install
 them again at startup (`plugin.remove` deletes them there):
 `plugin.install {path | dataBase64}` installs one, `plugin.list` / `plugin.info {id}` describe them (parameters,
 schema, defaults). An object filter runs on the selected paths and compound paths with `plugin.run {id, params}` (one
@@ -6962,12 +6962,12 @@ runs it where it is called, so the call may take minutes; `notifications/cancell
 A plug-in whose manifest lists permissions (`permissions` in its `plugin.inspect` entry, with `needsApproval: true`)
 needs a person's approval too, and `plugin.install` refuses `grant: [permission]` from a request. With a desktop
 app connected, `ui.installPlugin` opens the approval dialog and returns `{pending: "pluginInstall"}`; `answer_dialog`,
-`ui.dialog.confirm` and injected input can't confirm it. A `vectorcraft-cli mcp` started with `--allow-plugin-grants`
+`ui.dialog.confirm` and injected input can't confirm it. A `pluma-cli mcp` started with `--allow-plugin-grants`
 accepts `grant` and `allowHeavy` from any request, in that session only (headless; it can't be combined with
 `--connect`, `--automation-read-root` or `--automation-write-root`). A server confined to folders has no plug-in
 store, so it reads no `grants.json`, and a module that lists permissions or asks for a heavy budget does not install
 there. Without `--allow-plugin-grants` and without a recorded grant for the module, `plugin.install` returns an error
-naming the permissions needed. With `VECTORCRAFT_NO_PREFS` set there is no store, and a `grant` accepted under the
+naming the permissions needed. With `PLUMA_NO_PREFS` set there is no store, and a `grant` accepted under the
 flag lasts for that session only. In other sessions the approval, or a `grant` accepted under the flag, is kept with the module's
 hash, counts as approved in later sessions and in the desktop app, and covers only that module: the
 same bytes install again without one, also from a headless session that reads the same `grants.json`, and a module
@@ -7006,14 +7006,14 @@ command, and a run that traps or runs out of its instruction budget returns an e
 name and the command's label and leaves the document and the undo history as they were. For `plugin.run` and plug-in
 commands, `ids` left out or null means the selection, and an `ids` that is not a list of object ids is an error.
 
-Safe Mode starts Pluma without plug-ins: `vectorcraft --safe-mode`, `vectorcraft-cli --safe-mode <subcommand>`, or
+Safe Mode starts Pluma without plug-ins: `pluma --safe-mode`, `pluma-cli --safe-mode <subcommand>`, or
 the choice the desktop app offers when the last launch stopped while a plug-in was loading (Disable and Continue, Start
 Normally, Start in Safe Mode). It names that plug-in without saying it caused the stop. Until the user picks Disable and
 Continue or Start Normally, the next launch asks again, also after a `--safe-mode` launch, which asks nothing.
-`vectorcraft --safe-mode` opens its files in a window of its own, and on Windows and Linux a file opened from the file
+`pluma --safe-mode` opens its files in a window of its own, and on Windows and Linux a file opened from the file
 manager while the app is in Safe Mode starts a window with plug-ins. Files given on the command line, or opened from
 the file manager while the choice is up, open after the user picks. On Windows and Linux, when the choice is Start in Safe
-Mode, the files from the file manager open in a new window with plug-ins. `vectorcraft-cli --safe-mode mcp` serves a headless
+Mode, the files from the file manager open in a new window with plug-ins. `pluma-cli --safe-mode mcp` serves a headless
 session and refuses `--connect`. In Safe Mode no plug-in loads or
 runs: `plugin.install`, `plugin.run`, `plugin.reload` and exporters return an error, and a live-effect plug-in draws its
 object's geometry unchanged while the object keeps the effect: `effect.list` gives that effect `skipped: true`, and the
@@ -7039,7 +7039,7 @@ Disable and Continue can't save the plug-in it turns off, this launch skips it a
 {"name":"run_command","arguments":{"command":"plugin.safeMode","params":{}}}
 {"name":"run_command","arguments":{"command":"plugin.setEnabled","params":{"id":"org.example.wobble","enabled":true}}}
 {"name":"run_command","arguments":{"command":"plugin.install","params":{"path":"/plugins/desaturate.wasm"}}}
-{"name":"run_command","arguments":{"command":"plugin.run","params":{"id":"org.vectorcraft.example.desaturate","params":{"amount":60}}}}
+{"name":"run_command","arguments":{"command":"plugin.run","params":{"id":"org.pluma.example.desaturate","params":{"amount":60}}}}
 {"name":"run_command","arguments":{"command":"effect.apply","params":{"effect":"plugin.org.example.wobble","params":{"size":4}}}}
 {"name":"run_command","arguments":{"command":"document.open","params":{"path":"/tmp/plot.hpgl","importer":"plugin.org.example.hpgl"}}}
 {"name":"run_command","arguments":{"command":"plugin.org.example.tidy.grow","params":{"by":3}}}
@@ -7073,18 +7073,18 @@ art that can't be decoded is sampled as blank (no dots, or full dots with `inver
 
 Type can use the bundled fonts, fonts added to the session and the fonts installed on the system (none on the web):
 the system's and the user's font folders (Windows: `Fonts` and `%LOCALAPPDATA%\Microsoft\Windows\Fonts`, plus fonts
-registered outside them, such as fonts installed as shortcuts, and in the desktop app and `vectorcraft-cli` (MCP
+registered outside them, such as fonts installed as shortcuts, and in the desktop app and `pluma-cli` (MCP
 included) the fonts in DirectWrite's system font collection, such as those Adobe Fonts activates while Creative Cloud runs; macOS: `/System/Library/Fonts`, `/Library/Fonts`,
-`/Network/Library/Fonts`, `~/Library/Fonts` and downloaded system fonts, plus in the desktop app and `vectorcraft-cli`
+`/Network/Library/Fonts`, `~/Library/Fonts` and downloaded system fonts, plus in the desktop app and `pluma-cli`
 the fonts CoreText's font manager lists outside them, such as those apps and font managers register from their own
 folders; Linux and BSD: `/usr/share/fonts`,
 `/usr/local/share/fonts`, `~/.fonts` and the XDG data folders' `fonts`, `~/.local/share/fonts` among them, in a
 Flatpak sandbox the host's fonts, and the folders fontconfig's configuration lists (`<dir>` in `/etc/fonts/fonts.conf`
 and the files it includes: where packages add theirs, such as TeX fonts under `/usr/share/texmf/fonts`)). Faces without outlines Pluma draws (no `glyf`, `CFF`, `CFF2` or `VARC` table, such
 as bitmap-only fonts) are left out. The scan also reads the folder the `fontsFolder` preference names (Preferences › Type ›
-Additional Fonts Folder) with its subfolders and, in the desktop app and `vectorcraft-cli`, Pluma's own `Fonts` folder
+Additional Fonts Folder) with its subfolders and, in the desktop app and `pluma-cli`, Pluma's own `Fonts` folder
 next to the preferences: `~/Library/Application Support/Pluma/Fonts` on macOS, `%APPDATA%\Pluma\Fonts` on
-Windows, and `$XDG_CONFIG_HOME/vectorcraft/Fonts` or `~/.config/vectorcraft/Fonts` on Linux and BSD. `text.addFontFiles`
+Windows, and `$XDG_CONFIG_HOME/pluma/Fonts` or `~/.config/pluma/Fonts` on Linux and BSD. `text.addFontFiles`
 copies fonts into that folder. The installed fonts are cataloged once per session (in the background when the app starts, else on the first lookup
 by family name), so opening, placing, pasting and importing files find them whatever ran before. `text.fontList`
 lists every family available, the installed ones included, each by its English (canonical) name — the same string
@@ -7141,7 +7141,7 @@ and `.woff2` files and suitcase fonts (with their resource fork), at most 256 MB
 other file in `skipped`. It never replaces a file: the names `Name.otf`, `Name 2.otf` up to `Name 99.otf` are tried in
 turn until one is free, which gets the copy, or is a file with the same contents, which is kept (`kept`).
 Copy only fonts you own or are licensed to install. `command.batch` returns before a search ends; later requests over MCP or the control channel poll
-`text.findFontFiles {}`. `vectorcraft-cli run` stops the search when its last step ends. The web build has no Fonts
+`text.findFontFiles {}`. `pluma-cli run` stops the search when its last step ends. The web build has no Fonts
 folder and no folder search.
 
 ```json

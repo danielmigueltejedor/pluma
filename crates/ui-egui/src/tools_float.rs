@@ -14,7 +14,7 @@
 use egui::{CornerRadius, Id, Key, Pos2, Rect, Stroke, Vec2, pos2, vec2};
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 
 /// Where `window.panel.float {panel: "tools"}` floats the Tools panel given no position.
@@ -100,20 +100,20 @@ fn gesture_allowed(ctx: &egui::Context) -> bool {
 }
 
 /// Cancel a move before shortcuts route the same Escape press.
-pub(crate) fn cancel_move_on_escape(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn cancel_move_on_escape(app: &mut PlumaApp, ctx: &egui::Context) {
     if ctx.input(|i| i.key_pressed(Key::Escape)) {
         track(app, ctx);
     }
 }
 
-fn start(app: &VectorcraftApp, ctx: &egui::Context, grab: Vec2) {
+fn start(app: &PlumaApp, ctx: &egui::Context, grab: Vec2) {
     let Some(from) = ctx.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos())) else { return };
     ctx.data_mut(|d| d.insert_temp(move_id(), Move { grab, from, original: app.ui.toolbar_pos, right: app.ui.toolbar_right }));
 }
 
 /// The Tools panel's title bar was pressed (`title`, the panel's bounds `bounds`): docked, dragging
 /// it out of the panel floats the panel under the pointer; floating at `floating`, a drag moves it.
-pub(crate) fn drag_tools(app: &mut VectorcraftApp, ctx: &egui::Context, title: &egui::Response, bounds: Rect, floating: Option<Pos2>) {
+pub(crate) fn drag_tools(app: &mut PlumaApp, ctx: &egui::Context, title: &egui::Response, bounds: Rect, floating: Option<Pos2>) {
     if !gesture_allowed(ctx) || ctx.data(|d| d.get_temp::<Move>(move_id()).is_some()) {
         return;
     }
@@ -159,7 +159,7 @@ fn highlight(ctx: &egui::Context, zone: Rect) {
 /// Carry a move on (at the start of a frame, before the panels are drawn): the panel follows the
 /// pointer and the docking strip lights up under it; the release docks it there or leaves it
 /// floating where it is.
-pub fn track(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn track(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(m) = ctx.data(|d| d.get_temp::<Move>(move_id())) else { return };
     if !gesture_allowed(ctx) {
         app.ui.toolbar_pos = m.original;
@@ -208,7 +208,7 @@ fn position(p: &Value) -> Result<Option<Pos2>, String> {
 
 /// `window.panel.float` / `window.panel.dock` for the Tools panel (`panel: "tools"`); `None` for
 /// any other panel.
-pub(crate) fn command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
+pub(crate) fn command(app: &mut PlumaApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     let float = match id {
         "window.panel.float" => true,
         "window.panel.dock" => false,

@@ -8,9 +8,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use vectorcraft_brush::{Brush, BrushKind};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeKind};
+use pluma_brush::{Brush, BrushKind};
+use pluma_color::Paint;
+use pluma_doc::{AppearanceItem, Document, Node, NodeKind};
 
 use super::unique_name;
 
@@ -158,7 +158,7 @@ pub(crate) fn adopt(dst: &mut Document, src: &Document, nodes: &mut [Node]) {
     for n in nodes.iter_mut() {
         refs(n, &mut |r| used.note(r));
     }
-    let src_brushes = vectorcraft_brush::library(src);
+    let src_brushes = pluma_brush::library(src);
     // Symbol, pattern and brush art and tint swatches can use more resources (the lists grow while
     // they are walked).
     let (mut si, mut pi, mut wi, mut bi) = (0, 0, 0, 0);
@@ -229,7 +229,7 @@ pub(crate) fn adopt(dst: &mut Document, src: &Document, nodes: &mut [Node]) {
         }
         any
     };
-    let mut dst_brushes = vectorcraft_brush::library(dst);
+    let mut dst_brushes = pluma_brush::library(dst);
     let brushes = names(
         &used.brushes,
         |n| src_brushes.iter().find(|b| b.name == n).map(|b| (b, moves_art(b))),
@@ -289,7 +289,7 @@ pub(crate) fn adopt(dst: &mut Document, src: &Document, nodes: &mut [Node]) {
                 dst_brushes.push(def);
             }
         }
-        vectorcraft_brush::store(dst, &dst_brushes);
+        pluma_brush::store(dst, &dst_brushes);
     }
     for (old, _) in copies(&swatches) {
         if let Some(mut w) = src.swatch(old).cloned() {

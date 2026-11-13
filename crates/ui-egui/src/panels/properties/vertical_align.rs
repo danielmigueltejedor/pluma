@@ -5,10 +5,10 @@
 //! so they are turned off when a selected frame has rows or columns or is threaded.
 
 use egui::Ui;
+use pluma_doc::{NodeKind, TextKind, VerticalAlign};
 use serde_json::json;
-use vectorcraft_doc::{NodeKind, TextKind, VerticalAlign};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets;
 
 /// The vertical alignment the selected area type shows, and whether the buttons can change it.
@@ -22,7 +22,7 @@ pub(crate) struct Shown {
 
 /// The vertical alignment of the selected area type (and area type in selected groups, the frames
 /// `text.areaOptions` changes); `None` when no area type is selected.
-pub(crate) fn shown(app: &VectorcraftApp) -> Option<Shown> {
+pub(crate) fn shown(app: &PlumaApp) -> Option<Shown> {
     let st = app.session.active()?;
     let threaded = |id| st.doc.text_threads.iter().any(|t| t.len() > 1 && t.contains(&id));
     let mut out: Option<Shown> = None;
@@ -47,7 +47,7 @@ pub(crate) fn shown(app: &VectorcraftApp) -> Option<Shown> {
 /// it on every selected frame in one undo step (`text.areaOptions {verticalAlign}`, as Area Type
 /// Options does, each frame keeping its other options). Turned off for frames with rows or columns
 /// and threaded ones; nothing shows without area type. Returns whether the buttons were drawn.
-pub(crate) fn buttons(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) -> bool {
+pub(crate) fn buttons(app: &mut PlumaApp, ui: &mut Ui, size: f32) -> bool {
     let Some(s) = shown(app) else { return false };
     for (a, icon, tip, id) in [
         (VerticalAlign::Top, "dc-al-top", tl!("Align Top"), "top"),

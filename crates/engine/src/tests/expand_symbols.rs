@@ -1,9 +1,9 @@
 //! Object › Expand on symbol instances: a selected instance without effects becomes its art, as
 //! Break Link to Symbol places it, in one undo step. The instances that art holds stay instances.
 
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::Rect;
 use serde_json::json;
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -27,8 +27,8 @@ fn square_symbol(s: &mut Session, name: &str) -> NodeId {
 fn stroked_square(s: &mut Session) -> NodeId {
     let r = rect(s, 50.0, 50.0, 20.0, 20.0);
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
-    let blue = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(0, 0, 255));
-    doc.node_mut(r).unwrap().appearance = vectorcraft_doc::Appearance::basic(vectorcraft_color::Paint::None, blue, 2.0).into();
+    let blue = pluma_color::Paint::solid(pluma_color::Color::rgb8(0, 0, 255));
+    doc.node_mut(r).unwrap().appearance = pluma_doc::Appearance::basic(pluma_color::Paint::None, blue, 2.0).into();
     s.select(|_, sel| sel.set([r])).unwrap();
     r
 }
@@ -176,7 +176,7 @@ fn an_instance_whose_masks_hold_too_many_objects_stays_an_instance() {
     let square = doc.symbols.iter().find(|s| s.name == "Masked").unwrap().art.clone();
     let mask_art = Node::group(doc.alloc_id(), vec![square.clone(); 1_000]);
     let mut masked = (*square).clone();
-    masked.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(mask_art, true)));
+    masked.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(mask_art, true)));
     let masked = std::sync::Arc::new(masked);
     let big = Node::group(doc.alloc_id(), vec![masked; 1_000]);
     assert!(big.count() < 1_000_000 && big.count_with_masks() > 1_000_000);
@@ -216,8 +216,8 @@ fn an_instance_with_an_opacity_mask_keeps_it_on_its_art() {
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let masked = square_symbol(&mut s, "Square");
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
-    let art = Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(50.0, 50.0, 60.0, 60.0)), Default::default());
-    let mask = Box::new(vectorcraft_doc::OpacityMask::new(art, true));
+    let art = Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(50.0, 50.0, 60.0, 60.0)), Default::default());
+    let mask = Box::new(pluma_doc::OpacityMask::new(art, true));
     doc.node_mut(masked).unwrap().extras_mut().mask = Some(mask.clone());
     s.execute("object.expand", &json!({"fill": false, "stroke": false})).unwrap();
     assert!(!is_instance(&s, masked), "the instance expands");
@@ -232,9 +232,9 @@ fn an_instance_with_an_effect_on_its_fill_stays_an_instance() {
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let plain = square_symbol(&mut s, "Square");
     let filled = NodeId(s.execute("symbol.place", &json!({"name": "Square", "x": 200, "y": 60})).unwrap()["id"].as_u64().unwrap());
-    let red = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(255, 0, 0));
-    let mut look = vectorcraft_doc::Appearance::basic(red, vectorcraft_color::Paint::None, 0.0);
-    look.items[0].effects_mut().push(vectorcraft_render::effects::new_effect("stylize.dropShadow", &json!({"x": 4, "y": 0})).unwrap());
+    let red = pluma_color::Paint::solid(pluma_color::Color::rgb8(255, 0, 0));
+    let mut look = pluma_doc::Appearance::basic(red, pluma_color::Paint::None, 0.0);
+    look.items[0].effects_mut().push(pluma_render::effects::new_effect("stylize.dropShadow", &json!({"x": 4, "y": 0})).unwrap());
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(filled).unwrap().appearance = look.into();
     s.select(|_, sel| sel.set([plain, filled])).unwrap();
     let _ = s.execute("object.expand", &json!({"fill": false, "stroke": false}));

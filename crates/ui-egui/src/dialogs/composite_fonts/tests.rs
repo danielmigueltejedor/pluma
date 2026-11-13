@@ -1,35 +1,35 @@
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
 use super::*;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     app
 }
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-fn dialog(app: &mut VectorcraftApp) -> &mut Dialog {
+fn dialog(app: &mut PlumaApp) -> &mut Dialog {
     app.ui.dialog.as_mut().expect("Composite Fonts open")
 }
 
-fn names(app: &VectorcraftApp) -> Vec<String> {
+fn names(app: &PlumaApp) -> Vec<String> {
     app.session.active().unwrap().doc.composite_fonts.iter().map(|f| f.name.clone()).collect()
 }
 
-fn steps(app: &VectorcraftApp) -> usize {
+fn steps(app: &PlumaApp) -> usize {
     app.session.active().unwrap().history.undo.len()
 }
 
 /// Do `act` with the dialog as it is, as its button does.
-fn press(app: &mut VectorcraftApp, act: Action) {
+fn press(app: &mut PlumaApp, act: Action) {
     let mut d = app.ui.dialog.clone().unwrap();
     run(app, &mut d, act).unwrap();
     app.ui.dialog = Some(d);
@@ -110,7 +110,7 @@ fn shared_or_empty_names_keep_the_dialog_open() {
 /// The menu item shows only with Show East Asian Options on, and needs a document.
 #[test]
 fn the_menu_item_shows_with_east_asian_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.prefs.show_east_asian_options = true;
     assert_eq!(crate::menus::shown_state(&app, COMMAND, &json!({})).map(|s| s.0), Some(false));
     app.run("file.new", json!({})).unwrap();
@@ -133,7 +133,7 @@ fn composite_fonts_go_through_files() {
         write: Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string()))),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({})).unwrap();
     open(&mut app).unwrap();
     press(&mut app, Action::New);

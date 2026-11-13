@@ -45,10 +45,10 @@ pub fn divider(ui: &mut Ui) {
 }
 
 /// The `Id` under which [`dim_label`]/[`field_label`] leave the label a following field should be
-/// named by. egui 0.37's kittest fails an input with no accessible name, and VectorCraft paints
+/// named by. egui 0.37's kittest fails an input with no accessible name, and Pluma paints
 /// most labels beside, not inside, their fields.
 fn next_label_id() -> egui::Id {
-    egui::Id::unique("vectorcraft-next-input-label")
+    egui::Id::unique("pluma-next-input-label")
 }
 
 /// The label a field may be named by, and the widget id the field must be drawn under for the

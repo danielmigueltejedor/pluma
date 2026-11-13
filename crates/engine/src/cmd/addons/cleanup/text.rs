@@ -7,10 +7,10 @@
 #[cfg(test)]
 mod tests;
 
+use pluma_doc::{CharStyle, Document, Justify, Node, NodeId, NodeKind, ParaStyle, RubySpan, TextKind, TextObject};
+use pluma_geom::{Affine, Point, Vec2};
+use pluma_text::{FontDb, FontMatch, TextLayout, edit};
 use serde_json::{Value, json};
-use vectorcraft_doc::{CharStyle, Document, Justify, Node, NodeId, NodeKind, ParaStyle, RubySpan, TextKind, TextObject};
-use vectorcraft_geom::{Affine, Point, Vec2};
-use vectorcraft_text::{FontDb, FontMatch, TextLayout, edit};
 
 use crate::cmd::fonts::{edit_symbol_texts, symbol_texts};
 use crate::cmd::textedit::{editing_range, editing_story};
@@ -151,7 +151,7 @@ fn text_of(d: &Document, id: NodeId) -> Option<&TextObject> {
 }
 
 fn layout(t: &TextObject) -> TextLayout {
-    vectorcraft_text::layout(FontDb::global(), t)
+    pluma_text::layout(FontDb::global(), t)
 }
 
 /// Where the layout draws the character at `byte` (the one it starts in): its glyph's pen position.
@@ -218,7 +218,7 @@ impl Source {
         if lay.overflow {
             return None;
         }
-        let t = if (lay.fit_scale - 1.0).abs() > 1e-9 { vectorcraft_text::scaled(t, lay.fit_scale) } else { t.clone() };
+        let t = if (lay.fit_scale - 1.0).abs() > 1e-9 { pluma_text::scaled(t, lay.fit_scale) } else { t.clone() };
         Some(Self { text: t.plain_text(), t, lay })
     }
 
@@ -503,7 +503,7 @@ fn merge(chain: &[&Piece]) -> std::result::Result<TextObject, usize> {
             let starts_blank = p.t.plain_text().starts_with(char::is_whitespace);
             let last = prev.t.runs.iter().rev().find(|r| !r.text.is_empty()).map(|r| r.style.clone()).unwrap_or_default();
             if !text.ends_with(char::is_whitespace) && !starts_blank && p.at.x - prev.end >= 0.5 * space_width(&last) {
-                runs.push(vectorcraft_doc::TextRun::new(" ", last));
+                runs.push(pluma_doc::TextRun::new(" ", last));
                 text.push(' ');
             }
             let c = text.chars().next_back().map_or(1, char::len_utf8);
@@ -679,22 +679,22 @@ fn join_text(s: &mut Session, p: &Value) -> Result<Value> {
     let (Some(top), true) = (lines.first().and_then(|l| l.first()).copied(), joined >= 2) else {
         return Err(EngineError::Other("Select two or more one-line point type objects to join".into()));
     };
-    let mut runs: Vec<vectorcraft_doc::TextRun> = vec![];
+    let mut runs: Vec<pluma_doc::TextRun> = vec![];
     let mut prev_y = None;
     for line in &lines {
         let y = line.first().map_or(top.at.y, |p| p.at.y);
         // The line keeps the distance from the baseline above as its leading.
         let leading = prev_y.map(|above| y - above).filter(|l: &f64| l.is_finite() && *l > 0.0);
         prev_y = Some(y);
-        let last = |runs: &[vectorcraft_doc::TextRun]| runs.iter().rev().find(|r| !r.text.is_empty()).map(|r| r.style.clone()).unwrap_or_default();
+        let last = |runs: &[pluma_doc::TextRun]| runs.iter().rev().find(|r| !r.text.is_empty()).map(|r| r.style.clone()).unwrap_or_default();
         if !runs.is_empty() {
-            runs.push(vectorcraft_doc::TextRun::new("\n", last(&runs)));
+            runs.push(pluma_doc::TextRun::new("\n", last(&runs)));
         }
         let start = runs.len();
         for (k, piece) in line.iter().enumerate() {
             let blank = runs.last().is_some_and(|r| r.text.ends_with(char::is_whitespace)) || piece.t.plain_text().starts_with(char::is_whitespace);
             if k > 0 && !blank {
-                runs.push(vectorcraft_doc::TextRun::new(" ", last(&runs)));
+                runs.push(pluma_doc::TextRun::new(" ", last(&runs)));
             }
             runs.extend(piece.t.runs.iter().cloned());
         }

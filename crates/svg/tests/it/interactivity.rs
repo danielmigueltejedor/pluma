@@ -4,10 +4,10 @@
 
 use std::sync::Mutex;
 
+use pluma_doc::{Document, Node};
+use pluma_svg::{Encoding, ExportOptions, ImportOptions, Profile, export, export_full, import, import_with};
 use proptest::prelude::*;
 use usvg::roxmltree;
-use vectorcraft_doc::{Document, Node};
-use vectorcraft_svg::{Encoding, ExportOptions, ImportOptions, Profile, export, export_full, import, import_with};
 
 fn svg(body: &str) -> String {
     format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100">{body}</svg>"#)
@@ -145,7 +145,7 @@ fn import_keeps_an_unnamed_group_with_events_apart_from_its_object() {
 #[test]
 fn import_never_reads_or_runs_scripts() {
     let asked = Mutex::new(Vec::<String>::new());
-    let read = |p: &str| -> Option<(Vec<u8>, vectorcraft_doc::LinkInfo)> {
+    let read = |p: &str| -> Option<(Vec<u8>, pluma_doc::LinkInfo)> {
         asked.lock().unwrap().push(p.to_string());
         None
     };

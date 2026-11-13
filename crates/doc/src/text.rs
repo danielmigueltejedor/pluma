@@ -1,8 +1,8 @@
-//! Text objects (model only; layout and glyph outlines live in `vectorcraft-text`).
+//! Text objects (model only; layout and glyph outlines live in `pluma-text`).
 
+use pluma_color::{Color, Paint};
+use pluma_geom::{Affine, PathData, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, Vec2};
 
 use crate::appearance::{Appearance, AppearanceItem, Dash, FillLayer, LineCap, LineJoin, StrokeAlign, StrokeLayer};
 
@@ -122,7 +122,7 @@ pub struct TextObject {
     #[serde(skip)]
     pub cached_baselines: Vec<(Point, Point)>,
     /// Cached ink of the glyphs in text space, underline and strikethrough bars included
-    /// (`vectorcraft_effects::preview::laid_out_ink`, `None` when nothing draws),
+    /// (`pluma_effects::preview::laid_out_ink`, `None` when nothing draws),
     /// with the `cached_bounds` it was measured with: filled in with `cached_bounds` by the engine's
     /// text edits, and stale once `cached_bounds` differs ([`Self::ink`]). Not serialized.
     #[serde(skip)]

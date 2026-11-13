@@ -2,7 +2,7 @@
 //! keeps the horizontal and vertical segments of a pixel-aligned object on the pixel grid
 //! (<https://helpx.adobe.com/illustrator/desktop/get-started/learn-the-basics/pixel-preview-mode-for-web-graphics.html>).
 
-use vectorcraft_doc::{AppearanceItem, LiveShape, StrokeAlign};
+use pluma_doc::{AppearanceItem, LiveShape, StrokeAlign};
 
 use super::{
     Affine, Arc, Document, EngineError, Node, NodeId, NodeKind, Paint, PathData, Rect, Result, Scaling, Session, Value, Vec2, bad, json,
@@ -251,7 +251,7 @@ fn follow_snap(n: &mut Node, before: Option<Rect>, sc: Scaling) {
     }
     n.appearance.rebase_gradients(f, t);
     if sc.patterns {
-        vectorcraft_doc::pattern::transform_pattern_paints(n, rect_to_rect(f, t));
+        pluma_doc::pattern::transform_pattern_paints(n, rect_to_rect(f, t));
     }
     if let Some(m) = n.extras_if_any().and_then(|e| e.mask.as_mut())
         && m.linked

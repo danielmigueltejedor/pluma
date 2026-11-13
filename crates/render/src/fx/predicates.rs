@@ -45,7 +45,7 @@ pub(super) fn is_container(n: &Node) -> bool {
 /// holds live objects and whose geometry effects reshape them or whose own fills and strokes paint
 /// their evaluated outlines ([`effects::evaluate_container`]).
 pub(super) fn evaluates_live(n: &Node) -> bool {
-    use vectorcraft_doc::live::{is_live, subtree_has_live};
+    use pluma_doc::live::{is_live, subtree_has_live};
     let to_members = effects::has_geometry(&n.appearance.effects) || n.appearance.items.iter().any(effects::paints);
     is_live(n) || (is_container(n) && to_members && !effects::has_pathfinder(n) && subtree_has_live(n))
 }

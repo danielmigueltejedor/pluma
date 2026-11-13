@@ -1,7 +1,7 @@
 use super::*;
 
 /// One headless frame of the panel (or the Align panel's menu): the texts drawn.
-fn texts(app: &mut VectorcraftApp, draw: fn(&mut VectorcraftApp, &mut Ui)) -> Vec<String> {
+fn texts(app: &mut PlumaApp, draw: fn(&mut PlumaApp, &mut Ui)) -> Vec<String> {
     fn walk(s: &egui::Shape, out: &mut Vec<String>) {
         match s {
             egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -20,7 +20,7 @@ fn texts(app: &mut VectorcraftApp, draw: fn(&mut VectorcraftApp, &mut Ui)) -> Ve
 
 #[test]
 fn use_preview_bounds_shows_the_visual_size_and_checks_the_align_flyout() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 100, "height": 50})).unwrap();
     app.run("stroke.set", json!({"weight": 10})).unwrap();
@@ -36,7 +36,7 @@ fn use_preview_bounds_shows_the_visual_size_and_checks_the_align_flyout() {
 /// bounding box of selected point type then measures its glyphs without a change to the document.
 #[test]
 fn measure_type_by_glyph_bounds_is_checked_and_resizes_the_box() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 20, "y": 200, "size": 100, "text": "Hg"})).unwrap();
     assert!(texts(&mut app, menu).iter().any(|t| t == "   Measure Type by Glyph Bounds"));
@@ -55,7 +55,7 @@ fn measure_type_by_glyph_bounds_is_checked_and_resizes_the_box() {
 #[test]
 fn use_preview_bounds_shows_the_size_after_geometry_effects() {
     // A 100 × 50 rectangle without a stroke, with Offset Path 10: 120 × 70 as drawn.
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 50, "y": 50, "width": 100, "height": 50})).unwrap();
     app.run("paint.setStroke", json!({"none": true})).unwrap();
@@ -69,7 +69,7 @@ fn use_preview_bounds_shows_the_size_after_geometry_effects() {
 
 #[test]
 fn rotation_field_shows_the_angle_the_box_keeps() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 100, "height": 50})).unwrap();
     app.run("object.rotate", json!({"angle": 45, "absolute": true})).unwrap();
@@ -86,10 +86,10 @@ fn rotation_field_shows_the_angle_the_box_keeps() {
 /// Properties panel's Transform section, and Make Sides Equal evens it out after a stretch.
 #[test]
 fn a_polygon_shows_its_polygon_properties() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.polygon", json!({"cx": 150, "cy": 150, "radius": 50, "sides": 6})).unwrap();
-    for draw in [show as fn(&mut VectorcraftApp, &mut Ui), crate::panels::properties::transform_section] {
+    for draw in [show as fn(&mut PlumaApp, &mut Ui), crate::panels::properties::transform_section] {
         let shown = texts(&mut app, draw);
         // A hexagon's side is as long as its radius.
         for t in ["Sides:", "6", "Angle:", "0°", "Corner:", "Round", "Corner Radius:", "Radius:", "Side Length:", "50 pt", "Make Sides Equal"] {
@@ -98,7 +98,7 @@ fn a_polygon_shows_its_polygon_properties() {
     }
     assert!(texts(&mut app, show).iter().any(|s| s == "Polygon Properties:"));
     app.run("object.scale", json!({"sx": 200, "sy": 100})).unwrap();
-    let live = |app: &VectorcraftApp| match &first_selected(app).unwrap().kind {
+    let live = |app: &PlumaApp| match &first_selected(app).unwrap().kind {
         NodeKind::Path { live: Some(l), .. } => l.clone(),
         k => panic!("{k:?}"),
     };
@@ -111,10 +111,10 @@ fn a_polygon_shows_its_polygon_properties() {
 /// the Properties panel's Transform section; typed angles update the shape.
 #[test]
 fn an_ellipse_shows_its_pie_properties() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.ellipse", json!({"x": 50, "y": 50, "width": 120, "height": 80})).unwrap();
-    for draw in [show as fn(&mut VectorcraftApp, &mut Ui), crate::panels::properties::transform_section] {
+    for draw in [show as fn(&mut PlumaApp, &mut Ui), crate::panels::properties::transform_section] {
         let shown = texts(&mut app, draw);
         for t in ["Ellipse Properties:", "Pie Start Angle:", "0°", "Pie End Angle:", "360°", "Invert Pie"] {
             assert!(shown.iter().any(|s| s == t), "{t} in {shown:?}");
@@ -127,7 +127,7 @@ fn an_ellipse_shows_its_pie_properties() {
 
 #[test]
 fn the_artboard_tool_shows_the_active_artboard() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 40, "height": 30})).unwrap();
     assert!(texts(&mut app, show).iter().any(|t| t == "40 pt"), "the selection first");
@@ -143,7 +143,7 @@ fn the_artboard_tool_shows_the_active_artboard() {
 /// #1597: with only ruler guides selected the panel shows their X or Y, and nothing of the art.
 #[test]
 fn selected_guides_show_their_position() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("guide.add", json!({"vertical": true, "pos": 120})).unwrap();
     app.run("guide.add", json!({"vertical": false, "pos": 45})).unwrap();
@@ -166,7 +166,7 @@ fn selected_guides_show_their_position() {
 /// and a new X moves it alone.
 #[test]
 fn an_anchor_selection_shows_and_moves_its_own_box() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let square = json!({"anchors": [{"x": 20, "y": 30}, {"x": 120, "y": 30}, {"x": 120, "y": 130}, {"x": 20, "y": 130}], "closed": true});
     let id = app.run("path.create", square).unwrap()["id"].as_u64().unwrap();
@@ -190,14 +190,14 @@ fn an_anchor_selection_shows_and_moves_its_own_box() {
 #[test]
 fn menu_flips_keep_the_reference_point() {
     use crate::panels::tests_appearance::{click, frame_events};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 20, "y": 30, "width": 100, "height": 50})).unwrap();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     // Top-right reference point: (120, 30).
     ctx.data_mut(|d| d.insert_temp(egui::Id::unique("refpt"), 2usize));
-    let flip = |app: &mut VectorcraftApp, item: &str| {
+    let flip = |app: &mut PlumaApp, item: &str| {
         let texts = frame_events(&ctx, app, vec![], menu);
         let r = texts.iter().find(|(t, _)| t.trim_start() == item).unwrap_or_else(|| panic!("{item} in {texts:?}")).1;
         click(&ctx, app, r.center(), menu);
@@ -208,7 +208,7 @@ fn menu_flips_keep_the_reference_point() {
 }
 
 /// Clicks the item of the panel menu labelled `item` (with or without its check mark).
-fn menu_click(ctx: &egui::Context, app: &mut VectorcraftApp, item: &str) {
+fn menu_click(ctx: &egui::Context, app: &mut PlumaApp, item: &str) {
     use crate::panels::tests_appearance::{click, frame_events};
     let texts = frame_events(ctx, app, vec![], menu);
     let r = texts.iter().find(|(t, _)| t.trim_start_matches('✓').trim_start() == item).unwrap_or_else(|| panic!("{item} in {texts:?}")).1;
@@ -216,12 +216,12 @@ fn menu_click(ctx: &egui::Context, app: &mut VectorcraftApp, item: &str) {
 }
 
 /// The panel menu's items as drawn, check marks included.
-fn menu_texts(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
+fn menu_texts(ctx: &egui::Context, app: &mut PlumaApp) -> Vec<String> {
     crate::panels::tests_appearance::frame_events(ctx, app, vec![], menu).into_iter().map(|(t, _)| t).collect()
 }
 
 /// Types `value` into the field of `draw` that shows `shown`, and presses Enter.
-fn type_into(ctx: &egui::Context, app: &mut VectorcraftApp, draw: fn(&mut VectorcraftApp, &mut Ui), shown: &str, value: &str) {
+fn type_into(ctx: &egui::Context, app: &mut PlumaApp, draw: fn(&mut PlumaApp, &mut Ui), shown: &str, value: &str) {
     use crate::panels::tests_appearance::{click, frame_events, text_rect};
     let texts = frame_events(ctx, app, vec![], draw);
     click(ctx, app, text_rect(&texts, shown).center(), draw);
@@ -240,19 +240,19 @@ fn type_into(ctx: &egui::Context, app: &mut VectorcraftApp, draw: fn(&mut Vector
 /// while it is off; a choice overrides it, and resetting the preferences returns to it.
 #[test]
 fn the_menu_chooses_whether_the_object_its_pattern_or_both_transform() {
-    let tiles = |app: &VectorcraftApp, id: u64| {
-        let n = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
-        let vectorcraft_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("a pattern fill") };
+    let tiles = |app: &PlumaApp, id: u64| {
+        let n = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
+        let pluma_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("a pattern fill") };
         xf.as_coeffs()
     };
     let labels = ["Transform Object Only", "Transform Pattern Only", "Transform Both"];
     let modes = ["object", "pattern", "both"];
     let checked = |shown: &[String]| -> Vec<usize> { (0..3).filter(|i| shown.contains(&format!("✓ {}", labels[*i]))).collect() };
-    for draw in [show as fn(&mut VectorcraftApp, &mut Ui), crate::panels::properties::transform_section] {
+    for draw in [show as fn(&mut PlumaApp, &mut Ui), crate::panels::properties::transform_section] {
         for general in [false, true] {
             for pick in [None, Some(0), Some(1), Some(2)] {
                 let case = format!("General › Transform Pattern Tiles {general}, menu choice {pick:?}");
-                let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
                 app.run("prefs.set", json!({"key": "transformPatternTiles", "value": general})).unwrap();
                 app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
                 app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
@@ -292,18 +292,18 @@ fn the_menu_chooses_whether_the_object_its_pattern_or_both_transform() {
 /// rectangle turns or shears with its tiles left as they are, its tiles alone, or both.
 #[test]
 fn the_menu_choice_also_applies_to_rotation_and_shear() {
-    let tiles = |app: &VectorcraftApp, id: u64| {
-        let n = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
-        let vectorcraft_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("a pattern fill") };
+    let tiles = |app: &PlumaApp, id: u64| {
+        let n = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
+        let pluma_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("a pattern fill") };
         xf.as_coeffs()
     };
     let labels = ["Transform Object Only", "Transform Pattern Only", "Transform Both"];
     // (panel, which "0°" field: 0 the rotation, 1 the shear)
-    let fields = [(show as fn(&mut VectorcraftApp, &mut Ui), 0), (show, 1), (crate::panels::properties::transform_section, 0)];
+    let fields = [(show as fn(&mut PlumaApp, &mut Ui), 0), (show, 1), (crate::panels::properties::transform_section, 0)];
     for (draw, field) in fields {
         for (item, label) in labels.iter().enumerate() {
             let case = format!("{label}, {}", if field == 0 { "rotation" } else { "shear" });
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
             app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
             app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
             app.run("object.pattern.make", json!({"name": "Dots", "width": 20, "height": 20})).unwrap();
@@ -338,15 +338,15 @@ fn the_menu_choice_also_applies_to_rotation_and_shear() {
 /// (here the top-left one) instead of the reference point (the centre).
 #[test]
 fn use_registration_point_for_symbol_measures_an_instance_from_its_registration_point() {
-    for draw in [show as fn(&mut VectorcraftApp, &mut Ui), crate::panels::properties::transform_section] {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    for draw in [show as fn(&mut PlumaApp, &mut Ui), crate::panels::properties::transform_section] {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 50, "width": 80, "height": 40})).unwrap();
         let id = app.run("symbol.new", json!({"name": "Corner", "registration": 0})).unwrap()["id"].as_u64().unwrap();
         app.run("select.set", json!({"ids": [id]})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let shown = |app: &mut VectorcraftApp| {
+        let shown = |app: &mut PlumaApp| {
             crate::panels::tests_appearance::frame_events(&ctx, app, vec![], draw).into_iter().map(|(t, _)| t).collect::<Vec<_>>()
         };
         let off = shown(&mut app);
@@ -374,7 +374,7 @@ fn use_registration_point_for_symbol_measures_an_instance_from_its_registration_
 #[test]
 fn use_registration_point_for_symbol_follows_a_transformed_instance() {
     let panels = [
-        (show as fn(&mut VectorcraftApp, &mut Ui), "Flip Horizontal", "Flip Vertical"),
+        (show as fn(&mut PlumaApp, &mut Ui), "Flip Horizontal", "Flip Vertical"),
         (crate::panels::properties::transform_section, "Flip Along Horizontal Axis", "Flip Along Vertical Axis"),
     ];
     // How each instance is transformed after it is made: (command, params).
@@ -386,16 +386,16 @@ fn use_registration_point_for_symbol_follows_a_transformed_instance() {
         ("object.shear", json!({"angle": 30, "axis": "horizontal", "origin": [100, 50]})),
     ];
     // The registration point (the art's top-left) where the instance's transform puts it.
-    let registration = |app: &VectorcraftApp, id: u64| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
-        NodeKind::SymbolInstance { xf, .. } => *xf * vectorcraft_geom::Point::new(-vectorcraft_doc::SYMBOL_HALF, -vectorcraft_doc::SYMBOL_HALF),
+    let registration = |app: &PlumaApp, id: u64| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
+        NodeKind::SymbolInstance { xf, .. } => *xf * pluma_geom::Point::new(-pluma_doc::SYMBOL_HALF, -pluma_doc::SYMBOL_HALF),
         k => panic!("not an instance: {k:?}"),
     };
     let pt = |v: f64| format!("{} pt", (v * 1000.0).round() / 1000.0);
-    let near = |a: vectorcraft_geom::Point, b: vectorcraft_geom::Point| (a - b).hypot() < 1e-6;
+    let near = |a: pluma_geom::Point, b: pluma_geom::Point| (a - b).hypot() < 1e-6;
     for (draw, flip_h, flip_v) in panels {
         for (cmd, params) in &shapes {
             let case = format!("{cmd} {params}");
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
             app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
             app.run("shape.rectangle", json!({"x": 100, "y": 50, "width": 80, "height": 40})).unwrap();
             let id = app.run("symbol.new", json!({"name": "Corner", "registration": 0})).unwrap()["id"].as_u64().unwrap();
@@ -411,7 +411,7 @@ fn use_registration_point_for_symbol_follows_a_transformed_instance() {
             assert!(shown.contains(&pt(q.x)) && shown.contains(&pt(q.y)), "{case}: X/Y at {q:?} in {shown:?}");
             // A new X moves the registration point there.
             type_into(&ctx, &mut app, draw, &pt(q.x), &format!("{}", q.x - 40.0));
-            let q = vectorcraft_geom::Point::new(q.x - 40.0, q.y);
+            let q = pluma_geom::Point::new(q.x - 40.0, q.y);
             assert!(near(registration(&app, id), q), "{case}: moved to {q:?}, now {:?}", registration(&app, id));
             // The rotation field turns it about the registration point.
             let angle = app.selection_box().unwrap().angle;
@@ -452,7 +452,7 @@ fn use_registration_point_for_symbol_follows_a_transformed_instance() {
 #[test]
 fn the_reference_point_locator_is_one_tab_stop_and_arrows_move_it() {
     use crate::panels::tests_appearance::{click, frame_events, text_rect};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 20, "y": 30, "width": 100, "height": 50})).unwrap();
     let ctx = egui::Context::default();
@@ -505,12 +505,12 @@ fn constrain_proportions() {
 #[test]
 fn rotate_and_shear_fields_are_named() {
     use egui_kittest::kittest::Queryable;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 100, "height": 50})).unwrap();
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(280.0, 500.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -530,22 +530,22 @@ fn rotate_and_shear_fields_are_named() {
 #[test]
 fn align_to_pixel_grid_shows_and_sets_the_property() {
     use crate::panels::tests_appearance::{click, frame_events, text_rect};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10.3, "y": 20.6, "width": 30.4, "height": 9.7})).unwrap()["id"].as_u64().unwrap();
     let b = app.run("shape.rectangle", json!({"x": 60.3, "y": 20.6, "width": 30.4, "height": 9.7})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
-    let aligned = |app: &VectorcraftApp, id: u64| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().extras().pixel_aligned;
+    let aligned = |app: &PlumaApp, id: u64| app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().extras().pixel_aligned;
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let toggle = |ctx: &egui::Context, app: &mut VectorcraftApp| {
+    let toggle = |ctx: &egui::Context, app: &mut PlumaApp| {
         let texts = frame_events(ctx, app, vec![], show);
         click(ctx, app, text_rect(&texts, "Align to Pixel Grid").center(), show);
     };
     assert_eq!(pixel_aligned_state(&app).map(|s| (s.0, s.1)), Some((Some(false), true)));
     toggle(&ctx, &mut app);
     assert!(aligned(&app, a) && aligned(&app, b));
-    let x0 = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(a)).unwrap().geometric_bounds().unwrap().x0;
+    let x0 = app.session.active().unwrap().doc.node(pluma_doc::NodeId(a)).unwrap().geometric_bounds().unwrap().x0;
     // The default 1 pt stroke is odd and centered: the edges go to half points.
     assert_eq!(x0, 10.5);
     app.run("object.setPixelAligned", json!({"ids": [b], "on": false})).unwrap();
@@ -563,7 +563,7 @@ fn align_to_pixel_grid_shows_and_sets_the_property() {
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
     let c = app.run("object.compoundPath.make", json!({})).unwrap()["id"].as_u64().unwrap();
     assert_eq!(pixel_aligned_state(&app).map(|s| s.1), Some(true));
-    let member = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(c)).unwrap().children().unwrap()[0].id.0;
+    let member = app.session.active().unwrap().doc.node(pluma_doc::NodeId(c)).unwrap().children().unwrap()[0].id.0;
     app.run("select.set", json!({"ids": [member]})).unwrap();
     assert_eq!(pixel_aligned_state(&app).map(|s| s.1), Some(false));
 }

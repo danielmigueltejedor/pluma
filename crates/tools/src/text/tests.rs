@@ -1,11 +1,11 @@
-//! Type tool state-machine tests (the engine side is covered in vectorcraft-engine's
+//! Type tool state-machine tests (the engine side is covered in pluma-engine's
 //! `tests_textedit`).
 
 use super::*;
 use crate::ImeSurrounding;
 use crate::testutil::{cx, paint};
-use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, Selection, TextObject};
-use vectorcraft_text::FontDb;
+use pluma_doc::{CharStyle, Document, Node, NodeKind, Selection, TextObject};
+use pluma_text::FontDb;
 
 fn doc_with_text(text: &str) -> (Document, NodeId) {
     let mut d = Document::new(500.0, 500.0);
@@ -76,7 +76,7 @@ fn type_arrows_keep_devanagari_clusters_with_an_rtl_suffix() {
         }
         assert_eq!(t.plain_text(), text);
         assert_eq!(&text[..hindi.len()], hindi);
-        let lay = vectorcraft_text::layout(db, t);
+        let lay = pluma_text::layout(db, t);
         assert_eq!(lay.lines.len(), 1, "{case}: one ordinary horizontal line");
         assert!(!lay.vertical, "{case}: horizontal Type");
         let mut hindi_spans: Vec<_> = lay.glyphs.iter().filter(|g| g.byte < hindi.len()).map(|g| (g.byte, g.len)).collect();
@@ -109,13 +109,7 @@ fn type_arrows_keep_devanagari_clusters_with_an_rtl_suffix() {
     }
 }
 
-fn assert_unwrapped_hindi_glyphs(
-    db: &FontDb,
-    face: &vectorcraft_text::FontFace,
-    hindi_glyphs: &[&vectorcraft_text::PositionedGlyph],
-    hindi: &str,
-    text: &str,
-) {
+fn assert_unwrapped_hindi_glyphs(db: &FontDb, face: &pluma_text::FontFace, hindi_glyphs: &[&pluma_text::PositionedGlyph], hindi: &str, text: &str) {
     for glyph in hindi_glyphs {
         let used = db.face_by_id(glyph.font_id).expect("the Hindi glyph's loaded face");
         assert!(used.file_data() == face.file_data(), "setup: Hindi uses the selected face bytes");
@@ -130,7 +124,7 @@ fn assert_unwrapped_hindi_glyphs(
     }
 }
 
-fn assert_wrapped_hindi_glyphs(db: &FontDb, face: &vectorcraft_text::FontFace, lay: &vectorcraft_text::TextLayout, hindi: &str) {
+fn assert_wrapped_hindi_glyphs(db: &FontDb, face: &pluma_text::FontFace, lay: &pluma_text::TextLayout, hindi: &str) {
     for glyph in lay.glyphs.iter().filter(|g| g.byte < hindi.len()) {
         let used = db.face_by_id(glyph.font_id).expect("the wrapped Hindi glyph's loaded face");
         assert!(used.file_data() == face.file_data(), "setup: wrapped Hindi uses the selected face bytes");
@@ -142,8 +136,8 @@ fn assert_wrapped_hindi_glyphs(db: &FontDb, face: &vectorcraft_text::FontFace, l
 
 #[test]
 fn type_arrows_keep_devanagari_clusters_across_wrapped_lines() {
-    use vectorcraft_doc::{Composer, Justify};
-    use vectorcraft_geom::{Affine, PathData};
+    use pluma_doc::{Composer, Justify};
+    use pluma_geom::{Affine, PathData};
 
     // Use the installed-family order and unchanged Hindi input from the single-line test.
     // Shaping and wrapping capabilities vary by face; an eligibility skip is not arrow coverage.
@@ -174,7 +168,7 @@ fn type_arrows_keep_devanagari_clusters_across_wrapped_lines() {
     assert_eq!(&text[..hindi.len()], hindi);
 
     // Measure once on the selected face. No width sweep or invented line endpoints.
-    let natural = vectorcraft_text::layout(db, t);
+    let natural = pluma_text::layout(db, t);
     assert_eq!(natural.lines.len(), 1, "setup: natural point text is a single line");
     assert!(!natural.vertical, "setup: horizontal text");
     let hindi_glyphs: Vec<_> = natural.glyphs.iter().filter(|g| g.byte < hindi.len()).collect();
@@ -197,7 +191,7 @@ fn type_arrows_keep_devanagari_clusters_across_wrapped_lines() {
     t.xf = Affine::IDENTITY;
     assert_eq!((t.area.rows, t.area.columns, t.area.inset), (1, 1, 0.0));
     assert_eq!((t.para.left_indent, t.para.first_line_indent, t.para.right_indent), (0.0, 0.0, 0.0));
-    let lay = vectorcraft_text::layout(db, t);
+    let lay = pluma_text::layout(db, t);
     assert!(!lay.overflow, "setup: the full RTL suffix fits the tall frame");
     assert!(!lay.vertical, "setup: horizontal area text");
     assert!(lay.glyphs.iter().any(|g| g.rtl && g.byte > hindi.len()), "setup: actual RTL suffix selects Type's visual-arrow route");
@@ -541,11 +535,11 @@ fn backspace_deletes_selection_or_word() {
 /// paragraph, with characters selected, and in a paragraph in no list.
 #[test]
 fn tab_at_the_start_of_a_list_paragraph_changes_its_level() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let (mut d, id, mut tool) = editing("One\nTwo\nThree");
     let NodeKind::Text(t) = &mut d.node_mut(id).unwrap().kind else { panic!("text") };
-    let dot = |level| vectorcraft_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot).at_level(level)), ..Default::default() };
-    t.set_paragraph_styles(vec![dot(1), dot(9), vectorcraft_doc::ParaStyle::default()]);
+    let dot = |level| pluma_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot).at_level(level)), ..Default::default() };
+    t.set_paragraph_styles(vec![dot(1), dot(9), pluma_doc::ParaStyle::default()]);
     let press = |tool: &mut TypeTool, at: (usize, usize), mods: Mods| {
         (tool.anchor, tool.caret) = at;
         key(tool, &d, ToolKey::Tab, mods)
@@ -596,8 +590,8 @@ fn tab_at_the_start_of_a_list_paragraph_changes_its_level() {
 /// frame before inserts a tab, and Tab after the paragraph's end changes the next one's level.
 #[test]
 fn tab_at_the_start_of_a_threaded_frame_changes_a_level_only_at_a_paragraph_start() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
-    let dot = vectorcraft_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot)), ..Default::default() };
+    use pluma_doc::text::{Bullet, ParaList};
+    let dot = pluma_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot)), ..Default::default() };
     let threaded = |first: &str, second: &str| {
         let (mut d, a) = doc_with_text(first);
         let l = d.layers[0].id;
@@ -605,7 +599,7 @@ fn tab_at_the_start_of_a_threaded_frame_changes_a_level_only_at_a_paragraph_star
         let mut t = TextObject::point(Point::new(100.0, 300.0), second, CharStyle { size: 20.0, ..Default::default() });
         t.set_paragraph_styles(vec![dot.clone(); second.matches('\n').count() + 1]);
         let NodeKind::Text(head) = &d.node(a).unwrap().kind else { panic!("text") };
-        t.first_para_continues = vectorcraft_text::thread::continued(&[head, &t])[1];
+        t.first_para_continues = pluma_text::thread::continued(&[head, &t])[1];
         d.insert(Some(l), 0, Node::new(b, NodeKind::Text(Box::new(t)))).unwrap();
         let NodeKind::Text(t) = &mut d.node_mut(a).unwrap().kind else { panic!("text") };
         t.set_paragraph_styles(vec![dot.clone(); first.matches('\n').count() + 1]);
@@ -639,8 +633,8 @@ fn double_and_triple_click_select_word_and_paragraph() {
     let (d, id, mut tool) = editing("Alpha beta\ngamma");
     let (sel, p) = (Selection::default(), paint());
     let t = TypeTool::text(&cx(&d, &sel, &p), id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
-    let (top, bot) = vectorcraft_text::caret_position(&lay, 7);
+    let lay = pluma_text::layout(FontDb::global(), &t);
+    let (top, bot) = pluma_text::caret_position(&lay, 7);
     let at = t.xf * top.midpoint(bot);
     let c = cx(&d, &sel, &p);
     for k in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
@@ -658,9 +652,9 @@ fn drag_selects_and_overlay_highlights() {
     let (sel, p) = (Selection::default(), paint());
     let c = cx(&d, &sel, &p);
     let t = TypeTool::text(&c, id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
+    let lay = pluma_text::layout(FontDb::global(), &t);
     let pt = |b: usize| {
-        let (a, bb) = vectorcraft_text::caret_position(&lay, b);
+        let (a, bb) = pluma_text::caret_position(&lay, b);
         t.xf * a.midpoint(bb)
     };
     let (a, b) = (pt(7), pt(9));
@@ -682,9 +676,9 @@ fn a_drag_across_type_not_being_edited_selects_its_text() {
     let (sel, p) = (Selection::default(), paint());
     let c = cx(&d, &sel, &p);
     let t = TypeTool::text(&c, id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
+    let lay = pluma_text::layout(FontDb::global(), &t);
     let pt = |b: usize| {
-        let (a, bb) = vectorcraft_text::caret_position(&lay, b);
+        let (a, bb) = pluma_text::caret_position(&lay, b);
         t.xf * a.midpoint(bb)
     };
     let (a, b) = (pt(7), pt(9));
@@ -708,9 +702,9 @@ fn a_dropped_press_keeps_the_type_in_editing() {
     let (sel, p) = (Selection::default(), paint());
     let c = cx(&d, &sel, &p);
     let t = TypeTool::text(&c, id).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
+    let lay = pluma_text::layout(FontDb::global(), &t);
     let pt = |i: usize| {
-        let (a, b) = vectorcraft_text::caret_position(&lay, i);
+        let (a, b) = pluma_text::caret_position(&lay, i);
         t.xf * a.midpoint(b)
     };
     let (at, to) = (pt(3), pt(7));
@@ -750,8 +744,8 @@ fn a_dropped_press_on_other_type_restores_the_edit_target_and_selection() {
     selection.set([first]);
     let c = cx(&d, &selection, &p);
     let target = TypeTool::text(&c, second).unwrap();
-    let layout = vectorcraft_text::layout(FontDb::global(), target);
-    let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+    let layout = pluma_text::layout(FontDb::global(), target);
+    let (a, b) = pluma_text::caret_position(&layout, 3);
     let at = target.xf * a.midpoint(b);
     let down = tool.pointer(&c, &PointerEvent::new(PointerKind::Down, at.x + 0.1, at.y));
     assert!(down.contains(&Action::Exec("select.set".into(), json!({"ids": [second.0]}))));
@@ -783,8 +777,8 @@ fn a_dropped_press_does_not_reselect_discarded_empty_type() {
     selection.set([first]);
     let c = cx(&d, &selection, &p);
     let target = TypeTool::text(&c, second).unwrap();
-    let layout = vectorcraft_text::layout(FontDb::global(), target);
-    let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+    let layout = pluma_text::layout(FontDb::global(), target);
+    let (a, b) = pluma_text::caret_position(&layout, 3);
     let at = target.xf * a.midpoint(b);
     let down = tool.pointer(&c, &PointerEvent::new(PointerKind::Down, at.x + 0.1, at.y));
     assert!(down.contains(&Action::Exec("text.discardEmpty".into(), json!({"id": first.0}))));
@@ -847,7 +841,7 @@ fn area_and_path_tools_convert_clicked_paths() {
 fn area_and_path_tools_hit_path_outline_not_fill_interior() {
     let (mut d, rect) = crate::testutil::doc_with_rect();
     if let Some(n) = d.node_mut(rect) {
-        n.appearance.set_stroke(vectorcraft_color::Paint::None);
+        n.appearance.set_stroke(pluma_color::Paint::None);
     }
     let (sel, p) = (Selection::default(), paint());
     let c = cx(&d, &sel, &p);
@@ -904,11 +898,11 @@ fn doc_with_rect_and_line() -> (Document, NodeId, NodeId) {
     let (mut d, rect) = crate::testutil::doc_with_rect();
     let l = d.layers[0].id;
     let line = d.alloc_id();
-    let path = vectorcraft_geom::PathData::from_bezpath(&BezPath::from_vec(vec![
-        vectorcraft_geom::PathEl::MoveTo(Point::new(100.0, 400.0)),
-        vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 400.0)),
+    let path = pluma_geom::PathData::from_bezpath(&BezPath::from_vec(vec![
+        pluma_geom::PathEl::MoveTo(Point::new(100.0, 400.0)),
+        pluma_geom::PathEl::LineTo(Point::new(400.0, 400.0)),
     ]));
-    d.insert(Some(l), 1, Node::path(line, path, vectorcraft_doc::Appearance::default_art())).unwrap();
+    d.insert(Some(l), 1, Node::path(line, path, pluma_doc::Appearance::default_art())).unwrap();
     (d, rect, line)
 }
 
@@ -1155,8 +1149,8 @@ fn marked_text_is_underlined_with_the_converting_clause_thick() {
     assert_eq!(widths, vec![1.0, 2.5], "a thin underline, then the thick one under 演奏");
     // The candidate window follows the converting clause.
     let (top, _) = tool.ime_caret(&cx(&d, &sel, &p)).unwrap();
-    let lay = vectorcraft_text::layout(FontDb::global(), t);
-    let (at, _) = vectorcraft_text::caret_position(&lay, 9);
+    let lay = pluma_text::layout(FontDb::global(), t);
+    let (at, _) = pluma_text::caret_position(&lay, 9);
     assert!((top - t.xf * at).hypot() < 1e-6);
     // Keys wait for the IME; a commit replaces the marked text.
     assert!(key(&mut tool, &d, ToolKey::Backspace, Mods::default()).is_empty());
@@ -1186,7 +1180,7 @@ fn spacing_arrows_follow_each_text_objects_orientation() {
             let (mut d, id, mut tool) = editing("abcd");
             let NodeKind::Text(t) = &mut d.node_mut(id).unwrap().kind else { panic!("text") };
             t.vertical = true;
-            let path = vectorcraft_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 100.0, 100.0).to_path(0.1));
+            let path = pluma_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 100.0, 100.0).to_path(0.1));
             t.kind = match kind {
                 1 => TextKind::Area { frame: path },
                 2 => TextKind::OnPath { path, start: 0.0, end: None },
@@ -1272,7 +1266,7 @@ fn snap_to_glyph_lines_up_new_point_type_with_a_baseline() {
         NodeKind::Text(t) => t,
         _ => panic!("text"),
     };
-    let lay = vectorcraft_text::layout(FontDb::global(), existing);
+    let lay = pluma_text::layout(FontDb::global(), existing);
     let baseline_y = (existing.xf * Point::new(0.0, lay.lines[0].baseline)).y;
     let mut tool = TypeTool::new("type");
     tool.pointer(&c, &PointerEvent::new(PointerKind::Down, 250.0, baseline_y + 2.0));
@@ -1329,10 +1323,10 @@ fn area_type_drag_measure_labels_honor_preference() {
 fn layout_cache_follows_fonts_added_later() {
     // Other tests can load system fonts; this assertion needs its own process-wide database.
     #[cfg(not(target_arch = "wasm32"))]
-    if std::env::var("VECTORCRAFT_FONT_CACHE_TEST_CHILD").as_deref() != Ok("1") {
+    if std::env::var("PLUMA_FONT_CACHE_TEST_CHILD").as_deref() != Ok("1") {
         let output = std::process::Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "text::tests::layout_cache_follows_fonts_added_later", "--nocapture", "--test-threads=1"])
-            .env("VECTORCRAFT_FONT_CACHE_TEST_CHILD", "1")
+            .env("PLUMA_FONT_CACHE_TEST_CHILD", "1")
             .output()
             .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1348,7 +1342,7 @@ fn layout_cache_follows_fonts_added_later() {
     let NodeKind::Text(t) = &d.node(id).unwrap().kind else { panic!("not text") };
     let before = tool.layout(t);
     assert!(Arc::ptr_eq(&before, &tool.layout(t)), "cached while the fonts don't change");
-    let font = vectorcraft_text::test_fonts::variable_font().unwrap();
+    let font = pluma_text::test_fonts::variable_font().unwrap();
     assert!(FontDb::global().add_font(font) > 0, "the test font is new to this process");
     assert!(!Arc::ptr_eq(&before, &tool.layout(t)), "a font added after the layout must refresh it");
 }
@@ -1481,8 +1475,8 @@ fn a_drag_or_a_click_on_other_type_while_editing_acts_at_once() {
     d.insert(Some(l), 1, Node::new(other, NodeKind::Text(Box::new(t)))).unwrap();
     let c = cx(&d, &sel, &p);
     let t = TypeTool::text(&c, other).unwrap().clone();
-    let lay = vectorcraft_text::layout(FontDb::global(), &t);
-    let (top, bot) = vectorcraft_text::caret_position(&lay, 2);
+    let lay = pluma_text::layout(FontDb::global(), &t);
+    let (top, bot) = pluma_text::caret_position(&lay, 2);
     let at = t.xf * top.midpoint(bot);
     tool.start_editing(id, 0);
     let acts = click(&mut tool, &c, at.x, at.y);
@@ -1568,7 +1562,7 @@ fn a_huge_selection_of_type_shows_no_ports() {
 #[test]
 fn type_in_perspective_has_no_ports_and_doesnt_count() {
     let (mut d, id) = crate::testutil::doc_with_area_type();
-    d.node_mut(id).unwrap().extras_mut().perspective = Some(Box::new(vectorcraft_doc::PerspectiveAttachment::new("left", 0.0)));
+    d.node_mut(id).unwrap().extras_mut().perspective = Some(Box::new(pluma_doc::PerspectiveAttachment::new("left", 0.0)));
     let (mut sel, p) = (Selection::default(), paint());
     sel.set([id]);
     let mut marks = PortMarks::default();
@@ -1729,7 +1723,7 @@ fn ime_target_is_stable_within_an_edit_session() {
 /// to the concatenated logical text.
 #[test]
 fn ime_surrounding_maps_across_styled_runs() {
-    use vectorcraft_doc::TextRun;
+    use pluma_doc::TextRun;
     let (mut d, id, mut tool) = editing("aé😀z");
     let NodeKind::Text(t) = &mut d.node_mut(id).unwrap().kind else { panic!() };
     t.runs =
@@ -1746,7 +1740,7 @@ fn ime_surrounding_maps_across_styled_runs() {
 /// units count Unicode scalars; byte units round inward instead of cutting a multibyte scalar.
 #[test]
 fn ime_character_deletion_walks_styled_runs_backwards_from_the_caret() {
-    use vectorcraft_doc::TextRun;
+    use pluma_doc::TextRun;
     for (caret, before, after, unit, expected, shifted, committed) in [
         (7, 1, 0, SurroundingUnit::Chars, "aéz!x", 3, "aéQz!x"),
         (8, 3, 0, SurroundingUnit::Chars, "a!x", 1, "aQ!x"),
@@ -1842,11 +1836,11 @@ fn shift_enter_inserts_soft_return() {
 
 #[test]
 fn soft_return_in_a_list_item_keeps_tab_within_the_paragraph() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
 
     let (mut d, id, mut tool) = editing("One");
     let NodeKind::Text(t) = &mut d.node_mut(id).unwrap().kind else { panic!("text") };
-    t.set_all_paras(vectorcraft_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot)), ..Default::default() });
+    t.set_all_paras(pluma_doc::ParaStyle { list: Some(ParaList::bulleted(Bullet::Dot)), ..Default::default() });
     tool.caret = 3;
     tool.anchor = 3;
     let snapshot = d.clone();

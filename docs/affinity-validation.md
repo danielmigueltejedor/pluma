@@ -133,13 +133,13 @@ reporting results: there is no evidence for universal `.af` compatibility.
 The pinned corpus contains 51 documents, including 33 current `.af` files with
 34 artboards. Native model signatures freeze retained geometry, paints, masks,
 images, text runs, fonts, bounds and warnings. Every current board is saved and
-reloaded in `.vectorcraft`, then exported through SVG, PDF and PSD. SVG/PDF
+reloaded in `.pluma`, then exported through SVG, PDF and PSD. SVG/PDF
 dimensions and reimport are checked; a test-only decoder written from the public
 PSD specification compares merged pixels and alpha with Pluma's PNG output.
 These export checks establish internal consistency, not independent Affinity fidelity.
 
 A headless Pluma MCP session also opens the real two-board `.af`, saves
-and reopens `.vectorcraft` with the complete saved model unchanged, exports both
+and reopens `.pluma` with the complete saved model unchanged, exports both
 boards as SVG/PSD, then reopens and exports the two-page PDF again with embedded
 editing data disabled, exercising the PDF reader rather than native restoration. The normal
 save command adds creation/modification metadata for the new native file.

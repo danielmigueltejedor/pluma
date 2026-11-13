@@ -1,6 +1,6 @@
-use vectorcraft_doc::corners::set_corners;
-use vectorcraft_doc::{Appearance, Node, Selection};
-use vectorcraft_geom::{PathData, SubPath};
+use pluma_doc::corners::set_corners;
+use pluma_doc::{Appearance, Node, Selection};
+use pluma_geom::{PathData, SubPath};
 
 use super::*;
 use crate::testutil::*;

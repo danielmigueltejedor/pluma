@@ -50,14 +50,14 @@ impl Writer<'_> {
         });
     }
 
-    fn colorized_key(&self, im: &vectorcraft_doc::ImageObject, color: Color) -> super::ColorizedKey {
+    fn colorized_key(&self, im: &pluma_doc::ImageObject, color: Color) -> super::ColorizedKey {
         let rgb = color.to_rgb().map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
         (im.key.clone(), im.width, im.height, self.tiny().then_some(rgb))
     }
 
     /// Colorize the decoded gray pixels without changing the source blob. The white pixels of the
     /// coverage image contribute their alpha to an alpha mask; Tiny uses the same alpha in RGBA.
-    pub(super) fn colorized_image(&mut self, n: &Node, im: &vectorcraft_doc::ImageObject, color: Color, blob: &ImageBlob) {
+    pub(super) fn colorized_image(&mut self, n: &Node, im: &pluma_doc::ImageObject, color: Color, blob: &ImageBlob) {
         let key = self.colorized_key(im, color);
         let rgb = color.to_rgb().map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
         let href = if let Some(href) = self.colorized_hrefs.get(&key) {
@@ -70,7 +70,7 @@ impl Writer<'_> {
             if u64::from(width)
                 .checked_mul(u64::from(height))
                 .and_then(|pixels| pixels.checked_mul(4))
-                .is_none_or(|bytes| bytes > vectorcraft_doc::MAX_RASTER_ALLOC)
+                .is_none_or(|bytes| bytes > pluma_doc::MAX_RASTER_ALLOC)
             {
                 self.warn(UNDECODED);
                 return;
@@ -159,7 +159,7 @@ impl Writer<'_> {
 
     /// The `href` of image `im`: its file with [`ImageMode::Link`] (or when its pixels are
     /// missing), else its bytes. `None` when it has neither.
-    pub(super) fn image_href(&mut self, im: &vectorcraft_doc::ImageObject) -> Option<String> {
+    pub(super) fn image_href(&mut self, im: &pluma_doc::ImageObject) -> Option<String> {
         let (doc, link) = (self.doc, self.opts.images == ImageMode::Link);
         match (im.link.as_ref().filter(|_| link), doc.image_blob(im)) {
             (Some(l), _) => Some(l.path.clone()),
@@ -173,7 +173,7 @@ impl Writer<'_> {
     pub(super) fn share_images(&mut self, art: &Node) {
         self.count_colorized_images(art);
         // Each image's count and its first piece, which shows what they all show.
-        let mut seen: HashMap<(String, u32, u32), (usize, vectorcraft_doc::ImageObject)> = HashMap::new();
+        let mut seen: HashMap<(String, u32, u32), (usize, pluma_doc::ImageObject)> = HashMap::new();
         art.walk(&mut |c| {
             if let NodeKind::Image(im) = &c.kind {
                 if matches!(c.extras().colorize.as_deref(), Some(Paint::Solid { .. }))
@@ -367,9 +367,9 @@ impl Writer<'_> {
         }
         let bp = bp.get_or_insert_with(|| doc_path(paths));
         let doc = self.doc;
-        let brushes = self.brushes.get_or_insert_with(|| vectorcraft_brush::library(doc));
+        let brushes = self.brushes.get_or_insert_with(|| pluma_brush::library(doc));
         match st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) {
-            Some(b) => StrokePlan::Brush(vectorcraft_brush::stroke_pieces(doc, b, bp, st)),
+            Some(b) => StrokePlan::Brush(pluma_brush::stroke_pieces(doc, b, bp, st)),
             None => StrokePlan::Written(stroke::for_writer(bp, st)),
         }
     }
@@ -435,7 +435,7 @@ impl Writer<'_> {
     /// box.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn raster_paint(&mut self, g: &GradientPaint, bounds: Rect, clip: &[String], rule: FillRule, props: &Props, side: &str, fill: bool) {
-        use vectorcraft_color::freeform::{grid_size, painted_box, spread_scale};
+        use pluma_color::freeform::{grid_size, painted_box, spread_scale};
         let Some(b) = painted_box(bounds) else { return };
         let freeform = g.gradient.kind == GradientKind::Freeform;
         let (rgba, cols, rows): (Vec<u8>, u16, u16) = if freeform {
@@ -502,7 +502,7 @@ impl Writer<'_> {
     /// like them.
     pub(super) fn filtered(&mut self, n: &Node) {
         let mut inner = n.clone();
-        inner.appearance.effects.retain(|e| !vectorcraft_effects::is_raster(&e.id));
+        inner.appearance.effects.retain(|e| !pluma_effects::is_raster(&e.id));
         // An SVG filter's user-space coordinates are the document's from the effect's origin: the
         // object is written in them, in a group that moves it where the rest of the art goes.
         let xf = self.xf;
@@ -525,9 +525,9 @@ impl Writer<'_> {
 
     /// Open one `<g filter>` per visible raster effect of `effects` (an object's, or one fill or
     /// stroke's) on `n`, outermost last effect; returns how many to close.
-    pub(super) fn open_filters(&mut self, n: &Node, effects: &[vectorcraft_doc::Effect]) -> usize {
-        use vectorcraft_effects::RasterFx;
-        let fx = vectorcraft_effects::raster_effects(effects);
+    pub(super) fn open_filters(&mut self, n: &Node, effects: &[pluma_doc::Effect]) -> usize {
+        use pluma_effects::RasterFx;
+        let fx = pluma_effects::raster_effects(effects);
         if self.tiny() {
             if !fx.is_empty() {
                 self.warn("SVG Tiny 1.2 has no filters: shadows, glows, blurs and feathers are left out");
@@ -545,7 +545,7 @@ impl Writer<'_> {
         // An SVG filter that is the object's last effect is written as it is ([`Self::filtered`]).
         let live = if std::ptr::eq(effects, n.appearance.effects.as_slice()) { live_svg_filter(effects) } else { None };
         for (k, f) in fx.iter().enumerate().rev() {
-            if let RasterFx::Pixel(vectorcraft_effects::PixelFx::Svg(sf)) = f
+            if let RasterFx::Pixel(pluma_effects::PixelFx::Svg(sf)) = f
                 && live.is_some()
                 && k + 1 == fx.len()
             {
@@ -555,7 +555,7 @@ impl Writer<'_> {
                 let mut input = n.clone();
                 input.appearance.effects.clear();
                 let input_bounds = input.visual_bounds_with(&self.doc.symbol_boxes()).unwrap_or_default();
-                if let Some(def) = sf.written_xml(input_bounds).and_then(|xml| vectorcraft_effects::svg_filter::with_id(&xml, &fid)) {
+                if let Some(def) = sf.written_xml(input_bounds).and_then(|xml| pluma_effects::svg_filter::with_id(&xml, &fid)) {
                     self.def(1, &def);
                     self.line(&format!("<g filter=\"url(#{fid})\">"));
                     self.depth += 1;
@@ -568,14 +568,15 @@ impl Writer<'_> {
                 continue;
             }
             if matches!(f, RasterFx::DropShadow { darkness: Some(_), .. }) {
-                let mut paints = n.appearance.items.iter().filter(|i| vectorcraft_effects::paints(i));
-                let uniform = paints.next().is_some_and(|i| {
-                    matches!(i.paint(), vectorcraft_color::Paint::Solid { color: vectorcraft_color::Color::Rgb { .. }, swatch: None, .. })
-                }) && paints.next().is_none();
-                if self.doc.color_mode == vectorcraft_doc::ColorMode::Cmyk
-                    || !vectorcraft_color::cms::active().rgb_is_srgb()
+                let mut paints = n.appearance.items.iter().filter(|i| pluma_effects::paints(i));
+                let uniform = paints
+                    .next()
+                    .is_some_and(|i| matches!(i.paint(), pluma_color::Paint::Solid { color: pluma_color::Color::Rgb { .. }, swatch: None, .. }))
+                    && paints.next().is_none();
+                if self.doc.color_mode == pluma_doc::ColorMode::Cmyk
+                    || !pluma_color::cms::active().rgb_is_srgb()
                     || !uniform
-                    || !matches!(n.kind, vectorcraft_doc::NodeKind::Path { .. } | vectorcraft_doc::NodeKind::Compound { .. })
+                    || !matches!(n.kind, pluma_doc::NodeKind::Path { .. } | pluma_doc::NodeKind::Compound { .. })
                 {
                     self.warn("Some Darkness shadows require rendered images to preserve source colors, profiles and gradients");
                 }
@@ -592,9 +593,8 @@ impl Writer<'_> {
                 None => String::new(),
             };
             let sd = |blur: f64| fmt_num((blur / 2.0).max(0.0), 3);
-            let flood = |c: &vectorcraft_color::Color, o: f32| {
-                format!("<feFlood flood-color=\"{}\" flood-opacity=\"{}\"/>", c.to_hex(), fmt_num(o as f64, 3))
-            };
+            let flood =
+                |c: &pluma_color::Color, o: f32| format!("<feFlood flood-color=\"{}\" flood-opacity=\"{}\"/>", c.to_hex(), fmt_num(o as f64, 3));
             let body = match f {
                 // Subtract in sRGB before blur, preserving coverage and separate opacity.
                 RasterFx::DropShadow { opacity, dx, dy, blur, darkness: Some(darkness), .. } => format!(
@@ -683,17 +683,15 @@ pub(super) fn pixel_gradient(p: &Paint, fill: bool) -> Option<&GradientPaint> {
 
 /// The SVG filter (Effect › SVG Filters) of an object's `effects` that SVG keeps as a `<filter>`:
 /// its last visible effect, measured in points.
-fn live_svg_filter(effects: &[vectorcraft_doc::Effect]) -> Option<vectorcraft_effects::svg_filter::SvgFilterFx> {
-    if !vectorcraft_effects::svg_filter::writes_live(effects) {
+fn live_svg_filter(effects: &[pluma_doc::Effect]) -> Option<pluma_effects::svg_filter::SvgFilterFx> {
+    if !pluma_effects::svg_filter::writes_live(effects) {
         return None;
     }
-    let mut fx = vectorcraft_effects::raster_effects(effects);
+    let mut fx = pluma_effects::raster_effects(effects);
     // A region measured against the object's box is kept only when the filter runs on the object itself.
     let alone = fx.len() == 1;
     match fx.pop() {
-        Some(vectorcraft_effects::RasterFx::Pixel(vectorcraft_effects::PixelFx::Svg(f)))
-            if f.in_points() && (alone || !f.measured()) && f.writes_as_svg11() =>
-        {
+        Some(pluma_effects::RasterFx::Pixel(pluma_effects::PixelFx::Svg(f))) if f.in_points() && (alone || !f.measured()) && f.writes_as_svg11() => {
             Some(f)
         }
         _ => None,
@@ -701,6 +699,6 @@ fn live_svg_filter(effects: &[vectorcraft_doc::Effect]) -> Option<vectorcraft_ef
 }
 
 /// Any visible raster effect (shadow, glow, blur, feather) in `effects`?
-pub(super) fn has_raster(effects: &[vectorcraft_doc::Effect]) -> bool {
-    effects.iter().any(|e| e.visible && vectorcraft_effects::is_raster(&e.id))
+pub(super) fn has_raster(effects: &[pluma_doc::Effect]) -> bool {
+    effects.iter().any(|e| e.visible && pluma_effects::is_raster(&e.id))
 }

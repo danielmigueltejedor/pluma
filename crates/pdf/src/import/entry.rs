@@ -27,13 +27,13 @@ pub(super) const PATTERN_REUSE: u32 = 16;
 
 /// The most objects one import makes (paths, images, lines of type, and the copies of mask art
 /// each masked object takes): half of what a saved document may hold to open again
-/// ([`vectorcraft_doc::node::MAX_READ_NODES`]: 4M, 512K in the web build), leaving room for the
+/// ([`pluma_doc::node::MAX_READ_NODES`]: 4M, 512K in the web build), leaving room for the
 /// groups, clips and layers around them. A page of a million paths still comes in whole, as an
 /// SVG or CAD drawing of two million objects does. What it stops is a small file drawing one form
 /// over and over, which neither the scan's operator limit nor the interpreter's budgets bound
 /// (#3569: 1 KB drawing 25 squares 32,000 times took 877 MB, about 1 KB an object, so this is
 /// about 2 GB).
-const MAX_OBJECTS: usize = vectorcraft_doc::node::MAX_READ_NODES / 2;
+const MAX_OBJECTS: usize = pluma_doc::node::MAX_READ_NODES / 2;
 
 /// Warning: the import reached [`MAX_OBJECTS`].
 pub(super) const TOO_MANY_OBJECTS: &str = "the file draws more objects than can be imported: the rest were left out";
@@ -197,13 +197,13 @@ pub fn holds_outlines(doc: &Document) -> bool {
 pub fn import_with_report(bytes: &[u8], opts: &ImportOptions) -> Result<ImportReport, PdfError> {
     // The interpreter draws forms, patterns, glyphs and masks inside one another by recursion, in
     // large stack frames: it caps that (50 deep), and gets room for the cap whatever thread asks.
-    vectorcraft_doc::depth::with_deep_stack(|| read(bytes, opts))
+    pluma_doc::depth::with_deep_stack(|| read(bytes, opts))
 }
 
 /// [`import_with_report`] of `opened`, the PDF `bytes` already read and checked
 /// ([`crate::open_pdf`] with `opts`' password), so the file isn't read again.
 pub fn import_opened(bytes: &[u8], opened: &crate::Opened, opts: &ImportOptions) -> Result<ImportReport, PdfError> {
-    vectorcraft_doc::depth::with_deep_stack(|| read_opened(bytes, opts, &crate::pages::open_options(), &opened.pdf))
+    pluma_doc::depth::with_deep_stack(|| read_opened(bytes, opts, &crate::pages::open_options(), &opened.pdf))
 }
 
 /// [`import_with_report`] on the thread that asks.
@@ -213,7 +213,7 @@ pub(crate) fn read(bytes: &[u8], opts: &ImportOptions) -> Result<ImportReport, P
 
 #[cfg(test)]
 pub(crate) fn import_with_reader_options(bytes: &[u8], opts: &ImportOptions, reader: &craft_pdf::OpenOptions) -> Result<ImportReport, PdfError> {
-    vectorcraft_doc::depth::with_deep_stack(|| read_with_reader_options(bytes, opts, reader))
+    pluma_doc::depth::with_deep_stack(|| read_with_reader_options(bytes, opts, reader))
 }
 
 fn read_with_reader_options(bytes: &[u8], opts: &ImportOptions, reader: &craft_pdf::OpenOptions) -> Result<ImportReport, PdfError> {
@@ -358,7 +358,7 @@ fn read_opened(
         art_boxes |= crate::pages::states_art(page);
         let mut right = ab.x1;
         if opts.crop == CropTo::Bounding
-            && let Some(art) = vectorcraft_doc::live::nodes_bounds(&children)
+            && let Some(art) = pluma_doc::live::nodes_bounds(&children)
         {
             right = right.max(art.x1);
             ab = art;
@@ -434,7 +434,7 @@ fn read_opened(
     // A file painted mostly in CMYK opens as a CMYK document (with CMYK default swatches).
     if b.colors.cmyk_document() {
         doc.color_mode = ColorMode::Cmyk;
-        let (swatches, groups) = vectorcraft_color::default_swatches(ColorMode::Cmyk.model());
+        let (swatches, groups) = pluma_color::default_swatches(ColorMode::Cmyk.model());
         (doc.swatches, doc.swatch_groups) = (swatches.into(), groups.into());
     }
     doc.swatches.extend(b.colors.swatches());

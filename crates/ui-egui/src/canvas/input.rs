@@ -8,10 +8,10 @@ use super::view::{
     HOLD_DELAY, HOLD_ZOOM, SCRUB_SLOP, SCRUB_ZOOM, WheelTurn, animated_zoom, pan_pixels, rotate_about, scroll_view, touch_gestures, trackpad_turn,
     wheel, whole_pixels, zoom_about,
 };
-use super::{Color32, Drag, Mods, Point, PointerEvent, PointerKind, Pos2, Shape, Stroke, Ui, VectorcraftApp, View, Xf, json};
+use super::{Color32, Drag, Mods, PlumaApp, Point, PointerEvent, PointerKind, Pos2, Shape, Stroke, Ui, View, Xf, json};
 
 /// Dispatch canvas pointer, keyboard and drop events through the active document view.
-pub(super) fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: egui::Rect) {
+pub(super) fn handle_input(app: &mut PlumaApp, ui: &Ui, resp: &egui::Response, rect: egui::Rect) {
     let (pointer, m, space, hover) = wheel_view(app, ui, resp, rect);
     let v = *app.view().unwrap_or(&View::default());
     let xf = Xf::new(rect, &v);
@@ -187,19 +187,14 @@ struct Pointing<'a> {
     space: bool,
     xf: Xf,
     v: View,
-    view: vectorcraft_engine::ViewInfo,
+    view: pluma_engine::ViewInfo,
     /// Whether Backtick was held at the end of the frame before ([`backquote_seen`]).
     backquote_before: Option<bool>,
 }
 
 /// Zoom around the pointer, and scroll ([`wheel`]); a trackpad rotation turns the view. Returns the pointer, the
 /// modifiers, whether Space is held and where the pointer hovers over the canvas.
-fn wheel_view(
-    app: &mut VectorcraftApp,
-    ui: &Ui,
-    resp: &egui::Response,
-    rect: egui::Rect,
-) -> (egui::PointerState, egui::Modifiers, bool, Option<Pos2>) {
+fn wheel_view(app: &mut PlumaApp, ui: &Ui, resp: &egui::Response, rect: egui::Rect) -> (egui::PointerState, egui::Modifiers, bool, Option<Pos2>) {
     let line = ui.ctx().options(|o| o.input_options.line_scroll_speed);
     let wheel_zooms = app.session.prefs.zoom_with_mouse_wheel;
     // A docked field may be drawn later and has not consumed its wheel event yet. Only canvas
@@ -247,7 +242,7 @@ fn wheel_view(
 
 /// In Presentation Mode a click anywhere goes to the next artboard. The tool receives no press, drag or hover, and a
 /// drag does not pan the view. A drag that began before the mode was turned on ends as usual.
-fn present_step(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, drag: Option<Drag>, at: Option<Pos2>) {
+fn present_step(app: &mut PlumaApp, ui: &Ui, f: &Pointing, drag: Option<Drag>, at: Option<Pos2>) {
     let (resp, pointer) = (f.resp, f.pointer);
     let pressed = drag.is_none() && pointer.primary_pressed() && resp.hovered() && at.is_some();
     // `press` is this frame's new press, or else the press held so far. A quick tap can be
@@ -266,7 +261,7 @@ fn present_step(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, drag: Option<Dr
 }
 
 /// A press on the canvas at `p` starts a gesture: a zoom, pan or turn of the view, or the tool's drag.
-fn begin_drag(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, p: Pos2) {
+fn begin_drag(app: &mut PlumaApp, ui: &Ui, f: &Pointing, p: Pos2) {
     let Pointing { resp, rect, m, space, xf, v, view, .. } = *f;
     let tool = app.session.tool_id();
     // Held, Space is the Hand tool for the moment, Space+Shift is the Rotate View tool and
@@ -323,7 +318,7 @@ fn begin_drag(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, p: Pos2) {
 }
 
 /// A gesture held at `p`: the view follows, or the tool gets drag events.
-fn drag_held(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, d: Drag, p: Pos2) {
+fn drag_held(app: &mut PlumaApp, ui: &Ui, f: &Pointing, d: Drag, p: Pos2) {
     let Pointing { resp, rect, pointer, m, space, xf, view, .. } = *f;
     // Where the pointer was in the frame before: a zoom marquee moved with Space follows it.
     let before: Option<Pos2> = ui.data(|dd| dd.get_temp(drag_pos_id()));
@@ -422,7 +417,7 @@ fn drag_held(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, d: Drag, p: Pos2) 
 
 /// A drag for each of this frame's moves before the pointer's position ([`tool_frame_moves`]), each
 /// with the pressure and the tilt and rotation the host's feed kept for that move, else the latest.
-fn dispatch_frame_moves(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, backquote: bool, moves: Vec<FrameMove>) {
+fn dispatch_frame_moves(app: &mut PlumaApp, ui: &Ui, f: &Pointing, backquote: bool, moves: Vec<FrameMove>) {
     let Pointing { m, space, xf, view, .. } = *f;
     for (at, force, pose) in moves {
         let pressure = force.unwrap_or_else(|| pen_pressure(ui, app, false));
@@ -432,7 +427,7 @@ fn dispatch_frame_moves(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, backquo
 }
 
 /// A gesture released at `p`: the view settles, or the tool gets its up.
-fn drag_released(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, d: Drag, p: Pos2) {
+fn drag_released(app: &mut PlumaApp, ui: &Ui, f: &Pointing, d: Drag, p: Pos2) {
     let Pointing { resp, rect, m, space, xf, view, .. } = *f;
     // The last position the tool's drag got: none if the press never dragged.
     let last_drag: Option<Point> = ui.data(|dd| dd.get_temp(tool_drag_doc_id()));
@@ -533,7 +528,7 @@ fn drag_released(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, d: Drag, p: Po
 }
 
 /// A double-click at `p`: an artboard's name edits, else the tool gets it.
-fn double_click(app: &mut VectorcraftApp, ui: &Ui, f: &Pointing, p: Pos2) {
+fn double_click(app: &mut PlumaApp, ui: &Ui, f: &Pointing, p: Pos2) {
     let Pointing { m, space, xf, view, .. } = *f;
     if let Some(i) = artboard_name_at(app, ui, &xf, p) {
         begin_artboard_name_edit(ui, app, i);

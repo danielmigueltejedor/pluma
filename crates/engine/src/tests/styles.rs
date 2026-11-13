@@ -1,9 +1,9 @@
 //! Graphic styles: transparency, capture from groups and type, add-apply, unique names, links
 //! (redefine, break link, delete, rename), Select All Unused, Sort by Name and Select > Same.
 
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{GraphicStyle, Knockout, Node};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{GraphicStyle, Knockout, Node};
 
 use crate::*;
 
@@ -66,7 +66,7 @@ fn styles_carry_opacity_and_blend_through_a_save() {
 
     // Native round trip: the style's transparency, its id and the objects' links survive.
     let doc = s.doc().unwrap().doc.clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(back.graphic_styles, doc.graphic_styles);
     assert_eq!(back.node(b).unwrap().extras().graphic_style, Some(g.id));
     // Styles and objects from files without links still load (and get an id when first linked).

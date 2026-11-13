@@ -2,10 +2,10 @@
 //! Magic Wand panel's (session state, kept across tool switches); the tool runs
 //! `select.magicWand` on click.
 
+use pluma_color::Paint;
+use pluma_doc::{Document, Node, NodeId, NodeKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
 
 use super::select::selectable_ids;
 use super::{CommandSpec, EngineError, Result, Session, always, bad, bool_or, cmd, has_doc, id_param, str_param};
@@ -91,7 +91,7 @@ fn set(s: &mut Session, p: &Value) -> Result<Value> {
 /// without any, the default character fill, as `document.inspect` reports it).
 pub(crate) fn fill_of(n: &Node) -> Paint {
     match &n.kind {
-        NodeKind::Text(t) => t.runs.first().map(|r| r.style.fill.clone()).unwrap_or_else(|| vectorcraft_doc::CharStyle::default().fill),
+        NodeKind::Text(t) => t.runs.first().map(|r| r.style.fill.clone()).unwrap_or_else(|| pluma_doc::CharStyle::default().fill),
         _ => n.appearance.fill_paint(),
     }
 }

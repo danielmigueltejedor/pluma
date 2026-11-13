@@ -1,4 +1,4 @@
-//! VectorCraft's built-in add-ons: extra tools beyond the standard menus, each a module of its own
+//! Pluma's built-in add-ons: extra tools beyond the standard menus, each a module of its own
 //! with commands under `addon.<name>.*` (see `docs/mcp.md`).
 
 mod arrange;

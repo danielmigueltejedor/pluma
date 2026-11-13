@@ -2,27 +2,27 @@
 //! applies to the selection.
 
 use egui::{Event, PointerButton, Pos2, Rect, pos2, vec2};
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::Point;
 
 use crate::canvas::Xf;
 use crate::menus::{self, Item};
-use crate::{VectorcraftApp, canvas};
+use crate::{PlumaApp, canvas};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app
 }
 
-fn rect(app: &mut VectorcraftApp, x: f64, y: f64) -> NodeId {
+fn rect(app: &mut PlumaApp, x: f64, y: f64) -> NodeId {
     NodeId(app.run("shape.rectangle", json!({"x": x, "y": y, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap())
 }
 
 /// One headless frame of the canvas on an 800 × 600 window → the text painted, with its rect.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| canvas::show(app, ui));
     out.textures_delta.clear();
@@ -43,7 +43,7 @@ fn press(pos: Pos2, button: PointerButton, pressed: bool) -> Event {
 }
 
 /// Click `button` at `pos` (move, press, release, then a frame to show the result).
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, pos: Pos2, button: PointerButton) -> Vec<(String, Rect)> {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, pos: Pos2, button: PointerButton) -> Vec<(String, Rect)> {
     frame(app, ctx, vec![Event::PointerMoved(pos)]);
     frame(app, ctx, vec![press(pos, button, true)]);
     frame(app, ctx, vec![press(pos, button, false)]);
@@ -51,7 +51,7 @@ fn click(app: &mut VectorcraftApp, ctx: &egui::Context, pos: Pos2, button: Point
 }
 
 /// Where document point `p` is on screen (after a first frame laid the canvas out).
-fn screen(app: &VectorcraftApp, x: f64, y: f64) -> Pos2 {
+fn screen(app: &PlumaApp, x: f64, y: f64) -> Pos2 {
     Xf::new(app.canvas_rect.unwrap(), app.view().unwrap()).to_screen(Point::new(x, y))
 }
 
@@ -146,7 +146,7 @@ fn right_click_on_a_locked_object_offers_unlock_by_its_name() {
 /// swaps them — the same effect as Preferences ▸ Units ▸ General (`document.setUnits`).
 #[test]
 fn right_clicking_a_ruler_swaps_the_document_units() {
-    use vectorcraft_doc::Unit;
+    use pluma_doc::Unit;
     let mut app = app();
     app.ui.view.rulers = true;
     let ctx = egui::Context::default();
@@ -174,7 +174,7 @@ fn right_clicking_a_ruler_swaps_the_document_units() {
 #[test]
 fn cmd_alt_shift_u_switches_to_the_next_unit() {
     use crate::shortcut_editor as ed;
-    use vectorcraft_doc::Unit;
+    use pluma_doc::Unit;
     assert_eq!(ed::default_command_shortcut("document.switchUnits"), Some("Cmd+Alt+Shift+U"));
     assert_eq!(ed::command_for_key("Cmd+Alt+Shift+U"), Some("document.switchUnits"));
     let shown = menus::pretty_shortcut("Cmd+Alt+Shift+U");
@@ -184,7 +184,7 @@ fn cmd_alt_shift_u_switches_to_the_next_unit() {
     let rows: Vec<_> = listed.as_array().expect("rows").iter().map(|r| (r["label"].clone(), r["group"].clone(), r["default"].clone())).collect();
     assert_eq!(rows, [(json!("Switch Units"), json!("Document"), json!("Cmd+Alt+Shift+U"))], "Keyboard Shortcuts lists it under Document");
     assert_eq!(app.run("shortcuts.conflicts", json!({})).unwrap(), json!([]), "no other default has the key");
-    fn press(app: &mut VectorcraftApp) {
+    fn press(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         let modifiers = egui::Modifiers::COMMAND | egui::Modifiers::ALT | egui::Modifiers::SHIFT;
         let ev = Event::Key { key: egui::Key::U, physical_key: None, pressed: true, repeat: false, modifiers };
@@ -255,7 +255,7 @@ fn selected_type_has_apply_bullets() {
     let mut app = app();
     let r = rect(&mut app, 0.0, 0.0);
     app.run("select.set", json!({"ids": [r.0]})).unwrap();
-    let bullets = |app: &VectorcraftApp| menus::context_entries(app).into_iter().find(|e| e.command.as_deref() == Some("type.applyBullets"));
+    let bullets = |app: &PlumaApp| menus::context_entries(app).into_iter().find(|e| e.command.as_deref() == Some("type.applyBullets"));
     assert!(bullets(&app).is_none(), "a rectangle has no paragraphs");
     let t = NodeId(app.run("text.create", json!({"x": 10, "y": 200, "text": "Item"})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [t.0]})).unwrap();
@@ -275,7 +275,7 @@ fn selected_type_has_apply_numbers() {
     let mut app = app();
     let r = rect(&mut app, 0.0, 0.0);
     app.run("select.set", json!({"ids": [r.0]})).unwrap();
-    let numbers = |app: &VectorcraftApp| menus::context_entries(app).into_iter().position(|e| e.command.as_deref() == Some("type.applyNumbers"));
+    let numbers = |app: &PlumaApp| menus::context_entries(app).into_iter().position(|e| e.command.as_deref() == Some("type.applyNumbers"));
     assert!(numbers(&app).is_none(), "a rectangle has no paragraphs");
     let t = NodeId(app.run("text.create", json!({"x": 10, "y": 200, "text": "Item"})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [t.0]})).unwrap();
@@ -288,7 +288,7 @@ fn selected_type_has_apply_numbers() {
     assert_eq!(typed.path, ["Type", "Bullets and Numbering"]);
     menus::invoke(&mut app, "type.applyNumbers", json!({}));
     let Some(NodeKind::Text(text)) = app.session.active().unwrap().doc.node(t).map(|n| &n.kind) else { panic!("text") };
-    assert_eq!(text.para_at(0).list.and_then(|l| l.number), Some(vectorcraft_doc::text::NumberStyle::Arabic));
+    assert_eq!(text.para_at(0).list.and_then(|l| l.number), Some(pluma_doc::text::NumberStyle::Arabic));
 }
 
 /// A right-click on type has Spelling › Auto Spell Check, which turns it on or off as Edit ›
@@ -309,7 +309,7 @@ fn right_click_on_type_turns_auto_spell_check_on_and_off() {
     let away = screen(&app, 390.0, 290.0);
     click(&mut app, &ctx, away, PointerButton::Primary);
     // Right-click the type, open Spelling: Auto Spell Check, not checked.
-    let open_spelling = |app: &mut VectorcraftApp| {
+    let open_spelling = |app: &mut PlumaApp| {
         let p = word_at(app, t, 0, 5);
         let texts = click(app, &ctx, p, PointerButton::Secondary);
         assert_eq!(app.session.active().unwrap().selection.objects, [t], "the type right-clicked is selected");
@@ -333,8 +333,8 @@ fn right_click_on_type_turns_auto_spell_check_on_and_off() {
 
 /// The members of the overlap area of Intertwine group `g` at (x, y), in the order they are drawn
 /// there, bottom first.
-fn intertwine_order(app: &VectorcraftApp, g: NodeId, x: f64, y: f64) -> Vec<NodeId> {
-    use vectorcraft_tools::intertwine::{drawn_order, face_at, faces};
+fn intertwine_order(app: &PlumaApp, g: NodeId, x: f64, y: f64) -> Vec<NodeId> {
+    use pluma_tools::intertwine::{drawn_order, face_at, faces};
     let st = app.session.active().unwrap();
     let children = st.doc.node(g).unwrap().children().unwrap();
     let face = face_at(&faces(children), Point::new(x, y)).unwrap();
@@ -349,7 +349,7 @@ fn intertwine_order(app: &VectorcraftApp, g: NodeId, x: f64, y: f64) -> Vec<Node
 fn right_click_where_three_intertwined_objects_overlap_arranges_the_nearest_one() {
     let mut app = app();
     // Rectangles from x = 50, 90 and 130, 120 wide: all three overlap from x = 130 to 170.
-    let wide = |app: &mut VectorcraftApp, x: f64| {
+    let wide = |app: &mut PlumaApp, x: f64| {
         NodeId(app.run("shape.rectangle", json!({"x": x, "y": 50, "width": 120, "height": 100})).unwrap()["id"].as_u64().unwrap())
     };
     let (a, b, c) = (wide(&mut app, 50.0), wide(&mut app, 90.0), wide(&mut app, 130.0));
@@ -441,7 +441,7 @@ fn every_context_label_is_a_menu_string() {
 }
 
 /// Point type holding `t` at (20, 60), with Auto Spell Check on.
-fn spelled(app: &mut VectorcraftApp, t: &str) -> NodeId {
+fn spelled(app: &mut PlumaApp, t: &str) -> NodeId {
     let id = NodeId(app.run("text.create", json!({"x": 20, "y": 60, "text": t, "size": 24})).unwrap()["id"].as_u64().unwrap());
     app.run("select.none", json!({})).unwrap();
     app.run("edit.autoSpellCheck", json!({})).unwrap();
@@ -449,16 +449,16 @@ fn spelled(app: &mut VectorcraftApp, t: &str) -> NodeId {
 }
 
 /// Where on screen the middle of bytes `a..b` of type object `id` is.
-fn word_at(app: &VectorcraftApp, id: NodeId, a: usize, b: usize) -> Pos2 {
+fn word_at(app: &PlumaApp, id: NodeId, a: usize, b: usize) -> Pos2 {
     let st = app.session.active().unwrap();
     let Some(NodeKind::Text(t)) = st.doc.node(id).map(|n| &n.kind) else { panic!("type") };
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
-    let q = vectorcraft_text::selection_quads(&lay, a, b)[0].map(|c| t.xf * c);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
+    let q = pluma_text::selection_quads(&lay, a, b)[0].map(|c| t.xf * c);
     let c = Point::new(q.iter().map(|p| p.x).sum::<f64>() / 4.0, q.iter().map(|p| p.y).sum::<f64>() / 4.0);
     screen(app, c.x, c.y)
 }
 
-fn plain(app: &VectorcraftApp, id: NodeId) -> String {
+fn plain(app: &PlumaApp, id: NodeId) -> String {
     match app.session.active().unwrap().doc.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => t.plain_text(),
         _ => panic!("type"),
@@ -522,7 +522,7 @@ fn ignore_all_and_add_to_dictionary_from_the_context_menu() {
     assert!(!has(&texts, "Ignore All"), "{texts:?}");
 }
 
-fn craft_proof_has(app: &mut VectorcraftApp, w: &str) -> bool {
+fn craft_proof_has(app: &mut PlumaApp, w: &str) -> bool {
     app.run("text.spelling.dictionary", json!({})).unwrap()["words"].as_array().unwrap().iter().any(|x| x == w)
 }
 
@@ -587,8 +587,8 @@ fn in_an_intertwine_group_the_type_drawn_on_top_is_the_one_right_clicked() {
     let quad = {
         let st = app.session.active().unwrap();
         let Some(NodeKind::Text(t)) = st.doc.node(under).map(|n| &n.kind) else { panic!("type") };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
-        vectorcraft_text::selection_quads(&lay, 0, 8)[0].map(|c| t.xf * c)
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
+        pluma_text::selection_quads(&lay, 0, 8)[0].map(|c| t.xf * c)
     };
     let (x0, x1) = (quad.iter().map(|c| c.x).fold(f64::MAX, f64::min), quad.iter().map(|c| c.x).fold(f64::MIN, f64::max));
     let (y0, y1) = (quad.iter().map(|c| c.y).fold(f64::MAX, f64::min), quad.iter().map(|c| c.y).fold(f64::MIN, f64::max));

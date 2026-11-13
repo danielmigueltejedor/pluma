@@ -5,10 +5,10 @@
 //! circle the end curves along); Shift steps the length by the keyboard increment; back over the
 //! end, the length snaps to none.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::{Point, SubPath};
+use pluma_pathops::addons::pathtools::{ExtendMode, extend_length_to, extend_open};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::{Point, SubPath};
-use vectorcraft_pathops::addons::pathtools::{ExtendMode, extend_length_to, extend_open};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -180,7 +180,7 @@ impl Tool for ExtendPathTool {
             let from = if n > k { k - 1 } else { n.saturating_sub(2) };
             let tail = if end.start { ext.anchors.get(..n - from) } else { ext.anchors.get(from..) };
             if let Some(tail) = tail {
-                let mut bp = vectorcraft_geom::BezPath::new();
+                let mut bp = pluma_geom::BezPath::new();
                 SubPath::new(tail.to_vec(), false).to_bezpath_into(&mut bp);
                 out.push(Overlay::Path { path: bp, color: GREY, width: 1.0, dashed: true });
             }
@@ -209,8 +209,8 @@ impl Tool for ExtendPathTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::{Appearance, Document, Node, Selection};
-    use vectorcraft_geom::PathData;
+    use pluma_doc::{Appearance, Document, Node, Selection};
+    use pluma_geom::PathData;
 
     /// A document with an open line from (100, 100) to (200, 100).
     fn doc_with_line() -> (Document, NodeId) {

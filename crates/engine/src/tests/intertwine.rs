@@ -3,8 +3,8 @@
 //! each other. Driven through `Session::execute`; the art is checked on screen, in the saved file
 //! and in the SVG and PDF output.
 
+use pluma_render::Rendered;
 use serde_json::{Value, json};
-use vectorcraft_render::Rendered;
 
 use crate::tests_clip::{hit, id_of, render, select, session};
 use crate::*;
@@ -46,7 +46,7 @@ fn arrange(s: &mut Session, p: Value) -> Value {
     s.execute("object.intertwine.arrange", &p).unwrap()
 }
 
-fn area(s: &Session, id: NodeId) -> Option<vectorcraft_geom::PathData> {
+fn area(s: &Session, id: NodeId) -> Option<pluma_geom::PathData> {
     s.doc().unwrap().doc.node(id).unwrap().extras().intertwine.as_deref().cloned()
 }
 
@@ -89,7 +89,7 @@ fn the_object_brought_over_shows_no_seam_of_the_one_below() {
     intertwined(&mut s);
     arrange(&mut s, json!({"at": [50, 30]}));
     let zoom = 8.0;
-    let r = vectorcraft_render::Renderer::new().render(&s.doc().unwrap().doc, 800, 800, Affine::scale(zoom), &Default::default());
+    let r = pluma_render::Renderer::new().render(&s.doc().unwrap().doc, 800, 800, Affine::scale(zoom), &Default::default());
     let mut worst = 0;
     for y in 160..360 {
         for x in 320..480 {
@@ -172,9 +172,9 @@ fn rings_and_bar(s: &mut Session) -> (NodeId, NodeId, NodeId, NodeId) {
 /// The members of the overlap area of Intertwine group `g` at (x, y), in the order they are drawn
 /// there, bottom first.
 fn order_at(d: &Document, g: NodeId, x: f64, y: f64) -> Vec<NodeId> {
-    use vectorcraft_tools::intertwine::{drawn_order, face_at, faces};
+    use pluma_tools::intertwine::{drawn_order, face_at, faces};
     let children = d.node(g).unwrap().children().unwrap();
-    let face = face_at(&faces(children), vectorcraft_geom::Point::new(x, y)).unwrap();
+    let face = face_at(&faces(children), pluma_geom::Point::new(x, y)).unwrap();
     drawn_order(children, &face).into_iter().map(|i| children[i].id).collect()
 }
 
@@ -245,7 +245,7 @@ fn a_move_that_changes_nothing_records_nothing_and_orders_survive_undo_and_save(
     assert_eq!(order(&s), [c, b, a]);
     let data = s.execute("document.export", &json!({"format": "vectorcraft"})).unwrap()["dataBase64"].clone();
     let mut o = Session::new();
-    o.execute("document.open", &json!({"name": "rings.vectorcraft", "dataBase64": data})).unwrap();
+    o.execute("document.open", &json!({"name": "rings.pluma", "dataBase64": data})).unwrap();
     assert_eq!(order_at(&o.doc().unwrap().doc, g, 50.0, 30.0), [c, b, a]);
     assert!(red(&render(&o), 50, 30) && blue(&render(&o), 50, 70));
     // Expand draws the same.
@@ -266,9 +266,9 @@ fn hovering_where_three_overlap_highlights_the_nearest_object() {
     select(&mut s, &ids);
     s.execute("object.intertwine.make", &json!({})).unwrap();
     let highlighted = |s: &mut Session, x: f64| {
-        s.pointer(&vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::Move, x, 30.0), view).unwrap();
+        s.pointer(&pluma_tools::PointerEvent::new(pluma_tools::PointerKind::Move, x, 30.0), view).unwrap();
         let o = s.overlays(view);
-        let [vectorcraft_tools::Overlay::Path { path, .. }] = o.as_slice() else { panic!("one highlight: {o:?}") };
+        let [pluma_tools::Overlay::Path { path, .. }] = o.as_slice() else { panic!("one highlight: {o:?}") };
         let r = path.bounding_box();
         (r.x0, r.x1)
     };
@@ -416,7 +416,7 @@ fn what_cannot_be_intertwined_is_refused_with_a_reason() {
 // ---------- on the canvas ----------
 
 fn press(s: &mut Session, pts: &[(f64, f64)], shift: bool) -> Vec<UiRequest> {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Mods, PointerEvent, PointerKind};
     let view = ViewInfo::default();
     let ev = |kind, (x, y): (f64, f64)| {
         let mut e = PointerEvent::new(kind, x, y);
@@ -440,7 +440,7 @@ fn make_chooses_the_intertwine_tool_and_a_click_on_an_overlap_arranges_it() {
     intertwined(&mut s);
     assert_eq!(s.tool_id(), "intertwine");
     // Hovering the overlap highlights it.
-    s.pointer(&vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::Move, 50.0, 30.0), view).unwrap();
+    s.pointer(&pluma_tools::PointerEvent::new(pluma_tools::PointerKind::Move, 50.0, 30.0), view).unwrap();
     assert_eq!(s.overlays(view).len(), 1);
     press(&mut s, &[(50.0, 30.0)], false);
     let r = render(&s);
@@ -449,7 +449,7 @@ fn make_chooses_the_intertwine_tool_and_a_click_on_an_overlap_arranges_it() {
     press(&mut s, &[(5.0, 5.0)], false);
     assert!(red(&render(&s), 50, 30));
     // Esc goes back to the tool chosen before Make.
-    let back = s.tool_key(vectorcraft_tools::ToolKey::Escape, Default::default(), view).unwrap();
+    let back = s.tool_key(pluma_tools::ToolKey::Escape, Default::default(), view).unwrap();
     assert_eq!(back, [UiRequest::SwitchTool("ellipse".into())]);
 }
 

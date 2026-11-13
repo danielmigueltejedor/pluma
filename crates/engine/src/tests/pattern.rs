@@ -1,11 +1,11 @@
 //! Pattern swatches, pattern editing mode and Repeat, driven through `Session::execute`.
 
+use pluma_color::Paint;
+use pluma_doc::pattern::{PATTERN_EDIT_LAYER, RepeatKind, TileType};
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::{Point, Rect};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::pattern::{PATTERN_EDIT_LAYER, RepeatKind, TileType};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::{Point, Rect};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::tests_menucmds::place_undecodable_png;
 use crate::*;
@@ -32,7 +32,7 @@ fn sel(s: &mut Session, ids: &[NodeId]) {
     s.execute("select.set", &json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>()})).unwrap();
 }
 
-fn doc(s: &Session) -> &vectorcraft_doc::Document {
+fn doc(s: &Session) -> &pluma_doc::Document {
     &s.doc().unwrap().doc
 }
 
@@ -575,9 +575,9 @@ fn hit_testing_in_edit_mode_only_reaches_tile_layer() {
     sel(&mut s, &[r]);
     s.execute("object.pattern.make", &json!({"name": "P"})).unwrap();
     let d = doc(&s);
-    let opt = vectorcraft_doc::hit::HitOptions::default();
-    assert!(vectorcraft_doc::hit::hit_test(d, Point::new(220.0, 220.0), opt).is_none());
-    let h = vectorcraft_doc::hit::hit_test(d, Point::new(5.0, 5.0), opt).unwrap();
+    let opt = pluma_doc::hit::HitOptions::default();
+    assert!(pluma_doc::hit::hit_test(d, Point::new(220.0, 220.0), opt).is_none());
+    let h = pluma_doc::hit::hit_test(d, Point::new(5.0, 5.0), opt).unwrap();
     assert_ne!(h.leaf, r);
     let _ = other;
 }
@@ -591,8 +591,8 @@ fn save_load_roundtrip_keeps_patterns_and_repeats() {
     let r = rect(&mut s, 300.0, 50.0, 10.0, 10.0);
     sel(&mut s, &[r]);
     s.execute("object.repeat.radial", &json!({"instances": 6})).unwrap();
-    let bytes = vectorcraft_format::save(doc(&s), false);
-    let back = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save(doc(&s), false);
+    let back = pluma_format::load(&bytes).unwrap();
     assert_eq!(back.patterns, doc(&s).patterns);
     assert_eq!(back.node(big).unwrap().appearance.fill_paint(), node(&s, big).appearance.fill_paint());
     assert!(back.layers[0].children().unwrap().iter().any(|n| matches!(n.kind, NodeKind::Repeat(_))));
@@ -604,7 +604,7 @@ fn svg_export_writes_pattern_def() {
     make_dots(&mut s);
     let big = rect(&mut s, 100.0, 100.0, 50.0, 50.0);
     s.execute("paint.setFill", &json!({"ids": [big.0], "swatch": "Dots"})).unwrap();
-    let svg = vectorcraft_svg::export(doc(&s), &vectorcraft_svg::ExportOptions::default());
+    let svg = pluma_svg::export(doc(&s), &pluma_svg::ExportOptions::default());
     assert!(svg.contains("<pattern id=\"pattern-1\""), "{svg}");
     assert!(svg.contains("patternUnits=\"userSpaceOnUse\""));
     assert!(svg.contains("width=\"20\" height=\"20\""));
@@ -612,7 +612,7 @@ fn svg_export_writes_pattern_def() {
     // The tile art is inside the pattern.
     let start = svg.find("<pattern").unwrap();
     let end = svg.find("</pattern>").unwrap();
-    assert!(vectorcraft_testkit::svg_shapes(&svg[start..end]) > 0);
+    assert!(pluma_testkit::svg_shapes(&svg[start..end]) > 0);
 }
 
 /// A pattern fill is written as a PDF tiling pattern, which PDF import reads back as a pattern
@@ -629,13 +629,13 @@ fn pdf_export_writes_pattern_fills_as_tiling_patterns() {
   </defs>
   <rect x="80" y="80" width="2650" height="140" fill="url(#hatch)" stroke="#EB003C" stroke-width="4"/>
 </svg>"##;
-    let d = vectorcraft_svg::import(svg).unwrap();
-    let rep = vectorcraft_pdf::export_with_report(&d, &Default::default()).unwrap();
+    let d = pluma_svg::import(svg).unwrap();
+    let rep = pluma_pdf::export_with_report(&d, &Default::default()).unwrap();
     assert!(rep.warnings.iter().all(|w| !w.contains("pattern")), "{:?}", rep.warnings);
     assert!(rep.bytes.len() < 8_000, "{} bytes", rep.bytes.len());
-    let plain = vectorcraft_pdf::export(&d, &vectorcraft_pdf::PdfOptions::uncompressed()).unwrap();
+    let plain = pluma_pdf::export(&d, &pluma_pdf::PdfOptions::uncompressed()).unwrap();
     assert!(String::from_utf8_lossy(&plain).contains("/PatternType 1"));
-    let back = vectorcraft_pdf::import(&rep.bytes).unwrap();
+    let back = pluma_pdf::import(&rep.bytes).unwrap();
     assert_eq!(back.patterns.len(), 1);
     assert_eq!(back.patterns[0].art.len(), 2, "the hatch's two stripes");
     let mut leaves = vec![];
@@ -651,14 +651,14 @@ fn pdf_export_writes_pattern_fills_as_tiling_patterns() {
 /// A pattern fill nested more than four patterns deep is written as its tiles, and the export says so.
 #[test]
 fn pdf_export_writes_patterns_nested_too_deep_as_tiles_with_a_warning() {
+    use pluma_doc::pattern::{PatternDef, pattern_paint};
+    use pluma_doc::{Appearance, Document};
     use std::sync::Arc;
-    use vectorcraft_doc::pattern::{PatternDef, pattern_paint};
-    use vectorcraft_doc::{Appearance, Document};
     let square = |paint: Paint| {
-        Node::path(NodeId(0), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::basic(paint, Paint::None, 0.0))
+        Node::path(NodeId(0), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::basic(paint, Paint::None, 0.0))
     };
     let mut d = Document::new(100.0, 100.0);
-    d.patterns.push(PatternDef::new("P0", vec![Arc::new(square(Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0))))]));
+    d.patterns.push(PatternDef::new("P0", vec![Arc::new(square(Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0))))]));
     for i in 1..=4 {
         d.patterns.push(PatternDef::new(&format!("P{i}"), vec![Arc::new(square(pattern_paint(&format!("P{}", i - 1))))]));
     }
@@ -669,7 +669,7 @@ fn pdf_export_writes_patterns_nested_too_deep_as_tiles_with_a_warning() {
         n.id = d.alloc_id();
         let layer = d.layers[0].id;
         d.insert(Some(layer), 0, n).unwrap();
-        let rep = vectorcraft_pdf::export_with_report(&d, &Default::default()).unwrap();
+        let rep = pluma_pdf::export_with_report(&d, &Default::default()).unwrap();
         assert_eq!(rep.warnings.iter().any(|w| w.contains("are written as their tiles")), tiles, "{top}: {:?}", rep.warnings);
     }
 }
@@ -934,10 +934,10 @@ fn repeat_hit_test_uses_instances() {
     sel(&mut s, &[r]);
     s.execute("object.repeat.radial", &json!({"instances": 4, "radius": 50})).unwrap();
     let d = doc(&s);
-    let opt = vectorcraft_doc::hit::HitOptions::default();
-    assert!(vectorcraft_doc::hit::hit_test(d, Point::new(250.0, 150.0), opt).is_some());
+    let opt = pluma_doc::hit::HitOptions::default();
+    assert!(pluma_doc::hit::hit_test(d, Point::new(250.0, 150.0), opt).is_some());
     // The empty centre of the ring is not the repeat.
-    assert!(vectorcraft_doc::hit::hit_test(d, Point::new(200.0, 150.0), opt).is_none());
+    assert!(pluma_doc::hit::hit_test(d, Point::new(200.0, 150.0), opt).is_none());
 }
 
 #[test]
@@ -972,7 +972,7 @@ fn picking_another_pattern_swatch_keeps_the_pattern_transform() {
     assert_eq!(pattern, "Bars");
     assert_eq!(xf.as_coeffs(), [2.0, 0.0, 0.0, 2.0, 15.0, 10.0]);
     // The Appearance panel picks the swatch for one fill through `appearance.setItem`.
-    let index = node(&s, big).appearance.items.iter().position(|it| matches!(it, vectorcraft_doc::AppearanceItem::Fill(_))).unwrap();
+    let index = node(&s, big).appearance.items.iter().position(|it| matches!(it, pluma_doc::AppearanceItem::Fill(_))).unwrap();
     s.execute("appearance.setItem", &json!({"ids": [big.0], "index": index, "swatch": "Dots"})).unwrap();
     let Paint::Pattern { pattern, xf } = node(&s, big).appearance.fill_paint() else { panic!() };
     assert_eq!(pattern, "Dots");
@@ -1017,7 +1017,7 @@ fn inner_glow_on_a_pattern_fill_stays_inside_the_object_on_the_threaded_renderer
     s.execute("paint.setFill", &json!({"ids": [big.0], "swatch": "Dots"})).unwrap();
     sel(&mut s, &[big]);
     s.execute("effect.apply", &json!({"effect": "stylize.innerGlow", "params": {"blur": 10}})).unwrap();
-    let mut r = vectorcraft_render::Renderer::new();
+    let mut r = pluma_render::Renderer::new();
     r.threads = 2;
     let view = Affine::scale(1.5) * Affine::translate((-20.0, -30.0));
     let out = r.render(&s.doc().unwrap().doc, 400, 400, view, &Default::default());
@@ -1027,14 +1027,14 @@ fn inner_glow_on_a_pattern_fill_stays_inside_the_object_on_the_threaded_renderer
     assert!(red > 0x40, "no glow along the edge: red {red}");
 }
 
-fn mirror_axis(s: &Session) -> vectorcraft_tools::mirror::MirrorAxis {
+fn mirror_axis(s: &Session) -> pluma_tools::mirror::MirrorAxis {
     let st = s.active().unwrap();
-    vectorcraft_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).unwrap()
+    pluma_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).unwrap()
 }
 
 #[test]
 fn mirror_axis_drag_previews_once_and_undo_redo_preserve_source() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     rect(&mut s, 100.0, 100.0, 60.0, 80.0);
     let id = id_of(&s.execute("object.repeat.mirror", &json!({})).unwrap());
@@ -1045,7 +1045,7 @@ fn mirror_axis_drag_previews_once_and_undo_redo_preserve_source() {
     let h = crate::tests::history(&s);
     for (kind, dx) in [(PointerKind::Down, 0.0), (PointerKind::Drag, 20.0), (PointerKind::Drag, 30.0), (PointerKind::Up, 40.0)] {
         s.pointer(&PointerEvent::new(kind, axis.center.x + dx, axis.center.y), v).unwrap();
-        assert!(close(mirror_axis(&s).center, axis.center + vectorcraft_geom::Vec2::new(dx, 0.0)));
+        assert!(close(mirror_axis(&s).center, axis.center + pluma_geom::Vec2::new(dx, 0.0)));
     }
     assert_eq!(crate::tests::history(&s).0, h.0 + 1);
     let after = node(&s, id);
@@ -1060,7 +1060,7 @@ fn mirror_axis_drag_previews_once_and_undo_redo_preserve_source() {
 
 #[test]
 fn mirror_axis_rotation_snaps_and_escape_restores_document_and_history() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let mut s = session();
     rect(&mut s, 100.0, 100.0, 60.0, 80.0);
     let id = id_of(&s.execute("object.repeat.mirror", &json!({})).unwrap());
@@ -1070,7 +1070,7 @@ fn mirror_axis_rotation_snaps_and_escape_restores_document_and_history() {
     let h = crate::tests::history(&s);
     let axis = mirror_axis(&s);
     let end = axis.ends[1];
-    let destination = axis.center + vectorcraft_geom::Vec2::new(70.0, 60.0);
+    let destination = axis.center + pluma_geom::Vec2::new(70.0, 60.0);
     s.pointer(&PointerEvent::new(PointerKind::Down, end.x, end.y), v).unwrap();
     let shift = Mods { shift: true, ..Default::default() };
     s.pointer(&PointerEvent::new(PointerKind::Drag, destination.x, destination.y).with_mods(shift), v).unwrap();
@@ -1093,7 +1093,7 @@ fn mirror_axis_rotation_snaps_and_escape_restores_document_and_history() {
 
 #[test]
 fn mirror_axis_hidden_controls_and_other_repeat_kinds_do_not_capture_drags() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     for command in ["object.repeat.mirror", "object.repeat.radial", "object.repeat.grid"] {
         let mut s = session();
         rect(&mut s, 100.0, 100.0, 60.0, 80.0);
@@ -1101,7 +1101,7 @@ fn mirror_axis_hidden_controls_and_other_repeat_kinds_do_not_capture_drags() {
         let before = node(&s, id);
         let st = s.active().unwrap();
         if command != "object.repeat.mirror" {
-            assert!(vectorcraft_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).is_none());
+            assert!(pluma_tools::mirror::MirrorAxis::of(&st.doc, &st.selection, 1.0).is_none());
         }
         let v = ViewInfo { show_bbox: false, ..Default::default() };
         s.select_tool("selection", v).unwrap();

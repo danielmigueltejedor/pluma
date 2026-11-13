@@ -3,8 +3,8 @@
 //! kept), ←/→ and ↑/↓ cycle the files and Esc discards the current one. Each placement is one
 //! `file.place`; after the last file the previous tool comes back.
 
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Rect};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 

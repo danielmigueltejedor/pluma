@@ -2,16 +2,16 @@ use super::{canvas, cursors, render_worker};
 
 /// Cached canvas raster.
 pub struct CanvasCache {
-    pub renderer: vectorcraft_render::Renderer,
+    pub renderer: pluma_render::Renderer,
     pub texture: Option<egui::TextureHandle>,
     pub key: Option<CacheKey>,
     /// The document the frame shown was rendered from, and the options it was rendered with, with
     /// [`Self::key`]: when only the document changes, the canvas renders again only where it
-    /// changed, measured by [`Self::renderer`], which drew it ([`vectorcraft_render::Renderer::changed`]).
-    pub shown: Option<(std::sync::Arc<vectorcraft_doc::Document>, vectorcraft_render::RenderOptions)>,
+    /// changed, measured by [`Self::renderer`], which drew it ([`pluma_render::Renderer::changed`]).
+    pub shown: Option<(std::sync::Arc<pluma_doc::Document>, pluma_render::RenderOptions)>,
     pub last_ms: f64,
     /// The frame shown drew raster effects from rasters made before their objects moved, or at a
-    /// drag's lower resolution ([`vectorcraft_render::FrameStats::moved`]): the next frame outside
+    /// drag's lower resolution ([`pluma_render::FrameStats::moved`]): the next frame outside
     /// an interaction runs them again, on the worker when there is one.
     pub moved: bool,
     /// The frame shown was rendered on the worker: an interaction's frames stay there
@@ -51,13 +51,13 @@ pub struct CanvasCache {
     /// The selected objects' outlines, anchors and handles as drawn in the last frame. A frame that
     /// does not draw them drops them ([`canvas::show`]).
     pub selection_marks: canvas::SelectionMarks,
-    /// [`VectorcraftApp::selection_box`] for (document uid, revision, Use Preview Bounds and
+    /// [`PlumaApp::selection_box`] for (document uid, revision, Use Preview Bounds and
     /// Measure Type by Glyph Bounds).
-    pub selection_box: Option<((u64, u64, vectorcraft_effects::preview::Measure), Option<vectorcraft_doc::OrientedBox>)>,
-    /// [`VectorcraftApp::selection_bounds`] for (document uid, revision).
-    pub selection_bounds: Option<((u64, u64), Option<vectorcraft_geom::Rect>)>,
-    /// [`VectorcraftApp::content_bounds`] for (document uid, revision).
-    pub content_bounds: Option<((u64, u64), Option<vectorcraft_geom::Rect>)>,
+    pub selection_box: Option<((u64, u64, pluma_effects::preview::Measure), Option<pluma_doc::OrientedBox>)>,
+    /// [`PlumaApp::selection_bounds`] for (document uid, revision).
+    pub selection_bounds: Option<((u64, u64), Option<pluma_geom::Rect>)>,
+    /// [`PlumaApp::content_bounds`] for (document uid, revision).
+    pub content_bounds: Option<((u64, u64), Option<pluma_geom::Rect>)>,
     /// The tools' cursors as OS cursor bitmaps.
     pub cursors: cursors::Images,
     /// The view the canvas last drew and when it last changed (egui's input time): while it moves,
@@ -65,7 +65,7 @@ pub struct CanvasCache {
     pub view_moved: Option<(canvas::ViewKey, f64)>,
     /// The cursor the active tool last gave over the canvas, with the tool and the modifier keys
     /// it was for: kept while the view moves.
-    pub hover_cursor: Option<(&'static str, vectorcraft_tools::Mods, vectorcraft_tools::Cursor)>,
+    pub hover_cursor: Option<(&'static str, pluma_tools::Mods, pluma_tools::Cursor)>,
     /// In Presentation Mode, the canvas rect the active artboard was last fitted to: it is fitted
     /// again when the rect changes (the window going full screen).
     pub presented: Option<egui::Rect>,
@@ -80,22 +80,22 @@ pub struct CanvasCache {
 }
 
 /// [`CanvasCache::slices`]: the layout of the slices of (document uid, revision).
-pub type SliceCache = ((u64, u64), std::sync::Arc<Vec<vectorcraft_doc::SliceArea>>);
+pub type SliceCache = ((u64, u64), std::sync::Arc<Vec<pluma_doc::SliceArea>>);
 
 /// [`CanvasCache::live_paint_gaps`]: the gap lines of the selected Live Paint groups of (document
 /// uid, revision).
-pub type LivePaintGapsCache = ((u64, u64), std::sync::Arc<Vec<vectorcraft_tools::Overlay>>);
+pub type LivePaintGapsCache = ((u64, u64), std::sync::Arc<Vec<pluma_tools::Overlay>>);
 
 /// [`CanvasCache::print_tiling`]: the print tiling of (document uid, revision).
-pub type PrintTilingCache = ((u64, u64), std::sync::Arc<Vec<vectorcraft_pdf::TilingPage>>);
+pub type PrintTilingCache = ((u64, u64), std::sync::Arc<Vec<pluma_pdf::TilingPage>>);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CacheKey {
     pub doc: usize,
     pub revision: u64,
-    /// An interaction is in progress ([`vectorcraft_render::RenderOptions::interacting`]).
+    /// An interaction is in progress ([`pluma_render::RenderOptions::interacting`]).
     pub interacting: bool,
-    /// A tool's drag on the canvas is in progress ([`vectorcraft_render::RenderOptions::dragging`]).
+    /// A tool's drag on the canvas is in progress ([`pluma_render::RenderOptions::dragging`]).
     pub dragging: bool,
     pub zoom: f64,
     pub cx: f64,
@@ -104,7 +104,7 @@ pub struct CacheKey {
     pub h: u32,
     pub outline: bool,
     pub trim: bool,
-    /// View › Hide Template: template layers left out ([`vectorcraft_render::RenderOptions::hide_templates`]).
+    /// View › Hide Template: template layers left out ([`pluma_render::RenderOptions::hide_templates`]).
     pub templates: bool,
     /// View › Show/Hide Guides: whether guide paths are visible in the artwork raster.
     pub guides: bool,
@@ -117,23 +117,23 @@ pub struct CacheKey {
     pub highlight_alternate_glyphs: bool,
     /// Type › Highlight Substituted Fonts.
     pub highlight_substituted_fonts: bool,
-    /// [`vectorcraft_render::placed_document::generation`]: placed documents' bitmaps made since.
+    /// [`pluma_render::placed_document::generation`]: placed documents' bitmaps made since.
     pub placed: u64,
     /// View › Pixel Preview: the document pixels rendered (x0, y0, x1, y1), one per point, shown
     /// with hard edges. None: the art is rendered for the screen.
     pub pixel: Option<[i64; 4]>,
-    /// Images sampled smoothly ([`vectorcraft_render::RenderOptions::smooth_images`]).
+    /// Images sampled smoothly ([`pluma_render::RenderOptions::smooth_images`]).
     pub smooth_images: bool,
-    /// Isolation mode's group or layer ([`vectorcraft_render::RenderOptions::isolated`]).
+    /// Isolation mode's group or layer ([`pluma_render::RenderOptions::isolated`]).
     pub isolated: Option<u64>,
     /// Appearance of Black › On Screen › Display All Blacks as Rich Black
-    /// ([`vectorcraft_render::RenderOptions::rich_black`]).
+    /// ([`pluma_render::RenderOptions::rich_black`]).
     pub rich_black: bool,
-    /// Colour and style of guide paths ([`vectorcraft_render::RenderOptions::guide`]).
+    /// Colour and style of guide paths ([`pluma_render::RenderOptions::guide`]).
     pub guide: ([u8; 3], bool),
     /// The Image Trace objects drawn with their source image
-    /// ([`vectorcraft_render::RenderOptions::trace_source`]).
-    pub trace_source: Option<std::sync::Arc<Vec<vectorcraft_doc::NodeId>>>,
+    /// ([`pluma_render::RenderOptions::trace_source`]).
+    pub trace_source: Option<std::sync::Arc<Vec<pluma_doc::NodeId>>>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

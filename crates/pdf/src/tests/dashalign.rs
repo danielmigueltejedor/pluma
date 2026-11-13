@@ -1,10 +1,10 @@
 //! Dashes fitted to corners are written as the canvas's filled outlines; exact dashes stay a
 //! PDF dash array.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, Node, NodeId, StrokeLayer};
-use vectorcraft_geom::{Rect, shapes};
-use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, Node, NodeId, StrokeLayer};
+use pluma_geom::{Rect, shapes};
+use pluma_testkit::raster::{assert_similar, render_artboard};
 
 use crate::tests_stroke::{line_doc, painted_boxes};
 use crate::*;

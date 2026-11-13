@@ -1,13 +1,13 @@
 //! Blend modes and opacity masks in SVG export look as on the canvas: every mode follows the
 //! reference formulas when resvg draws the file, and masks take luminance the canvas's way.
 
+use pluma_color::blend::blend_rgb;
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::{Appearance, CharStyle, Document, Node, NodeKind, OpacityMask, TextObject};
+use pluma_geom::{Point, Rect, shapes};
+use pluma_svg::{ExportOptions, export};
+use pluma_testkit::raster::{Image, render_artboard};
 use usvg::roxmltree;
-use vectorcraft_color::blend::blend_rgb;
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Document, Node, NodeKind, OpacityMask, TextObject};
-use vectorcraft_geom::{Point, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, export};
-use vectorcraft_testkit::raster::{Image, render_artboard};
 
 fn rect(d: &mut Document, r: Rect, rgb: [u8; 3]) -> Node {
     Node::path(d.alloc_id(), shapes::rectangle(r), Appearance::basic(Paint::solid(Color::rgb8(rgb[0], rgb[1], rgb[2])), Paint::None, 0.0))
@@ -36,7 +36,7 @@ fn every_blend_mode_follows_the_reference_formulas() {
     // (backdrop, source, whether a non-separable result leaves the gamut). resvg's rasteriser
     // departs from the reference formulas when Hue, Saturation, Color or Luminosity have to clip
     // their result back into the gamut, so those cases are checked on the canvas only
-    // (vectorcraft-render's blend tests).
+    // (pluma-render's blend tests).
     let pairs: [([u8; 3], [u8; 3], bool); 4] = [
         ([51, 128, 230], [153, 64, 128], false),
         ([230, 26, 102], [77, 204, 179], true),
@@ -106,7 +106,7 @@ fn a_knockout_group_of_opaque_art_needs_no_masks() {
         let mut top = rect(&mut d, Rect::new(5.0, 5.0, 15.0, 15.0), [0, 0, 200]);
         top.opacity = opacity;
         let mut group = Node::group(d.alloc_id(), vec![below.into(), top.into()]);
-        group.knockout = vectorcraft_doc::Knockout::On;
+        group.knockout = pluma_doc::Knockout::On;
         add(&mut d, group);
         export(&d, &ExportOptions::default())
     };
@@ -129,12 +129,12 @@ fn a_knockout_group_of_opaque_art_needs_no_masks() {
 fn a_knockout_group_with_a_brushed_stroke_keeps_its_masks() {
     let mut d = Document::new(40.0, 40.0);
     let below = rect(&mut d, Rect::new(0.0, 0.0, 40.0, 40.0), [200, 0, 0]);
-    let mut stroke = vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::rgb8(0, 0, 200)), 8.0);
+    let mut stroke = pluma_doc::StrokeLayer::new(Paint::solid(Color::rgb8(0, 0, 200)), 8.0);
     stroke.brush = Some("Bristle Round".into());
-    let line = shapes::line(vectorcraft_geom::Point::new(5.0, 20.0), vectorcraft_geom::Point::new(35.0, 20.0));
-    let top = Node::path(d.alloc_id(), line, Appearance { items: vec![vectorcraft_doc::AppearanceItem::Stroke(stroke)], ..Default::default() });
+    let line = shapes::line(pluma_geom::Point::new(5.0, 20.0), pluma_geom::Point::new(35.0, 20.0));
+    let top = Node::path(d.alloc_id(), line, Appearance { items: vec![pluma_doc::AppearanceItem::Stroke(stroke)], ..Default::default() });
     let mut group = Node::group(d.alloc_id(), vec![below.into(), top.into()]);
-    group.knockout = vectorcraft_doc::Knockout::On;
+    group.knockout = pluma_doc::Knockout::On;
     add(&mut d, group);
     let svg = export(&d, &ExportOptions::default());
     assert!(svg.contains("<mask"), "{svg}");
@@ -159,7 +159,7 @@ fn mask_and_filter_regions_cover_their_art() {
         let mut top = rect(&mut d, Rect::new(5.0, 5.0, 15.0, 15.0), [0, 0, 200]);
         top.opacity = 0.5;
         let mut group = Node::group(d.alloc_id(), vec![below.into(), top.into()]);
-        group.knockout = vectorcraft_doc::Knockout::On;
+        group.knockout = pluma_doc::Knockout::On;
         add(&mut d, group);
         d
     };
@@ -178,7 +178,7 @@ fn mask_and_filter_regions_cover_their_art() {
 /// object in the masked group, shows past the object as on the canvas.
 #[test]
 fn a_mask_region_keeps_the_shadows_of_the_masked_art() {
-    let shadow = vectorcraft_doc::Effect {
+    let shadow = pluma_doc::Effect {
         id: "stylize.dropShadow".into(),
         params: serde_json::json!({"x": 15, "y": 15, "blur": 0, "opacity": 100}),
         visible: true,
@@ -222,7 +222,7 @@ fn mask_and_filter_regions_over_type_cover_any_artwork() {
         let mut top = text(&mut d);
         top.opacity = 0.5;
         let mut group = Node::group(d.alloc_id(), vec![below.into(), top.into()]);
-        group.knockout = vectorcraft_doc::Knockout::On;
+        group.knockout = pluma_doc::Knockout::On;
         add(&mut d, group);
         d
     };
@@ -240,7 +240,7 @@ fn mask_and_filter_regions_over_type_cover_any_artwork() {
 /// the drop shadows of a blend's steps.
 #[test]
 fn a_mask_region_covers_a_blend_as_written() {
-    let shadow = vectorcraft_doc::Effect {
+    let shadow = pluma_doc::Effect {
         id: "stylize.dropShadow".into(),
         params: serde_json::json!({"x": 15, "y": 15, "blur": 0, "opacity": 100}),
         visible: true,

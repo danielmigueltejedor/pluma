@@ -1,6 +1,6 @@
 //! Brushed strokes and symbol-instance staining in the renderer.
 //!
-//! A stroke with `brush: Some(name)` is painted as the filled art `vectorcraft_brush::stroke_pieces`
+//! A stroke with `brush: Some(name)` is painted as the filled art `pluma_brush::stroke_pieces`
 //! generates. Pieces are cached per (node id, stroke item, path) and validated by the path, the
 //! stroke layer and the brush definition (an `Arc` from the per-frame parsed library), so edits to
 //! any of them regenerate the art and nothing else does. The copies of an object that share its id
@@ -15,9 +15,9 @@ use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::{Arc, Weak};
 
-use vectorcraft_brush::{Brush, BrushKind};
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeKind, StrokeLayer, SymbolBoxes};
-use vectorcraft_geom::{BezPath, PathEl, Point, Rect};
+use pluma_brush::{Brush, BrushKind};
+use pluma_doc::{AppearanceItem, Document, Node, NodeKind, StrokeLayer, SymbolBoxes};
+use pluma_geom::{BezPath, PathEl, Point, Rect};
 use vello_cpu::RenderContext;
 
 use crate::lru::{self, FrameCache};
@@ -43,7 +43,7 @@ fn shows_definitions(brush: &Brush, st: &StrokeLayer) -> bool {
         }
         BrushKind::Calligraphic(_) | BrushKind::Bristle(_) => vec![],
     };
-    matches!(st.paint, vectorcraft_color::Paint::Pattern { .. }) || crate::fx::Reads::of_all(art.into_iter()).shows_definitions()
+    matches!(st.paint, pluma_color::Paint::Pattern { .. }) || crate::fx::Reads::of_all(art.into_iter()).shows_definitions()
 }
 
 /// The names and art of `doc`'s patterns and symbols, in order.
@@ -54,7 +54,7 @@ fn definitions(doc: &Document) -> impl Iterator<Item = (&str, &Arc<Node>)> {
 /// Parsed brush library and generated brush art.
 pub(crate) struct BrushCache {
     /// The document value the library was parsed from (`None` = defaults).
-    src: Option<Option<vectorcraft_brush::serde_json::Value>>,
+    src: Option<Option<pluma_brush::serde_json::Value>>,
     /// A hash of that value (0 for the defaults), which rasters drawing brushed strokes record
     /// ([`crate::fx::Inputs`]).
     key: u64,
@@ -97,17 +97,17 @@ impl BrushCache {
             self.definitions = definitions(doc).map(|(n, a)| (n.to_string(), Arc::downgrade(a))).collect();
             self.entries.retain(|e| !e.definitions);
         }
-        let cur = doc.unknown.get(vectorcraft_brush::DOC_KEY);
+        let cur = doc.unknown.get(pluma_brush::DOC_KEY);
         if self.src.as_ref().is_some_and(|s| s.as_ref() == cur) {
             return;
         }
         self.src = Some(cur.cloned());
         self.key = cur.map_or(0, |v| {
             let mut h = DefaultHasher::new();
-            vectorcraft_brush::serde_json::to_string(v).unwrap_or_default().hash(&mut h);
+            pluma_brush::serde_json::to_string(v).unwrap_or_default().hash(&mut h);
             h.finish()
         });
-        self.lib = vectorcraft_brush::library(doc).into_iter().map(|b| (b.name.clone(), Arc::new(b))).collect();
+        self.lib = pluma_brush::library(doc).into_iter().map(|b| (b.name.clone(), Arc::new(b))).collect();
     }
 
     /// [`Self::key`] for the brush library `doc` holds (checked once a frame, `stamp`).
@@ -147,7 +147,7 @@ pub(crate) fn path_cull_bounds(symbols: &SymbolBoxes, n: &Node, visual: impl FnO
 /// has a visible brushed stroke and of the objects in that art that have one
 /// ([`SymbolBoxes::brush_width`]), and 0 when neither has one.
 pub(crate) fn pad(symbols: &SymbolBoxes, n: &Node) -> f64 {
-    let own = vectorcraft_brush::has_brush(n)
+    let own = pluma_brush::has_brush(n)
         .then(|| n.appearance.items.iter().filter_map(|i| if let AppearanceItem::Stroke(s) = i { Some(s.width) } else { None }).fold(1.0, f64::max));
     let art = match &n.kind {
         NodeKind::SymbolInstance { symbol, .. } => symbols.brush_width(symbol).map(|w| w.max(1.0)),
@@ -156,7 +156,7 @@ pub(crate) fn pad(symbols: &SymbolBoxes, n: &Node) -> f64 {
     own.into_iter().chain(art).reduce(f64::max).map_or(0.0, |w| 16.0 * w + 8.0)
 }
 
-pub use vectorcraft_brush::instance_art;
+pub use pluma_brush::instance_art;
 
 /// A hash of the kinds and points of `bp`'s elements. With the node id and the stroke item, it
 /// forms the key of the brush art made along `bp`.
@@ -195,8 +195,7 @@ impl Renderer {
                 {
                     self.brushes.made += 1;
                 }
-                let pieces: Arc<Vec<Arc<Node>>> =
-                    Arc::new(vectorcraft_brush::stroke_pieces(f.doc, &brush, bp, st).into_iter().map(Arc::new).collect());
+                let pieces: Arc<Vec<Arc<Node>>> = Arc::new(pluma_brush::stroke_pieces(f.doc, &brush, bp, st).into_iter().map(Arc::new).collect());
                 let bytes = size_of::<Entry>() + lru::path_bytes(bp) + pieces.iter().map(|p| lru::node_bytes(p)).sum::<usize>();
                 let definitions = shows_definitions(&brush, st);
                 let entry = Entry { path: bp.clone(), stroke: st.clone(), brush, pieces: pieces.clone(), definitions };
@@ -205,7 +204,7 @@ impl Renderer {
             }
         };
         let mut draw = |r: &mut Self, c: &mut RenderContext, fr: &Frame| r.draw_brush_pieces(c, fr, &pieces, kept);
-        if st.opacity < 1.0 || st.blend != vectorcraft_color::BlendMode::Normal {
+        if st.opacity < 1.0 || st.blend != pluma_color::BlendMode::Normal {
             self.group(ctx, f, crate::group::Composite { blend: st.blend, opacity: st.opacity, ..Default::default() }, &mut draw);
         } else {
             draw(self, ctx, f);
@@ -238,9 +237,9 @@ impl Renderer {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_doc::{Appearance, Document, Node};
-    use vectorcraft_geom::{Affine, Rect, shapes};
+    use pluma_color::{Color, Paint};
+    use pluma_doc::{Appearance, Document, Node};
+    use pluma_geom::{Affine, Rect, shapes};
 
     use crate::{RenderOptions, Rendered, Renderer};
 
@@ -279,8 +278,8 @@ mod tests {
 
     #[test]
     fn art_brush_piece_applies_its_root_mask() {
-        use vectorcraft_brush::{ArtBrush, ArtScale, Brush, BrushKind, Colorization};
-        use vectorcraft_doc::OpacityMask;
+        use pluma_brush::{ArtBrush, ArtScale, Brush, BrushKind, Colorization};
+        use pluma_doc::OpacityMask;
 
         let mut d = doc_with_line(Some("Masked art"), 1.0);
         let mut art = Node::path(
@@ -298,7 +297,7 @@ mod tests {
             name: "Masked art".into(),
             kind: BrushKind::Art(ArtBrush { art, scale: ArtScale::Stretch, colorization: Colorization::None, ..Default::default() }),
         };
-        vectorcraft_brush::store(&mut d, &[brush]);
+        pluma_brush::store(&mut d, &[brush]);
 
         let mut renderer = Renderer::new();
         for _ in 0..2 {
@@ -319,7 +318,7 @@ mod tests {
                 let st = ap.stroke_mut().unwrap();
                 st.brush = Some("10 pt. Oval".into());
                 if dashed {
-                    st.dash = Some(vectorcraft_doc::Dash { pattern: vec![12.0, 4.0], ..Default::default() });
+                    st.dash = Some(pluma_doc::Dash { pattern: vec![12.0, 4.0], ..Default::default() });
                 }
                 let mut n = Node::path(id, shapes::rectangle(Rect::new(30.0, 30.0, 170.0, 70.0)), ap);
                 n.opacity = opacity;
@@ -370,11 +369,11 @@ mod tests {
         let mut r = Renderer::new();
         let mut d = doc_with_line(Some("3 pt. Round"), 1.0);
         let a = render(&mut r, &d);
-        let mut lib = vectorcraft_brush::library(&d);
-        if let vectorcraft_brush::BrushKind::Calligraphic(c) = &mut lib[0].kind {
+        let mut lib = pluma_brush::library(&d);
+        if let pluma_brush::BrushKind::Calligraphic(c) = &mut lib[0].kind {
             c.size = 20.0;
         }
-        vectorcraft_brush::store(&mut d, &lib);
+        pluma_brush::store(&mut d, &lib);
         let b = render(&mut r, &d);
         assert!(!dark(a.pixel(100, 58)) && dark(b.pixel(100, 58)));
     }
@@ -383,13 +382,13 @@ mod tests {
     fn stained_symbol_instance() {
         let mut d = Document::new(100.0, 100.0);
         let art = Node::path(
-            vectorcraft_doc::NodeId(0),
+            pluma_doc::NodeId(0),
             shapes::rectangle(Rect::new(-10.0, -10.0, 10.0, 10.0)),
             Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
         );
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "S".into(), art: std::sync::Arc::new(art) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "S".into(), art: std::sync::Arc::new(art) });
         let id = d.alloc_id();
-        let mut inst = Node::new(id, vectorcraft_doc::NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::translate((50.0, 50.0)) });
+        let mut inst = Node::new(id, pluma_doc::NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::translate((50.0, 50.0)) });
         inst.appearance.set_fill(Paint::solid(Color::rgb(1.0, 0.0, 0.0)));
         let l = d.layers[0].id;
         d.insert(Some(l), 0, inst).unwrap();
@@ -402,18 +401,18 @@ mod tests {
         // The art: a line from (0, 40) to (0, 60) with a 1 pt stroke painted by a 20 pt round nib,
         // drawn from x -6. The line lies left of the view, and the nib paints 10 pt either side of it.
         let mut d = Document::new(100.0, 100.0);
-        let mut lib = vectorcraft_brush::library(&d);
-        let Some(vectorcraft_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
+        let mut lib = pluma_brush::library(&d);
+        let Some(pluma_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
             panic!("the 3 pt. Round brush")
         };
         c.size = 20.0;
-        vectorcraft_brush::store(&mut d, &lib);
+        pluma_brush::store(&mut d, &lib);
         let mut ap = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
         ap.stroke_mut().unwrap().brush = Some("3 pt. Round".into());
-        let art = Node::path(vectorcraft_doc::NodeId(0), shapes::line((0.0, 40.0).into(), (0.0, 60.0).into()), ap);
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Nib".into(), art: std::sync::Arc::new(art) });
+        let art = Node::path(pluma_doc::NodeId(0), shapes::line((0.0, 40.0).into(), (0.0, 60.0).into()), ap);
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Nib".into(), art: std::sync::Arc::new(art) });
         let id = d.alloc_id();
-        let inst = Node::new(id, vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Nib".into(), xf: Affine::translate((-6.0, 0.0)) });
+        let inst = Node::new(id, pluma_doc::NodeKind::SymbolInstance { symbol: "Nib".into(), xf: Affine::translate((-6.0, 0.0)) });
         let l = d.layers[0].id;
         d.insert(Some(l), 0, inst).unwrap();
         let img = render(&mut Renderer::new(), &d);
@@ -432,34 +431,27 @@ mod tests {
         };
         for instance in [false, true] {
             let mut d = Document::new(100.0, 100.0);
-            let mut lib = vectorcraft_brush::library(&d);
-            let Some(vectorcraft_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
+            let mut lib = pluma_brush::library(&d);
+            let Some(pluma_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
                 panic!("the 3 pt. Round brush")
             };
             c.size = 20.0;
-            vectorcraft_brush::store(&mut d, &lib);
+            pluma_brush::store(&mut d, &lib);
             let moved = Affine::translate((-8.0, 0.0));
             let source = if instance {
                 let art = line(&mut d);
-                d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Nib".into(), art: std::sync::Arc::new(art) });
-                Node::new(d.alloc_id(), vectorcraft_doc::NodeKind::SymbolInstance { symbol: "Nib".into(), xf: moved })
+                d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Nib".into(), art: std::sync::Arc::new(art) });
+                Node::new(d.alloc_id(), pluma_doc::NodeKind::SymbolInstance { symbol: "Nib".into(), xf: moved })
             } else {
                 let mut n = line(&mut d);
                 n.transform(moved, false);
                 n
             };
-            let grid = vectorcraft_doc::TileType::Grid;
-            let kind = vectorcraft_doc::RepeatKind::Grid {
-                h_spacing: 0.0,
-                v_spacing: 0.0,
-                rows: 1,
-                cols: 1,
-                grid_type: grid,
-                flip_rows: false,
-                flip_cols: false,
-            };
-            let spec = vectorcraft_doc::RepeatSpec { kind, source: vec![std::sync::Arc::new(source)] };
-            let repeat = Node::new(d.alloc_id(), vectorcraft_doc::NodeKind::Repeat(spec));
+            let grid = pluma_doc::TileType::Grid;
+            let kind =
+                pluma_doc::RepeatKind::Grid { h_spacing: 0.0, v_spacing: 0.0, rows: 1, cols: 1, grid_type: grid, flip_rows: false, flip_cols: false };
+            let spec = pluma_doc::RepeatSpec { kind, source: vec![std::sync::Arc::new(source)] };
+            let repeat = Node::new(d.alloc_id(), pluma_doc::NodeKind::Repeat(spec));
             let l = d.layers[0].id;
             d.insert(Some(l), 0, repeat).unwrap();
             let img = render(&mut Renderer::new(), &d);

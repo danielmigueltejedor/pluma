@@ -1,6 +1,6 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::Selection;
+use pluma_doc::Selection;
 
 #[test]
 fn rect_drag() {
@@ -436,9 +436,9 @@ fn line_segment_options_and_fill_line() {
 /// with Line Segment, draws.
 #[test]
 fn a_shape_tool_drags_the_selected_shapes_widgets() {
-    use vectorcraft_doc::{Appearance, LiveShape, Node, NodeKind};
+    use pluma_doc::{Appearance, LiveShape, Node, NodeKind};
     let live = |shape: LiveShape| {
-        let mut d = vectorcraft_doc::Document::new(500.0, 500.0);
+        let mut d = pluma_doc::Document::new(500.0, 500.0);
         let (l, id) = (d.layers[0].id, d.alloc_id());
         let mut n = Node::path(id, shape.to_path(), Appearance::default_art());
         if let NodeKind::Path { live: slot, .. } = &mut n.kind {
@@ -502,7 +502,7 @@ fn a_shape_tool_drags_the_selected_shapes_widgets() {
 
 /// A selected live 100 × 100 rectangle at (100, 100)–(200, 200) with no paint: its centre point
 /// (Attributes › Show Center) is at (150, 150) and its corners at the box's.
-fn unfilled_live_rect() -> (vectorcraft_doc::Document, Selection) {
+fn unfilled_live_rect() -> (pluma_doc::Document, Selection) {
     let (d, id) = doc_with_live_rect();
     let mut s = Selection::default();
     s.add(id);
@@ -585,8 +585,8 @@ fn a_shape_tool_moves_the_selection_by_its_centre_point_and_turns_it_from_a_corn
 
 /// Two selected live rectangles, the second placed so that its top-left Live Corners widget (10 pt
 /// in along the corner's bisector) lands on the first one's centre point.
-fn two_live_rects() -> (vectorcraft_doc::Document, Selection) {
-    use vectorcraft_doc::{Appearance, LiveShape, Node, NodeKind};
+fn two_live_rects() -> (pluma_doc::Document, Selection) {
+    use pluma_doc::{Appearance, LiveShape, Node, NodeKind};
     let (mut d, first) = doc_with_live_rect();
     let inside = 10.0 / std::f64::consts::SQRT_2;
     let shape = LiveShape::Rectangle {
@@ -631,12 +631,12 @@ fn a_live_corner_widget_wins_over_another_shapes_centre_point() {
 /// turns hollow while it does.
 #[test]
 fn a_move_from_the_centre_point_snaps_and_shows_the_hollow_arrow() {
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
     let (mut d, s) = unfilled_live_rect();
     // Another rectangle whose left edge is at x = 300: the moved selection's right edge lands 4 pt
     // short of it, within the Smart Guides' reach.
     let (layer, id) = (d.layers[0].id, d.alloc_id());
-    d.insert(Some(layer), 1, Node::path(id, vectorcraft_geom::shapes::rectangle(Rect::new(300.0, 100.0, 350.0, 180.0)), Appearance::default_art()))
+    d.insert(Some(layer), 1, Node::path(id, pluma_geom::shapes::rectangle(Rect::new(300.0, 100.0, 350.0, 180.0)), Appearance::default_art()))
         .unwrap();
     let p = paint();
     let c = cx(&d, &s, &p);

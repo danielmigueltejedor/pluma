@@ -1,10 +1,10 @@
 //! Rich text editing: range edit/style commands, the Type tools through the session, area and
 //! on-path type from paths, Fit Headline, Convert To Area/Point Type.
 
+use pluma_doc::{CharStyle, NodeId, NodeKind, TextKind, TextObject};
+use pluma_geom::Point;
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::{CharStyle, NodeId, NodeKind, TextKind, TextObject};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -128,7 +128,7 @@ fn feature_changes_keep_each_runs_other_features() {
     assert_eq!(features(&s), [vec!["smcp", "numr", "liga"], vec!["swsh", "numr", "liga"], vec!["zzzz", "numr", "liga"]]);
     // A list longer than shaping reads keeps the tags shaping uses, and the new tag is read too:
     // `-onum` overrides `onum`, unknown tags do nothing, and `ordn` lies past the entries read.
-    let max = vectorcraft_text::MAX_STYLE_FEATURES;
+    let max = pluma_text::MAX_STYLE_FEATURES;
     let mut long = vec!["onum".to_string(), "-onum".into()];
     long.extend(std::iter::repeat_n("zzzz".to_string(), max - 3));
     long.extend(["swsh".to_string(), "ordn".into()]);
@@ -143,7 +143,7 @@ fn feature_changes_keep_each_runs_other_features() {
 /// `text.setRangeStyle` does, and a call with `fill` and `stroke` sets both in one undo step.
 #[test]
 fn set_style_sets_the_character_stroke() {
-    use vectorcraft_color::{Color, Paint};
+    use pluma_color::{Color, Paint};
     let mut s = session();
     let id = text(&mut s, "Hello world");
     let paints =
@@ -179,7 +179,7 @@ fn set_style_sets_the_character_stroke() {
 /// `paint.setStroke` does, and keeps a weight the type already has.
 #[test]
 fn set_style_stroke_without_a_weight_draws_1_pt() {
-    use vectorcraft_color::Color;
+    use pluma_color::Color;
     let mut s = session();
     let id = text(&mut s, "Hello");
     assert_eq!(obj(&s, id).runs[0].style.stroke_width, 0.0);
@@ -205,8 +205,8 @@ fn optical_command_manual_pair_undo_redo_and_native_reopen() {
     let styled = obj(&s, id);
     assert_eq!(styled.runs.iter().map(|r| r.style.kerning).collect::<Vec<_>>(), vec![None, Some(0.0), None]);
     assert!(styled.runs.iter().all(|r| r.style.optical_kerning));
-    let bytes = vectorcraft_format::save_file(&s.doc().unwrap().doc);
-    let opened = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save_file(&s.doc().unwrap().doc);
+    let opened = pluma_format::load(&bytes).unwrap();
     let NodeKind::Text(reopened) = &opened.node(id).unwrap().kind else { panic!("text missing") };
     assert_eq!(
         reopened.runs.iter().map(|r| (r.style.optical_kerning, r.style.kerning)).collect::<Vec<_>>(),
@@ -243,10 +243,10 @@ fn optical_kerning_step_starts_from_the_automatic_pair() {
     );
     s.execute("text.setRangeStyle", &json!({"id": id.0, "kerning": "optical"})).unwrap();
     let t = obj(&s, id);
-    let optical = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let optical = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let mut manual = t.clone();
-    vectorcraft_text::edit::style_range(&mut manual.runs, 0, 1, |st| st.kerning = Some(0.0));
-    let unkerned = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &manual);
+    pluma_text::edit::style_range(&mut manual.runs, 0, 1, |st| st.kerning = Some(0.0));
+    let unkerned = pluma_text::layout(pluma_text::FontDb::global(), &manual);
     let auto = (optical.glyphs[0].advance - unkerned.glyphs[0].advance) * 1000.0 / 100.0;
     assert!(auto.abs() > 1.0, "the font needs a measurable shape correction");
     s.execute("type.step", &json!({"id": id.0, "start": 1, "end": 1, "attribute": "kerning", "by": 1})).unwrap();
@@ -257,44 +257,44 @@ fn optical_kerning_step_starts_from_the_automatic_pair() {
 
 #[test]
 fn metrics_pair_step_preserves_the_drawn_auto_position() {
-    use vectorcraft_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
+    use pluma_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
 
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(pair_kerning_font().unwrap());
     let mut s = session();
     let id = NodeId(
         s.execute("text.create", &json!({"x": 10, "y": 10, "text": "AV", "size": 100, "font": PAIR_KERNING_FAMILY})).unwrap()["id"].as_u64().unwrap(),
     );
     let before = obj(&s, id);
-    let auto = vectorcraft_text::layout(db, &before);
-    let drawn_v = |layout: &vectorcraft_text::TextLayout| layout.glyphs.iter().find(|g| g.byte == 1).unwrap().xf.as_coeffs()[4];
+    let auto = pluma_text::layout(db, &before);
+    let drawn_v = |layout: &pluma_text::TextLayout| layout.glyphs.iter().find(|g| g.byte == 1).unwrap().xf.as_coeffs()[4];
     assert!((crate::cmd::effective_kerning(db, &before, &auto, 0, 1) + 160.0).abs() < 0.01);
     let mut same = before.clone();
-    vectorcraft_text::edit::style_range(&mut same.runs, 0, 1, |st| st.kerning = Some(-160.0));
-    assert!((drawn_v(&vectorcraft_text::layout(db, &same)) - drawn_v(&auto)).abs() < 0.01);
+    pluma_text::edit::style_range(&mut same.runs, 0, 1, |st| st.kerning = Some(-160.0));
+    assert!((drawn_v(&pluma_text::layout(db, &same)) - drawn_v(&auto)).abs() < 0.01);
 
     s.execute("type.step", &json!({"id": id.0, "start": 1, "end": 1, "attribute": "kerning", "by": 1})).unwrap();
     let after = obj(&s, id);
     assert!((after.runs[0].style.kerning.unwrap() + 160.0 - s.prefs.tracking_increment).abs() < 0.01);
-    let moved = drawn_v(&vectorcraft_text::layout(db, &after)) - drawn_v(&auto);
+    let moved = drawn_v(&pluma_text::layout(db, &after)) - drawn_v(&auto);
     assert!((moved - s.prefs.tracking_increment * 0.1).abs() < 0.01, "V moves by one kerning increment: {moved}");
 }
 
 #[test]
 fn effective_auto_kerning_at_area_line_end_survives_unkerned_wrap() {
-    use vectorcraft_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
+    use pluma_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
 
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(pair_kerning_font().unwrap());
     let style = CharStyle { font_family: PAIR_KERNING_FAMILY.into(), size: 100.0, ..CharStyle::default() };
     let mut text = TextObject::point(Point::ZERO, "AV", style);
     let mut wrapping_pair = None;
     for width in 80..160 {
-        text.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, f64::from(width), 300.0)) };
-        let auto = vectorcraft_text::layout(db, &text);
+        text.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, f64::from(width), 300.0)) };
+        let auto = pluma_text::layout(db, &text);
         let mut trial = text.clone();
-        vectorcraft_text::edit::style_range(&mut trial.runs, 0, 1, |st| st.kerning = Some(0.0));
-        let unkerned = vectorcraft_text::layout(db, &trial);
+        pluma_text::edit::style_range(&mut trial.runs, 0, 1, |st| st.kerning = Some(0.0));
+        let unkerned = pluma_text::layout(db, &trial);
         if auto.glyphs.len() >= 2
             && unkerned.glyphs.len() >= 2
             && auto.glyphs[0].line == auto.glyphs[1].line
@@ -311,17 +311,17 @@ fn effective_auto_kerning_at_area_line_end_survives_unkerned_wrap() {
 
 #[test]
 fn effective_optical_kerning_reads_the_right_to_left_pair() {
-    use vectorcraft_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
+    use pluma_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
 
-    let db = vectorcraft_text::FontDb::with_font_dirs(vec![]);
+    let db = pluma_text::FontDb::with_font_dirs(vec![]);
     assert_eq!(db.add_font(right_to_left_optical_font().unwrap()), 1);
     let style = CharStyle { font_family: RIGHT_TO_LEFT_OPTICAL_FAMILY.into(), size: 100.0, optical_kerning: true, ..CharStyle::default() };
     let text = TextObject::point(Point::ZERO, "אב", style);
-    let optical = vectorcraft_text::layout(&db, &text);
+    let optical = pluma_text::layout(&db, &text);
     let mut manual = text.clone();
     manual.runs[0].style.kerning = Some(0.0);
-    let unkerned = vectorcraft_text::layout(&db, &manual);
-    let drawn_gap = |lay: &vectorcraft_text::TextLayout| {
+    let unkerned = pluma_text::layout(&db, &manual);
+    let drawn_gap = |lay: &pluma_text::TextLayout| {
         let drawn = |byte| lay.glyphs.iter().find(|g| g.byte == byte).unwrap().xf.as_coeffs()[4];
         drawn(2) - drawn(0)
     };
@@ -339,8 +339,8 @@ fn reset_tracking_clears_manual_pairs_without_changing_optical_mode() {
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": 1, "kerning": 80})).unwrap();
     s.select_tool("type", ViewInfo::default()).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-    let (a, b) = vectorcraft_text::caret_position(&lay, 1);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+    let (a, b) = pluma_text::caret_position(&lay, 1);
     let p = t.xf * a.midpoint(b);
     click(&mut s, p.x, p.y);
     assert!(s.tool_wants_text());
@@ -470,7 +470,7 @@ fn type_commands_refuse_a_number_or_boolean_given_as_text() {
 /// Where each glyph of type object `id` is drawn from (its origin in font units), document space.
 fn glyph_pens(s: &Session, id: NodeId) -> Vec<(usize, Point)> {
     let t = obj(s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     lay.glyphs.iter().map(|g| (g.byte, t.xf * (g.xf * Point::ZERO))).collect()
 }
 
@@ -498,7 +498,7 @@ fn touch_type_moves_one_character_and_leaves_the_others_where_they_are() {
     }
     // Kerning on the T and the y, and a baseline shift on the y: live attributes, one undo step.
     let t = obj(&s, id);
-    let style = |byte: usize| vectorcraft_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
+    let style = |byte: usize| pluma_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
     let (k0, k1) = (style(0).kerning.unwrap(), style(1).kerning.unwrap());
     assert!(k0 > 0.0 && k1 < 0.0, "{k0} {k1}");
     assert!((style(1).baseline_shift - 4.0).abs() < 1e-9 && style(2).baseline_shift == 0.0);
@@ -530,7 +530,7 @@ fn touch_type_moves_the_first_character_of_a_list_item_and_not_its_bullet() {
     s.execute("text.setFormat", &json!({"ids": [id.0], "list": "bullet"})).unwrap();
     let pens = |s: &Session| {
         let t = obj(s, id);
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
         let bullet = lay.glyphs.iter().find(|g| g.len == 0).map(|g| t.xf * (g.xf * Point::ZERO)).unwrap();
         (bullet, lay.glyphs.iter().filter(|g| g.len > 0).map(|g| (g.byte, t.xf * (g.xf * Point::ZERO))).collect::<Vec<_>>())
     };
@@ -560,9 +560,9 @@ fn touch_type_keeps_the_kerning_of_a_raised_or_scaled_character() {
     s.execute("edit.undo", &json!({})).unwrap();
     let width = |s: &Session| {
         let t = obj(s, id);
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
         let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
-        let face = vectorcraft_text::FontDb::global().face_by_id(y.font_id).unwrap();
+        let face = pluma_text::FontDb::global().face_by_id(y.font_id).unwrap();
         let [a, b, ..] = y.xf.as_coeffs();
         face.advance(y.gid) * a.hypot(b)
     };
@@ -592,13 +592,13 @@ fn touch_type_scales_a_character_drawn_with_two_glyphs() {
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "aße", "size": 40})).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "allCaps": true})).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let esses: Vec<_> = lay.glyphs.iter().filter(|g| g.byte == 1).collect();
     assert_eq!(esses.len(), 2, "ß in All Caps is two glyphs");
     let width: f64 = esses
         .iter()
         .map(|g| {
-            let face = vectorcraft_text::FontDb::global().face_by_id(g.font_id).unwrap();
+            let face = pluma_text::FontDb::global().face_by_id(g.font_id).unwrap();
             let [a, b, ..] = g.xf.as_coeffs();
             face.advance(g.gid) * a.hypot(b)
         })
@@ -694,14 +694,14 @@ fn touch_type_moves_a_character_turned_near_a_quarter_turn_across_its_line() {
             }
             // Only kerning and baseline shift change.
             let t = obj(&s, id);
-            let style = |byte: usize| vectorcraft_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
+            let style = |byte: usize| pluma_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
             let plain = |mut st: CharStyle| {
                 st.kerning = None;
                 st.baseline_shift = 0.0;
                 st
             };
             for byte in 0..4 {
-                let was = vectorcraft_text::edit::slice_runs(&runs_before, byte, byte + 1)[0].style.clone();
+                let was = pluma_text::edit::slice_runs(&runs_before, byte, byte + 1)[0].style.clone();
                 assert_eq!(plain(style(byte)), plain(was), "{case}, byte {byte}");
             }
             let shift = style(1).baseline_shift;
@@ -716,10 +716,10 @@ fn touch_type_moves_a_character_turned_near_a_quarter_turn_across_its_line() {
             s.execute("edit.redo", &json!({})).unwrap();
             s.execute("edit.undo", &json!({})).unwrap();
             // The native format keeps both attributes and the place they give.
-            let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+            let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
             let NodeKind::Text(reopened) = &back.node(id).unwrap().kind else { panic!("not text") };
             assert_eq!(reopened.runs, obj(&s, id).runs, "{case}");
-            let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), reopened);
+            let lay = pluma_text::layout(pluma_text::FontDb::global(), reopened);
             let pens: Vec<(usize, Point)> = lay.glyphs.iter().map(|g| (g.byte, reopened.xf * (g.xf * Point::ZERO))).collect();
             assert!(near(moved_by(&moved, &pens, 1), (0.0, 0.0)), "{case}: reopened");
         }
@@ -791,7 +791,7 @@ fn touch_type_scales_and_rotates_one_character() {
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Type", "size": 40})).unwrap()["id"].as_u64().unwrap());
     s.execute("text.touchType", &json!({"id": id.0, "start": 2, "hScale": 150, "vScale": 50, "rotation": 30})).unwrap();
     let t = obj(&s, id);
-    let st = |byte: usize| vectorcraft_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
+    let st = |byte: usize| pluma_text::edit::slice_runs(&t.runs, byte, byte + 1)[0].style.clone();
     assert_eq!((st(2).h_scale, st(2).v_scale, st(2).rotation), (150.0, 50.0, 30.0));
     for byte in [1, 3] {
         assert_eq!((st(byte).h_scale, st(byte).v_scale, st(byte).rotation), (100.0, 100.0, 0.0));
@@ -809,9 +809,9 @@ fn the_touch_type_tool_drags_a_character() {
     let v = ViewInfo::default();
     s.select_tool("touchType", v).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
-    let at = t.xf * (y.origin + vectorcraft_geom::Vec2::new(y.advance / 2.0, -10.0));
+    let at = t.xf * (y.origin + pluma_geom::Vec2::new(y.advance / 2.0, -10.0));
     click(&mut s, at.x, at.y);
     assert_eq!(s.doc().unwrap().selection.objects, vec![id], "the click selects the type");
     assert_eq!(s.tool_options(), json!({"id": id.0, "start": 1}));
@@ -826,9 +826,9 @@ fn the_touch_type_tool_drags_a_character() {
     s.execute("text.touchType", &json!({"id": id.0, "start": 1, "rotation": 30})).unwrap();
     let before = glyph_pens(&s, id);
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
-    let face = vectorcraft_text::FontDb::global().face_by_id(y.font_id).unwrap();
+    let face = pluma_text::FontDb::global().face_by_id(y.font_id).unwrap();
     let (ascent, descent) = face.vertical_metrics();
     let at = t.xf * (y.xf * Point::new(face.advance(y.gid) / 2.0, (descent - ascent) / 2.0));
     for (k, x, y) in [(PointerKind::Down, at.x, at.y), (PointerKind::Drag, at.x, at.y - 4.0), (PointerKind::Up, at.x, at.y - 4.0)] {
@@ -848,12 +848,12 @@ fn touch_type_arrow_keys_nudge_the_selected_character() {
     let v = ViewInfo::default();
     s.select_tool("touchType", v).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let y = lay.glyphs.iter().find(|g| g.byte == 1).unwrap();
-    let at = t.xf * (y.origin + vectorcraft_geom::Vec2::new(y.advance / 2.0, -10.0));
+    let at = t.xf * (y.origin + pluma_geom::Vec2::new(y.advance / 2.0, -10.0));
     click(&mut s, at.x, at.y);
     let before = glyph_pens(&s, id);
-    s.tool_key(vectorcraft_tools::ToolKey::Right, Mods::default(), v).unwrap();
+    s.tool_key(pluma_tools::ToolKey::Right, Mods::default(), v).unwrap();
     let after = glyph_pens(&s, id);
     assert!(near(moved_by(&before, &after, 1), (1.0, 0.0)), "{:?}", moved_by(&before, &after, 1));
     assert_eq!(undo_labels(&s).iter().filter(|l| *l == "Touch Type").count(), 1);
@@ -897,8 +897,8 @@ fn dropped_type_press_restores_the_original_text_and_selection() {
     let second = NodeId(s.execute("text.create", &json!({"x": 300, "y": 100, "text": "Second text", "size": 20})).unwrap()["id"].as_u64().unwrap());
     let at = |s: &Session, id: NodeId| {
         let target = obj(s, id);
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &target);
-        let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), &target);
+        let (a, b) = pluma_text::caret_position(&layout, 3);
         target.xf * a.midpoint(b)
     };
     let v = ViewInfo::default();
@@ -928,8 +928,8 @@ fn dropped_type_press_restores_the_active_layer_without_a_prior_selection() {
     s.execute("select.set", &json!({"ids": []})).unwrap();
     s.active_mut().unwrap().active_layer = Some(original_layer);
     let target = obj(&s, text_id);
-    let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &target);
-    let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+    let layout = pluma_text::layout(pluma_text::FontDb::global(), &target);
+    let (a, b) = pluma_text::caret_position(&layout, 3);
     let at = target.xf * a.midpoint(b);
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
@@ -952,8 +952,8 @@ fn dropped_type_press_after_document_switch_keeps_the_new_document_selection() {
 
     assert!(s.set_active(0));
     let target = obj(&s, first);
-    let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &target);
-    let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+    let layout = pluma_text::layout(pluma_text::FontDb::global(), &target);
+    let (a, b) = pluma_text::caret_position(&layout, 3);
     let at = target.xf * a.midpoint(b);
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
@@ -976,8 +976,8 @@ fn dropped_type_press_keeps_new_text_selected_on_a_locked_artboard() {
     assert!(s.doc().unwrap().selection.new_art.contains(&first));
     let at = |s: &Session, id: NodeId| {
         let target = obj(s, id);
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &target);
-        let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), &target);
+        let (a, b) = pluma_text::caret_position(&layout, 3);
         target.xf * a.midpoint(b)
     };
     let v = ViewInfo::default();
@@ -999,8 +999,8 @@ fn dropped_lent_selection_press_keeps_type_editing() {
     let second = NodeId(s.execute("text.create", &json!({"x": 300, "y": 100, "text": "Second text", "size": 20})).unwrap()["id"].as_u64().unwrap());
     let point = |s: &Session, id: NodeId| {
         let target = obj(s, id);
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &target);
-        let (a, b) = vectorcraft_text::caret_position(&layout, 3);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), &target);
+        let (a, b) = pluma_text::caret_position(&layout, 3);
         target.xf * a.midpoint(b)
     };
     let v = ViewInfo::default();
@@ -1043,7 +1043,7 @@ fn undo_while_typing_takes_back_only_the_typing_and_redo_returns_it() {
 }
 
 fn list_markers(s: &Session, id: NodeId) -> Vec<String> {
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &obj(s, id)).markers.iter().map(|m| m.text.clone()).collect()
+    pluma_text::layout(pluma_text::FontDb::global(), &obj(s, id)).markers.iter().map(|m| m.text.clone()).collect()
 }
 
 /// Typed list detection: at the start of a paragraph, "1.", "1)", "A." or "A)" and a space start
@@ -1054,7 +1054,7 @@ fn list_markers(s: &Session, id: NodeId) -> Vec<String> {
 /// deleted nothing.
 #[test]
 fn typing_a_list_start_and_a_space_starts_a_list() {
-    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, NumberStyle, ParaList};
     let v = ViewInfo::default();
     let (arabic, letters) = (ParaList::numbered(NumberStyle::Arabic), ParaList::numbered(NumberStyle::UpperLetters));
     let cases = [("1.", arabic, "1."), ("1)", arabic, "1."), ("A.", letters, "A."), ("A)", letters, "A.")];
@@ -1192,7 +1192,7 @@ fn typed_lists_is_a_type_preference_on_by_default() {
 /// (a paste), or at the start of a paragraph that is already in a list start nothing.
 #[test]
 fn list_starts_typed_elsewhere_or_pasted_start_no_list() {
-    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, NumberStyle, ParaList};
     let v = ViewInfo::default();
     let mut s = session();
     s.select_tool("type", v).unwrap();
@@ -1245,7 +1245,7 @@ fn list_starts_typed_elsewhere_or_pasted_start_no_list() {
 /// list.
 #[test]
 fn start_list_command_removes_the_typed_characters_and_starts_the_list() {
-    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    use pluma_doc::text::{Bullet, NumberStyle, ParaList};
     let mut s = session();
     let id = text(&mut s, "Fruit\n1) Apples");
     let r = s.execute("text.startList", &json!({"id": id.0, "at": 9})).unwrap();
@@ -1282,7 +1282,7 @@ fn start_list_command_removes_the_typed_characters_and_starts_the_list() {
 /// start of an item at level 2 stays text.
 #[test]
 fn a_typed_list_takes_its_levels_from_tab_and_shift_tab() {
-    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    use pluma_doc::text::{NumberStyle, ParaList};
     let v = ViewInfo::default();
     let mut s = session();
     s.select_tool("type", v).unwrap();
@@ -1479,8 +1479,8 @@ fn ime_cancel_leaves_no_undo_step_and_keeps_the_text() {
     let id = text(&mut s, "雅楽");
     s.select_tool("type", v).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-    let (a, b) = vectorcraft_text::caret_position(&lay, "雅楽".len());
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+    let (a, b) = pluma_text::caret_position(&lay, "雅楽".len());
     let p = t.xf * a.midpoint(b);
     click(&mut s, p.x - 0.1, p.y);
     assert!(s.tool_wants_text());
@@ -1538,8 +1538,8 @@ fn type_tool_selection_replace_and_delete() {
     s.select_tool("type", v).unwrap();
     // Click at the start of the text to edit it.
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-    let (a, b) = vectorcraft_text::caret_position(&lay, 6);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+    let (a, b) = pluma_text::caret_position(&lay, 6);
     let p = t.xf * a.midpoint(b);
     click(&mut s, p.x + 0.1, p.y);
     assert!(s.tool_wants_text());
@@ -1567,10 +1567,10 @@ fn type_tool_click_reaches_the_inside_of_a_ligature() {
     let id = NodeId(r["id"].as_u64().unwrap());
     s.select_tool("type", v).unwrap();
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let g = lay.glyphs.iter().find(|g| g.len == 2).expect("f + i is one glyph");
     let (_, f) = g.carets[0];
-    let p = t.xf * (g.origin + vectorcraft_geom::Vec2::new(g.advance * f + 0.2, -10.0));
+    let p = t.xf * (g.origin + pluma_geom::Vec2::new(g.advance * f + 0.2, -10.0));
     click(&mut s, p.x, p.y);
     assert_eq!(s.tool_options()["caret"], json!(1), "between the f and the i");
     key(&mut s, ToolKey::Right, Mods { shift: true, ..Default::default() });
@@ -1670,7 +1670,7 @@ fn select_all_in_a_threaded_frame_selects_the_whole_story() {
     assert_eq!(r["length"], json!(story.len()));
     // The selection is highlighted in both frames.
     let v = ViewInfo::default();
-    let in_b = |o: &vectorcraft_tools::Overlay| matches!(o, vectorcraft_tools::Overlay::Highlight { quad, color: [60, 120, 255, 90] } if quad.iter().all(|p| p.x > 190.0));
+    let in_b = |o: &pluma_tools::Overlay| matches!(o, pluma_tools::Overlay::Highlight { quad, color: [60, 120, 255, 90] } if quad.iter().all(|p| p.x > 190.0));
     assert!(s.overlays(v).iter().any(in_b), "the text of the second frame is highlighted");
     // A fill reaches the text of both frames, as one undo step.
     let steps = undo_labels(&s).len();
@@ -1755,7 +1755,7 @@ fn pick_red_source(s: &mut Session, mods: Mods) {
 }
 
 fn highlights(s: &mut Session) -> usize {
-    s.overlays(ViewInfo::default()).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Highlight { .. })).count()
+    s.overlays(ViewInfo::default()).iter().filter(|o| matches!(o, pluma_tools::Overlay::Highlight { .. })).count()
 }
 
 #[test]
@@ -1843,7 +1843,7 @@ fn an_eyedropper_pick_from_a_frame_of_the_selected_story_styles_the_other_frames
 
 /// Whether a character in the frame that `text.thread.add` places at [`THREADED_AT`] is highlighted.
 fn third_frame_highlighted(s: &mut Session) -> bool {
-    let in_frame = |o: &vectorcraft_tools::Overlay| matches!(o, vectorcraft_tools::Overlay::Highlight { quad, color: [60, 120, 255, 90] } if quad.iter().all(|p| p.x > 690.0));
+    let in_frame = |o: &pluma_tools::Overlay| matches!(o, pluma_tools::Overlay::Highlight { quad, color: [60, 120, 255, 90] } if quad.iter().all(|p| p.x > 690.0));
     s.overlays(ViewInfo::default()).iter().any(in_frame)
 }
 
@@ -2217,8 +2217,8 @@ fn shift_and_alt_switch_the_type_tools_through_the_session() {
     let v = ViewInfo::default();
     let (shift, alt) = (Mods { shift: true, ..Mods::default() }, Mods { alt: true, ..Mods::default() });
     s.select_tool("type", v).unwrap();
-    assert_eq!(s.cursor(Point::new(400.0, 300.0), shift, v), vectorcraft_tools::Cursor::TypeVertical);
-    assert_eq!(s.cursor(Point::new(400.0, 300.0), Mods::default(), v), vectorcraft_tools::Cursor::Text);
+    assert_eq!(s.cursor(Point::new(400.0, 300.0), shift, v), pluma_tools::Cursor::TypeVertical);
+    assert_eq!(s.cursor(Point::new(400.0, 300.0), Mods::default(), v), pluma_tools::Cursor::Text);
     for k in [PointerKind::Down, PointerKind::Up] {
         s.pointer(&PointerEvent::new(k, 400.0, 300.0).with_mods(shift), v).unwrap();
     }
@@ -2247,12 +2247,12 @@ fn area_type_from_a_circle_keeps_glyphs_inside() {
     let mut s = session();
     let e = s.execute("shape.ellipse", &json!({"x": 100, "y": 100, "width": 240, "height": 240})).unwrap();
     let pid = e["id"].as_u64().unwrap();
-    let r = s.execute("text.createInPath", &json!({"path": pid, "mode": "area", "text": vectorcraft_engine_placeholder()})).unwrap();
+    let r = s.execute("text.createInPath", &json!({"path": pid, "mode": "area", "text": pluma_engine_placeholder()})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     assert!(s.doc().unwrap().doc.node(NodeId(pid)).is_none(), "the path became the frame");
     let t = obj(&s, id);
     assert!(matches!(t.kind, TextKind::Area { .. }));
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert!(lay.lines.len() > 5);
     let c = Point::new(220.0, 220.0);
     for g in lay.glyphs.iter().filter(|g| !g.outline.elements().is_empty()) {
@@ -2265,7 +2265,7 @@ fn area_type_from_a_circle_keeps_glyphs_inside() {
     assert!(s.execute("text.createInPath", &json!({"path": 9999})).is_err());
 }
 
-fn vectorcraft_engine_placeholder() -> String {
+fn pluma_engine_placeholder() -> String {
     "Type flows inside any closed shape, line by line, trimmed to the shape's edges at each band. ".repeat(4)
 }
 
@@ -2280,7 +2280,7 @@ fn type_on_path_starts_where_clicked() {
     let t = obj(&s, NodeId(r["id"].as_u64().unwrap()));
     let TextKind::OnPath { start, .. } = t.kind else { panic!() };
     assert!((start - 0.25).abs() < 0.01, "{start}");
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let g0 = &lay.glyphs[0];
     assert!((g0.origin.y - 300.0).abs() < 1e-6 && (g0.origin.x - 200.0).abs() < 1.0, "{:?}", g0.origin);
 }
@@ -2315,7 +2315,7 @@ fn fit_headline_fills_the_frame_width() {
     let r = s.execute("type.fitHeadline", &json!({"ids": [id.0]})).unwrap();
     assert!(r["tracking"][0].as_f64().unwrap() > 100.0, "{r}");
     let t = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let l0 = &lay.lines[0];
     assert_eq!(&t.plain_text()[l0.start..l0.end], "Headline", "still one line");
     assert!((l0.x1 - l0.x0 - 400.0).abs() < 1.0, "{}", l0.x1 - l0.x0);
@@ -2326,7 +2326,7 @@ fn fit_headline_fills_the_frame_width() {
 }
 
 fn first_glyph_doc_pos(t: &TextObject) -> Point {
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     t.xf * lay.glyphs[0].origin
 }
 
@@ -2352,7 +2352,7 @@ fn convert_area_point_keeps_text_in_place_for_every_alignment() {
         let t = obj(&s, id);
         let back = first_glyph_doc_pos(&t);
         assert!((back - before).hypot() < 0.01, "{j} (area again): {before:?} → {back:?}");
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
         assert!(!lay.overflow);
     }
 }
@@ -2423,7 +2423,7 @@ fn rtl_edit_commands_and_undo_preserve_logical_source_and_style_ranges() {
     s.execute("text.editRange", &json!({"id": id.0, "start": 0, "end": 8, "insert": "مرحبا"})).unwrap();
     let t = obj(&s, id);
     assert_eq!(t.plain_text(), "مرحبا Rust 123");
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert!(lay.glyphs.iter().any(|g| g.rtl));
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": 10, "size": 30})).unwrap();
     assert_eq!(obj(&s, id).runs[0].text, "مرحبا");
@@ -2434,10 +2434,10 @@ fn rtl_edit_commands_and_undo_preserve_logical_source_and_style_ranges() {
 
 #[test]
 fn touch_type_rtl_move_keeps_neighbors_and_undo_restores_the_original() {
-    use vectorcraft_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
+    use pluma_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
 
     // Repeated registration of this synthetic face is harmless in the shared database.
-    vectorcraft_text::FontDb::global().add_font(right_to_left_optical_font().unwrap());
+    pluma_text::FontDb::global().add_font(right_to_left_optical_font().unwrap());
     let mut s = session();
     let id = NodeId(
         s.execute("text.create", &json!({"x": 300, "y": 250, "text": "אבא", "size": 100, "font": RIGHT_TO_LEFT_OPTICAL_FAMILY})).unwrap()["id"]
@@ -2463,8 +2463,8 @@ fn touch_type_rtl_move_keeps_neighbors_and_undo_restores_the_original() {
 
 #[test]
 fn touch_type_rtl_move_keeps_rotated_font_placement() {
-    use vectorcraft_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
-    vectorcraft_text::FontDb::global().add_font(pair_kerning_font().unwrap());
+    use pluma_text::test_fonts::{PAIR_KERNING_FAMILY, pair_kerning_font};
+    pluma_text::FontDb::global().add_font(pair_kerning_font().unwrap());
     let mut s = session();
     // An explicit RTL override gives the existing synthetic S/S positioning pair RTL order.
     let id =
@@ -2476,7 +2476,7 @@ fn touch_type_rtl_move_keeps_rotated_font_placement() {
         );
     s.execute("text.touchType", &json!({"id": id.0, "start": 4, "rotation": 90})).unwrap();
     let original = obj(&s, id);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &original);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &original);
     let glyph = lay.glyphs.iter().find(|g| g.byte == 4).unwrap();
     assert!(glyph.rtl && glyph.width_start.abs() > 0.1, "fixture needs RTL font x-placement");
     let before = glyph_pens(&s, id);
@@ -2492,10 +2492,10 @@ fn touch_type_rtl_move_keeps_rotated_font_placement() {
 
 #[test]
 fn touch_type_rtl_moves_rotated_characters_in_aligned_and_transformed_text() {
-    use vectorcraft_geom::{Affine, Vec2};
-    use vectorcraft_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
+    use pluma_geom::{Affine, Vec2};
+    use pluma_text::test_fonts::{RIGHT_TO_LEFT_OPTICAL_FAMILY, right_to_left_optical_font};
 
-    vectorcraft_text::FontDb::global().add_font(right_to_left_optical_font().unwrap());
+    pluma_text::FontDb::global().add_font(right_to_left_optical_font().unwrap());
     let matrices =
         [Affine::IDENTITY, Affine::scale_non_uniform(2.0, 0.5), Affine::new([1.0, 0.25, 0.4, 1.2, 0.0, 0.0]), Affine::scale_non_uniform(-1.0, 1.0)];
     for justify in ["auto", "left", "center", "right"] {
@@ -2535,7 +2535,7 @@ fn touch_type_rtl_moves_rotated_characters_in_aligned_and_transformed_text() {
                         serde_json::to_value(&reopened).unwrap(),
                         "{case}: stored attributes round trip"
                     );
-                    let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &reopened);
+                    let layout = pluma_text::layout(pluma_text::FontDb::global(), &reopened);
                     for g in &layout.glyphs {
                         let expected = after.iter().find(|(byte, _)| *byte == g.byte).unwrap().1;
                         assert!(
@@ -2571,13 +2571,13 @@ fn touch_type_optical_spacing_does_not_shorten_a_baseline_nudge() {
 fn automatic_alignment_updates_during_edits_and_can_be_overridden() {
     let mut s = session();
     let id = text(&mut s, "English");
-    let db = vectorcraft_text::FontDb::global();
-    assert_eq!(obj(&s, id).para.justify, vectorcraft_doc::Justify::Auto);
+    let db = pluma_text::FontDb::global();
+    assert_eq!(obj(&s, id).para.justify, pluma_doc::Justify::Auto);
     for content in ["שלום", "مرحبا", "English"] {
         let len = obj(&s, id).plain_text().len();
         s.execute("text.editRange", &json!({"id": id.0, "start": 0, "end": len, "insert": content})).unwrap();
         let t = obj(&s, id);
-        let l = vectorcraft_text::layout(db, &t);
+        let l = pluma_text::layout(db, &t);
         if content == "English" {
             assert_eq!(l.lines[0].x0, 0.0);
         } else {
@@ -2586,17 +2586,17 @@ fn automatic_alignment_updates_during_edits_and_can_be_overridden() {
     }
     s.execute("text.setStyle", &json!({"id": id.0, "justify": "center"})).unwrap();
     s.execute("text.editRange", &json!({"id": id.0, "start": 0, "end": 7, "insert": "שלום"})).unwrap();
-    assert_eq!(obj(&s, id).para.justify, vectorcraft_doc::Justify::Center);
+    assert_eq!(obj(&s, id).para.justify, pluma_doc::Justify::Center);
     s.execute("text.setStyle", &json!({"id": id.0, "justify": "auto"})).unwrap();
     let t = obj(&s, id);
-    assert!(vectorcraft_text::layout(db, &t).lines[0].x1.abs() < 1e-6);
+    assert!(pluma_text::layout(db, &t).lines[0].x1.abs() < 1e-6);
     let restored: TextObject = serde_json::from_value(serde_json::to_value(&t).unwrap()).unwrap();
-    assert_eq!(restored.para.justify, vectorcraft_doc::Justify::Auto);
+    assert_eq!(restored.para.justify, pluma_doc::Justify::Auto);
     // Legacy documents with explicit alignment retain that choice.
     let mut legacy = serde_json::to_value(t).unwrap();
     legacy["para"].as_object_mut().unwrap().remove("justify_auto");
     legacy["para"]["justify"] = json!("Left");
-    assert_eq!(serde_json::from_value::<TextObject>(legacy).unwrap().para.justify, vectorcraft_doc::Justify::Left);
+    assert_eq!(serde_json::from_value::<TextObject>(legacy).unwrap().para.justify, pluma_doc::Justify::Left);
 }
 
 /// #1063: a fill (or stroke) chosen while the Type tool has characters selected colours just
@@ -2615,7 +2615,7 @@ fn a_fill_chosen_with_characters_selected_colours_only_them() {
     let t = obj(&s, id);
     assert_eq!(t.runs.len(), 2);
     assert_eq!(t.runs[0].text, "Sample");
-    assert_eq!(t.runs[0].style.fill, Paint::solid(vectorcraft_color::Color::rgb8(0, 160, 0)));
+    assert_eq!(t.runs[0].style.fill, Paint::solid(pluma_color::Color::rgb8(0, 160, 0)));
     assert_eq!(t.runs[1].text, " Text");
     assert_eq!(t.runs[1].style.fill, before);
     // A stroke goes on the selected characters only, with a weight to show.
@@ -2734,7 +2734,7 @@ fn a_colour_previewed_while_typing_keeps_the_typing() {
     s.commit_interaction().unwrap();
     let t = obj(&s, id);
     assert_eq!(t.plain_text(), "abc");
-    assert!(t.runs.iter().all(|r| r.style.fill == Paint::solid(vectorcraft_color::Color::rgb8(0, 160, 0))), "{:?}", t.runs);
+    assert!(t.runs.iter().all(|r| r.style.fill == Paint::solid(pluma_color::Color::rgb8(0, 160, 0))), "{:?}", t.runs);
     // The typing and the colour are a step each, and typing goes on after them.
     let labels = undo_labels(&s);
     assert_eq!(&labels[labels.len() - 2..], ["Typing", "Fill Color"]);
@@ -2753,7 +2753,7 @@ fn overflow_marker_shows_with_the_selection_tool() {
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.select_tool("selection", v).unwrap();
-    let red = |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Path { color: [230, 30, 30], .. })).count();
+    let red = |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Path { color: [230, 30, 30], .. })).count();
     assert_eq!(red(&mut s), 1, "the out port");
     s.select_tool("type", v).unwrap();
     assert_eq!(red(&mut s), 1, "the Type tool's own, not a second one");
@@ -2773,8 +2773,8 @@ fn clicking_the_out_port_then_the_canvas_threads_the_text_into_a_new_frame() {
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.select_tool("selection", v).unwrap();
-    let port = Point::new(150.0, 90.0 - vectorcraft_tools::text::PORT_RISE_PX);
-    let loaded = |s: &mut Session| s.cursor(Point::new(400.0, 400.0), Mods::default(), v) == vectorcraft_tools::Cursor::LoadedText;
+    let port = Point::new(150.0, 90.0 - pluma_tools::text::PORT_RISE_PX);
+    let loaded = |s: &mut Session| s.cursor(Point::new(400.0, 400.0), Mods::default(), v) == pluma_tools::Cursor::LoadedText;
     click(&mut s, port.x, port.y);
     assert!(loaded(&mut s));
     key(&mut s, ToolKey::Escape, Mods::default());
@@ -2805,13 +2805,12 @@ fn clicking_the_in_port_then_the_canvas_threads_a_new_frame_before_it() {
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.select_tool("selection", v).unwrap();
-    let boxes = |s: &mut Session| {
-        s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Highlight { color: [255, 255, 255, 255], .. })).count()
-    };
+    let boxes =
+        |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Highlight { color: [255, 255, 255, 255], .. })).count();
     assert_eq!(boxes(&mut s), 2, "an in port and an out port");
     let steps = undo_labels(&s).len();
-    click(&mut s, 50.0, 50.0 + vectorcraft_tools::text::PORT_RISE_PX);
-    assert_eq!(s.cursor(Point::new(400.0, 400.0), Mods::default(), v), vectorcraft_tools::Cursor::LoadedText);
+    click(&mut s, 50.0, 50.0 + pluma_tools::text::PORT_RISE_PX);
+    assert_eq!(s.cursor(Point::new(400.0, 400.0), Mods::default(), v), pluma_tools::Cursor::LoadedText);
     click(&mut s, 400.0, 400.0);
     let doc = &s.doc().unwrap().doc;
     let [thread] = &doc.text_threads[..] else { panic!("one thread: {:?}", doc.text_threads) };
@@ -2819,7 +2818,7 @@ fn clicking_the_in_port_then_the_canvas_threads_a_new_frame_before_it() {
     assert_eq!(format!("{}{}", obj(&s, thread[0]).plain_text(), obj(&s, id).plain_text()), words);
     assert!(!obj(&s, thread[0]).plain_text().is_empty(), "the story starts in the new frame");
     assert_eq!(&undo_labels(&s)[steps..], ["Thread Text"]);
-    let strokes = s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Line { .. })).count();
+    let strokes = s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Line { .. })).count();
     assert_eq!(strokes, 6, "both frames selected: the first one's out port and the second one's in port show arrows");
 }
 
@@ -2828,8 +2827,8 @@ fn clicking_the_in_port_then_the_canvas_threads_a_new_frame_before_it() {
 /// whose styles are numbered has no Regular to store (#4128). A style given is kept as given.
 #[test]
 fn a_family_without_its_style_takes_its_closest_style() {
-    use vectorcraft_text::test_fonts::{NUMBERED_FAMILY as FAMILY, numbered_font};
-    let db = vectorcraft_text::FontDb::global();
+    use pluma_text::test_fonts::{NUMBERED_FAMILY as FAMILY, numbered_font};
+    let db = pluma_text::FontDb::global();
     db.add_font(numbered_font("W3").unwrap());
     db.add_font(numbered_font("W6").unwrap());
     let numbered = ["W3", "W6"];
@@ -2857,9 +2856,9 @@ fn a_family_without_its_style_takes_its_closest_style() {
 /// to, in place of that character alone, as one undo step that native files keep.
 #[test]
 fn a_glyph_alternate_replaces_one_character_through_undo_and_reopen() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+    use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
     let face = db.face(alternates_family(true), "Regular").expect("the test face");
@@ -2868,7 +2867,7 @@ fn a_glyph_alternate_replaces_one_character_through_undo_and_reopen() {
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": "xaay", "size": 20, "font": alternates_family(true)})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": 4, "underline": true})).unwrap();
-    let gids = |t: &TextObject| vectorcraft_text::layout(db, t).glyphs.iter().map(|g| g.gid).collect::<Vec<_>>();
+    let gids = |t: &TextObject| pluma_text::layout(db, t).glyphs.iter().map(|g| g.gid).collect::<Vec<_>>();
     assert_eq!(gids(&obj(&s, id)), [g('x'), g('a'), g('a'), g('y')]);
 
     let listed = s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 2})).unwrap();
@@ -2901,8 +2900,8 @@ fn a_glyph_alternate_replaces_one_character_through_undo_and_reopen() {
     assert_ne!(outlines(&mut s), default, "Create Outlines draws the chosen glyph");
 
     // Native files keep the choice.
-    let bytes = vectorcraft_format::save_file(&s.doc().unwrap().doc);
-    let opened = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save_file(&s.doc().unwrap().doc);
+    let opened = pluma_format::load(&bytes).unwrap();
     let NodeKind::Text(reopened) = &opened.node(id).unwrap().kind else { panic!("text missing") };
     assert_eq!(gids(reopened), [g('x'), g('a'), u1, g('y')], "reopened");
     // A font that is not installed draws the fallback font's default glyph.
@@ -2942,9 +2941,9 @@ fn a_glyph_alternate_replaces_one_character_through_undo_and_reopen() {
 /// not stand in for the character's own choice.
 #[test]
 fn a_glyph_alternate_already_drawn_is_not_an_edit() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+    use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
     let face = db.face(alternates_family(true), "Regular").expect("the test face");
@@ -2966,27 +2965,23 @@ fn a_glyph_alternate_already_drawn_is_not_an_edit() {
     // An empty run that holds the choice, as a file may have, right before the first a.
     let other = create(&mut s, 150.0);
     let mut runs = obj(&s, other).runs;
-    let mut empty = vectorcraft_doc::TextRun { text: String::new(), ..runs[0].clone() };
+    let mut empty = pluma_doc::TextRun { text: String::new(), ..runs[0].clone() };
     empty.style.glyph_alternate = Some(face.choice('a', u1));
-    runs = vec![
-        vectorcraft_doc::TextRun { text: "x".into(), ..runs[0].clone() },
-        empty,
-        vectorcraft_doc::TextRun { text: "aay".into(), ..runs[0].clone() },
-    ];
+    runs = vec![pluma_doc::TextRun { text: "x".into(), ..runs[0].clone() }, empty, pluma_doc::TextRun { text: "aay".into(), ..runs[0].clone() }];
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
     let Some(NodeKind::Text(text)) = doc.node_mut(other).map(|n| &mut n.kind) else { panic!("text") };
     text.runs = runs;
     s.execute("text.setGlyphAlternate", &json!({"id": other.0, "start": 1, "gid": u1})).unwrap();
-    let gids: Vec<u32> = vectorcraft_text::layout(db, &obj(&s, other)).glyphs.iter().map(|g| g.gid).collect();
+    let gids: Vec<u32> = pluma_text::layout(db, &obj(&s, other)).glyphs.iter().map(|g| g.gid).collect();
     assert_eq!(gids[1], u1, "the a takes the choice: {gids:?}");
 
     // A run that holds the choice and goes on past its first character, as a file may have: the
     // request splits it, so the character is shaped alone.
     let shared = create(&mut s, 200.0);
     let mut runs = obj(&s, shared).runs;
-    let mut chosen = vectorcraft_doc::TextRun { text: "aay".into(), ..runs[0].clone() };
+    let mut chosen = pluma_doc::TextRun { text: "aay".into(), ..runs[0].clone() };
     chosen.style.glyph_alternate = Some(face.choice('a', u1));
-    runs = vec![vectorcraft_doc::TextRun { text: "x".into(), ..runs[0].clone() }, chosen];
+    runs = vec![pluma_doc::TextRun { text: "x".into(), ..runs[0].clone() }, chosen];
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
     let Some(NodeKind::Text(text)) = doc.node_mut(shared).map(|n| &mut n.kind) else { panic!("text") };
     text.runs = runs;
@@ -3001,9 +2996,9 @@ fn a_glyph_alternate_already_drawn_is_not_an_edit() {
 /// error, and the document and its undo history are left as they were.
 #[test]
 fn a_glyph_alternate_that_the_style_does_not_draw_is_an_error() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+    use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
     let _fonts = crate::adding_fonts();
-    vectorcraft_text::FontDb::global().add_font(alternates_font(true).expect("the test font builds"));
+    pluma_text::FontDb::global().add_font(alternates_font(true).expect("the test font builds"));
     let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
     let mut s = session();
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": "xaay", "size": 20, "font": alternates_family(true)})).unwrap();
@@ -3021,9 +3016,9 @@ fn a_glyph_alternate_that_the_style_does_not_draw_is_an_error() {
 /// glyph draws it, and `gid: null` takes the choice away and reports the glyph the feature draws.
 #[test]
 fn the_default_glyph_chosen_under_a_substituting_feature_is_drawn() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font};
+    use pluma_text::test_fonts::{alternates_family, alternates_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     let face = db.face(alternates_family(true), "Regular").expect("the test face");
     let g = |c| face.glyph_for(c);
@@ -3031,7 +3026,7 @@ fn the_default_glyph_chosen_under_a_substituting_feature_is_drawn() {
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": "xaay", "size": 20, "font": alternates_family(true)})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": 4, "features": ["salt"]})).unwrap();
-    let gids = |s: &Session| vectorcraft_text::layout(db, &obj(s, id)).glyphs.iter().map(|g| g.gid).collect::<Vec<_>>();
+    let gids = |s: &Session| pluma_text::layout(db, &obj(s, id)).glyphs.iter().map(|g| g.gid).collect::<Vec<_>>();
     assert_eq!(gids(&s), [g('x'), g('b'), g('b'), g('y')], "salt draws each a as b");
 
     let undo = s.doc().unwrap().history.undo.len();
@@ -3049,7 +3044,7 @@ fn the_default_glyph_chosen_under_a_substituting_feature_is_drawn() {
     let area = json!({"x": 0, "y": 300, "text": "xa", "size": 20, "font": alternates_family(true), "area": {"width": 200, "height": 4}});
     let boxed = NodeId(s.execute("text.create", &area).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": boxed.0, "start": 0, "end": 2, "features": ["salt"]})).unwrap();
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 1, "gid": g('a')})).unwrap();
     let held: Vec<_> = obj(&s, boxed).runs.iter().filter_map(|r| r.style.glyph_alternate.as_ref().map(|c| c.gid)).collect();
     assert_eq!(held, [g('a')], "the default glyph is kept as the choice");
@@ -3060,9 +3055,9 @@ fn the_default_glyph_chosen_under_a_substituting_feature_is_drawn() {
 /// default glyph draws it.
 #[test]
 fn the_glyph_drawn_for_a_character_with_a_combining_mark_is_reported() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font};
+    use pluma_text::test_fonts::{alternates_family, alternates_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     let face = db.face(alternates_family(true), "Regular").expect("the test face");
     let g = |c| face.glyph_for(c);
@@ -3071,7 +3066,7 @@ fn the_glyph_drawn_for_a_character_with_a_combining_mark_is_reported() {
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": text, "size": 20, "font": alternates_family(true)})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": text.len(), "features": ["salt"]})).unwrap();
-    let lay = vectorcraft_text::layout(db, &obj(&s, id));
+    let lay = pluma_text::layout(db, &obj(&s, id));
     let at = lay.glyphs.iter().find(|gl| gl.byte == 1).expect("the a is laid out");
     assert_eq!((at.gid, at.len), (g('b'), 3), "salt draws the a as b, in one cluster with its mark");
 
@@ -3082,13 +3077,13 @@ fn the_glyph_drawn_for_a_character_with_a_combining_mark_is_reported() {
     let r = s.execute("text.setGlyphAlternate", &json!({"id": id.0, "start": 1, "gid": g('a')})).unwrap();
     assert_eq!(r["gid"], json!(g('a')));
     assert_eq!(state(&s).0, undo + 1, "one undo step");
-    let lay = vectorcraft_text::layout(db, &obj(&s, id));
+    let lay = pluma_text::layout(db, &obj(&s, id));
     assert_eq!(lay.glyphs.iter().find(|gl| gl.byte == 1).map(|gl| gl.gid), Some(g('a')), "the a draws its default glyph");
 
     let area = json!({"x": 0, "y": 300, "text": "xa\u{331}", "size": 20, "font": alternates_family(true), "area": {"width": 200, "height": 4}});
     let boxed = NodeId(s.execute("text.create", &area).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": boxed.0, "start": 0, "end": 4, "features": ["salt"]})).unwrap();
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 1, "gid": null})).unwrap();
     assert_eq!(r["gid"], json!(g('b')), "the overflowing a is shaped with its mark");
 }
@@ -3098,20 +3093,20 @@ fn the_glyph_drawn_for_a_character_with_a_combining_mark_is_reported() {
 /// keeps the choice.
 #[test]
 fn the_default_glyph_chosen_in_overflowing_vertical_type_is_kept() {
-    use vectorcraft_text::test_fonts::{VERTICAL_PUNCTUATION_FAMILY, vertical_punctuation_font};
+    use pluma_text::test_fonts::{VERTICAL_PUNCTUATION_FAMILY, vertical_punctuation_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(vertical_punctuation_font(true).expect("the test font builds"));
     let face = db.face(VERTICAL_PUNCTUATION_FAMILY, "Regular").expect("the test face");
     let g = |c| face.glyph_for(c);
     let mut s = session();
     let text = |area: Value| json!({"x": 0, "y": 0, "text": "！！", "size": 20, "font": VERTICAL_PUNCTUATION_FAMILY, "vertical": true, "area": area});
     let open = NodeId(s.execute("text.create", &text(json!({"width": 200, "height": 200}))).unwrap()["id"].as_u64().unwrap());
-    let gids: Vec<_> = vectorcraft_text::layout(db, &obj(&s, open)).glyphs.iter().map(|g| g.gid).collect();
+    let gids: Vec<_> = pluma_text::layout(db, &obj(&s, open)).glyphs.iter().map(|g| g.gid).collect();
     assert_eq!(gids, [g('I'), g('I')], "vert draws each ！ as I");
 
     let boxed = NodeId(s.execute("text.create", &text(json!({"width": 4, "height": 4}))).unwrap()["id"].as_u64().unwrap());
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 0, "gid": g('！')})).unwrap();
     assert_eq!(r["gid"], json!(g('！')));
     let held: Vec<_> = obj(&s, boxed).runs.iter().filter_map(|r| r.style.glyph_alternate.as_ref().map(|c| c.gid)).collect();
@@ -3123,9 +3118,9 @@ fn the_default_glyph_chosen_in_overflowing_vertical_type_is_kept() {
 /// type.
 #[test]
 fn the_glyph_query_shapes_an_overflowing_character() {
-    use vectorcraft_text::test_fonts::{VERTICAL_PUNCTUATION_FAMILY, alternates_family, alternates_font, vertical_punctuation_font};
+    use pluma_text::test_fonts::{VERTICAL_PUNCTUATION_FAMILY, alternates_family, alternates_font, vertical_punctuation_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     db.add_font(vertical_punctuation_font(true).expect("the test font builds"));
     let face = db.face(alternates_family(true), "Regular").expect("the test face");
@@ -3138,7 +3133,7 @@ fn the_glyph_query_shapes_an_overflowing_character() {
     let area = json!({"x": 0, "y": 300, "text": "xa", "size": 20, "font": alternates_family(true), "area": {"width": 200, "height": 4}});
     let boxed = NodeId(s.execute("text.create", &area).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": boxed.0, "start": 0, "end": 2, "features": ["salt"]})).unwrap();
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     assert_eq!(chosen(&mut s, boxed, 1), json!(g('b')), "the glyph salt draws");
     s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 1, "gid": g('a')})).unwrap();
     assert_eq!(chosen(&mut s, boxed, 1), json!(g('a')), "the chosen default glyph");
@@ -3147,7 +3142,7 @@ fn the_glyph_query_shapes_an_overflowing_character() {
     let text =
         json!({"x": 0, "y": 0, "text": "！！", "size": 20, "font": VERTICAL_PUNCTUATION_FAMILY, "vertical": true, "area": {"width": 4, "height": 4}});
     let vertical = NodeId(s.execute("text.create", &text).unwrap()["id"].as_u64().unwrap());
-    assert!(vectorcraft_text::layout(db, &obj(&s, vertical)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, vertical)).glyphs.is_empty(), "the text overflows");
     assert_eq!(chosen(&mut s, vertical, 0), json!(vface.glyph_for('I')), "vert draws ！ as I");
 }
 
@@ -3157,7 +3152,7 @@ fn the_glyph_query_shapes_an_overflowing_character() {
 /// direction and reports the glyph the text draws when it fits.
 #[test]
 fn the_glyph_query_shapes_an_overflowing_character_in_its_paragraph_direction() {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let face = db.face("Source Sans 3", "Regular").expect("the bundled face");
     let mut s = session();
     let create = |s: &mut Session, text: &str, rtl: bool, char_ltr: bool, height: f64| {
@@ -3173,11 +3168,11 @@ fn the_glyph_query_shapes_an_overflowing_character_in_its_paragraph_direction() 
     };
     for (text, rtl, char_ltr, at, drawn) in [("a\n(", true, false, 2, ')'), ("a\n\u{5D0}(", false, false, 4, ')'), ("a\n(", true, true, 2, '(')] {
         let open = create(&mut s, text, rtl, char_ltr, 200.0);
-        let lay = vectorcraft_text::layout(db, &obj(&s, open));
+        let lay = pluma_text::layout(db, &obj(&s, open));
         assert_eq!(lay.glyphs.iter().find(|g| g.byte == at).map(|g| g.gid), Some(face.glyph_for(drawn)), "{text:?}: the parenthesis drawn");
 
         let boxed = create(&mut s, text, rtl, char_ltr, 30.0);
-        let lay = vectorcraft_text::layout(db, &obj(&s, boxed));
+        let lay = pluma_text::layout(db, &obj(&s, boxed));
         assert!(lay.glyphs.iter().all(|g| g.byte < 2), "{text:?}: the second paragraph overflows");
         let r = s.execute("text.glyphAlternates", &json!({"id": boxed.0, "start": at})).unwrap();
         assert_eq!(r["chosen"], json!(face.glyph_for(drawn)), "{text:?}: the glyph drawn when it fits");
@@ -3189,9 +3184,9 @@ fn the_glyph_query_shapes_an_overflowing_character_in_its_paragraph_direction() 
 /// the feature draws, not the vowel sign's, and the default glyph chosen for it is drawn.
 #[test]
 fn the_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
-    use vectorcraft_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
+    use pluma_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(matra_font().expect("the test font builds"));
     let g = |c| u32::from(source_sans_gid(c).expect("a Source Sans glyph"));
     let mut s = session();
@@ -3199,7 +3194,7 @@ fn the_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": text, "size": 20, "font": MATRA_FAMILY})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": text.len(), "features": ["salt"]})).unwrap();
-    let gids = |s: &Session| vectorcraft_text::layout(db, &obj(s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect::<Vec<_>>();
+    let gids = |s: &Session| pluma_text::layout(db, &obj(s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect::<Vec<_>>();
     assert_eq!(gids(&s), [(g('i'), 0, 6), (g('b'), 0, 6)], "the vowel sign is drawn first, in the cluster of Ka as salt draws it");
 
     let query = s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 0})).unwrap();
@@ -3217,16 +3212,16 @@ fn the_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
 /// glyph reported for Ka is the ligature, not the vowel sign.
 #[test]
 fn the_ligature_of_a_consonant_after_its_vowel_sign_is_reported() {
-    use vectorcraft_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
+    use pluma_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(matra_font().expect("the test font builds"));
     let g = |c| u32::from(source_sans_gid(c).expect("a Source Sans glyph"));
     let mut s = session();
     let text = "क\u{93C}\u{93F}";
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": text, "size": 20, "font": MATRA_FAMILY})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
-    let gids: Vec<_> = vectorcraft_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
+    let gids: Vec<_> = pluma_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
     assert_eq!(gids, [(g('i'), 0, 9), (g('N'), 0, 9)], "the vowel sign is drawn first, then the ligature");
 
     assert_eq!(s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 0})).unwrap()["chosen"], json!(g('N')));
@@ -3241,16 +3236,16 @@ fn the_ligature_of_a_consonant_after_its_vowel_sign_is_reported() {
 /// alternate of Ka; drawn for the vowel sign, it is not reported for Ka.
 #[test]
 fn the_first_of_a_characters_glyphs_in_its_cluster_is_reported() {
-    use vectorcraft_text::test_fonts::{CONJUNCT_FAMILY, conjunct_font, source_sans_gid};
+    use pluma_text::test_fonts::{CONJUNCT_FAMILY, conjunct_font, source_sans_gid};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(conjunct_font().expect("the test font builds"));
     let g = |c| u32::from(source_sans_gid(c).expect("a Source Sans glyph"));
     let mut s = session();
     let text = "क\u{94D}क\u{93F}";
     let r = s.execute("text.create", &json!({"x": 100, "y": 100, "text": text, "size": 20, "font": CONJUNCT_FAMILY})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
-    let gids: Vec<_> = vectorcraft_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
+    let gids: Vec<_> = pluma_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
     assert_eq!(gids, [(g('i'), 0, 12), (g('k'), 0, 12), (g('K'), 0, 12)], "the vowel sign, the half form, then the second Ka");
 
     assert_eq!(s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 0})).unwrap()["chosen"], json!(g('k')));
@@ -3260,7 +3255,7 @@ fn the_first_of_a_characters_glyphs_in_its_cluster_is_reported() {
     let text = "क\u{93F}";
     let r = s.execute("text.create", &json!({"x": 100, "y": 200, "text": text, "size": 20, "font": CONJUNCT_FAMILY})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
-    let gids: Vec<_> = vectorcraft_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
+    let gids: Vec<_> = pluma_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
     assert_eq!(gids, [(g('i'), 0, 6), (g('K'), 0, 6)], "the vowel sign, then Ka");
     assert_eq!(s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 0})).unwrap()["chosen"], json!(g('K')));
     let r = s.execute("text.setGlyphAlternate", &json!({"id": id.0, "start": 0, "gid": null})).unwrap();
@@ -3272,9 +3267,9 @@ fn the_first_of_a_characters_glyphs_in_its_cluster_is_reported() {
 /// does for the laid-out text.
 #[test]
 fn the_glyph_of_an_overflowing_character_is_shaped_with_its_grapheme() {
-    use vectorcraft_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
+    use pluma_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(matra_font().expect("the test font builds"));
     let g = |c| u32::from(source_sans_gid(c).expect("a Source Sans glyph"));
     let mut s = session();
@@ -3282,7 +3277,7 @@ fn the_glyph_of_an_overflowing_character_is_shaped_with_its_grapheme() {
     let point = json!({"x": 100, "y": 100, "text": text, "size": 20, "font": MATRA_FAMILY});
     let id = NodeId(s.execute("text.create", &point).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 0, "end": text.len(), "features": ["salt"]})).unwrap();
-    let gids: Vec<_> = vectorcraft_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
+    let gids: Vec<_> = pluma_text::layout(db, &obj(&s, id)).glyphs.iter().map(|gl| (gl.gid, gl.byte, gl.len)).collect();
     assert_eq!(gids, [(g('N'), 0, 6)], "Ka and the nukta make the ligature");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": id.0, "start": 0, "gid": null})).unwrap();
     assert_eq!(r["gid"], json!(g('N')));
@@ -3290,7 +3285,7 @@ fn the_glyph_of_an_overflowing_character_is_shaped_with_its_grapheme() {
     let area = json!({"x": 0, "y": 300, "text": text, "size": 20, "font": MATRA_FAMILY, "area": {"width": 200, "height": 4}});
     let boxed = NodeId(s.execute("text.create", &area).unwrap()["id"].as_u64().unwrap());
     s.execute("text.setRangeStyle", &json!({"id": boxed.0, "start": 0, "end": text.len(), "features": ["salt"]})).unwrap();
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 0, "gid": null})).unwrap();
     assert_eq!(r["gid"], json!(g('N')), "the overflowing Ka is shaped with its nukta");
 }
@@ -3300,9 +3295,9 @@ fn the_glyph_of_an_overflowing_character_is_shaped_with_its_grapheme() {
 /// glyph `salt` draws for Ka, as it does for the laid-out text.
 #[test]
 fn an_overflowing_grapheme_keeps_the_styles_of_its_characters() {
-    use vectorcraft_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
+    use pluma_text::test_fonts::{MATRA_FAMILY, matra_font, source_sans_gid};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(matra_font().expect("the test font builds"));
     let g = |c| u32::from(source_sans_gid(c).expect("a Source Sans glyph"));
     let mut s = session();
@@ -3318,22 +3313,22 @@ fn an_overflowing_grapheme_keeps_the_styles_of_its_characters() {
         id
     };
     let open = styled(&mut s, None);
-    let lay = vectorcraft_text::layout(db, &obj(&s, open));
+    let lay = pluma_text::layout(db, &obj(&s, open));
     assert_eq!(lay.glyphs.iter().find(|gl| gl.byte == 0).map(|gl| gl.gid), Some(g('b')), "the nukta of another size makes no ligature");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": open.0, "start": 0, "gid": null})).unwrap();
     assert_eq!(r["gid"], json!(g('b')));
 
     let boxed = styled(&mut s, Some(json!({"width": 200, "height": 4})));
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let r = s.execute("text.setGlyphAlternate", &json!({"id": boxed.0, "start": 0, "gid": null})).unwrap();
     assert_eq!(r["gid"], json!(g('b')), "the overflowing Ka is shaped apart from the nukta of another size");
 }
 
 #[test]
 fn glyph_alternates_query_reports_the_fallback_glyph_that_is_drawn() {
-    use vectorcraft_text::test_fonts::{alternates_family, alternates_font};
+    use pluma_text::test_fonts::{alternates_family, alternates_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     let requested = db.face(alternates_family(true), "Regular").expect("the test face");
     let fallback = db.face("Inter", "Regular").expect("the bundled fallback face");
@@ -3344,7 +3339,7 @@ fn glyph_alternates_query_reports_the_fallback_glyph_that_is_drawn() {
     let id = NodeId(
         s.execute("text.create", &json!({"x": 0, "y": 0, "text": ch.to_string(), "font": alternates_family(true)})).unwrap()["id"].as_u64().unwrap(),
     );
-    let glyph = vectorcraft_text::layout(db, &obj(&s, id)).glyphs.remove(0);
+    let glyph = pluma_text::layout(db, &obj(&s, id)).glyphs.remove(0);
     assert_ne!(glyph.font_id, requested.id());
     assert_ne!(glyph.gid, 0);
     let query = s.execute("text.glyphAlternates", &json!({"id": id.0, "start": 0})).unwrap();
@@ -3353,7 +3348,7 @@ fn glyph_alternates_query_reports_the_fallback_glyph_that_is_drawn() {
 
     let area = json!({"x": 0, "y": 300, "text": ch.to_string(), "font": alternates_family(true), "area": {"width": 200, "height": 2}});
     let boxed = NodeId(s.execute("text.create", &area).unwrap()["id"].as_u64().unwrap());
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let query = s.execute("text.glyphAlternates", &json!({"id": boxed.0, "start": 0})).unwrap();
     assert_eq!(query["chosen"], json!(glyph.gid), "an overflowing character reports the fallback glyph it is drawn with");
 }
@@ -3363,9 +3358,9 @@ fn glyph_alternates_query_reports_the_fallback_glyph_that_is_drawn() {
 /// sign's.
 #[test]
 fn the_fallback_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
-    use vectorcraft_text::test_fonts::{MATRA_FAMILY, alternates_family, alternates_font, matra_font};
+    use pluma_text::test_fonts::{MATRA_FAMILY, alternates_family, alternates_font, matra_font};
     let _fonts = crate::adding_fonts();
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(alternates_font(true).expect("the test font builds"));
     db.add_font(matra_font().expect("the test font builds"));
     let requested = db.face(alternates_family(true), "Regular").expect("the test face");
@@ -3377,7 +3372,7 @@ fn the_fallback_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
         NodeId(s.execute("text.create", &spec).unwrap()["id"].as_u64().unwrap())
     };
     let open = create(&mut s, 200.0);
-    let glyphs = vectorcraft_text::layout(db, &obj(&s, open)).glyphs;
+    let glyphs = pluma_text::layout(db, &obj(&s, open)).glyphs;
     let fallback = db.face_by_id(glyphs[0].font_id).expect("the fallback face");
     assert_ne!(fallback.id(), requested.id());
     let ka = fallback.glyph_for('क');
@@ -3389,7 +3384,7 @@ fn the_fallback_glyph_of_a_consonant_after_its_vowel_sign_is_reported() {
     assert_eq!(query["chosen"], json!(ka), "the fallback face's glyph for Ka");
 
     let boxed = create(&mut s, 2.0);
-    assert!(vectorcraft_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
+    assert!(pluma_text::layout(db, &obj(&s, boxed)).glyphs.is_empty(), "the text overflows");
     let query = s.execute("text.glyphAlternates", &json!({"id": boxed.0, "start": 0})).unwrap();
     assert_eq!(query["chosen"], json!(ka), "an overflowing Ka reports the fallback face's glyph for Ka");
 }

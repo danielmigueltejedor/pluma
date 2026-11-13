@@ -9,16 +9,16 @@
 //! (`#rrggbb`, or a preset's name such as "Red"), `closeGaps`, `preview`, `__ids` (the groups) and
 //! `__gaps` (the gaps the last preview found, as `livePaint.gapOptions` returns them).
 
+use pluma_color::Color;
+use pluma_doc::{GapSize, LAYER_COLORS};
+use pluma_geom::{BezPath, Point};
+use pluma_tools::Overlay;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::{GapSize, LAYER_COLORS};
-use vectorcraft_geom::{BezPath, Point};
-use vectorcraft_tools::Overlay;
 
 use super::tile_edge_color::{checked, has_alpha, resolve};
 use super::{DialogSpec, form};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Gap Options.
 pub const KIND: &str = "livePaintGapOptions";
@@ -38,13 +38,13 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Gap Options").into(), body, confirm, preview: true, min_width: 340.0, ..DialogSpec::FORM };
 
 /// Open Gap Options on the selected Live Paint groups, filled in from the first one's options.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let groups: Vec<u64> = app
         .session
         .doc()
         .map(|d| {
             let doc = &d.doc;
-            d.selection.objects.iter().filter(|id| doc.node(**id).is_some_and(vectorcraft_tools::builder::is_live_paint)).map(|id| id.0).collect()
+            d.selection.objects.iter().filter(|id| doc.node(**id).is_some_and(pluma_tools::builder::is_live_paint)).map(|id| id.0).collect()
         })
         .unwrap_or_default();
     let Some(&first) = groups.first() else { return Err("select a Live Paint group".into()) };
@@ -84,7 +84,7 @@ fn params(d: &Dialog) -> Value {
     })
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     form::check(ui, d, "detect", tl!("Gap Detection"));
     ui.add_space(6.0);
     let size = d.str("size");
@@ -130,14 +130,14 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     checked(&d.str("color"))?;
     form::commit_preview(app, CMD, params(d))
 }
 
 /// The gaps the open Gap Options previews, as lines in its preview color (none while Preview is
 /// off or another dialog is open).
-pub(crate) fn overlays(app: &VectorcraftApp) -> Vec<Overlay> {
+pub(crate) fn overlays(app: &PlumaApp) -> Vec<Overlay> {
     let Some(d) = app.ui.dialog.as_ref().filter(|d| d.kind == KIND && d.bool("preview")) else { return vec![] };
     let [r, g, b, _] = checked(&d.str("color")).unwrap_or(Color::BLACK).to_rgba8(1.0);
     let gaps = d.fields.get(GAPS).and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
@@ -152,13 +152,13 @@ pub(crate) fn overlays(app: &VectorcraftApp) -> Vec<Overlay> {
 
 /// View › Show Live Paint Gaps: the gaps of the selected Live Paint groups, as lines in each
 /// group's Gap Preview Color, drawn as the preview draws them.
-pub(crate) fn selected_gaps(app: &VectorcraftApp) -> Vec<Overlay> {
+pub(crate) fn selected_gaps(app: &PlumaApp) -> Vec<Overlay> {
     let Some(st) = app.session.active() else { return vec![] };
-    let groups = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)).filter(|n| vectorcraft_tools::builder::is_live_paint(n));
+    let groups = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)).filter(|n| pluma_tools::builder::is_live_paint(n));
     groups
         .flat_map(|n| {
             let color = n.gap_options().color;
-            vectorcraft_engine::cmd::live_paint_gaps(n).into_iter().map(move |[a, b]| gap_line(a, b, color))
+            pluma_engine::cmd::live_paint_gaps(n).into_iter().map(move |[a, b]| gap_line(a, b, color))
         })
         .collect()
 }
@@ -174,27 +174,27 @@ fn gap_line(a: Point, b: Point, color: [u8; 3]) -> Overlay {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_doc::{GapOptions, NodeId};
-    use vectorcraft_engine::Session;
+    use pluma_doc::{GapOptions, NodeId};
+    use pluma_engine::Session;
 
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
     }
 
-    fn options(app: &VectorcraftApp, g: u64) -> GapOptions {
+    fn options(app: &PlumaApp, g: u64) -> GapOptions {
         app.session.doc().unwrap().doc.node(NodeId(g)).unwrap().gap_options()
     }
 
-    fn faces(app: &VectorcraftApp, g: u64) -> usize {
-        vectorcraft_tools::builder::faces(app.session.doc().unwrap().doc.node(NodeId(g)).unwrap()).len()
+    fn faces(app: &PlumaApp, g: u64) -> usize {
+        pluma_tools::builder::faces(app.session.doc().unwrap().doc.node(NodeId(g)).unwrap()).len()
     }
 
     #[test]
     fn the_menu_item_opens_gap_options_which_preview_the_gaps_and_ok_keeps_them() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         // An open path round a square, its end 2 pt short of its start.
         let anchors = [(0, 0), (100, 0), (100, 100), (0, 100), (0, 2)].map(|(x, y)| json!({"x": x, "y": y}));
@@ -267,7 +267,7 @@ mod tests {
     /// were; `#rrggbb` still sets them.
     #[test]
     fn a_color_with_an_alpha_part_is_refused() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -290,7 +290,7 @@ mod tests {
     /// its own color, the gaps draw in black, OK refuses the color and Cancel rolls the preview back.
     #[test]
     fn a_color_with_an_alpha_part_is_not_previewed() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         // An open path round a square, its end 2 pt short of its start.
         let anchors = [(0, 0), (100, 0), (100, 100), (0, 100), (0, 2)].map(|(x, y)| json!({"x": x, "y": y}));

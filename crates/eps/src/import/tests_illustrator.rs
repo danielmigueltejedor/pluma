@@ -4,10 +4,10 @@
 use std::sync::Arc;
 
 use kurbo::Point;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::clipnest::MAX_NEST;
-use vectorcraft_doc::{LayerColor, LineCap, Node, NodeKind};
-use vectorcraft_geom::Rect;
+use pluma_color::{Color, Paint};
+use pluma_doc::clipnest::MAX_NEST;
+use pluma_doc::{LayerColor, LineCap, Node, NodeKind};
+use pluma_geom::Rect;
 
 use crate::import::import;
 
@@ -235,7 +235,7 @@ fn text_with_hyphenation_and_tab_attributes_opens_instead_of_failing() {
     assert!(!p.hyphenate);
     assert_eq!((p.hyphenation.after_first, p.hyphenation.before_last, p.hyphenation.hyphen_limit), (2, 2, 25));
     let tabs: Vec<_> = p.tabs.iter().map(|t| (t.position, t.align)).collect();
-    assert_eq!(tabs, [(72.0, vectorcraft_doc::TabAlign::Right)]);
+    assert_eq!(tabs, [(72.0, pluma_doc::TabAlign::Right)]);
 }
 
 /// An Illustrator 3 file of paths alone, as image editors export their paths (storytold/photocraft#6036):
@@ -270,7 +270,7 @@ fn an_illustrator_3_file_without_layers_opens_its_paths_on_one_layer() {
 /// smooth (lower case) or a corner (upper case).
 #[test]
 fn an_illustrator_3_files_anchors_are_smooth_or_corners_by_their_operators_case() {
-    use vectorcraft_geom::AnchorKind::{Corner, Smooth};
+    use pluma_geom::AnchorKind::{Corner, Smooth};
     let src = PATHS_ONLY.replace("10 10 m\n100 10 L\n50 80 60 90 10 10 C\nn\n", "0 0 m\n10 10 20 0 30 0 c\n40 10 50 0 60 0 C\nh\nS\n");
     let r = import(src.as_bytes()).unwrap();
     assert!(r.warnings.is_empty() && !r.preview, "{:?}", r.warnings);

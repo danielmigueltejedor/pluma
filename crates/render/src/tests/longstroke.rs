@@ -1,9 +1,9 @@
 //! A long stroke without a width profile is outlined in and around the view only (`crop_line`,
 //! and for dashes `dash_kept`), and draws the same pixels as when it is outlined whole.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, LineCap, LineJoin, Node, StrokeLayer, WidthProfile};
-use vectorcraft_geom::{PathData, Point, Vec2};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, LineCap, LineJoin, Node, StrokeLayer, WidthProfile};
+use pluma_geom::{PathData, Point, Vec2};
 
 use crate::renderer::{CROP_STROKES, crop_line};
 use crate::*;
@@ -122,7 +122,7 @@ fn ring(n: usize, r: f64) -> BezPath {
 #[test]
 fn a_long_stroke_draws_the_same_pixels_outlined_near_the_view() {
     let mut inside = stroke(8.0, LineJoin::Round, LineCap::Butt);
-    inside.align = vectorcraft_doc::StrokeAlign::Inside;
+    inside.align = pluma_doc::StrokeAlign::Inside;
     // The ring starts at (5000, 0): the second view is on its start and end.
     let cases = [
         ("zigzag, miter joins, square caps", doc(&zigzag(), stroke(6.0, LineJoin::Miter, LineCap::Square)), Point::new(12_000.0, 15.0), true),
@@ -145,13 +145,13 @@ fn a_long_stroke_draws_the_same_pixels_outlined_near_the_view() {
 }
 
 fn dashed(mut st: StrokeLayer, pattern: &[f64], offset: f64, align_corners: bool) -> StrokeLayer {
-    st.dash = Some(vectorcraft_doc::Dash { pattern: pattern.to_vec(), offset, align_corners });
+    st.dash = Some(pluma_doc::Dash { pattern: pattern.to_vec(), offset, align_corners });
     st
 }
 
 /// A document holding `path` filled red and stroked with `st`.
 fn filled(path: &BezPath, st: StrokeLayer) -> Document {
-    let fill = AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(Paint::solid(Color::rgb(1.0, 0.0, 0.0))));
+    let fill = AppearanceItem::Fill(pluma_doc::FillLayer::new(Paint::solid(Color::rgb(1.0, 0.0, 0.0))));
     doc_with(path, vec![fill, AppearanceItem::Stroke(st)])
 }
 
@@ -271,7 +271,7 @@ fn a_long_stroke_under_a_wide_blur_draws_the_same_pixels_while_dragging_on_threa
     let n = Node::path(d.alloc_id(), PathData::from_bezpath(&tall_zigzag()), look);
     // The shadow is the group's: the path itself draws as a plain path.
     let mut g = Node::group(d.alloc_id(), vec![n.into()]);
-    g.appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
+    g.appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
     let l = d.layers[0].id;
     d.insert(Some(l), 0, g).unwrap();
     let at = Point::new(12_000.0, 0.0);
@@ -295,10 +295,10 @@ fn a_member_below_the_view_casts_its_wide_shadow_while_dragging_on_threads() {
     // A 400 pt shadow of a group whose only member, a rectangle, lies 50 pt below the view.
     let mut d = Document::new(1000.0, 1000.0);
     let shadow = serde_json::json!({"x": 0, "y": 0, "blur": 400, "opacity": 100, "mode": "normal"});
-    let look = Appearance { items: vec![AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(Paint::solid(Color::BLACK)))], ..Default::default() };
+    let look = Appearance { items: vec![AppearanceItem::Fill(pluma_doc::FillLayer::new(Paint::solid(Color::BLACK)))], ..Default::default() };
     let n = Node::path(d.alloc_id(), PathData::from_bezpath(&Rect::new(-1000.0, 150.0, 1000.0, 550.0).to_path(0.1)), look);
     let mut g = Node::group(d.alloc_id(), vec![n.into()]);
-    g.appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
+    g.appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params: shadow, visible: true });
     let l = d.layers[0].id;
     d.insert(Some(l), 0, g).unwrap();
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), dragging: true, ..Default::default() };

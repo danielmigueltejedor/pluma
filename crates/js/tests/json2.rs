@@ -1,5 +1,5 @@
 //! Runs `json2.js`, Douglas Crockford's public-domain JSON polyfill, when `cargo xtask test262` has
-//! fetched it (it sets `VECTORCRAFT_JSON2`; without it the test looks in `corpus/json2/` and skips
+//! fetched it (it sets `PLUMA_JSON2`; without it the test looks in `corpus/json2/` and skips
 //! when the file is absent).
 //!
 //! The built-in `JSON` is removed first, so the polyfill defines its own. Each sample value is
@@ -14,10 +14,10 @@
 
 use std::path::{Path, PathBuf};
 
-use vectorcraft_js::{JsValue, Realm};
+use pluma_js::{JsValue, Realm};
 
 fn json2_file() -> Option<PathBuf> {
-    if let Ok(path) = std::env::var("VECTORCRAFT_JSON2") {
+    if let Ok(path) = std::env::var("PLUMA_JSON2") {
         return Some(PathBuf::from(path));
     }
     let corpus = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus/json2");

@@ -6,12 +6,12 @@ use std::sync::Arc;
 
 use craft_pdf::syntax::Pdf;
 use craft_pdf::syntax::object::{Array, Name, Object, Stream};
+use pluma_color::cms::{self, DEVICE_CMYK, GENERIC_CMYK, SRGB};
+use pluma_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
+use pluma_doc::cmyk::Inks;
+use pluma_doc::{Appearance, ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::{Affine, Point, Rect, shapes};
 use serde_json::json;
-use vectorcraft_color::cms::{self, DEVICE_CMYK, GENERIC_CMYK, SRGB};
-use vectorcraft_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
-use vectorcraft_doc::cmyk::Inks;
-use vectorcraft_doc::{Appearance, ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
 
 use crate::*;
 
@@ -395,7 +395,7 @@ fn export_masked(mask: Vec<u8>, clip: bool, invert: bool) -> (Vec<u8>, Vec<Optio
             pixels: None,
         }))
     };
-    let mut mask = vectorcraft_doc::OpacityMask::new(Node::new(d.alloc_id(), image("alpha")), clip);
+    let mut mask = pluma_doc::OpacityMask::new(Node::new(d.alloc_id(), image("alpha")), clip);
     mask.invert = invert;
     let n = Node::new(d.alloc_id(), image("img")).with_mask(Some(Box::new(mask)));
     let l = d.layers[0].id;
@@ -460,7 +460,7 @@ fn a_pixelated_cmyk_image_with_its_grid_mask_asks_viewers_not_to_smooth_it() {
             };
             NodeKind::Image(Box::new(im))
         };
-        let mask = vectorcraft_doc::OpacityMask::new(Node::new(d.alloc_id(), image("alpha")), true);
+        let mask = pluma_doc::OpacityMask::new(Node::new(d.alloc_id(), image("alpha")), true);
         let mut n = Node::new(d.alloc_id(), image("img")).with_mask(Some(Box::new(mask)));
         n.extras_mut().pixelated = pixelated;
         let l = d.layers[0].id;

@@ -2,9 +2,9 @@
 
 use crate::*;
 use kurbo::{Affine, Shape};
-use vectorcraft_doc::text::INLINE_CHAR;
-use vectorcraft_doc::{CharStyle, InlineArt, Justify, TextKind, TextRun};
-use vectorcraft_geom::PathData;
+use pluma_doc::text::INLINE_CHAR;
+use pluma_doc::{CharStyle, InlineArt, Justify, TextKind, TextRun};
+use pluma_geom::PathData;
 
 use crate::edit;
 
@@ -222,7 +222,7 @@ fn malformed_inline_runs_are_plain_text() {
 /// it stays between them.
 #[test]
 fn inline_art_in_a_right_to_left_paragraph_is_placed_by_the_bidi_reordering() {
-    use vectorcraft_doc::ParaDirection;
+    use pluma_doc::ParaDirection;
     let db = FontDb::global();
     let order = |before: &str, after: &str, direction: Option<ParaDirection>| {
         let mut t = text(before, art(1.0), after, 20.0);
@@ -303,7 +303,7 @@ fn manual_kerning_on_an_inline_graphic_spaces_it_like_a_letter() {
 /// small text doesn't make its line's small characters move.
 #[test]
 fn character_alignment_treats_inline_art_as_a_character_of_its_run_size() {
-    use vectorcraft_doc::CharAlign;
+    use pluma_doc::CharAlign;
     let centre_y = |a: CharAlign, scale: f64, big: f64| {
         let mut t = TextObject::point(Point::ZERO, "M", style(big));
         t.runs.push(TextRun::inline(art(scale), CharStyle { char_align: a, ..style(20.0) }));
@@ -333,7 +333,7 @@ fn character_alignment_treats_inline_art_as_a_character_of_its_run_size() {
 /// with a tall graphic is spaced like its text (as Roman leading spaces it by its run's leading).
 #[test]
 fn top_to_top_leading_spaces_inline_art_by_its_run() {
-    use vectorcraft_doc::LeadingModel;
+    use pluma_doc::LeadingModel;
     let lines = |scale: f64| {
         let mut t = text("Ab", art(scale), "cd\nef", 20.0);
         t.kind = TextKind::Area { frame: PathData::from_bezpath(&Rect::new(0.0, 0.0, 400.0, 400.0).to_path(0.1)) };
@@ -355,7 +355,7 @@ fn a_pushed_in_line_leaves_the_gap_after_inline_art() {
     t.xf = Affine::IDENTITY;
     t.runs.push(TextRun::inline(art(0.5), style(20.0)));
     t.runs.push(TextRun::new("四五六七八九十一二三四五」六", style(20.0)));
-    t.para.kinsoku_type = vectorcraft_doc::KinsokuShoriType::PushInFirst;
+    t.para.kinsoku_type = pluma_doc::KinsokuShoriType::PushInFirst;
     t.kind = TextKind::Area { frame: PathData::from_bezpath(&Rect::new(0.0, 0.0, 300.0, 200.0).to_path(0.1)) };
     let l = layout(FontDb::global(), &t);
     if (l.glyphs[0].advance - 20.0).abs() > 2.0 {
@@ -368,7 +368,7 @@ fn a_pushed_in_line_leaves_the_gap_after_inline_art() {
 
 #[test]
 fn inline_art_moves_with_vertically_aligned_lines() {
-    use vectorcraft_doc::text::{AreaOptions, VerticalAlign};
+    use pluma_doc::text::{AreaOptions, VerticalAlign};
     // A rectangle (lines shift) and a triangle (text flows again lower down).
     let rect = Rect::new(0.0, 0.0, 400.0, 400.0).to_path(0.1);
     let mut tri = kurbo::BezPath::new();

@@ -9,13 +9,13 @@
 
 use serde_json::{Map, Value, json};
 
-use vectorcraft_color::Color;
+use pluma_color::Color;
 
 use super::{DialogSpec, form, free_distort, transform_each};
 use crate::panels::c32;
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub(super) const SPEC: DialogSpec = DialogSpec {
     heading: |d| if super::warp_effect::is_warp(&d.str("__effect")) { tl!("Warp Options").to_string() } else { heading_label(d) },
@@ -23,9 +23,9 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     confirm,
     preview: true,
     // Load Texture… adds the texture it reads.
-    passes: |d, field| field == vectorcraft_effects::pixel::TEXTURE_IMAGE && matches!(d.str("__effect").as_str(), GLASS | TEXTURIZER),
+    passes: |d, field| field == pluma_effects::pixel::TEXTURE_IMAGE && matches!(d.str("__effect").as_str(), GLASS | TEXTURIZER),
     // OK could only fail the same way: off, beside the reason the dialog shows (#6140).
-    ok_enabled: Some(|_, d| !(vectorcraft_effects::is_three_d(&d.str("__effect")) && d.fields.contains_key(form::REFUSED))),
+    ok_enabled: Some(|_, d| !(pluma_effects::is_three_d(&d.str("__effect")) && d.fields.contains_key(form::REFUSED))),
     ..DialogSpec::FORM
 };
 
@@ -35,7 +35,7 @@ const TRIED: &str = "__tried";
 /// A 3D effect refuses objects it can't build from and values it can't draw, in the dialog as OK
 /// would: shows why under Preview (#6140). With Preview off no preview has tried `params`, so they
 /// are tried here, when they change, and rolled back at once.
-fn three_d_refusal(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, cmd: &str, params: Value) {
+fn three_d_refusal(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, cmd: &str, params: Value) {
     if d.bool("preview") {
         d.fields.remove(TRIED);
     } else if !app.session.in_interaction() && d.fields.get(TRIED) != Some(&params) {
@@ -62,7 +62,7 @@ fn three_d_refusal(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, 
 /// without its trailing ellipsis. A plug-in effect's name is shown as it is.
 fn heading_label(d: &Dialog) -> String {
     let label = d.str("__label");
-    if vectorcraft_plugins::effect::plugin_id(&d.str("__effect")).is_some() {
+    if pluma_plugins::effect::plugin_id(&d.str("__effect")).is_some() {
         return label;
     }
     let dotted = format!("{label}…");
@@ -93,13 +93,13 @@ pub(super) const EXISTS_SPEC: DialogSpec = DialogSpec {
 /// `effect.dialog {effect, index?, item?}`: edit applied effect `index` of `item` (null: the
 /// object's effects; omitted: the active item's, else the object's) prefilled with its values,
 /// or add `effect`, first asking when that list already has it.
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let id = p.get("effect").and_then(Value::as_str).unwrap_or_default();
     // An SVG filter is chosen and edited in Apply SVG Filter.
-    if id == vectorcraft_effects::SVG_FILTER {
+    if id == pluma_effects::SVG_FILTER {
         return super::svg_filter::open(app, p);
     }
-    let info = vectorcraft_effects::effect_info(id).ok_or_else(|| format!("unknown effect `{id}`"))?;
+    let info = pluma_effects::effect_info(id).ok_or_else(|| format!("unknown effect `{id}`"))?;
     // The list the effect goes to: `item` as given, else the active item's (the object's without
     // one). A new effect keeps `item` unresolved, so `effect.apply` targets each object as usual.
     let target = p.get("item").cloned().unwrap_or_else(|| json!(app.session.appearance_item()));
@@ -147,7 +147,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 
 /// The function returns target parameters and effects at `item` (an index or null).
 /// An omitted `item` uses the active row.
-fn target_effects(app: &VectorcraftApp, p: &Value) -> (Value, Vec<vectorcraft_doc::Effect>) {
+fn target_effects(app: &PlumaApp, p: &Value) -> (Value, Vec<pluma_doc::Effect>) {
     let mut params = json!({"aligned": p.get("aligned").and_then(Value::as_bool).unwrap_or(false)});
     if let Some(item) = p.get("item") {
         params["item"] = item.clone();
@@ -156,15 +156,15 @@ fn target_effects(app: &VectorcraftApp, p: &Value) -> (Value, Vec<vectorcraft_do
 }
 
 /// An applied effect's values over its defaults.
-fn params_of(e: &vectorcraft_doc::Effect) -> Map<String, Value> {
-    match vectorcraft_effects::merged_params(&e.id, &e.params) {
+fn params_of(e: &pluma_doc::Effect) -> Map<String, Value> {
+    match pluma_effects::merged_params(&e.id, &e.params) {
         Value::Object(m) => m,
         _ => Map::new(),
     }
 }
 
 /// OK in [`EXISTS`]: the dialog editing the applied effect, or (`discard`) a fresh one.
-fn confirm_exists(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm_exists(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut fields = d.fields.clone();
     fields.remove("discard");
     let target = fields.remove("__target").unwrap_or(Value::Null);
@@ -172,7 +172,7 @@ fn confirm_exists(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String>
         fields.remove("__index");
         fields.remove("__editTarget");
         let id = d.str("__effect");
-        let defaults = vectorcraft_effects::default_params(&id);
+        let defaults = pluma_effects::default_params(&id);
         fields.extend(defaults.and_then(|v| v.as_object().cloned()).unwrap_or_default());
         if super::warp_effect::is_warp(id.as_str()) {
             super::warp_effect::merge_remembered(&mut fields, app.last_warp.as_ref());
@@ -190,7 +190,7 @@ fn confirm_exists(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String>
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let (id, relative) = (d.str("__effect"), d.bool("relative"));
     if super::warp_effect::is_warp(&id) {
         super::warp_effect::body(ui, d);
@@ -198,7 +198,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         form::preview(app, ui, d, "Warp Options", cmd, params);
         return false;
     }
-    if vectorcraft_effects::is_three_d(&id) {
+    if pluma_effects::is_three_d(&id) {
         super::revolve::body(app, ui, d);
         let (cmd, params) = command(d);
         form::preview(app, ui, d, &d.str("__label"), cmd, params.clone());
@@ -206,15 +206,15 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         return false;
     }
     // Plug-in effects get fields from their parameter schema; colour adjustments their sliders.
-    let changed = match vectorcraft_plugins::effect::installed(&id) {
+    let changed = match pluma_plugins::effect::installed(&id) {
         Some(plugin) => form::schema_fields(app, ui, d, plugin.manifest()),
         // The Color Effects add-on's take the plain form of their parameters.
-        None if vectorcraft_effects::is_adjustment(&id) && !vectorcraft_effects::addons::color::is_color_effect(&id) => adjust_fields(ui, d),
-        None if id == vectorcraft_effects::addons::halftone::HALFTONE => {
+        None if pluma_effects::is_adjustment(&id) && !pluma_effects::addons::color::is_color_effect(&id) => adjust_fields(ui, d),
+        None if id == pluma_effects::addons::halftone::HALFTONE => {
             super::halftone::screen_fields(ui, d);
             values_changed(d)
         }
-        None if id == vectorcraft_effects::addons::duotone::DUOTONE => {
+        None if id == pluma_effects::addons::duotone::DUOTONE => {
             super::duotone::fields(app, ui, d);
             values_changed(d)
         }
@@ -231,17 +231,17 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
             free_distort::fields(app, ui, d);
             values_changed(d)
         }
-        None if id == vectorcraft_effects::RASTERIZE => {
+        None if id == pluma_effects::RASTERIZE => {
             super::raster_effects::effect_fields(app, ui, d);
             values_changed(d)
         }
         None => {
-            let doc = vectorcraft_effects::effect_info(&id).map(|e| e.params).unwrap_or_default();
+            let doc = pluma_effects::effect_info(&id).map(|e| e.params).unwrap_or_default();
             let unit = app.session.general_unit();
             let changed =
-                form::param_fields(ui, d, &|k| vectorcraft_effects::is_length(&id, k, relative), &|k| choices(&id, k), &|k| doc_rank(doc, k), unit);
+                form::param_fields(ui, d, &|k| pluma_effects::is_length(&id, k, relative), &|k| choices(&id, k), &|k| doc_rank(doc, k), unit);
             // The fields show what the effect stores: Scribble's 270° angle reads -90°.
-            if let Value::Object(m) = vectorcraft_effects::upgrade_params(&id, &Value::Object(d.fields.clone())) {
+            if let Value::Object(m) = pluma_effects::upgrade_params(&id, &Value::Object(d.fields.clone())) {
                 d.fields = m;
             }
             changed
@@ -266,7 +266,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 pub(crate) const FILM_GRAIN_FIELDS: [(&str, &str, f64); 3] =
     [("grain", "Grain", 20.0), ("highlightArea", "Highlight Area", 20.0), ("intensity", "Intensity", 10.0)];
 
-/// Paint Daubs › Brush Type labels ([`vectorcraft_effects::pixel::PAINT_DAUB_BRUSH_TYPES`]); extend
+/// Paint Daubs › Brush Type labels ([`pluma_effects::pixel::PAINT_DAUB_BRUSH_TYPES`]); extend
 /// [`crate::menus::menu_strings`] with these like [`FILM_GRAIN_FIELDS`].
 pub(crate) const PAINT_DAUB_BRUSH_TYPE_LABELS: [&str; 6] = ["Simple", "Light Rough", "Dark Rough", "Wide Sharp", "Wide Blurry", "Sparkle"];
 
@@ -295,16 +295,16 @@ const TEXTURIZER: &str = "texture.texturizer";
 /// Glass and Texturizer: parameters, the Texture menu ending with Loaded Texture once a texture is
 /// loaded, and Load Texture… with the loaded texture's size. Returns whether the values differ from
 /// those last previewed.
-fn glass_fields(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, id: &str) -> bool {
-    use vectorcraft_effects::pixel::{TEXTURE_IMAGE, texture};
+fn glass_fields(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, id: &str) -> bool {
+    use pluma_effects::pixel::{TEXTURE_IMAGE, texture};
     // The stored texture is shown as its size, not as a text field.
     let stored = d.fields.remove(TEXTURE_IMAGE);
     let size = stored.as_ref().and_then(Value::as_str).and_then(texture).map(|t| t.size());
     let menu = if id == TEXTURIZER { texturizer_textures(size.is_some()) } else { glass_textures(size.is_some()) };
-    let doc = vectorcraft_effects::effect_info(id).map(|e| e.params).unwrap_or_default();
+    let doc = pluma_effects::effect_info(id).map(|e| e.params).unwrap_or_default();
     let unit = app.session.general_unit();
     let pick = |k: &str| if k == "texture" { Some(menu) } else { choices(id, k) };
-    form::param_fields(ui, d, &|k| vectorcraft_effects::is_length(id, k, false), &pick, &|k| doc_rank(doc, k), unit);
+    form::param_fields(ui, d, &|k| pluma_effects::is_length(id, k, false), &pick, &|k| doc_rank(doc, k), unit);
     if let Some(v) = stored {
         d.fields.insert(TEXTURE_IMAGE.into(), v);
     }
@@ -327,27 +327,27 @@ fn glass_fields(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, id:
 
 /// Glass's Texture menu, ending with Loaded Texture once a texture is `loaded`.
 fn glass_textures(loaded: bool) -> form::Choices {
-    use vectorcraft_effects::pixel::{GLASS_TEXTURES, GLASS_TEXTURES_LOADED};
+    use pluma_effects::pixel::{GLASS_TEXTURES, GLASS_TEXTURES_LOADED};
     if loaded { &GLASS_TEXTURES_LOADED } else { &GLASS_TEXTURES }
 }
 
 /// Texturizer's Texture menu, ending with Loaded Texture once a texture is `loaded`.
 fn texturizer_textures(loaded: bool) -> form::Choices {
-    use vectorcraft_effects::pixel::{TEXTURES, TEXTURES_LOADED};
+    use pluma_effects::pixel::{TEXTURES, TEXTURES_LOADED};
     if loaded { &TEXTURES_LOADED } else { &TEXTURES }
 }
 
 /// Glass's Load Texture…: an image file the user picks, read into `textureImage` as Glass stores
 /// it and picked in the Texture menu.
-fn load_texture(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
-    use vectorcraft_engine::cmd::fileio;
+fn load_texture(app: &mut PlumaApp, d: &mut Dialog) -> Result<(), String> {
+    use pluma_engine::cmd::fileio;
     let filters = crate::FilePick::filters(fileio::FORMATS.iter().filter(|f| f.read && f.raster).map(|f| (f.label, fileio::read_extensions(f))));
     let path = crate::picks::open(app, &crate::FilePick { filters, ..Default::default() }).ok_or("cancelled")?;
     // The button is off where files can't be read.
     let Some(read) = app.services.read.as_ref() else { return Ok(()) };
     let stored = fileio::texture_image(&read(&path)?).map_err(|e| e.to_string())?;
-    d.fields.insert(vectorcraft_effects::pixel::TEXTURE_IMAGE.into(), json!(stored));
-    d.fields.insert("texture".into(), json!(vectorcraft_effects::pixel::LOADED));
+    d.fields.insert(pluma_effects::pixel::TEXTURE_IMAGE.into(), json!(stored));
+    d.fields.insert("texture".into(), json!(pluma_effects::pixel::LOADED));
     Ok(())
 }
 
@@ -357,18 +357,18 @@ fn choices(effect: &str, key: &str) -> Option<form::Choices> {
         ("blur.radial", "method") => Some(&[("Spin", "spin"), ("Zoom", "zoom")]),
         ("blur.radial", "quality") => Some(&[("Draft", "draft"), ("Good", "good"), ("Best", "best")]),
         ("blur.smart", "quality") => Some(&[("Low", "low"), ("Medium", "medium"), ("High", "high")]),
-        ("blur.smart", "blurMode") => Some(&vectorcraft_effects::pixel::SMART_BLUR_MODES),
-        ("brushStrokes.sprayedStrokes", "strokeDirection") => Some(&vectorcraft_effects::pixel::STROKE_DIRECTIONS),
-        ("distort.glass", "texture") => Some(&vectorcraft_effects::pixel::GLASS_TEXTURES),
-        ("pixelate.mezzotint", "type") => Some(&vectorcraft_effects::pixel::MEZZOTINT_TYPES),
-        ("artistic.paintDaubs", "brushType") => Some(&vectorcraft_effects::pixel::PAINT_DAUB_BRUSH_TYPES),
-        ("sketch.graphicPen", "strokeDirection") => Some(&vectorcraft_effects::pixel::STROKE_DIRECTIONS),
-        ("sketch.halftonePattern", "patternType") => Some(&vectorcraft_effects::pixel::HALFTONE_TYPES),
-        ("sketch.plaster", "lightDirection") => Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS),
-        ("texture.grain", "grainType") => Some(&vectorcraft_effects::pixel::GRAIN_TYPES),
-        ("texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "texture") => Some(&vectorcraft_effects::pixel::TEXTURES),
+        ("blur.smart", "blurMode") => Some(&pluma_effects::pixel::SMART_BLUR_MODES),
+        ("brushStrokes.sprayedStrokes", "strokeDirection") => Some(&pluma_effects::pixel::STROKE_DIRECTIONS),
+        ("distort.glass", "texture") => Some(&pluma_effects::pixel::GLASS_TEXTURES),
+        ("pixelate.mezzotint", "type") => Some(&pluma_effects::pixel::MEZZOTINT_TYPES),
+        ("artistic.paintDaubs", "brushType") => Some(&pluma_effects::pixel::PAINT_DAUB_BRUSH_TYPES),
+        ("sketch.graphicPen", "strokeDirection") => Some(&pluma_effects::pixel::STROKE_DIRECTIONS),
+        ("sketch.halftonePattern", "patternType") => Some(&pluma_effects::pixel::HALFTONE_TYPES),
+        ("sketch.plaster", "lightDirection") => Some(&pluma_effects::pixel::LIGHT_DIRECTIONS),
+        ("texture.grain", "grainType") => Some(&pluma_effects::pixel::GRAIN_TYPES),
+        ("texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "texture") => Some(&pluma_effects::pixel::TEXTURES),
         ("sketch.basRelief" | "texture.texturizer" | "artistic.underpainting" | "sketch.conteCrayon", "lightDirection") => {
-            Some(&vectorcraft_effects::pixel::LIGHT_DIRECTIONS)
+            Some(&pluma_effects::pixel::LIGHT_DIRECTIONS)
         }
         ("video.deinterlace", "eliminate") => Some(&[("Odd Fields", "odd"), ("Even Fields", "even")]),
         ("video.deinterlace", "create") => Some(&[("Duplication", "duplication"), ("Interpolation", "interpolation")]),
@@ -390,12 +390,12 @@ fn choices(effect: &str, key: &str) -> Option<form::Choices> {
 pub(super) fn own_choices(effect: &str, key: &str, cmyk: bool) -> Option<Vec<(&'static str, &'static str)>> {
     let c3 = |s: &'static str| crate::i18n::tr_ctx(crate::i18n::current(), "3d", s);
     Some(match (effect, key) {
-        (vectorcraft_effects::REVOLVE, "edge") => vec![(tl!("Left"), "left"), (tl!("Right"), "right")],
-        (vectorcraft_effects::CLASSIC_EXTRUDE, "surface") => {
+        (pluma_effects::REVOLVE, "edge") => vec![(tl!("Left"), "left"), (tl!("Right"), "right")],
+        (pluma_effects::CLASSIC_EXTRUDE, "surface") => {
             vec![(tl!("Wireframe"), "wireframe"), (tl!("No Shading"), "none"), (tl!("Diffuse"), "diffuse"), (tl!("Plastic"), "plastic")]
         }
-        (vectorcraft_effects::CLASSIC_EXTRUDE, "shadingColor") => vec![(tl!("Black"), "black"), (tl!("Custom"), "custom"), (tl!("None"), "none")],
-        (vectorcraft_effects::EXTRUDE | vectorcraft_effects::CLASSIC_EXTRUDE, "bevel") => vec![
+        (pluma_effects::CLASSIC_EXTRUDE, "shadingColor") => vec![(tl!("Black"), "black"), (tl!("Custom"), "custom"), (tl!("None"), "none")],
+        (pluma_effects::EXTRUDE | pluma_effects::CLASSIC_EXTRUDE, "bevel") => vec![
             (tl!("None"), "none"),
             (tl!("Classic"), "classic"),
             (c3("Rounded"), "rounded"),
@@ -404,11 +404,11 @@ pub(super) fn own_choices(effect: &str, key: &str, cmyk: bool) -> Option<Vec<(&'
             (tl!("Ogee"), "ogee"),
         ],
         (_, "orientation") if super::warp_effect::is_warp(effect) => vec![(tl!("Horizontal"), "horizontal"), (tl!("Vertical"), "vertical")],
-        (vectorcraft_effects::RASTERIZE, "colorModel") => {
+        (pluma_effects::RASTERIZE, "colorModel") => {
             vec![(if cmyk { "CMYK" } else { "RGB" }, "document"), (tl!("Grayscale"), "grayscale"), (tl!("Bitmap"), "bitmap")]
         }
-        (vectorcraft_effects::RASTERIZE, "background") => vec![(tl!("White"), "white"), (tl!("Transparent"), "transparent")],
-        (vectorcraft_effects::RASTERIZE, "antiAlias") => vectorcraft_render::AntiAlias::ALL.iter().map(|a| (a.label(), a.id())).collect(),
+        (pluma_effects::RASTERIZE, "background") => vec![(tl!("White"), "white"), (tl!("Transparent"), "transparent")],
+        (pluma_effects::RASTERIZE, "antiAlias") => pluma_render::AntiAlias::ALL.iter().map(|a| (a.label(), a.id())).collect(),
         ("adjust.levels" | "adjust.curves", "channel") => vec![("RGB", "rgb"), (tl!("Red"), "red"), (tl!("Green"), "green"), (tl!("Blue"), "blue")],
         _ => return None,
     })
@@ -421,9 +421,9 @@ pub(super) fn own_choices(effect: &str, key: &str, cmyk: bool) -> Option<Vec<(&'
 /// dialogs translate them (`cmyk`: the document is in CMYK). `None` for a parameter that is not one
 /// of these lists.
 pub(crate) fn shown_choices(effect: &str, key: &str, params: &Map<String, Value>, cmyk: bool) -> Option<Vec<(String, String)>> {
-    if let Some(plugin) = vectorcraft_plugins::effect::installed(effect) {
+    if let Some(plugin) = pluma_plugins::effect::installed(effect) {
         return plugin.manifest().param(key).and_then(|p| match &p.spec {
-            vectorcraft_plugins::ParamSpec::Choice { options, .. } => Some(options.iter().map(|o| (o.clone(), o.clone())).collect()),
+            pluma_plugins::ParamSpec::Choice { options, .. } => Some(options.iter().map(|o| (o.clone(), o.clone())).collect()),
             _ => None,
         });
     }
@@ -431,7 +431,7 @@ pub(crate) fn shown_choices(effect: &str, key: &str, params: &Map<String, Value>
         return Some(own.into_iter().map(|(label, value)| (tl!(label).to_string(), value.to_string())).collect());
     }
     let options = if (effect == GLASS || effect == TEXTURIZER) && key == "texture" {
-        use vectorcraft_effects::pixel::{TEXTURE_IMAGE, texture};
+        use pluma_effects::pixel::{TEXTURE_IMAGE, texture};
         let loaded = params.get(TEXTURE_IMAGE).and_then(Value::as_str).and_then(texture).is_some();
         if effect == GLASS { glass_textures(loaded) } else { texturizer_textures(loaded) }
     } else {
@@ -510,7 +510,7 @@ fn adjust_fields(ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if d.fields.contains_key("points") {
         ui.horizontal(|ui| {
             ui.add_space(LABEL_W + ui.spacing().item_spacing.x);
-            let mut pts = vectorcraft_effects::curve_points(d.fields.get("points"));
+            let mut pts = pluma_effects::curve_points(d.fields.get("points"));
             if curve_graph(ui, &mut pts, 255.0) {
                 d.fields.insert("points".into(), json!(points_text(&pts, 255.0)));
             }
@@ -561,12 +561,12 @@ const SCRIBBLE_SETTING: &str = "__scribbleSetting";
 
 /// Scribble's dialog: a Settings preset menu, then its parameters. Returns whether the values differ
 /// from those last previewed.
-fn scribble_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
+fn scribble_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit) -> bool {
     if !d.fields.contains_key(SCRIBBLE_SETTING) {
-        let id = vectorcraft_effects::scribble_setting_id(&form::params(d)).unwrap_or("custom");
+        let id = pluma_effects::scribble_setting_id(&form::params(d)).unwrap_or("custom");
         d.fields.insert(SCRIBBLE_SETTING.into(), json!(id));
     }
-    let presets = vectorcraft_effects::scribble_settings();
+    let presets = pluma_effects::scribble_settings();
     let cur = d.fields.get(SCRIBBLE_SETTING).and_then(Value::as_str).unwrap_or("default");
     let labels: Vec<&str> = presets.iter().map(|p| p.label).chain(["Custom"]).collect();
     let ids: Vec<&str> = presets.iter().map(|p| p.id).chain(["custom"]).collect();
@@ -589,13 +589,13 @@ fn scribble_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Uni
         }
     });
     ui.add_space(4.0);
-    let doc = vectorcraft_effects::effect_info(SCRIBBLE).map(|e| e.params).unwrap_or_default();
+    let doc = pluma_effects::effect_info(SCRIBBLE).map(|e| e.params).unwrap_or_default();
     let fields_changed =
-        form::param_fields(ui, d, &|k| vectorcraft_effects::is_length(SCRIBBLE, k, false), &|k| choices(SCRIBBLE, k), &|k| doc_rank(doc, k), unit);
-    if let Value::Object(m) = vectorcraft_effects::upgrade_params(SCRIBBLE, &Value::Object(d.fields.clone())) {
+        form::param_fields(ui, d, &|k| pluma_effects::is_length(SCRIBBLE, k, false), &|k| choices(SCRIBBLE, k), &|k| doc_rank(doc, k), unit);
+    if let Value::Object(m) = pluma_effects::upgrade_params(SCRIBBLE, &Value::Object(d.fields.clone())) {
         d.fields = m;
     }
-    let id = vectorcraft_effects::scribble_setting_id(&form::params(d)).unwrap_or("custom");
+    let id = pluma_effects::scribble_setting_id(&form::params(d)).unwrap_or("custom");
     d.fields.insert(SCRIBBLE_SETTING.into(), json!(id));
     settings_changed || fields_changed
 }
@@ -604,7 +604,7 @@ fn scribble_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Uni
 /// the options Transform Objects, Transform Patterns and Scale Strokes & Effects (#885), Copies,
 /// the reflections, the reference point and Random. Returns whether the values differ from those
 /// last previewed.
-fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
+fn transform_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit) -> bool {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| transform_each::sections(ui, d, unit, true));
         ui.add_space(16.0);
@@ -650,7 +650,7 @@ const DISTORT_FIELD_W: f32 = 70.0;
 
 /// A slider with its field for each of `rows` (key, label, default), each a share of the object's
 /// size with Relative or a distance with Absolute, then the Relative and Absolute radio buttons.
-fn relative_rows(ui: &mut egui::Ui, d: &mut Dialog, rows: &[(&str, &str, f64)], unit: vectorcraft_doc::Unit) {
+fn relative_rows(ui: &mut egui::Ui, d: &mut Dialog, rows: &[(&str, &str, f64)], unit: pluma_doc::Unit) {
     let rail = Tokens::get(ui.ctx()).input_border;
     let track = move |_| rail;
     let relative = d.bool("relative");
@@ -679,7 +679,7 @@ fn relative_rows(ui: &mut egui::Ui, d: &mut Dialog, rows: &[(&str, &str, f64)], 
     });
 }
 
-fn size_fields(ui: &mut egui::Ui, d: &mut Dialog, effect: &str, unit: vectorcraft_doc::Unit) -> bool {
+fn size_fields(ui: &mut egui::Ui, d: &mut Dialog, effect: &str, unit: pluma_doc::Unit) -> bool {
     const LABEL_W: f32 = DISTORT_LABEL_W;
     const FIELD_W: f32 = DISTORT_FIELD_W;
     let rail = Tokens::get(ui.ctx()).input_border;
@@ -714,7 +714,7 @@ const TWEAK: &str = "distort.tweak";
 /// Tweak's dialog (#4488): Horizontal and Vertical as sliders with their fields (a share of the
 /// object's size with Relative, a distance with Absolute), then which points it moves. Returns
 /// whether the values differ from those last previewed.
-fn tweak_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
+fn tweak_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit) -> bool {
     widgets::subheader(ui, tl!("Amount"));
     relative_rows(ui, d, &[("h", "Horizontal:", 10.0), ("v", "Vertical:", 10.0)], unit);
     ui.add_space(4.0);
@@ -743,11 +743,11 @@ pub(crate) const SHADES: form::Choices = &[("Color", "color"), ("Darkness", "dar
 /// Drop Shadow's dialog: Mode, Opacity, the offsets and Blur as the other effects show them, then
 /// Color and Darkness as radio buttons, each with its field (the field of the one not chosen is
 /// dimmed). Returns whether the values differ from those last previewed.
-fn drop_shadow_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) -> bool {
-    let doc = vectorcraft_effects::effect_info(DROP_SHADOW).map(|e| e.params).unwrap_or_default();
+fn drop_shadow_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit) -> bool {
+    let doc = pluma_effects::effect_info(DROP_SHADOW).map(|e| e.params).unwrap_or_default();
     // The generic rows, without the three this dialog shows as radio buttons.
     let own: Vec<(String, Value)> = ["shade", "color", "darkness"].iter().filter_map(|k| d.fields.remove(*k).map(|v| (k.to_string(), v))).collect();
-    form::param_fields(ui, d, &|k| vectorcraft_effects::is_length(DROP_SHADOW, k, false), &|k| choices(DROP_SHADOW, k), &|k| doc_rank(doc, k), unit);
+    form::param_fields(ui, d, &|k| pluma_effects::is_length(DROP_SHADOW, k, false), &|k| choices(DROP_SHADOW, k), &|k| doc_rank(doc, k), unit);
     d.fields.extend(own);
     let darkness = d.str("shade").eq_ignore_ascii_case("darkness");
     ui.add_space(4.0);
@@ -760,7 +760,7 @@ fn drop_shadow_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::
         ui.add_enabled_ui(!darkness, |ui| {
             ui.horizontal(|ui| {
                 form::color_text(ui, d, "color", 128.0);
-                if let Some(c) = d.fields.get("color").and_then(vectorcraft_engine::cmd::color_value)
+                if let Some(c) = d.fields.get("color").and_then(pluma_engine::cmd::color_value)
                     && form::colour_swatch(ui, "color", c)
                 {
                     pick = Some(c);
@@ -847,7 +847,7 @@ pub(super) fn curve_graph(ui: &mut egui::Ui, pts: &mut Vec<(f32, f32)>, max: f32
         painter.line_segment([screen((0.0, f)), screen((1.0, f))], faint);
     }
     painter.line_segment([screen((0.0, 0.0)), screen((1.0, 1.0))], faint);
-    let curve: Vec<egui::Pos2> = (0..=64).map(|k| k as f32 / 64.0).map(|x| screen((x, vectorcraft_effects::curve_at(pts.as_slice(), x)))).collect();
+    let curve: Vec<egui::Pos2> = (0..=64).map(|k| k as f32 / 64.0).map(|x| screen((x, pluma_effects::curve_at(pts.as_slice(), x)))).collect();
     painter.add(egui::Shape::line(curve, egui::Stroke::new(1.5, t.text)));
     for (i, q) in pts.iter().enumerate() {
         let fill = if Some(i) == grabbed { t.accent } else { t.panel };
@@ -890,7 +890,7 @@ fn command(d: &Dialog) -> (&'static str, Value) {
     ("effect.apply", p)
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (cmd, p) = command(d);
     // A live preview commits as one undo step. When the command refuses the values (a Color the
     // effect can't draw), the dialog stays open and the error is returned.
@@ -942,7 +942,7 @@ mod tests {
             (DROP_SHADOW, "shade"),
             ("artistic.paintDaubs", "brushType"),
         ] {
-            let doc = vectorcraft_effects::effect_info(effect).unwrap().params;
+            let doc = pluma_effects::effect_info(effect).unwrap().params;
             let listed = doc.split(&format!("{key}: ")).nth(1).unwrap().split([',', '}', ' ']).next().unwrap().to_string();
             let values: Vec<String> = choices(effect, key).unwrap().iter().map(|(_, v)| format!("\"{v}\"")).collect();
             assert_eq!(values.join("|"), listed, "{effect} {key}");
@@ -954,25 +954,25 @@ mod tests {
     #[test]
     fn lists_drawn_in_a_dialogs_body_are_the_documented_values() {
         for (effect, key) in [
-            (vectorcraft_effects::REVOLVE, "edge"),
-            (vectorcraft_effects::EXTRUDE, "bevel"),
-            (vectorcraft_effects::CLASSIC_EXTRUDE, "bevel"),
-            (vectorcraft_effects::CLASSIC_EXTRUDE, "surface"),
-            (vectorcraft_effects::CLASSIC_EXTRUDE, "shadingColor"),
+            (pluma_effects::REVOLVE, "edge"),
+            (pluma_effects::EXTRUDE, "bevel"),
+            (pluma_effects::CLASSIC_EXTRUDE, "bevel"),
+            (pluma_effects::CLASSIC_EXTRUDE, "surface"),
+            (pluma_effects::CLASSIC_EXTRUDE, "shadingColor"),
             ("warp.arc", "orientation"),
             ("warp.twist", "orientation"),
-            (vectorcraft_effects::RASTERIZE, "background"),
-            (vectorcraft_effects::RASTERIZE, "antiAlias"),
+            (pluma_effects::RASTERIZE, "background"),
+            (pluma_effects::RASTERIZE, "antiAlias"),
             ("adjust.levels", "channel"),
             ("adjust.curves", "channel"),
         ] {
-            let doc = vectorcraft_effects::effect_info(effect).unwrap().params;
+            let doc = pluma_effects::effect_info(effect).unwrap().params;
             let listed = doc.split(&format!("{key}: ")).nth(1).unwrap().split([',', '}', ' ']).next().unwrap().replace('"', "");
             let values: Vec<&str> = own_choices(effect, key, false).unwrap().iter().map(|(_, v)| *v).collect();
             assert_eq!(values.join("|"), listed, "{effect} {key}");
         }
         for (cmyk, mode) in [(false, "RGB"), (true, "CMYK")] {
-            let models = own_choices(vectorcraft_effects::RASTERIZE, "colorModel", cmyk).unwrap();
+            let models = own_choices(pluma_effects::RASTERIZE, "colorModel", cmyk).unwrap();
             assert_eq!(models, [(mode, "document"), ("Grayscale", "grayscale"), ("Bitmap", "bitmap")]);
         }
         assert!(own_choices("distort.twist", "orientation", false).is_none() && own_choices("adjust.hueSaturation", "channel", false).is_none());
@@ -982,11 +982,11 @@ mod tests {
     /// Texture and the texture's size instead of its stored text, and OK applies it.
     #[test]
     fn glass_load_texture_reads_the_picked_image_into_the_effect() {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-glass-dialog-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-glass-dialog-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("texture.png");
         image::RgbaImage::from_fn(6, 4, |x, y| image::Rgba([(x * 40) as u8, (y * 60) as u8, 90, 255])).save(&path).unwrap();
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let picked = path.to_string_lossy().into_owned();
         app.services.pick_open = Some(Box::new(move |_: &crate::FilePick| Some(picked.clone())));
         app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
@@ -994,21 +994,21 @@ mod tests {
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         app.run("select.all", json!({})).unwrap();
         app.run("effect.dialog", json!({"effect": GLASS})).unwrap();
-        let paint = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()));
+        let paint = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()));
         let text = paint(&mut app);
         assert!(text.lines().any(|l| l == "Load Texture…") && text.lines().any(|l| l == "Frosted"), "{text}");
         assert!(!text.contains("Loaded Texture") && !text.contains(" px"), "{text}");
         let mut d = app.ui.dialog.take().unwrap();
         load_texture(&mut app, &mut d).unwrap();
-        let stored = d.str(vectorcraft_effects::pixel::TEXTURE_IMAGE);
-        assert_eq!((d.str("texture"), vectorcraft_effects::pixel::texture(&stored).map(|t| t.size())), ("loaded".to_string(), Some((6, 4))));
+        let stored = d.str(pluma_effects::pixel::TEXTURE_IMAGE);
+        assert_eq!((d.str("texture"), pluma_effects::pixel::texture(&stored).map(|t| t.size())), ("loaded".to_string(), Some((6, 4))));
         app.ui.dialog = Some(d);
         let text = paint(&mut app);
         assert!(text.lines().any(|l| l == "Loaded Texture") && text.lines().any(|l| l == "6 × 4 px"), "{text}");
         assert!(!text.contains(&stored[..24]), "the stored text isn't shown");
         super::super::confirm(&mut app).unwrap();
         let st = app.session.doc().unwrap();
-        let params = &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params;
+        let params = &st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params;
         assert_eq!((&params["texture"], &params["textureImage"]), (&json!("loaded"), &json!(stored)));
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1016,11 +1016,11 @@ mod tests {
     /// Texturizer's Load Texture… matches Glass: pick, Loaded Texture in the menu, OK applies.
     #[test]
     fn texturizer_load_texture_reads_the_picked_image_into_the_effect() {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-texturizer-dialog-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-texturizer-dialog-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("texture.png");
         image::RgbaImage::from_fn(6, 4, |x, y| image::Rgba([(x * 40) as u8, (y * 60) as u8, 90, 255])).save(&path).unwrap();
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let picked = path.to_string_lossy().into_owned();
         app.services.pick_open = Some(Box::new(move |_: &crate::FilePick| Some(picked.clone())));
         app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
@@ -1028,17 +1028,17 @@ mod tests {
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         app.run("select.all", json!({})).unwrap();
         app.run("effect.dialog", json!({"effect": TEXTURIZER})).unwrap();
-        let paint = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()));
+        let paint = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()));
         let text = paint(&mut app);
         assert!(text.lines().any(|l| l == "Load Texture…") && text.lines().any(|l| l == "Canvas"), "{text}");
         let mut d = app.ui.dialog.take().unwrap();
         load_texture(&mut app, &mut d).unwrap();
-        let stored = d.str(vectorcraft_effects::pixel::TEXTURE_IMAGE);
-        assert_eq!((d.str("texture"), vectorcraft_effects::pixel::texture(&stored).map(|t| t.size())), ("loaded".to_string(), Some((6, 4))));
+        let stored = d.str(pluma_effects::pixel::TEXTURE_IMAGE);
+        assert_eq!((d.str("texture"), pluma_effects::pixel::texture(&stored).map(|t| t.size())), ("loaded".to_string(), Some((6, 4))));
         app.ui.dialog = Some(d);
         super::super::confirm(&mut app).unwrap();
         let st = app.session.doc().unwrap();
-        let params = &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params;
+        let params = &st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params;
         assert_eq!((&params["texture"], &params["textureImage"]), (&json!("loaded"), &json!(stored)));
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1047,7 +1047,7 @@ mod tests {
     /// Color, and the effect applies that colour.
     #[test]
     fn outer_glow_colour_swatch_opens_the_color_picker() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -1055,7 +1055,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         crate::theme::apply(&ctx, Default::default());
-        let frame = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, time: f64, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { time: Some(time), events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
             out.textures_delta.clear();
             out
@@ -1086,7 +1086,7 @@ mod tests {
         frame(&mut app, 0.5, vec![]);
         let d = app.ui.dialog.as_ref().expect("a dialog");
         assert_eq!(d.kind, "colorPicker", "a double-click opens the Color Picker over the effect dialog");
-        assert_eq!(d.fields.get("color").and_then(vectorcraft_engine::cmd::color_value), Some(Color::rgb(1.0, 0.0, 0.0)), "on the field's colour");
+        assert_eq!(d.fields.get("color").and_then(pluma_engine::cmd::color_value), Some(Color::rgb(1.0, 0.0, 0.0)), "on the field's colour");
         // Its OK fills the effect's Color, and the effect applies it.
         app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!("#00ff00"));
         super::super::confirm(&mut app).unwrap();
@@ -1095,7 +1095,7 @@ mod tests {
         frame(&mut app, 0.6, vec![]);
         super::super::confirm(&mut app).unwrap();
         let st = app.session.doc().unwrap();
-        let fx = &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0];
+        let fx = &st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0];
         assert_eq!(fx.params.get("color"), Some(&json!("#00ff00")), "Outer Glow takes the picked colour");
     }
 
@@ -1105,7 +1105,7 @@ mod tests {
     /// dimmed and opens nothing.
     #[test]
     fn drop_shadow_colour_swatch_opens_the_color_picker() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -1113,7 +1113,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         crate::theme::apply(&ctx, Default::default());
-        let frame = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, time: f64, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { time: Some(time), events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
             out.textures_delta.clear();
             out
@@ -1131,7 +1131,7 @@ mod tests {
         assert_eq!(swatch(&frame(&mut app, 0.2, vec![])), Some(egui::Color32::BLACK), "the swatch shows the shadow's #000000");
         let pos = rect.center();
         let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
-        let double_click = |app: &mut VectorcraftApp, t: f64| {
+        let double_click = |app: &mut PlumaApp, t: f64| {
             frame(app, t, vec![egui::Event::PointerMoved(pos), button(true)]);
             frame(app, t + 0.05, vec![button(false)]);
             frame(app, t + 0.1, vec![button(true)]);
@@ -1148,7 +1148,7 @@ mod tests {
         double_click(&mut app, 0.7);
         let d = app.ui.dialog.as_ref().expect("a dialog");
         assert_eq!(d.kind, "colorPicker", "a double-click opens the Color Picker over Drop Shadow");
-        assert_eq!(d.fields.get("color").and_then(vectorcraft_engine::cmd::color_value), Some(Color::rgb(0.0, 0.0, 0.0)), "on the shadow's colour");
+        assert_eq!(d.fields.get("color").and_then(pluma_engine::cmd::color_value), Some(Color::rgb(0.0, 0.0, 0.0)), "on the shadow's colour");
         app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!("#0000ff"));
         super::super::confirm(&mut app).unwrap();
         let d = app.ui.dialog.as_ref().expect("Drop Shadow is back");
@@ -1156,7 +1156,7 @@ mod tests {
         frame(&mut app, 1.2, vec![]);
         super::super::confirm(&mut app).unwrap();
         let st = app.session.doc().unwrap();
-        let fx = &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0];
+        let fx = &st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0];
         assert_eq!((fx.id.as_str(), fx.params.get("color")), (DROP_SHADOW, Some(&json!("#0000ff"))), "Drop Shadow takes the picked colour");
     }
 
@@ -1166,7 +1166,7 @@ mod tests {
     #[test]
     fn drop_shadow_and_outer_glow_fields_have_spinner_arrows() {
         for (effect, count) in [("stylize.dropShadow", 5), ("stylize.outerGlow", 2)] {
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
             app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
             let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
             app.run("select.all", json!({})).unwrap();
@@ -1177,7 +1177,7 @@ mod tests {
             crate::theme::apply(&ctx, Default::default());
             let time = std::cell::Cell::new(0.0);
             // One frame → the spinners' bounds, top to bottom.
-            let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+            let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
                 time.set(time.get() + 0.05);
                 let mut out =
                     ctx.run_ui(egui::RawInput { time: Some(time.get()), events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
@@ -1200,7 +1200,7 @@ mod tests {
             }
             let spinners = frame(&mut app, vec![]);
             assert_eq!(spinners.len(), count, "{effect}: a spinner beside each number field: {spinners:?}");
-            let click = |app: &mut VectorcraftApp, r: egui::Rect, up: bool| {
+            let click = |app: &mut PlumaApp, r: egui::Rect, up: bool| {
                 let pos = r.center() + egui::vec2(0.0, if up { -r.height() / 4.0 } else { r.height() / 4.0 });
                 let button =
                     |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
@@ -1210,7 +1210,7 @@ mod tests {
             };
             let (opacity, blur) = (spinners[0], spinners[count - 1 - usize::from(count == 5)]);
             click(&mut app, opacity, true);
-            let field = |app: &VectorcraftApp, k: &str| app.ui.dialog.as_ref().unwrap().fields.get(k).and_then(Value::as_f64);
+            let field = |app: &PlumaApp, k: &str| app.ui.dialog.as_ref().unwrap().fields.get(k).and_then(Value::as_f64);
             assert_eq!(field(&app, "opacity"), Some(76.0), "{effect}: the up arrow steps Opacity up");
             click(&mut app, blur, false);
             assert_eq!(field(&app, "blur"), Some(4.0), "{effect}: the down arrow steps Blur down");
@@ -1232,7 +1232,7 @@ mod tests {
             }
             super::super::confirm(&mut app).unwrap();
             let st = app.session.doc().unwrap();
-            let fx = &st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0];
+            let fx = &st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0];
             let param = |k: &str| fx.params.get(k).and_then(Value::as_f64);
             assert_eq!((param("opacity"), param("blur")), (Some(99.0), Some(0.0)), "{effect}: OK applies them");
         }

@@ -3,9 +3,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use egui::{Event, MouseWheelSource, MouseWheelUnit, Pos2, RawInput, Rect, Shape, TouchPhase, vec2};
+use pluma_engine::Session;
+use pluma_ui_egui::PlumaApp;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_ui_egui::VectorcraftApp;
 
 #[test]
 fn hiding_control_between_passes_leaves_its_old_fields_wheel_available() {
@@ -134,9 +134,9 @@ fn the_control_character_popover_keeps_its_visible_font_wheel() {
     assert!(raw.events.iter().any(|e| matches!(e, Event::MouseWheel { .. })), "hiding Control also hides its popover");
 }
 
-fn selected_type_with_control() -> (egui::Context, VectorcraftApp) {
+fn selected_type_with_control() -> (egui::Context, PlumaApp) {
     let ctx = egui::Context::default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 250})).unwrap();
     let text = app.run("text.create", json!({"x": 30, "y": 70, "text": "Control wheel", "font": "Inter"})).unwrap();
     app.run("select.set", json!({"ids": [text["id"]]})).unwrap();
@@ -144,7 +144,7 @@ fn selected_type_with_control() -> (egui::Context, VectorcraftApp) {
     (ctx, app)
 }
 
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Pos2)> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Pos2)> {
     let mut raw = RawInput { events, screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1440.0, 900.0))), ..Default::default() };
     app.raw_input_hook(ctx, &mut raw);
     let mut out = ctx.run_ui(raw, |ui| app.ui(ui));

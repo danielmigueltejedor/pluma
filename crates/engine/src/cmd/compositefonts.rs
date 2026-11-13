@@ -1,4 +1,4 @@
-//! Type › Composite Fonts…: the document's composite fonts ([`vectorcraft_doc::CompositeFont`]),
+//! Type › Composite Fonts…: the document's composite fonts ([`pluma_doc::CompositeFont`]),
 //! which set each class of character (Kanji, Kana, Punctuation, Symbols, Roman, Numerals) in a
 //! font of its own. Type names a composite font as its family, and the font menus list them first.
 //! The font database holds the active document's composite fonts ([`sync`]); a file exported here
@@ -7,10 +7,10 @@
 //! Behavior reference (public documentation):
 //! <https://help.adobe.com/archive/en_US/illustrator/cs3/illustrator_cs3_help.pdf#page=347>.
 
+use pluma_doc::text::{COMPOSITE_FONTS_MAX, COMPOSITE_NAME_MAX};
+use pluma_doc::{CharClass, CompositeFont, CompositePart, CompositeParts};
+use pluma_text::FontDb;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::text::{COMPOSITE_FONTS_MAX, COMPOSITE_NAME_MAX};
-use vectorcraft_doc::{CharClass, CompositeFont, CompositePart, CompositeParts};
-use vectorcraft_text::FontDb;
 
 use super::fileio::{read_file_head, write_file};
 use super::textstyles::each_text_mut;
@@ -105,7 +105,7 @@ pub(crate) fn names_in_use(s: &Session) -> std::collections::HashSet<String> {
 }
 
 /// Leave out a file's unusable composite fonts before registering and measuring its type.
-pub(crate) fn filter_loaded(doc: &mut vectorcraft_doc::Document) {
+pub(crate) fn filter_loaded(doc: &mut pluma_doc::Document) {
     let db = FontDb::global();
     if let Some(kept) = CompositeFont::usable(&doc.composite_fonts) {
         *doc.composite_fonts = kept;
@@ -291,7 +291,7 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
             if b64.len() > MAX_FILE_BYTES / 3 * 4 + 4 {
                 return Err(too_large());
             }
-            vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(C, "dataBase64 is not base64"))?
+            pluma_format::base64_decode(b64).ok_or_else(|| bad(C, "dataBase64 is not base64"))?
         }
         _ => return Err(bad(C, "give one of path, data or dataBase64")),
     };

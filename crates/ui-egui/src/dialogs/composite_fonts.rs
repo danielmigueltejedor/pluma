@@ -11,15 +11,15 @@
 //! Behavior reference (public documentation):
 //! <https://help.adobe.com/archive/en_US/illustrator/cs3/illustrator_cs3_help.pdf#page=347>.
 
+use pluma_doc::text::{COMPOSITE_BASELINE, COMPOSITE_SCALE, COMPOSITE_SIZE};
+use pluma_doc::{CharClass, CompositeFont, CompositePart};
+use pluma_engine::cmd::compositefonts::EXTS;
 use serde_json::{Value, json};
-use vectorcraft_doc::text::{COMPOSITE_BASELINE, COMPOSITE_SCALE, COMPOSITE_SIZE};
-use vectorcraft_doc::{CharClass, CompositeFont, CompositePart};
-use vectorcraft_engine::cmd::compositefonts::EXTS;
 
 use super::{DialogSpec, form};
 use crate::picks::PickRequest;
 use crate::state::Dialog;
-use crate::{FilePick, VectorcraftApp, widgets};
+use crate::{FilePick, PlumaApp, widgets};
 
 /// The dialog kind of Composite Fonts.
 pub const KIND: &str = "compositeFonts";
@@ -30,7 +30,7 @@ pub const COMMAND: &str = "type.compositeFonts.set";
 pub(super) const SPEC: DialogSpec = DialogSpec { heading: |_| tl!("Composite Fonts").into(), body, confirm, min_width: 760.0, ..DialogSpec::FORM };
 
 /// Open Composite Fonts on the active document's composite fonts, the first one picked.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let fonts = app.session.active().ok_or("no document open")?.doc.composite_fonts.to_vec();
     let mut d = Dialog::new(KIND, json!({ "fonts": fonts, "selected": 0 }));
     show_selected(&mut d);
@@ -78,7 +78,7 @@ fn class_label(c: CharClass) -> &'static str {
 
 /// "Composite Font N", the first N no font in `fonts` and no installed font is named.
 fn new_name(fonts: &[CompositeFont]) -> String {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     (1..)
         .map(|n| format!("Composite Font {n}"))
         .find(|n| !fonts.iter().any(|f| CompositeFont::same_name(&f.name, n)) && (db.composite_font(n).is_some() || !db.has_family(n)))
@@ -93,7 +93,7 @@ enum Action {
     Export,
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let mut list = fonts(d);
     let i = selected(d, list.len());
     let mut act = None;
@@ -152,13 +152,13 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Do what button `act` asks for on the dialog's fonts.
-fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action) -> Result<(), String> {
+fn run(app: &mut PlumaApp, d: &mut Dialog, act: Action) -> Result<(), String> {
     let mut list = fonts(d);
     let i = selected(d, list.len());
     match act {
         Action::New => {
             let mut f = list.get(i).cloned().unwrap_or_else(|| {
-                let st = vectorcraft_doc::CharStyle::default();
+                let st = pluma_doc::CharStyle::default();
                 CompositeFont::new("", st.font_family, st.font_style)
             });
             f.name = new_name(&list);
@@ -184,8 +184,8 @@ fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action) -> Result<(), Stri
 
 /// The table of `f`'s parts: a row for each class with its font, style, size, baseline, scales and
 /// (Kana) Scale at Center; the values a class can't take are not shown.
-fn parts_table(app: &VectorcraftApp, ui: &mut egui::Ui, f: &mut CompositeFont) {
-    let db = vectorcraft_text::FontDb::global();
+fn parts_table(app: &PlumaApp, ui: &mut egui::Ui, f: &mut CompositeFont) {
+    let db = pluma_text::FontDb::global();
     egui::Grid::new("composite-fonts-parts").num_columns(8).spacing([8.0, 6.0]).show(ui, |ui| {
         for h in ["", tl!("Font"), tl!("Style"), tl!("Size"), tl!("Baseline"), tl!("Horizontal Scale"), tl!("Vertical Scale"), ""] {
             widgets::dim_label(ui, h);
@@ -235,7 +235,7 @@ fn parts_table(app: &VectorcraftApp, ui: &mut egui::Ui, f: &mut CompositeFont) {
 
 /// Import…: the fonts of a picked file join those in the dialog, a font of the same name replaced,
 /// and the first of them is picked.
-fn import(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
+fn import(app: &mut PlumaApp, d: &mut Dialog) -> Result<(), String> {
     let pick = FilePick { filters: vec![FilePick::filter("Composite fonts", EXTS)], ..Default::default() };
     let path = crate::picks::open(app, &pick).ok_or("cancelled")?;
     let r = app.run("type.compositeFonts.import", json!({ "path": path, "apply": false }))?;
@@ -262,7 +262,7 @@ fn import(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
     Ok(())
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let r = app.run(COMMAND, json!({ "fonts": fonts(d) }));
     // A name two fonts share, or a value out of range, keeps the dialog open to be changed.
     if r.is_ok() {

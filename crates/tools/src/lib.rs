@@ -1,4 +1,4 @@
-//! VectorCraft tools: pointer events in → commands and overlays out.
+//! Pluma tools: pointer events in → commands and overlays out.
 //!
 //! Tools never mutate the document directly. They emit [`Action`]s that the engine executes:
 //! `Begin` snapshots the document, each `Preview` re-applies one command on top of that snapshot
@@ -45,11 +45,11 @@ pub mod touchtype;
 pub mod typewidget;
 pub mod xform;
 
+use pluma_color::Paint;
+use pluma_doc::{Document, NodeId, Selection, Unit};
+use pluma_geom::{BezPath, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Document, NodeId, Selection, Unit};
-use vectorcraft_geom::{BezPath, Point, Rect, Vec2};
 
 pub use catalog::{TOOL_GROUPS, ToolInfo, tool_info};
 
@@ -374,8 +374,8 @@ pub(crate) fn json_ids(ids: &[NodeId]) -> Value {
 #[cfg(test)]
 pub(crate) mod testutil {
     use super::*;
-    use vectorcraft_doc::{Appearance, Node};
-    use vectorcraft_geom::shapes;
+    use pluma_doc::{Appearance, Node};
+    use pluma_geom::shapes;
 
     pub fn doc_with_rect() -> (Document, NodeId) {
         let mut d = Document::new(500.0, 500.0);
@@ -388,14 +388,14 @@ pub(crate) mod testutil {
     /// A live 100 × 100 rectangle at (100, 100)–(200, 200) with no paint: its centre point
     /// (Attributes › Show Center) is at (150, 150), and a press in the middle of it hits no art.
     pub fn doc_with_live_rect() -> (Document, NodeId) {
-        use vectorcraft_doc::{LiveShape, NodeKind};
+        use pluma_doc::{LiveShape, NodeKind};
         let shape = LiveShape::Rectangle {
             w: 100.0,
             h: 100.0,
             radii: [0.0; 4],
             kinds: Default::default(),
             radii_relative: false,
-            xf: vectorcraft_geom::Affine::translate((100.0, 100.0)),
+            xf: pluma_geom::Affine::translate((100.0, 100.0)),
         };
         let mut d = Document::new(500.0, 500.0);
         let (l, id) = (d.layers[0].id, d.alloc_id());
@@ -415,12 +415,11 @@ pub(crate) mod testutil {
         let l = d.layers[0].id;
         let (g, clip, art) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
         let mut path = Node::path(clip, shapes::rectangle(Rect::new(400.0, 400.0, 500.0, 500.0)), Default::default());
-        if let vectorcraft_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
+        if let pluma_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
             *clipping = true;
         }
         let picture = Node::path(art, shapes::rectangle(Rect::new(350.0, 350.0, 550.0, 550.0)), Appearance::default_art());
-        let group =
-            Node::new(g, vectorcraft_doc::NodeKind::Group { children: vec![std::sync::Arc::new(path), std::sync::Arc::new(picture)], clip: true });
+        let group = Node::new(g, pluma_doc::NodeKind::Group { children: vec![std::sync::Arc::new(path), std::sync::Arc::new(picture)], clip: true });
         d.insert(Some(l), 1, group).unwrap();
         (d, g, clip, art)
     }
@@ -431,7 +430,7 @@ pub(crate) mod testutil {
         let l = d.add_layer(Some("Masked"));
         let clip = d.alloc_id();
         let mut path = Node::path(clip, shapes::rectangle(mask), Default::default());
-        if let vectorcraft_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
+        if let pluma_doc::NodeKind::Path { clipping, .. } = &mut path.kind {
             *clipping = true;
         }
         d.insert(Some(l), 0, path).unwrap();
@@ -446,9 +445,9 @@ pub(crate) mod testutil {
     pub fn doc_with_type_on_a_layer_masks_edge() -> (Document, NodeId, Point) {
         let (mut d, _) = doc_with_rect();
         let id = d.alloc_id();
-        let mut t = vectorcraft_doc::TextObject::point(Point::new(300.0, 300.0), "Some words", Default::default());
-        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 40.0)) };
-        add_masked_layer(&mut d, Rect::new(250.0, 250.0, 360.0, 400.0), Node::new(id, vectorcraft_doc::NodeKind::Text(Box::new(t))));
+        let mut t = pluma_doc::TextObject::point(Point::new(300.0, 300.0), "Some words", Default::default());
+        t.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 40.0)) };
+        add_masked_layer(&mut d, Rect::new(250.0, 250.0, 360.0, 400.0), Node::new(id, pluma_doc::NodeKind::Text(Box::new(t))));
         (d, id, Point::new(358.5, 320.0))
     }
 
@@ -457,9 +456,9 @@ pub(crate) mod testutil {
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let id = d.alloc_id();
-        let mut t = vectorcraft_doc::TextObject::point(Point::new(300.0, 300.0), "Some words", Default::default());
-        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 40.0)) };
-        d.insert(Some(l), 1, Node::new(id, vectorcraft_doc::NodeKind::Text(Box::new(t)))).unwrap();
+        let mut t = pluma_doc::TextObject::point(Point::new(300.0, 300.0), "Some words", Default::default());
+        t.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 40.0)) };
+        d.insert(Some(l), 1, Node::new(id, pluma_doc::NodeKind::Text(Box::new(t)))).unwrap();
         (d, id)
     }
 
@@ -468,13 +467,13 @@ pub(crate) mod testutil {
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let id = d.alloc_id();
-        let mut t = vectorcraft_doc::TextObject::point(Point::ZERO, "Path type", Default::default());
-        let path = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
-            vectorcraft_geom::PathEl::MoveTo(Point::new(100.0, 300.0)),
-            vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+        let mut t = pluma_doc::TextObject::point(Point::ZERO, "Path type", Default::default());
+        let path = pluma_geom::PathData::from_bezpath(&pluma_geom::BezPath::from_vec(vec![
+            pluma_geom::PathEl::MoveTo(Point::new(100.0, 300.0)),
+            pluma_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
         ]));
-        t.kind = vectorcraft_doc::TextKind::OnPath { path, start: 0.2, end: None };
-        d.insert(Some(l), 1, Node::new(id, vectorcraft_doc::NodeKind::Text(Box::new(t)))).unwrap();
+        t.kind = pluma_doc::TextKind::OnPath { path, start: 0.2, end: None };
+        d.insert(Some(l), 1, Node::new(id, pluma_doc::NodeKind::Text(Box::new(t)))).unwrap();
         (d, id)
     }
 
@@ -489,10 +488,10 @@ pub(crate) mod testutil {
         let a = Node::path(d.alloc_id(), square(0.0), Appearance::default_art());
         let b = Node::path(d.alloc_id(), square(50.0), Appearance::default_art());
         let mut sources = Node::group(d.alloc_id(), vec![Arc::new(a), Arc::new(b)]);
-        sources.name = Some(vectorcraft_doc::shaper::SOURCES.into());
+        sources.name = Some(pluma_doc::shaper::SOURCES.into());
         sources.opacity = 0.0;
         let mut face = Node::path(d.alloc_id(), square(0.0), Appearance::default_art());
-        face.name = Some(format!("{}0", vectorcraft_doc::shaper::FILL_PREFIX));
+        face.name = Some(format!("{}0", pluma_doc::shaper::FILL_PREFIX));
         let (sources_id, face_id) = (sources.id, face.id);
         let mut group = Node::group(d.alloc_id(), vec![Arc::new(sources), Arc::new(face)]);
         group.extras_mut().shaper = Some(Box::default());

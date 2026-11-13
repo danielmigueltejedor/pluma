@@ -5,7 +5,7 @@
 //! tolerance of the original outline.
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveNearest};
-use vectorcraft_geom::{Anchor, PathData, SubPath};
+use pluma_geom::{Anchor, PathData, SubPath};
 
 use crate::edit::remove_anchor;
 use crate::fit::{end_tangent, start_tangent};
@@ -216,7 +216,7 @@ impl<'a> Reducer<'a> {
 #[cfg(test)]
 mod tests {
     use kurbo::{ParamCurveNearest, Point, Vec2};
-    use vectorcraft_geom::{Anchor, PathData, SubPath};
+    use pluma_geom::{Anchor, PathData, SubPath};
 
     use super::{remove_anchor_keep_shape, simplify_keep_shape};
 

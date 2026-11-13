@@ -4,8 +4,8 @@
 //! back where the placement puts them (`print.tiling.set {reset}`). The canvas shows the pages
 //! while the tool is active (as View → Show Print Tiling does).
 
+use pluma_geom::{Point, Rect};
 use serde_json::json;
-use vectorcraft_geom::{Point, Rect};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -98,8 +98,8 @@ impl Tool for PrintTilingTool {
 
 #[cfg(test)]
 mod tests {
+    use pluma_doc::Selection;
     use serde_json::{Value, json};
-    use vectorcraft_doc::Selection;
 
     use super::*;
     use crate::testutil::{cx, doc_with_rect, paint};

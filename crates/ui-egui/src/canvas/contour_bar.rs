@@ -3,10 +3,10 @@
 //! turns the live Contour into plain paths. It acts through `addon.contour.set` and
 //! `effect.expandAppearance`, so everything it does is a command with its own undo step.
 
+use pluma_doc::{Node, NodeKind};
 use serde_json::Value;
-use vectorcraft_doc::{Node, NodeKind};
 
-use super::{CornerRadius, Stroke, Tokens, Ui, VectorcraftApp, Xf, json, pos2, vec2};
+use super::{CornerRadius, PlumaApp, Stroke, Tokens, Ui, Xf, json, pos2, vec2};
 
 /// The live effect a Contour is made of.
 const EFFECT: &str = "path.offsetPath";
@@ -40,7 +40,7 @@ fn standing(n: &Node) -> Option<Standing> {
 }
 
 /// The Contour bar, over the selection's top edge (under it when the top is off the canvas).
-pub(super) fn contour_bar(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
+pub(super) fn contour_bar(app: &mut PlumaApp, ui: &mut Ui, xf: &Xf) {
     if app.session.tool_id() != "contour" {
         return;
     }

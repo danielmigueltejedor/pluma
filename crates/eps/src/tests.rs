@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, ImageBlob, ImageObject, LineCap, LineJoin, Node, NodeKind};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, shapes};
+use pluma_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint, Swatch};
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, ImageBlob, ImageObject, LineCap, LineJoin, Node, NodeKind};
+use pluma_geom::{Affine, PathData, Point, Rect, shapes};
 
 use crate::*;
 
@@ -107,7 +107,7 @@ fn the_header_follows_dsc_and_the_file_ends_with_eof() {
     let out = export(&d, &EpsOptions { title: "Poster (draft)".into(), created: Some(0), ..opts(&d) }, None, None).unwrap();
     let ps = text(&out);
     assert!(ps.starts_with("%!PS-Adobe-3.0 EPSF-3.0\n"), "{ps}");
-    assert!(dsc(&ps, "Creator").unwrap().starts_with("VectorCraft"));
+    assert!(dsc(&ps, "Creator").unwrap().starts_with("Pluma"));
     assert_eq!(dsc(&ps, "Title").as_deref(), Some("(Poster \\(draft\\))"));
     assert_eq!(dsc(&ps, "CreationDate").as_deref(), Some("(1970-01-01 00:00:00 UTC)"));
     assert_eq!(dsc(&ps, "LanguageLevel").as_deref(), Some("3"));
@@ -400,7 +400,7 @@ fn spot_inks_named_all_or_none_are_written_under_names_of_their_own() {
         // A fill of the spot ink and a Registration stroke.
         let mut d = doc_with(|_| vec![]);
         d.swatches.push(Swatch { name: name.into(), paint: Paint::solid(GOLD), global: true, spot: true });
-        let n = rect(&mut d, name, vectorcraft_color::swatch::REGISTRATION);
+        let n = rect(&mut d, name, pluma_color::swatch::REGISTRATION);
         d.insert(Some(d.layers[0].id), 0, n).unwrap();
         let ps = text(&export(&d, &opts(&d), None, None).unwrap());
         assert_eq!(dsc(&ps, "DocumentCustomColors"), Some(format!("({colorant})")), "{ps}");
@@ -538,7 +538,7 @@ fn rgb_is_written_as_cmyk_when_asked_and_in_cmyk_documents() {
     let cmyk = page_of(&d, &EpsOptions { cmyk: true, ..opts(&d) });
     assert!(!cmyk.contains(" rg\n") && cmyk.lines().any(|l| l.ends_with(" k") && l.split(' ').count() == 5), "{cmyk}");
     let mut c = d.clone();
-    c.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    c.color_mode = pluma_doc::ColorMode::Cmyk;
     assert!(!page_of(&c, &opts(&c)).contains(" rg\n"));
 }
 
@@ -616,7 +616,7 @@ fn gray_freeform_points_are_written_as_black_ink_in_a_cmyk_document() {
     let mut g = GradientPaint::new(Gradient { kind: GradientKind::Freeform, ..Default::default() });
     g.freeform = Some(Freeform { points: vec![p(40.0, Color::gray(0.2)), p(160.0, Color::gray(0.8))], ..Default::default() });
     let mut d = doc_with(|d| vec![path(d, shapes::rectangle(Rect::new(0.0, 0.0, 200.0, 200.0)), Paint::Gradient(Box::new(g)), Paint::None, 0.0)]);
-    d.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    d.color_mode = pluma_doc::ColorMode::Cmyk;
     let page = text(&export(&d, &opts(&d), None, None).unwrap());
     let size = |key: &str| {
         let at = page.find(key).unwrap() + key.len();
@@ -819,7 +819,7 @@ fn gray_colorized_ramp_scales_process_and_spot_inks_over_paper() {
         assert_eq!(warnings.len(), if level == Level::Three { 1 } else { 2 });
 
         let mut cmyk = process.clone();
-        cmyk.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+        cmyk.color_mode = pluma_doc::ColorMode::Cmyk;
         let (ps, pixels, _) = colorized_samples(&cmyk, level);
         assert!(ps.contains("/DeviceCMYK setcolorspace"));
         assert_eq!(pixels.len(), 12);
@@ -936,14 +936,14 @@ fn the_native_document_and_thumbnail_come_back() {
         assert_eq!(image::load_from_memory(&png).unwrap().to_rgba8().dimensions(), (3, 2));
         let ps = text(&out);
         checked_page(&ps);
-        assert!(ps.find("%VectorCraft_BeginData: thumbnail").unwrap() < ps.find("%%BeginProlog").unwrap());
-        assert!(ps.find("%VectorCraft_BeginData: native").unwrap() > ps.find("%%Trailer").unwrap());
+        assert!(ps.find("%Pluma_BeginData: thumbnail").unwrap() < ps.find("%%BeginProlog").unwrap());
+        assert!(ps.find("%Pluma_BeginData: native").unwrap() > ps.find("%%Trailer").unwrap());
         assert!(ps.lines().all(|l| l.len() <= 255));
     }
     let plain = export(&d, &opts(&d), None, None).unwrap();
     assert_eq!((super::native(&plain.bytes), super::thumbnail(&plain.bytes)), (None, None));
     // Damaged files give nothing back.
-    assert_eq!(super::native(b"%VectorCraft_BeginData: native\n% 9jqo^\n%VectorCraft_EndData\n"), None);
+    assert_eq!(super::native(b"%Pluma_BeginData: native\n% 9jqo^\n%Pluma_EndData\n"), None);
     let mut bad = vec![0xC5, 0xD0, 0xD3, 0xC6];
     bad.extend([0xFF; 26]);
     assert_eq!(sections(&bad), None);
@@ -959,7 +959,7 @@ fn clipping_groups_clip_and_hidden_or_template_art_is_left_out() {
         let id = d.alloc_id();
         vec![Node::new(id, NodeKind::Group { children: vec![Arc::new(clip), Arc::new(inside)], clip: true }), hidden]
     });
-    let mut t = Node::layer(d.alloc_id(), "Template", vectorcraft_doc::LayerColor::Preset(0));
+    let mut t = Node::layer(d.alloc_id(), "Template", pluma_doc::LayerColor::Preset(0));
     if let NodeKind::Layer { template, .. } = &mut t.kind {
         *template = true;
     }
@@ -978,7 +978,7 @@ fn an_instance_whose_art_reaches_the_region_is_written() {
     // while the 20 × 20 square around the origin, moved to (-60, -60) to (-40, -40), is off it.
     let mut d = doc_with(|d| vec![Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "Far".into(), xf: Affine::translate((-50.0, -50.0)) })]);
     let art = path(&mut d, shapes::rectangle(Rect::new(100.0, 100.0, 140.0, 140.0)), Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
     let page = page_of(&d, &opts(&d));
     assert!(page.contains("1 0 0 rg"), "{page}");
 }
@@ -989,15 +989,15 @@ fn an_instance_whose_brush_art_reaches_the_region_is_written() {
     // round nib. Drawn from (-5, 0), the line lies left of the artboard, and the nib paints 10 pt
     // either side of it, onto the artboard.
     let mut d = doc_with(|d| vec![Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "Nib".into(), xf: Affine::translate((-5.0, 0.0)) })]);
-    let mut lib = vectorcraft_brush::library(&d);
-    let Some(vectorcraft_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
+    let mut lib = pluma_brush::library(&d);
+    let Some(pluma_brush::BrushKind::Calligraphic(c)) = lib.iter_mut().find(|b| b.name == "3 pt. Round").map(|b| &mut b.kind) else {
         panic!("the 3 pt. Round brush")
     };
     c.size = 20.0;
-    vectorcraft_brush::store(&mut d, &lib);
+    pluma_brush::store(&mut d, &lib);
     let mut art = path(&mut d, shapes::line((0.0, 40.0).into(), (0.0, 60.0).into()), Paint::None, Paint::solid(Color::rgb(1.0, 0.0, 0.0)), 1.0);
     art.appearance.stroke_mut().unwrap().brush = Some("3 pt. Round".into());
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Nib".into(), art: Arc::new(art) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Nib".into(), art: Arc::new(art) });
     let page = page_of(&d, &opts(&d));
     assert!(page.contains("1 0 0 rg"), "{page}");
 }
@@ -1017,7 +1017,7 @@ fn level_preview_and_overprint_ids_read_back() {
 
 #[test]
 fn a_rich_document_is_well_formed_at_both_levels() {
-    let d = (*vectorcraft_testkit::fixtures::rich_session().doc().unwrap().doc).clone();
+    let d = (*pluma_testkit::fixtures::rich_session().doc().unwrap().doc).clone();
     for level in Level::ALL {
         for cmyk in [false, true] {
             let out = export(&d, &EpsOptions { level, cmyk, ..opts(&d) }, None, None).unwrap();
@@ -1031,9 +1031,9 @@ fn a_rich_document_is_well_formed_at_both_levels() {
 /// paint it.
 #[test]
 fn colour_bitmap_glyphs_are_images() {
-    use vectorcraft_doc::{CharStyle, TextObject};
-    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font};
-    vectorcraft_text::FontDb::global().add_font(colour_bitmap_font(false).unwrap());
+    use pluma_doc::{CharStyle, TextObject};
+    use pluma_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font};
+    pluma_text::FontDb::global().add_font(colour_bitmap_font(false).unwrap());
     let d = doc_with(|d| {
         let st = CharStyle { font_family: colour_bitmap_family(false).into(), size: 32.0, ..CharStyle::default() };
         vec![Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(20.0, 100.0), &COLOUR_CHAR.to_string(), st))))]
@@ -1048,11 +1048,11 @@ fn colour_bitmap_glyphs_are_images() {
 
 #[test]
 fn colr_glyphs_are_vector_art() {
-    use vectorcraft_doc::{CharStyle, TextObject};
-    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colr_family, colr_font};
-    vectorcraft_text::FontDb::global().add_font(colr_font(false).unwrap());
+    use pluma_doc::{CharStyle, TextObject};
+    use pluma_text::test_fonts::{COLOUR_CHAR, colr_family, colr_font};
+    pluma_text::FontDb::global().add_font(colr_font(false).unwrap());
     let d = doc_with(|d| {
-        let fill = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0));
+        let fill = pluma_color::Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0));
         let st = CharStyle { font_family: colr_family(false).into(), size: 32.0, fill, ..CharStyle::default() };
         vec![Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(20.0, 100.0), &COLOUR_CHAR.to_string(), st))))]
     });
@@ -1067,7 +1067,7 @@ fn colr_glyphs_are_vector_art() {
 /// of the reading's glyphs.
 #[test]
 fn ruby_is_written_with_its_type() {
-    use vectorcraft_doc::{CharStyle, RubySpan, TextObject};
+    use pluma_doc::{CharStyle, RubySpan, TextObject};
     let typed = |ruby: bool| {
         let mut t = TextObject::point(Point::new(20.0, 100.0), "AB", CharStyle { size: 30.0, ..CharStyle::default() });
         if ruby {
@@ -1075,7 +1075,7 @@ fn ruby_is_written_with_its_type() {
         }
         t
     };
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &typed(true));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &typed(true));
     let reading = lay.ruby.iter().flat_map(|g| g.outline.elements()).filter(|e| matches!(e, kurbo::PathEl::MoveTo(_))).count();
     assert!(reading >= 3, "the reading has ink: {reading}");
     let moves = |ruby: bool| {

@@ -2,13 +2,13 @@
 //! shapes sized by its tone, as one undo step.
 //!
 //! The screens, dots and caps are Color Effects' Vector Halftone's
-//! ([`vectorcraft_render::effects::addons::halftone`]), which draws the same dots live; the art is
-//! sampled as [`vectorcraft_render::addons::halftone::sample`] draws it.
+//! ([`pluma_render::effects::addons::halftone`]), which draws the same dots live; the art is
+//! sampled as [`pluma_render::addons::halftone::sample`] draws it.
 
+use pluma_color::Color;
+use pluma_doc::Node;
+use pluma_render::effects::addons::halftone::{DotShape, Halftone, art_outline, dot_nodes};
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::Node;
-use vectorcraft_render::effects::addons::halftone::{DotShape, Halftone, art_outline, dot_nodes};
 
 use super::edit::selected_roots;
 use super::{CommandSpec, EngineError, Result, Session, bad, bool_or, cmd, color_value, f64_or, has_selection, str_param};
@@ -67,8 +67,8 @@ fn halftone(s: &mut Session, p: &Value) -> Result<Value> {
         })
         .collect();
     let outline = if clip { art_outline(&nodes) } else { None };
-    let failed = vectorcraft_render::decode_failures();
-    let samples = vectorcraft_render::addons::halftone::sample(&st.doc, nodes, region, scale, mono, invert);
+    let failed = pluma_render::decode_failures();
+    let samples = pluma_render::addons::halftone::sample(&st.doc, nodes, region, scale, mono, invert);
     let warning = super::rasterfx::undecoded_warning(failed);
     let samples = samples.ok_or_else(|| EngineError::Other("the art could not be sampled".into()))?;
     let (layers, dots) = ht.layers(&samples, b, outline.as_ref());

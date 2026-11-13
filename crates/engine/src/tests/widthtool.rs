@@ -1,8 +1,8 @@
 //! The Width tool on compound paths: the stroke is the compound's, so its members are edited
 //! through it, by the tool and by the width point commands given a member.
 
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use crate::*;
 

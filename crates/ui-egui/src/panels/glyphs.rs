@@ -7,13 +7,13 @@
 use std::collections::HashMap;
 
 use egui::{Color32, Sense, Stroke, StrokeKind, Ui, vec2};
+use pluma_doc::{CharStyle, NodeId, NodeKind};
+use pluma_geom::{Affine, BezPath, PathEl};
+use pluma_text::FontDb;
 use serde_json::json;
-use vectorcraft_doc::{CharStyle, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, BezPath, PathEl};
-use vectorcraft_text::FontDb;
 
 use super::{pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
 
@@ -26,7 +26,7 @@ const CELL_DEFAULT: usize = 2;
 /// The grid step in [`crate::state::UiState::glyphs_preview`]. `0` means [`CELL_DEFAULT`]; a
 /// stored step is `index + 1`. A value past the steps (a hand-edited preferences file) is the
 /// default too.
-fn cell_index(app: &VectorcraftApp) -> usize {
+fn cell_index(app: &PlumaApp) -> usize {
     match usize::from(app.ui.glyphs_preview) {
         0 => CELL_DEFAULT,
         n if n <= CELL_STEPS.len() => n - 1,
@@ -34,7 +34,7 @@ fn cell_index(app: &VectorcraftApp) -> usize {
     }
 }
 
-fn set_cell_index(app: &mut VectorcraftApp, index: usize) {
+fn set_cell_index(app: &mut PlumaApp, index: usize) {
     let index = index.min(CELL_STEPS.len() - 1);
     // `index + 1` is at most `CELL_STEPS.len()` (7), which fits in a `u8`.
     app.ui.glyphs_preview = (index + 1) as u8;
@@ -72,7 +72,7 @@ thread_local! {
 pub(crate) fn rasterize(path: &BezPath, w: usize, h: usize) -> Vec<u8> {
     let mut edges: Vec<(f64, f64, f64, f64)> = vec![];
     let (mut start, mut last) = (None, (0.0, 0.0));
-    vectorcraft_geom::kurbo::flatten(path, 0.1, |el| match el {
+    pluma_geom::kurbo::flatten(path, 0.1, |el| match el {
         PathEl::MoveTo(p) => {
             if let Some(s) = start.replace((p.x, p.y)) {
                 edges.push((last.0, last.1, s.0, s.1));
@@ -127,7 +127,7 @@ pub(crate) fn rasterize(path: &BezPath, w: usize, h: usize) -> Vec<u8> {
     acc.into_iter().map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8).collect()
 }
 
-fn glyph_texture(ctx: &egui::Context, face: &vectorcraft_text::FontFace, gid: u32, px: u32) -> egui::TextureHandle {
+fn glyph_texture(ctx: &egui::Context, face: &pluma_text::FontFace, gid: u32, px: u32) -> egui::TextureHandle {
     let key = (face.id(), gid, px);
     if let Some(t) = TEX.with(|c| c.borrow().get(&key).cloned()) {
         return t;
@@ -158,7 +158,7 @@ fn glyph_texture(ctx: &egui::Context, face: &vectorcraft_text::FontFace, gid: u3
 /// one before its caret. Public behaviour: the Glyphs panel shows the selected character's glyph
 /// (the overview page cited at [`CELL_STEPS`]). Walks the runs, not the characters, so it stays
 /// cheap on every frame.
-fn selected_char(app: &VectorcraftApp) -> Option<char> {
+fn selected_char(app: &PlumaApp) -> Option<char> {
     selected_target(app).map(|t| t.ch)
 }
 
@@ -171,7 +171,7 @@ struct Target<'a> {
     style: &'a CharStyle,
 }
 
-fn selected_target(app: &VectorcraftApp) -> Option<Target<'_>> {
+fn selected_target(app: &PlumaApp) -> Option<Target<'_>> {
     let (id, a, b) = super::character::text_editing(app)?;
     let NodeKind::Text(t) = &app.session.active()?.doc.node(id)?.kind else { return None };
     let (at, range) = (a.min(b), a != b);
@@ -193,7 +193,7 @@ fn selected_target(app: &VectorcraftApp) -> Option<Target<'_>> {
 }
 
 /// Insert `ch` at the Type tool's caret, else append it to the selected text.
-fn insert(app: &mut VectorcraftApp, ctx: &egui::Context, ch: char) {
+fn insert(app: &mut PlumaApp, ctx: &egui::Context, ch: char) {
     let s = ch.to_string();
     if app.session.tool_wants_text() {
         let v = app.view_info();
@@ -213,13 +213,13 @@ fn insert(app: &mut VectorcraftApp, ctx: &egui::Context, ch: char) {
 }
 
 /// Browse and insert glyphs from the chosen font, with font controls below the glyph grid.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let db = FontDb::global();
     let current = super::character::text_style(app).map(|(s, _)| (s.font_family, s.font_style));
     // The panel browses the current text's font unless another font was picked here.
     let picked: Option<(String, String)> = pstate(ui.ctx(), "gl-font");
-    let (family, style) = picked.or(current).unwrap_or_else(|| (vectorcraft_text::FALLBACK_FAMILY.to_string(), "Regular".to_string()));
+    let (family, style) = picked.or(current).unwrap_or_else(|| (pluma_text::FALLBACK_FAMILY.to_string(), "Regular".to_string()));
     let subset: usize = pstate(ui.ctx(), "gl-subset");
     let (_, lo, hi) = SUBSETS[subset.min(SUBSETS.len() - 1)];
     let w = ui.available_width();
@@ -307,7 +307,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// The family and style menus of the font the panel browses, and Zoom Out and Zoom In.
-fn font_row(app: &mut VectorcraftApp, ui: &mut Ui, family: &str, style: &str, w: f32) {
+fn font_row(app: &mut PlumaApp, ui: &mut Ui, family: &str, style: &str, w: f32) {
     let db = FontDb::global();
     widgets::panel_footer_space(ui, 24.0);
     ui.horizontal(|ui| {
@@ -344,10 +344,10 @@ fn font_row(app: &mut VectorcraftApp, ui: &mut Ui, family: &str, style: &str, w:
 
 /// The grid of Show › Alternates for Current Selection: the alternate glyphs of the Type tool's
 /// selected character in the face its text is set in, whatever font the panel browses
-/// ([`vectorcraft_text::FontFace::alternates`]), with that face's name under the grid. The default
+/// ([`pluma_text::FontFace::alternates`]), with that face's name under the grid. The default
 /// glyph comes first when the font does not list it. The glyph the character is drawn with is
 /// highlighted. A double-click draws the character with the glyph (`text.setGlyphAlternate`).
-fn alternates(app: &mut VectorcraftApp, ui: &mut Ui, w: f32) {
+fn alternates(app: &mut PlumaApp, ui: &mut Ui, w: f32) {
     let t = Tokens::get(ui.ctx());
     let db = FontDb::global();
     let note = |ui: &mut Ui, text: &str| {
@@ -422,14 +422,14 @@ fn alternates(app: &mut VectorcraftApp, ui: &mut Ui, w: f32) {
 /// character at `byte` with. Both are kept in egui's temporary data until the document, the
 /// character or the face changes, as [`super::character`] keeps the kerning at the caret.
 fn alternates_and_drawn(
-    app: &VectorcraftApp,
+    app: &PlumaApp,
     ui: &Ui,
-    face: &vectorcraft_text::FontFace,
+    face: &pluma_text::FontFace,
     id: NodeId,
     byte: usize,
     ch: char,
-) -> (Vec<vectorcraft_text::GlyphAlternate>, Option<(u32, u32)>) {
-    type Found = (Vec<vectorcraft_text::GlyphAlternate>, Option<(u32, u32)>);
+) -> (Vec<pluma_text::GlyphAlternate>, Option<(u32, u32)>) {
+    type Found = (Vec<pluma_text::GlyphAlternate>, Option<(u32, u32)>);
     let state = app.session.active();
     let key = state.map(|s| (s.uid, s.revision, id, byte, face.id()));
     let slot = ui.scope_id().with("gl-alternates-found");
@@ -442,7 +442,7 @@ fn alternates_and_drawn(
     let drawn = state
         .and_then(|s| s.doc.node(id))
         .and_then(|node| match &node.kind {
-            NodeKind::Text(text) => Some(vectorcraft_text::layout(FontDb::global(), text)),
+            NodeKind::Text(text) => Some(pluma_text::layout(FontDb::global(), text)),
             _ => None,
         })
         .and_then(|layout| layout.glyphs.into_iter().find(|g| g.byte <= byte && byte < g.byte.saturating_add(g.len)))
@@ -450,7 +450,7 @@ fn alternates_and_drawn(
     let mut list = face.alternates(ch);
     let default = face.glyph_for(ch);
     if !list.is_empty() && default != 0 && !list.iter().any(|a| a.gid == default) {
-        list.insert(0, vectorcraft_text::GlyphAlternate { gid: default, feature: [0; 4] });
+        list.insert(0, pluma_text::GlyphAlternate { gid: default, feature: [0; 4] });
     }
     let found = (list, drawn);
     if let Some(key) = key {
@@ -474,7 +474,7 @@ fn zoom_button(ui: &mut Ui, id: &str, label: &str, tip: &str, enabled: bool) -> 
     resp.on_hover_text(tl!(tip)).clicked() && enabled
 }
 
-pub fn menu(_app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(_app: &mut PlumaApp, ui: &mut Ui) {
     if menu_item(ui, tl!("Use the Selected Text's Font"), true, false) {
         set_pstate::<Option<(String, String)>>(ui.ctx(), "gl-font", None);
     }
@@ -497,29 +497,29 @@ mod tests {
 
     use super::*;
 
-    fn shapes(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<Shape> {
+    fn shapes(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<Shape> {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(280.0, 420.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| show(app, ui));
         out.textures_delta.clear();
         out.shapes.into_iter().map(|c| c.shape).collect()
     }
 
-    fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> (Vec<(String, Pos2)>, Vec<f32>) {
+    fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> (Vec<(String, Pos2)>, Vec<f32>) {
         let shapes = shapes(ctx, app, events);
         (text_anchors(&shapes), square_sides(&shapes))
     }
 
     /// The Type tool editing `text` in a new document.
-    fn editing(text: &str) -> (VectorcraftApp, serde_json::Value) {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn editing(text: &str) -> (PlumaApp, serde_json::Value) {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
         app.session.select_tool("type", Default::default()).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 50, "text": text})).unwrap()["id"].clone();
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         (app, id)
     }
 
-    fn select(app: &mut VectorcraftApp, start: usize, end: usize) {
+    fn select(app: &mut PlumaApp, start: usize, end: usize) {
         app.session.set_tool_option("select", &json!({"start": start, "end": end}));
     }
 
@@ -583,7 +583,7 @@ mod tests {
             .unwrap_or_else(|| panic!("{label} missing in {texts:?}"))
     }
 
-    fn click(ctx: &egui::Context, app: &mut VectorcraftApp, at: Pos2) {
+    fn click(ctx: &egui::Context, app: &mut PlumaApp, at: Pos2) {
         let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         frame(ctx, app, vec![egui::Event::PointerMoved(at), button(true)]);
         frame(ctx, app, vec![button(false)]);
@@ -651,7 +651,7 @@ mod tests {
     }
 
     /// The panel menu's texts and where each is drawn.
-    fn menu_texts(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, Pos2)> {
+    fn menu_texts(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, Pos2)> {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(280.0, 420.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
         out.textures_delta.clear();
@@ -659,7 +659,7 @@ mod tests {
     }
 
     /// Choose `label` in the panel menu (its items start with a check mark or spaces).
-    fn choose(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
+    fn choose(ctx: &egui::Context, app: &mut PlumaApp, label: &str) {
         let items = menu_texts(ctx, app, vec![]);
         let item = items.iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == label);
         let at = item.unwrap_or_else(|| panic!("{label} missing in {items:?}")).1 + vec2(16.0, 4.0);
@@ -668,7 +668,7 @@ mod tests {
         menu_texts(ctx, app, vec![button(false)]);
     }
 
-    fn texts(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
+    fn texts(ctx: &egui::Context, app: &mut PlumaApp) -> Vec<String> {
         text_anchors(&shapes(ctx, app, vec![])).into_iter().map(|(t, _)| t).collect()
     }
 
@@ -678,7 +678,7 @@ mod tests {
     /// note, and Show stays on the alternates.
     #[test]
     fn alternates_for_current_selection_lists_and_replaces_the_selected_character() {
-        use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+        use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
         FontDb::global().add_font(alternates_font(true).expect("the test font builds"));
         let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
         let (mut app, id) = editing("xay");
@@ -714,7 +714,7 @@ mod tests {
         let undo = app.session.active().unwrap().history.undo.len();
         let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         let mut time = 10.0;
-        let mut timed = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let mut timed = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             time += 0.05;
             let screen = Some(Rect::from_min_size(Pos2::ZERO, vec2(280.0, 420.0)));
             let mut out = ctx.run_ui(egui::RawInput { screen_rect: screen, time: Some(time), events, ..Default::default() }, |ui| show(app, ui));
@@ -726,11 +726,11 @@ mod tests {
             timed(&mut app, vec![button(false)]);
         }
         assert_eq!(app.session.active().unwrap().history.undo.len(), undo + 1, "status: {}", app.ui.status);
-        let NodeKind::Text(text) = &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().kind else {
+        let NodeKind::Text(text) = &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().kind else {
             panic!("text")
         };
         assert_eq!(text.plain_text(), "xay");
-        let gids: Vec<u32> = vectorcraft_text::layout(FontDb::global(), text).glyphs.iter().map(|g| g.gid).collect();
+        let gids: Vec<u32> = pluma_text::layout(FontDb::global(), text).glyphs.iter().map(|g| g.gid).collect();
         assert_eq!(gids[1], u1, "the a is drawn with the chosen glyph");
         shapes(&ctx, &mut app, vec![egui::Event::PointerMoved(Pos2::ZERO)]);
         let found = shapes(&ctx, &mut app, vec![]);
@@ -759,7 +759,7 @@ mod tests {
     /// not count as an edit leaves the grid as it was, and the next revision finds them again.
     #[test]
     fn alternates_are_found_once_per_revision() {
-        use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+        use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
         FontDb::global().add_font(alternates_font(true).expect("the test font builds"));
         let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
         let (mut app, id) = editing("xay");
@@ -772,10 +772,10 @@ mod tests {
         let cells = squares(&found);
         assert_eq!(highlighted(&found, &t), [cells[0].center()], "the default glyph is drawn");
         let face = FontDb::global().face(alternates_family(true), "Regular").expect("the test face");
-        let node = vectorcraft_doc::NodeId(id.as_u64().unwrap());
+        let node = pluma_doc::NodeId(id.as_u64().unwrap());
         let state = app.session.active_mut().unwrap();
         let Some(NodeKind::Text(text)) = std::sync::Arc::make_mut(&mut state.doc).node_mut(node).map(|n| &mut n.kind) else { panic!("text") };
-        vectorcraft_text::edit::style_range(&mut text.runs, 1, 2, |st| st.glyph_alternate = Some(face.choice('a', u1)));
+        pluma_text::edit::style_range(&mut text.runs, 1, 2, |st| st.glyph_alternate = Some(face.choice('a', u1)));
         let found = shapes(&ctx, &mut app, vec![]);
         assert_eq!(highlighted(&found, &t), [cells[0].center()], "the same revision keeps what was found");
         app.session.active_mut().unwrap().revision += 1;
@@ -787,7 +787,7 @@ mod tests {
     /// first in the grid, so a chosen alternate can be put back.
     #[test]
     fn the_default_glyph_is_listed_when_the_font_leaves_it_out() {
-        use vectorcraft_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
+        use pluma_text::test_fonts::{alternates_family, alternates_font, unencoded_glyphs};
         FontDb::global().add_font(alternates_font(false).expect("the test font builds"));
         let [u1, ..] = unencoded_glyphs().expect("unencoded glyphs");
         let (mut app, id) = editing("xay");
@@ -817,7 +817,7 @@ mod tests {
 
     #[test]
     fn zoom_buttons_resize_the_glyph_grid() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         let (texts, sides) = frame(&ctx, &mut app, vec![]);
         if texts.iter().any(|(t, _)| t.contains("No fonts are available")) {
@@ -862,7 +862,7 @@ mod tests {
         assert_eq!(back.glyphs_preview, (CELL_DEFAULT + 2) as u8);
         let old: crate::state::UiState = serde_json::from_value(serde_json::json!({})).unwrap();
         assert_eq!(old.glyphs_preview, 0);
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.ui.glyphs_preview = back.glyphs_preview;
         assert_eq!(cell_index(&app), CELL_DEFAULT + 1);
         app.ui.glyphs_preview = 99;

@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::cms::{Cms, Intent, PROCESS_PLATES};
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Color, Paint};
+use pluma_color::cms::{Cms, Intent, PROCESS_PLATES};
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Color, Paint};
 
 use crate::{AppearanceItem, Document, Node, NodeKind};
 
@@ -51,7 +51,7 @@ pub struct Plate {
 
 /// The plates of `doc`: the four process plates plus one per spot swatch.
 pub fn plates(doc: &Document) -> Vec<Plate> {
-    let c = vectorcraft_color::cms::active();
+    let c = pluma_color::cms::active();
     let mut v: Vec<Plate> = PROCESS_PLATES
         .iter()
         .enumerate()

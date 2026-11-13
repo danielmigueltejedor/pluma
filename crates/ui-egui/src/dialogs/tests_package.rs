@@ -4,9 +4,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use pluma_engine::Session;
+use pluma_engine::file_access::{Access, AutomationRoots};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_engine::file_access::{Access, AutomationRoots};
 
 use super::*;
 use crate::background;
@@ -17,7 +17,7 @@ struct Folder(std::path::PathBuf);
 
 impl Folder {
     fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-ui-package-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-ui-package-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Self(dir)
@@ -33,13 +33,13 @@ impl Drop for Folder {
     }
 }
 
-fn frame(app: &mut VectorcraftApp) -> String {
+fn frame(app: &mut PlumaApp) -> String {
     crate::tests_labels::painted_text(app, |app, ui| show(app, ui.ctx()))
 }
 
 /// An app writing through `std::fs`, with a saved document holding a placed linked image.
-fn saved(dir: &Folder) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn saved(dir: &Folder) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.services.write = Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string())));
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let mut png = vec![];
@@ -48,13 +48,13 @@ fn saved(dir: &Folder) -> VectorcraftApp {
         .unwrap();
     std::fs::write(dir.path("pic.png"), &png).unwrap();
     app.run("file.place", json!({"path": dir.path("pic.png")})).unwrap();
-    app.run("document.save", json!({"path": dir.path("card.vectorcraft")})).unwrap();
+    app.run("document.save", json!({"path": dir.path("card.pluma")})).unwrap();
     app
 }
 
 #[test]
 fn an_unsaved_document_is_offered_save_as_first() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     assert!(!crate::menus::enabled(&app, "ui.packageDialog"), "no document");
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("ui.packageDialog", json!({})).unwrap();
@@ -80,7 +80,7 @@ fn package_writes_the_folder_then_offers_to_show_it() {
     let r = confirm(&mut app).unwrap();
     assert!(!app.session.active().unwrap().is_dirty());
     let root = std::path::Path::new(&out).join("card Folder");
-    assert!(root.join("card.vectorcraft").is_file() && root.join("Links/pic.png").is_file(), "{r}");
+    assert!(root.join("card.pluma").is_file() && root.join("Links/pic.png").is_file(), "{r}");
     let d = app.ui.dialog.as_ref().unwrap();
     assert_eq!((d.kind.as_str(), d.str("__command")), (confirm::KIND, "file.showPackage".to_string()));
     let opened: Rc<RefCell<Vec<String>>> = Rc::default();
@@ -95,7 +95,7 @@ fn package_writes_the_folder_then_offers_to_show_it() {
 
 /// [`saved`] with a thread-safe writer, the background thread's, that records the files it is
 /// given once `gate` opens.
-fn saved_with_worker(dir: &Folder, gate: &Gate) -> (VectorcraftApp, Files) {
+fn saved_with_worker(dir: &Folder, gate: &Gate) -> (PlumaApp, Files) {
     let mut app = saved(dir);
     let (files, g) = (Files::default(), gate.clone());
     let recorded = files.clone();
@@ -108,7 +108,7 @@ fn saved_with_worker(dir: &Folder, gate: &Gate) -> (VectorcraftApp, Files) {
 }
 
 /// Open the Package dialog for a package in `out`.
-fn package_dialog(app: &mut VectorcraftApp, out: &str) {
+fn package_dialog(app: &mut PlumaApp, out: &str) {
     app.run("ui.packageDialog", json!({})).unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("folder".into(), json!(out));
 }
@@ -169,8 +169,8 @@ fn edits_after_ok_do_not_reach_the_package() {
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some("package"));
     assert!(app.ui.status.starts_with("Packaged 3 files in "), "{}", app.ui.status);
     let files = files.lock().unwrap();
-    let (_, bytes) = files.iter().find(|(p, _)| p.ends_with("card.vectorcraft")).unwrap();
-    assert_eq!(vectorcraft_format::load(bytes).unwrap().node_count(), nodes, "the document as it was at OK");
+    let (_, bytes) = files.iter().find(|(p, _)| p.ends_with("card.pluma")).unwrap();
+    assert_eq!(pluma_format::load(bytes).unwrap().node_count(), nodes, "the document as it was at OK");
     assert!(files.iter().any(|(p, _)| p.ends_with("pic.png")), "its linked file");
 }
 
@@ -179,7 +179,7 @@ fn a_dirty_documents_save_is_written_before_its_package() {
     let dir = Folder::new("dirty");
     let gate = Gate::default();
     let (mut app, files) = saved_with_worker(&dir, &gate);
-    let (doc, out) = (dir.path("card.vectorcraft"), dir.path("out"));
+    let (doc, out) = (dir.path("card.pluma"), dir.path("out"));
     // With Background Export on, the save and the package both run in the background, and the
     // worker writes the save first.
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
@@ -237,7 +237,7 @@ fn a_package_made_at_once_waits_for_one_in_the_background() {
     assert!(app.background.jobs.is_empty(), "the package in the background was written first");
     release.join().unwrap();
     assert_eq!(written(&files).len(), 3);
-    assert!(std::path::Path::new(&out).join("card Folder/card.vectorcraft").is_file());
+    assert!(std::path::Path::new(&out).join("card Folder/card.pluma").is_file());
 }
 
 #[test]
@@ -445,7 +445,7 @@ fn a_refused_file_is_named_once() {
     let (out, elsewhere, other) = (dir.path("out"), dir.path("elsewhere"), dir.path("other"));
     std::fs::create_dir_all(&elsewhere).unwrap();
     std::fs::create_dir_all(&other).unwrap();
-    let doc = std::path::Path::new(&out).join("card Folder").join("card.vectorcraft").to_string_lossy().into_owned();
+    let doc = std::path::Path::new(&out).join("card Folder").join("card.pluma").to_string_lossy().into_owned();
     let (elsewhere, other) = (std::path::Path::new(&elsewhere), std::path::Path::new(&other));
     for write_roots in [vec![elsewhere], vec![elsewhere, other]] {
         let roots = AutomationRoots::new(&[], &write_roots).unwrap().unwrap();

@@ -144,7 +144,7 @@ fn conventions_commands_batch_and_bounded_preview() {
     let before = call(&mut s, "doc_inspect", json!({}));
     let r = call(&mut s, "render_preview", json!({"max_side":64}));
     assert_eq!(r["isError"], false, "{r}");
-    let png = vectorcraft_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
+    let png = pluma_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
     let img = image::load_from_memory(&png).unwrap();
     assert!(img.width() <= 64 && img.height() <= 64);
     assert_eq!(before, call(&mut s, "doc_inspect", json!({})));
@@ -156,7 +156,7 @@ fn conventions_commands_batch_and_bounded_preview() {
     assert_eq!(r["isError"], false, "{r}");
     let r = call(&mut s, "render_preview", json!({"max_side":60,"artboard":1}));
     assert_eq!(r["isError"], false, "{r}");
-    let png = vectorcraft_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
+    let png = pluma_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
     let img = image::load_from_memory(&png).unwrap();
     assert_eq!((img.width(), img.height()), (60, 20));
     for board in [json!(2), json!(-1), json!("1")] {
@@ -180,7 +180,7 @@ fn render_preview_and_screenshot_match_a_png_export_on_white() {
     }
     let r = call(&mut s, "draw_path", json!({"points":[[10,75],[110,5],[115,30]],"closed":true,"fill":"#30a050"}));
     assert_eq!(r["isError"], false, "{r}");
-    let pixels = |b64: &str| image::load_from_memory(&vectorcraft_format::base64_decode(b64).unwrap()).unwrap().to_rgba8();
+    let pixels = |b64: &str| image::load_from_memory(&pluma_format::base64_decode(b64).unwrap()).unwrap().to_rgba8();
     let export = payload(&call(&mut s, "run_command", json!({"command":"document.export","params":{"format":"png","background":"white"}})));
     let export = pixels(export["dataBase64"].as_str().unwrap());
     assert_eq!(export.dimensions(), (120, 80));
@@ -260,7 +260,7 @@ struct Window(Vec<u8>);
 impl Backend for Window {
     fn call(&mut self, method: &str, _: Value) -> Result<Value, String> {
         match method {
-            "ui.screenshot" => Ok(json!({"pngBase64": vectorcraft_format::base64_encode(&self.0), "width": 1200, "height": 800})),
+            "ui.screenshot" => Ok(json!({"pngBase64": pluma_format::base64_encode(&self.0), "width": 1200, "height": 800})),
             _ => Err(format!("unexpected {method}")),
         }
     }
@@ -282,7 +282,7 @@ fn window_captures_take_max_side() {
         .unwrap();
     let capture = capture.into_inner();
     let mut s = Server::new(Box::new(Window(capture.clone())));
-    let image_of = |r: &Value| vectorcraft_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
+    let image_of = |r: &Value| pluma_format::base64_decode(r["content"][0]["data"].as_str().unwrap()).unwrap();
     let info = |r: &Value| -> Value { serde_json::from_str(r["content"][1]["text"].as_str().unwrap()).unwrap() };
     for (name, mut args) in [("ui_screenshot", json!({})), ("screenshot", json!({"window": true}))] {
         let r = call(&mut s, name, args.clone());
@@ -351,8 +351,8 @@ fn conventions_resources_and_versioned_results() {
         ("resources/list", json!({}), 600_000),
         ("resources/templates/list", json!({}), 600_000),
         ("prompts/list", json!({}), 600_000),
-        ("resources/read", json!({"uri":"vectorcraft://document"}), 0),
-        ("resources/read", json!({"uri":"vectorcraft://commands"}), 0),
+        ("resources/read", json!({"uri":"pluma://document"}), 0),
+        ("resources/read", json!({"uri":"pluma://commands"}), 0),
     ] {
         let legacy = rpc(&mut s, method, extra.clone());
         assert!(legacy["result"].is_object(), "{legacy}");
@@ -371,8 +371,8 @@ fn conventions_resources_and_versioned_results() {
         assert!(rpc(&mut s, method, extra)["result"].get("resultType").is_none());
     }
     let r = rpc(&mut s, "resources/list", json!({}));
-    assert!(r["result"]["resources"].as_array().unwrap().iter().any(|r| r["uri"] == "vectorcraft://commands"));
-    let commands = rpc(&mut s, "resources/read", json!({"uri":"vectorcraft://commands"}));
+    assert!(r["result"]["resources"].as_array().unwrap().iter().any(|r| r["uri"] == "pluma://commands"));
+    let commands = rpc(&mut s, "resources/read", json!({"uri":"pluma://commands"}));
     let commands: Value = serde_json::from_str(commands["result"]["contents"][0]["text"].as_str().unwrap()).unwrap();
     assert_eq!(commands, payload(&call(&mut s, "command_list", json!({}))));
     assert_eq!(rpc(&mut s, "initialize", json!({"protocolVersion":"2026-07-28"}))["result"]["protocolVersion"], "2026-07-28");

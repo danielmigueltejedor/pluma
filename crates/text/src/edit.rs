@@ -4,8 +4,8 @@
 
 use std::ops::Range;
 
-use vectorcraft_doc::text::INLINE_CHAR;
-use vectorcraft_doc::{CharStyle, TextRun};
+use pluma_doc::text::INLINE_CHAR;
+use pluma_doc::{CharStyle, TextRun};
 
 /// Is `s` exactly one object replacement character (an inline graphic run's text)?
 pub fn is_inline_text(s: &str) -> bool {

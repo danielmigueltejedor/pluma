@@ -1,6 +1,6 @@
 //! Brushes (Brushes panel, Paintbrush, Expand) and Symbols (Symbols panel, symbolism tools).
 //!
-//! Brush definitions live in `vectorcraft-brush` and are stored in `Document::unknown["brushes"]`.
+//! Brush definitions live in `pluma-brush` and are stored in `Document::unknown["brushes"]`.
 //! Symbol definitions are `Document::symbols`; symbols made here are *normalised*: the art is
 //! centred on the origin and scaled (non-uniformly, strokes untouched) into the ±10 pt box that
 //! `Node::geometric_bounds` assumes for instances, and each instance's `xf` scales it back. The
@@ -9,11 +9,11 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use pluma_brush::{self as brush, Bristle, Brush, BrushKind};
+use pluma_color::{Color, Paint};
+use pluma_doc::{AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Symbol, SymbolExportType, SymbolNineSlice, SymbolRegistration};
+use pluma_geom::{Affine, Point, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_brush::{self as brush, Bristle, Brush, BrushKind};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Symbol, SymbolExportType, SymbolNineSlice, SymbolRegistration};
-use vectorcraft_geom::{Affine, Point, Vec2};
 
 use super::edit::{outermost, selected_roots};
 use super::pathops::{remove_each, separate};
@@ -48,10 +48,10 @@ use symbols::{
     symbol_place, symbol_replace, symbol_select_instances, symbol_set_current, symbol_spray, symbol_unused, symbol_update,
 };
 
-const SIZES_KEY: &str = vectorcraft_doc::SYMBOL_SIZES;
+const SIZES_KEY: &str = pluma_doc::SYMBOL_SIZES;
 pub(crate) const CURRENT_SYMBOL: &str = "currentSymbol";
 /// Half the instance box `Node::geometric_bounds` uses for symbol instances.
-const HALF: f64 = vectorcraft_doc::SYMBOL_HALF;
+const HALF: f64 = pluma_doc::SYMBOL_HALF;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![

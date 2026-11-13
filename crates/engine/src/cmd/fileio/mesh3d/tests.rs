@@ -1,5 +1,5 @@
+use pluma_render::effects::{Mesh, SolidMesh};
 use serde_json::Value;
-use vectorcraft_render::effects::{Mesh, SolidMesh};
 
 use super::*;
 
@@ -40,7 +40,7 @@ fn gltf_holds_its_buffer_and_every_accessor_fits_it() {
     let g: Value = serde_json::from_str(&text(&files, "Box.gltf")).unwrap();
     assert_eq!(g["asset"]["version"], "2.0");
     let uri = g["buffers"][0]["uri"].as_str().unwrap();
-    let data = vectorcraft_format::base64_decode(uri.strip_prefix("data:application/octet-stream;base64,").unwrap()).unwrap();
+    let data = pluma_format::base64_decode(uri.strip_prefix("data:application/octet-stream;base64,").unwrap()).unwrap();
     assert_eq!(g["buffers"][0]["byteLength"].as_u64(), Some(data.len() as u64));
     for v in g["bufferViews"].as_array().unwrap() {
         assert!(v["byteOffset"].as_u64().unwrap() + v["byteLength"].as_u64().unwrap() <= data.len() as u64);

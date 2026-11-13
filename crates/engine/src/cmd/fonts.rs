@@ -5,10 +5,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
+use pluma_color::Paint;
+use pluma_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
-use vectorcraft_geom::Rect;
 
 use super::select::on_artboard;
 use super::typecmd::refresh_bounds;
@@ -69,7 +69,7 @@ fn scope(s: &Session, selection_only: bool, selected: Option<&[NodeId]>) -> Resu
     let st = s.doc()?;
     let mut v = vec![];
     let mut seen = HashSet::new();
-    let mut add = |n: &vectorcraft_doc::Node| {
+    let mut add = |n: &pluma_doc::Node| {
         n.walk(&mut |c| {
             if matches!(c.kind, NodeKind::Text(_)) && seen.insert(c.id) {
                 v.push(c.id);
@@ -209,9 +209,9 @@ pub(super) fn font_label((family, style, version): &UsedFont) -> String {
 }
 
 /// The fonts (family, style, version) run `r` is drawn in: its own, or, set in a composite font,
-/// the fonts of the parts its characters fall in ([`vectorcraft_text::FontDb::composite_fonts_for`]).
+/// the fonts of the parts its characters fall in ([`pluma_text::FontDb::composite_fonts_for`]).
 pub(super) fn run_fonts(r: &TextRun) -> Vec<UsedFont> {
-    let parts = if r.inline.is_some() { None } else { vectorcraft_text::FontDb::global().composite_fonts_for(&r.style.font_family, &r.text) };
+    let parts = if r.inline.is_some() { None } else { pluma_text::FontDb::global().composite_fonts_for(&r.style.font_family, &r.text) };
     match parts {
         Some(parts) => parts.into_iter().map(|(family, style)| (family, style, None)).collect(),
         None => vec![font_of(&r.style)],
@@ -249,7 +249,7 @@ pub(super) fn art_fonts(d: &Document, art: &[Node]) -> BTreeSet<UsedFont> {
 /// brushes or placed documents).
 /// The type that prints is visible type on `layers` (the layers that print) but not on a template
 /// layer (of area type and type on a path that don't fit, the runs that their layout draws),
-/// where what it paints ([`vectorcraft_render::painted_bounds`], its effects applied) meets an area
+/// where what it paints ([`pluma_render::painted_bounds`], its effects applied) meets an area
 /// inside the clipping paths around it, the type in the opacity masks and patterns of the objects
 /// that print and in the pieces their brushes draw, and the type of the symbols that their
 /// instances and inline graphics show.
@@ -302,7 +302,7 @@ impl Printed<'_> {
         }
         // A layer or group with effects, fills or strokes of its own prints where they paint (moved,
         // shadowed…), drawn from its members' shapes.
-        let moved = vectorcraft_render::effects::has_container_appearance(n);
+        let moved = pluma_render::effects::has_container_appearance(n);
         let open = !moved && matches!(n.kind, NodeKind::Layer { clip: false, .. } | NodeKind::Group { clip: false, .. });
         if let Some(a) = areas
             && !open
@@ -327,7 +327,7 @@ impl Printed<'_> {
                 _ => None,
             })
             .collect();
-        let brushed = vectorcraft_brush::has_brush(n);
+        let brushed = pluma_brush::has_brush(n);
         if (mask.is_some() || !patterns.is_empty() || brushed) && areas.is_none_or(|a| !open || self.meets(n, a)) {
             if let Some(m) = mask {
                 self.art(&m.art);
@@ -344,7 +344,7 @@ impl Printed<'_> {
             }
             // The pieces its brushes draw along the path (art and pattern brushes leave type out).
             if brushed {
-                for piece in vectorcraft_brush::node_pieces(d, n).unwrap_or_default() {
+                for piece in pluma_brush::node_pieces(d, n).unwrap_or_default() {
                     self.art(&piece);
                 }
             }
@@ -373,7 +373,7 @@ impl Printed<'_> {
                 let clipped = match (clip, areas) {
                     (false, _) => None,
                     (true, Some(a)) => Some(self.clip(n, a)),
-                    (true, None) => vectorcraft_render::painted_bounds(self.d, n).map(|c| vec![c]),
+                    (true, None) => pluma_render::painted_bounds(self.d, n).map(|c| vec![c]),
                 };
                 for c in children {
                     self.node(c, clipped.as_deref().or(areas));
@@ -408,21 +408,21 @@ impl Printed<'_> {
 
     /// Whether what `n` paints, its effects applied, meets one of `areas`.
     fn meets(&self, n: &Node, areas: &[Rect]) -> bool {
-        vectorcraft_render::painted_bounds(self.d, n).is_some_and(|b| areas.iter().any(|r| b.intersect(*r).area() > 0.0 || r.contains_rect(b)))
+        pluma_render::painted_bounds(self.d, n).is_some_and(|b| areas.iter().any(|r| b.intersect(*r).area() > 0.0 || r.contains_rect(b)))
     }
 
     /// The parts of `areas` inside the bounds of clip group `n` (its clipping path's).
     fn clip(&self, n: &Node, areas: &[Rect]) -> Vec<Rect> {
-        let Some(c) = vectorcraft_render::painted_bounds(self.d, n) else { return areas.to_vec() };
+        let Some(c) = pluma_render::painted_bounds(self.d, n) else { return areas.to_vec() };
         areas.iter().filter(|r| c.intersect(**r).area() > 0.0 || r.contains_rect(c)).map(|r| r.intersect(c)).collect()
     }
 }
 
 /// The runs of `t` that print, and whether its text doesn't fit: all of them, or of area type and
 /// type on a path that don't fit, the runs that their layout draws glyphs or inline graphics of.
-fn drawn_runs(t: &vectorcraft_doc::TextObject) -> (Vec<&TextRun>, bool) {
+fn drawn_runs(t: &pluma_doc::TextObject) -> (Vec<&TextRun>, bool) {
     let drawn: Option<BTreeSet<usize>> = (!matches!(t.kind, TextKind::Point))
-        .then(|| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t))
+        .then(|| pluma_text::layout(pluma_text::FontDb::global(), t))
         .filter(|lay| lay.overflow)
         .map(|lay| lay.glyphs.iter().map(|g| g.run).chain(lay.inlines.iter().map(|i| i.run)).collect());
     let runs = t.runs.iter().enumerate().filter(|(i, _)| drawn.as_ref().is_none_or(|d| d.contains(i))).map(|(_, r)| r).collect();
@@ -442,7 +442,7 @@ pub(super) fn substitution_warning_of(fonts: BTreeSet<UsedFont>) -> Option<Strin
 }
 
 /// The font (family, style, version) of character style `st`.
-pub(super) fn font_of(st: &vectorcraft_doc::CharStyle) -> UsedFont {
+pub(super) fn font_of(st: &pluma_doc::CharStyle) -> UsedFont {
     (st.font_family.clone(), st.font_style.clone(), st.font_version.clone())
 }
 
@@ -456,13 +456,13 @@ pub(super) fn set_font_warning(fonts: BTreeSet<UsedFont>) -> Option<String> {
 /// The warning for type set in `fonts`, with the verbs `written` and `drawn` (an export's are
 /// `were written` and `was drawn`).
 fn substitutions(fonts: BTreeSet<UsedFont>, (written, drawn): (&str, &str)) -> Option<String> {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut missing: Vec<String> = Vec::new();
     let mut styles: BTreeSet<String> = BTreeSet::new();
     for (family, style, _) in fonts {
         match db.resolve(&family, &style) {
-            None | Some((_, vectorcraft_text::FontMatch::Missing)) => missing.push(family),
-            Some((face, vectorcraft_text::FontMatch::Style)) => {
+            None | Some((_, pluma_text::FontMatch::Missing)) => missing.push(family),
+            Some((face, pluma_text::FontMatch::Style)) => {
                 styles.insert(format!("{family} {style} {drawn} in {} {}", face.family, face.style));
             }
             Some(_) => {}
@@ -474,7 +474,7 @@ fn substitutions(fonts: BTreeSet<UsedFont>, (written, drawn): (&str, &str)) -> O
     if !missing.is_empty() {
         parts.push(format!(
             "fonts that aren't available {written} in the fallback font, {}: {} (install them, or replace them with Find Font)",
-            vectorcraft_text::FALLBACK_FAMILY,
+            pluma_text::FALLBACK_FAMILY,
             missing.join(", ")
         ));
     }
@@ -487,7 +487,7 @@ fn substitutions(fonts: BTreeSet<UsedFont>, (written, drawn): (&str, &str)) -> O
     (!parts.is_empty()).then(|| parts.join("; "))
 }
 
-fn text(d: &Document, id: NodeId) -> Option<&vectorcraft_doc::TextObject> {
+fn text(d: &Document, id: NodeId) -> Option<&pluma_doc::TextObject> {
     match d.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
         _ => None,
@@ -552,7 +552,7 @@ impl Session {
 fn font_inventory(s: &Session, selected: Option<&[NodeId]>) -> Result<Value> {
     let ids = scope(s, selected.is_some(), selected)?;
     let d = &s.doc()?.doc;
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // The type in the art of the symbols in scope too: all of them, or those the selection shows.
     let symbols = if selected.is_some() { Some(selected_symbols(s, selected)?.0) } else { None };
     let mut texts: Vec<&TextObject> = ids.iter().filter_map(|id| text(d, *id)).collect();
@@ -580,13 +580,13 @@ fn font_inventory(s: &Session, selected: Option<&[NodeId]>) -> Result<Value> {
                 // A composite font: each character is drawn by the font of the part it falls in, and
                 // the row names the face of the first part that isn't there as named.
                 Some(c) => {
-                    if c.status != vectorcraft_text::FontMatch::Exact {
+                    if c.status != pluma_text::FontMatch::Exact {
                         resolved = c.face.map(|f| (f, c.status));
                     }
                     (c.status, c.lacking)
                 }
                 None => {
-                    let status = resolved.as_ref().map(|(_, m)| *m).unwrap_or(vectorcraft_text::FontMatch::Missing);
+                    let status = resolved.as_ref().map(|(_, m)| *m).unwrap_or(pluma_text::FontMatch::Missing);
                     let mut lacking: Vec<char> = texts.concat().chars().filter(|c| !c.is_whitespace() && !c.is_control()).collect();
                     lacking.sort_unstable();
                     lacking.dedup();
@@ -596,7 +596,7 @@ fn font_inventory(s: &Session, selected: Option<&[NodeId]>) -> Result<Value> {
             };
             let mut row = json!({
                 "family": family, "style": style, "runs": runs, "objects": objects,
-                "missing": status == vectorcraft_text::FontMatch::Missing,
+                "missing": status == pluma_text::FontMatch::Missing,
                 "status": status.as_str(),
                 "resolved": resolved.as_ref().map(|(f, _)| json!({ "family": f.family, "style": f.style })),
                 "missingGlyphs": lacking.len(),
@@ -636,19 +636,18 @@ fn replace(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.replaceFont";
     let (ff, fs) = font_param(p, "from", C)?;
     let (tf, ts) = font_param(p, "to", C)?;
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Any name of the family (ヒラギノ角ゴシック) is stored as its own name (Hiragino Sans), and a
     // composite font as its own name.
     let composite = db.composite_font(&tf).is_some();
     let Some(tf) = db.stored_family(&tf, ts.as_deref().unwrap_or("Regular")) else {
         return Err(bad(C, format!("font family `{tf}` is not available")));
     };
-    let matches = |st: &vectorcraft_doc::CharStyle| {
-        st.font_family.eq_ignore_ascii_case(&ff) && fs.as_ref().is_none_or(|x| st.font_style.eq_ignore_ascii_case(x))
-    };
+    let matches =
+        |st: &pluma_doc::CharStyle| st.font_family.eq_ignore_ascii_case(&ff) && fs.as_ref().is_none_or(|x| st.font_style.eq_ignore_ascii_case(x));
     // The style a matching run is set in after the change, or `None` when the run doesn't match or
     // is already set in that family and style with no version or Variable Font settings.
-    let new_style = |st: &vectorcraft_doc::CharStyle| {
+    let new_style = |st: &pluma_doc::CharStyle| {
         if !matches(st) {
             return None;
         }
@@ -708,7 +707,7 @@ fn replace(s: &mut Session, p: &Value) -> Result<Value> {
                     }
                 }
                 if changed {
-                    vectorcraft_text::edit::normalize(&mut t.runs);
+                    pluma_text::edit::normalize(&mut t.runs);
                     refresh_bounds(t);
                 }
             };
@@ -838,7 +837,7 @@ impl FontScope {
     }
 
     /// Is object `id` in the scope.
-    fn holds(&self, d: &Document, symbols: &vectorcraft_doc::SymbolBoxes, id: NodeId) -> bool {
+    fn holds(&self, d: &Document, symbols: &pluma_doc::SymbolBoxes, id: NodeId) -> bool {
         match self {
             Self::Document => true,
             Self::Artboards(rects) => d.node(id).is_some_and(|n| rects.iter().any(|r| on_artboard(n, symbols, *r))),
@@ -848,7 +847,7 @@ impl FontScope {
 }
 
 fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     match str_param(p, "family") {
         Some(family) => {
             if !db.has_family(family) {
@@ -879,7 +878,7 @@ fn font_list(_: &mut Session, p: &Value) -> Result<Value> {
 }
 
 pub(crate) fn rescan(s: &mut Session, _: &Value) -> Result<Value> {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     #[cfg(not(target_arch = "wasm32"))]
     let faces = db.load_system_fonts();
     #[cfg(target_arch = "wasm32")]
@@ -917,14 +916,14 @@ mod tests {
     #[test]
     fn the_additional_fonts_folder_joins_the_font_scan() {
         let mut s = Session::new();
-        let dir = std::env::temp_dir().join("vectorcraft-fonts-folder-pref");
+        let dir = std::env::temp_dir().join("pluma-fonts-folder-pref");
         s.execute("prefs.set", &json!({"key": "fontsFolder", "value": format!("  {}  ", dir.display())})).unwrap();
-        assert_eq!(vectorcraft_text::user_font_dirs(), std::slice::from_ref(&dir));
+        assert_eq!(pluma_text::user_font_dirs(), std::slice::from_ref(&dir));
         if !cfg!(target_arch = "wasm32") {
-            assert!(vectorcraft_text::system_font_dirs().contains(&dir));
+            assert!(pluma_text::system_font_dirs().contains(&dir));
         }
         s.execute("prefs.set", &json!({"key": "fontsFolder", "value": ""})).unwrap();
-        assert!(vectorcraft_text::user_font_dirs().is_empty() && !vectorcraft_text::system_font_dirs().contains(&dir));
+        assert!(pluma_text::user_font_dirs().is_empty() && !pluma_text::system_font_dirs().contains(&dir));
     }
 
     #[test]
@@ -1350,7 +1349,7 @@ mod open_tests {
         assert_eq!(row("Semibold").1, "exact");
         assert_eq!(row("Black Wide").1, "substitute", "{rows:?}");
         assert_eq!(row("Black Wide").2, "Source Sans 3");
-        assert_eq!((row("Regular").1.as_str(), row("Regular").2.as_str()), ("missing", vectorcraft_text::FALLBACK_FAMILY));
+        assert_eq!((row("Regular").1.as_str(), row("Regular").2.as_str()), ("missing", pluma_text::FALLBACK_FAMILY));
         s.execute("text.create", &json!({"x": 10, "y": 90, "text": "Ab 雅楽", "font": "Inter"})).unwrap();
         let inter = s.execute("text.fonts", &json!({})).unwrap().as_array().unwrap().iter().find(|f| f["family"] == "Inter").cloned().unwrap();
         assert_eq!(inter["missingGlyphs"], 2, "雅 and 楽 come from a fallback font: {inter}");
@@ -1375,7 +1374,7 @@ mod open_tests {
         assert!(warning(&made).is_some_and(|w| w.contains("Source Sans 3 Black Wide is drawn in Source Sans 3")), "{made}");
         let gone = s.execute("text.create", &json!({"x": 10, "y": 60, "text": "Gone", "font": "No Such Font Family"})).unwrap();
         let w = warning(&gone).unwrap_or_default();
-        assert!(w.contains("No Such Font Family") && w.contains(vectorcraft_text::FALLBACK_FAMILY), "{gone}");
+        assert!(w.contains("No Such Font Family") && w.contains(pluma_text::FALLBACK_FAMILY), "{gone}");
         let plain = s.execute("text.create", &json!({"x": 10, "y": 100, "text": "Fine", "font": "Source Sans 3", "style": "Semibold"})).unwrap();
         assert_eq!(warning(&plain), None, "{plain}");
         let id = plain["id"].as_u64().unwrap();
@@ -1416,8 +1415,8 @@ mod open_tests {
         s.execute("text.setStyle", &json!({"tracking": 400})).unwrap();
         let want = s.doc().unwrap().doc.node(NodeId(id)).unwrap().geometric_bounds().unwrap();
         // Save and reopen: the cache isn't in the file, yet the bounds must match.
-        let bytes = vectorcraft_format::save(&s.doc().unwrap().doc, false);
-        let reopened = vectorcraft_format::load(&bytes).unwrap();
+        let bytes = pluma_format::save(&s.doc().unwrap().doc, false);
+        let reopened = pluma_format::load(&bytes).unwrap();
         let mut t = Session::new();
         t.add_document(reopened, None);
         let got = t.doc().unwrap().doc.node(NodeId(id)).unwrap().geometric_bounds().unwrap();

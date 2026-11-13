@@ -11,8 +11,8 @@
 //! ruler, a moved guide is deleted. Hidden or locked guides (View › Guides), and guides on a hidden
 //! or locked layer, can't be picked.
 
+use pluma_geom::{Point, Rect};
 use serde_json::json;
-use vectorcraft_geom::{Point, Rect};
 
 use crate::guides::Targets;
 use crate::{Action, Cursor, Overlay, PointerEvent, PointerKind, ToolContext};
@@ -71,7 +71,7 @@ fn guides_in_rect(cx: &ToolContext, r: Rect) -> Vec<usize> {
 /// Does ruler guide `g`, crossed by marquee `r`, run along its line within the marquee? An artboard
 /// guide does when the marquee spans its artboard; a canvas guide runs across the whole canvas and
 /// never does.
-fn guide_inside(cx: &ToolContext, r: Rect, g: &vectorcraft_doc::Guide) -> bool {
+fn guide_inside(cx: &ToolContext, r: Rect, g: &pluma_doc::Guide) -> bool {
     let Some((a, b)) = cx.doc.guide_span(g) else { return false };
     let (lo, hi) = if g.vertical { (r.min_y(), r.max_y()) } else { (r.min_x(), r.max_x()) };
     lo <= a.min(b) && a.max(b) <= hi
@@ -138,7 +138,7 @@ impl GuideSnap {
             return v.round();
         }
         if cx.snap_to_grid {
-            return vectorcraft_geom::snap::snap_to_grid(v, cx.grid_step(), 0.0);
+            return pluma_geom::snap::snap_to_grid(v, cx.grid_step(), 0.0);
         }
         let Some((t, tol)) = &self.targets else { return v };
         let (at, snapped) = t.snap_guide(vertical, v, cx.tol(*tol));

@@ -33,7 +33,7 @@ impl Renderer {
             return;
         }
         // Bounds only matter to gradients and patterns (their geometry is relative to the object).
-        let solid = |p: &vectorcraft_color::Paint| matches!(p, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None);
+        let solid = |p: &pluma_color::Paint| matches!(p, pluma_color::Paint::Solid { .. } | pluma_color::Paint::None);
         let needs_bounds = n.appearance.items.iter().any(|i| match i {
             AppearanceItem::Fill(fl) => !solid(&fl.paint),
             AppearanceItem::Stroke(st) => !solid(&st.paint),
@@ -45,7 +45,7 @@ impl Renderer {
                     if !fl.visible || fl.paint.is_none() {
                         continue;
                     }
-                    let layered = fl.opacity < 1.0 || fl.blend != vectorcraft_color::BlendMode::Normal;
+                    let layered = fl.opacity < 1.0 || fl.blend != pluma_color::BlendMode::Normal;
                     if layered {
                         ctx.set_transform(Affine::IDENTITY);
                         ctx.push_layer(None, Some(blend_mode(fl.blend)), Some(fl.opacity), None, None);
@@ -74,9 +74,9 @@ impl Renderer {
     }
 
     /// Multiply the folded object opacity into a solid paint.
-    pub(super) fn fold_alpha(&self, ctx: &mut RenderContext, ink: Ink, p: &vectorcraft_color::Paint) {
+    pub(super) fn fold_alpha(&self, ctx: &mut RenderContext, ink: Ink, p: &pluma_color::Paint) {
         if self.alpha < 1.0
-            && let vectorcraft_color::Paint::Solid { color, .. } = p
+            && let pluma_color::Paint::Solid { color, .. } = p
         {
             ctx.set_paint(ink.color(color, self.alpha));
         }
@@ -110,7 +110,7 @@ impl Renderer {
         // each folding it into its paint.
         let folded = if pieces.heads.is_empty() { 1.0 } else { std::mem::replace(&mut self.alpha, 1.0) };
         let opacity = st.opacity * folded;
-        let layered = opacity < 1.0 || st.blend != vectorcraft_color::BlendMode::Normal || st.align == StrokeAlign::Outside;
+        let layered = opacity < 1.0 || st.blend != pluma_color::BlendMode::Normal || st.align == StrokeAlign::Outside;
         if layered {
             ctx.set_transform(Affine::IDENTITY);
             ctx.push_layer(None, Some(blend_mode(st.blend)), Some(opacity), None, None);
@@ -178,7 +178,7 @@ impl Renderer {
         chars: Option<(&Arc<TextGeom>, usize)>,
         pieces: &effects::stroke::StrokePieces,
         width: f64,
-        g: &vectorcraft_color::Gradient,
+        g: &pluma_color::Gradient,
     ) {
         let level = (f.px * 0.25).log2().floor() as i32;
         let make = || -> Slices {
@@ -386,7 +386,7 @@ impl Renderer {
         let Some(AppearanceItem::Stroke(old)) = e.node.appearance.items.get(mk.1) else {
             return None;
         };
-        let unpainted = |s: &StrokeLayer| StrokeLayer { paint: vectorcraft_color::Paint::None, ..s.clone() };
+        let unpainted = |s: &StrokeLayer| StrokeLayer { paint: pluma_color::Paint::None, ..s.clone() };
         if !std::ptr::eq(old, st) && unpainted(old) != unpainted(st) {
             return None;
         }
@@ -434,7 +434,7 @@ impl Renderer {
         // moves too.
         let unplaced = |s: &StrokeLayer| {
             let mut s = s.clone();
-            if let vectorcraft_color::Paint::Gradient(g) = &mut s.paint {
+            if let pluma_color::Paint::Gradient(g) = &mut s.paint {
                 g.geom = None;
                 g.angle = 0.0;
             }
@@ -474,9 +474,9 @@ thread_local! {
 }
 
 /// Paint `p` of a slice ([`Slices`]) moved by `by`: a gradient's start, end and focal point moved.
-fn moved_paint(p: &vectorcraft_color::Paint, by: kurbo::Vec2) -> vectorcraft_color::Paint {
+fn moved_paint(p: &pluma_color::Paint, by: kurbo::Vec2) -> pluma_color::Paint {
     let mut p = p.clone();
-    if let vectorcraft_color::Paint::Gradient(g) = &mut p
+    if let pluma_color::Paint::Gradient(g) = &mut p
         && let Some(geom) = &mut g.geom
     {
         geom.start += by;
@@ -565,7 +565,7 @@ fn ulp(x: f64) -> f64 {
 /// subpaths. It reads the anchors without making either path ([`Node::stroke_path`]), and stops at
 /// the first anchor that differs. `false` for objects other than paths.
 pub(crate) fn anchors_moved(was: &Node, now: &Node) -> bool {
-    let (vectorcraft_doc::NodeKind::Path { path: was, .. }, vectorcraft_doc::NodeKind::Path { path: now, .. }) = (&was.kind, &now.kind) else {
+    let (pluma_doc::NodeKind::Path { path: was, .. }, pluma_doc::NodeKind::Path { path: now, .. }) = (&was.kind, &now.kind) else {
         return false;
     };
     let mut offset = Offset::new();
@@ -574,7 +574,7 @@ pub(crate) fn anchors_moved(was: &Node, now: &Node) -> bool {
 
 /// Whether `was` and `now` have the same subpaths, anchor counts and closed subpaths, and `f` holds
 /// for each pair of their anchors and handles. Stops at the first pair for which `f` does not hold.
-fn anchor_pairs(was: &vectorcraft_geom::PathData, now: &vectorcraft_geom::PathData, mut f: impl FnMut(kurbo::Point, kurbo::Point) -> bool) -> bool {
+fn anchor_pairs(was: &pluma_geom::PathData, now: &pluma_geom::PathData, mut f: impl FnMut(kurbo::Point, kurbo::Point) -> bool) -> bool {
     was.subpaths.len() == now.subpaths.len()
         && was.subpaths.iter().zip(&now.subpaths).all(|(a, b)| {
             a.closed == b.closed
@@ -593,7 +593,7 @@ fn crops() -> bool {
 /// How far stroke `st` at `width` can paint from its path, at a join or a cap, with two output
 /// pixels (`px`) and the outline's tolerance `tol` added.
 pub(crate) fn crop_reach(st: &StrokeLayer, width: f64, px: f64, tol: f64) -> f64 {
-    let corner = if st.join == vectorcraft_doc::LineJoin::Miter { st.miter_limit.max(std::f64::consts::SQRT_2) } else { std::f64::consts::SQRT_2 };
+    let corner = if st.join == pluma_doc::LineJoin::Miter { st.miter_limit.max(std::f64::consts::SQRT_2) } else { std::f64::consts::SQRT_2 };
     width / 2.0 * corner + 2.0 * px + tol
 }
 

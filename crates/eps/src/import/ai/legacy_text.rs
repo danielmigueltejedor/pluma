@@ -16,9 +16,9 @@ use std::sync::Arc;
 
 use craft_pdf::interpret::hayro_cmap::{BfString, CMap, CMapName, load_embedded};
 use kurbo::{Affine, BezPath, ParamCurve, ParamCurveArclen};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Burasagari, CharStyle, Justify, NodeKind, ParaStyle, TabAlign, TabStop, TextKind, TextObject, TextRun};
-use vectorcraft_geom::AnchorKind;
+use pluma_color::Paint;
+use pluma_doc::{Burasagari, CharStyle, Justify, NodeKind, ParaStyle, TabAlign, TabStop, TextKind, TextObject, TextRun};
+use pluma_geom::AnchorKind;
 
 use super::super::obj::V;
 use super::art::path_data;
@@ -41,7 +41,7 @@ const MAX_TAB_POSITION: f64 = 100_000.0;
 /// it take the default stops, with a warning.
 const MAX_STORY_TABS: usize = 1 << 20;
 /// The warning when [`MAX_STORY_TABS`] leaves tab stops out.
-const TABS_LEFT_OUT: &str = "tab stops past VectorCraft's limits were left out";
+const TABS_LEFT_OUT: &str = "tab stops past Pluma's limits were left out";
 /// Most values read before one operator in a re-encoding section.
 const MAX_ENCODING_VALUES: usize = 1024;
 /// Most text paths read in one text object (its linked areas); the frames of others are left out,
@@ -52,7 +52,7 @@ const MAX_TEXT_PATHS: usize = 4096;
 /// warning.
 const MAX_THREAD_WORK: usize = MAX_CHARS;
 /// The warning when [`MAX_TEXT_PATHS`] or [`MAX_THREAD_WORK`] leaves frames of linked areas out.
-const LINKED_AREAS_LEFT_OUT: &str = "linked type areas past VectorCraft's limits were left out";
+const LINKED_AREAS_LEFT_OUT: &str = "linked type areas past Pluma's limits were left out";
 /// The warning when type set in a mask rendering mode can't be a clipping path: type in linked
 /// areas (several frames), in wraparound text or in a compound path doesn't clip.
 const MASK_NOT_CLIPPED: &str = "type used as a mask in linked areas, wraparound text or a compound path doesn't clip";
@@ -120,7 +120,7 @@ pub(super) struct LegacyText {
     /// Characters were set in a mask rendering mode (`Tr` 4 to 7): the text object is a clipping
     /// path (§5.7).
     clips: bool,
-    /// `TV` at its first character: VectorCraft keeps one writing direction for each text object.
+    /// `TV` at its first character: Pluma keeps one writing direction for each text object.
     vertical: bool,
     /// A later character was set in the other direction.
     direction_changed: bool,
@@ -349,7 +349,7 @@ impl CMapCodes {
         let mut out = String::new();
         let mut at = 0;
         while let Some(&first) = bytes.get(at) {
-            // VectorCraft reads a 0x0D byte as a paragraph break and a 0x09 byte as a tab in every
+            // Pluma reads a 0x0D byte as a paragraph break and a 0x09 byte as a tab in every
             // CMap, as in other fonts' strings, including the row-and-cell CMaps, whose code space
             // has no one-byte codes.
             if let Some(control) = control(first) {
@@ -432,7 +432,7 @@ fn unicode_text(s: &[u8], form: Unicode) -> String {
     }
 }
 
-/// Predefined CMap `name` among those VectorCraft carries, leaving out the Identity CMaps, whose
+/// Predefined CMap `name` among those Pluma carries, leaving out the Identity CMaps, whose
 /// codes are CIDs of no known character collection.
 fn predefined(name: &str) -> Option<CMapName<'_>> {
     match CMapName::from_bytes(name.as_bytes()) {
@@ -441,7 +441,7 @@ fn predefined(name: &str) -> Option<CMapName<'_>> {
     }
 }
 
-/// Adobe's predefined CMaps that VectorCraft doesn't carry, by name without `-H` or `-V`
+/// Adobe's predefined CMaps that Pluma doesn't carry, by name without `-H` or `-V`
 /// (<https://github.com/adobe-type-tools/cmap-resources>): the nearest carried CMap with the same
 /// code space, and whether each byte of a row-and-cell code gets its high bit set first (the EUC
 /// form of the same code; `GB-H`, `CNS1-H` and `KSC-H` have no one-byte codes, their code space
@@ -462,8 +462,8 @@ fn stand_in(stem: &str) -> Option<Option<(&'static str, bool)>> {
 }
 
 /// Predefined CMap `cmap`'s codes to CIDs, and its character collection's CID → Unicode CMap. A
-/// vertical CMap's codes are read with its horizontal CMap when VectorCraft carries that: the two
-/// differ only in the CIDs of vertical glyph forms. A CMap VectorCraft doesn't carry is read with
+/// vertical CMap's codes are read with its horizontal CMap when Pluma carries that: the two
+/// differ only in the CIDs of vertical glyph forms. A CMap Pluma doesn't carry is read with
 /// its [`stand_in`].
 fn cid_codes(cmap: &str) -> Option<CMapCodes> {
     let read = |name: &str| CMap::parse(load_embedded(predefined(name)?)?, load_embedded);
@@ -557,7 +557,7 @@ fn encoding_pairs(table: &mut [Option<char>], vals: &[V]) {
 }
 
 /// A composite font's name `base-CMap`: the base font's name and its CMap's name, when that is a
-/// predefined Unicode CMap ([`unicode_cmap`]), one of the predefined CMaps VectorCraft carries
+/// predefined Unicode CMap ([`unicode_cmap`]), one of the predefined CMaps Pluma carries
 /// ([`predefined`]) or one of the others ([`stand_in`]), in its horizontal (`-H`) or vertical
 /// (`-V`) form. A name ending in an Identity CMap is not read as one, nor is one that ends in an
 /// unknown CMap name with an encoding part (`UniFoo-UTF8-H`), which would otherwise end in `H`.
@@ -871,7 +871,7 @@ impl Reader<'_> {
                 }
             }
             // `bindrepeat Tg` (§15.3.4): 1 and 3 turn binding punctuation on, and 0 and 2 turn it
-            // off. VectorCraft's own mapping opens it on as Burasagari's Force setting and off as no
+            // off. Pluma's own mapping opens it on as Burasagari's Force setting and off as no
             // Burasagari. The repeat character (2 and 3) is not kept.
             "Tg" => {
                 let burasagari = match n0 {

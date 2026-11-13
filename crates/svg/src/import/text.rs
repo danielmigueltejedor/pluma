@@ -28,12 +28,12 @@ use std::ops::{Range, RangeInclusive};
 use std::rc::Rc;
 use std::str::FromStr;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{CharStyle, Dash, Justify, LineCap, LineJoin, ParaDirection, ParaStyle, StrokeLayer, TextKind, TextObject, TextRun};
+use pluma_geom::kurbo::ParamCurveArclen;
+use pluma_geom::{Affine, BezPath, PathData, Point, Rect};
+use pluma_text::{FontDb, TextLayout};
 use usvg::roxmltree;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{CharStyle, Dash, Justify, LineCap, LineJoin, ParaDirection, ParaStyle, StrokeLayer, TextKind, TextObject, TextRun};
-use vectorcraft_geom::kurbo::ParamCurveArclen;
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect};
-use vectorcraft_text::{FontDb, TextLayout};
 
 use super::css::{Styles, XNode};
 use super::{DEFAULT_FONT_SIZE, PT_PER_IN, href, vector_effect};
@@ -196,7 +196,7 @@ pub(super) fn prepare<'s>(
     dpi: f64,
     warnings: &mut Vec<String>,
 ) -> (Cow<'s, str>, TextSlots) {
-    let mut prefix = String::from("vectorcraft-text-");
+    let mut prefix = String::from("pluma-text-");
     while xml.descendants().any(|n| n.attribute("id").is_some_and(|id| id.starts_with(&prefix))) {
         prefix.insert(0, '_');
     }
@@ -517,7 +517,7 @@ impl Ctx {
                 continue;
             };
             // Past the largest coordinate, the characters would only be out of reach.
-            let want = want.min(vectorcraft_doc::MAX_COORD);
+            let want = want.min(pluma_doc::MAX_COORD);
             let Some(part) = cells.get_mut(r.start.min(n)..r.end.min(n)) else { continue };
             let Some(gaps) = part.len().checked_sub(1) else { continue };
             let stretch = el.attribute("lengthAdjust").map(str::trim) == Some("spacingAndGlyphs");
@@ -676,7 +676,7 @@ impl Ctx {
         }
         let style = self.elem(paras.first().copied().unwrap_or(t)).style.clone();
         let mut obj = TextObject::point(Point::ZERO, &text, style);
-        obj.kind = TextKind::Area { frame: vectorcraft_geom::shapes::rectangle(frame) };
+        obj.kind = TextKind::Area { frame: pluma_geom::shapes::rectangle(frame) };
         obj.xf = parse_transform(r.attribute("transform")) * origin;
         let servers = vec![(None, None); obj.runs.len()];
         let b = obj.xf.transform_rect_bbox(frame);
@@ -850,7 +850,7 @@ impl Ctx {
         // strong character: pinned (on every paragraph) when that would read as right to left.
         if self.css.prop(t, "direction").is_some_and(|d| d.trim() == "rtl") {
             obj.edit_paras(None, |pa| pa.direction = Some(ParaDirection::RightToLeft));
-        } else if obj.plain_text().split('\n').any(|p| vectorcraft_text::paragraph_is_rtl(p, None)) {
+        } else if obj.plain_text().split('\n').any(|p| pluma_text::paragraph_is_rtl(p, None)) {
             obj.edit_paras(None, |pa| pa.direction = Some(ParaDirection::LeftToRight));
         }
         // The placeholder covers the text (laid out when a paint server needs its bounding box).
@@ -1069,7 +1069,7 @@ fn point_text(cells: &[Cell]) -> TextObject {
 }
 
 fn measure(t: &TextObject) -> TextLayout {
-    vectorcraft_text::layout(FontDb::global(), t)
+    pluma_text::layout(FontDb::global(), t)
 }
 
 /// Total advance of a laid-out single line.

@@ -1,8 +1,8 @@
 //! Variables (data merge): definitions with kinds, bindings to objects, datasets
 //! applied in one undo step, and validation that rejects instead of reinterpreting.
 
+use pluma_doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
 
 use crate::tests_links::{BLUE, Folder, RED, bounds, image, place, png, write};
 use crate::*;
@@ -32,7 +32,7 @@ fn group(s: &mut Session, ids: &[NodeId]) -> NodeId {
 
 fn plain(s: &Session, id: NodeId) -> String {
     match &s.doc().unwrap().doc.node(id).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(t) => t.plain_text(),
+        pluma_doc::NodeKind::Text(t) => t.plain_text(),
         _ => panic!("not text"),
     }
 }
@@ -145,7 +145,7 @@ fn a_text_value_on_a_frame_of_threaded_type_replaces_the_whole_story() {
     // A capture reads the whole story, every frame's text in thread order.
     s.execute("dataset.capture", &json!({"name": "Orig"})).unwrap();
     let orig = s.doc().unwrap().doc.variables.dataset("Orig").unwrap().values.get("Name").cloned();
-    assert_eq!(orig, Some(vectorcraft_doc::DataValue::Text(story.clone())));
+    assert_eq!(orig, Some(pluma_doc::DataValue::Text(story.clone())));
     s.execute("dataset.new", &json!({"name": "B", "values": {"Name": "Bob"}})).unwrap();
 
     let v = s.execute("dataset.select", &json!({"name": "B"})).unwrap();
@@ -482,7 +482,7 @@ fn a_document_with_two_text_variables_on_one_type_object_opens_unchanged() {
     let saved = s.execute("document.export", &json!({"format": "vectorcraft"})).unwrap()["dataBase64"].clone();
 
     let mut o = Session::new();
-    o.execute("document.open", &json!({"name": "two.vectorcraft", "dataBase64": saved})).unwrap();
+    o.execute("document.open", &json!({"name": "two.pluma", "dataBase64": saved})).unwrap();
     let held: Vec<String> = o.doc().unwrap().doc.variables.bindings[&t].iter().cloned().collect();
     assert_eq!(held, ["Price", "Title"]);
     let v = o.execute("dataset.select", &json!({"name": "D"})).unwrap();
@@ -569,8 +569,8 @@ fn art_on_a_locked_artboard_is_neither_bound_nor_rewritten() {
     let v = s.execute("dataset.update", &json!({})).unwrap();
     assert_eq!(v["values"], 1, "{v}");
     let row = s.doc().unwrap().doc.variables.dataset("B").unwrap().values.clone();
-    assert_eq!(row.get("Name"), Some(&vectorcraft_doc::DataValue::Text("Bob".into())));
-    assert_eq!(row.get("Show"), Some(&vectorcraft_doc::DataValue::Visible(false)));
+    assert_eq!(row.get("Name"), Some(&pluma_doc::DataValue::Text("Bob".into())));
+    assert_eq!(row.get("Show"), Some(&pluma_doc::DataValue::Visible(false)));
 
     s.execute("artboard.setProps", &json!({"index": 1, "locked": false})).unwrap();
     let v = s.execute("dataset.select", &json!({"name": "B"})).unwrap();
@@ -829,16 +829,16 @@ fn the_variables_lock_is_an_undo_step_and_is_saved() {
     assert_eq!(steps(&s), before + 1, "locking locked variables is not a step");
     assert!(s.doc().unwrap().is_dirty());
 
-    let saved = vectorcraft_format::save(&s.doc().unwrap().doc, false);
-    assert!(vectorcraft_format::load(&saved).unwrap().variables.locked, "a document saved locked opens locked");
+    let saved = pluma_format::save(&s.doc().unwrap().doc, false);
+    assert!(pluma_format::load(&saved).unwrap().variables.locked, "a document saved locked opens locked");
     let mut v: Value = serde_json::from_slice(&saved).unwrap();
     assert_eq!(v["document"]["variables"]["locked"], true);
     v["document"]["variables"].as_object_mut().unwrap().remove("locked");
-    assert!(!vectorcraft_format::load(&serde_json::to_vec(&v).unwrap()).unwrap().variables.locked, "a file without the key opens unlocked");
+    assert!(!pluma_format::load(&serde_json::to_vec(&v).unwrap()).unwrap().variables.locked, "a file without the key opens unlocked");
 
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(!s.doc().unwrap().doc.variables.locked, "undo unlocks");
-    let v: Value = serde_json::from_slice(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let v: Value = serde_json::from_slice(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert!(v["document"].get("variables").is_none_or(|v| v.get("locked").is_none()), "unlocked variables write no key: {v}");
     s.execute("edit.redo", &json!({})).unwrap();
     assert!(s.doc().unwrap().doc.variables.locked, "redo locks again");
@@ -1582,7 +1582,7 @@ fn datasets_csv_keeps_line_breaks_in_quoted_cells() {
     s.execute("dataset.import", &json!({"csv": csv})).unwrap();
     let sets = &s.doc().unwrap().doc.variables.datasets;
     assert_eq!(sets.len(), 1);
-    assert_eq!(sets[0].values.get("Name"), Some(&vectorcraft_doc::DataValue::Text(value.into())));
+    assert_eq!(sets[0].values.get("Name"), Some(&pluma_doc::DataValue::Text(value.into())));
     assert!(s.execute("dataset.import", &json!({"csv": "Name\n\"open"})).is_err(), "unclosed quote");
 }
 
@@ -1598,10 +1598,10 @@ fn datasets_csv_keeps_an_empty_text_value() {
     let csv = s.execute("dataset.export", &json!({})).unwrap()["csv"].as_str().unwrap().to_string();
     s.execute("dataset.import", &json!({"csv": csv})).unwrap();
     let value = |s: &Session, name: &str| s.doc().unwrap().doc.variables.dataset(name).and_then(|d| d.values.get("Name")).cloned();
-    assert_eq!(value(&s, "Data Set 1"), Some(vectorcraft_doc::DataValue::Text(String::new())));
+    assert_eq!(value(&s, "Data Set 1"), Some(pluma_doc::DataValue::Text(String::new())));
     s.execute("variable.define", &json!({"name": "Other", "kind": "text"})).unwrap();
     s.execute("dataset.import", &json!({"csv": "Name,Other\n,x\n\"\",y\n"})).unwrap();
-    assert_eq!(value(&s, "Data Set 2"), Some(vectorcraft_doc::DataValue::Text(String::new())));
+    assert_eq!(value(&s, "Data Set 2"), Some(pluma_doc::DataValue::Text(String::new())));
     // Compatibility rule for files written before empty text was quoted: a bare empty cell stays "no value".
     assert_eq!(value(&s, "Data Set 1"), None);
     // A data set with no value for the variable exports a bare cell and stays without a value.
@@ -1626,7 +1626,7 @@ fn datasets_csv_keeps_a_data_set_without_values() {
     let imp = s.execute("dataset.import", &json!({"csv": csv})).unwrap();
     assert_eq!(imp["names"], json!(["Data Set 1", "Data Set 2"]));
     let values = |s: &Session, name: &str| s.doc().unwrap().doc.variables.dataset(name).map(|d| d.values.clone()).unwrap();
-    assert_eq!(values(&s, "Data Set 1").get("Title"), Some(&vectorcraft_doc::DataValue::Text(String::new())));
+    assert_eq!(values(&s, "Data Set 1").get("Title"), Some(&pluma_doc::DataValue::Text(String::new())));
 
     s.execute("variable.define", &json!({"name": "Show", "kind": "visibility"})).unwrap();
     s.execute("dataset.new", &json!({"name": "C", "values": {}})).unwrap();
@@ -1649,7 +1649,7 @@ fn datasets_csv_keeps_spaces_in_quoted_cells() {
     let csv = s.execute("dataset.export", &json!({})).unwrap()["csv"].as_str().unwrap().to_string();
     s.execute("dataset.import", &json!({"csv": csv})).unwrap();
     let value = |s: &Session, name: &str| s.doc().unwrap().doc.variables.dataset(name).and_then(|d| d.values.get("Name")).cloned();
-    let text_value = |v: &str| Some(vectorcraft_doc::DataValue::Text(v.into()));
+    let text_value = |v: &str| Some(pluma_doc::DataValue::Text(v.into()));
     assert_eq!(value(&s, "Data Set 1"), text_value("  padded "));
     s.execute("dataset.import", &json!({"csv": "Name\n  typed  \n\" quoted \"  \n"})).unwrap();
     assert_eq!(value(&s, "Data Set 1"), text_value("typed"));
@@ -1700,11 +1700,11 @@ fn datasets_csv_reads_tab_separated_files() {
     let imp = s.execute("dataset.import", &json!({"csv": tsv})).unwrap();
     assert_eq!(imp["names"], json!(["Data Set 1", "Data Set 2"]));
     let value = |s: &Session, name: &str, var: &str| s.doc().unwrap().doc.variables.dataset(name).and_then(|d| d.values.get(var)).cloned();
-    let text_value = |v: &str| Some(vectorcraft_doc::DataValue::Text(v.into()));
+    let text_value = |v: &str| Some(pluma_doc::DataValue::Text(v.into()));
     assert_eq!(value(&s, "Data Set 1", "Title"), text_value("Two words"));
-    assert_eq!(value(&s, "Data Set 1", "Show"), Some(vectorcraft_doc::DataValue::Visible(true)));
+    assert_eq!(value(&s, "Data Set 1", "Show"), Some(pluma_doc::DataValue::Visible(true)));
     assert_eq!(value(&s, "Data Set 2", "Title"), text_value("a, b\tc"));
-    assert_eq!(value(&s, "Data Set 2", "Show"), Some(vectorcraft_doc::DataValue::Visible(false)));
+    assert_eq!(value(&s, "Data Set 2", "Show"), Some(pluma_doc::DataValue::Visible(false)));
     s.execute("dataset.import", &json!({"csv": "Title,Show\none\ttwo,true"})).unwrap();
     assert_eq!(value(&s, "Data Set 1", "Title"), text_value("one\ttwo"));
     s.execute("dataset.import", &json!({"csv": "\"Last, First\"\tShow\nSmith, Jo\ttrue"})).unwrap();
@@ -1740,7 +1740,7 @@ fn datasets_csv_reads_every_header_cell_as_a_variable() {
         assert_eq!((&imp["defined"], &imp["names"]), (&json!([header]), &json!(["Data Set 1"])), "{header}: {imp}");
     }
     let value = |s: &Session, var: &str| s.doc().unwrap().doc.variables.dataset("Data Set 1").and_then(|d| d.values.get(var)).cloned();
-    assert_eq!(value(&s, "NAME"), Some(vectorcraft_doc::DataValue::Text("x".into())));
+    assert_eq!(value(&s, "NAME"), Some(pluma_doc::DataValue::Text("x".into())));
 }
 
 /// An import replaces every data set of the document, as Load Variable Library does, and clears
@@ -1764,7 +1764,7 @@ fn datasets_csv_import_replaces_the_data_sets() {
     assert_eq!(imp["deletedDataSets"], json!(["First", "Data Set 2", "Data Set 3"]));
     let vars = &s.doc().unwrap().doc.variables;
     let sets: Vec<_> = vars.datasets.iter().map(|d| (d.name.as_str(), d.values.get("Title").cloned(), d.values.get("Show").cloned())).collect();
-    let text_value = |v: &str| Some(vectorcraft_doc::DataValue::Text(v.into()));
+    let text_value = |v: &str| Some(pluma_doc::DataValue::Text(v.into()));
     assert_eq!(sets, [("Data Set 1", text_value("y"), None), ("Data Set 2", text_value("z"), None)]);
     assert_eq!(vars.active_dataset, None);
     let listed = s.execute("variable.list", &json!({})).unwrap();
@@ -1832,13 +1832,13 @@ fn datasets_csv_header_prefixes_define_variables() {
         ])
     );
     let value = |s: &Session, var: &str| s.doc().unwrap().doc.variables.dataset("Data Set 1").and_then(|d| d.values.get(var)).cloned();
-    assert_eq!(value(&s, "Shown"), Some(vectorcraft_doc::DataValue::Visible(true)));
-    assert_eq!(value(&s, "Photo"), Some(vectorcraft_doc::DataValue::Image("a.png".into())));
-    assert_eq!(value(&s, "Title"), Some(vectorcraft_doc::DataValue::Text("x".into())));
+    assert_eq!(value(&s, "Shown"), Some(pluma_doc::DataValue::Visible(true)));
+    assert_eq!(value(&s, "Photo"), Some(pluma_doc::DataValue::Image("a.png".into())));
+    assert_eq!(value(&s, "Title"), Some(pluma_doc::DataValue::Text("x".into())));
 
     let again = s.execute("dataset.import", &json!({"csv": "#Shown\t@Photo\tTitle\nfalse\tb.png\ty"})).unwrap();
     assert_eq!((again["imported"].as_u64(), again["defined"].clone()), (Some(1), json!([])));
-    assert_eq!(value(&s, "Shown"), Some(vectorcraft_doc::DataValue::Visible(false)));
+    assert_eq!(value(&s, "Shown"), Some(pluma_doc::DataValue::Visible(false)));
 
     let error = |s: &mut Session, csv: &str| s.execute("dataset.import", &json!({"csv": csv})).unwrap_err().to_string();
     let other_kind = error(&mut s, "Shown,New,#Title\ntrue,n,true");
@@ -1853,7 +1853,7 @@ fn datasets_csv_header_prefixes_define_variables() {
 
     // Each import is one undo step, which takes back the variables it defined with its rows.
     s.execute("edit.undo", &json!({})).unwrap();
-    assert_eq!(value(&s, "Shown"), Some(vectorcraft_doc::DataValue::Visible(true)));
+    assert_eq!(value(&s, "Shown"), Some(pluma_doc::DataValue::Visible(true)));
     assert_eq!(s.doc().unwrap().doc.variables.variables.len(), 3);
     s.execute("edit.undo", &json!({})).unwrap();
     let vars = &s.doc().unwrap().doc.variables;
@@ -1875,10 +1875,10 @@ fn datasets_csv_exact_names_win_over_prefixes() {
     let imp = s.execute("dataset.import", &json!({"csv": csv})).unwrap();
     assert_eq!((imp["imported"].as_u64(), imp["defined"].clone()), (Some(1), json!([])));
     let value = |var: &str| s.doc().unwrap().doc.variables.dataset("Data Set 1").and_then(|d| d.values.get(var)).cloned();
-    assert_eq!(value("#Shown"), Some(vectorcraft_doc::DataValue::Text("hello".into())));
-    assert_eq!(value("@Photo"), Some(vectorcraft_doc::DataValue::Visible(true)));
-    assert_eq!(value("%Chart"), Some(vectorcraft_doc::DataValue::Graph(",Q\nX,3".into())));
-    assert_eq!(value("Shown"), Some(vectorcraft_doc::DataValue::Image("s.png".into())));
+    assert_eq!(value("#Shown"), Some(pluma_doc::DataValue::Text("hello".into())));
+    assert_eq!(value("@Photo"), Some(pluma_doc::DataValue::Visible(true)));
+    assert_eq!(value("%Chart"), Some(pluma_doc::DataValue::Graph(",Q\nX,3".into())));
+    assert_eq!(value("Shown"), Some(pluma_doc::DataValue::Image("s.png".into())));
     assert_eq!(s.doc().unwrap().doc.variables.variables.len(), 4);
 }
 
@@ -1904,9 +1904,9 @@ fn datasets_csv_export_marks_visibility_and_image_columns() {
     let kinds: Vec<_> = listed["variables"].as_array().unwrap().iter().map(|v| v["kind"].clone()).collect();
     assert_eq!(kinds, [json!("text"), json!("visibility"), json!("image")]);
     let value = |var: &str| fresh.doc().unwrap().doc.variables.dataset("Data Set 1").and_then(|d| d.values.get(var)).cloned();
-    assert_eq!(value("Name"), Some(vectorcraft_doc::DataValue::Text("Ann".into())));
-    assert_eq!(value("Show"), Some(vectorcraft_doc::DataValue::Visible(false)));
-    assert_eq!(value("Photo"), Some(vectorcraft_doc::DataValue::Image("a.png".into())));
+    assert_eq!(value("Name"), Some(pluma_doc::DataValue::Text("Ann".into())));
+    assert_eq!(value("Show"), Some(pluma_doc::DataValue::Visible(false)));
+    assert_eq!(value("Photo"), Some(pluma_doc::DataValue::Image("a.png".into())));
 
     for (name, kind) in [("#Tag", "text"), ("Chart", "graph"), ("@Note", "text")] {
         s.execute("variable.define", &json!({"name": name, "kind": kind})).unwrap();
@@ -1939,7 +1939,7 @@ fn datasets_csv_export_imports_back_to_the_same_data_sets() {
     fresh.execute("dataset.import", &json!({"csv": csv})).unwrap();
     let vars = fresh.doc().unwrap().doc.variables.clone();
     assert_eq!(vars.variables, before.variables, "the same variables, with their kinds");
-    let values = |v: &vectorcraft_doc::Variables| v.datasets.iter().map(|d| d.values.clone()).collect::<Vec<_>>();
+    let values = |v: &pluma_doc::Variables| v.datasets.iter().map(|d| d.values.clone()).collect::<Vec<_>>();
     assert_eq!(values(&vars), values(&before), "the same values in every data set");
     let names: Vec<&str> = vars.datasets.iter().map(|d| d.name.as_str()).collect();
     assert_eq!(names, ["Data Set 1", "Data Set 2", "Data Set 3", "Data Set 4"]);
@@ -2120,9 +2120,9 @@ fn datasets_csv_round_trips_and_rejects_bad_input() {
 fn datasets_csv_reads_windows_1252_files() {
     let mut s = session();
     s.execute("variable.define", &json!({"name": "City", "kind": "text"})).unwrap();
-    let import = |s: &mut Session, bytes: &[u8]| s.execute("dataset.import", &json!({"dataBase64": vectorcraft_format::base64_encode(bytes)}));
+    let import = |s: &mut Session, bytes: &[u8]| s.execute("dataset.import", &json!({"dataBase64": pluma_format::base64_encode(bytes)}));
     let value = |s: &Session, name: &str| s.doc().unwrap().doc.variables.dataset(name).and_then(|d| d.values.get("City")).cloned();
-    let text_value = |v: &str| Some(vectorcraft_doc::DataValue::Text(v.into()));
+    let text_value = |v: &str| Some(pluma_doc::DataValue::Text(v.into()));
     let imp = import(&mut s, b"City\r\nJos\xe9\r\n\x80 5 \x96 \x93Caf\xe9\x94\r\n").unwrap();
     assert_eq!(imp["names"], json!(["Data Set 1", "Data Set 2"]));
     assert_eq!(value(&s, "Data Set 1"), text_value("José"));
@@ -2143,9 +2143,9 @@ fn datasets_csv_reads_windows_1252_files() {
 fn datasets_csv_reads_utf16_files() {
     let mut s = session();
     s.execute("variable.define", &json!({"name": "City", "kind": "text"})).unwrap();
-    let import = |s: &mut Session, bytes: &[u8]| s.execute("dataset.import", &json!({"dataBase64": vectorcraft_format::base64_encode(bytes)}));
+    let import = |s: &mut Session, bytes: &[u8]| s.execute("dataset.import", &json!({"dataBase64": pluma_format::base64_encode(bytes)}));
     let value = |s: &Session, name: &str| s.doc().unwrap().doc.variables.dataset(name).and_then(|d| d.values.get("City")).cloned();
-    let text_value = |v: &str| Some(vectorcraft_doc::DataValue::Text(v.into()));
+    let text_value = |v: &str| Some(pluma_doc::DataValue::Text(v.into()));
     let utf16 = |bom: &[u8], text: &str, le: bool| -> Vec<u8> {
         let units = text.encode_utf16().flat_map(|u| if le { u.to_le_bytes() } else { u.to_be_bytes() });
         bom.iter().copied().chain(units).collect()
@@ -2242,7 +2242,7 @@ fn a_variable_library_defines_text_variables_and_data_sets() {
     let from_file = s.execute("variable.loadLibrary", &json!({"path": path})).unwrap();
     assert_eq!(from_file["names"], json!(["Row 1", "Row 2"]));
     let bom = [b"\xEF\xBB\xBF".as_slice(), xml.as_bytes()].concat();
-    let from_base64 = s.execute("variable.loadLibrary", &json!({"dataBase64": vectorcraft_format::base64_encode(&bom)})).unwrap();
+    let from_base64 = s.execute("variable.loadLibrary", &json!({"dataBase64": pluma_format::base64_encode(&bom)})).unwrap();
     // The library declares the document's text variables: they stay, and only the data sets go.
     assert_eq!((from_base64["deleted"].clone(), from_base64["deletedDataSets"].clone()), (json!([]), json!(["Row 1", "Row 2"])));
     assert_eq!(s.doc().unwrap().doc.variables.datasets.len(), 2);
@@ -2442,7 +2442,7 @@ fn malformed_variable_libraries_are_refused() {
     assert!(e.contains("more than 256 variables"), "{e}");
     // A Latin-1 é in a comment.
     let latin1 = [ok.as_bytes(), b"<!-- \xE9 -->"].concat();
-    let e = s.execute("variable.loadLibrary", &json!({"dataBase64": vectorcraft_format::base64_encode(&latin1)})).unwrap_err().to_string();
+    let e = s.execute("variable.loadLibrary", &json!({"dataBase64": pluma_format::base64_encode(&latin1)})).unwrap_err().to_string();
     assert!(e.contains("not UTF-8"), "{e}");
     let e = s.execute("variable.loadLibrary", &json!({})).unwrap_err().to_string();
     assert!(e.contains("give `path`, `xml` or `dataBase64`"), "{e}");
@@ -2460,7 +2460,7 @@ fn a_variable_library_expands_entities_of_plain_text() {
                <Name><p>&a;-&b;-&a;<![CDATA[&a;]]></p></Name></sampleDataSet></sampleDataSets></variableSet></variableSets></svg>";
     s.execute("variable.loadLibrary", &json!({"xml": xml})).unwrap();
     let value = s.doc().unwrap().doc.variables.dataset("y \"z\"").and_then(|d| d.values.get("Name")).cloned();
-    assert_eq!(value, Some(vectorcraft_doc::DataValue::Text("x-y \"z\"-x&a;".into())));
+    assert_eq!(value, Some(pluma_doc::DataValue::Text("x-y \"z\"-x&a;".into())));
 }
 
 /// Save Variable Library writes what Load Variable Library reads back: the text variables in their
@@ -2498,7 +2498,7 @@ fn a_saved_variable_library_loads_back_the_text_variables_and_data_sets() {
     assert_eq!((loaded["skipped"].clone(), loaded.get("warning")), (json!([]), None));
     let vars = &other.doc().unwrap().doc.variables;
     assert_eq!(vars.variables.iter().map(|v| (v.name.as_str(), v.kind.label())).collect::<Vec<_>>(), [("Name", "text"), ("Note", "text")]);
-    let text_only: Vec<vectorcraft_doc::DataSet> = before
+    let text_only: Vec<pluma_doc::DataSet> = before
         .datasets
         .iter()
         .map(|d| {
@@ -2777,9 +2777,9 @@ fn graph_variable_applies_csv_and_captures() {
     s.execute("dataset.new", &json!({"name": "Alt", "values": {name.clone(): ",Sales\nA,10\nB,20"}})).unwrap();
     let v = s.execute("dataset.select", &json!({"name": "Alt"})).unwrap();
     assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(1), Some(0)));
-    let csv = s.doc().unwrap().doc.variable_value(NodeId(id), vectorcraft_doc::VariableKind::Graph).unwrap();
+    let csv = s.doc().unwrap().doc.variable_value(NodeId(id), pluma_doc::VariableKind::Graph).unwrap();
     match csv {
-        vectorcraft_doc::DataValue::Graph(c) => assert!(c.contains("10") && c.contains("20"), "{c}"),
+        pluma_doc::DataValue::Graph(c) => assert!(c.contains("10") && c.contains("20"), "{c}"),
         other => panic!("expected graph csv, got {other:?}"),
     }
     // Binding a non-graph is refused.
@@ -2854,7 +2854,7 @@ fn a_variables_command_that_changes_nothing_records_no_undo_step() {
 /// next keystroke starts a new one.
 #[test]
 fn a_variables_command_that_changes_nothing_ends_the_typing() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     let v = ViewInfo::default();
     let t = text(&mut s, "Hello");

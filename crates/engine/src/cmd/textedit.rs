@@ -1,11 +1,11 @@
 //! Rich text editing commands: range edits and range styling (what the Type tool and the
 //! Character panel use while editing), creating area / on-path type from a path, and Fit Headline.
 
+use pluma_color::Paint;
+use pluma_doc::{Appearance, CharStyle, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
+use pluma_geom::{Affine, Point, Vec2};
+use pluma_text::edit;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Appearance, CharStyle, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
-use vectorcraft_geom::{Affine, Point, Vec2};
-use vectorcraft_text::edit;
 
 use super::menucmds::whole_or;
 use super::stroke::StrokeChange;
@@ -173,7 +173,7 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-pub(crate) fn text_mut(d: &mut vectorcraft_doc::Document, id: NodeId) -> Option<&mut TextObject> {
+pub(crate) fn text_mut(d: &mut pluma_doc::Document, id: NodeId) -> Option<&mut TextObject> {
     match d.node_mut(id).map(|n| &mut n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
         _ => None,
@@ -192,7 +192,7 @@ pub(crate) fn text_ref(s: &Session, id: NodeId) -> Result<TextObject> {
 /// style and paragraph styles follow, exactly as `text.editRange` over the full
 /// range does. Dataset apply and friends share this so Variables edits behave
 /// like Type tool edits.
-pub(crate) fn set_plain_text(d: &mut vectorcraft_doc::Document, id: NodeId, text: &str) -> Result<()> {
+pub(crate) fn set_plain_text(d: &mut pluma_doc::Document, id: NodeId, text: &str) -> Result<()> {
     let len = match d.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => edit::runs_len(&t.runs),
         Some(_) => return Err(EngineError::Other(format!("node {} is not text", id.0))),
@@ -209,7 +209,7 @@ pub(crate) fn set_plain_text(d: &mut vectorcraft_doc::Document, id: NodeId, text
 /// object's content: for a frame of threaded text, every frame's text. The new text goes into the
 /// thread's first frame and the other frames are emptied; the edit's reflow then pours it through
 /// them. → the story's last frame, which holds any text that does not fit.
-pub(crate) fn set_story_text(d: &mut vectorcraft_doc::Document, id: NodeId, text: &str) -> Result<NodeId> {
+pub(crate) fn set_story_text(d: &mut pluma_doc::Document, id: NodeId, text: &str) -> Result<NodeId> {
     let story = d.story_of(id);
     let (Some((&first, rest)), Some(&last)) = (story.split_first(), story.last()) else {
         return Err(EngineError::NoNode(id));
@@ -229,8 +229,8 @@ pub(crate) fn set_story_text(d: &mut vectorcraft_doc::Document, id: NodeId, text
     // The first frame takes the whole story first, so the replace keeps the story's first style
     // and paragraph styles follow as for one type object.
     let t = text_mut(d, first).ok_or(EngineError::NoNode(first))?;
-    t.runs = vectorcraft_text::thread::story(&refs);
-    t.set_paragraph_styles(vectorcraft_text::thread::story_paras(&refs, &[]));
+    t.runs = pluma_text::thread::story(&refs);
+    t.set_paragraph_styles(pluma_text::thread::story_paras(&refs, &[]));
     set_plain_text(d, first, text)?;
     // An emptied frame's paragraph takes the new text's last paragraph style, so it does not
     // restyle that paragraph when the story is joined again.
@@ -354,8 +354,8 @@ fn start_list(s: &mut Session, p: &Value) -> Result<Value> {
             para.list = Some(list);
             // A paragraph with no left or first-line indent gets the hanging indent.
             if para.left_indent == 0.0 && para.first_line_indent == 0.0 {
-                para.left_indent = vectorcraft_doc::text::LIST_HANGING_INDENT;
-                para.first_line_indent = -vectorcraft_doc::text::LIST_HANGING_INDENT;
+                para.left_indent = pluma_doc::text::LIST_HANGING_INDENT;
+                para.first_line_indent = -pluma_doc::text::LIST_HANGING_INDENT;
             }
         });
         refresh_bounds(t);
@@ -411,7 +411,7 @@ fn get_story(s: &mut Session, p: &Value, id: NodeId) -> Result<Value> {
 /// whose styles are numbered (W3, W6) has no Regular (#4128). A family that isn't installed keeps
 /// the style as it is.
 pub(crate) fn fit_font_style(st: &mut CharStyle) {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let styles = db.styles(&st.font_family);
     if !styles.is_empty()
         && !styles.iter().any(|s| s.eq_ignore_ascii_case(&st.font_style))
@@ -447,10 +447,10 @@ pub(crate) struct CharChange {
     features: Option<Vec<String>>,
     /// Features turned on or off on top of each character's own (`featureChanges`).
     feature_changes: Option<Vec<String>>,
-    position: Option<vectorcraft_doc::CharPosition>,
+    position: Option<pluma_doc::CharPosition>,
     small_caps: Option<Option<f64>>,
-    char_align: Option<vectorcraft_doc::CharAlign>,
-    char_direction: Option<Option<vectorcraft_doc::ParaDirection>>,
+    char_align: Option<pluma_doc::CharAlign>,
+    char_direction: Option<Option<pluma_doc::ParaDirection>>,
     kashidas: Option<bool>,
     proportional_metrics: Option<bool>,
     tate_chu_yoko: Option<bool>,
@@ -459,17 +459,17 @@ pub(crate) struct CharChange {
     tcy_left_right: Option<f64>,
     standard_vertical_roman: Option<bool>,
     no_break: Option<bool>,
-    digits: Option<vectorcraft_doc::Digits>,
+    digits: Option<pluma_doc::Digits>,
     /// The language to set: a tag, or `None` for the default.
     language: Option<Option<String>>,
     font_axes: Option<AxisChange>,
-    font_height_reference: Option<vectorcraft_doc::FontHeightReference>,
+    font_height_reference: Option<pluma_doc::FontHeightReference>,
 }
 
 /// `charDirection: "default"|"leftToRight"|"rightToLeft"` → the Character Direction to set (`None`
 /// inside: Default).
-pub(crate) fn char_direction_param(p: &Value, cmd: &str) -> Result<Option<Option<vectorcraft_doc::ParaDirection>>> {
-    use vectorcraft_doc::ParaDirection;
+pub(crate) fn char_direction_param(p: &Value, cmd: &str) -> Result<Option<Option<pluma_doc::ParaDirection>>> {
+    use pluma_doc::ParaDirection;
     let Some(v) = p.get("charDirection").filter(|v| !v.is_null()) else { return Ok(None) };
     Ok(Some(match v.as_str() {
         Some("default") => None,
@@ -491,9 +491,9 @@ pub(crate) fn tcy_offset_param(p: &Value, key: &str, cmd: &str) -> Result<Option
 /// `digits: "default"|"arabic"|"hindi"|"farsi"|"devanagari"|…` ([`Digits::id`]) → the numeral
 /// system the digits are drawn in.
 ///
-/// [`Digits::id`]: vectorcraft_doc::Digits::id
-pub(crate) fn digits_param(p: &Value, cmd: &str) -> Result<Option<vectorcraft_doc::Digits>> {
-    use vectorcraft_doc::Digits;
+/// [`Digits::id`]: pluma_doc::Digits::id
+pub(crate) fn digits_param(p: &Value, cmd: &str) -> Result<Option<pluma_doc::Digits>> {
+    use pluma_doc::Digits;
     let Some(v) = p.get("digits").filter(|v| !v.is_null()) else { return Ok(None) };
     let Some(d) = v.as_str().and_then(Digits::from_id) else {
         let ids: Vec<String> = Digits::ALL.iter().map(|d| format!("\"{}\"", d.id())).collect();
@@ -503,11 +503,11 @@ pub(crate) fn digits_param(p: &Value, cmd: &str) -> Result<Option<vectorcraft_do
 }
 
 /// `language: name|tag` (one of Document Setup's languages, case-insensitive) → the language to
-/// set ([`vectorcraft_doc::CharStyle::language`]: `None` inside for the default).
+/// set ([`pluma_doc::CharStyle::language`]: `None` inside for the default).
 pub(crate) fn language_param(p: &Value, cmd: &str) -> Result<Option<Option<String>>> {
     let Some(v) = p.get("language").filter(|v| !v.is_null()) else { return Ok(None) };
     let l = v.as_str().ok_or_else(|| bad(cmd, "`language` must be a language name or tag, such as \"Turkish\" or \"tr\""))?;
-    let tag = vectorcraft_doc::setup::char_language(l).map_err(|e| bad(cmd, e))?;
+    let tag = pluma_doc::setup::char_language(l).map_err(|e| bad(cmd, e))?;
     Ok(Some(tag.map(str::to_string)))
 }
 
@@ -538,9 +538,9 @@ pub(crate) fn font_axes_param(p: &Value, cmd: &str) -> Result<Option<AxisChange>
 /// clamped to its axis's range, a tag its font has no axis for is left out, and a value equal to
 /// the style's own setting is removed; with the font missing, the values are kept as given.
 pub(crate) fn change_font_axes(st: &mut CharStyle, change: &AxisChange) {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let face = match db.resolve(&st.font_family, &st.font_style) {
-        Some((f, m)) if m != vectorcraft_text::FontMatch::Missing => {
+        Some((f, m)) if m != pluma_text::FontMatch::Missing => {
             Some(db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()).unwrap_or(f))
         }
         _ => None,
@@ -569,7 +569,7 @@ pub(crate) fn change_font_axes(st: &mut CharStyle, change: &AxisChange) {
 pub(crate) fn features_param(p: &Value, cmd: &str) -> Result<Option<Vec<String>>> {
     let Some(v) = p.get("features").filter(|v| !v.is_null()) else { return Ok(None) };
     let tags: Vec<&str> = v.as_array().ok_or_else(|| bad(cmd, "features must be a list of tags"))?.iter().filter_map(Value::as_str).collect();
-    if let Some(t) = tags.iter().find(|t| !vectorcraft_text::OtFeatures::known_tag(t)) {
+    if let Some(t) = tags.iter().find(|t| !pluma_text::OtFeatures::known_tag(t)) {
         return Err(bad(
             cmd,
             format!(
@@ -577,7 +577,7 @@ pub(crate) fn features_param(p: &Value, cmd: &str) -> Result<Option<Vec<String>>
             ),
         ));
     }
-    Ok(Some(vectorcraft_text::OtFeatures::default().with_tags(tags).to_tags()))
+    Ok(Some(pluma_text::OtFeatures::default().with_tags(tags).to_tags()))
 }
 
 /// The most entries a `featureChanges` list may have.
@@ -600,7 +600,7 @@ pub(crate) fn feature_changes_param(p: &Value, cmd: &str) -> Result<Option<Vec<S
     let mut tags: Vec<String> = Vec::new();
     for t in list {
         let t = t.as_str().ok_or_else(not_tags)?;
-        if !vectorcraft_text::OtFeatures::known_tag(t) || feature_name(t).starts_with(['-', '+']) {
+        if !pluma_text::OtFeatures::known_tag(t) || feature_name(t).starts_with(['-', '+']) {
             return Err(bad(cmd, format!("unknown OpenType feature `{t}` in featureChanges (the tags `features` takes)")));
         }
         tags.retain(|o| feature_name(o) != feature_name(t));
@@ -613,19 +613,19 @@ pub(crate) fn feature_changes_param(p: &Value, cmd: &str) -> Result<Option<Vec<S
 /// names are replaced by the ones that differ from the defaults, as `features` writes them, and
 /// every other tag stays as it was. Standard ligatures turned on are written as `liga`, which keeps
 /// them on in tracked type. The new tags go after the others. When the list would run past the
-/// [`vectorcraft_text::MAX_STYLE_FEATURES`] entries that shaping reads, the other tags are first cut
+/// [`pluma_text::MAX_STYLE_FEATURES`] entries that shaping reads, the other tags are first cut
 /// to the ones shaping uses: the entries it reads, without tags it does not know and with only the
 /// last tag of each feature.
 pub(crate) fn change_features(features: &[String], changes: &[String]) -> Vec<String> {
     let named = |t: &String| changes.iter().any(|c| feature_name(c) == feature_name(t));
-    let mut made = vectorcraft_text::OtFeatures::from_tags(changes.iter().map(String::as_str)).to_tags();
+    let mut made = pluma_text::OtFeatures::from_tags(changes.iter().map(String::as_str)).to_tags();
     if changes.iter().any(|c| c == "liga" || c == "+liga") {
         made.push("liga".into());
     }
     let mut kept: Vec<String> = features.iter().filter(|t| !named(t)).cloned().collect();
-    if kept.len() + made.len() > vectorcraft_text::MAX_STYLE_FEATURES {
-        let read = features.get(..vectorcraft_text::MAX_STYLE_FEATURES).unwrap_or(features);
-        let shaped = |t: &String| vectorcraft_text::OtFeatures::known_tag(t) || feature_name(t) == "clig";
+    if kept.len() + made.len() > pluma_text::MAX_STYLE_FEATURES {
+        let read = features.get(..pluma_text::MAX_STYLE_FEATURES).unwrap_or(features);
+        let shaped = |t: &String| pluma_text::OtFeatures::known_tag(t) || feature_name(t) == "clig";
         kept = read
             .iter()
             .enumerate()
@@ -638,8 +638,8 @@ pub(crate) fn change_features(features: &[String], changes: &[String]) -> Vec<St
 }
 
 /// `charAlign: "romanBaseline"|"emBoxTop"|"emBoxCenter"|"emBoxBottom"|"icfTop"|"icfBottom"` (Character Alignment).
-pub(crate) fn char_align_param(p: &Value, cmd: &str) -> Result<Option<vectorcraft_doc::CharAlign>> {
-    use vectorcraft_doc::CharAlign;
+pub(crate) fn char_align_param(p: &Value, cmd: &str) -> Result<Option<pluma_doc::CharAlign>> {
+    use pluma_doc::CharAlign;
     let Some(v) = p.get("charAlign").filter(|v| !v.is_null()) else { return Ok(None) };
     Ok(Some(match v.as_str() {
         Some("romanBaseline") => CharAlign::RomanBaseline,
@@ -659,8 +659,8 @@ pub(crate) fn char_align_param(p: &Value, cmd: &str) -> Result<Option<vectorcraf
 
 /// `fontHeightReference: "emBox"|"capHeight"|"xHeight"|"icfBox"` (Character panel › Set Font Height
 /// Reference): the height of the font that the font size measures.
-pub(crate) fn font_height_reference_param(p: &Value, cmd: &str) -> Result<Option<vectorcraft_doc::FontHeightReference>> {
-    use vectorcraft_doc::FontHeightReference;
+pub(crate) fn font_height_reference_param(p: &Value, cmd: &str) -> Result<Option<pluma_doc::FontHeightReference>> {
+    use pluma_doc::FontHeightReference;
     let Some(v) = p.get("fontHeightReference").filter(|v| !v.is_null()) else { return Ok(None) };
     Ok(Some(match v.as_str() {
         Some("emBox") => FontHeightReference::EmBox,
@@ -689,7 +689,7 @@ fn auto_or_num(p: &Value, k: &str, cmd: &str) -> Result<Option<Option<f64>>> {
 
 impl CharChange {
     /// `setup` gives the superscript, subscript and small caps proportions.
-    pub(crate) fn parse(p: &Value, cmd: &str, setup: &vectorcraft_doc::DocSetup) -> Result<Self> {
+    pub(crate) fn parse(p: &Value, cmd: &str, setup: &pluma_doc::DocSetup) -> Result<Self> {
         check_numbers(p, &["size", "tracking", "baselineShift", "hScale", "vScale", "rotation", "strokeWidth"], cmd)?;
         check_switches(
             p,
@@ -814,7 +814,7 @@ impl CharChange {
         self.tcy_up_down = self.tcy_up_down.map(|v| local_type_value(t, v, (-1296.0, 1296.0), false, cmd)).transpose()?;
         self.tcy_left_right = self.tcy_left_right.map(|v| local_type_value(t, v, (-1296.0, 1296.0), false, cmd)).transpose()?;
         self.h_scale = self.h_scale.map(|v| local_type_value(t, v, (1.0, 10000.0), true, cmd)).transpose()?;
-        self.stroke_scale = Some(vectorcraft_doc::Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0));
+        self.stroke_scale = Some(pluma_doc::Scaling::factor(t.xf).filter(|k| k.is_finite() && *k > 1e-12).unwrap_or(1.0));
         Ok(())
     }
 
@@ -959,7 +959,7 @@ pub(crate) fn protect_missing_glyphs(before: &[TextRun], runs: &mut Vec<TextRun>
             })
             .flatten()
     }
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut faces = std::collections::HashMap::new();
     let mut covers = |st: &CharStyle, c: char| {
         let face = faces
@@ -1087,7 +1087,7 @@ fn set_range_style(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The em a laid-out glyph's kerning and tracking are measured in, in text space: the size it
 /// was shaped at (superscript, small caps and Shrink Text to Fit included).
-fn glyph_em(db: &vectorcraft_text::FontDb, t: &TextObject, g: &vectorcraft_text::PositionedGlyph) -> Option<f64> {
+fn glyph_em(db: &pluma_text::FontDb, t: &TextObject, g: &pluma_text::PositionedGlyph) -> Option<f64> {
     let face = db.face_by_id(g.font_id)?;
     let h_scale = edit::slice_runs(&t.runs, g.byte, g.byte + g.len).first()?.style.h_scale / 100.0;
     let [a, b, ..] = g.xf.as_coeffs();
@@ -1095,28 +1095,28 @@ fn glyph_em(db: &vectorcraft_text::FontDb, t: &TextObject, g: &vectorcraft_text:
 }
 
 /// The current pair correction in thousandths of an em, including an automatic correction.
-pub fn effective_kerning(db: &vectorcraft_text::FontDb, t: &TextObject, lay: &vectorcraft_text::TextLayout, x: usize, y: usize) -> f64 {
+pub fn effective_kerning(db: &pluma_text::FontDb, t: &TextObject, lay: &pluma_text::TextLayout, x: usize, y: usize) -> f64 {
     if let Some(value) = edit::slice_runs(&t.runs, x, y).first().and_then(|r| r.style.kerning) {
         return value;
     }
     // Measure both layouts without wrapping so the same pair stays on one line.
     let mut trial = t.clone();
     trial.kind = TextKind::Point;
-    let unwrapped = (!matches!(t.kind, TextKind::Point)).then(|| vectorcraft_text::layout(db, &trial));
+    let unwrapped = (!matches!(t.kind, TextKind::Point)).then(|| pluma_text::layout(db, &trial));
     let original = unwrapped.as_ref().unwrap_or(lay);
     edit::style_range(&mut trial.runs, x, y, |st| st.kerning = Some(0.0));
-    let base = vectorcraft_text::layout(db, &trial);
+    let base = pluma_text::layout(db, &trial);
     let owner = original.glyphs.iter().find(|g| g.byte == x);
     let rtl = owner.is_some_and(|g| g.rtl);
-    let drawn_gap = |layout: &vectorcraft_text::TextLayout| {
+    let drawn_gap = |layout: &pluma_text::TextLayout| {
         let first = layout.glyphs.iter().find(|g| g.byte == if rtl { y } else { x })?;
         let following = layout.glyphs.iter().find(|g| g.byte == if rtl { x } else { y })?;
         if first.line != following.line {
             return None;
         }
-        let axis = vectorcraft_geom::Vec2::new(first.angle.cos(), first.angle.sin());
+        let axis = pluma_geom::Vec2::new(first.angle.cos(), first.angle.sin());
         let along = if rtl { -axis } else { axis };
-        let drawn = |g: &vectorcraft_text::PositionedGlyph| {
+        let drawn = |g: &pluma_text::PositionedGlyph| {
             let [_, _, _, _, tx, ty] = g.xf.as_coeffs();
             Point::new(tx, ty)
         };
@@ -1128,7 +1128,7 @@ pub fn effective_kerning(db: &vectorcraft_text::FontDb, t: &TextObject, lay: &ve
 
 /// The character at byte `start` of `p` in text object `t`, its bytes and its font's face. An error
 /// when there is no character there, it is an inline graphic, or its font is not available.
-fn glyph_target(t: &TextObject, p: &Value, c: &str) -> Result<(char, std::ops::Range<usize>, std::sync::Arc<vectorcraft_text::FontFace>)> {
+fn glyph_target(t: &TextObject, p: &Value, c: &str) -> Result<(char, std::ops::Range<usize>, std::sync::Arc<pluma_text::FontFace>)> {
     check_numbers(p, &["start"], c)?;
     let start = byte_param(p, "start").ok_or_else(|| bad(c, "missing `start` (the byte offset of a character)"))?;
     let mut at = 0;
@@ -1139,11 +1139,11 @@ fn glyph_target(t: &TextObject, p: &Value, c: &str) -> Result<(char, std::ops::R
             if run.inline.is_some() {
                 return Err(bad(c, "an inline graphic has no glyphs"));
             }
-            let db = vectorcraft_text::FontDb::global();
+            let db = pluma_text::FontDb::global();
             let face = match db.composite_resolve_at(&run.style.font_family, &run.text, start - at) {
                 // Type in a composite font: the character is drawn in the font of the part its
                 // grapheme cluster falls in.
-                Some((face, m)) => (m != vectorcraft_text::FontMatch::Missing).then_some(face),
+                Some((face, m)) => (m != pluma_text::FontMatch::Missing).then_some(face),
                 None => db.style_face(&run.style).filter(|_| db.has_family(&run.style.font_family)),
             };
             let face = face.ok_or_else(|| bad(c, format!("the font {} is not available", run.style.font_family)))?;
@@ -1165,10 +1165,10 @@ fn glyph_target(t: &TextObject, p: &Value, c: &str) -> Result<(char, std::ops::R
 /// cluster holds none of these.
 fn own_glyph(
     plain: &str,
-    lay: &vectorcraft_text::TextLayout,
+    lay: &pluma_text::TextLayout,
     ch: char,
     bytes: &std::ops::Range<usize>,
-    face: &vectorcraft_text::FontFace,
+    face: &pluma_text::FontFace,
 ) -> Option<Option<u32>> {
     lay.glyphs.iter().find(|g| g.byte <= bytes.start && bytes.start < g.byte.saturating_add(g.len))?;
     let grapheme = edit::next_cluster(plain, bytes.start).max(bytes.end) - bytes.start;
@@ -1210,8 +1210,8 @@ fn own_glyph(
 /// of its grapheme in the grapheme's own styles: the glyph of a character that is not laid out
 /// (overflowing text). Also the glyph drawn for the character in whatever face draws it
 /// ([`drawn_glyph`]).
-fn shaped_alone(t: &TextObject, ch: char, bytes: &std::ops::Range<usize>, face: &vectorcraft_text::FontFace) -> (Option<u32>, Option<u32>) {
-    use vectorcraft_doc::ParaDirection;
+fn shaped_alone(t: &TextObject, ch: char, bytes: &std::ops::Range<usize>, face: &pluma_text::FontFace) -> (Option<u32>, Option<u32>) {
+    use pluma_doc::ParaDirection;
     let plain = t.plain_text();
     let end = edit::next_cluster(&plain, bytes.start).max(bytes.end);
     let mut single = TextObject::point(Point::ZERO, "", CharStyle::default());
@@ -1221,9 +1221,9 @@ fn shaped_alone(t: &TextObject, ch: char, bytes: &std::ops::Range<usize>, face: 
     let before = plain.get(..bytes.start).unwrap_or_default();
     let (paragraph, start) = (before.matches('\n').count(), before.rfind('\n').map_or(0, |i| i + 1));
     let stop = plain.get(bytes.start..).and_then(|after| after.find('\n')).map_or(plain.len(), |i| bytes.start + i);
-    let rtl = vectorcraft_text::char_is_rtl(plain.get(start..stop).unwrap_or_default(), t.para_at(paragraph).direction, bytes.start - start);
+    let rtl = pluma_text::char_is_rtl(plain.get(start..stop).unwrap_or_default(), t.para_at(paragraph).direction, bytes.start - start);
     single.para.direction = Some(if rtl { ParaDirection::RightToLeft } else { ParaDirection::LeftToRight });
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &single);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &single);
     let (alone, at) = (single.plain_text(), 0..bytes.len());
     (own_glyph(&alone, &lay, ch, &at, face).flatten(), drawn_glyph(&alone, &lay, ch, &at, face))
 }
@@ -1232,18 +1232,12 @@ fn shaped_alone(t: &TextObject, ch: char, bytes: &std::ops::Range<usize>, face: 
 /// the glyph of `face` ([`own_glyph`]); else, when a fallback face draws the character, that face's
 /// glyph for it by the same rule (its vowel sign drawn first is not reported); else the first glyph
 /// drawn for the character. `None` when the character is not laid out.
-fn drawn_glyph(
-    plain: &str,
-    lay: &vectorcraft_text::TextLayout,
-    ch: char,
-    bytes: &std::ops::Range<usize>,
-    face: &vectorcraft_text::FontFace,
-) -> Option<u32> {
+fn drawn_glyph(plain: &str, lay: &pluma_text::TextLayout, ch: char, bytes: &std::ops::Range<usize>, face: &pluma_text::FontFace) -> Option<u32> {
     if let Some(own) = own_glyph(plain, lay, ch, bytes, face).flatten() {
         return Some(own);
     }
     let first = lay.glyphs.iter().find(|g| g.byte <= bytes.start && bytes.start < g.byte.saturating_add(g.len))?;
-    let fallback = (first.font_id != face.id()).then(|| vectorcraft_text::FontDb::global().face_by_id(first.font_id)).flatten();
+    let fallback = (first.font_id != face.id()).then(|| pluma_text::FontDb::global().face_by_id(first.font_id)).flatten();
     fallback.and_then(|f| own_glyph(plain, lay, ch, bytes, &f).flatten()).or(Some(first.gid))
 }
 
@@ -1278,7 +1272,7 @@ fn set_glyph_alternate(s: &mut Session, p: &Value) -> Result<Value> {
     let unchosen = holder.as_ref().filter(|_| !styled).and_then(|_| {
         let mut probe = t.clone();
         edit::style_range(&mut probe.runs, bytes.start, bytes.end, |st| st.glyph_alternate = None);
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &probe);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &probe);
         own_glyph(&plain, &lay, ch, &bytes, &face).unwrap_or_else(|| shaped_alone(&probe, ch, &bytes, &face).0)
     });
     let substituted = unchosen.is_some_and(|g| g != default);
@@ -1300,7 +1294,7 @@ fn set_glyph_alternate(s: &mut Session, p: &Value) -> Result<Value> {
         let shown = || {
             let mut probe = t.clone();
             edit::style_range(&mut probe.runs, bytes.start, bytes.end, |st| st.glyph_alternate = Some(c.clone()));
-            own_glyph(&plain, &vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &probe), ch, &bytes, &face)
+            own_glyph(&plain, &pluma_text::layout(pluma_text::FontDb::global(), &probe), ch, &bytes, &face)
         };
         if styled || shown().is_some_and(|g| g != Some(c.gid)) {
             return Err(bad(
@@ -1327,7 +1321,7 @@ fn glyph_alternates(s: &mut Session, p: &Value) -> Result<Value> {
     let t = text_ref(s, id)?;
     let (ch, bytes, face) = glyph_target(&t, p, C)?;
     let default = face.glyph_for(ch);
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     // A character that is not laid out (overflowing text) reports the glyph it is drawn with when
     // it is shaped alone, as `text.setGlyphAlternate` finds it; a fallback face's glyph when it is
     // drawn in one.
@@ -1354,7 +1348,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     let t = text_ref(s, id)?;
     change.localize(&t, C)?;
     let points = t.style_scale().ok_or_else(|| bad(C, "text transform is collapsed or unrepresentable"))?.points;
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
     let g = lay.glyphs.iter().find(|g| g.byte <= start && start < g.byte + g.len).ok_or_else(|| bad(C, format!("no character at byte {start}")))?;
     let (a, b) = (g.byte, g.byte + g.len);
     // The line's direction in reading order.
@@ -1367,7 +1361,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     // A list marker's glyphs (length 0) stand for no character.
     let prev = lay.glyphs.iter().find(|h| h.line == g.line && h.len > 0 && h.byte + h.len == a && h.rtl == g.rtl);
     let pr = prev.map(|h| (h.byte, h.byte + h.len));
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let em = glyph_em(db, &t, g).ok_or_else(|| bad(C, "the character's size can't be measured"))?;
     let em_prev = match prev {
         Some(h) => Some(glyph_em(db, &t, h).ok_or_else(|| bad(C, "the character's size can't be measured"))?),
@@ -1427,7 +1421,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
             // Hold kerning fixed: Optical spacing can change along the line as the baseline
             // rises, which would make its horizontal drift count as baseline movement.
             touch(&mut trial, pr.map(|_| 0.0), Some(0.0), to - shift);
-            let l = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &trial);
+            let l = pluma_text::layout(pluma_text::FontDb::global(), &trial);
             l.glyphs.iter().find(|h| h.byte == a && h.len > 0).map(|h| h.xf * Point::ZERO)
         };
         let (per_step, across) = match (pen_at(from + step), pen_at(from + 2.0 * step)) {
@@ -1441,7 +1435,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Along-line RTL movement must measure the drawn glyph: turning off automatic kerning can
     // also remove font placement, and Character Rotation turns that placement across the line.
-    let pen = |h: &vectorcraft_text::PositionedGlyph| {
+    let pen = |h: &pluma_text::PositionedGlyph| {
         let at = if drawn_move {
             h.xf * Point::ZERO
         } else if h.rtl {
@@ -1456,8 +1450,8 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     let intrinsic_delta = if drawn_move && ["hScale", "vScale", "rotation"].iter().any(|key| p.get(*key).is_some_and(|v| !v.is_null())) {
         let mut trial = t.clone();
         touch(&mut trial, None, None, 0.0);
-        let l = vectorcraft_text::layout(db, &trial);
-        let intrinsic = |h: &vectorcraft_text::PositionedGlyph| h.xf * Point::ZERO - h.xf * h.pivot;
+        let l = pluma_text::layout(db, &trial);
+        let intrinsic = |h: &pluma_text::PositionedGlyph| h.xf * Point::ZERO - h.xf * h.pivot;
         l.glyphs.iter().find(|h| h.byte == a && h.len > 0).map_or(Vec2::ZERO, |h| intrinsic(h) - intrinsic(g))
     } else {
         Vec2::ZERO
@@ -1466,9 +1460,8 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     // out alone, in point type of the same orientation, before and after the change.
     let grown = {
         let mut alone = TextObject { kind: TextKind::Point, runs: edit::slice_runs(&t.runs, a, b), paras: Vec::new(), ..t.clone() };
-        let advance = |o: &TextObject| {
-            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), o).glyphs.iter().filter(|h| h.len > 0).map(|h| h.advance).sum::<f64>()
-        };
+        let advance =
+            |o: &TextObject| pluma_text::layout(pluma_text::FontDb::global(), o).glyphs.iter().filter(|h| h.len > 0).map(|h| h.advance).sum::<f64>();
         let old = advance(&alone);
         edit::style_range(&mut alone.runs, 0, b - a, |st| change.apply(st));
         (advance(&alone) - old) * lay.fit_scale
@@ -1485,7 +1478,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
         }
         let mut trial = t.clone();
         touch(&mut trial, k.0, k.1, raise);
-        let l = vectorcraft_text::layout(db, &trial);
+        let l = pluma_text::layout(db, &trial);
         let h = l.glyphs.iter().find(|h| h.byte == a && h.len > 0).ok_or_else(|| bad(C, "the character's size can't be measured"))?;
         let across_goal = (g.xf * Point::ZERO).to_vec2().dot(up) + dy / doc_len(up) + intrinsic_delta.dot(up);
         raise += (across_goal - (h.xf * Point::ZERO).to_vec2().dot(up)) / baseline_step;
@@ -1499,7 +1492,7 @@ fn touch_type(s: &mut Session, p: &Value) -> Result<Value> {
     let miss = |k: (Option<f64>, Option<f64>)| {
         let mut trial = t.clone();
         touch(&mut trial, k.0, k.1, raise);
-        let l = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &trial);
+        let l = pluma_text::layout(pluma_text::FontDb::global(), &trial);
         let h = l.glyphs.iter().find(|h| h.byte == a && h.len > 0)?;
         let next = match (l.glyphs.iter().find(|n| n.byte == b && n.len > 0 && n.line == h.line), next_goal) {
             (Some(n), Some(at)) => pen(n) - at,
@@ -1585,7 +1578,7 @@ fn create_in_path(s: &mut Session, p: &Value) -> Result<Value> {
     let style = super::create::new_type_style(s, p);
     let text = str_param(p, "text").unwrap_or("").to_string();
     let start = match point_param(p, "at") {
-        Some(at) if on_path => vectorcraft_geom::ArcPath::new(path).fraction_at(at).unwrap_or(0.0),
+        Some(at) if on_path => pluma_geom::ArcPath::new(path).fraction_at(at).unwrap_or(0.0),
         _ => 0.0,
     };
     let kind = if on_path { TextKind::OnPath { path: path.clone(), start, end: None } } else { TextKind::Area { frame: path.clone() } };
@@ -1755,8 +1748,8 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
     for &(id, a, b, caret) in &ranges {
         let value = if matches!(step, Step::Kerning) && caret {
             let t = text_ref(s, id)?;
-            let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
-            Some(effective_kerning(vectorcraft_text::FontDb::global(), &t, &lay, a, b))
+            let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
+            Some(effective_kerning(pluma_text::FontDb::global(), &t, &lay, a, b))
         } else {
             None
         };
@@ -1802,7 +1795,7 @@ fn type_step(s: &mut Session, p: &Value) -> Result<Value> {
                             // With Auto leading the step starts from the leading the lines are set with:
                             // the paragraph's Auto Leading share of the em size the font height reference
                             // gives the characters. An inline graphic keeps its size.
-                            let em = if run.inline.is_some() { st.size } else { vectorcraft_text::FontDb::global().em_size(st, t.vertical) };
+                            let em = if run.inline.is_some() { st.size } else { pluma_text::FontDb::global().em_size(st, t.vertical) };
                             let leading = t.para_at(paras.get(i).copied().unwrap_or(0)).effective_leading(&CharStyle { size: em, ..st.clone() });
                             st.leading = Some(super::typecmd::local_type_value(t, leading * points + inc, (0.1, 5000.0), false, C)?);
                         }
@@ -1907,7 +1900,7 @@ fn headline_tracking(t: &TextObject, target: f64) -> Option<f64> {
         for r in &mut h.runs {
             r.style.tracking = tr;
         }
-        let l = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &h);
+        let l = pluma_text::layout(pluma_text::FontDb::global(), &h);
         l.lines.first().map_or(0.0, |li| li.x1 - li.x0)
     };
     // Width is linear in tracking: w(tr) = w0 + tr * slope.
@@ -1936,7 +1929,7 @@ fn fit_headline(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Fit Headline", |d, _| {
         for id in &ids {
             let Some(t) = text_mut(d, *id) else { continue };
-            let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+            let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
             let Some(first) = lay.lines.first() else { continue };
             let target = first.avail.1 - first.avail.0;
             let Some(tr) = headline_tracking(t, target) else { continue };

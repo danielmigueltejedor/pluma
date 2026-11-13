@@ -4,10 +4,10 @@
 
 use std::collections::BTreeSet;
 
+use pluma_doc::{AnchorRef, LiveCorners, LiveShape, NodeKind};
+use pluma_geom::Affine;
+use pluma_geom::shapes::CornerKind;
 use serde_json::{Value, json};
-use vectorcraft_doc::{AnchorRef, LiveCorners, LiveShape, NodeKind};
-use vectorcraft_geom::Affine;
-use vectorcraft_geom::shapes::CornerKind;
 
 use crate::*;
 
@@ -177,7 +177,7 @@ fn star(s: &mut Session) -> NodeId {
     NodeId(s.execute("shape.star", &json!({"cx": 200, "cy": 200, "radius1": 60, "radius2": 30})).unwrap()["id"].as_u64().unwrap())
 }
 
-fn node_path(s: &Session, id: NodeId) -> (vectorcraft_geom::PathData, Option<LiveShape>) {
+fn node_path(s: &Session, id: NodeId) -> (pluma_geom::PathData, Option<LiveShape>) {
     let NodeKind::Path { path, live, .. } = &s.doc().unwrap().doc.node(id).unwrap().kind else { panic!("not a path") };
     (path.clone(), live.as_deref().cloned())
 }
@@ -379,7 +379,7 @@ fn invert_pie_and_make_sides_equal_refuse_a_boolean_given_as_text() {
 /// double-click on a widget makes the ellipse whole again in one step.
 #[test]
 fn dragging_and_double_clicking_the_pie_widgets() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Mods, PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 300, "height": 300})).unwrap();
     let id = NodeId(s.execute("shape.ellipse", &json!({"x": 50, "y": 100, "width": 200, "height": 100})).unwrap()["id"].as_u64().unwrap());
@@ -490,13 +490,13 @@ fn relative_corner_rounding_keeps_fraction_on_resize() {
 /// inverted round, chamfer, in turn) along with the radius, as one undo step with the drag.
 #[test]
 fn arrows_while_dragging_a_corner_widget_change_the_corner_kind() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let (mut s, id) = session();
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     let v = ViewInfo::default();
     s.select_tool("selection", v).unwrap();
     let st = s.doc().unwrap();
-    let w = vectorcraft_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).expect("corner widgets show");
+    let w = pluma_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).expect("corner widgets show");
     let at = w.visible().next().expect("a widget");
     let steps = |s: &Session| s.doc().unwrap().history.undo.len();
     let ptr = |s: &mut Session, kind: PointerKind, x: f64, y: f64| {
@@ -516,7 +516,7 @@ fn arrows_while_dragging_a_corner_widget_change_the_corner_kind() {
     // A press and Down without a drag: the previous kind, the radius kept, one more step. A
     // pointer move within the drag threshold after the press leaves the radii alone too.
     let st = s.doc().unwrap();
-    let w = vectorcraft_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).unwrap();
+    let w = pluma_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).unwrap();
     let at = w.visible().next().unwrap();
     ptr(&mut s, PointerKind::Down, at.x, at.y);
     s.tool_key(ToolKey::Down, Mods::default(), v).unwrap();
@@ -534,7 +534,7 @@ fn arrows_while_dragging_a_corner_widget_change_the_corner_kind() {
 /// keep each their own (#2898 review).
 #[test]
 fn an_arrow_press_without_a_drag_keeps_mixed_radii() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let (mut s, id) = session();
     run(&mut s, json!({"id": id.0, "corners": [0], "radius": 5}));
     run(&mut s, json!({"id": id.0, "corners": [2], "radius": 15}));
@@ -543,7 +543,7 @@ fn an_arrow_press_without_a_drag_keeps_mixed_radii() {
     s.select_tool("selection", v).unwrap();
     let before = corners(&s, id).0;
     let st = s.doc().unwrap();
-    let w = vectorcraft_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).unwrap();
+    let w = pluma_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, v.zoom, false, true, 180.0).unwrap();
     let at = w.visible().next().unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Down, at.x, at.y).with_mods(Mods::default()), v).unwrap();
     s.tool_key(ToolKey::Up, Mods::default(), v).unwrap();

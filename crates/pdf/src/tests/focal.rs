@@ -1,9 +1,9 @@
 //! Radial gradients' focal points as two-point radial shadings, out and back in.
 
-use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, Document, Node};
-use vectorcraft_geom::{Point, Rect, shapes};
-use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
+use pluma_doc::{Appearance, Document, Node};
+use pluma_geom::{Point, Rect, shapes};
+use pluma_testkit::raster::{assert_similar, render_artboard};
 
 use crate::*;
 

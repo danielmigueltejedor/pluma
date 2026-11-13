@@ -23,7 +23,7 @@ pub(super) fn arrange(s: &mut Session, how: Arrange) -> Result<Value> {
     crate::cmd::overprint::edit_counted(s, label, |d| {
         let mut moved = 0;
         // Arrange within each parent independently (selections may span layers/groups).
-        let mut by_parent: Vec<(Option<vectorcraft_doc::NodeId>, Vec<vectorcraft_doc::NodeId>)> = vec![];
+        let mut by_parent: Vec<(Option<pluma_doc::NodeId>, Vec<pluma_doc::NodeId>)> = vec![];
         for id in &ids {
             let par = d.parent_of(*id);
             match by_parent.iter_mut().find(|(p, _)| *p == par) {
@@ -34,7 +34,7 @@ pub(super) fn arrange(s: &mut Session, how: Arrange) -> Result<Value> {
         for (par, mut group) in by_parent {
             // In a clip group or a clipping layer the bottom child is the clipping path: it stays
             // there, and the art above it never goes below it (#3188).
-            let floor = usize::from(par.and_then(|p| d.node(p)).is_some_and(vectorcraft_doc::Node::clips));
+            let floor = usize::from(par.and_then(|p| d.node(p)).is_some_and(pluma_doc::Node::clips));
             if floor > 0 {
                 group.retain(|id| d.position(*id).is_some_and(|(_, idx, _)| idx >= floor));
             }

@@ -1,39 +1,39 @@
 //! Headless frames of the Appearance panel and the panels that follow its active item.
 
+use pluma_doc::Unit;
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_doc::Unit;
-use vectorcraft_engine::Session;
 
 use super::*;
 
-pub(super) fn app_with_rect() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+pub(super) fn app_with_rect() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let id = run(&mut app, "shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 100}))["id"].clone();
     run(&mut app, "select.set", json!({ "ids": [id] }));
     app
 }
 
-pub(super) fn run(app: &mut VectorcraftApp, id: &str, p: Value) -> Value {
+pub(super) fn run(app: &mut PlumaApp, id: &str, p: Value) -> Value {
     app.session.execute(id, &p).unwrap_or_else(|e| panic!("{id}: {e}"))
 }
 
 /// Every text drawn while `f` runs one headless frame.
-fn frame_texts(app: &mut VectorcraftApp, f: impl FnMut(&mut VectorcraftApp, &mut egui::Ui)) -> Vec<String> {
+fn frame_texts(app: &mut PlumaApp, f: impl FnMut(&mut PlumaApp, &mut egui::Ui)) -> Vec<String> {
     let ctx = egui::Context::default();
     frame_in(&ctx, app, f)
 }
 
-fn frame_in(ctx: &egui::Context, app: &mut VectorcraftApp, f: impl FnMut(&mut VectorcraftApp, &mut egui::Ui)) -> Vec<String> {
+fn frame_in(ctx: &egui::Context, app: &mut PlumaApp, f: impl FnMut(&mut PlumaApp, &mut egui::Ui)) -> Vec<String> {
     frame_events(ctx, app, vec![], f).into_iter().map(|(s, _)| s).collect()
 }
 
 /// One headless frame with input `events`: every text drawn, with its screen rect.
 pub(super) fn frame_events(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     events: Vec<egui::Event>,
-    f: impl FnMut(&mut VectorcraftApp, &mut egui::Ui),
+    f: impl FnMut(&mut PlumaApp, &mut egui::Ui),
 ) -> Vec<(String, egui::Rect)> {
     frame_raw(ctx, app, egui::RawInput { events, ..Default::default() }, f)
 }
@@ -41,9 +41,9 @@ pub(super) fn frame_events(
 /// One headless frame with input `raw`: every text drawn, with its screen rect.
 pub(super) fn frame_raw(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     raw: egui::RawInput,
-    mut f: impl FnMut(&mut VectorcraftApp, &mut egui::Ui),
+    mut f: impl FnMut(&mut PlumaApp, &mut egui::Ui),
 ) -> Vec<(String, egui::Rect)> {
     let mut out = ctx.run_ui(raw, |ui| f(app, ui));
     out.textures_delta.clear();
@@ -62,7 +62,7 @@ pub(super) fn frame_raw(
 }
 
 /// Click at `pos` over three frames of `f` (hover, press, release).
-pub(super) fn click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, mut f: impl FnMut(&mut VectorcraftApp, &mut egui::Ui)) {
+pub(super) fn click(ctx: &egui::Context, app: &mut PlumaApp, pos: egui::Pos2, mut f: impl FnMut(&mut PlumaApp, &mut egui::Ui)) {
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     for e in [egui::Event::PointerMoved(pos), button(true), button(false)] {
         frame_events(ctx, app, vec![e], &mut f);
@@ -110,7 +110,7 @@ fn cmd_slash_is_add_new_fill_and_cmd_alt_slash_add_new_stroke() {
     use crate::shortcut_editor::{command_for_key, default_command_shortcut};
     let mac = cfg!(target_os = "macos");
     let (cmd, alt) = (egui::Modifiers::COMMAND, egui::Modifiers::ALT);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     for (id, key, label, mods, shown) in [
         ("appearance.addFill", "Cmd+/", "Add New Fill", cmd, if mac { "⌘/" } else { "Ctrl+/" }),
         ("appearance.addStroke", "Cmd+Alt+/", "Add New Stroke", cmd | alt, if mac { "⌥⌘/" } else { "Ctrl+Alt+/" }),
@@ -132,14 +132,14 @@ fn cmd_slash_is_add_new_fill_and_cmd_alt_slash_add_new_stroke() {
 /// and on type. With nothing selected the buttons are off, and the keys leave the objects as they are.
 #[test]
 fn cmd_slash_adds_a_fill_and_cmd_alt_slash_a_stroke_as_the_panel_buttons_do() {
-    fn press(app: &mut VectorcraftApp, modifiers: egui::Modifiers) {
+    fn press(app: &mut PlumaApp, modifiers: egui::Modifiers) {
         let ctx = egui::Context::default();
         let ev = egui::Event::Key { key: egui::Key::Slash, physical_key: None, pressed: true, repeat: false, modifiers };
         let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
         out.textures_delta.clear();
     }
     /// The Appearance panel's button named `label`: the center of its rect and whether it is on.
-    fn button(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) -> (egui::Pos2, bool) {
+    fn button(ctx: &egui::Context, app: &mut PlumaApp, label: &str) -> (egui::Pos2, bool) {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| appearance::show(app, ui));
         out.textures_delta.clear();
         let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
@@ -151,7 +151,7 @@ fn cmd_slash_adds_a_fill_and_cmd_alt_slash_a_stroke_as_the_panel_buttons_do() {
         (egui::pos2((b.x0 + b.x1) as f32 * 0.5, (b.y0 + b.y1) as f32 * 0.5), !n.is_disabled())
     }
     /// A rectangle and a line of type, with the rectangle (`type_too`: both) selected.
-    fn two_objects(type_too: bool) -> (VectorcraftApp, Vec<Value>) {
+    fn two_objects(type_too: bool) -> (PlumaApp, Vec<Value>) {
         let mut app = app_with_rect();
         let rect = first_selected(&app).expect("the rectangle").id.0;
         let text = run(&mut app, "text.create", json!({"x": 10, "y": 150, "text": "Hi"}))["id"].clone();
@@ -159,9 +159,9 @@ fn cmd_slash_adds_a_fill_and_cmd_alt_slash_a_stroke_as_the_panel_buttons_do() {
         run(&mut app, "select.set", json!({ "ids": ids }));
         (app, vec![json!(rect), text])
     }
-    let stacks = |app: &VectorcraftApp, ids: &[Value]| -> Vec<vectorcraft_doc::Appearance> {
+    let stacks = |app: &PlumaApp, ids: &[Value]| -> Vec<pluma_doc::Appearance> {
         let d = &app.session.active().expect("a document").doc;
-        ids.iter().map(|id| (*d.node(vectorcraft_doc::NodeId(id.as_u64().expect("an id"))).expect("the object").appearance).clone()).collect()
+        ids.iter().map(|id| (*d.node(pluma_doc::NodeId(id.as_u64().expect("an id"))).expect("the object").appearance).clone()).collect()
     };
     let cmd = egui::Modifiers::COMMAND;
     for (type_too, mods, label, fill) in [
@@ -209,7 +209,7 @@ fn cmd_slash_adds_a_fill_and_cmd_alt_slash_a_stroke_as_the_panel_buttons_do() {
 fn add_new_fill_and_stroke_are_off_without_a_selection() {
     let mut app = app_with_rect();
     let rect = first_selected(&app).expect("the rectangle").id;
-    let items = |app: &VectorcraftApp| app.session.active().expect("a document").doc.node(rect).expect("the rectangle").appearance.items.len();
+    let items = |app: &PlumaApp| app.session.active().expect("a document").doc.node(rect).expect("the rectangle").appearance.items.len();
     assert!(crate::menus::enabled(&app, "appearance.addFill") && crate::menus::enabled(&app, "appearance.addStroke"));
     run(&mut app, "select.none", json!({}));
     let before = items(&app);
@@ -252,7 +252,7 @@ fn item_effect_rows_toggle_their_eye() {
     // The eye sits in the first column of the effect's row (the label is indented one level).
     let eye = egui::pos2(label.left() - 12.0 - 24.0 - appearance::EYE_W / 2.0, label.center().y);
     click(&ctx, &mut app, eye, appearance::show);
-    let visible = |app: &VectorcraftApp| current_stroke_effects(app)[0].visible;
+    let visible = |app: &PlumaApp| current_stroke_effects(app)[0].visible;
     assert!(!visible(&app));
     click(&ctx, &mut app, eye, appearance::show);
     assert!(visible(&app));
@@ -262,14 +262,14 @@ fn item_effect_rows_toggle_their_eye() {
 }
 
 /// The effects of the selected object's stroke (item 1).
-fn current_stroke_effects(app: &VectorcraftApp) -> Vec<vectorcraft_doc::Effect> {
+fn current_stroke_effects(app: &PlumaApp) -> Vec<pluma_doc::Effect> {
     first_selected(app).unwrap().appearance.items[1].effects().clone()
 }
 
 /// The blend mode list's separators come before the first mode of each group.
 #[test]
 fn blend_separators_follow_the_groups() {
-    use vectorcraft_color::BlendMode;
+    use pluma_color::BlendMode;
     let starts: Vec<BlendMode> =
         (0..BlendMode::ALL.len()).filter(|i| crate::widgets::blend_separator_before(*i)).map(|i| BlendMode::ALL[i]).collect();
     assert_eq!(starts, [BlendMode::Darken, BlendMode::Lighten, BlendMode::Overlay, BlendMode::Difference, BlendMode::Hue]);
@@ -324,12 +324,12 @@ fn object_row_names_the_selection_like_the_control_bar() {
 }
 
 /// The Appearance panel's button named `label`: the center of its rect (`ctx` needs accesskit on).
-fn panel_button(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) -> egui::Pos2 {
+fn panel_button(ctx: &egui::Context, app: &mut PlumaApp, label: &str) -> egui::Pos2 {
     panel_button_in(ctx, app, label, appearance::show)
 }
 
 /// [`panel_button`] in a frame of `f`.
-fn panel_button_in(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, f: fn(&mut VectorcraftApp, &mut egui::Ui)) -> egui::Pos2 {
+fn panel_button_in(ctx: &egui::Context, app: &mut PlumaApp, label: &str, f: fn(&mut PlumaApp, &mut egui::Ui)) -> egui::Pos2 {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| f(app, ui));
     out.textures_delta.clear();
     let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;
@@ -342,7 +342,7 @@ fn panel_button_in(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, f
 }
 
 /// Drag from `a` to `b` in the Appearance panel: press, move past the drag threshold, move, release.
-fn drag_in_panel(ctx: &egui::Context, app: &mut VectorcraftApp, a: egui::Pos2, b: egui::Pos2) {
+fn drag_in_panel(ctx: &egui::Context, app: &mut PlumaApp, a: egui::Pos2, b: egui::Pos2) {
     let button = |pos, pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     for e in [
         vec![egui::Event::PointerMoved(a)],
@@ -357,21 +357,21 @@ fn drag_in_panel(ctx: &egui::Context, app: &mut VectorcraftApp, a: egui::Pos2, b
 }
 
 /// A point on the row whose label is the `nth` drawn `label`, clear of its eye, swatch and fields.
-fn row_point(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, nth: usize) -> egui::Pos2 {
+fn row_point(ctx: &egui::Context, app: &mut PlumaApp, label: &str, nth: usize) -> egui::Pos2 {
     let texts = frame_events(ctx, app, vec![], appearance::show);
     let r = texts.iter().filter(|(t, _)| t == label).nth(nth).unwrap_or_else(|| panic!("no {label:?} #{nth}: {texts:?}")).1;
     egui::pos2(r.left() + 400.0, r.center().y)
 }
 
 /// The selected object's fills/strokes as (is fill, stroke weight).
-fn stack_items(app: &VectorcraftApp) -> Vec<(bool, Option<f32>)> {
+fn stack_items(app: &PlumaApp) -> Vec<(bool, Option<f32>)> {
     first_selected(app)
         .unwrap()
         .appearance
         .items
         .iter()
         .map(|it| match it {
-            vectorcraft_doc::AppearanceItem::Stroke(s) => (false, Some(s.width as f32)),
+            pluma_doc::AppearanceItem::Stroke(s) => (false, Some(s.width as f32)),
             _ => (true, None),
         })
         .collect()
@@ -466,7 +466,7 @@ fn effect_rows_dropped_on_delete_or_duplicate() {
 /// A row released outside the panel changes nothing either, and the next drop still works.
 #[test]
 fn contents_rows_and_drops_elsewhere_change_nothing() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
     let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
@@ -519,7 +519,7 @@ fn a_row_held_over_delete_outlines_it_as_layers_does() {
 }
 
 /// Click at `pos` with modifiers `m` held (hover, press, release).
-fn click_mod(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, m: egui::Modifiers) {
+fn click_mod(ctx: &egui::Context, app: &mut PlumaApp, pos: egui::Pos2, m: egui::Modifiers) {
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: m };
     for e in [egui::Event::PointerMoved(pos), button(true), button(false)] {
         frame_events(ctx, app, vec![egui::Event::ModifiersChanged(m), e], appearance::show);
@@ -528,12 +528,12 @@ fn click_mod(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, m: 
 }
 
 /// The selected object's own effect ids, in order.
-fn object_effects(app: &VectorcraftApp) -> Vec<String> {
+fn object_effects(app: &PlumaApp) -> Vec<String> {
     first_selected(app).unwrap().appearance.effects.iter().map(|e| e.id.clone()).collect()
 }
 
 /// A rectangle with Outer Glow, Drop Shadow and Twist on the object.
-fn rect_with_three_effects() -> VectorcraftApp {
+fn rect_with_three_effects() -> PlumaApp {
     let mut app = app_with_rect();
     for e in ["stylize.outerGlow", "stylize.dropShadow", "distort.twist"] {
         run(&mut app, "effect.apply", json!({"effect": e, "item": null}));
@@ -567,7 +567,7 @@ fn effect_rows_follow_the_layers_click_rules() {
     let mut app = rect_with_three_effects();
     let ctx = drop_ctx();
     let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
-    let row = |ctx: &egui::Context, app: &mut VectorcraftApp, name: &str| row_point(ctx, app, name, 0);
+    let row = |ctx: &egui::Context, app: &mut PlumaApp, name: &str| row_point(ctx, app, name, 0);
     // Shift from Outer Glow to Twist: all three.
     let (glow, twist) = (row(&ctx, &mut app, "Outer Glow"), row(&ctx, &mut app, "Twist"));
     click_mod(&ctx, &mut app, glow, egui::Modifiers::NONE);
@@ -619,7 +619,7 @@ fn fill_and_stroke_rows_range_from_the_anchor() {
     run(&mut app, "stroke.set", json!({"item": 3, "weight": 3}));
     let ctx = drop_ctx();
     let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
-    let stroke = |ctx: &egui::Context, app: &mut VectorcraftApp, nth| row_point(ctx, app, "Stroke:", nth);
+    let stroke = |ctx: &egui::Context, app: &mut PlumaApp, nth| row_point(ctx, app, "Stroke:", nth);
     let (s1, s3) = (stroke(&ctx, &mut app, 2), stroke(&ctx, &mut app, 0));
     click_mod(&ctx, &mut app, s1, egui::Modifiers::NONE);
     click_mod(&ctx, &mut app, s3, egui::Modifiers::COMMAND);
@@ -632,12 +632,12 @@ fn fill_and_stroke_rows_range_from_the_anchor() {
 }
 
 /// The panel in a 300×500 pt area at the top left, so clicks can land outside it.
-fn boxed_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn boxed_panel(app: &mut PlumaApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| appearance::show(app, ui));
 }
 
 /// One frame of the boxed panel with `key` pressed.
-fn key_frame(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key) {
+fn key_frame(ctx: &egui::Context, app: &mut PlumaApp, key: egui::Key) {
     let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
     frame_events(ctx, app, vec![ev], boxed_panel);
 }
@@ -672,8 +672,8 @@ fn delete_and_backspace_remove_the_highlighted_rows_after_a_click_in_the_panel()
 
 /// A selected group listed top-down `S3, FA, Contents, S1, F0` (fills red F0 and green FA, strokes
 /// 1 and 3 pt; paint order F0 S1 FA S3).
-fn straddling_group() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn straddling_group() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
     let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
@@ -692,15 +692,15 @@ fn straddling_group() -> VectorcraftApp {
 }
 
 /// The group's items, paint order (F0/FA by colour, S<weight>), and how many paint below Contents.
-fn group_stack(app: &VectorcraftApp) -> (Vec<&'static str>, usize) {
+fn group_stack(app: &PlumaApp) -> (Vec<&'static str>, usize) {
     let ap = first_selected(app).unwrap().appearance.clone();
-    let red = vectorcraft_color::Paint::solid(vectorcraft_color::Color::from_hex("#ff0000").unwrap());
+    let red = pluma_color::Paint::solid(pluma_color::Color::from_hex("#ff0000").unwrap());
     let names = ap
         .items
         .iter()
         .map(|it| match it {
-            vectorcraft_doc::AppearanceItem::Stroke(st) if st.width == 1.0 => "S1",
-            vectorcraft_doc::AppearanceItem::Stroke(_) => "S3",
+            pluma_doc::AppearanceItem::Stroke(st) if st.width == 1.0 => "S1",
+            pluma_doc::AppearanceItem::Stroke(_) => "S3",
             it if *it.paint() == red => "F0",
             _ => "FA",
         })
@@ -787,12 +787,12 @@ fn dragged_rows_show_a_dimmed_copy_of_the_first_highlighted_row() {
 }
 
 /// One frame at time `t` (seconds) with `events`: the texts drawn.
-fn timed_frame(ctx: &egui::Context, app: &mut VectorcraftApp, t: f64, events: Vec<egui::Event>) -> Vec<String> {
+fn timed_frame(ctx: &egui::Context, app: &mut PlumaApp, t: f64, events: Vec<egui::Event>) -> Vec<String> {
     frame_raw(ctx, app, egui::RawInput { events, time: Some(t), ..Default::default() }, appearance::show).into_iter().map(|(s, _)| s).collect()
 }
 
 /// The tooltip shown after resting the pointer on `pos`.
-fn tooltip_at(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2) -> Vec<String> {
+fn tooltip_at(ctx: &egui::Context, app: &mut PlumaApp, pos: egui::Pos2) -> Vec<String> {
     let t = ctx.input(|i| i.time) + 1.0;
     timed_frame(ctx, app, t, vec![egui::Event::PointerMoved(pos)]);
     timed_frame(ctx, app, t + 2.0, vec![]);
@@ -800,7 +800,7 @@ fn tooltip_at(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2) ->
 }
 
 /// Double-click at `pos` (two quick clicks).
-fn double_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2) {
+fn double_click(ctx: &egui::Context, app: &mut PlumaApp, pos: egui::Pos2) {
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     let t = ctx.input(|i| i.time) + 1.0;
     for (i, e) in [egui::Event::PointerMoved(pos), button(true), button(false), button(true), button(false)].into_iter().enumerate() {
@@ -858,7 +858,7 @@ fn transform_effect_name_edits_the_displayed_appearance_target() {
         let text = crate::tests_labels::painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
         assert!(text.lines().any(|s| s == "Transform"), "{text}");
         assert!(app.session.in_interaction());
-        let rendered = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+        let rendered = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
         assert_eq!(rendered.over_white(30, 50), [255, 255, 255], "{target_kind}: original position");
         assert_eq!(rendered.over_white(130, 50), [255, 0, 0], "{target_kind}: transformed position");
         crate::dialogs::confirm(&mut app).unwrap();
@@ -887,7 +887,7 @@ fn transform_effect_dialog_reads_the_selected_compound_members_owner() {
         d.fields.insert("moveH".into(), json!(35));
         crate::tests_labels::painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
         crate::dialogs::confirm(&mut app).unwrap();
-        let effects = &app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(compound)).unwrap().appearance;
+        let effects = &app.session.doc().unwrap().doc.node(pluma_doc::NodeId(compound)).unwrap().appearance;
         assert_eq!(effects.effects_at(item).unwrap()[0].params["moveH"].as_f64(), Some(35.0));
         assert_eq!(effects.effects_at(item).unwrap()[0].params["copies"].as_f64(), Some(2.0));
         app.run("edit.undo", json!({})).unwrap();
@@ -899,7 +899,7 @@ fn transform_effect_dialog_reads_the_selected_compound_members_owner() {
         d.fields.insert("moveH".into(), json!(60));
         crate::tests_labels::painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
         crate::dialogs::cancel(&mut app);
-        let effects = &app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(compound)).unwrap().appearance;
+        let effects = &app.session.doc().unwrap().doc.node(pluma_doc::NodeId(compound)).unwrap().appearance;
         assert_eq!(effects.effects_at(item).unwrap()[0].params["moveH"].as_f64(), Some(12.0));
     }
 }
@@ -972,7 +972,7 @@ fn editing_an_active_effect_keeps_aligned_rows_in_mixed_stacks() {
     crate::tests_labels::painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
     crate::dialogs::confirm(&mut app).unwrap();
     let doc = &app.session.doc().unwrap().doc;
-    let front = &doc.node(vectorcraft_doc::NodeId(front)).unwrap().appearance;
+    let front = &doc.node(pluma_doc::NodeId(front)).unwrap().appearance;
     let back = &doc.node(back).unwrap().appearance;
     assert_eq!(front.effects_at(Some(0)).unwrap()[0].params["moveH"], 35);
     assert_eq!(back.effects_at(Some(1)).unwrap()[0].params["moveH"], 35);
@@ -1053,7 +1053,7 @@ fn transform_effect_typed_scale_changes_the_painted_object() {
         assert!(app.ui.dialog.is_none());
         let doc = &app.session.doc().unwrap().doc;
         assert_eq!(doc.node(target).unwrap().appearance.effects[0].params["scaleH"].as_f64(), Some(50.0));
-        let rendered = vectorcraft_testkit::raster::render_artboard(doc);
+        let rendered = pluma_testkit::raster::render_artboard(doc);
         assert_eq!(rendered.over_white(20, 50), [255, 255, 255], "layer target: {layer_target}");
         assert_eq!(rendered.over_white(50, 50), [255, 0, 0], "layer target: {layer_target}");
     }
@@ -1061,12 +1061,12 @@ fn transform_effect_typed_scale_changes_the_painted_object() {
 
 #[test]
 fn transform_effect_preview_commit_cancel_and_undo_cover_artwork_targets() {
-    use vectorcraft_testkit::raster::{Image, render_artboard};
+    use pluma_testkit::raster::{Image, render_artboard};
     let rightmost =
         |image: &Image| (0..image.width).rev().find(|&x| (0..image.height).any(|y| image.over_white(x, y).iter().any(|&c| c < 245))).unwrap();
     for kind in ["object", "fill", "stroke", "group", "layer", "text", "image"] {
         for preview in [true, false] {
-            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            let mut app = PlumaApp::new(Session::new(), Default::default());
             app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
             match kind {
                 "text" => {
@@ -1077,11 +1077,8 @@ fn transform_effect_preview_commit_cancel_and_undo_cover_artwork_targets() {
                     image::RgbaImage::from_pixel(20, 20, image::Rgba([255, 0, 0, 255]))
                         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
                         .unwrap();
-                    app.run(
-                        "file.place",
-                        json!({"name": "red.png", "dataBase64": vectorcraft_format::base64_encode(&png), "link": false, "at": [30, 70]}),
-                    )
-                    .unwrap();
+                    app.run("file.place", json!({"name": "red.png", "dataBase64": pluma_format::base64_encode(&png), "link": false, "at": [30, 70]}))
+                        .unwrap();
                 }
                 _ => {
                     app.run("shape.rectangle", json!({"x": 20, "y": 60, "width": 20, "height": 20})).unwrap();
@@ -1147,7 +1144,7 @@ fn transform_effect_preview_commit_cancel_and_undo_cover_artwork_targets() {
 
 #[test]
 fn transform_effect_copies_preview_while_the_field_is_still_focused() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.prefs.units_general = "cm".into();
     app.run("file.new", json!({"width": 400, "height": 1200})).unwrap();
     assert_eq!(app.session.general_unit(), Unit::named("cm").unwrap());
@@ -1179,10 +1176,10 @@ fn transform_effect_copies_preview_while_the_field_is_still_focused() {
     assert_eq!(app.ui.dialog.as_ref().unwrap().f64("copies", 0.0), 30.0);
     let effect = &app.session.doc().unwrap().doc.node(target).unwrap().appearance.items[0].effects()[1];
     assert_eq!(effect.params["copies"].as_f64(), Some(30.0));
-    let rendered = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+    let rendered = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
     assert!(rendered.over_white(30, 600).iter().any(|&c| c < 245), "the focused field must update the visible copy stack");
     crate::dialogs::cancel(&mut app);
-    let restored = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+    let restored = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
     assert_eq!(restored.over_white(30, 600), [255, 255, 255]);
 }
 
@@ -1199,7 +1196,7 @@ fn transform_effect_live_fields_keep_partial_text_and_honor_preview() {
     ];
     for (key, shown, index, chunks, expected) in cases {
         for preview in [true, false] {
-            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            let mut app = PlumaApp::new(Session::new(), Default::default());
             app.session.prefs.units_general = "cm".into();
             app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
             app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 30})).unwrap();
@@ -1207,7 +1204,7 @@ fn transform_effect_live_fields_keep_partial_text_and_honor_preview() {
             let params = if key == "copies" { json!({"moveH": 20}) } else { json!({}) };
             app.run("effect.apply", json!({"effect": "distort.transform", "item": null, "params": params})).unwrap();
             let target = app.session.doc().unwrap().selection.subjects()[0];
-            let baseline = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+            let baseline = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
             app.run("effect.dialog", json!({"effect": "distort.transform", "item": null, "index": 0})).unwrap();
             app.ui.dialog.as_mut().unwrap().fields.insert("preview".into(), json!(preview));
             let ctx = drop_ctx();
@@ -1232,7 +1229,7 @@ fn transform_effect_live_fields_keep_partial_text_and_honor_preview() {
             }
             let held = app.ui.dialog.as_ref().unwrap().f64(key, f64::NAN);
             assert!((held - expected).abs() < 1e-8, "{key}, Preview {preview}: {held} != {expected}");
-            let rendered = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+            let rendered = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
             if preview {
                 let applied = app.session.doc().unwrap().doc.node(target).unwrap().appearance.effects[0].params[key].as_f64().unwrap();
                 assert!((applied - expected).abs() < 1e-8, "{key}: preview parameters");
@@ -1246,15 +1243,11 @@ fn transform_effect_live_fields_keep_partial_text_and_honor_preview() {
             let applied = app.session.doc().unwrap().doc.node(target).unwrap().appearance.effects[0].params[key].as_f64().unwrap();
             assert!((applied - expected).abs() < 1e-8, "{key}: confirmed parameters");
             if preview {
-                assert_eq!(
-                    vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba,
-                    rendered.rgba,
-                    "{key}: OK matches preview"
-                );
+                assert_eq!(pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, rendered.rgba, "{key}: OK matches preview");
             }
-            assert_ne!(vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: OK");
+            assert_ne!(pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: OK");
             app.run("edit.undo", json!({})).unwrap();
-            assert_eq!(vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: undo");
+            assert_eq!(pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: undo");
         }
     }
 }
@@ -1267,12 +1260,12 @@ fn transform_effect_sliders_update_the_painted_preview_and_cancel() {
         ("moveH", "Horizontal:", 1, 0.55, 100.0, 20.0),
         ("moveV", "Vertical:", 1, 0.55, 100.0, 20.0),
     ] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 30})).unwrap();
         app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
         app.run("effect.apply", json!({"effect": "distort.transform", "item": null})).unwrap();
-        let baseline = vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
+        let baseline = pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc);
         app.run("effect.dialog", json!({"effect": "distort.transform", "item": null, "index": 0})).unwrap();
         let ctx = drop_ctx();
         crate::theme::install_fonts(&ctx);
@@ -1297,9 +1290,9 @@ fn transform_effect_sliders_update_the_painted_preview_and_cancel() {
         click(&ctx, &mut app, at, |app, ui| crate::dialogs::show(app, ui.ctx()));
         let value = app.ui.dialog.as_ref().unwrap().f64(key, f64::NAN);
         assert!((value - expected).abs() <= tolerance, "{key}: {value}");
-        assert_ne!(vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: slider preview");
+        assert_ne!(pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: slider preview");
         crate::dialogs::cancel(&mut app);
-        assert_eq!(vectorcraft_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: Cancel");
+        assert_eq!(pluma_testkit::raster::render_artboard(&app.session.doc().unwrap().doc).rgba, baseline.rgba, "{key}: Cancel");
     }
 }
 
@@ -1332,7 +1325,7 @@ fn fill_and_stroke_labels_are_links_and_their_empty_space_only_highlights() {
 
 /// One app-like frame: the global shortcuts first, then the panel `f` in a 300×500 area (as the app
 /// runs `shortcuts::handle` in `logic` before the panels draw).
-fn app_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn app_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, f: fn(&mut PlumaApp, &mut egui::Ui)) {
     let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
         crate::shortcuts::handle(app, ui.ctx());
         ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| f(app, ui));
@@ -1341,7 +1334,7 @@ fn app_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Ev
 }
 
 /// A click at `pos` in app-like frames of `f` ([`app_frame`]): hover, press, release, then a frame with the pointer still there.
-fn app_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn app_click(ctx: &egui::Context, app: &mut PlumaApp, pos: egui::Pos2, f: fn(&mut PlumaApp, &mut egui::Ui)) {
     let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     for e in [egui::Event::PointerMoved(pos), button(true), button(false), egui::Event::PointerMoved(pos)] {
         app_frame(ctx, app, vec![e], f);
@@ -1349,13 +1342,13 @@ fn app_click(ctx: &egui::Context, app: &mut VectorcraftApp, pos: egui::Pos2, f: 
 }
 
 /// `key` pressed and released in one app-like frame of `f`, with no idle frame after it.
-fn app_key_now(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn app_key_now(ctx: &egui::Context, app: &mut PlumaApp, key: egui::Key, f: fn(&mut PlumaApp, &mut egui::Ui)) {
     let ev = |pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
     app_frame(ctx, app, vec![ev(true), ev(false)], f);
 }
 
 /// `key` pressed and released in an app-like frame of `f`, then one more frame.
-fn app_key(ctx: &egui::Context, app: &mut VectorcraftApp, key: egui::Key, f: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn app_key(ctx: &egui::Context, app: &mut PlumaApp, key: egui::Key, f: fn(&mut PlumaApp, &mut egui::Ui)) {
     app_key_now(ctx, app, key, f);
     app_frame(ctx, app, vec![], f);
 }
@@ -1411,7 +1404,7 @@ fn after_a_name_click_delete_reaches_the_appearance_panel_not_edit_clear() {
 #[test]
 fn after_a_contents_click_delete_removes_nothing() {
     let group = || {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         run(&mut app, "file.new", json!({"width": 100, "height": 100}));
         let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
         let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
@@ -1421,7 +1414,7 @@ fn after_a_contents_click_delete_removes_nothing() {
         app
     };
     let type_object = || {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         run(&mut app, "file.new", json!({"width": 100, "height": 100}));
         let t = run(&mut app, "text.create", json!({"x": 10, "y": 50, "text": "Hi"}))["id"].clone();
         run(&mut app, "select.set", json!({"ids": [t]}));
@@ -1465,7 +1458,7 @@ fn after_a_shift_click_on_a_swatch_delete_removes_its_row() {
 }
 
 /// The Layers panel in a 300×500 pt area at the top left, so clicks can land outside it.
-fn boxed_layers(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn boxed_layers(app: &mut PlumaApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::layers::show(app, ui));
 }
 
@@ -1579,7 +1572,7 @@ fn the_opacity_label_opens_the_transparency_panel_on_its_row() {
 }
 
 /// Whether each control named in `labels` is on in a frame of `f` (by its accessibility node).
-fn controls_on(app: &mut VectorcraftApp, labels: &[&str], f: fn(&mut VectorcraftApp, &mut egui::Ui)) -> Vec<bool> {
+fn controls_on(app: &mut PlumaApp, labels: &[&str], f: fn(&mut PlumaApp, &mut egui::Ui)) -> Vec<bool> {
     let ctx = drop_ctx();
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| f(app, ui));
     out.textures_delta.clear();
@@ -1612,7 +1605,7 @@ fn the_transparency_panel_greys_out_object_controls_for_a_fill_or_stroke() {
 
 /// The texts drawn on the highlighted rows of a frame of the panel (rows filled with the
 /// `row_selected` colour), top-down.
-fn lit_texts(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
+fn lit_texts(ctx: &egui::Context, app: &mut PlumaApp) -> Vec<String> {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| appearance::show(app, ui));
     out.textures_delta.clear();
     let lit = crate::theme::Tokens::get(ctx).row_selected;
@@ -1708,7 +1701,7 @@ fn flyout_ctx() -> egui::Context {
 
 /// The frame of the Appearance panel, 300 points wide at the window's left edge, with a row's popup
 /// beside it, as the app draws them.
-fn panel_and_flyout(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn panel_and_flyout(app: &mut PlumaApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| appearance::show(app, ui));
 }
 
@@ -1785,7 +1778,7 @@ fn a_row_link_to_a_panel_in_sight_opens_no_popup() {
 /// on a press outside it.
 #[test]
 fn characters_opens_the_character_panel() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let t = run(&mut app, "text.create", json!({"x": 0, "y": 60, "text": "Hi"}))["id"].clone();
     run(&mut app, "select.set", json!({"ids": [t]}));
@@ -1802,7 +1795,7 @@ fn characters_opens_the_character_panel() {
 
 /// The point of the control named `label` (by its accessibility node) in an [`app_frame`] of `f`
 /// (the same frame, so popups `f` opened in one stay open).
-fn control_at(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, f: fn(&mut VectorcraftApp, &mut egui::Ui)) -> Option<egui::Pos2> {
+fn control_at(ctx: &egui::Context, app: &mut PlumaApp, label: &str, f: fn(&mut PlumaApp, &mut egui::Ui)) -> Option<egui::Pos2> {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
         crate::shortcuts::handle(app, ui.ctx());
         ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| f(app, ui));
@@ -1818,7 +1811,7 @@ fn control_at(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, f: fn(
 /// fill or stroke. "Fill:" and "Stroke:" make theirs the Color panel's paint too.
 #[test]
 fn with_nothing_selected_the_swatches_set_up_new_art() {
-    let swatch = |app: &VectorcraftApp| app.session.active().unwrap().doc.swatches.iter().find(|s| !s.paint.is_none()).unwrap().clone();
+    let swatch = |app: &PlumaApp| app.session.active().unwrap().doc.swatches.iter().find(|s| !s.paint.is_none()).unwrap().clone();
     for (label, fill) in [("Fill:", true), ("Stroke:", false)] {
         let mut app = app_with_rect();
         run(&mut app, "select.set", json!({"ids": []}));
@@ -1881,7 +1874,7 @@ fn the_stroke_weight_has_the_stroke_panels_arrows_and_presets() {
         if !selected {
             run(&mut app, "select.set", json!({"ids": []}));
         }
-        let width = |app: &VectorcraftApp| {
+        let width = |app: &PlumaApp| {
             if selected { first_selected(app).unwrap().appearance.stroke().unwrap().width } else { app.session.new_art().stroke().unwrap().width }
         };
         let ctx = drop_ctx();
@@ -1904,7 +1897,7 @@ fn the_stroke_weight_has_the_stroke_panels_arrows_and_presets() {
 fn stroke_weights_step_by_quarters_below_one() {
     let mut app = app_with_rect();
     run(&mut app, "stroke.set", json!({"weight": 0.3}));
-    let weight = |app: &VectorcraftApp| first_selected(app).unwrap().appearance.stroke().unwrap().width;
+    let weight = |app: &PlumaApp| first_selected(app).unwrap().appearance.stroke().unwrap().width;
     let ctx = drop_ctx();
     let arrows = control_at(&ctx, &mut app, "Step up or down", boxed_panel).unwrap();
     app_click(&ctx, &mut app, arrows - egui::vec2(0.0, 6.0), boxed_panel);
@@ -1914,7 +1907,7 @@ fn stroke_weights_step_by_quarters_below_one() {
     // The Stroke panel's field, focused, with ↓.
     run(&mut app, "stroke.set", json!({"weight": 1}));
     /// The Stroke panel in a 300×500 pt area at the top left.
-    fn stroke_panel(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+    fn stroke_panel(app: &mut PlumaApp, ui: &mut egui::Ui) {
         ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| super::stroke::show(app, ui));
     }
     let ctx = drop_ctx();
@@ -1969,7 +1962,7 @@ fn a_drop_on_delete_above_the_active_effect_keeps_the_highlight_on_its_rows() {
 
 /// Whether Duplicate Selected Item and Delete Selected Item are enabled in a frame of the panel
 /// with input `events`.
-fn drop_buttons_on(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> [bool; 2] {
+fn drop_buttons_on(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> [bool; 2] {
     let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| appearance::show(app, ui));
     out.textures_delta.clear();
     let nodes = &out.platform_output.accesskit_update.as_ref().expect("an accessibility tree").nodes;

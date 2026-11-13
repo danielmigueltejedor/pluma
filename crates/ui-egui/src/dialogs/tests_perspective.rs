@@ -1,37 +1,37 @@
 //! Perspective Grid dialogs: Define Grid, the presets manager and the tool options.
 
+use pluma_engine::Session;
+use pluma_tools::distort::perspective::PerspectiveGrid;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_tools::distort::perspective::PerspectiveGrid;
 
-use crate::{VectorcraftApp, theme};
+use crate::{PlumaApp, theme};
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 800, "height": 600})).unwrap();
     app
 }
 
-fn kind(app: &VectorcraftApp) -> Option<&str> {
+fn kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
-fn field(app: &VectorcraftApp, k: &str) -> Value {
+fn field(app: &PlumaApp, k: &str) -> Value {
     app.ui.dialog.as_ref().and_then(|d| d.fields.get(k).cloned()).unwrap_or_default()
 }
 
-fn set(app: &mut VectorcraftApp, k: &str, v: Value) {
+fn set(app: &mut PlumaApp, k: &str, v: Value) {
     app.ui.dialog.as_mut().expect("a dialog is open").fields.insert(k.into(), v);
 }
 
-fn grid(app: &VectorcraftApp) -> PerspectiveGrid {
+fn grid(app: &PlumaApp) -> PerspectiveGrid {
     PerspectiveGrid::effective(&app.session.active().unwrap().doc)
 }
 
@@ -79,7 +79,7 @@ fn define_grid_takes_a_three_digit_color() {
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
     // One frame of the dialog layer: every text drawn, with its center.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::show(app, ui.ctx()));
         out.textures_delta.clear();
         fn collect(s: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
@@ -163,7 +163,7 @@ fn the_presets_manager_creates_edits_and_deletes_presets() {
     let mut app = app();
     app.run("ui.perspectivePresetsDialog", json!({"selected": "[3P-Normal View]"})).unwrap();
     frame(&mut app);
-    let press = |app: &mut VectorcraftApp, act: Action, current: &str| {
+    let press = |app: &mut PlumaApp, act: Action, current: &str| {
         let mut d = app.ui.dialog.take().unwrap();
         perspective_presets::run(app, &mut d, act, current).unwrap();
         app.ui.dialog = Some(d);
@@ -254,7 +254,7 @@ fn double_clicking_the_tool_opens_perspective_grid_options() {
 fn digit_keys_switch_planes_and_the_widget_follows_the_window() {
     let mut app = app();
     app.run("perspective.grid.preset", json!({"kind": 2})).unwrap();
-    let key = |app: &mut VectorcraftApp, k: egui::Key| {
+    let key = |app: &mut PlumaApp, k: egui::Key| {
         let ctx = egui::Context::default();
         let press = egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
         let input = egui::RawInput { events: vec![press], ..Default::default() };

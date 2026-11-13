@@ -3,8 +3,8 @@
 use std::ops::RangeInclusive;
 
 use egui::{Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::Unit;
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::Unit;
 
 use crate::theme::{self, Tokens};
 use crate::{icons, scrub};
@@ -79,7 +79,7 @@ pub(crate) use wheel_stream::WHEEL_STREAM_GAP;
 pub(crate) use wheel_stream::{ArmedWheelField, WheelStream, WheelStreamOwner, taken_from_raw_id};
 
 /// A widget id salt that needs only [`std::hash::Hash`]. egui 0.37's [`egui::AsIdSalt`] also
-/// requires `Debug` for its debug-only id-source registry; VectorCraft's public field helpers do
+/// requires `Debug` for its debug-only id-source registry; Pluma's public field helpers do
 /// not need a `Debug` bound merely to salt a widget id, and never make an accessible name from it.
 #[derive(Clone, Copy)]
 struct HashOnly<T>(T);
@@ -686,7 +686,7 @@ mod menu_room_tests {
 #[cfg(test)]
 mod gradient_chip_tests {
     use super::*;
-    use vectorcraft_color::{Gradient, GradientKind, GradientPaint};
+    use pluma_color::{Gradient, GradientKind, GradientPaint};
 
     fn paint(kind: GradientKind, angle: f64) -> GradientPaint {
         let mut gp = GradientPaint::new(Gradient { kind, ..Gradient::default() });
@@ -718,8 +718,8 @@ mod gradient_chip_tests {
 
     #[test]
     fn freeform_chip_mixes_points_in_the_model_they_share() {
-        use vectorcraft_color::{Color, Freeform, FreeformPoint};
-        use vectorcraft_geom::kurbo::Point;
+        use pluma_color::{Color, Freeform, FreeformPoint};
+        use pluma_geom::kurbo::Point;
         let chip = |a: Color, b: Color| {
             let p = |x, c| FreeformPoint::new(Point::new(x, 10.0), c);
             let mut gp = paint(GradientKind::Freeform, 0.0);

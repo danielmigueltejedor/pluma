@@ -2,10 +2,10 @@
 //! shape mode, a member's mode, Release, Expand, Undo, saving and exporting; blends, envelopes and
 //! warped objects as members.
 
+use pluma_color::{BlendMode, Color};
+use pluma_doc::{Node, ShapeMode};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color};
-use vectorcraft_doc::{Node, ShapeMode};
-use vectorcraft_render::effects;
 
 use crate::*;
 
@@ -17,8 +17,8 @@ fn node(s: &Session, id: NodeId) -> Node {
     s.doc().unwrap().doc.node(id).cloned().unwrap()
 }
 
-fn area(path: &vectorcraft_geom::PathData) -> f64 {
-    vectorcraft_pathops::area(path, vectorcraft_geom::FillRule::NonZero).abs()
+fn area(path: &pluma_geom::PathData) -> f64 {
+    pluma_pathops::area(path, pluma_geom::FillRule::NonZero).abs()
 }
 
 /// The area a path or compound path fills.
@@ -164,13 +164,13 @@ fn compound_shapes_survive_a_save() {
     let (mut s, _, front) = two_squares();
     let id = NodeId(run(&mut s, "object.compoundShape.make", json!({"mode": "subtract"}))["id"].as_u64().unwrap());
     let doc = s.doc().unwrap().doc.clone();
-    let bytes = vectorcraft_format::save(&doc, false);
-    let back = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save(&doc, false);
+    let back = pluma_format::load(&bytes).unwrap();
     assert_eq!(back.node(id), doc.node(id));
     assert!(back.node(id).unwrap().is_compound_shape());
     assert_eq!(back.node(front).unwrap().extras().shape_mode, ShapeMode::Subtract);
     let text = String::from_utf8(bytes).unwrap().replace("\"shape_mode\":\"subtract\"", "\"shape_mode\":\"divide\"");
-    let odd = vectorcraft_format::load(text.as_bytes()).unwrap();
+    let odd = pluma_format::load(text.as_bytes()).unwrap();
     assert_eq!(odd.node(front).unwrap().extras().shape_mode, ShapeMode::Add);
 }
 
@@ -179,7 +179,7 @@ fn compound_shapes_survive_a_save() {
 fn svg_export_draws_the_area() {
     let (mut s, _, _) = two_squares();
     run(&mut s, "object.compoundShape.make", json!({"mode": "subtract"}));
-    let svg = vectorcraft_svg::export(&s.doc().unwrap().doc, &Default::default());
+    let svg = pluma_svg::export(&s.doc().unwrap().doc, &Default::default());
     assert!(svg.contains("#ff0000"), "the back square's red paints the area");
     assert!(!svg.contains("#0000ff"), "the front square isn't drawn: {svg}");
 }
@@ -241,7 +241,7 @@ fn a_blend_is_a_member_as_its_steps() {
         run(&mut s, "object.blend.options", json!({"spacing": "steps", "value": 3}));
         assert!((drawn(&s, id) - more).abs() < 0.5, "{mode}, three steps: {}", drawn(&s, id));
         let doc = s.doc().unwrap().doc.clone();
-        let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+        let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
         assert_eq!(back.node(id), doc.node(id));
         assert!((area(&effects::compound_shape_area(None, back.node(id).unwrap(), None).unwrap()) - more).abs() < 0.5);
         run(&mut s, "select.set", json!({"ids": [id.0]}));
@@ -270,7 +270,7 @@ fn an_envelope_is_a_member_as_its_distorted_art() {
     assert!((drawn(&s, id) - 10_100.0).abs() < 1.0, "{}", drawn(&s, id));
     // The corner at (100, 100) moved 100 to the right: a trapezoid of (100 + 200) / 2 × 100.
     let NodeKind::Envelope { kind, .. } = node(&s, env).kind else { panic!("an envelope") };
-    let vectorcraft_doc::live::EnvelopeKind::Mesh { points, .. } = *kind else { panic!("a mesh envelope") };
+    let pluma_doc::live::EnvelopeKind::Mesh { points, .. } = *kind else { panic!("a mesh envelope") };
     let index = points.iter().position(|p| (p.x - 100.0).abs() < 1e-6 && (p.y - 100.0).abs() < 1e-6).unwrap();
     run(&mut s, "object.envelope.setMeshPoint", json!({"id": env.0, "index": index, "x": 200, "y": 100}));
     assert!((drawn(&s, id) - 15_100.0).abs() < 1.0, "{}", drawn(&s, id));
@@ -296,7 +296,7 @@ fn a_warped_object_is_a_member_as_it_draws() {
     let warped = |s: &Session| {
         let n = node(s, r);
         let (path, _) = crate::cmd::pathops::node_path(&n).unwrap();
-        let bounds = vectorcraft_geom::Shape::bounding_box(&path.to_bezpath());
+        let bounds = pluma_geom::Shape::bounding_box(&path.to_bezpath());
         area(&effects::apply_geometry_with(&n.appearance.effects, &path, bounds, &effects::GeomContext::of(&n)))
     };
     let bulged = warped(&s);
@@ -353,7 +353,7 @@ fn symbol_instances_in_members_count_as_their_art() {
     assert!((drawn(&s, id) - 500.0).abs() < 1.0, "envelope: {}", drawn(&s, id));
     // The corner at (20, 20) moved 20 to the right: a trapezoid of (20 + 40) / 2 × 20.
     let NodeKind::Envelope { kind, .. } = node(&s, env).kind else { panic!("an envelope") };
-    let vectorcraft_doc::live::EnvelopeKind::Mesh { points, .. } = *kind else { panic!("a mesh envelope") };
+    let pluma_doc::live::EnvelopeKind::Mesh { points, .. } = *kind else { panic!("a mesh envelope") };
     let index = points.iter().position(|p| (p.x - 20.0).abs() < 1e-6 && (p.y - 20.0).abs() < 1e-6).unwrap();
     run(&mut s, "object.envelope.setMeshPoint", json!({"id": env.0, "index": index, "x": 40, "y": 20}));
     assert!((drawn(&s, id) - 700.0).abs() < 1.0, "envelope, distorted: {}", drawn(&s, id));
@@ -669,7 +669,7 @@ fn expanded(s: &mut Session, id: NodeId) -> f64 {
 /// a marquee with the Selection tool selects none of them, as outside isolation mode (#5309).
 #[test]
 fn a_locked_or_hidden_layer_keeps_the_isolated_compound_shape_from_clicks() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     for (prop, value) in [("locked", true), ("visible", false)] {
         let (mut s, back, _front) = two_squares();
         let id = NodeId(run(&mut s, "object.compoundShape.make", json!({}))["id"].as_u64().unwrap());

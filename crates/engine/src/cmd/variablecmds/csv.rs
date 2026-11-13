@@ -21,7 +21,7 @@ fn datasets_csv_bytes(p: &Value, cmd: &str) -> Result<(Vec<u8>, bool)> {
         // One byte past the cap is enough to refuse the file below.
         (Some(path), ..) => (read_file_head(&absolute_path(path), MAX_CSV_BYTES + 1)?, false),
         (None, Some(text), ..) => (text.as_bytes().to_vec(), true),
-        (None, None, Some(b64), _) => (vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?, false),
+        (None, None, Some(b64), _) => (pluma_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?, false),
         (None, None, None, Some(csv)) => (csv.as_bytes().to_vec(), true),
         _ => return Err(bad(cmd, "give `path`, `data`, `dataBase64` or `csv`")),
     };

@@ -1,8 +1,8 @@
 //! Rendering helpers and image comparison with a perceptual tolerance.
 
-use vectorcraft_doc::Document;
-use vectorcraft_geom::{Affine, Rect};
-use vectorcraft_render::{RenderOptions, Rendered, Renderer};
+use pluma_doc::Document;
+use pluma_geom::{Affine, Rect};
+use pluma_render::{RenderOptions, Rendered, Renderer};
 
 /// A straight-alpha RGBA8 image.
 #[derive(Clone, Debug, PartialEq)]

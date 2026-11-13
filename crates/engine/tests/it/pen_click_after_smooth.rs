@@ -1,10 +1,10 @@
 //! A click after a smooth anchor: the new corner has no handles, so the segment curves from the previous anchor's side only.
 
+use pluma_doc::NodeKind;
+use pluma_engine::{Session, ViewInfo};
+use pluma_geom::Point;
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::{Session, ViewInfo};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 #[test]
 fn click_after_a_smooth_anchor_curves_from_its_side_only() {

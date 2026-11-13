@@ -1,9 +1,9 @@
 //! Commands the panels need beyond the core set: artboard reorder, duplicate, copy and cut, and the advanced
 //! Character/Paragraph attributes.
 
+use pluma_doc::{Composer, JustificationOptions, NodeKind, Scaling, SingleWordJustify, TextRun};
+use pluma_geom::{Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Composer, JustificationOptions, NodeKind, Scaling, SingleWordJustify, TextRun};
-use vectorcraft_geom::{Rect, Vec2};
 
 use super::{Affine, CommandSpec, NodeId, Result, Session, bad, bool_or, check_switches, cmd, has_doc, index, ok, point_indices, switch_or};
 use crate::{Clipboard, EngineError};
@@ -223,14 +223,14 @@ fn artboard_switch_orientation(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The one artboard `cmd` acts on: `index`, an artboard of `d`, with the errors of
 /// [`artboard_indices`] (`missing index`, `no such artboard`).
-pub(crate) fn artboard_index(d: &vectorcraft_doc::Document, p: &Value, cmd: &str) -> Result<usize> {
+pub(crate) fn artboard_index(d: &pluma_doc::Document, p: &Value, cmd: &str) -> Result<usize> {
     let i = p.get("index").ok_or_else(|| bad(cmd, "missing index"))?;
     artboard_indices(d, &json!({ "index": i }), cmd)?.into_iter().next().ok_or_else(|| EngineError::Other("no such artboard".into()))
 }
 
 /// The artboards `cmd` acts on: `indices` (several), else `index` (one), each an artboard of `d`,
 /// in order and once each.
-pub(crate) fn artboard_indices(d: &vectorcraft_doc::Document, p: &Value, cmd: &str) -> Result<Vec<usize>> {
+pub(crate) fn artboard_indices(d: &pluma_doc::Document, p: &Value, cmd: &str) -> Result<Vec<usize>> {
     let listed = match (p.get("indices"), p.get("index")) {
         (Some(v), _) => point_indices(v),
         (None, Some(i)) => point_indices(&json!([i])),
@@ -245,7 +245,7 @@ pub(crate) fn artboard_indices(d: &vectorcraft_doc::Document, p: &Value, cmd: &s
 
 /// An error when one of artboards `indices` of `d` is locked: a locked artboard isn't moved,
 /// resized or deleted.
-pub(crate) fn refuse_locked(d: &vectorcraft_doc::Document, indices: &[usize]) -> Result<()> {
+pub(crate) fn refuse_locked(d: &pluma_doc::Document, indices: &[usize]) -> Result<()> {
     match indices.iter().any(|i| d.artboards.get(*i).is_some_and(|a| a.locked)) {
         true => Err(EngineError::Other("the artboard is locked".into())),
         false => Ok(()),
@@ -265,7 +265,7 @@ pub(crate) fn locked_and_hidden(s: &mut Session, p: &Value, art: bool, cmd: &str
 
 /// The art that goes with artboard `i` when `art`: the objects fully inside it (locked and hidden
 /// ones only when `all`), in paint order. With `moving` (a move or a cut), the art also on another
-/// locked artboard stays unless `all` ([`vectorcraft_doc::Document::art_moving_with`]); a copy
+/// locked artboard stays unless `all` ([`pluma_doc::Document::art_moving_with`]); a copy
 /// takes it.
 pub(crate) fn artboard_art(s: &Session, i: usize, art: bool, all: bool, moving: bool) -> Result<Vec<NodeId>> {
     let d = &s.doc()?.doc;
@@ -290,7 +290,7 @@ pub(crate) fn artboards_art(s: &Session, indices: &[usize], art: bool, all: bool
 }
 
 /// How far a copy of `rect` moves to sit right of the last artboard (Duplicate Artboards, Paste).
-pub(crate) fn beside_artboards(d: &vectorcraft_doc::Document, rect: Rect) -> Vec2 {
+pub(crate) fn beside_artboards(d: &pluma_doc::Document, rect: Rect) -> Vec2 {
     let right = d.artboards.iter().map(|a| a.rect.x1).fold(f64::MIN, f64::max);
     Vec2::new(right + 20.0 - rect.x0, 0.0)
 }
@@ -369,7 +369,7 @@ pub(crate) fn artboard_copy(s: &mut Session, p: &Value, cut: bool) -> Result<Val
 /// Add a copy of artboard `i` moved by `dv`, with copies of its guides and of its `art` (each just
 /// above its original) moved along → (the copy's index, the art's copies). When `sc.patterns`, the
 /// pattern tiles of the art's copies move with them. Duplicate Artboards and Alt-drag.
-pub(crate) fn copy_artboard(d: &mut vectorcraft_doc::Document, i: usize, dv: Vec2, art: &[NodeId], sc: Scaling) -> Result<(usize, Vec<NodeId>)> {
+pub(crate) fn copy_artboard(d: &mut pluma_doc::Document, i: usize, dv: Vec2, art: &[NodeId], sc: Scaling) -> Result<(usize, Vec<NodeId>)> {
     let src = d.artboards.get(i).cloned().ok_or_else(|| EngineError::Other("no such artboard".into()))?;
     let index = push_artboard_copy(d, &src, src.rect + dv);
     // Its guides come along.
@@ -385,7 +385,7 @@ pub(crate) fn copy_artboard(d: &mut vectorcraft_doc::Document, i: usize, dv: Vec
 
 /// Add a copy of artboard `src` at `rect`, unlocked, with an id of its own and its name, or
 /// `<name> copy` (`<name> copy 2`…) when that is taken → its index.
-pub(crate) fn push_artboard_copy(d: &mut vectorcraft_doc::Document, src: &vectorcraft_doc::Artboard, rect: Rect) -> usize {
+pub(crate) fn push_artboard_copy(d: &mut pluma_doc::Document, src: &pluma_doc::Artboard, rect: Rect) -> usize {
     let mut a = src.clone();
     a.id = d.next_artboard_id();
     a.locked = false;
@@ -406,22 +406,22 @@ pub(crate) fn push_artboard_copy(d: &mut vectorcraft_doc::Document, src: &vector
 const MAX_PARA: f64 = 1296.0;
 
 /// `text.setFormat`'s `bullet` values and the bullets they pick.
-const BULLETS: [(&str, vectorcraft_doc::text::Bullet); 4] = [
-    ("dot", vectorcraft_doc::text::Bullet::Dot),
-    ("dash", vectorcraft_doc::text::Bullet::Dash),
-    ("circle", vectorcraft_doc::text::Bullet::Circle),
-    ("square", vectorcraft_doc::text::Bullet::Square),
+const BULLETS: [(&str, pluma_doc::text::Bullet); 4] = [
+    ("dot", pluma_doc::text::Bullet::Dot),
+    ("dash", pluma_doc::text::Bullet::Dash),
+    ("circle", pluma_doc::text::Bullet::Circle),
+    ("square", pluma_doc::text::Bullet::Square),
 ];
 
 /// `text.setFormat`'s `number` values and the number styles they pick.
-const NUMBERS: [(&str, vectorcraft_doc::text::NumberStyle); 7] = [
-    ("arabic", vectorcraft_doc::text::NumberStyle::Arabic),
-    ("upperLetters", vectorcraft_doc::text::NumberStyle::UpperLetters),
-    ("lowerLetters", vectorcraft_doc::text::NumberStyle::LowerLetters),
-    ("upperRoman", vectorcraft_doc::text::NumberStyle::UpperRoman),
-    ("lowerRoman", vectorcraft_doc::text::NumberStyle::LowerRoman),
-    ("twoDigits", vectorcraft_doc::text::NumberStyle::TwoDigits),
-    ("threeDigits", vectorcraft_doc::text::NumberStyle::ThreeDigits),
+const NUMBERS: [(&str, pluma_doc::text::NumberStyle); 7] = [
+    ("arabic", pluma_doc::text::NumberStyle::Arabic),
+    ("upperLetters", pluma_doc::text::NumberStyle::UpperLetters),
+    ("lowerLetters", pluma_doc::text::NumberStyle::LowerLetters),
+    ("upperRoman", pluma_doc::text::NumberStyle::UpperRoman),
+    ("lowerRoman", pluma_doc::text::NumberStyle::LowerRoman),
+    ("twoDigits", pluma_doc::text::NumberStyle::TwoDigits),
+    ("threeDigits", pluma_doc::text::NumberStyle::ThreeDigits),
 ];
 
 /// A justification spacing of `text.setFormat` (`wordSpacing`, `letterSpacing`, `glyphScaling`):
@@ -453,11 +453,11 @@ fn spacing_param(p: &Value, key: &str, c: &str) -> Result<Option<[Option<f64>; 3
 }
 
 /// The list level `listLevel` gives (None without one): a whole number from 1 to
-/// [`vectorcraft_doc::text::LIST_LEVELS`], written `2` or `2.0`.
+/// [`pluma_doc::text::LIST_LEVELS`], written `2` or `2.0`.
 fn list_level_param(p: &Value, cmd: &str) -> Result<Option<u8>> {
     let key = "listLevel";
     let Some(v) = p.get(key).filter(|v| !v.is_null()) else { return Ok(None) };
-    let (min, max) = (1, vectorcraft_doc::text::LIST_LEVELS);
+    let (min, max) = (1, pluma_doc::text::LIST_LEVELS);
     match v.as_f64() {
         Some(x) if x.fract() == 0.0 && (min as f64..=max as f64).contains(&x) => Ok(Some(x as u8)),
         Some(x) => Err(bad(cmd, format!("`{key}` must be a whole number between {min} and {max} (got {x})"))),
@@ -563,7 +563,7 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => None,
         Some(v) => Some(
             v.as_str()
-                .and_then(vectorcraft_doc::text::TypeAntiAlias::from_id)
+                .and_then(pluma_doc::text::TypeAntiAlias::from_id)
                 .ok_or_else(|| bad(C, "`antiAlias` must be \"none\", \"sharp\", \"crisp\" or \"strong\""))?,
         ),
     };
@@ -587,26 +587,26 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
     let mojikumi = match p.get("mojikumi") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("none") => vectorcraft_doc::Mojikumi::None,
-            Some("lineEndHalf") => vectorcraft_doc::Mojikumi::LineEndHalf,
+            Some("none") => pluma_doc::Mojikumi::None,
+            Some("lineEndHalf") => pluma_doc::Mojikumi::LineEndHalf,
             _ => return Err(bad(C, "`mojikumi` must be \"none\" or \"lineEndHalf\"")),
         }),
     };
     let kinsoku = match p.get("kinsoku") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("none") => vectorcraft_doc::Kinsoku::None,
-            Some("hard") => vectorcraft_doc::Kinsoku::Hard,
-            Some("soft") => vectorcraft_doc::Kinsoku::Soft,
+            Some("none") => pluma_doc::Kinsoku::None,
+            Some("hard") => pluma_doc::Kinsoku::Hard,
+            Some("soft") => pluma_doc::Kinsoku::Soft,
             _ => return Err(bad(C, "`kinsoku` must be \"none\", \"hard\" or \"soft\"")),
         }),
     };
     let kinsoku_type = match p.get("kinsokuType") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("pushInFirst") => vectorcraft_doc::KinsokuShoriType::PushInFirst,
-            Some("pushOutFirst") => vectorcraft_doc::KinsokuShoriType::PushOutFirst,
-            Some("pushOutOnly") => vectorcraft_doc::KinsokuShoriType::PushOutOnly,
+            Some("pushInFirst") => pluma_doc::KinsokuShoriType::PushInFirst,
+            Some("pushOutFirst") => pluma_doc::KinsokuShoriType::PushOutFirst,
+            Some("pushOutOnly") => pluma_doc::KinsokuShoriType::PushOutOnly,
             _ => return Err(bad(C, "`kinsokuType` must be \"pushInFirst\", \"pushOutFirst\" or \"pushOutOnly\"")),
         }),
     };
@@ -614,36 +614,36 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
         None => None,
         Some(v) => Some(match v.as_str() {
             Some("auto") => None,
-            Some("leftToRight") => Some(vectorcraft_doc::ParaDirection::LeftToRight),
-            Some("rightToLeft") => Some(vectorcraft_doc::ParaDirection::RightToLeft),
+            Some("leftToRight") => Some(pluma_doc::ParaDirection::LeftToRight),
+            Some("rightToLeft") => Some(pluma_doc::ParaDirection::RightToLeft),
             _ => return Err(bad(C, "`direction` must be \"auto\", \"leftToRight\" or \"rightToLeft\"")),
         }),
     };
     let leading_model = match p.get("leadingModel") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("romanBaseline") => vectorcraft_doc::LeadingModel::RomanBaseline,
-            Some("emBoxTop") => vectorcraft_doc::LeadingModel::EmBoxTop,
+            Some("romanBaseline") => pluma_doc::LeadingModel::RomanBaseline,
+            Some("emBoxTop") => pluma_doc::LeadingModel::EmBoxTop,
             _ => return Err(bad(C, "`leadingModel` must be \"romanBaseline\" or \"emBoxTop\"")),
         }),
     };
     let burasagari = match p.get("burasagari") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("none") => vectorcraft_doc::Burasagari::None,
-            Some("standard") => vectorcraft_doc::Burasagari::Standard,
-            Some("forced") => vectorcraft_doc::Burasagari::Forced,
+            Some("none") => pluma_doc::Burasagari::None,
+            Some("standard") => pluma_doc::Burasagari::Standard,
+            Some("forced") => pluma_doc::Burasagari::Forced,
             _ => return Err(bad(C, "`burasagari` must be \"none\", \"standard\" or \"forced\"")),
         }),
     };
     let kashida = match p.get("kashida") {
         None => None,
         Some(v) => Some(match v.as_str() {
-            Some("none") => vectorcraft_doc::text::Kashida::None,
-            Some("short") => vectorcraft_doc::text::Kashida::Short,
-            Some("medium") => vectorcraft_doc::text::Kashida::Medium,
-            Some("long") => vectorcraft_doc::text::Kashida::Long,
-            Some("stylistic") => vectorcraft_doc::text::Kashida::Stylistic,
+            Some("none") => pluma_doc::text::Kashida::None,
+            Some("short") => pluma_doc::text::Kashida::Short,
+            Some("medium") => pluma_doc::text::Kashida::Medium,
+            Some("long") => pluma_doc::text::Kashida::Long,
+            Some("stylistic") => pluma_doc::text::Kashida::Stylistic,
             _ => return Err(bad(C, "`kashida` must be \"none\", \"short\", \"medium\", \"long\" or \"stylistic\"")),
         }),
     };
@@ -661,7 +661,7 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
     .map(|n| NUMBERS.iter().find(|(k, _)| *k == n).map(|&(_, style)| style));
     // …and `listAlign` where the marker stands before the text, in every list paragraph.
     let list_align = super::object::choice(p, C, "listAlign", &["left", "right"])?
-        .map(|a| if a == "right" { vectorcraft_doc::text::ListAlign::Right } else { vectorcraft_doc::text::ListAlign::Left });
+        .map(|a| if a == "right" { pluma_doc::text::ListAlign::Right } else { pluma_doc::text::ListAlign::Left });
     // …and `listLevel` the level of every list paragraph, 1 to 9.
     let list_level = list_level_param(p, C)?;
     let indents_given = num("leftIndent").is_some() || num("firstLineIndent").is_some();
@@ -686,7 +686,7 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
     let range = super::typecmd::TextRange::parse(p, C)?;
     // The character attributes, given the baseline shift, horizontal scale and Tate-chu-yoko
     // offsets in the type's own units.
-    let chars = |st: &mut vectorcraft_doc::CharStyle, baseline_shift: Option<f64>, h_scale: Option<f64>, tcy: (Option<f64>, Option<f64>)| {
+    let chars = |st: &mut pluma_doc::CharStyle, baseline_shift: Option<f64>, h_scale: Option<f64>, tcy: (Option<f64>, Option<f64>)| {
         if let Some(k) = kerning {
             st.kerning = k;
         }
@@ -761,14 +761,14 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
         }
     };
     // The list settings of one paragraph: `list`, `bullet`, `number`, `listAlign` and `listLevel`.
-    let lists = |para: &mut vectorcraft_doc::ParaStyle| {
+    let lists = |para: &mut pluma_doc::ParaStyle| {
         if list.is_some() || bullet.is_some() || number.is_some() {
             let on = list != Some("none") && bullet != Some(None) && number != Some(None);
             let had = para.list;
             // A numbered list for list "number", or without `list` for a number style.
             let numbered = list == Some("number") || (list.is_none() && number.is_some());
             // The list's other settings (the marker's alignment) stay as they were.
-            para.list = on.then(|| vectorcraft_doc::text::ParaList {
+            para.list = on.then(|| pluma_doc::text::ParaList {
                 bullet: bullet.flatten().or(had.map(|l| l.bullet)).unwrap_or_default(),
                 number: numbered.then(|| number.flatten().or(had.and_then(|l| l.number)).unwrap_or_default()),
                 ..had.unwrap_or_default()
@@ -776,8 +776,8 @@ fn set_format(s: &mut Session, p: &Value) -> Result<Value> {
             // A paragraph that joins a list with no left or first-line indent gets a
             // hanging indent, unless the call sets an indent.
             if on && had.is_none() && !indents_given && para.left_indent == 0.0 && para.first_line_indent == 0.0 {
-                para.left_indent = vectorcraft_doc::text::LIST_HANGING_INDENT;
-                para.first_line_indent = -vectorcraft_doc::text::LIST_HANGING_INDENT;
+                para.left_indent = pluma_doc::text::LIST_HANGING_INDENT;
+                para.first_line_indent = -pluma_doc::text::LIST_HANGING_INDENT;
             }
         }
         if let Some(l) = para.list.as_mut() {
@@ -917,9 +917,9 @@ struct ParagraphPart {
     frame: usize,
     index: usize,
     bytes: std::ops::Range<usize>,
-    list: Option<vectorcraft_doc::text::ParaList>,
+    list: Option<pluma_doc::text::ParaList>,
     marker: Option<String>,
-    count: vectorcraft_doc::text::ListCounts,
+    count: pluma_doc::text::ListCounts,
 }
 
 /// A paragraph of a story: its parts in thread order (a later frame's first paragraph goes on
@@ -932,7 +932,7 @@ struct StoryParagraph {
 
 impl StoryParagraph {
     /// The part whose style a re-flowed thread gives the whole paragraph
-    /// (`vectorcraft_text::thread::story_paras`) and whose marker the layout draws: the first part
+    /// (`pluma_text::thread::story_paras`) and whose marker the layout draws: the first part
     /// with text, else the last part.
     fn main_part(&self) -> Option<&ParagraphPart> {
         self.parts.iter().find(|p| !p.bytes.is_empty()).or(self.parts.last())
@@ -941,7 +941,7 @@ impl StoryParagraph {
 
 /// The style of the character at byte `b` of `t`, as the layout reads it: the run that holds `b`,
 /// else the one before it, else the first.
-fn char_style_at(t: &vectorcraft_doc::TextObject, b: usize) -> vectorcraft_doc::CharStyle {
+fn char_style_at(t: &pluma_doc::TextObject, b: usize) -> pluma_doc::CharStyle {
     let mut runs = vec![];
     let mut off = 0;
     for r in &t.runs {
@@ -957,13 +957,13 @@ fn char_style_at(t: &vectorcraft_doc::TextObject, b: usize) -> vectorcraft_doc::
 /// out (overset text) is laid out on its own, as a paragraph that starts there, numbered on from
 /// `count`.
 fn marker_extent(
-    t: &vectorcraft_doc::TextObject,
-    lay: &vectorcraft_text::TextLayout,
+    t: &pluma_doc::TextObject,
+    lay: &pluma_text::TextLayout,
     index: usize,
     bytes: std::ops::Range<usize>,
-    count: vectorcraft_doc::text::ListCounts,
+    count: pluma_doc::text::ListCounts,
 ) -> (f64, f64) {
-    let width = |lay: &vectorcraft_text::TextLayout, start: usize| {
+    let width = |lay: &pluma_text::TextLayout, start: usize| {
         lay.markers.iter().find(|m| lay.glyphs.get(m.glyphs.start).is_some_and(|g| g.byte == start)).map(|m| {
             let advance = |g: usize| lay.glyphs.get(g).map_or(0.0, |g| g.advance);
             (m.glyphs.clone().filter(|&g| g != m.tab).map(advance).sum::<f64>(), advance(m.tab))
@@ -971,30 +971,30 @@ fn marker_extent(
     };
     width(lay, bytes.start).unwrap_or_else(|| {
         let mut probe = t.clone();
-        probe.kind = vectorcraft_doc::TextKind::Point;
-        probe.runs = vectorcraft_text::edit::slice_runs(&t.runs, bytes.start, bytes.end);
+        probe.kind = pluma_doc::TextKind::Point;
+        probe.runs = pluma_text::edit::slice_runs(&t.runs, bytes.start, bytes.end);
         probe.ruby.clear();
         probe.set_all_paras(t.para_at(index).clone());
         probe.set_list_counts(count);
         probe.first_para_continues = false;
-        width(&vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &probe), 0).unwrap_or((0.0, 0.0))
+        width(&pluma_text::layout(pluma_text::FontDb::global(), &probe), 0).unwrap_or((0.0, 0.0))
     })
 }
 
 /// Whether tab stop `tab` is at position `x`.
-fn stop_at(tab: &vectorcraft_doc::TabStop, x: f64) -> bool {
+fn stop_at(tab: &pluma_doc::TabStop, x: f64) -> bool {
     (tab.position - x).abs() <= 1e-6
 }
 
 /// Whether `tabs` hold one stop at position `x`, left-aligned and without a leader.
-fn plain_stop_at(tabs: &[vectorcraft_doc::TabStop], x: f64) -> bool {
-    let there: Vec<&vectorcraft_doc::TabStop> = tabs.iter().filter(|tab| stop_at(tab, x)).collect();
-    matches!(there.as_slice(), [only] if only.align == vectorcraft_doc::TabAlign::Left && only.leader.is_empty())
+fn plain_stop_at(tabs: &[pluma_doc::TabStop], x: f64) -> bool {
+    let there: Vec<&pluma_doc::TabStop> = tabs.iter().filter(|tab| stop_at(tab, x)).collect();
+    matches!(there.as_slice(), [only] if only.align == pluma_doc::TabAlign::Left && only.leader.is_empty())
 }
 
 /// Whether tab stop `tab` lies between positions `from` and `x` and is not left-aligned.
-fn aligned_between(tab: &vectorcraft_doc::TabStop, from: f64, x: f64) -> bool {
-    tab.align != vectorcraft_doc::TabAlign::Left && tab.position > from + 1e-6 && tab.position < x - 1e-6
+fn aligned_between(tab: &pluma_doc::TabStop, from: f64, x: f64) -> bool {
+    tab.align != pluma_doc::TabAlign::Left && tab.position > from + 1e-6 && tab.position < x - 1e-6
 }
 
 /// The frames of the story that type object `id` belongs to (its thread in thread order, else `id`
@@ -1072,7 +1072,7 @@ fn move_editing_selection(
 /// characters inserted at or before them ([`move_editing_selection`]).
 fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "text.convertListToText";
-    use vectorcraft_doc::text::ParaList;
+    use pluma_doc::text::ParaList;
     let range = super::typecmd::TextRange::parse(p, C)?;
     // After Select All in a frame of threaded text, a call that names no type and no range takes
     // every paragraph of the story's editable frames; its locked and hidden frames stay as they are
@@ -1115,12 +1115,12 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Per frame: the paragraphs whose list goes (with the style each gets) and the characters that
     // go in at a byte.
-    type Stops = Vec<(usize, vectorcraft_doc::ParaStyle)>;
+    type Stops = Vec<(usize, pluma_doc::ParaStyle)>;
     type Inserts = Vec<(usize, TextRun)>;
     let mut edits: Vec<(NodeId, Stops, Inserts)> = vec![];
     let mut converted = 0;
     for story in &stories {
-        let frames: Vec<&vectorcraft_doc::TextObject> = story.iter().filter_map(|id| text(*id)).collect();
+        let frames: Vec<&pluma_doc::TextObject> = story.iter().filter_map(|id| text(*id)).collect();
         let is_held = |f: usize| story.get(f).is_some_and(|id| held.contains(id));
         let mut paras: Vec<StoryParagraph> = vec![];
         let mut named_parts = vec![];
@@ -1161,14 +1161,11 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
                 p.main_part().map(|m| (m, tabs, p))
             })
             .collect();
-        let layouts: Vec<Option<vectorcraft_text::TextLayout>> = frames
+        let layouts: Vec<Option<pluma_text::TextLayout>> = frames
             .iter()
             .enumerate()
             .map(|(f, t)| {
-                main_parts
-                    .iter()
-                    .any(|(p, _, _)| p.marker.is_some() && p.frame == f)
-                    .then(|| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t))
+                main_parts.iter().any(|(p, _, _)| p.marker.is_some() && p.frame == f).then(|| pluma_text::layout(pluma_text::FontDb::global(), t))
             })
             .collect();
         let mut frame_edits: Vec<(Stops, Inserts)> = vec![(vec![], vec![]); frames.len()];
@@ -1199,7 +1196,7 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
                     stop = Some((pen, indent)).filter(|&(_, x)| needed(x));
                 } else if (end < indent - 1e-6 || !own_tabs)
                     && style.tabs.iter().any(|tab| {
-                        let past = tab.position > end - 1e-6 && (!tab.leader.is_empty() || tab.align != vectorcraft_doc::TabAlign::Left);
+                        let past = tab.position > end - 1e-6 && (!tab.leader.is_empty() || tab.align != pluma_doc::TabAlign::Left);
                         past || aligned_between(tab, pen, end)
                     })
                 {
@@ -1210,9 +1207,9 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
                 // before right-to-left text), the paragraph gets the direction it ran in.
                 if style.direction.is_none() {
                     let body = plains.get(para.frame).and_then(|s| s.get(para.bytes.clone())).unwrap_or_default();
-                    let was = vectorcraft_text::paragraph_is_rtl(body, None);
-                    if vectorcraft_text::paragraph_is_rtl(&format!("{marker}\t{body}"), None) != was {
-                        direction = Some(if was { vectorcraft_doc::ParaDirection::RightToLeft } else { vectorcraft_doc::ParaDirection::LeftToRight });
+                    let was = pluma_text::paragraph_is_rtl(body, None);
+                    if pluma_text::paragraph_is_rtl(&format!("{marker}\t{body}"), None) != was {
+                        direction = Some(if was { pluma_doc::ParaDirection::RightToLeft } else { pluma_doc::ParaDirection::LeftToRight });
                     }
                 }
                 let run = TextRun { text: format!("{marker}\t"), style: ParaList::marker_style(&char_style_at(t, para.bytes.start)), inline: None };
@@ -1234,7 +1231,7 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
             if let Some((from, x)) = stop {
                 style.tabs.retain(|tab| !stop_at(tab, x) && !aligned_between(tab, from, x));
                 let i = style.tabs.iter().position(|tab| tab.position > x).unwrap_or(style.tabs.len());
-                let tab = vectorcraft_doc::TabStop { position: x, align: vectorcraft_doc::TabAlign::Left, leader: String::new(), align_on: '.' };
+                let tab = pluma_doc::TabStop { position: x, align: pluma_doc::TabAlign::Left, leader: String::new(), align_on: '.' };
                 style.tabs.insert(i, tab);
             }
             for part in story_para.parts.iter().filter(|q| (std::ptr::eq(*q, para) || q.bytes.is_empty()) && !is_held(q.frame)) {
@@ -1267,7 +1264,7 @@ fn convert_list_to_text(s: &mut Session, p: &Value) -> Result<Value> {
                 inserts.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
                 for (at, run) in inserts {
                     let len = run.text.len();
-                    vectorcraft_text::edit::replace_range_styled(&mut t.runs, at, at, &[run]);
+                    pluma_text::edit::replace_range_styled(&mut t.runs, at, at, &[run]);
                     t.ruby_after_replace(at, at, len);
                 }
                 super::typecmd::refresh_bounds(t);

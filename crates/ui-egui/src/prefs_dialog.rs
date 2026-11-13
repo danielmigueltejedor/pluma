@@ -4,13 +4,13 @@
 //! through `prefs.set`. Also: persistence of engine prefs inside `UiState` and the per-frame
 //! application of the UI-side preferences (brightness, canvas colour, UI scaling, render threads).
 
+use pluma_engine::Prefs;
+use pluma_engine::cmd::prefscmds::{GPU_PREFERENCES, PREF_CATEGORIES, PREF_GROUPS, PREF_SPECS, PrefKind, folder_check};
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::Prefs;
-use vectorcraft_engine::cmd::prefscmds::{GPU_PREFERENCES, PREF_CATEGORIES, PREF_GROUPS, PREF_SPECS, PrefKind, folder_check};
 
 use crate::state::Dialog;
 use crate::theme::{self, Accent, Brightness, Scheme, Tokens};
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// UI-only fields shown in the dialog (backed by `UiState`, not engine prefs).
 pub const UI_FIELDS: &[(&str, &str, &str)] = &[
@@ -19,14 +19,14 @@ pub const UI_FIELDS: &[(&str, &str, &str)] = &[
     ("__taskBar", "General", "Enable Contextual Task Bar"),
 ];
 
-/// Whether User Interface shows VectorCraft Title Bar on Every Desktop (`appTitleBar`): Linux and the
+/// Whether User Interface shows Pluma Title Bar on Every Desktop (`appTitleBar`): Linux and the
 /// BSDs, where the desktop may draw the window's frame. macOS and Windows never read it.
 const APP_TITLE_BAR_SHOWN: bool = cfg!(not(any(target_arch = "wasm32", target_os = "macos", target_os = "windows")));
 
-pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
+pub fn open(app: &mut PlumaApp, category: Option<&str>) {
     // One field per preference key or group (the flattener presets have commands of their own).
     let mut fields: Map<String, Value> = app.session.prefs.to_json().as_object().cloned().unwrap_or_default();
-    fields.retain(|k, _| vectorcraft_engine::cmd::prefscmds::spec(k).is_some() || PREF_GROUPS.contains(&k.as_str()));
+    fields.retain(|k, _| pluma_engine::cmd::prefscmds::spec(k).is_some() || PREF_GROUPS.contains(&k.as_str()));
     // Units ▸ General shows (and OK sets) the open document's units.
     if let Some(st) = app.session.active() {
         fields.insert("unitsGeneral".into(), json!(st.doc.units.key()));
@@ -36,8 +36,8 @@ pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     fields.insert("__smartGuides".into(), json!(app.ui.view.smart_guides));
     fields.insert("__snapToGrid".into(), json!(app.ui.view.snap_to_grid));
     fields.insert("__taskBar".into(), json!(app.ui.task_bar));
-    // Read-only: whether VECTORCRAFT_TITLEBAR chose this window's frame (System Title Bar's dimmed
-    // row and VectorCraft Title Bar on Every Desktop's note).
+    // Read-only: whether PLUMA_TITLEBAR chose this window's frame (System Title Bar's dimmed
+    // row and Pluma Title Bar on Every Desktop's note).
     fields.insert("__titlebarFromEnv".into(), json!(app.titlebar_from_env));
     fields.insert("__search".into(), json!(""));
     fields.insert("__focusSearch".into(), json!(true));
@@ -111,7 +111,7 @@ fn search_focused_id() -> egui::Id {
 /// Escape while the Preferences dialog's search field has text and the keyboard focus: the field is
 /// cleared and keeps the focus, and the Escape goes no further. → Whether it did; otherwise Escape
 /// does what it does in any dialog.
-pub(crate) fn clear_search_on_escape(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
+pub(crate) fn clear_search_on_escape(app: &mut PlumaApp, ctx: &egui::Context) -> bool {
     let Some(d) = app.ui.dialog.as_mut().filter(|d| d.kind == "preferences") else { return false };
     // egui takes the focus from the field when the frame with Escape begins: the field's focus is
     // the one recorded when the dialog was last drawn.
@@ -195,7 +195,7 @@ fn found_paint(ui: &mut egui::Ui, d: &mut Dialog, mark: Option<(egui::layers::Sh
 }
 
 /// OK: validate and apply every preference in the dialog (nothing changes on error).
-pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn confirm(app: &mut PlumaApp) -> Result<Value, String> {
     let Some(d) = app.ui.dialog.clone() else { return Err("no dialog open".into()) };
     let values: Map<String, Value> = d.fields.iter().filter(|(k, _)| !k.starts_with("__")).map(|(k, v)| (k.clone(), v.clone())).collect();
     let touch_ws = values.get("touchWorkspace").and_then(Value::as_bool);
@@ -213,12 +213,12 @@ pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
 }
 
 /// Copy the engine prefs into `UiState` so the host persists them with the UI state.
-pub fn snapshot(app: &mut VectorcraftApp) {
+pub fn snapshot(app: &mut PlumaApp) {
     app.ui.engine_prefs = app.session.prefs.to_json();
 }
 
 /// Restore engine prefs from `UiState` after the host loaded saved UI state.
-pub fn restore(app: &mut VectorcraftApp) {
+pub fn restore(app: &mut PlumaApp) {
     let mut p: Prefs = serde_json::from_value(app.ui.engine_prefs.clone()).unwrap_or_default();
     if app.ui.engine_prefs.is_null() {
         // Older preference files: keep the saved brightness.
@@ -267,13 +267,13 @@ fn canvas_color(key: &str) -> Option<egui::Color32> {
 }
 
 /// Per frame: push UI-side preferences into egui / the renderer when they change.
-pub fn apply_runtime(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn apply_runtime(app: &mut PlumaApp, ctx: &egui::Context) {
     apply(app, ctx, false);
 }
 
 /// [`apply_runtime`]; with `force`, the preferences are pushed into `ctx` even when nothing changed
 /// since the last push.
-fn apply(app: &mut VectorcraftApp, ctx: &egui::Context, force: bool) {
+fn apply(app: &mut PlumaApp, ctx: &egui::Context, force: bool) {
     let p = &app.session.prefs;
     if let Some(b) = Brightness::parse(&p.ui_brightness)
         && b != app.ui.brightness
@@ -306,8 +306,8 @@ fn apply(app: &mut VectorcraftApp, ctx: &egui::Context, force: bool) {
             ctx.data_mut(|d| d.insert_temp(egui::Id::NULL, t));
         }
         if prev.is_some_and(|pr| pr.threads != want.threads) {
-            vectorcraft_render::set_default_threads(u16::try_from(want.threads).ok());
-            app.canvas.renderer.threads = vectorcraft_render::default_threads();
+            pluma_render::set_default_threads(u16::try_from(want.threads).ok());
+            app.canvas.renderer.threads = pluma_render::default_threads();
             app.canvas.worker = None;
             app.canvas.worker_started = false;
         }
@@ -333,11 +333,11 @@ fn applied_id() -> egui::Id {
 /// [`apply_runtime`] even when nothing changed, so the theme (brightness, accent, color scheme and
 /// canvas color) and the other UI-side preferences are pushed into `ctx` again. The record of what
 /// was last applied stays, so a Render Threads change since then still restarts the renderer.
-pub(crate) fn reapply(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn reapply(app: &mut PlumaApp, ctx: &egui::Context) {
     apply(app, ctx, true);
 }
 
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let (mut ok, mut cancel, mut reset) = (false, false, false);
@@ -433,7 +433,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, cat: &str) {
+fn category_fields(ui: &mut egui::Ui, app: &mut PlumaApp, d: &mut Dialog, cat: &str) {
     let t = Tokens::get(ui.ctx());
     let mut section = "";
     let mut first = true;
@@ -480,20 +480,21 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
             PrefKind::Bool if sp.key == "animatedZoom" => {
                 ui.add_enabled_ui(d.bool("gpuPerformance"), |ui| bool_row(ui, d, sp.key, sp.label));
             }
-            // Windows and Linux only: macOS always has the system's title bar, the web has none.
+            // Linux and the BSDs only: macOS and Windows always have the system's title bar, the
+            // web has none.
             PrefKind::Bool if sp.key == "systemTitleBar" => {
-                if cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos"))) {
-                    // VECTORCRAFT_TITLEBAR chooses the frame while it is set: the checkbox is dimmed.
+                if APP_TITLE_BAR_SHOWN {
+                    // PLUMA_TITLEBAR chooses the frame while it is set: the checkbox is dimmed.
                     ui.add_enabled_ui(!d.bool("__titlebarFromEnv"), |ui| bool_row(ui, d, sp.key, sp.label));
                     // The window's decorations are chosen once, when the app starts. On Linux and the
                     // BSDs the note goes under the next row, which also applies at the next start.
                     if !APP_TITLE_BAR_SHOWN {
-                        ui.label(egui::RichText::new(tl!("Applies the next time VectorCraft starts.")).color(t.text_dim).size(11.0));
+                        ui.label(egui::RichText::new(tl!("Applies the next time Pluma starts.")).color(t.text_dim).size(11.0));
                     }
                 }
             }
             // Linux and the BSDs only, where the desktop may draw the frame: dimmed while System
-            // Title Bar is on or VECTORCRAFT_TITLEBAR is set to `app`, `system` or `desktop`, which
+            // Title Bar is on or PLUMA_TITLEBAR is set to `app`, `system` or `desktop`, which
             // take precedence over it. A note
             // names each one that is in effect.
             PrefKind::Bool if sp.key == "appTitleBar" => {
@@ -506,9 +507,9 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
                         ui.label(egui::RichText::new(note).color(t.text_dim).size(11.0));
                     }
                     let note = if from_env {
-                        tl!("The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.")
+                        tl!("The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.")
                     } else {
-                        tl!("Applies the next time VectorCraft starts.")
+                        tl!("Applies the next time Pluma starts.")
                     };
                     ui.label(egui::RichText::new(note).color(t.text_dim).size(11.0));
                 }
@@ -532,7 +533,7 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
             }
             PrefKind::Length { min, max, measure } => {
                 // In the dialog's own Units choice, so a change there shows right away.
-                let unit = vectorcraft_doc::Unit::named(&d.str(measure.pref_key())).unwrap_or_default();
+                let unit = pluma_doc::Unit::named(&d.str(measure.pref_key())).unwrap_or_default();
                 let x = d.f64(sp.key, min);
                 labeled(ui, sp.label, |ui, _| {
                     if let Some(x) = widgets::num_field(ui, sp.key, Some(x), unit, 110.0) {
@@ -559,14 +560,14 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
             PrefKind::Choice(_) if sp.key == "linuxDisplayServer" && !cfg!(target_os = "linux") => {}
             // The Classic colour scheme has its own accent: dimmed while it is chosen.
             PrefKind::Choice(opts) if sp.key == "uiAccent" => {
-                let modern = Scheme::parse(&d.str("uiColorScheme")).unwrap_or_default() == Scheme::Modern;
-                ui.add_enabled_ui(modern, |ui| choice_row(ui, d, sp.key, sp.label, opts, &v));
+                let own_accent = Scheme::parse(&d.str("uiColorScheme")).unwrap_or_default() != Scheme::Classic;
+                ui.add_enabled_ui(own_accent, |ui| choice_row(ui, d, sp.key, sp.label, opts, &v));
             }
             PrefKind::Choice(opts) => {
                 choice_row(ui, d, sp.key, sp.label, opts, &v);
                 if sp.key == "gpuPreference" || sp.key == "linuxDisplayServer" {
                     // The window's graphics device and display server are chosen once, when the app starts.
-                    ui.label(egui::RichText::new(tl!("Applies the next time VectorCraft starts.")).color(t.text_dim).size(11.0));
+                    ui.label(egui::RichText::new(tl!("Applies the next time Pluma starts.")).color(t.text_dim).size(11.0));
                 }
                 if sp.key == "linuxDisplayServer" {
                     // Many Wayland desktops give a drawing tablet's pen to the window only through XWayland (#2028).
@@ -580,7 +581,7 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
             PrefKind::Color => {
                 labeled(ui, sp.label, |ui, label_id| {
                     let hex = v.as_str().unwrap_or("#000000");
-                    let c = vectorcraft_color::Color::from_hex(hex).map(|c| c.to_rgba8(1.0)).unwrap_or([0, 0, 0, 255]);
+                    let c = pluma_color::Color::from_hex(hex).map(|c| c.to_rgba8(1.0)).unwrap_or([0, 0, 0, 255]);
                     let mut rgb = [c[0], c[1], c[2]];
                     if ui.color_edit_button_srgb(&mut rgb).labelled_by(label_id).changed() {
                         d.fields.insert(sp.key.into(), json!(format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])));
@@ -634,7 +635,7 @@ fn category_fields(ui: &mut egui::Ui, app: &mut VectorcraftApp, d: &mut Dialog, 
 /// passes the preference's [`folder_check`]. Otherwise the status bar says why and the field keeps
 /// its value, as it does when the picker is canceled. The answer fills the field even when the
 /// active document closed while the picker was open.
-fn choose_folder(app: &mut VectorcraftApp, d: &mut Dialog, key: &'static str) {
+fn choose_folder(app: &mut PlumaApp, d: &mut Dialog, key: &'static str) {
     let Some(check) = folder_check(key) else { return };
     let r = crate::picks::in_app_dialog(app, d, move |app, d| {
         let Some(path) = crate::picks::folder(app) else { return Ok(()) };
@@ -649,7 +650,7 @@ fn choose_folder(app: &mut VectorcraftApp, d: &mut Dialog, key: &'static str) {
 
 /// Is one of the dialog's Units (General, Stroke, Type, East Asian Type) Picas?
 fn picas_in_use(d: &Dialog) -> bool {
-    ["unitsGeneral", "unitsStroke", "unitsType", "unitsAsianType"].iter().any(|k| d.str(k) == vectorcraft_doc::Unit::Picas.key())
+    ["unitsGeneral", "unitsStroke", "unitsType", "unitsAsianType"].iter().any(|k| d.str(k) == pluma_doc::Unit::Picas.key())
 }
 
 fn choice_row(ui: &mut egui::Ui, d: &mut Dialog, key: &str, label: &str, opts: &[(&str, &str)], v: &Value) {

@@ -4,16 +4,16 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::sync::Arc;
 
-use vectorcraft_color::{BlendMode, Color, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{
+use pluma_color::{BlendMode, Color, GradientKind, GradientPaint, Paint};
+use pluma_doc::{
     AppearanceItem, Document, FillLayer, LineCap, LineJoin, Node, NodeId, NodeKind, SVG_EVENTS, StrokeAlign, StrokeLayer, TextKind, TextObject,
 };
-use vectorcraft_doc::{CharStyle, ImageBlob, Justify};
-use vectorcraft_effects::stroke::{self, Written, WrittenShape};
-use vectorcraft_geom::shapes::KAPPA;
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, SubPath};
+use pluma_doc::{CharStyle, ImageBlob, Justify};
+use pluma_effects::stroke::{self, Written, WrittenShape};
+use pluma_geom::shapes::KAPPA;
+use pluma_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, SubPath};
 
-use vectorcraft_text::{FontDb, FontFace};
+use pluma_text::{FontDb, FontFace};
 
 use crate::{
     EDITING_NS, Encoding, ExportOptions, ImageMode, LinkedImage, ObjectIds, Output, Profile, Styling, base64_encode, body_hash, fmt_num, fnv1a,
@@ -37,7 +37,7 @@ const UNIQUE_PLACEHOLDER: &str = "u_vc_unique_-";
 
 pub(crate) fn export(doc: &Document, opts: &ExportOptions, native: Option<&[u8]>) -> Output {
     // Live geometry effects (Roughen, Warp, Offset Path, Effect → Pathfinder…) export as their result.
-    let baked = vectorcraft_effects::bake_document(doc);
+    let baked = pluma_effects::bake_document(doc);
     let doc = baked.as_ref().unwrap_or(doc);
     if opts.object_ids != ObjectIds::Unique {
         return write(doc, opts, native, "");
@@ -261,11 +261,11 @@ struct Writer<'a> {
     /// attributes they were defined with.
     knockout_filters: HashMap<String, String>,
     /// The document's symbol boxes, measured once for every mask and filter region.
-    region_boxes: Option<vectorcraft_doc::SymbolBoxes<'a>>,
+    region_boxes: Option<pluma_doc::SymbolBoxes<'a>>,
     /// How far each symbol's art paints past its box, by name, once measured for a region.
     art_reach: HashMap<String, f64>,
     /// The brush library, parsed when the first brushed stroke is written.
-    brushes: Option<Vec<vectorcraft_brush::Brush>>,
+    brushes: Option<Vec<pluma_brush::Brush>>,
     /// Features written approximately (once each).
     warnings: Vec<String>,
     /// Prepended to every id and class name ([`ObjectIds::Unique`]).
@@ -281,7 +281,7 @@ struct Writer<'a> {
     /// can't contain itself).
     symbol_nest: u32,
     /// The objects in the placed art of the 9-slice instances written so far (see
-    /// [`vectorcraft_doc::charge_symbol_art`]).
+    /// [`pluma_doc::charge_symbol_art`]).
     symbol_nodes: u64,
     /// An inline graphic in type is being written: its symbol's 9-slice guides do not apply, as
     /// on the canvas.

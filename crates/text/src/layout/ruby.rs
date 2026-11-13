@@ -90,7 +90,7 @@ fn ruby_pieces(cx: &Ctx<'_>, t: &TextObject) -> Vec<RubyPiece> {
 
 fn collect_ruby_pieces_for_span(
     cx: &Ctx<'_>,
-    span: &vectorcraft_doc::text::RubySpan,
+    span: &pluma_doc::text::RubySpan,
     start: usize,
     total: usize,
     by_line: &std::collections::BTreeMap<usize, Vec<usize>>,
@@ -123,7 +123,7 @@ fn ruby_piece_for_line(
     reading: &str,
     ratio: f64,
     glyph_indices: &[usize],
-    span: &vectorcraft_doc::text::RubySpan,
+    span: &pluma_doc::text::RubySpan,
 ) -> Option<RubyPiece> {
     let mut x0 = f64::INFINITY;
     let mut x1 = f64::NEG_INFINITY;

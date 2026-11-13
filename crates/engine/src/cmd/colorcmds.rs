@@ -7,15 +7,15 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use pluma_color::cms::Model;
+use pluma_color::harmony::{Guide, GuideOptions, Harmony, Variation};
+use pluma_color::{Color, Paint, keep_model};
+use pluma_doc::live::lerp_color;
+use pluma_doc::pattern::PatternDef;
+pub(crate) use pluma_doc::recolor::map_paint;
+use pluma_doc::recolor::{ColorVisitor, Reach, map_links, recolor_node};
+use pluma_doc::{Document, ImageBlob, Node, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::Model;
-use vectorcraft_color::harmony::{Guide, GuideOptions, Harmony, Variation};
-use vectorcraft_color::{Color, Paint, keep_model};
-use vectorcraft_doc::live::lerp_color;
-use vectorcraft_doc::pattern::PatternDef;
-pub(crate) use vectorcraft_doc::recolor::map_paint;
-use vectorcraft_doc::recolor::{ColorVisitor, Reach, map_links, recolor_node};
-use vectorcraft_doc::{Document, ImageBlob, Node, NodeId, NodeKind};
 
 use super::edit::selected_roots;
 use super::{
@@ -375,7 +375,7 @@ impl<'a> Recolor<'a> {
 /// `n` with the swatch links of its paints and its children's removed, each color kept as it
 /// shows, and each pattern named in `same` (a copy → its original) by its original's name.
 fn without_links(mut n: Node, same: &HashMap<String, String>) -> Node {
-    for p in vectorcraft_doc::swatches::node_paints_mut(&mut n) {
+    for p in pluma_doc::swatches::node_paints_mut(&mut n) {
         map_links(p, &|_, link, _| link.take().is_some());
         match p {
             Paint::Gradient(g) => g.swatch = None,

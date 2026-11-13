@@ -2,8 +2,8 @@
 //! font menus and resolves to its base (Kanji) font, and layout sets each character of type in one
 //! in the font of the character's class ([`FontDb::composite_split`]).
 
+use pluma_doc::{CharClass, CompositeFont, TextObject, TextRun};
 use unicode_segmentation::UnicodeSegmentation;
-use vectorcraft_doc::{CharClass, CompositeFont, TextObject, TextRun};
 
 use super::face::FALLBACK_FAMILY;
 use super::{Arc, FontDb, FontFace, FontMatch};

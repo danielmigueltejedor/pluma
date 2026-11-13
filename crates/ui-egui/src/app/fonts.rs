@@ -1,9 +1,9 @@
-use super::{VectorcraftApp, json};
+use super::{PlumaApp, json};
 
 /// The most fonts Type › Recent Fonts lists (Preferences › Type › Number of Recent Fonts).
 pub const MAX_RECENT_FONTS: usize = 15;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Type › Recent Fonts: the fonts used last, newest first, as many as Preferences › Type ›
     /// Number of Recent Fonts says.
     pub fn recent_fonts(&self) -> &[String] {
@@ -12,7 +12,7 @@ impl VectorcraftApp {
     }
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Fonts installed or removed while the app runs are listed without Refresh Font List: a look
     /// at the font folders and the platform's font list on a timer and when the window comes back,
     /// a scan only when they changed.
@@ -27,7 +27,7 @@ impl VectorcraftApp {
         let (tx, rx) = std::sync::mpsc::channel();
         let look = move || {
             // The UI gone meanwhile has nothing to refresh.
-            let _ = tx.send(vectorcraft_text::FontDb::global().installed_fonts_changed());
+            let _ = tx.send(pluma_text::FontDb::global().installed_fonts_changed());
         };
         let spawned =
             if cfg!(target_arch = "wasm32") { None } else { std::thread::Builder::new().name("font-check".into()).spawn(look.clone()).ok() };

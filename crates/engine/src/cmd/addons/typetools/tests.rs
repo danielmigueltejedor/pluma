@@ -1,8 +1,8 @@
 //! Text Tweaker: the values each shape gives each character, what it skips and changes, one undo
 //! step, and bad params refused without a change. Release Type on a Path ([`release`]).
 
+use pluma_doc::{CharStyle, NodeId, NodeKind, TextObject};
 use serde_json::json;
-use vectorcraft_doc::{CharStyle, NodeId, NodeKind, TextObject};
 
 use super::amount;
 use crate::Session;
@@ -226,10 +226,10 @@ fn it_needs_a_selection() {
 /// open, curved and flipped paths, transformed and grouped type, multi-style and unicode text,
 /// undo and redo, the preview a dialog shows, and bad params.
 mod release {
+    use pluma_color::Paint;
+    use pluma_doc::{Appearance, Document, Justify, NodeId, NodeKind, TextKind, TextObject};
+    use pluma_geom::{PathData, Point};
     use serde_json::{Value, json};
-    use vectorcraft_color::Paint;
-    use vectorcraft_doc::{Appearance, Document, Justify, NodeId, NodeKind, TextKind, TextObject};
-    use vectorcraft_geom::{PathData, Point};
 
     use crate::Session;
 
@@ -301,7 +301,7 @@ mod release {
     /// Each glyph's pen position in the document and its baseline angle, in text order.
     fn pens(t: &TextObject) -> Vec<(Point, f64)> {
         let mut g: Vec<_> =
-            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).glyphs.into_iter().map(|g| (g.byte, t.xf * g.origin, g.angle)).collect();
+            pluma_text::layout(pluma_text::FontDb::global(), t).glyphs.into_iter().map(|g| (g.byte, t.xf * g.origin, g.angle)).collect();
         g.sort_by_key(|g| g.0);
         g.into_iter().map(|(_, p, a)| (p, a)).collect()
     }
@@ -340,7 +340,7 @@ mod release {
         assert!(now.iter().all(|(_, a)| *a == 0.0), "a straight baseline");
         // On one line through the first pen, along the object's own x axis.
         let [a, b, ..] = after.xf.as_coeffs();
-        let axis = vectorcraft_geom::Vec2::new(a, b);
+        let axis = pluma_geom::Vec2::new(a, b);
         for (p, _) in &now {
             let off = *p - now[0].0;
             assert!(off.cross(axis).abs() < 1e-4 * axis.hypot().max(1.0) * off.hypot().max(1.0), "{p:?} is on the line");

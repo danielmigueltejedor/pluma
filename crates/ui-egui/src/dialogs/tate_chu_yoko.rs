@@ -15,7 +15,7 @@ use serde_json::{Map, Value, json};
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, form};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 
 /// The dialog kind of Tate-chu-yoko Settings.
@@ -41,7 +41,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Open Tate-chu-yoko Settings on the characters the Character panel acts on.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     crate::panels::character::text_style(app).ok_or("select some type first")?;
     let (up, right) = crate::panels::character::shared_tcy_offsets(app);
     let mut values = Map::new();
@@ -56,7 +56,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.type_unit();
     grid(ui, |ui| {
         for (key, text) in KEYS.into_iter().zip([tl!("Up/Down:"), tl!("Left/Right:")]) {
@@ -79,7 +79,7 @@ fn params(d: &Dialog) -> Result<Map<String, Value>, String> {
             None | Some(Value::Null) => continue,
             Some(Value::String(s)) if s.trim().is_empty() => continue,
             Some(Value::Number(n)) => n.as_f64(),
-            Some(Value::String(s)) => vectorcraft_doc::Unit::Points.parse(s),
+            Some(Value::String(s)) => pluma_doc::Unit::Points.parse(s),
             Some(_) => None,
         };
         let v = v.filter(|v| v.is_finite()).ok_or_else(|| format!("{label} must be a number"))?.clamp(*RANGE.start(), *RANGE.end());
@@ -90,7 +90,7 @@ fn params(d: &Dialog) -> Result<Map<String, Value>, String> {
     Ok(p)
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let p = params(d)?;
     app.ui.dialog = None;
     if p.is_empty() {
@@ -102,12 +102,12 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
-    use vectorcraft_engine::doc::{NodeId, NodeKind};
+    use pluma_engine::Session;
+    use pluma_engine::doc::{NodeId, NodeKind};
 
     /// A selected point type object with three characters.
-    fn app() -> (VectorcraftApp, u64) {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> (PlumaApp, u64) {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("text.create", json!({"x": 10, "y": 50, "text": "2026"})).unwrap()["id"].as_u64().unwrap();
         app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -115,7 +115,7 @@ mod tests {
     }
 
     /// (Up/Down, Left/Right) of each run.
-    fn offsets(app: &VectorcraftApp, id: u64) -> Vec<(f64, f64)> {
+    fn offsets(app: &PlumaApp, id: u64) -> Vec<(f64, f64)> {
         match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
             NodeKind::Text(t) => t.runs.iter().map(|r| (r.style.tcy_up_down, r.style.tcy_left_right)).collect(),
             _ => panic!("not text"),

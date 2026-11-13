@@ -8,20 +8,20 @@
 use std::sync::Arc;
 
 use egui::{Color32, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2};
+use pluma_color::libraries::{BuiltinLibrary, GRADIENT_LIBRARIES, SWATCH_LIBRARIES};
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Color, GradientKind, Paint, Swatch, SwatchLibrary};
+use pluma_doc::Document;
+use pluma_engine::cmd::patternlib::{self, PATTERN_LIBRARIES};
+use pluma_engine::cmd::swatchlib;
 use serde_json::{Value, json};
-use vectorcraft_color::libraries::{BuiltinLibrary, GRADIENT_LIBRARIES, SWATCH_LIBRARIES};
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Color, GradientKind, Paint, Swatch, SwatchLibrary};
-use vectorcraft_doc::Document;
-use vectorcraft_engine::cmd::patternlib::{self, PATTERN_LIBRARIES};
-use vectorcraft_engine::cmd::swatchlib;
 
 use super::library_panel::{self, LibraryKind, LibraryRef, Row};
 use super::{active_paint, pstate, set_pstate};
 use crate::menus::Item;
 use crate::theme::Tokens;
 use crate::widgets::{self, PanelDrag, SwatchRows, menu_item, swatch_tile};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 mod actions;
 mod body;
@@ -135,14 +135,14 @@ impl Entry {
 
 /// The panel's rows for the kind filter and the find field's `query` (a case-insensitive name
 /// match; a colour group whose name matches shows all its swatches).
-fn entries(app: &VectorcraftApp, kind: Kind, query: &str) -> Vec<Entry> {
+fn entries(app: &PlumaApp, kind: Kind, query: &str) -> Vec<Entry> {
     let Some(st) = app.session.active() else { return vec![] };
     let d = &st.doc;
     let q = query.trim().to_lowercase();
     let found = |n: &str| q.is_empty() || n.to_lowercase().contains(&q);
     let mut out = vec![];
     // A tint swatch shows its base's kind (global or spot).
-    let sw = |s: &vectorcraft_color::Swatch| {
+    let sw = |s: &pluma_color::Swatch| {
         let (global, spot) = s.tint_of().and_then(|(base, _)| d.swatch(base)).map_or((s.global, s.spot), |b| (b.global, b.spot));
         // A spot colour shows the colour its art shows (a Lab one's CMYK equivalent when the Spot
         // Colors options use those).
@@ -190,7 +190,7 @@ fn swatch_params(e: &Entry) -> Option<Value> {
 /// swatch with a gradient stop selected recolors the stop as dropping the swatch on it does,
 /// and with a freeform gradient point selected it recolors the point. A color swatch also becomes
 /// the Color Guide's base color.
-fn apply(app: &mut VectorcraftApp, ui: &Ui, e: &Entry) {
+fn apply(app: &mut PlumaApp, ui: &Ui, e: &Entry) {
     let Some(params) = swatch_params(e) else { return };
     if let Entry::Swatch { paint, .. } = e
         && let Some(c) = paint.color()
@@ -206,13 +206,13 @@ fn apply(app: &mut VectorcraftApp, ui: &Ui, e: &Entry) {
     super::apply_click(app, ui, params);
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     body(app, ui, TILE);
 }
 
 /// The panel in a Fill/Stroke chip popover (the Control bar's and Properties'): the same body, its
 /// tiles under their own ids so it can be open beside the panel.
-pub(crate) fn popover(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn popover(app: &mut PlumaApp, ui: &mut Ui) {
     body(app, ui, POPOVER_TILE);
 }
 

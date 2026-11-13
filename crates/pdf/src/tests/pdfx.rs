@@ -1,11 +1,11 @@
 //! PDF/X-1a, PDF/X-3 and PDF/X-4: each standard's header, output intent, boxes and identification,
 //! and what each refuses (RGB in PDF/X-1a, transparency in PDF/X-1a and PDF/X-3, passwords).
 
+use pluma_color::cms::{self, GENERIC_CMYK, SRGB};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
 use serde_json::json;
-use vectorcraft_color::cms::{self, GENERIC_CMYK, SRGB};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
 
 use crate::*;
 

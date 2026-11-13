@@ -1,4 +1,4 @@
-//! `document.open` of the files importer plug-ins read ([`vectorcraft_plugins::import`]).
+//! `document.open` of the files importer plug-ins read ([`pluma_plugins::import`]).
 //!
 //! A file opens with an importer when `importer` names one (its format id, `plugin.<id>`), which
 //! must list the file's extension, or when no built-in format reads the file, by its content or by
@@ -13,10 +13,10 @@
 
 use std::sync::Arc;
 
+use pluma_doc::{Document, MAX_COORD};
+use pluma_geom::Rect;
+use pluma_plugins::{Plugin, export, import, objects};
 use serde_json::Value;
-use vectorcraft_doc::{Document, MAX_COORD};
-use vectorcraft_geom::Rect;
-use vectorcraft_plugins::{Plugin, export, import, objects};
 
 use super::super::{Result, bad, str_param};
 use super::load::{Loaded, detect, file_name};
@@ -43,7 +43,7 @@ pub(super) fn pick(name: &str, bytes: &[u8], p: &Value) -> Result<Option<Arc<Plu
         let plugin = import::named(id).map_err(|e| bad(C, e.to_string()))?;
         let m = plugin.manifest();
         if !m.extensions.contains(&ext) {
-            let shown = vectorcraft_plugins::permissions::display_text(&m.name, vectorcraft_plugins::permissions::MAX_SHOWN_NAME);
+            let shown = pluma_plugins::permissions::display_text(&m.name, pluma_plugins::permissions::MAX_SHOWN_NAME);
             let exts: Vec<String> = m.extensions.iter().map(|e| format!(".{e}")).collect();
             return Err(bad(C, format!("“{shown}” opens {} files, not `{}`", exts.join(", "), file_name(name))));
         }
@@ -68,12 +68,12 @@ pub(super) fn check_data(p: &Value) -> Result<()> {
     let ext = extension(name);
     let explicit = named(p)?.is_some();
     let built_in = !explicit && (super::readable_format(&ext).is_some() || import::for_extension(&ext).is_empty());
-    if built_in || vectorcraft_format::base64_decoded_len(b64) <= import::MAX_INPUT_BYTES as u64 {
+    if built_in || pluma_format::base64_decoded_len(b64) <= import::MAX_INPUT_BYTES as u64 {
         return Ok(());
     }
     if !explicit {
         let start: Vec<u8> = b64.bytes().filter(|b| !b.is_ascii_whitespace()).take(SNIFF_BYTES / 3 * 4).collect();
-        let head = std::str::from_utf8(&start).ok().and_then(vectorcraft_format::base64_decode);
+        let head = std::str::from_utf8(&start).ok().and_then(pluma_format::base64_decode);
         if head.is_some_and(|head| detect(name, &head).is_some()) {
             return Ok(());
         }
@@ -123,18 +123,18 @@ pub(super) fn read_path(path: &str, _: &Value) -> Result<Vec<u8>> {
 /// the importer returned.
 pub(super) fn load(name: &str, bytes: &[u8], plugin: &Plugin, p: &Value) -> Result<Loaded> {
     let m = plugin.manifest();
-    let format = format(&export::format_id(&m.id)).filter(|f| f.read).ok_or_else(|| err(vectorcraft_plugins::Error::NotFound(m.id.clone())))?;
+    let format = format(&export::format_id(&m.id)).filter(|f| f.read).ok_or_else(|| err(pluma_plugins::Error::NotFound(m.id.clone())))?;
     let (ext, stem) = (extension(name), file_stem(name));
     let source = import::Source { extension: &ext, name: &stem };
     let params = p.get("params").cloned().unwrap_or(Value::Null);
     let imported = import::run(plugin, bytes, &params, source).map_err(|e| match e {
-        vectorcraft_plugins::Error::Cancelled => EngineError::Cancelled,
-        vectorcraft_plugins::Error::Params(why) => bad(C, why),
+        pluma_plugins::Error::Cancelled => EngineError::Cancelled,
+        pluma_plugins::Error::Params(why) => bad(C, why),
         e => err(format!("can't open `{}`: {e}", file_name(name))),
     })?;
     let mut doc = Document::new(1.0, 1.0);
     let layer = doc.layers.first().map(|l| l.id);
-    let admit = |fx: &[vectorcraft_doc::Effect], n: &vectorcraft_doc::Node| crate::cmd::plugin::admit_effects_for(C, fx, n);
+    let admit = |fx: &[pluma_doc::Effect], n: &pluma_doc::Node| crate::cmd::plugin::admit_effects_for(C, fx, n);
     let ids =
         objects::apply_output(&mut doc, &[], imported.objects, layer, &admit).map_err(|e| err(format!("can't open `{}`: {e}", file_name(name))))?;
     if let (Some(bounds), Some(board)) = (doc.bounds_of(&ids, true), doc.artboards.first_mut()) {

@@ -4,7 +4,7 @@ use super::types::{Frame, GState, Kind, MAX_DEPTH, MAX_NODES, PendingEnvelope};
 use super::{
     AppearanceItem, Arc, BezPath, BlendMode, FillRule, HashMap, HashSet, LayerColor, Node, NodeId, NodeKind, Obj, Paint, PathEl, Rc, Reader, V, obj,
 };
-use vectorcraft_doc::TextWrap;
+use pluma_doc::TextWrap;
 
 impl<'a> Reader<'a> {
     // ---- frames ----------------------------------------------------------------------------
@@ -257,7 +257,7 @@ impl<'a> Reader<'a> {
         let deepest =
             rest.iter().map(|(i, n)| level(*i, n) + depth(n)).chain(clip.iter().enumerate().map(|(k, (_, n))| k + depth(n))).max().unwrap_or(0);
         let flat = rest.iter().map(|(_, n)| depth(n)).chain(clip.iter().map(|(_, n)| depth(n))).max().unwrap_or(0);
-        if at + deepest > MAX_DEPTH || (at + deepest > vectorcraft_doc::MAX_DEPTH && at + flat <= vectorcraft_doc::MAX_DEPTH) {
+        if at + deepest > MAX_DEPTH || (at + deepest > pluma_doc::MAX_DEPTH && at + flat <= pluma_doc::MAX_DEPTH) {
             return Err("its clipping masks are nested too deeply".into());
         }
         // Each level: its clipping path, the fills read apart from it, which paint under the art they clip, then the art.
@@ -619,7 +619,7 @@ impl<'a> Reader<'a> {
             self.unsupported.insert(what.into());
             return Ok(None);
         }
-        let path = vectorcraft_geom::shapes::rectangle(bounds);
+        let path = pluma_geom::shapes::rectangle(bounds);
         let gs = self.gs.clone();
         let node = self.new_node(NodeKind::Path { path, rule: FillRule::NonZero, live: None, clipping: false, guide: false }, &gs);
         let id = node.id;
@@ -760,7 +760,7 @@ impl<'a> Reader<'a> {
             // Their art's box isn't known (the instances that made them go have none), so their
             // instances have no box either.
             for (file, named) in left {
-                self.doc.set_symbol_registration(&named, vectorcraft_doc::SymbolRegistration::CENTER);
+                self.doc.set_symbol_registration(&named, pluma_doc::SymbolRegistration::CENTER);
                 let Some(file) = file else { continue };
                 self.symbol_names.remove(&file);
             }

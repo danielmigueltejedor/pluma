@@ -6,11 +6,11 @@
 //! Parameters come from documents and scripts, so each is clamped to its documented range, and a
 //! path with a coordinate past [`MAX_COORDINATE`] or not finite is left as it is.
 
+use pluma_doc::Dash;
+use pluma_geom::{PathData, Point, SubPath};
+use pluma_pathops::addons::pathtools::{self as tools, AnchorSpacing, CloseMode, ExtendMode, SMOOTH_RATIO, SegmentKind};
+use pluma_pathops::addons::{PT_PER_TOLERANCE, retract_tiny_handles, simplify_keep_shape};
 use serde_json::{Value, json};
-use vectorcraft_doc::Dash;
-use vectorcraft_geom::{PathData, Point, SubPath};
-use vectorcraft_pathops::addons::pathtools::{self as tools, AnchorSpacing, CloseMode, ExtendMode, SMOOTH_RATIO, SegmentKind};
-use vectorcraft_pathops::addons::{PT_PER_TOLERANCE, retract_tiny_handles, simplify_keep_shape};
 
 use crate::catalog::{EffectInfo, Lengths};
 use crate::stroke;

@@ -142,7 +142,7 @@ impl TextObject {
     /// Keep the ruby spans over the text after replacing plain-text bytes `start..end` with
     /// `inserted` bytes of text: spans after the edit move with the text, ones the edit runs into
     /// keep their start and end up where the replaced part ended. Call it after every edit of the
-    /// runs (`vectorcraft_text::edit`), then [`Self::normalize_ruby`] has the last word.
+    /// runs (`pluma_text::edit`), then [`Self::normalize_ruby`] has the last word.
     pub fn ruby_after_replace(&mut self, start: usize, end: usize, inserted: usize) {
         let (start, end) = (start.min(end), start.max(end));
         let delta = inserted as i64 - (end.saturating_sub(start)) as i64;
@@ -369,7 +369,7 @@ impl TextObject {
     }
     /// Move the out (`out`) or in direction handle of anchor `ai` of subpath `si` of type on a
     /// path's path to `pos` in document space, as a path's anchor takes it
-    /// ([`vectorcraft_geom::Anchor::set_handle`]; `independent`: that side only, the anchor a
+    /// ([`pluma_geom::Anchor::set_handle`]; `independent`: that side only, the anchor a
     /// corner): a Direct Selection drag of a handle (#3565). The handle is set in document space,
     /// so a smooth anchor keeps its other handle's length as drawn; the brackets keep their
     /// fractions of the path. False, changing nothing, for other type, when the anchor doesn't

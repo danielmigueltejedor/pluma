@@ -4,9 +4,9 @@
 #![allow(dead_code)]
 
 use crate::text_fixture::{array_f64, array_i32, attrs, block, run, shared_objects, utf8};
-use vectorcraft_affinity::synth::{self, F, Method, tag};
+use pluma_affinity::synth::{self, F, Method, tag};
 
-pub type Field = (vectorcraft_affinity::stream::Tag, F);
+pub type Field = (pluma_affinity::stream::Tag, F);
 
 /// Encode a stream whose shared arrays may list inline objects.
 pub fn stream(mut root: Vec<Field>) -> Vec<u8> {

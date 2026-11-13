@@ -5,14 +5,14 @@
 
 use std::fmt::Write;
 
+use pluma_doc::NodeKind;
+use pluma_pdf::{ImportOptions, import_with_report};
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
+use pluma_text::{FontDb, system_font_dirs};
 use skrifa::instance::{LocationRef, Size};
 use skrifa::raw::TableProvider;
 use skrifa::string::StringId;
 use skrifa::{FontRef, MetadataProvider};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_pdf::{ImportOptions, import_with_report};
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
-use vectorcraft_text::{FontDb, system_font_dirs};
 
 #[test]
 fn a_fresh_session_resolves_pdf_fonts_to_installed_families() {

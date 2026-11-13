@@ -103,7 +103,7 @@ pub(super) fn fill_totals(t: &mut TextObject, v: f64) -> bool {
     for &(at, before, after) in spans.iter().rev() {
         let s = total_text(v, before, after);
         t.splice_paras(at, at + 3, &s);
-        vectorcraft_text::edit::replace_range(&mut t.runs, at, at + 3, &s);
+        pluma_text::edit::replace_range(&mut t.runs, at, at + 3, &s);
     }
     if !spans.is_empty() {
         refresh_bounds(t);
@@ -122,9 +122,9 @@ fn only_groups(n: &Node) -> bool {
     matches!(n.kind, NodeKind::Group { clip: false, .. })
         && n.visible
         && n.opacity == 1.0
-        && n.blend == vectorcraft_color::BlendMode::Normal
+        && n.blend == pluma_color::BlendMode::Normal
         && !n.isolate
-        && n.knockout == vectorcraft_doc::Knockout::default()
+        && n.knockout == pluma_doc::Knockout::default()
         && n.appearance.items.is_empty()
         && n.appearance.effects.is_empty()
         && n.extras().mask.is_none()
@@ -184,7 +184,7 @@ fn without_guides(art: &Node) -> Node {
 
 /// Each series' column design, when the document has the design.
 pub(super) fn column_designs(d: &Document, g: &GraphSpec) -> Vec<Option<ColumnArt>> {
-    let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, vectorcraft_doc::MAX_GRAPH_SERIES);
+    let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, pluma_doc::MAX_GRAPH_SERIES);
     (0..nser)
         .map(|s| {
             let options = g.series_columns.get(s)?.as_ref()?;
@@ -280,10 +280,10 @@ pub(super) fn column_art(
         let art = left.take(cost + 2).then(|| copy(d, a))?;
         // The box of the copy and of each object in it that isn't a group or layer, as the brush art past a brushed
         // stroke counts only in its own object's box.
-        let mut b = vectorcraft_render::painted_bounds(d, &art);
+        let mut b = pluma_render::painted_bounds(d, &art);
         art.walk(&mut |n| {
             if !matches!(n.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) {
-                b = vectorcraft_geom::union_opt(b, vectorcraft_render::painted_bounds(d, n));
+                b = pluma_geom::union_opt(b, pluma_render::painted_bounds(d, n));
             }
         });
         // A copy that draws nothing (a design of totals alone) needs no clip.
@@ -435,7 +435,7 @@ pub(super) fn set_column(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "graph.column";
     let id = target(s, p, C)?;
     let mut spec = spec_of(s, id)?;
-    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(vectorcraft_doc::MAX_GRAPH_SERIES);
+    let count = spec.rows.iter().map(Vec::len).max().unwrap_or(0).min(pluma_doc::MAX_GRAPH_SERIES);
     let picked = picked_series(s, p, id, count, C)?;
     let names = design_names(&s.doc()?.doc);
     let all: Vec<usize> = if picked.is_empty() { (0..count).collect() } else { picked.clone() };

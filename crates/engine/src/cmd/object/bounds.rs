@@ -26,7 +26,7 @@ enum Bounds {
 /// Again repeats it, and the journal holds it). A bounding-box handle drag with Use Preview Bounds
 /// previews `object.setBounds`. The objects are those `object.transform` transforms (a path of a
 /// compound path selected on its own is one), and the art keeps at least 1e-4 of its width and
-/// height, as with [`vectorcraft_tools::bbox::scale_for_drag`]. `None` with anchors selected with
+/// height, as with [`pluma_tools::bbox::scale_for_drag`]. `None` with anchors selected with
 /// Direct Selection and when the values are not valid.
 pub(crate) fn bounds_rewrite(s: &Session, cmd: &str, params: &Value) -> Option<(String, Value)> {
     if cmd != "object.setBounds" {
@@ -91,7 +91,7 @@ fn bounds_transform(s: &Session, p: &Value, ids: Vec<NodeId>, least: f64, anchor
     let (m, all) = (margins(vs), margins(v));
     let fixed = [all[0] - m[0], all[1] - m[1], all[2] - m[2], all[3] - m[3]];
     let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4).min(8) as usize;
-    let rp = vectorcraft_geom::reference_point(v, refi);
+    let rp = pluma_geom::reference_point(v, refi);
     let (w, h) = wanted_size(p, v);
     // The geometric scale that gives the visual size: margins grow by the strokes' scale `f`. It is
     // exact for proportional scales of one path; [`Spans::refit`] checks it, and solves for the
@@ -117,8 +117,8 @@ fn bounds_transform(s: &Session, p: &Value, ids: Vec<NodeId>, least: f64, anchor
     // Move the new visual box's reference point to x, y (default: where it was): the geometric
     // box's reference point moves with the art, the margin from it to `vs`'s by `f`, and the
     // margin from that one to the visual box's stays.
-    let gp = vectorcraft_geom::reference_point(g, refi);
-    let sp = vectorcraft_geom::reference_point(vs, refi);
+    let gp = pluma_geom::reference_point(g, refi);
+    let sp = pluma_geom::reference_point(vs, refi);
     let new_rp = scale * gp + (sp - gp) * f(sx, sy) + (rp - sp);
     // x, y place the reference point on the page.
     let page = frame.to_doc() * rp;
@@ -156,7 +156,7 @@ fn bounds_transform(s: &Session, p: &Value, ids: Vec<NodeId>, least: f64, anchor
             ids.iter().filter_map(|id| d.node(*id)).fold(None, |acc, n| {
                 let mut n = n.clone();
                 n.transform(xf, sc);
-                vectorcraft_geom::union_opt(acc, effects::preview::bounds_in_with(&symbols, &n, to_local, how))
+                pluma_geom::union_opt(acc, effects::preview::bounds_in_with(&symbols, &n, to_local, how))
             })
         };
         // The scales above keep the effects' reach as a margin that stays, and give 0 for a size
@@ -240,7 +240,7 @@ fn refit_drawn(
         }
     }
     let (sx, sy, b) = best;
-    Some((sx, sy, vectorcraft_geom::reference_point(b, refi)))
+    Some((sx, sy, pluma_geom::reference_point(b, refi)))
 }
 
 /// The `width` and `height` `object.setBounds` asks for a box now `b`: the one not given stays, or
@@ -263,7 +263,7 @@ fn wanted_size(p: &Value, b: Rect) -> (f64, f64) {
 /// the anchors, their handles with them, and those objects move or scale.
 fn set_anchor_bounds(s: &mut Session, p: &Value, ids: Vec<NodeId>, b: Rect) -> Result<Value> {
     let refi = p.get("reference").and_then(Value::as_u64).unwrap_or(4).min(8) as usize;
-    let rp = vectorcraft_geom::reference_point(b, refi);
+    let rp = pluma_geom::reference_point(b, refi);
     let (w, h) = wanted_size(p, b);
     // A single anchor, or anchors in a line, have no size to scale on that side.
     let ratio = |size: f64, now: f64| if now > 1e-9 { size / now } else { 1.0 };
@@ -274,12 +274,12 @@ fn set_anchor_bounds(s: &mut Session, p: &Value, ids: Vec<NodeId>, b: Rect) -> R
 
 /// The visual box of `ids` square to `frame`, as [`Document::oriented_bounds`] measures it, with
 /// symbol instances measured without the strokes in their art
-/// ([`vectorcraft_doc::SymbolBoxes::without_art_strokes`]).
+/// ([`pluma_doc::SymbolBoxes::without_art_strokes`]).
 fn scaling_box(d: &Document, ids: &[NodeId], frame: &OrientedBox) -> Option<Rect> {
     let symbols = d.symbol_boxes().without_art_strokes();
     let to_local = frame.to_doc().inverse();
     ids.iter().filter_map(|id| d.node(*id)).fold(None, |acc, n| {
         let b = if frame.angle == 0.0 { n.visual_bounds_with(&symbols) } else { n.bounds_in(&symbols, to_local, true) };
-        vectorcraft_geom::union_opt(acc, b)
+        pluma_geom::union_opt(acc, b)
     })
 }

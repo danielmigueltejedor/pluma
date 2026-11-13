@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use vectorcraft_doc::{Node, TextObject};
+use pluma_doc::{Node, TextObject};
 
 use super::{
     Arc, Clipboard, Color, CommandInfo, DocState, Document, DrawMode, EngineError, GradientPaint, Journal, NodeKind, PaintDefaults, Prefs, Result,
@@ -14,27 +14,27 @@ impl Session {
     /// Vector Halftone's dots are sampled, for exports.
     pub fn new() -> Self {
         // Placed documents are read by the native format's loader.
-        vectorcraft_doc::placed_document::set_loader(cmd::place::document::read_document);
-        vectorcraft_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
-        vectorcraft_doc::placed_document::set_read_check(|path| file_access::check_read(path).is_ok());
+        pluma_doc::placed_document::set_loader(cmd::place::document::read_document);
+        pluma_doc::placed_document::set_file_reader(cmd::place::document::read_file_again);
+        pluma_doc::placed_document::set_read_check(|path| file_access::check_read(path).is_ok());
         // The background workers of placed documents read files in the scope that asked.
-        vectorcraft_render::placed_document::set_scope_capture(|| {
+        pluma_render::placed_document::set_scope_capture(|| {
             let scope = file_access::ScopeHandle::capture();
             Box::new(move |f: &mut dyn FnMut()| scope.run(f))
         });
         // Clicks find an image's own fills and strokes where their effects draw them.
-        vectorcraft_doc::hit::set_image_paint(vectorcraft_render::effects::image_paint);
+        pluma_doc::hit::set_image_paint(pluma_render::effects::image_paint);
         // Clicks find a blend's steps and an envelope's distorted art where the canvas draws them,
         // evaluated again when the fonts or the plug-ins change.
-        vectorcraft_doc::hit::set_live_art(vectorcraft_render::effects::expand_live, || {
-            vectorcraft_text::FontDb::global().generation().rotate_left(32) ^ vectorcraft_render::effects::plugin_revision()
+        pluma_doc::hit::set_live_art(pluma_render::effects::expand_live, || {
+            pluma_text::FontDb::global().generation().rotate_left(32) ^ pluma_render::effects::plugin_revision()
         });
         // Envelopes map type from the bounds of its glyph outlines, underlines and strikethroughs.
-        vectorcraft_text::register_envelope_ink();
+        pluma_text::register_envelope_ink();
         // Exports bake Vector Halftone into the dots the renderer samples.
-        vectorcraft_render::effects::addons::halftone::set_art(vectorcraft_render::addons::halftone::art);
+        pluma_render::effects::addons::halftone::set_art(pluma_render::addons::halftone::art);
         // OpenType SVG glyphs are drawn as the SVG importer reads their documents.
-        vectorcraft_text::set_svg_glyph_reader(vectorcraft_svg::glyph_art);
+        pluma_text::set_svg_glyph_reader(pluma_svg::glyph_art);
         Self {
             docs: vec![],
             active: None,
@@ -44,7 +44,7 @@ impl Session {
             fill_active: true,
             clipboard: Clipboard::default(),
             journal: Journal::default(),
-            tool: vectorcraft_tools::create("selection"),
+            tool: pluma_tools::create("selection"),
             lender: None,
             held_input: Default::default(),
             input_count: 0,
@@ -130,7 +130,7 @@ impl Session {
             global_edit_options: Default::default(),
             keyboard_text: false,
             script_key: None,
-            script_stop: vectorcraft_js::Interrupt::new(),
+            script_stop: pluma_js::Interrupt::new(),
             script_report: None,
             script_frames: false,
             script_high_water: Default::default(),

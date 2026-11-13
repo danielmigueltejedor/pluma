@@ -12,18 +12,18 @@
 //! must run as an entry ([`as_entry`]): outside one the dialog is shown in line, which macOS
 //! refuses.
 //!
-//! While a dialog is open ([`VectorcraftApp::file_dialog_open`]) another is refused; on macOS,
+//! While a dialog is open ([`PlumaApp::file_dialog_open`]) another is refused; on macOS,
 //! where it is a sheet on the window, the menu bar does nothing and the app neither quits nor
 //! closes documents, as under the modal dialog before.
 
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use pluma_engine::file_access::ScopeHandle;
 use serde_json::Value;
-use vectorcraft_engine::file_access::ScopeHandle;
 
 use crate::state::Dialog;
-use crate::{FilePick, VectorcraftApp};
+use crate::{FilePick, PlumaApp};
 
 /// A file dialog to show.
 #[derive(Clone, Debug, PartialEq)]
@@ -48,7 +48,7 @@ pub type PickAnswer = Vec<String>;
 pub type StartPick = Box<dyn FnMut(PickRequest) -> Option<Receiver<PickAnswer>>>;
 
 /// A button's action that runs again with the picked path.
-type Call = Rc<dyn Fn(&mut VectorcraftApp)>;
+type Call = Rc<dyn Fn(&mut PlumaApp)>;
 
 /// What runs again with the picked path.
 #[derive(Clone)]
@@ -58,10 +58,10 @@ pub(crate) enum Entry {
     /// A dialog's OK (`dialogs::confirm`), on the dialog as it was.
     Confirm(Box<Dialog>),
     /// A panel's or a dialog's button.
-    Call(Rc<dyn Fn(&mut VectorcraftApp)>),
+    Call(Rc<dyn Fn(&mut PlumaApp)>),
     /// A dialog's button that acts on no document (an app preference): its answer goes on even
     /// when the document active at the time has closed meanwhile.
-    AppCall(Rc<dyn Fn(&mut VectorcraftApp)>),
+    AppCall(Rc<dyn Fn(&mut PlumaApp)>),
 }
 
 /// Commands that ask for a file but act on no document: their answer goes on even when the
@@ -86,7 +86,7 @@ const DOCUMENT_FREE: &[&str] = &[
 
 impl Entry {
     /// The document it acts on when it runs again: the active one, unless it acts on none.
-    fn document(&self, app: &VectorcraftApp) -> Option<u64> {
+    fn document(&self, app: &PlumaApp) -> Option<u64> {
         match self {
             Entry::Command(id, _) if DOCUMENT_FREE.contains(&id.as_str()) => None,
             Entry::AppCall(_) => None,
@@ -100,14 +100,14 @@ struct Waiting {
     request: PickRequest,
     answer: Receiver<PickAnswer>,
     entry: Entry,
-    /// The active document when it was asked for ([`vectorcraft_engine::DocState::uid`]).
+    /// The active document when it was asked for ([`pluma_engine::DocState::uid`]).
     doc: Option<u64>,
     /// The automation roots in force when it was asked for: the entry runs again under them, not
     /// with the desktop's access of the frame the answer comes in.
     scope: ScopeHandle,
 }
 
-/// The app's file dialogs ([`VectorcraftApp`]'s `picks`).
+/// The app's file dialogs ([`PlumaApp`]'s `picks`).
 #[derive(Default)]
 pub(crate) struct Picks {
     /// What is running now and asks for a path, the outermost one.
@@ -131,7 +131,7 @@ struct Replacing {
     /// The file it names.
     path: String,
     entry: Entry,
-    /// The active document when it was asked for ([`vectorcraft_engine::DocState::uid`]).
+    /// The active document when it was asked for ([`pluma_engine::DocState::uid`]).
     doc: Option<u64>,
 }
 
@@ -178,7 +178,7 @@ pub(crate) fn dialog_gone() -> &'static str {
 
 /// Run `f` as `entry`: a dialog it asks for off the UI thread runs `entry` again when it
 /// answers. Inside another entry, that one runs again instead.
-pub(crate) fn as_entry<R>(app: &mut VectorcraftApp, entry: impl FnOnce() -> Entry, f: impl FnOnce(&mut VectorcraftApp) -> R) -> R {
+pub(crate) fn as_entry<R>(app: &mut PlumaApp, entry: impl FnOnce() -> Entry, f: impl FnOnce(&mut PlumaApp) -> R) -> R {
     if app.picks.entry.is_some() {
         return f(app);
     }
@@ -189,7 +189,7 @@ pub(crate) fn as_entry<R>(app: &mut VectorcraftApp, entry: impl FnOnce() -> Entr
 }
 
 /// [`as_entry`] for a panel's or a dialog's button that `f` handles.
-pub(crate) fn button(app: &mut VectorcraftApp, f: impl Fn(&mut VectorcraftApp) + 'static) {
+pub(crate) fn button(app: &mut PlumaApp, f: impl Fn(&mut PlumaApp) + 'static) {
     let f = Rc::new(f);
     let again = f.clone();
     as_entry(app, move || Entry::Call(again), |app| f(app));
@@ -200,9 +200,9 @@ pub(crate) fn button(app: &mut VectorcraftApp, f: impl Fn(&mut VectorcraftApp) +
 /// A question whether to replace a file that `f` asks ([`ask_to_replace`]) takes `d`'s place, with
 /// `d` under it.
 pub(crate) fn in_dialog(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     d: &mut Dialog,
-    f: impl Fn(&mut VectorcraftApp, &mut Dialog) -> Result<(), String> + 'static,
+    f: impl Fn(&mut PlumaApp, &mut Dialog) -> Result<(), String> + 'static,
 ) -> Result<(), String> {
     dialog_entry(app, d, Entry::Call, f)
 }
@@ -210,21 +210,21 @@ pub(crate) fn in_dialog(
 /// [`in_dialog`] for an action that acts on no document (an app preference): its answer runs `f`
 /// again on the open dialog even when the document active at the time has closed meanwhile.
 pub(crate) fn in_app_dialog(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     d: &mut Dialog,
-    f: impl Fn(&mut VectorcraftApp, &mut Dialog) -> Result<(), String> + 'static,
+    f: impl Fn(&mut PlumaApp, &mut Dialog) -> Result<(), String> + 'static,
 ) -> Result<(), String> {
     dialog_entry(app, d, Entry::AppCall, f)
 }
 
 /// [`in_dialog`] with `wrap` making the entry (a [`Entry::Call`] or an [`Entry::AppCall`]).
 fn dialog_entry(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     d: &mut Dialog,
     wrap: fn(Call) -> Entry,
-    f: impl Fn(&mut VectorcraftApp, &mut Dialog) -> Result<(), String> + 'static,
+    f: impl Fn(&mut PlumaApp, &mut Dialog) -> Result<(), String> + 'static,
 ) -> Result<(), String> {
-    let f = Rc::new(move |app: &mut VectorcraftApp, d: &mut Dialog| {
+    let f = Rc::new(move |app: &mut PlumaApp, d: &mut Dialog| {
         let r = f(app, d);
         if let Some(mut question) = app.ui.dialog.take_if(|q| q.kind == crate::dialogs::confirm::REPLACE) {
             question.fields.insert(crate::dialogs::PARENT.into(), serde_json::to_value(&*d).unwrap_or_default());
@@ -234,7 +234,7 @@ fn dialog_entry(
     });
     let (again, kind) = (f.clone(), d.kind.clone());
     let entry = move || {
-        wrap(Rc::new(move |app: &mut VectorcraftApp| {
+        wrap(Rc::new(move |app: &mut PlumaApp| {
             let Some(mut d) = app.ui.dialog.take_if(|d| d.kind == kind) else {
                 app.status(dialog_gone());
                 return;
@@ -250,7 +250,7 @@ fn dialog_entry(
 }
 
 /// A dialog body's folder button: the folder picked into field `key` of `d` ([`in_dialog`]).
-pub(crate) fn folder_field(app: &mut VectorcraftApp, d: &mut Dialog, key: &'static str) {
+pub(crate) fn folder_field(app: &mut PlumaApp, d: &mut Dialog, key: &'static str) {
     let r = in_dialog(app, d, move |app, d| {
         if let Some(f) = folder(app) {
             d.fields.insert(key.into(), serde_json::json!(f));
@@ -262,34 +262,34 @@ pub(crate) fn folder_field(app: &mut VectorcraftApp, d: &mut Dialog, key: &'stat
 }
 
 /// A path from an open dialog for `pick` (none: cancelled, or shown off the UI thread for now).
-pub(crate) fn open(app: &mut VectorcraftApp, pick: &FilePick) -> Option<String> {
+pub(crate) fn open(app: &mut PlumaApp, pick: &FilePick) -> Option<String> {
     ask(app, PickRequest::Open(pick.clone()))?.into_iter().next()
 }
 
 /// A path from a save dialog for `pick`.
-pub(crate) fn save(app: &mut VectorcraftApp, pick: &FilePick) -> Option<String> {
+pub(crate) fn save(app: &mut PlumaApp, pick: &FilePick) -> Option<String> {
     ask(app, PickRequest::Save(pick.clone()))?.into_iter().next()
 }
 
 /// A path from a save dialog for `pick`, and the extension of the file type picked in it when the
 /// dialog reports one ([`PickAnswer`]).
-pub(crate) fn save_with_type(app: &mut VectorcraftApp, pick: &FilePick) -> Option<(String, Option<String>)> {
+pub(crate) fn save_with_type(app: &mut PlumaApp, pick: &FilePick) -> Option<(String, Option<String>)> {
     let mut answer = ask(app, PickRequest::Save(pick.clone()))?.into_iter();
     Some((answer.next()?, answer.next()))
 }
 
 /// A folder from the folder picker.
-pub(crate) fn folder(app: &mut VectorcraftApp) -> Option<String> {
+pub(crate) fn folder(app: &mut PlumaApp) -> Option<String> {
     ask(app, PickRequest::Folder)?.into_iter().next()
 }
 
 /// Paths from the open dialog for files to place (none: cancelled).
-pub(crate) fn open_many(app: &mut VectorcraftApp) -> Vec<String> {
+pub(crate) fn open_many(app: &mut PlumaApp) -> Vec<String> {
     ask(app, PickRequest::OpenMany).unwrap_or_default()
 }
 
 /// Whether the host shows `request`'s kind of dialog at all.
-pub(crate) fn can(app: &VectorcraftApp, request: &PickRequest) -> bool {
+pub(crate) fn can(app: &PlumaApp, request: &PickRequest) -> bool {
     let s = &app.services;
     match request {
         PickRequest::Open(_) => s.pick_open.is_some(),
@@ -301,7 +301,7 @@ pub(crate) fn can(app: &VectorcraftApp, request: &PickRequest) -> bool {
 
 /// The paths `request`'s dialog picked: the answer kept for it, else shown off the UI thread (no
 /// paths for now), else shown in line.
-fn ask(app: &mut VectorcraftApp, request: PickRequest) -> Option<PickAnswer> {
+fn ask(app: &mut PlumaApp, request: PickRequest) -> Option<PickAnswer> {
     // One for another dialog is dropped: the entry took another way this time.
     if let Some((asked, answer)) = app.picks.answer.take()
         && asked == request
@@ -345,7 +345,7 @@ fn ask(app: &mut VectorcraftApp, request: PickRequest) -> Option<PickAnswer> {
 
 /// Each frame: when the dialog shown off the UI thread answers with paths, run its entry again
 /// with them. While it is open, look again shortly.
-pub(crate) fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn poll(app: &mut PlumaApp, ctx: &egui::Context) {
     // Clear the "cancelled" that a save leaves in the status bar when it stops to ask whether to
     // replace a file ([`ask_to_replace`]).
     if app.ui.status == "cancelled" && app.ui.dialog.as_ref().is_some_and(|d| d.kind == crate::dialogs::confirm::REPLACE) {
@@ -388,7 +388,7 @@ pub(crate) fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// Make the document an entry asked for (`doc`, by its uid) active again before it runs again:
 /// another may be active by now (opened from the Finder, by an agent), or it may be gone → false
 /// when it can't run (the status bar says why).
-fn on_document(app: &mut VectorcraftApp, doc: Option<u64>) -> bool {
+fn on_document(app: &mut PlumaApp, doc: Option<u64>) -> bool {
     let Some(uid) = doc else { return true };
     let Some(i) = app.session.documents().iter().position(|d| d.uid == uid) else {
         app.status(tl!("The document was closed while its file dialog was open"));
@@ -410,7 +410,7 @@ fn on_document(app: &mut VectorcraftApp, doc: Option<u64>) -> bool {
 /// (nothing is written meanwhile). OK runs what asked again with the same answer, and `path` is
 /// written then ([`replace`]); Cancel writes nothing. Nothing is asked while that OK runs what
 /// asked, or outside an entry, which nothing could run again.
-pub(crate) fn ask_to_replace(app: &mut VectorcraftApp, request: PickRequest, picked: &str, file_type: Option<&str>, path: &str) -> bool {
+pub(crate) fn ask_to_replace(app: &mut PlumaApp, request: PickRequest, picked: &str, file_type: Option<&str>, path: &str) -> bool {
     if app.picks.replace_ok.as_deref() == Some(path) || !app.services.exists.as_ref().is_some_and(|exists| exists(path)) {
         return false;
     }
@@ -425,7 +425,7 @@ pub(crate) fn ask_to_replace(app: &mut VectorcraftApp, request: PickRequest, pic
 /// The OK of the question whether to replace the file at `path` ([`ask_to_replace`]): the dialog
 /// it was asked over shows again, and what asked runs again with the same answer, on the document
 /// it asked for, replacing the file.
-pub(crate) fn replace(app: &mut VectorcraftApp, path: &str) -> Result<Value, String> {
+pub(crate) fn replace(app: &mut PlumaApp, path: &str) -> Result<Value, String> {
     app.ui.dialog = app.ui.dialog.take().and_then(|d| crate::dialogs::parent(&d));
     let Some(Replacing { request, answer, path, entry, doc }) = app.picks.replacing.take().filter(|r| r.path == path) else {
         return Ok(Value::Null);
@@ -445,7 +445,7 @@ pub(crate) fn replace(app: &mut VectorcraftApp, path: &str) -> Result<Value, Str
 }
 
 /// Run `entry` again.
-fn rerun(app: &mut VectorcraftApp, entry: Entry) {
+fn rerun(app: &mut PlumaApp, entry: Entry) {
     let r = match entry {
         Entry::Command(id, params) => app.run(&id, params).map(|_| ()),
         Entry::Confirm(d) => {

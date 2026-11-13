@@ -1,4 +1,4 @@
-//! Generated icon table (`assets/icons`). Lucide icons are ISC-licensed; `dc-*` icons are VectorCraft's own.
+//! Generated icon table (`assets/icons`). Lucide icons are ISC-licensed; `dc-*` icons are Pluma's own.
 //! Regenerate when icons are added: see crates/ui-egui/README.md.
 
 pub static ICONS: &[(&str, &[u8])] = &[
@@ -203,6 +203,7 @@ pub static ICONS: &[(&str, &[u8])] = &[
     ("house", include_bytes!("../../../assets/icons/house.svg")),
     ("image", include_bytes!("../../../assets/icons/image.svg")),
     ("info", include_bytes!("../../../assets/icons/info.svg")),
+    ("keyboard", include_bytes!("../../../assets/icons/keyboard.svg")),
     ("lasso", include_bytes!("../../../assets/icons/lasso.svg")),
     ("layers", include_bytes!("../../../assets/icons/layers.svg")),
     ("layout-grid", include_bytes!("../../../assets/icons/layout-grid.svg")),
@@ -211,10 +212,10 @@ pub static ICONS: &[(&str, &[u8])] = &[
     ("external-link", include_bytes!("../../../assets/icons/external-link.svg")),
     ("git-branch", include_bytes!("../../../assets/icons/git-branch.svg")),
     ("globe", include_bytes!("../../../assets/icons/globe.svg")),
-    ("message-circle", include_bytes!("../../../assets/icons/message-circle.svg")),
     ("link-2-off", include_bytes!("../../../assets/icons/link-2-off.svg")),
     ("lock", include_bytes!("../../../assets/icons/lock.svg")),
     ("lock-open", include_bytes!("../../../assets/icons/lock-open.svg")),
+    ("log-out", include_bytes!("../../../assets/icons/log-out.svg")),
     ("map", include_bytes!("../../../assets/icons/map.svg")),
     ("maximize-2", include_bytes!("../../../assets/icons/maximize-2.svg")),
     ("menu", include_bytes!("../../../assets/icons/menu.svg")),

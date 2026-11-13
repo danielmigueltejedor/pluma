@@ -735,7 +735,7 @@ const RING_MARGIN: f32 = 4.0;
 
 /// The display sRGB of HSB `[h°, s, v]` as an egui color, with no color conversion.
 pub fn hsb32(hsb: [f32; 3]) -> Color32 {
-    let [r, g, b] = vectorcraft_color::hsb_to_rgb(hsb).map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+    let [r, g, b] = pluma_color::hsb_to_rgb(hsb).map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
     Color32::from_rgb(r, g, b)
 }
 
@@ -1004,10 +1004,10 @@ fn wheel(ui: &mut Ui, id: &str, size: f32, colors: &[Color], base: Option<usize>
 /// (artboard and page thumbnails).
 pub fn region_texture(
     ctx: &egui::Context,
-    renderer: &mut vectorcraft_render::Renderer,
+    renderer: &mut pluma_render::Renderer,
     name: &str,
-    doc: &vectorcraft_doc::Document,
-    region: vectorcraft_geom::Rect,
+    doc: &pluma_doc::Document,
+    region: pluma_geom::Rect,
     px: f64,
 ) -> egui::TextureHandle {
     let scale = px / region.width().max(region.height()).max(1.0);

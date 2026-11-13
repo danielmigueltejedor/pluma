@@ -1,15 +1,15 @@
 [package]
-name = "vectorcraft-format"
+name = "pluma-format"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft native .vectorcraft format (versioned JSON, embedded images)"
+description = "Pluma native .pluma format (versioned JSON, embedded images)"
 
 [lints]
 workspace = true
 
 [dependencies]
-vectorcraft-doc = { workspace = true }
+pluma-doc = { workspace = true }
 craft-vectorcraft-format = { workspace = true }
 serde ={ workspace = true }
 serde_json = { workspace = true }
@@ -23,6 +23,6 @@ flate2 = { workspace = true }
 rustix = { workspace = true, features = ["std", "fs"] }
 
 [dev-dependencies]
-vectorcraft-testkit = { workspace = true }
+pluma-testkit = { workspace = true }
 proptest = { workspace = true }
-vectorcraft-geom = { workspace = true }
+pluma-geom = { workspace = true }

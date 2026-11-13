@@ -17,12 +17,12 @@
 use std::sync::Arc;
 
 use kurbo::BezPath;
+use pluma_doc::intertwine::tier_at;
+use pluma_doc::{AppearanceItem, Document, Node, NodeId, NodeKind};
+use pluma_effects as effects;
+use pluma_geom::{FillRule, PathData, Point, Rect, SubPath, shapes};
+use pluma_pathops as po;
 use serde_json::{Value, json};
-use vectorcraft_doc::intertwine::tier_at;
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeId, NodeKind};
-use vectorcraft_effects as effects;
-use vectorcraft_geom::{FillRule, PathData, Point, Rect, SubPath, shapes};
-use vectorcraft_pathops as po;
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -89,7 +89,7 @@ pub fn nonempty(p: PathData) -> Option<PathData> {
 
 /// Does area `a` (filled non-zero) contain `p`?
 pub fn contains(a: &PathData, p: Point) -> bool {
-    vectorcraft_geom::hit::fill_contains(&a.to_bezpath(), FillRule::NonZero, p)
+    pluma_geom::hit::fill_contains(&a.to_bezpath(), FillRule::NonZero, p)
 }
 
 /// One overlap area: its outline, a point inside it, and the members (child indices, bottom
@@ -151,7 +151,7 @@ pub const MENU_MEMBERS: usize = 3;
 /// The member of `face` whose outline (what it paints, `areas` from [`painted_areas`]) is nearest
 /// to `p`.
 pub fn nearest_member(areas: &[Option<PathData>], face: &Face, p: Point) -> Option<usize> {
-    let dist = |i: usize| areas.get(i).and_then(Option::as_ref).map(|a| vectorcraft_geom::hit::distance_to_outline(&a.to_bezpath(), p));
+    let dist = |i: usize| areas.get(i).and_then(Option::as_ref).map(|a| pluma_geom::hit::distance_to_outline(&a.to_bezpath(), p));
     face.members.iter().filter_map(|i| Some((*i, dist(*i)?))).filter(|(_, d)| d.is_finite()).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(i, _)| i)
 }
 
@@ -354,7 +354,7 @@ pub fn create(id: &str) -> Option<Box<dyn Tool>> {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_doc::{Appearance, NodeId};
+    use pluma_doc::{Appearance, NodeId};
 
     use super::*;
 

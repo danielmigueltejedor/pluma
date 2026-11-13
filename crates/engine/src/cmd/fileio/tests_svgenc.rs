@@ -24,14 +24,14 @@ fn each_encoding_reopens_and_serializes_as_text() {
         let text = r["text"].as_str().unwrap();
         assert!(text.contains("Grüße") && text.contains(&format!("encoding=\"{name}\"")), "{text}");
         let bytes = match r.get("dataBase64") {
-            Some(b) => vectorcraft_format::base64_decode(b.as_str().unwrap()).unwrap(),
+            Some(b) => pluma_format::base64_decode(b.as_str().unwrap()).unwrap(),
             None => text.as_bytes().to_vec(),
         };
         assert_eq!(bom, bytes.starts_with(&[0xfe, 0xff]), "{encoding}");
         assert_eq!(r.get("dataBase64").is_some(), encoding != "utf8", "{encoding}");
-        for (file, data) in [("t.svg", bytes.clone()), ("t.svgz", vectorcraft_svg::compress_bytes(&bytes))] {
+        for (file, data) in [("t.svg", bytes.clone()), ("t.svgz", pluma_svg::compress_bytes(&bytes))] {
             let mut o = Session::new();
-            o.execute("document.open", &json!({"name": file, "dataBase64": vectorcraft_format::base64_encode(&data)})).unwrap();
+            o.execute("document.open", &json!({"name": file, "dataBase64": pluma_format::base64_encode(&data)})).unwrap();
             let plain = o.execute("document.inspect", &json!({})).unwrap().to_string();
             assert!(plain.contains("Grüße €"), "{encoding} {file}: {plain}");
         }
@@ -61,7 +61,7 @@ fn a_chosen_artboard_s_svg_holds_only_its_own_art() {
     s.execute("shape.rectangle", &json!({"x": first + 10.0, "y": 10, "width": 30, "height": 30})).unwrap();
     s.execute("shape.ellipse", &json!({"x": third + 10.0, "y": 10, "width": 30, "height": 30})).unwrap();
     // A rectangle has straight sides only; the ellipse is curves.
-    let shapes = |svg: &str| (vectorcraft_testkit::svg_shapes(svg), svg.contains(" C") || svg.contains("<ellipse") || svg.contains("<circle"));
+    let shapes = |svg: &str| (pluma_testkit::svg_shapes(svg), svg.contains(" C") || svg.contains("<ellipse") || svg.contains("<circle"));
     let text = |v: &serde_json::Value| v["text"].as_str().unwrap().to_string();
     let third_only = text(&s.execute("document.serialize", &json!({"format": "svg", "useArtboards": true, "range": "3"})).unwrap());
     assert_eq!(shapes(&third_only), (1, true), "{third_only}");
@@ -88,7 +88,7 @@ fn a_chosen_artboard_s_svg_leaves_out_its_neighbours_art_in_a_shared_group() {
     s.execute("object.group", &json!({})).unwrap();
     let text = |v: &serde_json::Value| v["text"].as_str().unwrap().to_string();
     let third_only = text(&s.execute("document.serialize", &json!({"format": "svg", "useArtboards": true, "range": "3"})).unwrap());
-    assert_eq!(vectorcraft_testkit::svg_shapes(&third_only), 1, "{third_only}");
+    assert_eq!(pluma_testkit::svg_shapes(&third_only), 1, "{third_only}");
     assert!(third_only.contains(" C") || third_only.contains("<ellipse") || third_only.contains("<circle"), "{third_only}");
 }
 
@@ -102,7 +102,7 @@ fn a_chosen_artboard_s_svg_keeps_an_object_whose_shadow_reaches_it() {
     let paths = |s: &mut Session| {
         let svg = s.execute("document.serialize", &json!({"format": "svg", "artboard": 0})).unwrap();
         let text = svg["text"].as_str().unwrap().to_string();
-        vectorcraft_testkit::svg_shapes(&text)
+        pluma_testkit::svg_shapes(&text)
     };
     assert_eq!(paths(&mut s), 0, "the plain rectangle is off the artboard");
     s.execute("effect.apply", &json!({"effect": "stylize.dropShadow", "ids": [id], "params": {"x": 20, "y": 0, "blur": 0}})).unwrap();
@@ -135,7 +135,7 @@ fn an_svg_of_one_artboard_is_titled_after_it() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|f| title(&String::from_utf8(vectorcraft_format::base64_decode(f["dataBase64"].as_str().unwrap()).unwrap()).unwrap()))
+            .map(|f| title(&String::from_utf8(pluma_format::base64_decode(f["dataBase64"].as_str().unwrap()).unwrap()).unwrap()))
             .collect()
     };
     let svg = json!([{"format": "svg"}]);

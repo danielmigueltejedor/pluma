@@ -225,7 +225,7 @@ impl Renderer {
         ctx.reset_paint_transform();
         ctx.set_paint(vello_cpu::Image { image: vello_cpu::ImageSource::Pixmap(s.image.clone()), sampler });
         ctx.fill_rect(&Rect::new(0.0, 0.0, w, h));
-        ctx.set_blend_mode(blend_mode(vectorcraft_doc::color::BlendMode::Normal));
+        ctx.set_blend_mode(blend_mode(pluma_doc::color::BlendMode::Normal));
         ctx.set_transform(Affine::IDENTITY);
     }
 
@@ -400,7 +400,7 @@ impl Renderer {
     /// the art standing for the object's silhouette.
     pub(crate) fn draw_object_fx(&mut self, ctx: &mut RenderContext, f: &Frame, a: &Arc<Node>, cache: bool) {
         let opacity = self.opacity_of(a);
-        if !f.opts.outline && (opacity < 1.0 || a.blend != vectorcraft_doc::color::BlendMode::Normal || a.isolate) {
+        if !f.opts.outline && (opacity < 1.0 || a.blend != pluma_doc::color::BlendMode::Normal || a.isolate) {
             let blends = self.blends_through(a);
             let bounds = if blends { self.bounds_of(f.symbols, a) } else { None };
             let comp = crate::group::Composite { blend: a.blend, opacity, isolated: a.isolate, blends, bounds, ..Default::default() };
@@ -458,11 +458,11 @@ impl Renderer {
     /// frame's symbol budget as an instance without effects is (`draw_node`): an instance whose
     /// effects reshape its art draws through here, and nested instances would otherwise expand
     /// without a limit. True for any other object.
-    pub(crate) fn charge_fx_instance(&mut self, doc: &vectorcraft_doc::Document, a: &Node) -> bool {
+    pub(crate) fn charge_fx_instance(&mut self, doc: &pluma_doc::Document, a: &Node) -> bool {
         let NodeKind::SymbolInstance { symbol, .. } = &a.kind else { return true };
         let count = doc.symbols.iter().find(|s| &s.name == symbol).map_or(0, |s| s.art.count() as u64);
         let mut used = self.symbol_nodes;
-        let room = vectorcraft_doc::charge_symbol_art(&mut used, count, || ((), count)).is_some();
+        let room = pluma_doc::charge_symbol_art(&mut used, count, || ((), count)).is_some();
         self.symbol_nodes = used;
         room
     }
@@ -475,7 +475,7 @@ impl Renderer {
     /// is made from live objects it evaluated ([`evaluates_live`]), or from type, symbol art or
     /// colors shaded through the color settings ([`reads_outside`]), is kept only while what it
     /// reads from outside `a` stays the same ([`Self::live_found`]).
-    pub(super) fn fx_art(&mut self, doc: &vectorcraft_doc::Document, a: &Arc<Node>, cache: bool) -> Arc<Node> {
+    pub(super) fn fx_art(&mut self, doc: &pluma_doc::Document, a: &Arc<Node>, cache: bool) -> Arc<Node> {
         let key = Arc::as_ptr(a) as usize;
         let mut kept = None;
         if cache
@@ -520,7 +520,7 @@ impl Renderer {
     /// held until the frame ends ([`Renderer::measured`]), for [`Self::fx_art`] to keep if `a` is
     /// drawn. What is measured but never drawn (culled, off the view) is let go, and isn't kept in
     /// place of what is drawn.
-    pub(crate) fn measured_fx_art(&mut self, doc: &vectorcraft_doc::Document, a: &Arc<Node>) -> Arc<Node> {
+    pub(crate) fn measured_fx_art(&mut self, doc: &pluma_doc::Document, a: &Arc<Node>) -> Arc<Node> {
         let key = Arc::as_ptr(a) as usize;
         if let Some((node, art, found)) = self.fx_arts.get(&key, self.stamp)
             && Arc::ptr_eq(node, a)
@@ -570,12 +570,12 @@ impl Renderer {
 
     /// The key of what `a`'s art reads from outside it ([`Self::live_found`]), `None` when it reads
     /// nothing.
-    fn outside_key(&mut self, doc: &vectorcraft_doc::Document, a: &Arc<Node>) -> Option<u64> {
+    fn outside_key(&mut self, doc: &pluma_doc::Document, a: &Arc<Node>) -> Option<u64> {
         (evaluates_live(a) || reads_outside(a)).then(|| self.live_found(doc, a).0)
     }
 
     /// The art [`Self::fx_art`] draws for `a`, made now.
-    fn make_fx_art(&mut self, doc: &vectorcraft_doc::Document, a: &Arc<Node>) -> Arc<Node> {
+    fn make_fx_art(&mut self, doc: &pluma_doc::Document, a: &Arc<Node>) -> Arc<Node> {
         // Whether the art is a 3D effect's ([`Self::three_d_art_bounds`]).
         let mut three_d = false;
         let symbol = match &a.kind {
@@ -622,7 +622,7 @@ impl Renderer {
         art.isolate = false;
         // One element: its pieces never knock each other out (a group's members still do as its
         // knockout setting says).
-        art.knockout = if container { a.knockout } else { vectorcraft_doc::Knockout::Off };
+        art.knockout = if container { a.knockout } else { pluma_doc::Knockout::Off };
         let art = Arc::new(art);
         if three_d {
             // A renderer that only measures (an export, Fit to Artwork Bounds) ends no frame: what
@@ -656,7 +656,7 @@ impl Renderer {
     /// `art` with the colour adjustments inside it applied, then `outer` (its object's own) on
     /// everything ([`effects::adjust`]), with `doc`'s swatches. Embedded images become recoloured
     /// copies, cached with the decoded images under a key naming the adjustment.
-    fn adjusted_art(&mut self, doc: &vectorcraft_doc::Document, mut art: Node, outer: Option<&effects::ColorMap>) -> Node {
+    fn adjusted_art(&mut self, doc: &pluma_doc::Document, mut art: Node, outer: Option<&effects::ColorMap>) -> Node {
         art.appearance.effects.retain(|e| !effects::is_adjustment(&e.id));
         let mut wanted: Vec<(String, String, u64, effects::ColorMap)> = vec![];
         // shortcut: art kept by `fx_arts` isn't made again when only a swatch's kind (spot or
@@ -934,8 +934,8 @@ fn carried(n: &Node, carry: &effects::Carry) -> Option<Arc<Node>> {
 mod tests {
     use super::*;
     use crate::RenderOptions;
-    use vectorcraft_color::Color;
-    use vectorcraft_doc::{Document, color::BlendMode};
+    use pluma_color::Color;
+    use pluma_doc::{Document, color::BlendMode};
 
     #[test]
     fn uncached_darkness_shadow_subtracts_before_separate_opacity() {

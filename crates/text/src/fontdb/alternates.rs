@@ -5,10 +5,10 @@
 //! <https://learn.microsoft.com/en-us/typography/opentype/spec/features_ae#tag-aalt>
 //! <https://learn.microsoft.com/en-us/typography/opentype/spec/features_pt>
 
+use pluma_doc::GlyphChoice;
 use skrifa::MetadataProvider;
 use skrifa::raw::TableProvider;
 use skrifa::raw::tables::gsub::{AlternateSubstFormat1, SingleSubst, SubstitutionSubtables};
-use vectorcraft_doc::GlyphChoice;
 
 use super::FontFace;
 
@@ -136,7 +136,7 @@ impl FontFace {
 
     /// `c` drawn with glyph `gid` of this face ([`CharStyle::glyph_alternate`]).
     ///
-    /// [`CharStyle::glyph_alternate`]: vectorcraft_doc::CharStyle::glyph_alternate
+    /// [`CharStyle::glyph_alternate`]: pluma_doc::CharStyle::glyph_alternate
     pub fn choice(&self, c: char, gid: u32) -> GlyphChoice {
         GlyphChoice { ch: c, gid, font: self.postscript_name(), version: self.version.clone() }
     }

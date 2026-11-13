@@ -2,8 +2,8 @@
 //! document's own share (`fileio::document_path`): opening a document, Link Info, watching linked
 //! files, and the images an SVG file links to.
 
+use pluma_doc::{NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
 
 use crate::cmd::fileio::touched;
 use crate::tests_links::{Folder, RED, place, png, session};
@@ -24,7 +24,7 @@ fn far_reads(seen: &[String]) -> Vec<&String> {
     seen.iter().filter(|p| p.contains("192.0.2.1") || p.starts_with("//") || p.starts_with(r"\\")).collect()
 }
 
-/// A document saved at `dir/doc.vectorcraft` with one linked image per path in `paths`, each
+/// A document saved at `dir/doc.pluma` with one linked image per path in `paths`, each
 /// showing `dir/pic.png` until its link is set → the document's path.
 fn save_linked(dir: &Folder, paths: &[String]) -> String {
     let pic = dir.file("pic.png");
@@ -34,10 +34,10 @@ fn save_linked(dir: &Folder, paths: &[String]) -> String {
     let mut doc = (*s.doc().unwrap().doc).clone();
     for (id, path) in ids.iter().zip(paths) {
         let Some(NodeKind::Image(im)) = doc.node_mut(*id).map(|n| &mut n.kind) else { panic!("not an image") };
-        im.link = Some(vectorcraft_doc::LinkInfo::new(path.clone()));
+        im.link = Some(pluma_doc::LinkInfo::new(path.clone()));
     }
-    let path = dir.file("doc.vectorcraft");
-    std::fs::write(&path, vectorcraft_format::save(&doc, false)).unwrap();
+    let path = dir.file("doc.pluma");
+    std::fs::write(&path, pluma_format::save(&doc, false)).unwrap();
     path
 }
 
@@ -93,11 +93,11 @@ fn places_named_from_a_share_are_not_followed_after_a_save_elsewhere() {
     use crate::cmd::links::follow_from;
     let resolve =
         |stored: &str, doc: Option<&str>| craft_docpath::resolve(stored, doc.map(std::path::Path::new)).map(|p| p.to_string_lossy().into_owned());
-    let (link, on_share) = (r"\\server\share\a\art\photo.png", Some(r"\\server\share\a\poster.vectorcraft"));
+    let (link, on_share) = (r"\\server\share\a\art\photo.png", Some(r"\\server\share\a\poster.pluma"));
     assert_eq!(follow_from(link, on_share, on_share, resolve).as_deref(), Some(link));
-    assert_eq!(follow_from(link, on_share, Some(r"\\server\share\b\poster.vectorcraft"), resolve).as_deref(), Some(link));
-    assert_eq!(follow_from(link, on_share, Some("/local/b/poster.vectorcraft"), resolve), None);
-    assert_eq!(follow_from(link, on_share, Some(r"C:\b\poster.vectorcraft"), resolve), None);
+    assert_eq!(follow_from(link, on_share, Some(r"\\server\share\b\poster.pluma"), resolve).as_deref(), Some(link));
+    assert_eq!(follow_from(link, on_share, Some("/local/b/poster.pluma"), resolve), None);
+    assert_eq!(follow_from(link, on_share, Some(r"C:\b\poster.pluma"), resolve), None);
 }
 
 /// The final path Windows gives a folder of the drive `Z:` mapped to `\\server\share`. The
@@ -113,8 +113,8 @@ fn a_document_on_a_mapped_drive_is_on_the_share_behind_it() {
     use crate::cmd::fileio::share_of;
     // craft-docpath refuses a link on the share when the document is given by its drive letter.
     let link = r"\\server\share\img\logo.png";
-    assert_eq!(craft_docpath::resolve(link, Some(std::path::Path::new(r"Z:\jobs\doc.vectorcraft"))), Err(craft_docpath::Refused::Network));
-    assert!(craft_docpath::resolve(link, Some(std::path::Path::new(r"\\server\share\jobs\doc.vectorcraft"))).is_ok());
+    assert_eq!(craft_docpath::resolve(link, Some(std::path::Path::new(r"Z:\jobs\doc.pluma"))), Err(craft_docpath::Refused::Network));
+    assert!(craft_docpath::resolve(link, Some(std::path::Path::new(r"\\server\share\jobs\doc.pluma"))).is_ok());
 
     // The document's path on the share, from its folder's final path.
     let mut asked = vec![];
@@ -122,28 +122,21 @@ fn a_document_on_a_mapped_drive_is_on_the_share_behind_it() {
         asked.push(folder.to_string());
         on_share(folder)
     };
-    assert_eq!(share_of(r"Z:\jobs\doc.vectorcraft", &mut ask).as_deref(), Some(r"\\server\share\jobs\doc.vectorcraft"));
-    assert_eq!(share_of(r"Z:\doc.vectorcraft", &mut ask).as_deref(), Some(r"\\server\share\doc.vectorcraft"));
-    assert_eq!(share_of("Z:/jobs/doc.vectorcraft", &mut ask).as_deref(), Some(r"\\server\share\jobs\doc.vectorcraft"));
+    assert_eq!(share_of(r"Z:\jobs\doc.pluma", &mut ask).as_deref(), Some(r"\\server\share\jobs\doc.pluma"));
+    assert_eq!(share_of(r"Z:\doc.pluma", &mut ask).as_deref(), Some(r"\\server\share\doc.pluma"));
+    assert_eq!(share_of("Z:/jobs/doc.pluma", &mut ask).as_deref(), Some(r"\\server\share\jobs\doc.pluma"));
     assert_eq!(asked, [r"Z:\jobs", r"Z:\", "Z:/jobs"]);
     let unc = |p: &'static str| move |_: &str| Some(std::path::PathBuf::from(p));
-    assert_eq!(share_of(r"Z:\doc.vectorcraft", unc(r"\\?\unc\server\share\")).as_deref(), Some(r"\\server\share\doc.vectorcraft"));
+    assert_eq!(share_of(r"Z:\doc.pluma", unc(r"\\?\unc\server\share\")).as_deref(), Some(r"\\server\share\doc.pluma"));
 
     // A folder on a local volume (also behind a `subst` drive), a folder that can't be opened,
     // and a final path without a share name give no path on a share.
-    assert_eq!(share_of(r"C:\art\doc.vectorcraft", unc(r"\\?\C:\art")), None);
-    assert_eq!(share_of(r"S:\doc.vectorcraft", unc(r"\\?\D:\real")), None);
-    assert_eq!(share_of(r"Z:\gone\doc.vectorcraft", |_| None), None);
-    assert_eq!(share_of(r"Z:\doc.vectorcraft", unc(r"\\?\UNC\server")), None);
+    assert_eq!(share_of(r"C:\art\doc.pluma", unc(r"\\?\C:\art")), None);
+    assert_eq!(share_of(r"S:\doc.pluma", unc(r"\\?\D:\real")), None);
+    assert_eq!(share_of(r"Z:\gone\doc.pluma", |_| None), None);
+    assert_eq!(share_of(r"Z:\doc.pluma", unc(r"\\?\UNC\server")), None);
     // A document given by its share, or not by a drive, is not looked up.
-    for doc in [
-        r"\\server\share\doc.vectorcraft",
-        r"\\?\Z:\doc.vectorcraft",
-        "/Users/a/doc.vectorcraft",
-        "doc.vectorcraft",
-        "Z:doc.vectorcraft",
-        r"Z:\jobs\",
-    ] {
+    for doc in [r"\\server\share\doc.pluma", r"\\?\Z:\doc.pluma", "/Users/a/doc.pluma", "doc.pluma", "Z:doc.pluma", r"Z:\jobs\"] {
         assert_eq!(share_of(doc, |f: &str| panic!("{doc}: looked up {f}")), None, "{doc}");
     }
 }
@@ -192,7 +185,7 @@ fn a_path_on_a_mapped_drive_is_on_the_share_behind_it() {
 #[test]
 fn links_on_a_mapped_drives_share_are_followed() {
     use crate::cmd::fileio::{document_path_with, share_of};
-    let doc = Some(r"Z:\jobs\doc.vectorcraft");
+    let doc = Some(r"Z:\jobs\doc.pluma");
     let share = |d: &str| share_of(d, on_share);
     // A link on the share behind the drive is followed; one on another share still isn't.
     assert_eq!(document_path_with(r"\\server\share\img\logo.png", doc, share).as_deref(), Ok(r"\\server\share\img\logo.png"));
@@ -215,13 +208,13 @@ fn links_on_a_drive_mapped_to_another_share_are_not_followed() {
     let drive = |p: &str| drive_share_of(p, mapped);
     let refused = Err(craft_docpath::Refused::Network);
     // From a document on this computer, a drive mapped to any share is another computer.
-    let local = Some(r"C:\art\doc.vectorcraft");
+    let local = Some(r"C:\art\doc.pluma");
     for link in [r"Y:\img\logo.png", r"Z:\logo.png", r"\\?\Y:\logo.png", "file:///Y:/logo.png", r"Y:\gone\logo.png"] {
         assert_eq!(document_path_on(link, local, share, drive), refused, "{link}");
     }
     // Links on a mapped drive are refused from a document on a third share, given by its drive or
     // by its share, and from a document without a path.
-    for doc in [Some(r"W:\jobs\doc.vectorcraft"), Some(r"\\far\jobs\doc.vectorcraft"), None] {
+    for doc in [Some(r"W:\jobs\doc.pluma"), Some(r"\\far\jobs\doc.pluma"), None] {
         assert_eq!(document_path_on(r"Y:\img\logo.png", doc, share, drive), refused, "{doc:?}");
         assert_eq!(document_path_on(r"Z:\img\logo.png", doc, share, drive), refused, "{doc:?}");
     }
@@ -235,19 +228,19 @@ fn links_on_the_documents_share_or_this_computer_are_followed() {
     let drive = |p: &str| drive_share_of(p, mapped);
     // Links on the document's share are followed: through another drive mapped to it, by the share's
     // own path, and from the document given by its share.
-    let doc = Some(r"Z:\jobs\doc.vectorcraft");
+    let doc = Some(r"Z:\jobs\doc.pluma");
     assert_eq!(document_path_on(r"V:\img\logo.png", doc, share, drive).as_deref(), Ok(r"V:\img\logo.png"));
-    let by_share = Some(r"\\server\share\jobs\doc.vectorcraft");
+    let by_share = Some(r"\\server\share\jobs\doc.pluma");
     assert_eq!(document_path_on(r"Z:\img\logo.png", by_share, share, drive).as_deref(), Ok(r"Z:\img\logo.png"));
     assert_eq!(document_path_on(r"\\server\share\logo.png", doc, share, drive).as_deref(), Ok(r"\\server\share\logo.png"));
     // A document written `\\?\Z:\…` is on the same share.
-    let verbatim = Some(r"\\?\Z:\jobs\doc.vectorcraft");
+    let verbatim = Some(r"\\?\Z:\jobs\doc.pluma");
     assert_eq!(document_path_on(r"V:\img\logo.png", verbatim, share, drive).as_deref(), Ok(r"V:\img\logo.png"));
     assert_eq!(document_path_on(r"\\server\share\logo.png", verbatim, share, drive).as_deref(), Ok(r"\\server\share\logo.png"));
     assert_eq!(document_path_on(r"Y:\img\logo.png", verbatim, share, drive), Err(craft_docpath::Refused::Network));
     // Links on this computer and on a drive that can't be opened are followed, from a document
     // anywhere.
-    for doc in [Some(r"C:\art\doc.vectorcraft"), doc, Some(r"\\far\jobs\doc.vectorcraft"), None] {
+    for doc in [Some(r"C:\art\doc.pluma"), doc, Some(r"\\far\jobs\doc.pluma"), None] {
         assert_eq!(document_path_on(r"D:\art\logo.png", doc, share, drive).as_deref(), Ok(r"D:\art\logo.png"), "{doc:?}");
         assert_eq!(document_path_on(r"Q:\art\logo.png", doc, share, drive).as_deref(), Ok(r"Q:\art\logo.png"), "{doc:?}");
     }
@@ -255,7 +248,7 @@ fn links_on_the_documents_share_or_this_computer_are_followed() {
     let unasked = |p: &str| -> Option<String> { panic!("looked up {p}") };
     assert_eq!(document_path_on(r"img\logo.png", doc, share, unasked).as_deref(), Ok(r"Z:\jobs\img\logo.png"));
     assert_eq!(document_path_on(r"z:\logo.png", doc, share, unasked).as_deref(), Ok(r"z:\logo.png"));
-    assert_eq!(document_path_on(r"C:\x\logo.png", Some(r"C:\art\doc.vectorcraft"), share, unasked).as_deref(), Ok(r"C:\x\logo.png"));
+    assert_eq!(document_path_on(r"C:\x\logo.png", Some(r"C:\art\doc.pluma"), share, unasked).as_deref(), Ok(r"C:\x\logo.png"));
 }
 
 #[test]
@@ -263,12 +256,12 @@ fn a_document_off_a_mapped_drive_keeps_its_path() {
     use crate::cmd::fileio::{drive_share_path, share_path};
     let dir = Folder::new("docpath-share");
     // A folder on this computer's own disk, and one that doesn't exist.
-    assert_eq!(share_path(&dir.file("doc.vectorcraft")), None);
-    assert_eq!(share_path(&dir.file("gone/doc.vectorcraft")), None);
+    assert_eq!(share_path(&dir.file("doc.pluma")), None);
+    assert_eq!(share_path(&dir.file("gone/doc.pluma")), None);
     assert_eq!(drive_share_path(&dir.file("gone/x.png")), None);
     // Elsewhere than Windows, no document or link is looked up.
     if cfg!(not(windows)) {
-        assert_eq!(share_path(r"Z:\jobs\doc.vectorcraft"), None);
+        assert_eq!(share_path(r"Z:\jobs\doc.pluma"), None);
         assert_eq!(drive_share_path(r"Y:\img\logo.png"), None);
     }
 }

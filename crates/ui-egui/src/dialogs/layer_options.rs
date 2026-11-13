@@ -8,13 +8,13 @@
 //! `dimPercent`. OK runs `layer.setProps`, `layer.new` or `layer.newSublayer`. For several rows
 //! the dialog shows the first row's settings, and OK sends only the ones set in the dialog.
 
+use pluma_doc::{LAYER_COLORS, LayerColor, Node, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LAYER_COLORS, LayerColor, Node, NodeId, NodeKind};
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, form, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Layer Options.
 pub const KIND: &str = "layerOptions";
@@ -125,7 +125,7 @@ fn fields_of(n: &Node, xml_id: bool) -> serde_json::Map<String, Value> {
 
 /// `ui.layerOptions {ids?|id?}`: open Layer Options for rows (default: the highlighted rows, else
 /// the current layer), filled in from the first.
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     // Rows given are used as given: a malformed or unknown id fails rather than being skipped or
     // the dialog opening on the highlighted rows instead.
@@ -158,7 +158,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 
 /// `ui.newLayer {sublayer?}`: Layer Options for a new layer (or sublayer), with the name and
 /// colour it would get.
-pub fn open_new(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open_new(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     let mut layers = vec![];
     st.doc.walk(|n| {
@@ -173,7 +173,7 @@ pub fn open_new(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     let sublayer = p.get("sublayer").and_then(Value::as_bool).unwrap_or(false);
     let color = LayerColor::Preset((layers.len() % LAYER_COLORS.len()) as u8);
     let name = format!("Layer {i}");
-    let name = if app.session.prefs.identify_objects_by == "xmlId" { vectorcraft_doc::xml_id::from_object_name(&name) } else { name };
+    let name = if app.session.prefs.identify_objects_by == "xmlId" { pluma_doc::xml_id::from_object_name(&name) } else { name };
     let fields = json!({
         "mode": if sublayer { "newSublayer" } else { "new" }, "layer": true, "name": name, "color": color_field(color),
         "template": false, "locked": false, "visible": true, "printable": true, "preview": true, "dimImages": false, "dimPercent": 50,
@@ -216,7 +216,7 @@ fn color_dropdown(ui: &mut egui::Ui, shown: &str) -> Option<usize> {
     })
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let layer = d.bool("layer");
     let many = d.fields.get("ids").and_then(Value::as_array).is_some_and(|a| a.len() > 1);
     grid(ui, |ui| {
@@ -238,7 +238,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
                     .find(|(n, _)| n.eq_ignore_ascii_case(&cur))
                     .map(|(_, c)| *c)
                     .or_else(|| {
-                        vectorcraft_color::Color::from_hex(&cur).map(|c| {
+                        pluma_color::Color::from_hex(&cur).map(|c| {
                             let [r, g, b, _] = c.to_rgba8(1.0);
                             [r, g, b]
                         })
@@ -323,7 +323,7 @@ pub(crate) fn params(d: &Dialog) -> (&'static str, Value) {
     }
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (cmd, p) = params(d);
     run_and_close(app, cmd, p)
 }
@@ -331,15 +331,15 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app
     }
 
-    fn draw(app: &mut VectorcraftApp) {
+    fn draw(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(Default::default(), |ui| super::super::show(app, ui.ctx()));
@@ -347,7 +347,7 @@ mod tests {
     }
 
     /// Sets a field as `ui.dialog.set` does.
-    fn set(app: &mut VectorcraftApp, k: &str, v: Value) {
+    fn set(app: &mut PlumaApp, k: &str, v: Value) {
         super::super::set_field(app.ui.dialog.as_mut().unwrap(), k.into(), v);
     }
 
@@ -390,7 +390,7 @@ mod tests {
 
     /// Two layers with different options, the first plain and the second green, locked, in
     /// outline view and dimmed to 30%.
-    fn two_layers(app: &mut VectorcraftApp) -> (NodeId, NodeId) {
+    fn two_layers(app: &mut PlumaApp) -> (NodeId, NodeId) {
         let first = app.session.doc().unwrap().doc.layers[0].id;
         let p = json!({"color": "#00ff00", "locked": true, "preview": false, "dimImages": 30});
         let second = NodeId(app.session.execute("layer.new", &p).unwrap()["id"].as_u64().unwrap());
@@ -399,7 +399,7 @@ mod tests {
         (first, second)
     }
 
-    fn layer(app: &VectorcraftApp, id: NodeId) -> Node {
+    fn layer(app: &PlumaApp, id: NodeId) -> Node {
         app.session.doc().unwrap().doc.node(id).unwrap().clone()
     }
 
@@ -467,10 +467,10 @@ mod tests {
     }
 
     /// The open dialog of `app` in a test harness, drawn and ready for clicks.
-    fn harness(app: VectorcraftApp) -> egui_kittest::Harness<'static, VectorcraftApp> {
+    fn harness(app: PlumaApp) -> egui_kittest::Harness<'static, PlumaApp> {
         let mut fonts = false;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(900.0, 700.0)).build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !std::mem::replace(&mut fonts, true) {
                     crate::theme::install_fonts(ui.ctx());
                     return;

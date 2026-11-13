@@ -69,17 +69,17 @@ impl Writer<'_> {
     /// as the canvas paints them, the object's own fills and strokes on the glyph outlines: those
     /// below the Characters row under the characters, the others over them.
     ///
-    /// Inline graphics ([`vectorcraft_doc::TextRun::inline`]) are written after the characters as
+    /// Inline graphics ([`pluma_doc::TextRun::inline`]) are written after the characters as
     /// instances of their symbols (a `<use>` of the symbol's def where it can be shared), all in
     /// one group carrying the object's transparency. The live text skips their characters and
     /// places the text after each one; type on a path with inline graphics is written as outlines
     /// (a `<textPath>` couldn't leave room for the art). A run whose font size measures a height
     /// other than the em box is written at the em size it is drawn at
-    /// ([`vectorcraft_text::FontDb::font_heights_resolved`]).
+    /// ([`pluma_text::FontDb::font_heights_resolved`]).
     pub(super) fn text_node(&mut self, n: &Node, t: &TextObject) {
         let doc = self.doc;
         let resolved = doc.inline_resolved(t);
-        let heights = vectorcraft_text::FontDb::global().font_heights_resolved(&resolved);
+        let heights = pluma_text::FontDb::global().font_heights_resolved(&resolved);
         let t = &*heights;
         let inline = t.runs.iter().any(|r| r.inline.is_some());
         // Ruby is written as outlines with its base text: a reader's <text> can't place it. So are
@@ -88,9 +88,9 @@ impl Writer<'_> {
         // is type in one of the document's composite fonts, which a reader can't find by its name.
         let unwritable = t.runs.iter().any(|r| {
             r.style.small_caps.is_some()
-                || r.style.position != vectorcraft_doc::CharPosition::Normal
+                || r.style.position != pluma_doc::CharPosition::Normal
                 || r.style.glyph_alternate.is_some()
-                || vectorcraft_doc::CompositeFont::named(&doc.composite_fonts, &r.style.font_family).is_some()
+                || pluma_doc::CompositeFont::named(&doc.composite_fonts, &r.style.font_family).is_some()
         }) || std::iter::once(&t.para).chain(&t.paras).any(|p| p.tabs.iter().any(|tab| !tab.leader.is_empty()));
         let outlined =
             self.opts.outline_text || t.vertical || !t.ruby.is_empty() || (inline && matches!(t.kind, TextKind::OnPath { .. })) || unwritable;
@@ -106,10 +106,10 @@ impl Writer<'_> {
         let a = self.attrs(&css::transparency(n));
         self.line(&format!("<g{id}{a}>"));
         self.depth += 1;
-        let db = vectorcraft_text::FontDb::global();
-        let lay = vectorcraft_text::layout(db, t);
+        let db = pluma_text::FontDb::global();
+        let lay = pluma_text::layout(db, t);
         let mut all = lay.to_bezpath();
-        for (_, bar) in vectorcraft_text::decorations(&lay, db, t) {
+        for (_, bar) in pluma_text::decorations(&lay, db, t) {
             all.extend(bar.iter());
         }
         let pd = PathData::from_bezpath(&all).transformed(t.xf);
@@ -118,7 +118,7 @@ impl Writer<'_> {
         let (below, above) = n.appearance.split_contents();
         let glyphs = |w: &mut Self, items: &[AppearanceItem]| {
             if !items.is_empty() {
-                let ap = vectorcraft_doc::Appearance { items: items.to_vec(), ..Default::default() };
+                let ap = pluma_doc::Appearance { items: items.to_vec(), ..Default::default() };
                 w.shape(&Node::path(NodeId(u64::MAX), pd.clone(), ap), &d, None, &[&pd], FillRule::NonZero, tb);
             }
         };
@@ -147,12 +147,12 @@ impl Writer<'_> {
     /// Text as glyph outlines: one compound path per run, painted like the run (gradients span
     /// the whole text), over its colour glyphs, as on the canvas.
     fn text_outlines(&mut self, n: &Node, t: &TextObject) {
-        let db = vectorcraft_text::FontDb::global();
-        let lay = vectorcraft_text::layout(db, t);
+        let db = pluma_text::FontDb::global();
+        let lay = pluma_text::layout(db, t);
         let mut runs = vec![kurbo::BezPath::new(); t.runs.len()];
         // Underline and strikethrough bars join their run's outlines; ruby glyphs are painted
         // with the run of the text they annotate.
-        let bars = vectorcraft_text::decorations(&lay, db, t);
+        let bars = pluma_text::decorations(&lay, db, t);
         for (run, outline) in lay
             .glyphs
             .iter()
@@ -170,7 +170,7 @@ impl Writer<'_> {
         // a path and the like) names its text for screen readers and search; Convert to Outlines
         // leaves only the paths, except for bent glyphs. Inline graphics are written apart from the
         // glyphs, so their placeholder characters stay out of the name; empty text has none.
-        let text: String = t.plain_text().chars().filter(|&c| c != vectorcraft_doc::text::INLINE_CHAR).collect();
+        let text: String = t.plain_text().chars().filter(|&c| c != pluma_doc::text::INLINE_CHAR).collect();
         let label = if !text.trim().is_empty() && (!self.opts.outline_text || lay.glyphs.iter().any(|g| g.bend.is_some())) {
             // SVG import names an object by its `aria-label` before its id, so an id that stands for
             // the name is written as `data-name` too, and the object keeps its name.
@@ -228,8 +228,8 @@ impl Writer<'_> {
         // (and right-to-left paragraphs) keep their look as outlines until it is written with
         // `direction`/`unicode-bidi`. So do runs set Right to Left (Character Direction), whose
         // `direction="rtl"` would anchor their pieces at the right end.
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
-        let rtl_runs = t.runs.iter().any(|r| r.style.char_direction == Some(vectorcraft_doc::ParaDirection::RightToLeft));
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
+        let rtl_runs = t.runs.iter().any(|r| r.style.char_direction == Some(pluma_doc::ParaDirection::RightToLeft));
         if lay.glyphs.iter().any(|g| g.rtl) || lay.lines.iter().any(|l| l.rtl) || rtl_runs {
             self.warn("bidirectional text is outlined to preserve shaping and visual order");
             return self.text_outlines(n, t);
@@ -243,13 +243,13 @@ impl Writer<'_> {
             }
             // `<textPath>` has a start offset only: an end bracket, Align to Path and Spacing
             // keep their look as outlines.
-            if end.is_some() || t.path_align != vectorcraft_doc::PathAlign::Baseline || t.path_spacing != 0.0 {
+            if end.is_some() || t.path_align != pluma_doc::PathAlign::Baseline || t.path_spacing != 0.0 {
                 self.warn("type on a path with an end bracket, Align to Path or Spacing is outlined to keep its look");
                 return self.text_outlines(n, t);
             }
             // A reader turns each `<textPath>` glyph with the path, as Rainbow does: Skew, 3D
             // Ribbon, Stair Step and Gravity keep their look as outlines.
-            if t.path_effect != vectorcraft_doc::PathEffect::Rainbow {
+            if t.path_effect != pluma_doc::PathEffect::Rainbow {
                 self.warn("type on a path with an effect other than Rainbow is outlined to keep its look");
                 return self.text_outlines(n, t);
             }
@@ -269,7 +269,7 @@ impl Writer<'_> {
         self.note_fonts(t, &lay);
         let lines = text_lines(t, &lay, self.opts.fewer_tspans);
         // `drawn` holds the styles the layout draws the text in: Shrink Text to Fit scales its sizes, explicit leading and baseline shifts.
-        let fitted = (lay.fit_scale != 1.0).then(|| vectorcraft_text::scaled(t, lay.fit_scale));
+        let fitted = (lay.fit_scale != 1.0).then(|| pluma_text::scaled(t, lay.fit_scale));
         let drawn = fitted.as_ref().unwrap_or(t);
         // Each line is anchored as its paragraph is aligned. A tab starts a new chunk at its
         // stop, and so does the text after an inline graphic: lines with tabs, and text with
@@ -341,9 +341,9 @@ impl Writer<'_> {
         if !t.runs.iter().any(|r| aligned(&r.style)) {
             return;
         }
-        let db = vectorcraft_text::FontDb::global();
-        let lay = vectorcraft_text::layout(db, t);
-        let bars = vectorcraft_text::decorations(&lay, db, t);
+        let db = pluma_text::FontDb::global();
+        let lay = pluma_text::layout(db, t);
+        let bars = pluma_text::decorations(&lay, db, t);
         // The glyphs stay in text space; the text's transform joins the document's meanwhile.
         let saved = self.xf;
         self.xf = saved * t.xf;
@@ -359,7 +359,7 @@ impl Writer<'_> {
                 continue;
             }
             let pd = PathData::from_bezpath(&bp);
-            let ap = vectorcraft_doc::Appearance { items: vec![AppearanceItem::Stroke(run.style.stroke_layer())], ..Default::default() };
+            let ap = pluma_doc::Appearance { items: vec![AppearanceItem::Stroke(run.style.stroke_layer())], ..Default::default() };
             let d = self.path_d(&pd, self.xf);
             self.shape(&Node::path(NodeId(u64::MAX), pd.clone(), ap), &d, None, &[&pd], FillRule::NonZero, Some(lay.bounds));
         }
@@ -384,7 +384,7 @@ impl Writer<'_> {
             let Some(run_style) = t.runs.get(seg.run).map(|r| &r.style) else { continue };
             let marker_style;
             let st = if seg.marker {
-                marker_style = vectorcraft_doc::text::ParaList::marker_style(run_style);
+                marker_style = pluma_doc::text::ParaList::marker_style(run_style);
                 &marker_style
             } else {
                 run_style
@@ -426,7 +426,7 @@ impl Writer<'_> {
 
     /// Record the characters of laid-out type `t` under the faces that supply them, for
     /// [`Self::font_faces`] (when fonts are embedded).
-    fn note_fonts(&mut self, t: &TextObject, lay: &vectorcraft_text::TextLayout) {
+    fn note_fonts(&mut self, t: &TextObject, lay: &pluma_text::TextLayout) {
         if !self.opts.embed_fonts || self.opts.outline_text {
             return;
         }
@@ -532,7 +532,7 @@ impl Writer<'_> {
         let d = self.path_d(path, self.xf * t.xf);
         self.def(1, &format!("<path id=\"{pid}\" d=\"{d}\"/>"));
         // The <text> element's user space is the document's; gradients span the laid-out text.
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         self.note_fonts(t, &lay);
         let space = (lay.bounds, self.xf * t.xf);
         let base = self.char_props(&t.first_style(), space);
@@ -576,7 +576,7 @@ fn aligned(st: &CharStyle) -> bool {
 /// Does type on a path `t`, laid out as `lay`, hang glyphs outside its brackets? It does when
 /// Optical Margin Alignment or its first paragraph's Roman Hanging Punctuation is on and its
 /// glyphs sit elsewhere with both off.
-fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
+fn hangs_on_path(t: &TextObject, lay: &pluma_text::TextLayout) -> bool {
     if !t.optical_margin && !t.para_at(0).roman_hanging {
         return false;
     }
@@ -587,7 +587,7 @@ fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
         p.roman_hanging = false;
     }
     flush.set_paragraph_styles(styles);
-    let flush = vectorcraft_text::layout(FontDb::global(), &flush);
+    let flush = pluma_text::layout(FontDb::global(), &flush);
     lay.glyphs.len() != flush.glyphs.len() || lay.glyphs.iter().zip(&flush.glyphs).any(|(a, b)| a.origin != b.origin)
 }
 
@@ -597,7 +597,7 @@ fn hangs_on_path(t: &TextObject, lay: &vectorcraft_text::TextLayout) -> bool {
 /// outlines ([`Writer::text`]), so live text writes `direction="ltr"` only.
 fn direction_props(st: &CharStyle) -> Props {
     let Some(d) = st.char_direction else { return Props::new() };
-    let direction = if d == vectorcraft_doc::ParaDirection::RightToLeft { "rtl" } else { "ltr" };
+    let direction = if d == pluma_doc::ParaDirection::RightToLeft { "rtl" } else { "ltr" };
     vec![("direction", direction.into()), ("unicode-bidi", "embed".into())]
 }
 
@@ -665,7 +665,7 @@ struct Segment {
     /// (`textLength`); 1 for other segments.
     scale: f64,
     /// A list marker's characters and tab, written in
-    /// [`vectorcraft_doc::text::ParaList::marker_style`] of the run's style.
+    /// [`pluma_doc::text::ParaList::marker_style`] of the run's style.
     marker: bool,
 }
 
@@ -680,7 +680,7 @@ const PLACE_TOLERANCE: f64 = 1e-6;
 /// starts a new segment at each character the layout draws elsewhere than a reader continuing
 /// the segment would ([`reader_advances`]): a Justify All line's letter gaps, the gaps between
 /// the characters of a justified Japanese line, and the spacing Mojikumi changes.
-fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -> Vec<Line> {
+fn text_lines(t: &TextObject, lay: &pluma_text::TextLayout, fewer: bool) -> Vec<Line> {
     let plain = t.plain_text();
     let mut lines = Vec::with_capacity(lay.lines.len());
     let (mut kerned, mut unkerned) = (None, None);
@@ -704,7 +704,7 @@ fn text_lines(t: &TextObject, lay: &vectorcraft_text::TextLayout, fewer: bool) -
         let mut segs: Vec<Segment> = Vec::new();
         let mut cluster = None;
         // A list marker's glyphs write its characters and then a tab (glyph `i` of the layout).
-        let source = |i: usize, g: &vectorcraft_text::PositionedGlyph| {
+        let source = |i: usize, g: &pluma_text::PositionedGlyph| {
             lay.marker_text(i).unwrap_or_else(|| if g.len == 0 { "-" } else { plain.get(g.byte..g.byte + g.len).unwrap_or("") })
         };
         let mut glyphs = lay.glyphs.get(line.glyph_start..line.glyph_end).unwrap_or_default();
@@ -800,7 +800,7 @@ fn end_segment(
     seg: &mut Segment,
     tail: Option<(usize, f64)>,
     t: &TextObject,
-    lay: &vectorcraft_text::TextLayout,
+    lay: &pluma_text::TextLayout,
     unkerned: &mut Option<HashMap<usize, (f64, f64)>>,
 ) {
     let Some((byte, advance)) = tail else { return };
@@ -824,16 +824,16 @@ thread_local! {
 /// Shrink Text to Fit. Without `kerning`, the font's pair kerning is left out (as manual
 /// kerning leaves it out). When that leaves `t` as it is, its glyphs are read from `lay`, which
 /// is `t`'s layout, instead of laying it out again.
-fn reader_advances(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: bool) -> HashMap<usize, (f64, f64)> {
+fn reader_advances(t: &TextObject, lay: &pluma_text::TextLayout, kerning: bool) -> HashMap<usize, (f64, f64)> {
     // Mojikumi that spaces none of the characters sets them as Mojikumi None does.
     let mojikumi = lay.mojikumi_applies(&t.plain_text());
     let mut set = TextObject { kind: TextKind::Point, ..t.clone() };
     for p in std::iter::once(&mut set.para).chain(set.paras.iter_mut()) {
         if mojikumi {
-            p.mojikumi = vectorcraft_doc::Mojikumi::None;
+            p.mojikumi = pluma_doc::Mojikumi::None;
         }
         // A reader spaces words and letters as the font does.
-        p.justification = vectorcraft_doc::JustificationOptions::default();
+        p.justification = pluma_doc::JustificationOptions::default();
     }
     if !kerning {
         for r in &mut set.runs {
@@ -846,7 +846,7 @@ fn reader_advances(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: 
     } else {
         #[cfg(test)]
         READER_LAYOUTS.with(|n| n.set(n.get() + 1));
-        relaid = vectorcraft_text::layout(FontDb::global(), &set);
+        relaid = pluma_text::layout(FontDb::global(), &set);
         &relaid.glyphs
     };
     let mut out: HashMap<usize, (f64, f64)> = HashMap::new();

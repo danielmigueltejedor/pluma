@@ -5,14 +5,14 @@
 //! Fields: `tones` (the effect's, always [`MAX_TONES`] while the dialog is open, the ones after
 //! the first off), `skipSpot`, and `__tone`, the tone whose curve shows.
 
+use pluma_color::{Color, Paint};
+use pluma_effects::addons::duotone::{MAX_TONES, tone_curve_points};
 use serde_json::{Map, Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_effects::addons::duotone::{MAX_TONES, tone_curve_points};
 
 use super::effect::{curve_graph, points_text};
 use super::form;
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// A curve's text: linear, inverse.
 const LINEAR: &str = "0,0 100,100";
@@ -32,7 +32,7 @@ fn tone_color(tone: &Value) -> Color {
 }
 
 /// The dialog's fields; returns nothing, the caller compares the values with those previewed.
-pub(super) fn fields(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(super) fn fields(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let mut tones: Vec<Value> = d.fields.get("tones").and_then(Value::as_array).cloned().unwrap_or_default();
     tones.truncate(MAX_TONES);
     while tones.len() < MAX_TONES {

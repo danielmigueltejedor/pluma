@@ -1,14 +1,14 @@
 //! Save PDF › Output and Advanced: the colour conversion, profiles, output intent and real text
 //! chosen in the dialog reach the written file, with nothing reported as not applied.
 
+use pluma_color::cms::GENERIC_CMYK;
 use serde_json::json;
-use vectorcraft_color::cms::GENERIC_CMYK;
 
 use crate::tests_svg::app;
 use crate::{dialogs, theme};
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut crate::VectorcraftApp) {
+fn frame(app: &mut crate::PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| dialogs::show(app, ui.ctx()));

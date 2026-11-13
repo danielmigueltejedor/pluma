@@ -3,15 +3,15 @@
 //! picked. Each test installs exporters of its own and removes them: plug-ins are process-wide, and
 //! a format left installed would show in other tests' Export As.
 
+use pluma_plugins::wat::{self as tpl, Echo};
 use serde_json::{Value, json};
-use vectorcraft_plugins::wat::{self as tpl, Echo};
 
 use super::tests_export::{app, app_saving, frame, kind, names, set};
 use super::*;
 
-fn install(app: &mut VectorcraftApp, src: &str) {
+fn install(app: &mut PlumaApp, src: &str) {
     let wasm = wat::parse_str(src).unwrap();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap();
 }
 
 /// Export As lists an exporter after the built-in formats and writes its file of the whole
@@ -85,10 +85,10 @@ fn export_as_and_exporter_dialog_pictures() {
     std::fs::write(dir.join("plotter-test-exporter.wasm"), wat::parse_str(&src).unwrap()).unwrap();
     install(&mut app, &src);
     app.run("file.exportAs", json!({"format": "plugin.org.example.plotter"})).unwrap();
-    let shot = |app: VectorcraftApp, name: &str| -> VectorcraftApp {
+    let shot = |app: PlumaApp, name: &str| -> PlumaApp {
         let mut ready = false;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(720.0, 520.0)).wgpu().build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !ready {
                     crate::theme::install_fonts(ui.ctx());
                     crate::theme::apply(ui.ctx(), crate::theme::Brightness::MediumDark);

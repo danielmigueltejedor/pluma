@@ -1,7 +1,7 @@
 # Nodalia migration: Pluma
 
 Category: secondary app.
-Status: Base Nodalia preparada, as of 2026-11-13. Evidence: the pull request that adds this file.
+Status: renamed to Pluma, NDL interface, as of 2026-11-13. Evidence: the pull request that adds this file.
 
 ## Current state
 
@@ -18,27 +18,32 @@ interface follows Foundation's [NDL standard](https://github.com/getnodalia/foun
 
 | Dependency | Where | Replacement | Blocked on |
 |---|---|---|---|
-| `storytold/craft-common-actions` | `.github/workflows/release.yml`, `.github/workflows/windows-arm64.yml` | Foundation reusable workflows (release, refresh-contributors, windows-arm64) | writing and testing them |
-| `storytold/craft-fonts` | `crates/text/build.rs` | getnodalia/foundation `vendor/craft-fonts/main` | repointing |
-| `storytold/pdfcraft` | `packaging/macos/package.sh` | to decide | — |
-| `storytold/vectorcraft` | `.github/pull_request_template.md`, `.github/workflows/upstream-sync.yml`, `Cargo.toml`, `packaging/linux/ai.storyteller.vectorcraft.metainfo.xml.in`, `packaging/linux/flatpak-oci.sh`, `packaging/linux/package.sh`, `packaging/windows/sign.ps1` | none: intended upstream sync | — |
-| `storytold/winprint.rs` | `Cargo.toml` | to decide | — |
+| `storytold/craft-common-actions` | `.github/workflows/release.yml`, `.github/workflows/windows-arm64.yml` | Pluma's own release workflows on Foundation's release-tag and release-publish | the CI pull request that follows this one |
+| upstream's repository (`docs/upstream.md`) | `.github/workflows/upstream-sync.yml` | none: the weekly sync reads upstream and renames it (`scripts/rebrand.py`, `.github/rebrand.toml`) | — |
+
+Resolved: craft-fonts is read from getnodalia/foundation's `vendor/craft-fonts/main` branch; the
+`[patch]` for `storytold/winprint.rs` in `Cargo.toml` only names the old home of crates that are
+fetched from getnodalia/foundation.
 
 ## Technical debt
 
-- Internal names inherited from upstream (crate, binary and package names) remain where saved
-  settings, files and the upstream sync depend on them.
+- The native file's signature (`"format": "vectorcraft"`), the format's id in the command API
+  and the name of the editing data a PDF carries keep the old name: they are what files saved
+  before the rename are read by. `.github/rebrand.toml` keeps them.
 
 ## Reusable Nodalia components
 
 getnodalia/foundation (vendored crates, fonts, translations, reusable workflows);
 getnodalia/nodalia-design (theme, icons).
 
-## NDL work pending
+## NDL
 
-Check the interface against Foundation's NDL standard: hamburger menu with About, Preferences and
-Keyboard shortcuts; theme selector only in Preferences; NDL window controls on Linux only; global
-menu exported over D-Bus on Linux.
+Done in the pull request that renamed the app: the Nodalia theme with Pluma's accent is the
+default (Classic and Modern stay in Preferences), the panels are islands, the header has the
+hamburger menu (About, Preferences, Keyboard Shortcuts, Quit), the light and dark choice lives in
+Preferences only, NDL's round window controls are drawn on Linux only (switchable to the
+desktop's), macOS and Windows keep native controls, and on Linux the menus are exported over
+D-Bus to the shell's global menu where the shell has one.
 
 ## Risks and priorities
 
@@ -49,7 +54,7 @@ menu exported over D-Bus on Linux.
 
 1. A Foundation release workflow, tested with a dry run, then Pluma's release on it.
 2. A Foundation Windows ARM64 workflow.
-3. NDL review of the interface.
+3. Screenshots of the NDL interface in the README and on the website.
 
 ## What the first agent should do
 

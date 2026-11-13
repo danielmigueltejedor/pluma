@@ -1,10 +1,10 @@
 //! Clipboard flavours (M4.57): PNG, PDF and plain text out; bitmaps, plain text and PDF in; the
 //! Clipboard Handling preferences.
 
+use pluma_doc::{NodeKind, TextObject};
+use pluma_geom::Point;
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, TextObject};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::cmd::clipboard::{AI, BITMAP, EPS, FILE_HEAD, PASTE_ORDER, PDF, PNG, SVG, TEXT, file_flavour};
 use crate::*;
@@ -36,16 +36,16 @@ fn copy_text(s: &mut Session, texts: &[&str]) {
 }
 
 fn decode(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
 }
 
 /// The pasted objects (the selection after a paste).
-fn pasted(s: &Session) -> Vec<vectorcraft_doc::Node> {
+fn pasted(s: &Session) -> Vec<pluma_doc::Node> {
     let st = s.doc().unwrap();
     st.selection.objects.iter().map(|id| st.doc.node(*id).unwrap().clone()).collect()
 }
 
-fn text_of(n: &vectorcraft_doc::Node) -> &TextObject {
+fn text_of(n: &pluma_doc::Node) -> &TextObject {
     match &n.kind {
         NodeKind::Text(t) => t,
         k => panic!("not type: {k:?}"),
@@ -93,7 +93,7 @@ fn exported_pdf_pastes_back_as_vectors() {
         n.walk(&mut |c| red |= c.appearance.fill_paint().color().is_some_and(|c| c.to_hex() == "#ff0000"));
     }
     assert!(red, "the square keeps its red fill");
-    assert!(t.execute("clipboard.importPdf", &json!({"dataBase64": vectorcraft_format::base64_encode(b"not a pdf")})).is_err());
+    assert!(t.execute("clipboard.importPdf", &json!({"dataBase64": pluma_format::base64_encode(b"not a pdf")})).is_err());
     assert!(t.execute("clipboard.importPdf", &json!({})).is_err());
 }
 
@@ -146,7 +146,7 @@ fn import_image_then_paste_gives_an_image() {
     assert!((b.center().x - 300.0).abs() < 1e-6 && (b.center().y - 200.0).abs() < 1e-6 && (b.width() - 40.0).abs() < 1e-6, "{b:?}");
     // Not a bitmap.
     assert!(s.execute("clipboard.importImage", &json!({"dataBase64": png["dataBase64"], "mime": "image/svg+xml"})).is_err());
-    assert!(s.execute("clipboard.importImage", &json!({"dataBase64": vectorcraft_format::base64_encode(b"hello")})).is_err());
+    assert!(s.execute("clipboard.importImage", &json!({"dataBase64": pluma_format::base64_encode(b"hello")})).is_err());
     assert!(s.execute("clipboard.importImage", &json!({"dataBase64": "!!"})).is_err());
 }
 
@@ -159,14 +159,14 @@ fn an_image_read_apart_loads_as_import_image_loads_it() {
     let (mut at_once, mut apart) = (session(), session());
     let p = json!({"mime": "image/bmp", "center": [100, 80]});
     let mut with_data = p.clone();
-    with_data["dataBase64"] = json!(vectorcraft_format::base64_encode(&bmp));
+    with_data["dataBase64"] = json!(pluma_format::base64_encode(&bmp));
     let r = run(&mut at_once, "clipboard.importImage", with_data);
     let read = crate::cmd::clipboard::read_image(&bmp).unwrap();
     assert_eq!(apart.import_image_read(read, &p).unwrap(), r);
     assert_eq!(apart.clipboard, at_once.clipboard);
     assert!(apart.image_hand_off.is_none());
     // Errors: bytes that aren't a picture, and a type that isn't a bitmap.
-    let not_a_picture = at_once.execute("clipboard.importImage", &json!({"dataBase64": vectorcraft_format::base64_encode(b"hello")})).unwrap_err();
+    let not_a_picture = at_once.execute("clipboard.importImage", &json!({"dataBase64": pluma_format::base64_encode(b"hello")})).unwrap_err();
     assert_eq!(crate::cmd::clipboard::read_image(b"hello").err().map(|e| e.to_string()), Some(not_a_picture.to_string()));
     let read = crate::cmd::clipboard::read_image(&bmp).unwrap();
     let svg = apart.import_image_read(read, &json!({"mime": SVG})).unwrap_err();
@@ -182,7 +182,7 @@ fn a_bitmap_whose_pixels_cant_be_read_is_not_pasted() {
     copy_red_square(&mut s);
     let held = s.clipboard.clone();
     let cut = crate::tests_links::cut_png(600, 300);
-    let e = s.execute("clipboard.importImage", &json!({"dataBase64": vectorcraft_format::base64_encode(&cut), "mime": "image/png"})).unwrap_err();
+    let e = s.execute("clipboard.importImage", &json!({"dataBase64": pluma_format::base64_encode(&cut), "mime": "image/png"})).unwrap_err();
     assert!(e.to_string().ends_with("the image's pixels can't be read"), "{e}");
     assert_eq!(crate::cmd::clipboard::read_image(&cut).err().map(|e| e.to_string()), Some(e.to_string()));
     assert_eq!(s.clipboard.nodes, held.nodes);
@@ -197,15 +197,15 @@ fn a_pasted_bitmap_is_drawn_without_decoding_it_again() {
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     let mut s = session();
-    run(&mut s, "clipboard.importImage", json!({"dataBase64": vectorcraft_format::base64_encode(&png), "mime": "image/png"}));
+    run(&mut s, "clipboard.importImage", json!({"dataBase64": pluma_format::base64_encode(&png), "mime": "image/png"}));
     run(&mut s, "edit.paste", json!({}));
     let n = &pasted(&s)[0];
     let NodeKind::Image(im) = &n.kind else { panic!("not an image: {:?}", n.kind) };
     let d = s.doc().unwrap().doc.clone();
-    assert!(vectorcraft_render::image_cached(&d.images[&im.key]), "kept before it is drawn");
-    let decodes = vectorcraft_render::image_decodes();
-    let r = vectorcraft_render::Renderer::new().render(&d, 400, 300, vectorcraft_geom::Affine::IDENTITY, &Default::default());
-    assert_eq!(vectorcraft_render::image_decodes(), decodes, "drawn without a decode");
+    assert!(pluma_render::image_cached(&d.images[&im.key]), "kept before it is drawn");
+    let decodes = pluma_render::image_decodes();
+    let r = pluma_render::Renderer::new().render(&d, 400, 300, pluma_geom::Affine::IDENTITY, &Default::default());
+    assert_eq!(pluma_render::image_decodes(), decodes, "drawn without a decode");
     let at = im.xf * Point::new(150.0, 100.0);
     let px = r.pixel(at.x as u32, at.y as u32);
     assert!(px[3] > 0 && px[2] < 100, "the image is drawn at its middle: {px:?}");
@@ -214,7 +214,7 @@ fn a_pasted_bitmap_is_drawn_without_decoding_it_again() {
 #[test]
 fn copied_svgz_files_paste_as_svg() {
     let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"40\"><rect width=\"40\" height=\"40\" fill=\"#ff0000\"/></svg>";
-    let svgz = vectorcraft_svg::compress(svg);
+    let svgz = pluma_svg::compress(svg);
     let of = |name: &str, bytes: &[u8]| file_flavour(name, &bytes[..bytes.len().min(FILE_HEAD)], &PASTE_ORDER);
     assert_eq!(of("art.svgz", &svgz), Some(SVG));
     assert_eq!(of("art.gz", &svgz), Some(SVG), "the content tells");
@@ -230,8 +230,8 @@ fn copied_svgz_files_paste_as_svg() {
     // UTF-16 after a byte order mark, as SVG Options' UTF-16 encoding writes it.
     let utf16 =
         |text: &str, unit: fn(u16) -> [u8; 2], bom: [u8; 2]| -> Vec<u8> { bom.into_iter().chain(text.encode_utf16().flat_map(unit)).collect() };
-    assert_eq!(of("be.svgz", &vectorcraft_svg::compress_bytes(&utf16(svg, u16::to_be_bytes, [0xfe, 0xff]))), Some(SVG));
-    assert_eq!(of("le.svgz", &vectorcraft_svg::compress_bytes(&utf16(svg, u16::to_le_bytes, [0xff, 0xfe]))), Some(SVG));
+    assert_eq!(of("be.svgz", &pluma_svg::compress_bytes(&utf16(svg, u16::to_be_bytes, [0xfe, 0xff]))), Some(SVG));
+    assert_eq!(of("le.svgz", &pluma_svg::compress_bytes(&utf16(svg, u16::to_le_bytes, [0xff, 0xfe]))), Some(SVG));
     // Stored without compression, the head unpacks to fewer than FILE_HEAD bytes (an odd number)
     // before it ends.
     let stored = |bytes: &[u8]| {
@@ -241,11 +241,11 @@ fn copied_svgz_files_paste_as_svg() {
     };
     assert_eq!(of("stored.svgz", &stored(big.as_bytes())), Some(SVG));
     assert_eq!(of("stored16.svgz", &stored(&utf16(&big, u16::to_be_bytes, [0xfe, 0xff]))), Some(SVG));
-    let big = vectorcraft_svg::compress(&big);
+    let big = pluma_svg::compress(&big);
     assert!(big.len() > 2 * FILE_HEAD, "{}", big.len());
     assert_eq!(of("big.svgz", &big), Some(SVG));
     // Other gzip data, whole or cut short, pastes as nothing.
-    let notes = vectorcraft_svg::compress("plain text, not SVG");
+    let notes = pluma_svg::compress("plain text, not SVG");
     assert_eq!(of("notes.txt.gz", &notes), None);
     assert_eq!(of("notes.svgz", &notes), None);
     let mut text = String::new();
@@ -253,7 +253,7 @@ fn copied_svgz_files_paste_as_svg() {
         seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
         text += &format!("line {i}: {seed}\n");
     }
-    let text = vectorcraft_svg::compress(&text);
+    let text = pluma_svg::compress(&text);
     assert!(text.len() > FILE_HEAD, "{}", text.len());
     assert_eq!(of("log.gz", &text), None);
     // Cut within the gzip header (10 bytes) or at its end: nothing unpacks.
@@ -262,7 +262,7 @@ fn copied_svgz_files_paste_as_svg() {
     }
     // The SVG flavor's command reads the SVGZ bytes: the red square pastes.
     let mut s = session();
-    let r = run(&mut s, "clipboard.importSvg", json!({"dataBase64": vectorcraft_format::base64_encode(&svgz), "center": [200, 150]}));
+    let r = run(&mut s, "clipboard.importSvg", json!({"dataBase64": pluma_format::base64_encode(&svgz), "center": [200, 150]}));
     assert_eq!(r["count"], 1, "{r}");
     run(&mut s, "edit.paste", json!({}));
     let n = &pasted(&s)[0];
@@ -312,7 +312,7 @@ fn copied_ai_files_paste_as_the_pdf_or_postscript_inside() {
     assert_eq!(file_flavour("art.ai", &pdf, &[EPS]), None);
     assert_eq!(file_flavour("art.ait", ps, &[PDF]), None);
     // clipboard.importEps, the EPS flavor's command, reads the PostScript.
-    let r = run(&mut s, "clipboard.importEps", json!({"dataBase64": vectorcraft_format::base64_encode(ps)}));
+    let r = run(&mut s, "clipboard.importEps", json!({"dataBase64": pluma_format::base64_encode(ps)}));
     assert_eq!(r["count"], 1, "{r}");
 }
 
@@ -324,7 +324,7 @@ fn import_text_then_paste_gives_point_text() {
     run(&mut s, "edit.paste", json!({"center": [200, 150]}));
     let n = &pasted(&s)[0];
     let t = text_of(n);
-    assert!(matches!(t.kind, vectorcraft_doc::TextKind::Point));
+    assert!(matches!(t.kind, pluma_doc::TextKind::Point));
     assert_eq!(t.plain_text(), "Hello\nworld");
     let b = n.geometric_bounds().unwrap();
     assert!((b.center().x - 200.0).abs() < 1.0 && (b.center().y - 150.0).abs() < 1.0, "{b:?}");
@@ -459,7 +459,7 @@ fn a_copy_with_a_large_image_offers_no_svg_text() {
     for (side, text) in [(700, false), (64, true)] {
         let png = noise_png(side);
         assert_eq!(png.len() > 1 << 20, !text, "{} bytes", png.len());
-        run(&mut s, "clipboard.importImage", json!({"dataBase64": vectorcraft_format::base64_encode(&png)}));
+        run(&mut s, "clipboard.importImage", json!({"dataBase64": pluma_format::base64_encode(&png)}));
         run(&mut s, "edit.paste", json!({}));
         run(&mut s, "edit.copy", json!({}));
         let want: &[&str] = if text { &[TEXT, SVG, PNG] } else { &[SVG, PNG] };

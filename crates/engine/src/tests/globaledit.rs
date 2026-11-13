@@ -2,9 +2,9 @@
 //! count as similar, and edits made to one of them reaching the others in proportion, as one undo
 //! step. Behaviour: <https://helpx.adobe.com/illustrator/desktop/manage-objects/edit-objects/edit-similar-objects.html>.
 
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::{Affine, PathData, Rect};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::{Affine, PathData, Rect};
 
 use crate::*;
 
@@ -411,7 +411,7 @@ fn an_object_left_out_keeps_its_own_shape_while_the_others_follow() {
 
 /// A Shift-drag with the Selection tool from `from` to `to`.
 fn shift_drag(s: &mut Session, from: (f64, f64), to: (f64, f64)) {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Mods, PointerEvent, PointerKind};
     let v = ViewInfo::default();
     s.select_tool("selection", v).unwrap();
     let steps = if from == to {
@@ -665,9 +665,8 @@ fn an_object_added_to_the_group_is_added_to_the_others() {
     let added = s
         .edit("add", |d, _| {
             let id = d.alloc_id();
-            let path = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 80.0, 10.0, 90.0));
-            d.insert(Some(g), usize::MAX, Node::path(id, path, vectorcraft_doc::Appearance::default_art()))
-                .map_err(|e| EngineError::Other(e.to_string()))
+            let path = pluma_geom::shapes::rectangle(Rect::new(0.0, 80.0, 10.0, 90.0));
+            d.insert(Some(g), usize::MAX, Node::path(id, path, pluma_doc::Appearance::default_art())).map_err(|e| EngineError::Other(e.to_string()))
         })
         .unwrap();
     let (theirs, smalls) = (kids(&s, copy), kids(&s, small));
@@ -688,8 +687,8 @@ fn global_edit_takes_at_most_max_members() {
             for i in 0..MAX_MEMBERS + 5 {
                 let (x, y) = ((i % 70) as f64 * 10.0, (i / 70 % 50) as f64 * 10.0);
                 let id = d.alloc_id();
-                let path = vectorcraft_geom::shapes::rectangle(Rect::new(x, y, x + 8.0, y + 8.0));
-                d.insert(layer, usize::MAX, Node::path(id, path, vectorcraft_doc::Appearance::default_art()))
+                let path = pluma_geom::shapes::rectangle(Rect::new(x, y, x + 8.0, y + 8.0));
+                d.insert(layer, usize::MAX, Node::path(id, path, pluma_doc::Appearance::default_art()))
                     .map_err(|e| EngineError::Other(e.to_string()))?;
                 first.get_or_insert(id);
             }
@@ -707,7 +706,7 @@ fn groups_nested_as_deep_as_a_document_allows_are_edited_together() {
         let side = rect(s, x + 20.0, 0.0, 10.0, 10.0);
         let mut top = group_of(s, &[inner, side]);
         // Group until the document refuses to go deeper.
-        for _ in 0..2 * vectorcraft_doc::MAX_DEPTH {
+        for _ in 0..2 * pluma_doc::MAX_DEPTH {
             sel(s, &[top]);
             match s.execute("object.group", &json!({})) {
                 Ok(r) => top = NodeId(r["id"].as_u64().unwrap()),

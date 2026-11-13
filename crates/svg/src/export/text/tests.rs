@@ -2,12 +2,12 @@
 //! out again each time, which happens only when a reader sets the type differently from its layout.
 
 use super::*;
-use vectorcraft_doc::text::{Bullet, ParaList};
-use vectorcraft_doc::{Document, JustificationOptions, Mojikumi, TextRun};
-use vectorcraft_geom::{Point, shapes};
+use pluma_doc::text::{Bullet, ParaList};
+use pluma_doc::{Document, JustificationOptions, Mojikumi, TextRun};
+use pluma_geom::{Point, shapes};
 
 /// The advances with `t` laid out again as a reader sets it, whatever it holds.
-fn laid_out_again(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: bool) -> HashMap<usize, (f64, f64)> {
+fn laid_out_again(t: &TextObject, lay: &pluma_text::TextLayout, kerning: bool) -> HashMap<usize, (f64, f64)> {
     let mut set = TextObject { kind: TextKind::Point, ..t.clone() };
     for p in std::iter::once(&mut set.para).chain(set.paras.iter_mut()) {
         p.mojikumi = Mojikumi::None;
@@ -19,7 +19,7 @@ fn laid_out_again(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: b
         }
     }
     let mut out: HashMap<usize, (f64, f64)> = HashMap::new();
-    for g in vectorcraft_text::layout(FontDb::global(), &set).glyphs.iter().filter(|g| g.len > 0) {
+    for g in pluma_text::layout(FontDb::global(), &set).glyphs.iter().filter(|g| g.len > 0) {
         let (advance, _) = out.entry(g.byte).or_insert((0.0, (g.xf.translation().x - g.origin.x) * lay.fit_scale));
         *advance += g.advance * lay.fit_scale;
     }
@@ -27,7 +27,7 @@ fn laid_out_again(t: &TextObject, lay: &vectorcraft_text::TextLayout, kerning: b
 }
 
 fn style() -> CharStyle {
-    CharStyle { size: 12.0, fill: Paint::solid(vectorcraft_color::Color::BLACK), ..CharStyle::default() }
+    CharStyle { size: 12.0, fill: Paint::solid(pluma_color::Color::BLACK), ..CharStyle::default() }
 }
 
 /// Point type with Line-end Punctuation Half Width, the setting new type gets.
@@ -40,7 +40,7 @@ fn point(text: &str) -> TextObject {
 /// How many times [`reader_advances`] laid out `t` again (`kerning` as it is given), after checking
 /// that it gives what laying out again gives.
 fn layouts_again(t: &TextObject, kerning: bool) -> usize {
-    let lay = vectorcraft_text::layout(FontDb::global(), t);
+    let lay = pluma_text::layout(FontDb::global(), t);
     READER_LAYOUTS.with(|n| n.set(0));
     let got = reader_advances(t, &lay, kerning);
     let again = READER_LAYOUTS.with(std::cell::Cell::get);
@@ -125,7 +125,7 @@ fn list_items_with_latin_markers_are_not_laid_out_again() {
     bullets.para.list = Some(ParaList::bulleted(Bullet::Dot));
     assert_eq!(layouts_again(&bullets, true), 0);
     let mut numbers = point("一つ\n二つ");
-    numbers.para.list = Some(ParaList::numbered(vectorcraft_doc::text::NumberStyle::Arabic));
+    numbers.para.list = Some(ParaList::numbered(pluma_doc::text::NumberStyle::Arabic));
     assert_eq!(layouts_again(&numbers, true), 1);
 }
 

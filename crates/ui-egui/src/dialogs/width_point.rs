@@ -10,13 +10,13 @@
 //! `side2` (the left and right widths, points), `linked`, `adjustAdjoining`; Delete sets `discard: true` and confirms.
 
 use egui::vec2;
+use pluma_engine::doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_engine::doc::NodeId;
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Width Point Edit.
 pub const KIND: &str = "widthPoint";
@@ -25,7 +25,7 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Width Point Edit").into(), body, confirm, discard: Some("Delete"), min_width: 300.0, ..DialogSpec::FORM };
 
 /// Width point `index` of `id`: its place and side widths (points).
-fn point(app: &VectorcraftApp, id: u64, index: usize) -> Option<(f64, f64, f64)> {
+fn point(app: &PlumaApp, id: u64, index: usize) -> Option<(f64, f64, f64)> {
     let st = app.session.active()?.doc.node(NodeId(id))?.appearance.stroke()?;
     let half = st.width / 2.0;
     st.profile.as_ref()?.points.get(index).map(|&(t, l, r)| (t, l * half, r * half))
@@ -34,10 +34,10 @@ fn point(app: &VectorcraftApp, id: u64, index: usize) -> Option<(f64, f64, f64)>
 /// Open Width Point Edit for `index`, or a prospective point at fraction `t` without an index
 /// (`{id, index?, t?, adjustAdjoining?}`). Opening only samples the stroke: confirmation creates
 /// the point. Adjoining adjustment defaults to false.
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let id = p.get("id").and_then(Value::as_u64).ok_or("give the path `id`")?;
     let doc = &app.session.active().ok_or("no document")?.doc;
-    let id = vectorcraft_tools::distort::stroke_owner(doc, NodeId(id)).0;
+    let id = pluma_tools::distort::stroke_owner(doc, NodeId(id)).0;
     let index = match p.get("index").filter(|v| !v.is_null()) {
         Some(v) => Some(v.as_u64().and_then(|i| usize::try_from(i).ok()).ok_or("no such width point")?),
         None => None,
@@ -64,7 +64,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.stroke_unit();
     let (s1, s2, linked) = (d.f64("side1", 0.0), d.f64("side2", 0.0), d.bool("linked"));
     let mut sides = None;
@@ -108,7 +108,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (id, index) = (d.fields.get("id").cloned().unwrap_or_default(), d.fields.get("index").cloned().unwrap_or_default());
     if d.bool("discard") {
         if index.is_null() {

@@ -2,9 +2,9 @@
 use super::centre_geom::{P, seg_dist};
 use super::centre_scenes::{self as scenes, Scene};
 use kurbo::{BezPath, ParamCurve, PathSeg};
+use pluma_trace::{Raster, TraceParams, TraceResult, trace_within};
 use std::fmt::Write as _;
 use std::time::Instant;
-use vectorcraft_trace::{Raster, TraceParams, TraceResult, trace_within};
 
 /// Nearest-point queries over a point set (uniform grid buckets).
 struct Near {
@@ -491,8 +491,8 @@ pub fn report() -> String {
 
 #[test]
 fn known_geometry_measures_junctions_ends_missing_ink_and_caps() {
-    use vectorcraft_geom::PathData;
-    use vectorcraft_trace::TracedPath;
+    use pluma_geom::PathData;
+    use pluma_trace::TracedPath;
     let make = |points: &[(f64, f64)], square_caps: bool| {
         let mut path = BezPath::new();
         path.move_to(points[0]);

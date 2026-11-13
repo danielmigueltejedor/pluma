@@ -10,10 +10,10 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use pluma_engine::cmd::fileio;
+use pluma_engine::{EngineError, Session};
+use pluma_plugins::wat::{self as tpl, Echo};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_engine::{EngineError, Session};
-use vectorcraft_plugins::wat::{self as tpl, Echo};
 
 /// A document with one rectangle.
 fn session() -> Session {
@@ -26,12 +26,12 @@ fn session() -> Session {
 /// Installs the plug-in written in WAT `src` → its `plugin.list` entry.
 fn install(s: &mut Session, src: &str) -> Value {
     let wasm = wat::parse_str(src).unwrap_or_else(|e| panic!("bad test WAT: {e}"));
-    s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap()
+    s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap()
 }
 
 /// The file a `document.export` without a path gives back.
 fn exported(r: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(r["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(r["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 /// A fresh folder for files this test writes.
@@ -84,8 +84,8 @@ fn the_exporter_is_given_the_native_file_s_json() {
     });
     let mut png = vec![];
     noise.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    assert!(png.len() >= vectorcraft_format::INLINE_MAX, "{} bytes", png.len());
-    s.execute("file.place", &json!({"name": "noise.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+    assert!(png.len() >= pluma_format::INLINE_MAX, "{} bytes", png.len());
+    s.execute("file.place", &json!({"name": "noise.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
 
     let r = s.execute("document.export", &json!({"format": "plugin.test.input"})).unwrap();
     assert_eq!(r["format"], "plugin.test.input");
@@ -93,7 +93,7 @@ fn the_exporter_is_given_the_native_file_s_json() {
     let saved = exported(&s.execute("document.save", &json!({})).unwrap());
     assert!(saved.len() > given.len() + png.len(), "the image data follows the JSON in the saved file");
     let doc: Value = serde_json::from_slice(&given).unwrap();
-    let mut saved_json: Value = serde_json::from_slice(vectorcraft_format::json_part(&saved)).unwrap();
+    let mut saved_json: Value = serde_json::from_slice(pluma_format::json_part(&saved)).unwrap();
     assert!(saved_json.get("pdf").is_some(), "a default application save carries a PDF");
     assert_eq!(saved_json["pdfCompatible"], true);
     assert!(doc.get("pdf").is_none() && doc.get("pdfCompatible").is_none(), "the plug-in input omits optional save members");
@@ -102,7 +102,7 @@ fn the_exporter_is_given_the_native_file_s_json() {
     saved_members.remove("pdfCompatible");
     assert_eq!(doc, saved_json, "the native document JSON without optional save members");
     assert!(!given.contains(&b'\n'), "without indentation");
-    assert_eq!((&doc["format"], &doc["version"]), (&json!("vectorcraft"), &json!(vectorcraft_format::VERSION)));
+    assert_eq!((&doc["format"], &doc["version"]), (&json!("vectorcraft"), &json!(pluma_format::VERSION)));
     let images = doc["images"].as_object().unwrap();
     let image = images.values().next().unwrap();
     assert_eq!(images.len(), 1);
@@ -123,7 +123,7 @@ fn an_exporter_finds_what_filters_keep_with_the_document() {
     install(&mut s, &tpl::echo_exporter(&tpl::exporter("test.pens", r#"["tsd"]"#, "{}"), Echo::Input));
     let r = s.execute("document.export", &json!({"format": "plugin.test.pens"})).unwrap();
     let doc: Value = serde_json::from_slice(&exported(&r)).unwrap();
-    assert_eq!(doc["document"]["unknown"][vectorcraft_doc::plugin_data::PLUGIN_DATA], json!({"test.setup": pens}));
+    assert_eq!(doc["document"]["unknown"][pluma_doc::plugin_data::PLUGIN_DATA], json!({"test.setup": pens}));
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn export_for_screens_takes_an_exporter_s_format_and_params() {
     let r = s.execute("document.exportForScreens", &json!({"formats": [{"format": "plugin.test.screens", "params": {"density": 7}}]})).unwrap();
     let file = &r["files"][0];
     assert!(file["name"].as_str().unwrap().ends_with(".tss"), "{r}");
-    let got: Value = serde_json::from_slice(&vectorcraft_format::base64_decode(file["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+    let got: Value = serde_json::from_slice(&pluma_format::base64_decode(file["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
     assert_eq!(got["density"], json!(7.0));
     let settings = json!({"formats": [{"format": "plugin.test.screens"}], "settings": {"plugin.test.screens": {"params": {"density": 2}}}});
     s.execute("document.exportForScreens", &settings).unwrap();
@@ -239,7 +239,7 @@ fn declines_and_bad_output_write_nothing_and_warnings_come_back() {
 fn a_cancelled_export_stops_the_exporter() {
     let mut s = session();
     install(&mut s, &tpl::module(&tpl::exporter("test.spins", r#"["tss"]"#, "{}"), "(loop $l (br $l)) (i64.const 0)", "", 1));
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     let cancel = token.clone();
     let wait = Duration::from_millis(300);
     let canceller = std::thread::spawn(move || {
@@ -247,7 +247,7 @@ fn a_cancelled_export_stops_the_exporter() {
         cancel.cancel();
     });
     let t = Instant::now();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || s.execute("document.export", &json!({"format": "plugin.test.spins"})));
+    let r = pluma_doc::cancel::scope(&token, None, || s.execute("document.export", &json!({"format": "plugin.test.spins"})));
     let took = t.elapsed();
     canceller.join().unwrap();
     assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");

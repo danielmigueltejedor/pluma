@@ -2,7 +2,7 @@
 
 use egui::{Event, PointerButton, Pos2, Rect, Ui, vec2};
 
-use super::VectorcraftApp;
+use super::PlumaApp;
 
 /// The frames that opening a popup takes.
 const OPEN_FRAMES: usize = 8;
@@ -14,7 +14,7 @@ const WIDTH: f32 = 500.0;
 const TALL: f32 = 900.0;
 
 /// What a window draws each frame.
-type Draw<'a> = Box<dyn FnMut(&mut VectorcraftApp, &mut Ui) + 'a>;
+type Draw<'a> = Box<dyn FnMut(&mut PlumaApp, &mut Ui) + 'a>;
 
 /// A window `height` pt tall with its own clock, drawing `draw` each frame.
 pub(super) struct PopupWindow<'a> {
@@ -26,7 +26,7 @@ pub(super) struct PopupWindow<'a> {
 }
 
 impl<'a> PopupWindow<'a> {
-    pub(super) fn new(app: &mut VectorcraftApp, height: f32, draw: impl FnMut(&mut VectorcraftApp, &mut Ui) + 'a) -> Self {
+    pub(super) fn new(app: &mut PlumaApp, height: f32, draw: impl FnMut(&mut PlumaApp, &mut Ui) + 'a) -> Self {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut window = Self { ctx, time: 0.0, height, draw: Box::new(draw), texts: vec![] };
@@ -35,7 +35,7 @@ impl<'a> PopupWindow<'a> {
     }
 
     /// One frame with `events`.
-    fn frame(&mut self, app: &mut VectorcraftApp, events: Vec<Event>) {
+    fn frame(&mut self, app: &mut PlumaApp, events: Vec<Event>) {
         self.time += 1.0 / 60.0;
         let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(WIDTH, self.height)));
         let input = egui::RawInput { time: Some(self.time), screen_rect, events, ..Default::default() };
@@ -45,7 +45,7 @@ impl<'a> PopupWindow<'a> {
         self.texts = crate::tests_removeanchors::shapes_text(&out.shapes.iter().map(|c| c.shape.clone()).collect::<Vec<_>>());
     }
 
-    fn frames(&mut self, app: &mut VectorcraftApp, count: usize) {
+    fn frames(&mut self, app: &mut PlumaApp, count: usize) {
         for _ in 0..count {
             self.frame(app, vec![]);
         }
@@ -71,7 +71,7 @@ impl<'a> PopupWindow<'a> {
     }
 
     /// A click at `at`, and the frames a popup takes to open.
-    pub(super) fn click(&mut self, app: &mut VectorcraftApp, at: Pos2) {
+    pub(super) fn click(&mut self, app: &mut PlumaApp, at: Pos2) {
         let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
         self.frame(app, vec![Event::PointerMoved(at), button(true)]);
         self.frame(app, vec![button(false)]);
@@ -79,7 +79,7 @@ impl<'a> PopupWindow<'a> {
     }
 
     /// Turns the wheel far down with the pointer at `over`, and lets the scrolling finish.
-    pub(super) fn wheel_down(&mut self, app: &mut VectorcraftApp, over: Pos2) {
+    pub(super) fn wheel_down(&mut self, app: &mut PlumaApp, over: Pos2) {
         let wheel = Event::MouseWheel {
             unit: egui::MouseWheelUnit::Point,
             delta: vec2(0.0, -5000.0),
@@ -95,7 +95,7 @@ impl<'a> PopupWindow<'a> {
 /// The Add Effect popup's first and last rows with no plug-ins: the effect catalog's groups, in order.
 pub(super) fn fx_menu_ends() -> (String, String) {
     let mut groups: Vec<&str> = vec![];
-    let catalog = vectorcraft_effects::effect_catalog();
+    let catalog = pluma_effects::effect_catalog();
     for group in catalog.iter().map(|effect| effect.menu.get(1).copied().unwrap_or("Other")) {
         if !groups.contains(&group) {
             groups.push(group);
@@ -107,9 +107,9 @@ pub(super) fn fx_menu_ends() -> (String, String) {
 /// In a window `height` pt tall, the popup of the button `pick` finds opens at its row `first`, and
 /// the wheel brings its row `last` into the window.
 pub(super) fn assert_last_row_scrolls_into_view(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     height: f32,
-    draw: impl FnMut(&mut VectorcraftApp, &mut Ui),
+    draw: impl FnMut(&mut PlumaApp, &mut Ui),
     pick: impl FnOnce(&PopupWindow) -> Pos2,
     first: &str,
     last: &str,
@@ -127,8 +127,8 @@ pub(super) fn assert_last_row_scrolls_into_view(
 /// In a tall window the popup of the button `pick` finds shows its rows `first` to `last` without
 /// scrolling, and the wheel moves neither.
 pub(super) fn assert_short_list_does_not_scroll(
-    app: &mut VectorcraftApp,
-    draw: impl FnMut(&mut VectorcraftApp, &mut Ui),
+    app: &mut PlumaApp,
+    draw: impl FnMut(&mut PlumaApp, &mut Ui),
     pick: impl FnOnce(&PopupWindow) -> Pos2,
     first: &str,
     last: &str,

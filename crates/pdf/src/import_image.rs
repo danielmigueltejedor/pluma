@@ -11,8 +11,8 @@
 use craft_pdf::syntax::Filter;
 use craft_pdf::syntax::object::stream::{ImageColorSpace, ImageDecodeParams};
 use craft_pdf::syntax::object::{Array, Dict, Name, Stream};
-use vectorcraft_doc::ImageBlob;
-use vectorcraft_doc::cmyk::{Inks, MAX_CMYK_PIXELS, jpeg_components};
+use pluma_doc::ImageBlob;
+use pluma_doc::cmyk::{Inks, MAX_CMYK_PIXELS, jpeg_components};
 
 use crate::import_color::ink_names;
 

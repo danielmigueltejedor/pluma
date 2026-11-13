@@ -20,8 +20,8 @@ use image::imageops::FilterType;
 use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageFormat, ImageReader};
 use krilla::image::{BitsPerComponent, CustomImage, Image, ImageColorspace};
 
-use vectorcraft_doc::ImageBlob;
-use vectorcraft_doc::cmyk::jpeg_components;
+use pluma_doc::ImageBlob;
+use pluma_doc::cmyk::jpeg_components;
 
 use crate::output::{CmykPixels, Pixels};
 use crate::{CompressionSettings, Downsample, ImageCodec, JpegQuality, MonoCodec};

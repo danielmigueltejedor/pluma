@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use craft_pdf::syntax::Pdf;
 use craft_pdf::syntax::object::{Array, Dict, Name};
-use vectorcraft_color::Color;
-use vectorcraft_doc::{Document, Node, NodeId};
-use vectorcraft_geom::{Rect, shapes};
+use pluma_color::Color;
+use pluma_doc::{Document, Node, NodeId};
+use pluma_geom::{Rect, shapes};
 
 use super::{add, doc, rect_node};
 use crate::*;
@@ -83,7 +83,7 @@ fn hidden_and_unprinted_objects_have_no_links_and_clipping_trims_them() {
     // A layer that doesn't print leaves its links out with its art.
     let mut d = doc(200.0, 100.0);
     add(&mut d, linked(Rect::new(10.0, 10.0, 50.0, 30.0), "https://example.com/"));
-    if let vectorcraft_doc::NodeKind::Layer { printable, .. } = &mut Arc::make_mut(&mut d.layers[0]).kind {
+    if let pluma_doc::NodeKind::Layer { printable, .. } = &mut Arc::make_mut(&mut d.layers[0]).kind {
         *printable = false;
     }
     assert_eq!(links(&export(&d, &PdfOptions::default()).unwrap()), vec![Vec::<(String, [f32; 4])>::new()]);

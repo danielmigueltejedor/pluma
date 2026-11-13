@@ -1,10 +1,10 @@
 //! `paint-order="stroke"` on imported type: the characters' stroke becomes the object's own stroke
 //! below the Characters row, so it paints under the letters as on shapes.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{AppearanceItem, Document, Node, NodeKind, StrokeLayer, TextObject};
-use vectorcraft_svg::import_with_report;
-use vectorcraft_testkit::raster::render_artboard;
+use pluma_color::{Color, Paint};
+use pluma_doc::{AppearanceItem, Document, Node, NodeKind, StrokeLayer, TextObject};
+use pluma_svg::import_with_report;
+use pluma_testkit::raster::render_artboard;
 
 const HALO: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80">
   <path d="M10 10 h60 v30 h-60z" fill="#fc0" stroke="#000" stroke-width="10" paint-order="stroke"/>
@@ -42,7 +42,7 @@ fn a_stroke_first_text_strokes_under_its_characters() {
     assert!(warnings.is_empty(), "{warnings:?}");
     let (n, t) = text(&d);
     let s = under(&n);
-    assert_eq!((s.paint.clone(), s.width, s.join), (Paint::solid(Color::BLACK), 8.0, vectorcraft_doc::LineJoin::Round));
+    assert_eq!((s.paint.clone(), s.width, s.join), (Paint::solid(Color::BLACK), 8.0, pluma_doc::LineJoin::Round));
     assert!(t.runs.iter().all(|r| !r.style.has_stroke() && r.style.fill == Paint::solid(Color::rgb8(0xff, 0xcc, 0))), "{:?}", t.runs);
 
     // The letters stay yellow inside their black halo.

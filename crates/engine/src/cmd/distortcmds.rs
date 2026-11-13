@@ -1,17 +1,17 @@
 //! Commands behind the distortion tools: width points, Liquify, Puppet Warp and the Perspective
-//! Grid. The geometry kernels live in `vectorcraft_tools::distort` (shared with the tools).
+//! Grid. The geometry kernels live in `pluma_tools::distort` (shared with the tools).
 //!
 //! The perspective grid definition is document data stored under
 //! `Document.unknown["perspectiveGrid"]` (read/written by [`grid_of`] / [`store_grid`]).
 
 use std::sync::Arc;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, PuppetPin, WidthProfile};
+use pluma_geom::{Affine, Homography, PathData, Point, Rect};
+use pluma_tools::distort::liquify::{Dabber, LiquifyParams, PathStroke, Sample, reach_bounds};
+use pluma_tools::distort::perspective::{self as persp, PerspectiveGrid, Plane};
+use pluma_tools::distort::{PinSet, arap, collect_points, mesh_for, project_node, stroke_owner, warp_from_rest, warp_node_with};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, PuppetPin, WidthProfile};
-use vectorcraft_geom::{Affine, Homography, PathData, Point, Rect};
-use vectorcraft_tools::distort::liquify::{Dabber, LiquifyParams, PathStroke, Sample, reach_bounds};
-use vectorcraft_tools::distort::perspective::{self as persp, PerspectiveGrid, Plane};
-use vectorcraft_tools::distort::{PinSet, arap, collect_points, mesh_for, project_node, stroke_owner, warp_from_rest, warp_node_with};
 
 use super::edit::{duplicate_in, outermost, refuse_symbol_part, selected_roots};
 use super::{
@@ -215,14 +215,14 @@ fn uniform() -> WidthProfile {
 const SAME_T: f64 = 1e-6;
 
 /// The stroke of `id` that width point commands edit (a compound path's for its members).
-fn stroke_mut(d: &mut Document, id: NodeId) -> Result<&mut vectorcraft_doc::StrokeLayer> {
+fn stroke_mut(d: &mut Document, id: NodeId) -> Result<&mut pluma_doc::StrokeLayer> {
     let id = stroke_owner(d, id);
     let n = d.node_mut(id).ok_or(EngineError::NoNode(id))?;
     n.appearance.stroke_mut().ok_or_else(|| EngineError::Other("the object has no stroke".into()))
 }
 
 /// [`stroke_mut`], which must have a weight.
-fn weighted_stroke(d: &mut Document, id: NodeId) -> Result<&mut vectorcraft_doc::StrokeLayer> {
+fn weighted_stroke(d: &mut Document, id: NodeId) -> Result<&mut pluma_doc::StrokeLayer> {
     let st = stroke_mut(d, id)?;
     if st.width <= 0.0 {
         return Err(EngineError::Other("the stroke has no weight".into()));
@@ -524,7 +524,7 @@ impl Targets {
         }
     }
 
-    fn visit(&mut self, n: &Node, locks: &vectorcraft_doc::LockedArtboards) {
+    fn visit(&mut self, n: &Node, locks: &pluma_doc::LockedArtboards) {
         if !n.visible || n.locked {
             return;
         }

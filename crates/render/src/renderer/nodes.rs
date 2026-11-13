@@ -25,7 +25,7 @@ impl Renderer {
                 let source = a.extras().trace.is_some().then(|| children.first()).flatten();
                 for c in children {
                     if c.visible || source.is_some_and(|s| Arc::ptr_eq(s, c)) {
-                        acc = vectorcraft_geom::union_opt(acc, self.bounds_of(symbols, c));
+                        acc = pluma_geom::union_opt(acc, self.bounds_of(symbols, c));
                     }
                 }
                 acc
@@ -269,7 +269,7 @@ impl Renderer {
         let bounds = self.bounds_of(f.symbols, a);
         let Some((r, sub)) = group::area(ctx, f, bounds) else { return true };
         let Some(mask) = self.mask_values(&sub, m, r.w, r.h) else { return true };
-        let blends = a.blend != vectorcraft_color::BlendMode::Normal || (!a.isolate && self.blends_through(a));
+        let blends = a.blend != pluma_color::BlendMode::Normal || (!a.isolate && self.blends_through(a));
         self.group(ctx, f, Composite { mask: Some(mask), blends, bounds, ..Default::default() }, &mut |r, c, fr| {
             if force {
                 r.draw_node(c, fr, a, true);
@@ -289,7 +289,7 @@ impl Renderer {
 
     /// The coverage of opacity mask `m` per output pixel (row-major): its art rendered offscreen,
     /// as luminance ([`mask_value`]).
-    pub(super) fn mask_values(&mut self, f: &Frame, m: &vectorcraft_doc::OpacityMask, w: u16, h: u16) -> Option<Vec<u8>> {
+    pub(super) fn mask_values(&mut self, f: &Frame, m: &pluma_doc::OpacityMask, w: u16, h: u16) -> Option<Vec<u8>> {
         let mut mctx = f.offscreen_context(w, h);
         // Mask art is a picture of its own: it takes no part in a knockout group around the object,
         // and its luminance is that of its screen colours.
@@ -321,7 +321,7 @@ impl Renderer {
         // Fast path for plain paths: cached geometry, opacity folded into the paint.
         // A blend mode on a single plain fill applies per draw (exact for one paint operation);
         // a blend layer would composite the whole viewport.
-        let blended = a.blend != vectorcraft_color::BlendMode::Normal;
+        let blended = a.blend != pluma_color::BlendMode::Normal;
         if let NodeKind::Path { rule, guide: false, .. } = &a.kind
             && !f.opts.outline
             && (!blended || single_plain_fill(a))
@@ -337,7 +337,7 @@ impl Renderer {
             }
             self.draw_shape(ctx, f, a, &bp, *rule);
             if blended {
-                ctx.set_blend_mode(blend_mode(vectorcraft_color::BlendMode::Normal));
+                ctx.set_blend_mode(blend_mode(pluma_color::BlendMode::Normal));
             }
             self.cur = None;
             self.alpha = 1.0;
@@ -349,7 +349,7 @@ impl Renderer {
         }
         if let NodeKind::Text(t) = &a.kind
             && self.opacity_of(a) >= 1.0
-            && a.blend == vectorcraft_color::BlendMode::Normal
+            && a.blend == pluma_color::BlendMode::Normal
             && !fx::has_fx(a)
         {
             let t = &*f.doc.inline_resolved(t);
@@ -361,7 +361,7 @@ impl Renderer {
             self.stats.drawn += 1;
             return;
         }
-        if vectorcraft_doc::live::is_live(a) || effects::has_pathfinder(a) {
+        if pluma_doc::live::is_live(a) || effects::has_pathfinder(a) {
             // The isolated object itself (a repeat isolated to edit its source, #5054) draws its
             // art as usual, as an isolated group does in `draw_layer_node`.
             let settle = f.opts.isolated == Some(a.id) && f.doc.mask_edit.is_none();
@@ -383,7 +383,7 @@ impl Renderer {
             return;
         }
         // A cancelled export stops drawing; whoever asked for the picture drops it (see `cancel`).
-        if vectorcraft_doc::cancel::is_cancelled() {
+        if pluma_doc::cancel::is_cancelled() {
             return;
         }
         if force {
@@ -478,7 +478,7 @@ impl Renderer {
         // Whether this container's children knock each other out.
         let knockout = !outline && n.knocks_out(self.knockout);
         let enclosing = std::mem::replace(&mut self.knockout, knockout);
-        if !outline && (opacity < 1.0 || n.blend != vectorcraft_color::BlendMode::Normal || n.isolate || knockout) {
+        if !outline && (opacity < 1.0 || n.blend != pluma_color::BlendMode::Normal || n.isolate || knockout) {
             let blends = self.blends_through(n);
             let bounds = if blends { self.node_bounds(f.symbols, n) } else { None };
             let comp = Composite { blend: n.blend, opacity, isolated: n.isolate, blends, bounds, ..Default::default() };
@@ -578,7 +578,7 @@ impl Renderer {
                         Some(m) => self.sliced_art(f.doc, &sym.art, &m, *xf, n, &mut used),
                         None => {
                             let count = sym.art.count() as u64;
-                            vectorcraft_doc::charge_symbol_art(&mut used, count, || (self.placed_art(&sym.art, *xf, false, Some(n)), count))
+                            pluma_doc::charge_symbol_art(&mut used, count, || (self.placed_art(&sym.art, *xf, false, Some(n)), count))
                         }
                     };
                     self.symbol_nodes = used;
@@ -615,7 +615,7 @@ impl Renderer {
     /// same from frame to frame while the art does. When `a` is a live object,
     /// [`Self::draw_content`] draws its evaluation from the live cache ([`Self::live_root`]).
     pub(crate) fn draw_kept_node(&mut self, ctx: &mut RenderContext, f: &Frame, a: &Arc<Node>) {
-        let live = vectorcraft_doc::live::is_live(a).then(|| a.clone());
+        let live = pluma_doc::live::is_live(a).then(|| a.clone());
         let outer = std::mem::replace(&mut self.live_root, live);
         self.draw_forced_arc(ctx, f, a);
         self.live_root = outer;

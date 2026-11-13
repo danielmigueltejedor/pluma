@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use vectorcraft_color::Swatch;
-use vectorcraft_doc::ImageObject;
+use pluma_color::Swatch;
+use pluma_doc::ImageObject;
 
 use super::{
     Appearance, AppearanceItem, Arc, Beside, Color, Document, EngineError, LineCap, LineJoin, LiveShape, Node, NodeId, NodeKind, Paint, Point, Rect,
@@ -299,8 +299,8 @@ pub const MAX_TRACE_ANCHORS: usize = 8_000_000;
 pub const MAX_TRACE_ANCHORS: usize = 2_000_000;
 
 /// The live shape for a shape the tracer found (in the image's pixels), placed in the document by `xf`.
-fn traced_shape(shape: tr::TracedShape, xf: vectorcraft_geom::Affine) -> LiveShape {
-    use vectorcraft_geom::Affine;
+fn traced_shape(shape: tr::TracedShape, xf: pluma_geom::Affine) -> LiveShape {
+    use pluma_geom::Affine;
     let about = |c: Point, deg: f64| Affine::translate(c.to_vec2()) * Affine::rotate(deg.to_radians());
     let mut live = match shape {
         tr::TracedShape::Rectangle { center, width, height, radius, rotation } => LiveShape::Rectangle {
@@ -325,8 +325,8 @@ fn traced_shape(shape: tr::TracedShape, xf: vectorcraft_geom::Affine) -> LiveSha
 
 /// The gradient fill for a linear gradient the tracer found (in the image's pixels), placed in the
 /// document by `xf`.
-fn traced_gradient(g: &tr::TracedGradient, xf: vectorcraft_geom::Affine) -> Paint {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+fn traced_gradient(g: &tr::TracedGradient, xf: pluma_geom::Affine) -> Paint {
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = g.stops.iter().map(|&(at, c)| GradientStop::new(at as f32, Color::rgb8(c[0], c[1], c[2]))).collect();
     let mut paint = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     paint.geom = Some(GradientGeom { start: xf * g.start, end: xf * g.end, aspect: 1.0, focal: None });
@@ -394,9 +394,9 @@ fn by_color_param(cmd: &str, p: &Value) -> Result<bool> {
 /// farther apart can still share antialiased pixels at small view or raster-export scales, so
 /// their edge pixels may change. A group among `items` (Auto Grouping) is refused.
 fn color_groups(cmd: &str, d: &mut Document, items: Vec<Arc<Node>>) -> Result<Vec<Arc<Node>>> {
+    use pluma_color::tint_percent;
     use std::collections::{BTreeMap, HashMap};
     use std::ops::Bound::{Excluded, Unbounded};
-    use vectorcraft_color::tint_percent;
     // Grouped by the paint: unlinked (its #rrggbb), linked (the swatch and its exact tint), a
     // gradient, or another paint (its label). The name is apart from it: a swatch may be named as
     // a color's `#rrggbb` or as "Gradients".
@@ -419,7 +419,7 @@ fn color_groups(cmd: &str, d: &mut Document, items: Vec<Arc<Node>>) -> Result<Ve
     let items: Vec<_> = items
         .into_iter()
         .map(|item| {
-            let bounds = vectorcraft_render::painted_bounds(d, &item);
+            let bounds = pluma_render::painted_bounds(d, &item);
             (item, bounds)
         })
         .collect();
@@ -590,7 +590,7 @@ fn prepare(s: &Session, c: &str, p: &Value) -> Result<Prepared> {
             })
             .ok_or_else(|| bad(c, "select an image (or an Image Trace group)"))?
     };
-    if by_color && s.doc()?.doc.node(target).is_some_and(vectorcraft_render::effects::has_pathfinder) {
+    if by_color && s.doc()?.doc.node(target).is_some_and(pluma_render::effects::has_pathfinder) {
         return Err(bad(c, LIVE_PATHFINDER_BY_COLOR));
     }
     let blob = s.doc()?.doc.images.get(&image.key).ok_or_else(|| EngineError::Other(format!("image data `{}` is missing", image.key)))?;
@@ -717,7 +717,7 @@ pub(super) fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Val
     // Pixel space of the decoded raster → the image object's pixel space → document.
     let sx = img.width.max(1) as f64 / raster.0.max(1) as f64;
     let sy = img.height.max(1) as f64 / raster.1.max(1) as f64;
-    let xf = img.xf * vectorcraft_geom::Affine::scale_non_uniform(sx, sy);
+    let xf = img.xf * pluma_geom::Affine::scale_non_uniform(sx, sy);
     // Document units per raster pixel (stroke widths).
     let unit = xf.determinant().abs().sqrt();
     let (npaths, anchors, colors) = (res.paths.len(), res.anchor_count(), res.palette.len());
@@ -910,7 +910,7 @@ pub(super) fn trace_expand(s: &mut Session, p: &Value) -> Result<Value> {
         if targets.iter().any(|g| d.node(*g).is_some_and(grouped)) {
             return Err(bad(C, "byColor can't split Auto Grouping groups: trace without Auto Grouping"));
         }
-        if targets.iter().any(|g| d.node(*g).is_some_and(vectorcraft_render::effects::has_pathfinder)) {
+        if targets.iter().any(|g| d.node(*g).is_some_and(pluma_render::effects::has_pathfinder)) {
             return Err(bad(C, LIVE_PATHFINDER_BY_COLOR));
         }
     }
@@ -941,7 +941,7 @@ pub(super) fn trace_expand(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod color_group_tests {
     use super::*;
-    use vectorcraft_geom::{PathData, SubPath};
+    use pluma_geom::{PathData, SubPath};
 
     fn area(d: &mut Document, x0: f64, y0: f64, x1: f64, y1: f64, color: Color) -> Arc<Node> {
         let path = PathData::single(SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true));
@@ -1051,7 +1051,7 @@ mod color_group_tests {
             let mut expected: Vec<(String, Vec<(NodeId, Rect)>)> = vec![];
             for item in &items {
                 let key = item.appearance.fill_paint().color().unwrap().to_hex();
-                let bounds = vectorcraft_render::painted_bounds(&d, item).unwrap();
+                let bounds = pluma_render::painted_bounds(&d, item).unwrap();
                 let previous = expected.iter().rposition(|(k, _)| *k == key);
                 let can_join = previous.filter(|&at| {
                     !expected.iter().skip(at + 1).any(|(_, boxes)| {
@@ -1075,7 +1075,7 @@ mod color_group_tests {
 
     #[test]
     fn an_abutting_gradient_stays_above_the_solid_area_it_borders() {
-        use vectorcraft_color::{Gradient, GradientKind, GradientPaint, GradientStop};
+        use pluma_color::{Gradient, GradientKind, GradientPaint, GradientStop};
         let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
         let ramp = || Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops.clone()))));
         let mut d = Document::new(100.0, 100.0);
@@ -1095,7 +1095,7 @@ mod color_group_tests {
 #[cfg(test)]
 mod trace_limit_tests {
     use super::{MAX_TRACE_ANCHORS, keep_warnings, trace_warnings};
-    use vectorcraft_trace as tr;
+    use pluma_trace as tr;
 
     #[test]
     fn keep_warnings_name_matched_colors_that_produce_no_paths() {

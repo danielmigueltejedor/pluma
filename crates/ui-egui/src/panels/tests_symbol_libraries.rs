@@ -4,16 +4,16 @@
 //! down files it can't read.
 
 use egui::{Event, Modifiers, PointerButton, Pos2, Rect, vec2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::library_panel::{self, LibraryKind, LibraryPanel, last_open};
 use super::symbols::SymbolLibraries;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::PanelDrag;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app
 }
@@ -44,7 +44,7 @@ fn frame(ctx: &egui::Context, events: Vec<Event>, time: f64, mut draw: impl FnMu
 
 /// The centre of the open library panel's tile of symbol `name` (a new window takes a sizing
 /// frame first).
-fn tile(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, time: f64) -> Pos2 {
+fn tile(app: &mut PlumaApp, ctx: &egui::Context, name: &str, time: f64) -> Pos2 {
     for t in [time, time + 0.25] {
         frame(ctx, vec![], t, |ui| library_panel::show_window(app, ui.ctx()));
     }
@@ -52,18 +52,18 @@ fn tile(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, time: f64) ->
     ctx.read_response(id).unwrap_or_else(|| panic!("no tile for {name}")).rect.center()
 }
 
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, name: &str, modifiers: Modifiers, time: f64) {
     let at = tile(app, ctx, name, time);
     let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers };
     let events = vec![Event::ModifiersChanged(modifiers), Event::PointerMoved(at), button(true), button(false)];
     frame(ctx, events, time + 0.5, |ui| library_panel::show_window(app, ui.ctx()));
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
-fn symbols(app: &VectorcraftApp) -> Vec<String> {
+fn symbols(app: &PlumaApp) -> Vec<String> {
     app.session.doc().unwrap().doc.symbols.iter().map(|s| s.name.clone()).collect()
 }
 
@@ -159,8 +159,8 @@ fn save_symbols_writes_a_user_library_that_reopens_and_adds_to_another_document(
     // Reopened in a library panel, its symbol goes into another document.
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("window.userSymbolLibrary1", json!({})).unwrap();
-    assert_eq!(last_open(&app.ui).map(|p| p.id.as_str()), Some("user/Masonry.vectorcraft"));
-    let (name, lib) = SymbolLibraries::get(&app, "user/Masonry.vectorcraft").unwrap();
+    assert_eq!(last_open(&app.ui).map(|p| p.id.as_str()), Some("user/Masonry.pluma"));
+    let (name, lib) = SymbolLibraries::get(&app, "user/Masonry.pluma").unwrap();
     assert_eq!((name.as_str(), lib.len()), ("Masonry", 1), "only the selected symbol");
     let undo = undo_len(&app);
     click(&mut app, &ctx, "Brick", Modifiers::NONE, 1.0);
@@ -176,9 +176,9 @@ fn other_library_opens_a_documents_symbols_and_reports_unreadable_files() {
     let mut app = app();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     app.run("symbol.new", json!({"name": "Tile"})).unwrap();
-    let doc = dir.join("Floor.vectorcraft");
+    let doc = dir.join("Floor.pluma");
     let b64 = app.run("document.serialize", json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    std::fs::write(&doc, vectorcraft_format::base64_decode(&b64).unwrap()).unwrap();
+    std::fs::write(&doc, pluma_format::base64_decode(&b64).unwrap()).unwrap();
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let r = app.run("window.symbolLibrary.other", json!({"path": doc.to_string_lossy()})).unwrap();
     assert_eq!((r["name"].as_str(), r["count"].as_u64()), (Some("Floor"), Some(1)));
@@ -187,7 +187,7 @@ fn other_library_opens_a_documents_symbols_and_reports_unreadable_files() {
     let other = SymbolLibraries::list(&app).into_iter().find(|l| l.id == open.id).unwrap();
     assert_eq!(other.submenu, Some("Other Libraries"));
     // A file that isn't a document is an error, and opens no panel.
-    let bad = dir.join("Broken.vectorcraft");
+    let bad = dir.join("Broken.pluma");
     std::fs::write(&bad, b"not a document").unwrap();
     app.run("window.symbolLibrary", json!({"library": null})).unwrap();
     assert!(app.run("window.symbolLibrary.other", json!({"path": bad.to_string_lossy()})).is_err());

@@ -1,6 +1,6 @@
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::{CharStyle, ColumnDesign, ColumnType, Fractions, GraphKind, GraphSpec, NodeKind};
 use serde_json::json;
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::{CharStyle, ColumnDesign, ColumnType, Fractions, GraphKind, GraphSpec, NodeKind};
 
 use crate::{NodeId, Session};
 
@@ -28,12 +28,12 @@ fn graph(s: &mut Session, ty: &str) -> NodeId {
     )
 }
 
-fn group<'a>(n: &'a vectorcraft_doc::Node, name: &str) -> &'a vectorcraft_doc::Node {
+fn group<'a>(n: &'a pluma_doc::Node, name: &str) -> &'a pluma_doc::Node {
     n.children().unwrap().iter().find(|c| c.name.as_deref() == Some(name)).unwrap_or_else(|| panic!("no {name}"))
 }
 
 /// The generated group stored for series `index`, not a sibling that happens to share its name.
-fn series(n: &vectorcraft_doc::Node, index: u32) -> &vectorcraft_doc::Node {
+fn series(n: &pluma_doc::Node, index: u32) -> &pluma_doc::Node {
     n.children().unwrap().iter().find(|c| c.extras().series_index == Some(index)).unwrap_or_else(|| panic!("no series {index}"))
 }
 
@@ -79,7 +79,7 @@ fn column_heights_follow_data_and_data_edits_regenerate_in_place() {
     assert!((s.doc().unwrap().doc.node(id).unwrap().geometric_bounds().unwrap().x0 - x0).abs() < 1.0);
     // Type change keeps the data; undo restores the columns.
     s.execute("graph.setType", &json!({"type": "pie"})).unwrap();
-    assert_eq!(s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_ref().unwrap().kind, vectorcraft_doc::GraphKind::Pie);
+    assert_eq!(s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_ref().unwrap().kind, pluma_doc::GraphKind::Pie);
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(s.execute("graph.setType", &json!({})).unwrap()["type"], json!("column"));
     // Selecting a bar inside still targets the graph.
@@ -201,7 +201,7 @@ fn group_selection_paint_becomes_the_series_colour_and_survives_regeneration() {
         let spec = s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_deref().unwrap().clone();
         let restored: GraphSpec = serde_json::from_value(serde_json::to_value(&spec).unwrap()).unwrap();
         assert_eq!(spec, restored);
-        let red = Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0));
+        let red = Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0));
         assert_eq!(spec.series_paints.first().and_then(|p| p.fill.clone()), Some(red.clone()), "{ty:?}");
         let selected_group = group(s.doc().unwrap().doc.node(id).unwrap(), "2024");
         assert!(selected_group.children().unwrap().iter().all(|n| n.appearance.fill_paint() == red), "{ty:?}");
@@ -265,7 +265,7 @@ fn a_fill_the_art_has_already_is_kept_by_the_graph_in_one_step() {
         s.edit("Forget", |d, _| {
             let g = d.node_mut(id).unwrap().extras_if_any().unwrap().graph.as_deref_mut().unwrap();
             g.series_paints.clear();
-            g.label_styles = vectorcraft_doc::LabelStyles::default();
+            g.label_styles = pluma_doc::LabelStyles::default();
             Ok(())
         })
         .unwrap();
@@ -291,7 +291,7 @@ fn painting_one_bar_sets_the_colour_used_by_the_whole_series_on_rebuild() {
     s.execute("paint.setFill", &json!({"ids": [bar.0], "color": "#12ab34"})).unwrap();
     s.execute("graph.setData", &json!({"rows": [[1, 2], [3, 4]]})).unwrap();
     let node = s.doc().unwrap().doc.node(id).unwrap();
-    let green = vectorcraft_color::Color::rgb(18.0 / 255.0, 171.0 / 255.0, 52.0 / 255.0);
+    let green = pluma_color::Color::rgb(18.0 / 255.0, 171.0 / 255.0, 52.0 / 255.0);
     assert_eq!(node.extras().graph.as_ref().unwrap().series_paints[0].fill.as_ref().and_then(Paint::color), Some(green));
     assert!(group(node, "2024").children().unwrap().iter().all(|n| n.appearance.fill_paint().color() == Some(green)));
 }
@@ -392,14 +392,14 @@ fn an_opacity_on_a_design_copy_in_a_series_is_not_kept() {
 /// A series' kept opacity goes on its generated marks only: a column design made of one path keeps its own opacity.
 #[test]
 fn a_column_design_keeps_its_own_opacity_under_a_series_opacity() {
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
-    let mut look = vectorcraft_doc::Appearance::basic(Paint::solid(vectorcraft_color::Color::BLACK), Paint::None, 0.0);
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
+    let mut look = pluma_doc::Appearance::basic(Paint::solid(pluma_color::Color::BLACK), Paint::None, 0.0);
     look.fill_mut().unwrap().opacity = 0.5;
-    let rect = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
-    let art = vectorcraft_doc::Node::path(d.alloc_id(), rect, look);
-    d.graph_designs.push(vectorcraft_doc::GraphDesign { name: "Square".into(), art: std::sync::Arc::new(art) });
+    let rect = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
+    let art = pluma_doc::Node::path(d.alloc_id(), rect, look);
+    d.graph_designs.push(pluma_doc::GraphDesign { name: "Square".into(), art: std::sync::Arc::new(art) });
     let options = ColumnDesign { design: "Square".into(), column_type: ColumnType::Vertical, ..ColumnDesign::default() };
-    let paints = vec![vectorcraft_doc::SeriesPaint { fill_opacity: Some(0.2), ..Default::default() }];
+    let paints = vec![pluma_doc::SeriesPaint { fill_opacity: Some(0.2), ..Default::default() }];
     let g = GraphSpec {
         rows: vec![vec![35.0]],
         axis_min: Some(0.0),
@@ -428,8 +428,8 @@ fn an_opacity_on_an_added_item_of_a_series_mark_is_not_kept() {
     let bar = series(s.doc().unwrap().doc.node(id).unwrap(), 0).children().unwrap()[0].id;
     s.execute("appearance.addFill", &json!({"ids": [bar.0]})).unwrap();
     let items = s.doc().unwrap().doc.node(bar).unwrap().appearance.items.clone();
-    let lower = items.iter().position(vectorcraft_doc::AppearanceItem::is_fill).unwrap();
-    assert!(items.iter().rposition(vectorcraft_doc::AppearanceItem::is_fill).unwrap() != lower);
+    let lower = items.iter().position(pluma_doc::AppearanceItem::is_fill).unwrap();
+    assert!(items.iter().rposition(pluma_doc::AppearanceItem::is_fill).unwrap() != lower);
     s.execute("transparency.set", &json!({"ids": [bar.0], "item": lower, "opacity": 40})).unwrap();
     assert!(spec(&s, id).series_paints.first().is_none_or(|p| p.fill_opacity.is_none()));
 }
@@ -437,8 +437,8 @@ fn an_opacity_on_an_added_item_of_a_series_mark_is_not_kept() {
 /// The fill positions (lowest, topmost) in a mark's appearance stack.
 fn fill_rows(s: &Session, mark: NodeId) -> (usize, usize) {
     let items = s.doc().unwrap().doc.node(mark).unwrap().appearance.items.clone();
-    let lower = items.iter().position(vectorcraft_doc::AppearanceItem::is_fill).unwrap();
-    let upper = items.iter().rposition(vectorcraft_doc::AppearanceItem::is_fill).unwrap();
+    let lower = items.iter().position(pluma_doc::AppearanceItem::is_fill).unwrap();
+    let upper = items.iter().rposition(pluma_doc::AppearanceItem::is_fill).unwrap();
     assert!(lower < upper);
     (lower, upper)
 }
@@ -496,7 +496,7 @@ fn a_stroke_opacity_on_a_series_line_survives_regeneration() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     let id = graph(&mut s, "line");
-    let lines = |s: &Session| -> Vec<vectorcraft_doc::Node> {
+    let lines = |s: &Session| -> Vec<pluma_doc::Node> {
         let n = s.doc().unwrap().doc.node(id).unwrap().clone();
         let marks = series(&n, 0).children().unwrap().to_vec();
         marks.iter().filter(|m| m.appearance.stroke().is_some_and(|st| st.width > 0.0)).map(|m| (**m).clone()).collect()
@@ -712,7 +712,7 @@ fn marks_of(s: &Session, id: NodeId, index: u32) -> Vec<(Paint, Paint, f64)> {
 /// Set the top fill of series 0's first mark to the color `hex` with `appearance.setItem`, and return that paint.
 fn hex_paint(s: &mut Session, id: NodeId, hex: &str) -> Paint {
     let bar = series(s.doc().unwrap().doc.node(id).unwrap(), 0).children().unwrap()[0].id;
-    let row = s.doc().unwrap().doc.node(bar).unwrap().appearance.items.iter().rposition(vectorcraft_doc::AppearanceItem::is_fill).unwrap();
+    let row = s.doc().unwrap().doc.node(bar).unwrap().appearance.items.iter().rposition(pluma_doc::AppearanceItem::is_fill).unwrap();
     s.execute("appearance.setItem", &json!({"ids": [bar.0], "index": row, "color": hex})).unwrap();
     s.doc().unwrap().doc.node(bar).unwrap().appearance.fill_paint()
 }
@@ -779,7 +779,7 @@ fn blue_source() -> (Session, NodeId, Paint, NodeId, NodeId) {
 
 /// After the graph is drawn again, every mark of series 1 is `blue` at 40%; undo goes back through the data edit and the
 /// command before it, which restores the paints the graph kept in `was`.
-fn series_1_is_blue_at_40_then_undo(s: &mut Session, id: NodeId, blue: &Paint, was: &[vectorcraft_doc::SeriesPaint]) {
+fn series_1_is_blue_at_40_then_undo(s: &mut Session, id: NodeId, blue: &Paint, was: &[pluma_doc::SeriesPaint]) {
     s.execute("graph.setData", &json!({"rows": [[1, 2], [3, 4]]})).unwrap();
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     for m in series(&n, 1).children().unwrap() {
@@ -1116,7 +1116,7 @@ fn line_and_marker() -> (Session, NodeId, NodeId, NodeId) {
 }
 
 /// The first thin line of series 0, and every other path of the series (its markers and legend swatch).
-fn line_parts(s: &Session, id: NodeId) -> (vectorcraft_doc::Node, Vec<vectorcraft_doc::Node>) {
+fn line_parts(s: &Session, id: NodeId) -> (pluma_doc::Node, Vec<pluma_doc::Node>) {
     let parts = series_parts(s, id, 0);
     let (lines, others): (Vec<_>, Vec<_>) =
         parts.into_iter().partition(|m| m.appearance.fill_paint().is_none() && m.appearance.stroke_width() == 1.0);
@@ -1195,7 +1195,7 @@ fn a_filled_line_band_keeps_a_fill_set_on_it() {
     let (mut s, id, band) = band_graph();
     s.execute("appearance.setItem", &json!({"ids": [band.0], "index": top_row(&s, band, true), "color": "#0000ff"})).unwrap();
     let blue = s.doc().unwrap().doc.node(band).unwrap().appearance.fill_paint();
-    assert_eq!(redrawn_band(&mut s, id), (blue, Paint::solid(vectorcraft_color::Color::BLACK), 0.25));
+    assert_eq!(redrawn_band(&mut s, id), (blue, Paint::solid(pluma_color::Color::BLACK), 0.25));
 }
 
 /// A stroke set on a Filled Lines band is not kept: the band keeps its color and its thin black outline.
@@ -1206,7 +1206,7 @@ fn a_stroke_set_on_a_filled_line_band_does_not_repaint_it() {
     let row = top_row(&s, band, false);
     s.execute("appearance.setItem", &json!({"ids": [band.0], "index": row, "color": "#ff0000", "weight": 3})).unwrap();
     assert!(spec(&s, id).series_paints.first().is_none_or(|p| p.stroke.is_none()));
-    assert_eq!(redrawn_band(&mut s, id), (was, Paint::solid(vectorcraft_color::Color::BLACK), 0.25));
+    assert_eq!(redrawn_band(&mut s, id), (was, Paint::solid(pluma_color::Color::BLACK), 0.25));
 }
 
 /// An opacity and blend mode set on a Filled Lines band's stroke row are kept and drawn on its outline, which keeps its
@@ -1219,7 +1219,7 @@ fn a_filled_line_bands_outline_keeps_a_stroke_opacity_and_blend_mode() {
     let kept = spec(&s, id).series_paints[0].clone();
     assert_eq!((kept.stroke, kept.stroke_opacity, kept.stroke_blend), (None, Some(0.5), Some(BlendMode::Multiply)));
     let (_, outline, width) = redrawn_band(&mut s, id);
-    assert_eq!((outline, width), (Paint::solid(vectorcraft_color::Color::BLACK), 0.25));
+    assert_eq!((outline, width), (Paint::solid(pluma_color::Color::BLACK), 0.25));
     let band = series_parts(&s, id, 0)[0].clone();
     let st = band.appearance.stroke().unwrap();
     assert_eq!((st.opacity, st.blend), (0.5, BlendMode::Multiply));
@@ -1433,7 +1433,7 @@ fn appending_a_visible_row_under_a_hidden_one_replaces_the_kept_stroke() {
     s.execute("appearance.setItem", &json!({"ids": [source.0], "index": hidden, "visible": false})).unwrap();
     s.execute("appearance.copyFrom", &json!({"source": source.0, "ids": [marks[1].0], "append": true})).unwrap();
     let kept = &spec(&s, id).series_paints[0];
-    assert_eq!(kept.stroke, Some(Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0))));
+    assert_eq!(kept.stroke, Some(Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0))));
     assert_eq!(kept.stroke_width, Some(2.0));
 }
 
@@ -1447,7 +1447,7 @@ fn adding_a_stroke_replaces_the_kept_stroke_with_the_marks_own() {
     s.execute("appearance.setItem", &json!({"ids": [marks[0].0], "index": stroke, "color": "#0000ff", "weight": 5})).unwrap();
     s.execute("appearance.addStroke", &json!({"ids": [marks[1].0]})).unwrap();
     let kept = &spec(&s, id).series_paints[0];
-    assert_eq!(kept.stroke, Some(Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0))));
+    assert_eq!(kept.stroke, Some(Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0))));
     assert_eq!(kept.stroke_width, Some(2.0));
 }
 
@@ -1476,7 +1476,7 @@ fn duplicating_a_marks_top_stroke_replaces_the_kept_stroke() {
         let p = if to { json!({"ids": [marks[1].0], "index": top, "to": top + 1}) } else { json!({"ids": [marks[1].0], "index": top}) };
         s.execute("appearance.duplicateItem", &p).unwrap();
         let kept = &spec(&s, id).series_paints[0];
-        assert_eq!(kept.stroke, Some(Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0))), "{p}");
+        assert_eq!(kept.stroke, Some(Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0))), "{p}");
         assert_eq!(kept.stroke_width, Some(2.0), "{p}");
     }
 }
@@ -1540,7 +1540,7 @@ fn a_paint_on_a_design_copy_or_the_other_kind_of_row_is_not_kept() {
     s.execute("appearance.setItem", &json!({"ids": [marks[0].0], "index": fill, "color": "#ff0000"})).unwrap();
     let mut kept = spec(&s, id).series_paints;
     s.execute("appearance.setItem", &json!({"ids": [marks[1].0], "index": fill, "blend": "multiply"})).unwrap();
-    kept[0].fill_blend = Some(vectorcraft_color::BlendMode::Multiply);
+    kept[0].fill_blend = Some(pluma_color::BlendMode::Multiply);
     assert_eq!(spec(&s, id).series_paints, kept);
 }
 
@@ -1570,7 +1570,7 @@ fn stored_red_stroke() -> (Session, NodeId, Vec<NodeId>) {
 
 /// After the graph is drawn again, every mark of series 0 has `fill` at `opacity` and `stroke` at `weight`; two undos (the
 /// data edit, then the command) bring back the paints the graph stored in `was`.
-fn series_0_is(s: &mut Session, id: NodeId, (fill, opacity, stroke, weight): (&Paint, f32, &Paint, f64), was: &[vectorcraft_doc::SeriesPaint]) {
+fn series_0_is(s: &mut Session, id: NodeId, (fill, opacity, stroke, weight): (&Paint, f32, &Paint, f64), was: &[pluma_doc::SeriesPaint]) {
     s.execute("graph.setData", &json!({"id": id.0, "rows": [[1, 2], [3, 4]]})).unwrap();
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     for m in series(&n, 0).children().unwrap() {
@@ -1692,7 +1692,7 @@ fn default_fill_and_stroke_on_a_series_mark_is_kept() {
     let (mut s, id, marks) = stored_red_stroke();
     let was = spec(&s, id).series_paints;
     s.execute("paint.default", &json!({"ids": [marks[0].0]})).unwrap();
-    let (white, black) = (Paint::solid(vectorcraft_color::Color::WHITE), Paint::solid(vectorcraft_color::Color::BLACK));
+    let (white, black) = (Paint::solid(pluma_color::Color::WHITE), Paint::solid(pluma_color::Color::BLACK));
     let kept = spec(&s, id).series_paints[0].clone();
     assert_eq!((kept.fill.clone(), kept.fill_opacity), (Some(white.clone()), None));
     assert_eq!((kept.stroke.clone(), kept.stroke_width), (Some(black.clone()), Some(1.0)));
@@ -1736,9 +1736,9 @@ fn swapping_onto_a_hidden_top_fill_leaves_the_stored_fill() {
 /// A kept opacity read from a file outside 0..1 is held to that range, and one that is not a number is left out.
 #[test]
 fn a_kept_series_opacity_from_a_file_is_held_to_its_range() {
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
-    let paints = vec![vectorcraft_doc::SeriesPaint { fill_opacity: Some(-1.0), stroke_opacity: Some(f32::NAN), ..Default::default() }];
-    let paints = [paints, vec![vectorcraft_doc::SeriesPaint { fill_opacity: Some(40.0), ..Default::default() }]].concat();
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
+    let paints = vec![pluma_doc::SeriesPaint { fill_opacity: Some(-1.0), stroke_opacity: Some(f32::NAN), ..Default::default() }];
+    let paints = [paints, vec![pluma_doc::SeriesPaint { fill_opacity: Some(40.0), ..Default::default() }]].concat();
     let g = GraphSpec { rows: vec![vec![35.0, 20.0]], axis_min: Some(0.0), axis_max: Some(50.0), series_paints: paints, ..GraphSpec::default() };
     let out = super::generate(&mut d, &g);
     for (index, want) in [(0, 0.0), (1, 1.0)] {
@@ -1779,7 +1779,7 @@ fn painting_a_line_series_stroke_sets_its_persistent_colour() {
     let id = graph(&mut s, "line");
     let series_id = group(s.doc().unwrap().doc.node(id).unwrap(), "2024").id;
     s.execute("paint.setStroke", &json!({"ids": [series_id.0], "color": "#3751c8"})).unwrap();
-    let blue = vectorcraft_color::Color::rgb(55.0 / 255.0, 81.0 / 255.0, 200.0 / 255.0);
+    let blue = pluma_color::Color::rgb(55.0 / 255.0, 81.0 / 255.0, 200.0 / 255.0);
     assert_eq!(
         s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_ref().unwrap().series_paints[0].stroke.as_ref().and_then(Paint::color),
         Some(blue)
@@ -1800,8 +1800,8 @@ fn series_colours_survive_native_save_open_and_export() {
     let second = group(s.doc().unwrap().doc.node(id).unwrap(), "2025").id;
     s.execute("paint.setFill", &json!({"ids": [first.0], "color": "#f00"})).unwrap();
     s.execute("paint.setFill", &json!({"ids": [second.0], "color": "#008080"})).unwrap();
-    let dir = vectorcraft_testkit::temp_dir("graph-palette");
-    let path = dir.join("palette.vectorcraft");
+    let dir = pluma_testkit::temp_dir("graph-palette");
+    let path = dir.join("palette.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     let paints = &s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_ref().unwrap().series_paints;
@@ -1834,7 +1834,7 @@ fn a_column_stroke_stays_a_stroke_and_a_marker_fill_does_not_recolour_its_line()
     s.execute("paint.setStroke", &json!({"ids": [series_id.0], "color": "#0000ff"})).unwrap();
     s.execute("graph.setData", &json!({"rows": [[1, 2], [3, 4]]})).unwrap();
     let spec = s.doc().unwrap().doc.node(id).unwrap().extras().graph.as_deref().unwrap().clone();
-    let blue = Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0));
+    let blue = Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0));
     assert_eq!(spec.series_paints[0].stroke, Some(blue.clone()));
     assert!(spec.series_paints[0].fill.is_none());
     let bar = &group(s.doc().unwrap().doc.node(id).unwrap(), "2024").children().unwrap()[0];
@@ -1849,7 +1849,7 @@ fn a_column_stroke_stays_a_stroke_and_a_marker_fill_does_not_recolour_its_line()
     assert!(spec.series_paints[0].stroke.is_none());
     let series = group(s.doc().unwrap().doc.node(id).unwrap(), "2024").children().unwrap();
     assert_eq!(series[0].appearance.stroke_paint().color(), Some(super::default_series_color(0)));
-    assert_eq!(series[1].appearance.fill_paint().color(), Some(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0)));
+    assert_eq!(series[1].appearance.fill_paint().color(), Some(pluma_color::Color::rgb(1.0, 0.0, 0.0)));
 }
 
 #[test]
@@ -2008,8 +2008,8 @@ fn blanks_read_back_as_null_and_year_header_rows_still_read_as_headers() {
 
 #[test]
 fn a_huge_ragged_grid_is_capped() {
-    let g = GraphSpec { rows: vec![vec![0.0; vectorcraft_doc::MAX_GRAPH_SERIES + 10]; 3], ..GraphSpec::default() };
-    assert!(g.cells().iter().all(|r| r.len() == vectorcraft_doc::MAX_GRAPH_SERIES));
+    let g = GraphSpec { rows: vec![vec![0.0; pluma_doc::MAX_GRAPH_SERIES + 10]; 3], ..GraphSpec::default() };
+    assert!(g.cells().iter().all(|r| r.len() == pluma_doc::MAX_GRAPH_SERIES));
 }
 
 #[test]
@@ -2061,7 +2061,7 @@ fn spec(s: &Session, id: NodeId) -> GraphSpec {
 }
 
 /// Bounds of a series' marks, without its legend swatch (the last child).
-fn marks(s: &Session, id: NodeId, index: u32) -> Vec<vectorcraft_geom::Rect> {
+fn marks(s: &Session, id: NodeId, index: u32) -> Vec<pluma_geom::Rect> {
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     let ch = series(&n, index).children().unwrap().to_vec();
     ch[..ch.len() - 1].iter().map(|c| c.geometric_bounds().unwrap()).collect()
@@ -2214,7 +2214,7 @@ fn series_types_survive_save_and_open_and_older_files_have_none() {
     s.execute("file.new", &json!({})).unwrap();
     let id = graph(&mut s, "column");
     s.execute("graph.setType", &json!({"seriesIndexes": [1], "type": "line"})).unwrap();
-    let path = vectorcraft_testkit::temp_dir("graph-kinds").join("kinds.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-kinds").join("kinds.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     assert_eq!(spec(&s, id).series_kinds, [None, Some(GraphKind::Line)]);
@@ -2227,7 +2227,7 @@ fn series_types_survive_save_and_open_and_older_files_have_none() {
 }
 
 /// The value axis labels: text and bounds of the texts in the Axes group that read as numbers.
-fn value_labels(s: &Session, id: NodeId) -> Vec<(String, vectorcraft_geom::Rect)> {
+fn value_labels(s: &Session, id: NodeId) -> Vec<(String, pluma_geom::Rect)> {
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     group(&n, "Axes")
         .children()
@@ -2318,7 +2318,7 @@ fn group_selected_series_go_on_the_chosen_axis() {
     assert!(s.execute("graph.setType", &json!({"valueAxis": "both"})).is_err(), "a series takes one axis");
     s.execute("graph.setType", &json!({"valueAxis": "right"})).unwrap();
     let g = spec(&s, id);
-    assert_eq!((g.right_series.clone(), g.value_axis), (vec![1], vectorcraft_doc::ValueAxisSide::Left));
+    assert_eq!((g.right_series.clone(), g.value_axis), (vec![1], pluma_doc::ValueAxisSide::Left));
     assert_eq!(s.execute("graph.setType", &json!({})).unwrap()["valueAxis"], "right");
     s.execute("graph.setType", &json!({"valueAxis": "left"})).unwrap();
     assert!(spec(&s, id).right_series.is_empty());
@@ -2342,14 +2342,11 @@ fn value_axis_options_survive_save_and_open_and_are_left_out_when_unset() {
     let id = two_scale_graph(&mut s);
     s.execute("graph.setType", &json!({"valueAxis": "both", "separateScales": true, "rightAxisMin": 0, "rightAxisMax": 2000})).unwrap();
     s.execute("graph.setType", &json!({"seriesIndexes": [1], "valueAxis": "right"})).unwrap();
-    let path = vectorcraft_testkit::temp_dir("graph-axes").join("axes.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-axes").join("axes.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     let g = spec(&s, id);
-    assert_eq!(
-        (g.value_axis, g.separate_scales, g.right_series, g.right_axis_max),
-        (vectorcraft_doc::ValueAxisSide::Both, true, vec![1], Some(2000.0))
-    );
+    assert_eq!((g.value_axis, g.separate_scales, g.right_series, g.right_axis_max), (pluma_doc::ValueAxisSide::Both, true, vec![1], Some(2000.0)));
     let v = serde_json::to_value(GraphSpec::default()).unwrap();
     for k in ["valueAxis", "separateScales", "rightSeries", "rightTicks", "rightAxisMin", "rightAxisMax"] {
         assert!(v.get(k).is_none(), "{k}");
@@ -2439,7 +2436,7 @@ fn data_without_a_right_axis_series_drops_its_assignment() {
 }
 
 /// Bounds of the straight lines in the Axes group.
-fn axis_lines(s: &Session, id: NodeId) -> Vec<vectorcraft_geom::Rect> {
+fn axis_lines(s: &Session, id: NodeId) -> Vec<pluma_geom::Rect> {
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     group(&n, "Axes").children().unwrap().iter().filter(|c| matches!(c.kind, NodeKind::Path { .. })).filter_map(|c| c.geometric_bounds()).collect()
 }
@@ -2544,13 +2541,13 @@ fn tick_and_label_options_survive_save_and_open_and_are_left_out_when_unset() {
         &json!({"tickLength": "full", "tickMarks": 3, "categoryTickLength": "short", "ticksBetweenLabels": true, "suffix": "%"}),
     )
     .unwrap();
-    let path = vectorcraft_testkit::temp_dir("graph-ticks").join("ticks.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-ticks").join("ticks.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     let g = spec(&s, id);
     assert_eq!(
         (g.tick_length, g.tick_marks, g.category_tick_length, g.ticks_between_labels, g.suffix.as_str()),
-        (vectorcraft_doc::TickLength::Full, 3, vectorcraft_doc::TickLength::Short, true, "%")
+        (pluma_doc::TickLength::Full, 3, pluma_doc::TickLength::Short, true, "%")
     );
     let v = serde_json::to_value(GraphSpec::default()).unwrap();
     for k in [
@@ -2570,7 +2567,7 @@ fn tick_and_label_options_survive_save_and_open_and_are_left_out_when_unset() {
     }
     // A file's huge values draw within the caps.
     let g: GraphSpec = serde_json::from_value(json!({"rows": [[1.0]], "tickMarks": 1_000_000_000u64, "prefix": "y".repeat(10_000)})).unwrap();
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
     let art = super::generate(&mut d, &g);
     let axes = art.iter().find(|n| n.name.as_deref() == Some("Axes")).unwrap().children().unwrap().to_vec();
     assert!(axes.len() < 200, "{} axis parts", axes.len());
@@ -2646,14 +2643,14 @@ fn counts_come_back_from_the_dialog_as_floats_and_are_capped() {
     assert_eq!(fields["rightTickMarks"], 20);
     fields["tickLength"] = json!("full");
     s.execute("graph.setType", &fields).unwrap();
-    assert_eq!(spec(&s, id).tick_length, vectorcraft_doc::TickLength::Full);
+    assert_eq!(spec(&s, id).tick_length, pluma_doc::TickLength::Full);
 }
 
 #[test]
 fn a_long_category_axis_is_ticked_all_the_way_within_the_cap() {
     let rows: Vec<Vec<f64>> = (0..5000).map(|i| vec![i as f64]).collect();
-    let g = GraphSpec { rows, category_tick_length: vectorcraft_doc::TickLength::Short, category_tick_marks: 20, ..GraphSpec::default() };
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
+    let g = GraphSpec { rows, category_tick_length: pluma_doc::TickLength::Short, category_tick_marks: 20, ..GraphSpec::default() };
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
     let art = super::generate(&mut d, &g);
     let axes = art.iter().find(|n| n.name.as_deref() == Some("Axes")).unwrap();
     let ticks: Vec<f64> = axes
@@ -2677,7 +2674,7 @@ fn save_design(s: &mut Session, name: &str) {
 }
 
 /// The marks of series `index` (legend swatch last) and their bounds.
-fn series_parts(s: &Session, id: NodeId, index: u32) -> Vec<vectorcraft_doc::Node> {
+fn series_parts(s: &Session, id: NodeId, index: u32) -> Vec<pluma_doc::Node> {
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
     series(&n, index).children().unwrap().iter().map(|c| (**c).clone()).collect()
 }
@@ -2780,7 +2777,7 @@ fn designs_and_markers_survive_save_and_open() {
     save_design(&mut s, "Pill");
     let id = graph(&mut s, "line");
     s.execute("graph.marker", &json!({"seriesIndexes": [0], "design": "Pill"})).unwrap();
-    let path = vectorcraft_testkit::temp_dir("graph-designs").join("designs.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-designs").join("designs.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     assert_eq!(s.execute("graph.design", &json!({})).unwrap()["designs"], json!(["Pill"]));
@@ -2788,9 +2785,9 @@ fn designs_and_markers_survive_save_and_open() {
     assert!(serde_json::to_value(GraphSpec::default()).unwrap().get("seriesMarkers").is_none());
     // A design whose art has no area draws the default square.
     let g = GraphSpec { kind: GraphKind::Line, series_markers: vec![Some("Dot".into())], ..GraphSpec::default() };
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
-    let dot = vectorcraft_doc::Node::group(d.alloc_id(), vec![]);
-    d.graph_designs.push(vectorcraft_doc::GraphDesign { name: "Dot".into(), art: std::sync::Arc::new(dot) });
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
+    let dot = pluma_doc::Node::group(d.alloc_id(), vec![]);
+    d.graph_designs.push(pluma_doc::GraphDesign { name: "Dot".into(), art: std::sync::Arc::new(dot) });
     let art = super::generate(&mut d, &g);
     let s0 = art.iter().find(|n| n.extras().series_index == Some(0)).unwrap();
     assert!(s0.children().unwrap().iter().all(|n| matches!(n.kind, NodeKind::Path { .. })));
@@ -2857,15 +2854,15 @@ fn designs_too_big_for_a_graph_are_refused_and_drawn_as_squares() {
 
 #[test]
 fn a_files_designs_are_tidied() {
-    let mut d = vectorcraft_doc::Document::new(100.0, 100.0);
-    let art = |d: &mut vectorcraft_doc::Document| std::sync::Arc::new(vectorcraft_doc::Node::group(d.alloc_id(), vec![]));
-    let mut graphy = vectorcraft_doc::Node::group(d.alloc_id(), vec![]);
+    let mut d = pluma_doc::Document::new(100.0, 100.0);
+    let art = |d: &mut pluma_doc::Document| std::sync::Arc::new(pluma_doc::Node::group(d.alloc_id(), vec![]));
+    let mut graphy = pluma_doc::Node::group(d.alloc_id(), vec![]);
     graphy.extras_mut().graph = Some(Box::new(GraphSpec::default()));
     for name in ["  A\u{7}  ", "A", "", "   ", &"x".repeat(100)] {
         let a = art(&mut d);
-        d.graph_designs.push(vectorcraft_doc::GraphDesign { name: name.into(), art: a });
+        d.graph_designs.push(pluma_doc::GraphDesign { name: name.into(), art: a });
     }
-    d.graph_designs.push(vectorcraft_doc::GraphDesign { name: "G".into(), art: std::sync::Arc::new(graphy) });
+    d.graph_designs.push(pluma_doc::GraphDesign { name: "G".into(), art: std::sync::Arc::new(graphy) });
     d.tidy_graph_designs();
     let names: Vec<_> = d.graph_designs.iter().map(|x| x.name.clone()).collect();
     assert_eq!(names, ["A".to_string(), "x".repeat(64), "G".to_string()]);
@@ -2985,11 +2982,11 @@ fn one_series(s: &mut Session, ty: &str, values: &[f64]) -> NodeId {
 }
 
 /// The bounds of the backmost object (the frame) of each copy of a design inside `n`, a column drawn with it.
-fn frames(n: &vectorcraft_doc::Node) -> Vec<vectorcraft_geom::Rect> {
+fn frames(n: &pluma_doc::Node) -> Vec<pluma_geom::Rect> {
     n.children().unwrap().iter().filter_map(|c| c.children()?.first()?.geometric_bounds()).collect()
 }
 
-fn near(a: vectorcraft_geom::Rect, b: [f64; 4]) -> bool {
+fn near(a: pluma_geom::Rect, b: [f64; 4]) -> bool {
     [a.x0 - b[0], a.y0 - b[1], a.x1 - b[2], a.y1 - b[3]].iter().all(|d| d.abs() < 1e-6)
 }
 
@@ -3011,24 +3008,24 @@ fn a_repeating_column_design_stacks_a_copy_per_ten_and_chops_or_scales_the_last(
     assert!(near(copies[0], at(260.0, 300.0)) && near(copies[1], at(220.0, 260.0)) && near(copies[2], at(180.0, 220.0)), "{copies:?}");
     let NodeKind::Group { clip: true, children } = &parts[3].kind else { panic!("the last copy is clipped: {:?}", parts[3].kind) };
     assert!(near(frames(&parts[3])[0], at(140.0, 180.0)), "a whole copy");
-    let (clip, copy) = (children[0].geometric_bounds().unwrap(), vectorcraft_render::painted_bounds(&s.doc().unwrap().doc, &children[1]).unwrap());
+    let (clip, copy) = (children[0].geometric_bounds().unwrap(), pluma_render::painted_bounds(&s.doc().unwrap().doc, &children[1]).unwrap());
     assert_eq!(clip.y0, 160.0, "cut off at the value");
     // Its sides and its foot, strokes included, are not cut.
     assert!(clip.x0 <= copy.x0 && clip.x1 >= copy.x1 && clip.y1 >= copy.y1 && copy.x0 < plain.x0, "{clip:?} {copy:?}");
     // Nor is the brush art of a brushed path inside a group of the design.
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
-    let square = |x0: f64, x1: f64| vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x0, 0.0, x1, 10.0));
-    let frame = vectorcraft_doc::Node::path(d.alloc_id(), square(0.0, 10.0), vectorcraft_doc::Appearance::basic(Paint::None, Paint::None, 0.0));
-    let mut look = vectorcraft_doc::Appearance::basic(Paint::None, Paint::solid(vectorcraft_color::Color::BLACK), 1.0);
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
+    let square = |x0: f64, x1: f64| pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x0, 0.0, x1, 10.0));
+    let frame = pluma_doc::Node::path(d.alloc_id(), square(0.0, 10.0), pluma_doc::Appearance::basic(Paint::None, Paint::None, 0.0));
+    let mut look = pluma_doc::Appearance::basic(Paint::None, Paint::solid(pluma_color::Color::BLACK), 1.0);
     for item in &mut look.items {
-        if let vectorcraft_doc::AppearanceItem::Stroke(st) = item {
+        if let pluma_doc::AppearanceItem::Stroke(st) = item {
             st.brush = Some("Wide".into());
         }
     }
-    let brushed = vectorcraft_doc::Node::path(d.alloc_id(), square(4.0, 6.0), look);
-    let inner = vectorcraft_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(brushed)]);
-    let art = vectorcraft_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(frame), std::sync::Arc::new(inner)]);
-    d.graph_designs.push(vectorcraft_doc::GraphDesign { name: "Brushed".into(), art: std::sync::Arc::new(art) });
+    let brushed = pluma_doc::Node::path(d.alloc_id(), square(4.0, 6.0), look);
+    let inner = pluma_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(brushed)]);
+    let art = pluma_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(frame), std::sync::Arc::new(inner)]);
+    d.graph_designs.push(pluma_doc::GraphDesign { name: "Brushed".into(), art: std::sync::Arc::new(art) });
     let options = ColumnDesign { design: "Brushed".into(), column_type: ColumnType::Repeating, ..ColumnDesign::default() };
     let g =
         GraphSpec { rows: vec![vec![35.0]], axis_min: Some(0.0), axis_max: Some(50.0), series_columns: vec![Some(options)], ..GraphSpec::default() };
@@ -3039,8 +3036,8 @@ fn a_repeating_column_design_stacks_a_copy_per_ten_and_chops_or_scales_the_last(
     let clip = children[0].geometric_bounds().unwrap();
     let mut reach = None;
     children[1].walk(&mut |n| {
-        if vectorcraft_brush::has_brush(n) {
-            reach = vectorcraft_render::painted_bounds(&d, n);
+        if pluma_brush::has_brush(n) {
+            reach = pluma_render::painted_bounds(&d, n);
         }
     });
     let reach = reach.unwrap();
@@ -3178,7 +3175,7 @@ fn column_designs_survive_save_and_open_and_follow_their_design() {
     assert!(series_parts(&s, id, 1).iter().all(|n| matches!(n.kind, NodeKind::Path { .. })), "the line series");
     let v = s.execute("graph.column", &json!({"id": id.0, "seriesIndexes": [0]})).unwrap();
     assert_eq!(v, json!({"designs": ["Coin"], "design": "Coin", "columnType": "repeating", "each": 2.5, "fractions": "scale"}));
-    let path = vectorcraft_testkit::temp_dir("graph-column-designs").join("columns.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-column-designs").join("columns.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     let options = ColumnDesign { design: "Coin".into(), column_type: ColumnType::Repeating, each: 2.5, fractions: Fractions::Scale };
@@ -3252,14 +3249,14 @@ fn graph_column_params_are_checked_and_designs_too_big_are_drawn_plain() {
 /// A column design with totals: a 10 × 10 rectangle at the back, type "%31" set from 2 points above its top, and a
 /// group of type "Votes" inside it and type "%02 and %00" set from 4 points below it, with a horizontal guide line 5
 /// points from the top when `guide`, saved as `name`. Returns the points the two totals are set from.
-fn save_totals_design(s: &mut Session, name: &str, guide: bool) -> [vectorcraft_geom::Point; 2] {
+fn save_totals_design(s: &mut Session, name: &str, guide: bool) -> [pluma_geom::Point; 2] {
     let id_of = |v: serde_json::Value| v["id"].as_u64().unwrap();
     let frame = id_of(s.execute("shape.rectangle", &json!({"x": 600, "y": 600, "width": 10, "height": 10})).unwrap());
     let above = id_of(s.execute("text.create", &json!({"x": 600, "y": 598, "text": "%31", "size": 4})).unwrap());
     let votes = id_of(s.execute("text.create", &json!({"x": 601, "y": 606, "text": "Votes", "size": 3})).unwrap());
     let below = id_of(s.execute("text.create", &json!({"x": 600, "y": 614, "text": "%02 and %00", "size": 4})).unwrap());
     let origin = |s: &Session, id: u64| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
-        NodeKind::Text(t) => t.xf * vectorcraft_geom::Point::ZERO,
+        NodeKind::Text(t) => t.xf * pluma_geom::Point::ZERO,
         k => panic!("type: {k:?}"),
     };
     let points = [origin(s, above), origin(s, below)];
@@ -3278,7 +3275,7 @@ fn save_totals_design(s: &mut Session, name: &str, guide: bool) -> [vectorcraft_
 }
 
 /// The text of each piece of type inside `n`, in paint order.
-fn texts_in(n: &vectorcraft_doc::Node) -> Vec<String> {
+fn texts_in(n: &pluma_doc::Node) -> Vec<String> {
     let mut out = vec![];
     n.walk(&mut |c| {
         if let NodeKind::Text(t) = &c.kind {
@@ -3289,21 +3286,21 @@ fn texts_in(n: &vectorcraft_doc::Node) -> Vec<String> {
 }
 
 /// The type among `nodes`, each as its text and the point it is set from; each must be type at its own size.
-fn totals_of(nodes: &[std::sync::Arc<vectorcraft_doc::Node>]) -> Vec<(String, vectorcraft_geom::Point)> {
+fn totals_of(nodes: &[std::sync::Arc<pluma_doc::Node>]) -> Vec<(String, pluma_geom::Point)> {
     nodes
         .iter()
         .map(|n| match &n.kind {
             NodeKind::Text(t) => {
                 let [a, b, c, d, x, y] = t.xf.as_coeffs();
                 assert_eq!([a, b, c, d], [1.0, 0.0, 0.0, 1.0], "a total keeps its size: {:?}", t.xf);
-                (t.plain_text(), vectorcraft_geom::Point::new(x, y))
+                (t.plain_text(), pluma_geom::Point::new(x, y))
             }
             k => panic!("a total: {k:?}"),
         })
         .collect()
 }
 
-fn close(a: vectorcraft_geom::Point, b: vectorcraft_geom::Point) -> bool {
+fn close(a: pluma_geom::Point, b: pluma_geom::Point) -> bool {
     (a - b).hypot() < 1e-6
 }
 
@@ -3322,7 +3319,7 @@ fn column_design_totals_show_each_columns_value_at_their_own_size() {
             assert_eq!(texts_in(&children[0]), ["Votes"]);
             let frame = frames(column)[0];
             let (sx, sy) = (frame.width() / 10.0, frame.height() / 10.0);
-            let at = |p: vectorcraft_geom::Point| vectorcraft_geom::Point::new(frame.x0 + (p.x - 600.0) * sx, frame.y0 + (p.y - 600.0) * sy);
+            let at = |p: pluma_geom::Point| pluma_geom::Point::new(frame.x0 + (p.x - 600.0) * sx, frame.y0 + (p.y - 600.0) * sy);
             let totals = totals_of(&children[1..]);
             assert_eq!(totals.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), want);
             // Each set from where the design's copy puts the point it was set from.
@@ -3344,7 +3341,7 @@ fn column_design_totals_show_each_columns_value_at_their_own_size() {
     let bar = series_parts(&s, bars, 0)[0].clone();
     let frame = frames(&bar)[0];
     let (sx, sy) = (frame.width() / 10.0, frame.height() / 10.0);
-    let at = |p: vectorcraft_geom::Point| vectorcraft_geom::Point::new(frame.x0 + (p.x - 600.0) * sx, frame.y0 + (p.y - 600.0) * sy);
+    let at = |p: pluma_geom::Point| pluma_geom::Point::new(frame.x0 + (p.x - 600.0) * sx, frame.y0 + (p.y - 600.0) * sy);
     let totals = totals_of(&bar.children().unwrap()[1..]);
     assert_eq!(totals.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), ["-015.0", "-15.00 and -15"]);
     assert!((frame.x1 - 250.0).abs() < 1e-6 && close(totals[0].1, at(above)) && close(totals[1].1, at(below)), "{totals:?} {frame:?}");
@@ -3381,7 +3378,7 @@ fn a_repeating_design_shows_its_totals_once_at_the_value_end_and_a_sliding_one_b
     assert!(children[..4].iter().all(|c| texts_in(c) == ["Votes"]));
     // Set as in a whole copy that ends at the value: 40 points tall from y 160, as wide as the column.
     let sx = plain.width() / 10.0;
-    let at = |p: vectorcraft_geom::Point| vectorcraft_geom::Point::new(plain.x0 + (p.x - 600.0) * sx, 160.0 + (p.y - 600.0) * 4.0);
+    let at = |p: pluma_geom::Point| pluma_geom::Point::new(plain.x0 + (p.x - 600.0) * sx, 160.0 + (p.y - 600.0) * 4.0);
     let totals = totals_of(&children[4..]);
     assert_eq!(totals.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), ["035.0", "35.00 and 35"]);
     assert!(close(totals[0].1, at(above)) && close(totals[1].1, at(below)), "{totals:?}");
@@ -3393,20 +3390,20 @@ fn a_repeating_design_shows_its_totals_once_at_the_value_end_and_a_sliding_one_b
     assert_eq!(children.len(), 4, "two halves and two totals: {children:?}");
     let k = (140.0 - 5.0 * sx) / 5.0;
     let totals = totals_of(&children[2..]);
-    let kept = vectorcraft_geom::Point::new(plain.x0 + (above.x - 600.0) * sx, 160.0 + (above.y - 600.0) * sx);
-    let stretched = vectorcraft_geom::Point::new(plain.x0 + (below.x - 600.0) * sx, 300.0 + (below.y - 610.0) * k);
+    let kept = pluma_geom::Point::new(plain.x0 + (above.x - 600.0) * sx, 160.0 + (above.y - 600.0) * sx);
+    let stretched = pluma_geom::Point::new(plain.x0 + (below.x - 600.0) * sx, 300.0 + (below.y - 610.0) * k);
     assert!(close(totals[0].1, kept) && close(totals[1].1, stretched), "{totals:?} {kept:?} {stretched:?}");
     // A total's pattern fill moves with it.
-    let mut d = vectorcraft_doc::Document::new(800.0, 800.0);
-    let square = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
-    let frame = vectorcraft_doc::Node::path(d.alloc_id(), square, vectorcraft_doc::Appearance::basic(Paint::None, Paint::None, 0.0));
-    let origin = vectorcraft_geom::Point::new(0.0, -2.0);
-    let t = vectorcraft_doc::TextObject::point(origin, "%00", CharStyle::default());
-    let mut total = vectorcraft_doc::Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
-    let dots = Paint::Pattern { pattern: "Dots".into(), xf: vectorcraft_geom::Affine::IDENTITY };
-    total.appearance = vectorcraft_doc::Appearance::basic(dots, Paint::None, 0.0).into();
-    let art = vectorcraft_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(frame), std::sync::Arc::new(total)]);
-    d.graph_designs.push(vectorcraft_doc::GraphDesign { name: "Dotted".into(), art: std::sync::Arc::new(art) });
+    let mut d = pluma_doc::Document::new(800.0, 800.0);
+    let square = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
+    let frame = pluma_doc::Node::path(d.alloc_id(), square, pluma_doc::Appearance::basic(Paint::None, Paint::None, 0.0));
+    let origin = pluma_geom::Point::new(0.0, -2.0);
+    let t = pluma_doc::TextObject::point(origin, "%00", CharStyle::default());
+    let mut total = pluma_doc::Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
+    let dots = Paint::Pattern { pattern: "Dots".into(), xf: pluma_geom::Affine::IDENTITY };
+    total.appearance = pluma_doc::Appearance::basic(dots, Paint::None, 0.0).into();
+    let art = pluma_doc::Node::group(d.alloc_id(), vec![std::sync::Arc::new(frame), std::sync::Arc::new(total)]);
+    d.graph_designs.push(pluma_doc::GraphDesign { name: "Dotted".into(), art: std::sync::Arc::new(art) });
     let options = ColumnDesign { design: "Dotted".into(), ..ColumnDesign::default() };
     let g =
         GraphSpec { rows: vec![vec![35.0]], axis_min: Some(0.0), axis_max: Some(50.0), series_columns: vec![Some(options)], ..GraphSpec::default() };
@@ -3458,7 +3455,7 @@ fn totals_inside_a_group_with_a_look_of_its_own_show_the_value_where_they_are() 
     let masked = one_series(&mut s, "column", &[35.0]);
     s.execute("graph.column", &json!({"id": masked.0, "design": "Masked"})).unwrap();
     let parts = series_parts(&s, masked, 0);
-    let clip_groups = |n: &vectorcraft_doc::Node| {
+    let clip_groups = |n: &pluma_doc::Node| {
         let mut out = vec![];
         n.walk(&mut |c| {
             if let NodeKind::Group { clip: true, children } = &c.kind {
@@ -3539,16 +3536,16 @@ fn totals_take_their_places_from_the_two_digits_after_the_percent_sign() {
     }
     // Each `%` and two digits, left to right; any other `%` stays.
     let style = CharStyle::default;
-    let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "%31 and %%12, %1x, 50%", style());
+    let mut t = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "%31 and %%12, %1x, 50%", style());
     assert!(super::fill_totals(&mut t, 7.25));
     assert_eq!(t.plain_text(), "007.3 and %7.25, %1x, 50%");
     // A total split between two runs takes the style of its `%`.
     let (small, big) = (CharStyle { size: 10.0, ..style() }, CharStyle { size: 20.0, ..style() });
-    t.runs = vec![vectorcraft_doc::TextRun::new("a %3", small), vectorcraft_doc::TextRun::new("1 b", big)];
+    t.runs = vec![pluma_doc::TextRun::new("a %3", small), pluma_doc::TextRun::new("1 b", big)];
     assert!(super::fill_totals(&mut t, 7.25));
     assert_eq!(t.runs.iter().map(|r| (r.text.as_str(), r.style.size)).collect::<Vec<_>>(), [("a 007.3", 10.0), (" b", 20.0)]);
     // Type without a total is left as it is.
-    let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "Votes: 50%", style());
+    let mut t = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "Votes: 50%", style());
     assert!(!super::fill_totals(&mut t, 7.25));
     assert_eq!(t.plain_text(), "Votes: 50%");
 }
@@ -3689,7 +3686,7 @@ fn legends_in_wedges_put_the_series_labels_inside_the_pie() {
     // The labels are drawn over the wedges, and on the black first wedge in white.
     let order: Vec<_> = n.children().unwrap().iter().map(|c| c.name.clone().unwrap_or_default()).collect();
     assert_eq!(order.last().map(String::as_str), Some("Legend"), "{order:?}");
-    let colour = |l: &vectorcraft_doc::Node| match &l.kind {
+    let colour = |l: &pluma_doc::Node| match &l.kind {
         NodeKind::Text(t) => t.runs[0].style.fill.color().unwrap().to_hex(),
         _ => panic!(),
     };
@@ -3700,12 +3697,12 @@ fn legends_in_wedges_put_the_series_labels_inside_the_pie() {
     s.execute("graph.setType", &json!({"legend": true})).unwrap();
     assert!(!spec(&s, id).pie_legend_in_wedges);
     assert!(s.execute("graph.setType", &json!({"pieLegend": "inside"})).is_err());
-    let path = vectorcraft_testkit::temp_dir("graph-pie").join("pie.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-pie").join("pie.pluma");
     s.execute("graph.setType", &json!({"pieLegend": "wedges", "piePosition": "stacked", "pieSort": "all"})).unwrap();
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     let g = spec(&s, id);
-    assert_eq!((g.pie_legend_in_wedges, g.pie_position, g.pie_sort), (true, vectorcraft_doc::PiePosition::Stacked, vectorcraft_doc::PieSort::All));
+    assert_eq!((g.pie_legend_in_wedges, g.pie_position, g.pie_sort), (true, pluma_doc::PiePosition::Stacked, pluma_doc::PieSort::All));
     let v = serde_json::to_value(GraphSpec::default()).unwrap();
     for k in ["pieLegendInWedges", "piePosition", "pieSort"] {
         assert!(v.get(k).is_none(), "{k}");
@@ -3841,7 +3838,7 @@ fn the_legend_across_top_runs_in_rows_above_the_plot() {
     assert!(ys.iter().all(|y| *y + 8.0 <= 100.0 - 8.0 + 1e-6), "{ys:?}");
     let xs: Vec<f64> = (0..6).map(|i| swatch(&s, i).x1).collect();
     assert!(xs.iter().all(|x| *x <= 400.0), "{xs:?}");
-    let path = vectorcraft_testkit::temp_dir("graph-top").join("top.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-top").join("top.pluma");
     s.execute("graph.setType", &json!({"dropShadow": true})).unwrap();
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
@@ -3960,7 +3957,7 @@ fn filled_lines_are_bands_in_the_series_colour() {
     s.execute("paint.setFill", &json!({"ids": [grp.0], "color": "#ff0000"})).unwrap();
     s.execute("graph.setData", &json!({"id": id.0, "rows": [[2], [3], [2]]})).unwrap();
     assert_eq!(series_parts(&s, id, 0)[0].appearance.fill_paint().color().unwrap().to_hex(), "#ff0000");
-    let path = vectorcraft_testkit::temp_dir("graph-filled").join("filled.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-filled").join("filled.pluma");
     s.execute("graph.setType", &json!({"firstRowInFront": true, "firstColumnInFront": true})).unwrap();
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
@@ -4052,7 +4049,7 @@ fn formatting_the_whole_graphs_text_survives_it_being_drawn_again() {
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(spec(&s, id).label_styles.values.is_some());
     s.execute("edit.undo", &json!({})).unwrap();
-    assert_eq!(spec(&s, id).label_styles, vectorcraft_doc::LabelStyles::default());
+    assert_eq!(spec(&s, id).label_styles, pluma_doc::LabelStyles::default());
 }
 
 /// A stroke given to all of a graph's text without a weight is kept at 1 pt, as `paint.setStroke` keeps it.
@@ -4091,7 +4088,7 @@ fn formatting_one_label_keeps_that_kind_of_label() {
     assert_eq!(look("0").2, "#0000ff", "every value axis number");
     assert_eq!(look("0").1, 9.0);
     // Kept through save and open; nothing written when unset.
-    let path = vectorcraft_testkit::temp_dir("graph-labels").join("labels.vectorcraft");
+    let path = pluma_testkit::temp_dir("graph-labels").join("labels.pluma");
     s.execute("document.save", &json!({"path": path})).unwrap();
     s.execute("document.open", &json!({"path": path})).unwrap();
     assert_eq!(spec(&s, id).label_styles.categories.as_ref().unwrap().size, 14.0);

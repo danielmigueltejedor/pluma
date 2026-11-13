@@ -1,8 +1,8 @@
 //! Creating art: shapes, paths, text.
 
+use pluma_doc::{Appearance, CharStyle, LiveShape, Node, NodeKind, TextObject};
+use pluma_geom::{Affine, Anchor, AnchorKind, FillRule, PathData, Point, Rect, SubPath, shapes};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, CharStyle, LiveShape, Node, NodeKind, TextObject};
-use vectorcraft_geom::{Affine, Anchor, AnchorKind, FillRule, PathData, Point, Rect, SubPath, shapes};
 
 use super::newart::NewArt;
 use super::{
@@ -124,7 +124,7 @@ fn bbox_turn(rotation: f64) -> f64 {
     if !rotation.is_finite() {
         return 0.0;
     }
-    let a = vectorcraft_geom::normalize_deg(-rotation);
+    let a = pluma_geom::normalize_deg(-rotation);
     if a == 0.0 { 0.0 } else { a }
 }
 
@@ -132,8 +132,8 @@ fn bbox_turn(rotation: f64) -> f64 {
 /// Angle (a Shift-drawn or click-made one), so its bounding box turns with it; else 0: a polygon
 /// turned by the drag's direction keeps its box on the page's axes, as before.
 fn constrained_turn(s: &Session, rotation: f64) -> f64 {
-    match vectorcraft_geom::constrain_rotation(s.prefs.constrain_angle) {
-        Some(r) if rotation.is_finite() && vectorcraft_geom::normalize_deg(r - rotation).abs() < 1e-9 => rotation,
+    match pluma_geom::constrain_rotation(s.prefs.constrain_angle) {
+        Some(r) if rotation.is_finite() && pluma_geom::normalize_deg(r - rotation).abs() < 1e-9 => rotation,
         _ => 0.0,
     }
 }
@@ -192,7 +192,7 @@ fn insert_look_turned(
 /// [mask copy, target, …] `target` already is the clipped object of, else one made where `target`
 /// was, holding an unpainted clipping copy of it and then `target`. New art and pastes go on top
 /// of its children.
-pub(crate) fn draw_inside_group(d: &mut vectorcraft_doc::Document, target: NodeId) -> Result<NodeId> {
+pub(crate) fn draw_inside_group(d: &mut pluma_doc::Document, target: NodeId) -> Result<NodeId> {
     if let Some(p) = d.parent_of(target)
         && d.node(p).is_some_and(|pn| matches!(&pn.kind, NodeKind::Group { clip: true, children } if children.get(1).is_some_and(|c| c.id == target)))
     {
@@ -202,7 +202,7 @@ pub(crate) fn draw_inside_group(d: &mut vectorcraft_doc::Document, target: NodeI
     // The mask is a copy with ids of its own, its subpaths' too (a compound path's).
     let original = d.node(target).cloned().ok_or(crate::EngineError::NoNode(target))?;
     let mut mask = d.reid(&original);
-    mask.appearance = Appearance::basic(vectorcraft_color::Paint::None, vectorcraft_color::Paint::None, 0.0).into();
+    mask.appearance = Appearance::basic(pluma_color::Paint::None, pluma_color::Paint::None, 0.0).into();
     if let NodeKind::Path { clipping, .. } = &mut mask.kind {
         *clipping = true;
     }
@@ -277,7 +277,7 @@ fn path_kind(path: PathData, live: Option<LiveShape>) -> NodeKind {
 /// 0° or a whole turn, for other commands and when they already carry a `rotation`.
 pub fn constrain_click(s: &Session, cmd: &str, mut params: Value, pivot: Point) -> Value {
     let base = s.prefs.constrain_angle;
-    let (Some(rotation), Some(axes)) = (vectorcraft_geom::constrain_rotation(base), vectorcraft_geom::constrain_axes(base)) else { return params };
+    let (Some(rotation), Some(axes)) = (pluma_geom::constrain_rotation(base), pluma_geom::constrain_axes(base)) else { return params };
     let Some(o) = params.as_object_mut().filter(|o| !o.contains_key("rotation")) else { return params };
     match cmd {
         "shape.rectangle" | "shape.ellipse" | "shape.rectangularGrid" | "shape.polarGrid" => {
@@ -317,7 +317,7 @@ fn rect_transform(r: Rect, p: &Value, cmd: &str) -> Result<Affine> {
         return Ok(Affine::translate(r.origin().to_vec2()));
     }
     // Exact at quarter turns (a Constrain Angle of 90°).
-    Ok(Affine::translate(r.center().to_vec2()) * vectorcraft_geom::rotate_deg(rotation) * Affine::translate((-r.width() / 2.0, -r.height() / 2.0)))
+    Ok(Affine::translate(r.center().to_vec2()) * pluma_geom::rotate_deg(rotation) * Affine::translate((-r.width() / 2.0, -r.height() / 2.0)))
 }
 
 fn rectangle(s: &mut Session, p: &Value) -> Result<Value> {
@@ -359,7 +359,7 @@ fn polygon(s: &mut Session, p: &Value) -> Result<Value> {
     check_numbers(p, &["rotation"], "shape.polygon")?;
     let sides = count_or(p, "sides", 6, "shape.polygon")?.clamp(3, 1000) as u32;
     let rot = f64_or(p, "rotation", 0.0);
-    let xf = Affine::translate(c.to_vec2()) * vectorcraft_geom::rotate_deg(rot);
+    let xf = Affine::translate(c.to_vec2()) * pluma_geom::rotate_deg(rot);
     let live = LiveShape::Polygon { radius: r, sides, xf, radii: vec![], kinds: vec![], radii_relative: false };
     add_art_turned(s, "Polygon", path_kind(live.to_path(), Some(live)), constrained_turn(s, rot))
 }
@@ -371,7 +371,7 @@ fn star(s: &mut Session, p: &Value) -> Result<Value> {
     let r2 = f64_or(p, "radius2", r1 / 2.0).abs();
     let n = count_or(p, "points", 5, "shape.star")?.clamp(2, 1000) as u32;
     let rot = f64_or(p, "rotation", 0.0);
-    let turn = vectorcraft_geom::rotate_deg(rot);
+    let turn = pluma_geom::rotate_deg(rot);
     // A quarter or whole turn (a Constrain Angle of 90°, say) turns the upright star exactly.
     let path = if rot != 0.0 && turn.as_coeffs()[..4].iter().all(|c| c.fract() == 0.0) {
         shapes::star(Point::ZERO, r1, r2, n, 0.0).transformed(Affine::translate(c.to_vec2()) * turn)
@@ -384,7 +384,7 @@ fn star(s: &mut Session, p: &Value) -> Result<Value> {
 /// Flare tool: a lens flare built from radial-gradient paths in Screen mode — a bright centre, a halo
 /// ring, rays of varying length and rings along the path to the end point.
 fn flare(s: &mut Session, p: &Value) -> Result<Value> {
-    use vectorcraft_color::{BlendMode, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+    use pluma_color::{BlendMode, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
     let c = Point::new(f64_req(p, "cx", "shape.flare")?, f64_req(p, "cy", "shape.flare")?);
     let numbers = [
         "diameter",
@@ -421,7 +421,7 @@ fn flare(s: &mut Session, p: &Value) -> Result<Value> {
         (Some(x), Some(y)) => Point::new(x, y),
         _ => {
             let a = f64_or(p, "direction", 45.0).to_radians();
-            c + vectorcraft_geom::Vec2::new(a.cos(), -a.sin()) * f64_or(p, "pathLength", 300.0)
+            c + pluma_geom::Vec2::new(a.cos(), -a.sin()) * f64_or(p, "pathLength", 300.0)
         }
     };
     // Deterministic pseudo-random sizes (same parameters → same flare).
@@ -432,10 +432,10 @@ fn flare(s: &mut Session, p: &Value) -> Result<Value> {
         seed ^= seed << 17;
         (seed >> 11) as f64 / (1u64 << 53) as f64
     };
-    let stop = |offset: f32, opacity: f32| GradientStop { opacity, ..GradientStop::new(offset, vectorcraft_color::Color::WHITE) };
+    let stop = |offset: f32, opacity: f32| GradientStop { opacity, ..GradientStop::new(offset, pluma_color::Color::WHITE) };
     let radial = |centre: Point, radius: f64, stops: Vec<GradientStop>| {
         let mut g = GradientPaint::new(Gradient::new(GradientKind::Radial, stops));
-        g.geom = Some(GradientGeom { start: centre, end: centre + vectorcraft_geom::Vec2::new(radius, 0.0), aspect: 1.0, focal: None });
+        g.geom = Some(GradientGeom { start: centre, end: centre + pluma_geom::Vec2::new(radius, 0.0), aspect: 1.0, focal: None });
         Paint::Gradient(Box::new(g))
     };
     let circle = |centre: Point, radius: f64| shapes::ellipse(Rect::from_center_size(centre, (radius * 2.0, radius * 2.0)));
@@ -447,15 +447,15 @@ fn flare(s: &mut Session, p: &Value) -> Result<Value> {
     // Rays: thin spikes of random length (Longest = % of the centre radius), fading outwards.
     // `rotation` turns them clockwise about the center.
     if rays > 0 {
-        let mut bp = vectorcraft_geom::BezPath::new();
+        let mut bp = pluma_geom::BezPath::new();
         let mut reach: f64 = 0.0;
         for i in 0..rays {
             let a = std::f64::consts::TAU * (i as f64 + rnd() * 0.6) / rays as f64 + ray_turn;
             let len = r * longest * (1.0 - ray_fuzz * 0.75 * rnd()).max(0.1);
             reach = reach.max(len);
             let w = r * 0.035;
-            let dir = vectorcraft_geom::Vec2::new(a.cos(), a.sin());
-            let n = vectorcraft_geom::Vec2::new(-dir.y, dir.x) * w;
+            let dir = pluma_geom::Vec2::new(a.cos(), a.sin());
+            let n = pluma_geom::Vec2::new(-dir.y, dir.x) * w;
             bp.move_to(c + n);
             bp.line_to(c + dir * len);
             bp.line_to(c - n);
@@ -506,10 +506,10 @@ fn line(s: &mut Session, p: &Value) -> Result<Value> {
     let b = Point::new(f64_req(p, "x2", "shape.line")?, f64_req(p, "y2", "shape.line")?);
     let live = LiveShape::Line { a, b };
     // Lines are stroked and, unless Fill Line asks for the current fill, not filled.
-    let fill = if switch_or(p, "fill", false, "shape.line")? { s.paint.fill.clone() } else { vectorcraft_color::Paint::None };
+    let fill = if switch_or(p, "fill", false, "shape.line")? { s.paint.fill.clone() } else { pluma_color::Paint::None };
     let look = s.new_art_look(
         fill,
-        if s.paint.stroke.is_none() { vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK) } else { s.paint.stroke.clone() },
+        if s.paint.stroke.is_none() { pluma_color::Paint::solid(pluma_color::Color::BLACK) } else { s.paint.stroke.clone() },
         s.paint.stroke_width.max(0.1),
     );
     add_look(s, "Line", path_kind(live.to_path(), Some(live)), look, None)
@@ -550,10 +550,10 @@ fn arc(s: &mut Session, p: &Value) -> Result<Value> {
         let slope = number_or(p, "slope", 100.0, "shape.arc")?;
         shapes::arc(a, b, slope, closed, base_x)
     };
-    let fill = if fill_arc { s.paint.fill.clone() } else { vectorcraft_color::Paint::None };
+    let fill = if fill_arc { s.paint.fill.clone() } else { pluma_color::Paint::None };
     let look = s.new_art_look(
         fill,
-        if s.paint.stroke.is_none() { vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK) } else { s.paint.stroke.clone() },
+        if s.paint.stroke.is_none() { pluma_color::Paint::solid(pluma_color::Color::BLACK) } else { s.paint.stroke.clone() },
         s.paint.stroke_width.max(0.1),
     );
     add_look(s, "Arc", path_kind(path, None), look, None)
@@ -564,7 +564,7 @@ fn arc(s: &mut Session, p: &Value) -> Result<Value> {
 /// and its members get the bounding-box angle `bbox_angle` (a grid drawn along a Constrain Angle).
 fn grid_group(s: &mut Session, label: &str, (paths, bbox_angle): (Vec<PathData>, f64), fill: bool) -> Result<Value> {
     let parent = s.doc()?.target_parent()?;
-    let fill = if fill { s.paint.fill.clone() } else { vectorcraft_color::Paint::None };
+    let fill = if fill { s.paint.fill.clone() } else { pluma_color::Paint::None };
     let look = s.new_art_look(fill, s.paint.stroke.clone(), s.paint.stroke_width);
     let id = s.edit(label, |d, sel| {
         let children = paths
@@ -644,7 +644,7 @@ fn turned_grid(p: &Value, r: Rect, mut paths: Vec<PathData>, cmd: &str) -> Resul
     }
     if rotation != 0.0 {
         let c = r.center().to_vec2();
-        let m = Affine::translate(c) * vectorcraft_geom::rotate_deg(rotation) * Affine::translate(-c);
+        let m = Affine::translate(c) * pluma_geom::rotate_deg(rotation) * Affine::translate(-c);
         for path in &mut paths {
             path.transform(m);
         }
@@ -676,7 +676,7 @@ fn path_create(s: &mut Session, p: &Value) -> Result<Value> {
     // Checked with `d` too, where the path data alone decides whether the path is closed.
     let closed = switch_or(p, "closed", false, "path.create")?;
     let path = if let Some(d) = str_param(p, "d") {
-        let bp = vectorcraft_geom::BezPath::from_svg(d).map_err(|e| bad("path.create", format!("bad path data: {e}")))?;
+        let bp = pluma_geom::BezPath::from_svg(d).map_err(|e| bad("path.create", format!("bad path data: {e}")))?;
         PathData::from_bezpath(&bp)
     } else {
         let anchors: Vec<Anchor> = p
@@ -695,7 +695,7 @@ fn path_create(s: &mut Session, p: &Value) -> Result<Value> {
     // Open paths drawn with a stroke of None would be invisible: mimic Illustrator and keep what the user set.
     let ap = &mut look.appearance;
     if !path.is_closed() && ap.stroke_paint().is_none() && ap.fill_paint().is_none() {
-        ap.set_stroke(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK));
+        ap.set_stroke(pluma_color::Paint::solid(pluma_color::Color::BLACK));
     }
     add_look(s, "Pen", path_kind(path, None), look, None)
 }
@@ -719,7 +719,7 @@ fn text_create(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("text.create", "rotation must be finite"));
     }
     if rotation != 0.0 {
-        t.xf *= vectorcraft_geom::rotate_deg(rotation);
+        t.xf *= pluma_geom::rotate_deg(rotation);
     }
     t.vertical = switch_or(p, "vertical", false, "text.create")?;
     t.para = new_type_para();
@@ -727,7 +727,7 @@ fn text_create(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(a) = p.get("area") {
         let w = f64_or(a, "width", 200.0);
         let h = f64_or(a, "height", 100.0);
-        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, h)) };
+        t.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, h)) };
         t.area.fit = new_area_fit(s, a, "text.create")?;
     }
     t.system_layout = s.doc()?.doc.setup.system_layout;
@@ -756,11 +756,11 @@ fn text_create(s: &mut Session, p: &Value) -> Result<Value> {
 /// The paragraph attributes new type gets (the Type tools, `text.create`): aligned to the start of
 /// each paragraph's direction (left, right for Hebrew and Arabic), Japanese punctuation composed
 /// with Line-end Punctuation Half Width and Standard burasagari. Imported text keeps its own.
-pub(crate) fn new_type_para() -> vectorcraft_doc::ParaStyle {
-    vectorcraft_doc::ParaStyle {
-        justify: vectorcraft_doc::Justify::Auto,
-        mojikumi: vectorcraft_doc::Mojikumi::LineEndHalf,
-        burasagari: vectorcraft_doc::Burasagari::Standard,
+pub(crate) fn new_type_para() -> pluma_doc::ParaStyle {
+    pluma_doc::ParaStyle {
+        justify: pluma_doc::Justify::Auto,
+        mojikumi: pluma_doc::Mojikumi::LineEndHalf,
+        burasagari: pluma_doc::Burasagari::Standard,
         ..Default::default()
     }
 }
@@ -771,7 +771,7 @@ pub(crate) fn new_type_para() -> vectorcraft_doc::ParaStyle {
 /// interface is in Japanese (#432), else the Roman baseline for both. Noted in the journal, so a
 /// replay sets the same whatever the interface.
 pub(crate) fn new_type_alignment(s: &mut Session, p: &Value, cmd: &str, t: &mut TextObject) -> Result<()> {
-    use vectorcraft_doc::{CharAlign, LeadingModel};
+    use pluma_doc::{CharAlign, LeadingModel};
     if let Some(j) = str_param(p, "justify") {
         t.para.justify = super::typecmd::justify_param(j).ok_or_else(|| bad(cmd, "justify must be auto|left|center|right|justifyAll"))?;
     }
@@ -805,8 +805,8 @@ pub(crate) fn new_type_alignment(s: &mut Session, p: &Value, cmd: &str, t: &mut 
 
 /// The fit new area type gets: `fit`/`fitMinPercent` from `p` (as `text.areaOptions` takes
 /// them), else Auto Size when the "Auto Size New Area Type" preference is on.
-pub(crate) fn new_area_fit(s: &Session, p: &Value, c: &str) -> Result<vectorcraft_doc::AreaFit> {
-    let default = if s.prefs.auto_size_area_type { vectorcraft_doc::AreaFit::AutoHeight } else { vectorcraft_doc::AreaFit::None };
+pub(crate) fn new_area_fit(s: &Session, p: &Value, c: &str) -> Result<pluma_doc::AreaFit> {
+    let default = if s.prefs.auto_size_area_type { pluma_doc::AreaFit::AutoHeight } else { pluma_doc::AreaFit::None };
     Ok(super::typecmd::fit_param(p, default, c)?.unwrap_or(default))
 }
 
@@ -829,13 +829,13 @@ pub(crate) fn new_type_style(s: &Session, p: &Value) -> CharStyle {
         super::textedit::fit_font_style(&mut style);
     }
     style.fill = match p.get("color").and_then(color_value) {
-        Some(c) => vectorcraft_color::Paint::solid(super::paint::new_color(s, p, c)),
-        None if !s.paint.fill.is_none() && s.paint.fill != vectorcraft_color::Paint::solid(vectorcraft_color::Color::WHITE) => s.paint.fill.clone(),
-        None => vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK),
+        Some(c) => pluma_color::Paint::solid(super::paint::new_color(s, p, c)),
+        None if !s.paint.fill.is_none() && s.paint.fill != pluma_color::Paint::solid(pluma_color::Color::WHITE) => s.paint.fill.clone(),
+        None => pluma_color::Paint::solid(pluma_color::Color::BLACK),
     };
     // In the language Document Setup chose, else Preferences › Hyphenation › Default Language; none
     // for the default. Type already in a document keeps its own.
-    let chosen = |name: &str| vectorcraft_doc::setup::char_language(name).ok().flatten();
+    let chosen = |name: &str| pluma_doc::setup::char_language(name).ok().flatten();
     let document = s.doc().ok().and_then(|d| chosen(&d.doc.setup.language));
     style.language = document.or_else(|| chosen(&s.prefs.hyphenation_language)).map(str::to_string);
     style

@@ -1,8 +1,8 @@
 //! The Links panel's commands: listing images with their status (`links.list`), Go To, Embed and
 //! Unembed, Link Info and the Placement Options a relinked file follows.
 
+use pluma_doc::{NodeKind, PlacementOptions};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, PlacementOptions};
 
 use crate::tests_links::{BLUE, Folder, RED, bounds, centre_colour, image, near, open, place, png, save, session, write};
 use crate::*;
@@ -123,7 +123,7 @@ fn embed_keeps_the_pixels_without_the_file() {
     assert!(image(&s, id).link.is_some(), "one undo step");
     run(&mut s, "edit.redo", json!({}));
     // Saved and reopened without the file: the full pixels, nothing missing.
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(&pic).unwrap();
     let r = open(&mut s, &doc_path);
@@ -140,7 +140,7 @@ fn a_missing_file_showing_its_preview_stays_linked() {
     write(&pic, &png(600, 300, RED));
     let mut s = session();
     let id = place(&mut s, &pic);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(&pic).unwrap();
     open(&mut s, &doc_path);
@@ -161,7 +161,7 @@ fn unembed_writes_the_bytes_and_links_to_them() {
     // No path: the file's bytes come back and nothing changes.
     let r = run(&mut s, "links.unembed", json!({"id": id.0}));
     assert_eq!(r["name"], "photo.png");
-    assert_eq!(vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap(), bytes);
+    assert_eq!(pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap(), bytes);
     assert!(image(&s, id).link.is_none());
     // To a path: written there, and the image links to it.
     let out = dir.file("out/photo.png");
@@ -195,7 +195,7 @@ fn unembed_of_pixels_that_cant_be_read_writes_no_file() {
     let mut s = session();
     let id = place_embedded(&mut s, &pic);
     let key = image(&s, id).key;
-    std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).images.insert(key, vectorcraft_doc::ImageBlob::png(png_header(60, 30)));
+    std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).images.insert(key, pluma_doc::ImageBlob::png(png_header(60, 30)));
     let out = dir.file("out.png");
     let e = s.execute("links.unembed", &json!({"id": id.0, "path": out})).unwrap_err();
     assert!(e.to_string().ends_with("the image's pixels can't be read"), "{e}");
@@ -336,7 +336,7 @@ fn a_relinked_file_follows_the_placement_options() {
         (g.id, children[0].geometric_bounds().unwrap())
     };
     let (group, clip) = clip_group(&s);
-    assert_eq!(clip, vectorcraft_geom::Rect::new(-100.0, 0.0, 500.0, 300.0), "clipped to the old bounds");
+    assert_eq!(clip, pluma_geom::Rect::new(-100.0, 0.0, 500.0, 300.0), "clipped to the old bounds");
     // Relinked again: the same clip group, its path following.
     run(&mut s, "links.relink", json!({"ids": [id.0], "path": d.file("photo.png")}));
     assert_eq!(clip_group(&s).0, group);
@@ -362,7 +362,7 @@ fn placement_options_read_set_and_round_trip() {
     assert!(s.execute("links.placementOptions", &json!({"preserve": "stretch"})).is_err());
     assert!(s.execute("links.placementOptions", &json!({"align": "middle"})).is_err());
     // Saved and opened again.
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     let saved: Value = serde_json::from_slice(&std::fs::read(&doc_path).unwrap()).unwrap();
     assert_eq!(
@@ -370,7 +370,7 @@ fn placement_options_read_set_and_round_trip() {
         json!({"preserve": "fill", "align": "topRight", "clip": true})
     );
     open(&mut s, &doc_path);
-    let want = PlacementOptions { preserve: vectorcraft_doc::links::Preserve::Fill, align: vectorcraft_doc::links::Align::TopRight, clip: true };
+    let want = PlacementOptions { preserve: pluma_doc::links::Preserve::Fill, align: pluma_doc::links::Align::TopRight, clip: true };
     assert_eq!(image(&s, id).placement, want);
     run(&mut s, "select.all", json!({}));
     run(&mut s, "links.placementOptions", json!({"preserve": "bounds", "align": "center", "clip": false}));

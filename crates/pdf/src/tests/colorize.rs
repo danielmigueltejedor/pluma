@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use craft_pdf::syntax::Pdf;
 use craft_pdf::syntax::object::{Array, Name, Object, Stream};
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::{ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::Affine;
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::{ColorMode, Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::Affine;
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
 
 use crate::*;
 
@@ -90,7 +90,7 @@ fn a_process_color_writes_the_image_in_that_color_with_a_soft_mask() {
 /// Registration prints on every plate: the process inks and the document's spot inks.
 #[test]
 fn registration_writes_the_image_in_every_ink() {
-    let reg = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(vectorcraft_color::swatch::REGISTRATION.into()), tint: 1.0 };
+    let reg = Paint::Solid { color: Color::cmyk(1.0, 1.0, 1.0, 1.0), swatch: Some(pluma_color::swatch::REGISTRATION.into()), tint: 1.0 };
     let found = images(&pdf(&doc(ColorMode::Cmyk, Some(reg.clone()))));
     let all = ["Cyan", "Magenta", "Yellow", "Black", "Ink"].map(String::from).to_vec();
     assert!(found.contains(&("DeviceN".into(), all, true)), "{found:?}");
@@ -98,7 +98,7 @@ fn registration_writes_the_image_in_every_ink() {
     // A spot swatch in a color group is one of the document's inks too.
     let mut d = doc(ColorMode::Cmyk, Some(reg));
     let grouped = Swatch { name: "Grouped Ink".into(), paint: Paint::solid(Color::cmyk(1.0, 0.0, 1.0, 0.0)), global: true, spot: true };
-    d.swatch_groups.push(vectorcraft_color::SwatchGroup { name: "Group".into(), swatches: vec![grouped] });
+    d.swatch_groups.push(pluma_color::SwatchGroup { name: "Group".into(), swatches: vec![grouped] });
     let found = images(&pdf(&d));
     let all = ["Cyan", "Magenta", "Yellow", "Black", "Ink", "Grouped Ink"].map(String::from).to_vec();
     assert!(found.contains(&("DeviceN".into(), all, true)), "{found:?}");
@@ -175,7 +175,7 @@ fn separations_print_the_image_on_its_ink_plate() {
 fn a_colorized_missing_link_placeholder_is_written_in_its_own_colors() {
     let placeholder = || {
         let mut d = doc(ColorMode::Cmyk, None);
-        let bytes = Arc::new(vectorcraft_doc::links::missing_placeholder().unwrap());
+        let bytes = Arc::new(pluma_doc::links::missing_placeholder().unwrap());
         d.images.insert("pic".into(), ImageBlob { mime: "image/png".into(), bytes: bytes.clone(), proxy: Some(bytes) });
         d
     };

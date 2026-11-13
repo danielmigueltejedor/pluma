@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 
 use super::{DialogSpec, brush_options};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of New Brush.
 pub const KIND: &str = "newBrush";
@@ -23,7 +23,7 @@ const TYPES: [&str; 5] = ["calligraphic", "scatter", "art", "bristle", "pattern"
 
 /// Open New Brush for the art of `ids` (art dropped on the Brushes panel), else for the selection.
 /// It starts on Art when there is art, and it starts on Calligraphic otherwise.
-pub fn open(app: &mut VectorcraftApp, ids: Option<Value>) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, ids: Option<Value>) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     let art = match &ids {
         Some(ids) => ids.as_array().is_some_and(|a| !a.is_empty()),
@@ -48,11 +48,11 @@ fn chosen(d: &Dialog) -> &'static str {
     TYPES.into_iter().find(|t| *t == ty).unwrap_or("calligraphic")
 }
 
-fn ok_enabled(_: &VectorcraftApp, d: &Dialog) -> bool {
+fn ok_enabled(_: &PlumaApp, d: &Dialog) -> bool {
     d.bool("__art") || !needs_art(chosen(d))
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let labels = [tl!("Calligraphic Brush"), tl!("Scatter Brush"), tl!("Art Brush"), tl!("Bristle Brush"), tl!("Pattern Brush")];
     let (art, cur) = (d.bool("__art"), chosen(d));
     for (ty, label) in TYPES.into_iter().zip(labels) {
@@ -69,7 +69,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// OK: the chosen type's Brush Options for the new brush. A type that needs art, without art,
 /// keeps the dialog open.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let ty = chosen(d);
     if needs_art(ty) && !d.bool("__art") {
         return Err("nothing selected".into());
@@ -79,34 +79,34 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     use super::*;
     use crate::widgets::accessibility_tests::{named, tree};
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         app
     }
 
-    fn set(app: &mut VectorcraftApp, fields: Value) {
+    fn set(app: &mut PlumaApp, fields: Value) {
         let d = app.ui.dialog.as_mut().unwrap();
         for (k, v) in fields.as_object().unwrap() {
             d.fields.insert(k.clone(), v.clone());
         }
     }
 
-    fn library(app: &mut VectorcraftApp) -> Vec<(String, String)> {
+    fn library(app: &mut PlumaApp) -> Vec<(String, String)> {
         crate::panels::brushes::brushes(app).0
     }
 
-    fn undo_steps(app: &VectorcraftApp) -> usize {
+    fn undo_steps(app: &PlumaApp) -> usize {
         app.session.active().unwrap().history.undo.len()
     }
 
     /// Which of the five types screen readers find on, in the dialog's order.
-    fn types_on(app: &mut VectorcraftApp) -> Vec<bool> {
+    fn types_on(app: &mut PlumaApp) -> Vec<bool> {
         let t = tree(|ui| super::super::show(app, ui.ctx()));
         ["Calligraphic Brush", "Scatter Brush", "Art Brush", "Bristle Brush", "Pattern Brush"].map(|l| !named(&t, l).is_disabled()).to_vec()
     }

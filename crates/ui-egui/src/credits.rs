@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 use egui::RichText;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Contributor {
@@ -225,7 +225,7 @@ impl Default for View {
 }
 
 /// About ▸ Contributors: a name toggle, a sort, and the list as a grab bag or a table.
-pub fn contributors_ui(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+pub fn contributors_ui(app: &mut PlumaApp, ui: &mut egui::Ui) {
     let id = egui::Id::unique("credits_view");
     let mut v = ui.data_mut(|d| d.get_temp::<View>(id)).unwrap_or_default();
     ui.horizontal_wrapped(|ui| {
@@ -289,7 +289,7 @@ pub fn contributors_ui(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.data_mut(|d| d.insert_temp(id, v));
 }
 
-fn link(app: &mut VectorcraftApp, ui: &mut egui::Ui, c: &Contributor, names: NameMode) -> egui::Response {
+fn link(app: &mut PlumaApp, ui: &mut egui::Ui, c: &Contributor, names: NameMode) -> egui::Response {
     let url = format!("https://github.com/{}", c.login);
     let r = ui.add(egui::Link::new(c.name(names))).on_hover_text(c.summary());
     if r.clicked() {
@@ -399,7 +399,7 @@ fn header_text(k: SortKey) -> RichText {
 
 /// The contributors as a table whose header row, the sort buttons, stays above the rows as they
 /// scroll (#4944).
-fn table(app: &mut VectorcraftApp, ui: &mut egui::Ui, list: &[&Contributor], v: &mut View) {
+fn table(app: &mut PlumaApp, ui: &mut egui::Ui, list: &[&Contributor], v: &mut View) {
     let h = row_height(ui);
     let rows: Vec<[String; 9]> = list.iter().map(|c| cells(c)).collect();
     let widths: Vec<f32> = SortKey::ALL
@@ -584,7 +584,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         ctx.data_mut(|d| d.insert_temp(egui::Id::unique("credits_view"), View { table: true, ..View::default() }));
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let mut time = 0.0;
         // Where the frame painted `text`, if it did.
         let mut frame = |events: Vec<egui::Event>, find: &[&str]| {

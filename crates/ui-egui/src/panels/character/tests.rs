@@ -1,9 +1,9 @@
 use super::*;
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 #[test]
 fn scaled_dimensions_do_not_show_false_mixed_values_from_roundoff() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "Axis", "size": 12})).unwrap()["id"].clone();
     app.run("object.scale", json!({"sx": 120, "sy": 110})).unwrap();
@@ -25,7 +25,7 @@ fn scaled_dimensions_do_not_show_false_mixed_values_from_roundoff() {
 /// the paragraph before it shows Leading as mixed.
 #[test]
 fn leading_field_counts_the_final_empty_paragraph() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\n", "size": 10})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -37,7 +37,7 @@ fn leading_field_counts_the_final_empty_paragraph() {
 /// Auto leading shows the leading the paragraph's Justification › Auto Leading sets.
 #[test]
 fn leading_field_shows_the_paragraph_auto_leading() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One\nTwo", "size": 10})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -53,7 +53,7 @@ fn leading_field_shows_the_paragraph_auto_leading() {
 
 #[test]
 fn scaled_collapsed_text_keeps_nondimensional_controls_available() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("text.create", json!({"x": 20, "y": 50, "text": "Axis", "size": 12})).unwrap();
     app.run("object.transform", json!({"matrix": [0, 0, 0, 0, 0, 0]})).unwrap();
@@ -71,7 +71,7 @@ fn scaled_collapsed_text_keeps_nondimensional_controls_available() {
 
 #[test]
 fn scaled_character_fields_show_document_sizes_and_mixed_group_values() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "Axis", "size": 12})).unwrap()["id"].clone();
     app.run("object.scale", json!({"sx": 200})).unwrap();
@@ -95,9 +95,9 @@ fn scaled_character_fields_show_document_sizes_and_mixed_group_values() {
 /// explicit leading shows as it is.
 #[test]
 fn leading_shows_the_auto_leading_of_the_em_size() {
-    use vectorcraft_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    use pluma_text::test_fonts::{HEIGHT_CAP, HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -124,16 +124,16 @@ fn leading_shows_the_auto_leading_of_the_em_size() {
 /// 24 pt for the graphic alone.
 #[test]
 fn leading_of_an_inline_graphic_follows_its_own_size() {
-    use vectorcraft_text::test_fonts::{HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    use pluma_text::test_fonts::{HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("shape.ellipse", json!({"x": 200, "y": 150, "width": 10, "height": 10})).unwrap();
     app.run("symbol.new", json!({"name": "Dot"})).unwrap();
     app.run("edit.clear", json!({})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 20, "font": HEIGHT_FAMILY})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.run("text.insertInline", json!({"id": id, "at": 2, "symbol": "Dot"})).unwrap();
     app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 5, "fontHeightReference": "capHeight"})).unwrap();
     app.session.set_tool_option("select", &json!({"start": 0, "end": 5}));
@@ -148,7 +148,7 @@ fn leading_of_an_inline_graphic_follows_its_own_size() {
 /// Leading field takes in; a Type tool selection of all the text does not.
 #[test]
 fn leading_of_a_whole_object_takes_in_the_empty_last_paragraph() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Ab\n", "size": 20})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -157,7 +157,7 @@ fn leading_of_a_whole_object_takes_in_the_empty_last_paragraph() {
     app.run("text.setFormat", json!({"id": id, "start": 3, "end": 3, "autoLeading": 150})).unwrap();
     assert_eq!(shared_leading(&app), None, "the empty last paragraph's Auto leading is 30 pt");
     app.session.select_tool("type", Default::default()).unwrap();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 0, "end": 3}));
     assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((0, 3)));
     assert!(near(shared_leading(&app), 24.0), "a line break belongs to the paragraph it ends: {:?}", shared_leading(&app));
@@ -168,12 +168,12 @@ fn leading_of_a_whole_object_takes_in_the_empty_last_paragraph() {
 /// paragraph.
 #[test]
 fn leading_follows_the_paragraphs_the_type_tool_selection_covers() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     // é is two bytes, 4..6.
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Ab\nCé", "size": 20})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.run("text.setFormat", json!({"id": id, "start": 3, "end": 6, "autoLeading": 150})).unwrap();
     let ranges = [((0, 2), Some(24.0)), ((0, 3), Some(24.0)), ((3, 6), Some(30.0)), ((1, 4), None), ((1, 6), None), ((4, 4), Some(30.0))];
     for ((start, end), want) in ranges {
@@ -187,11 +187,11 @@ fn leading_follows_the_paragraphs_the_type_tool_selection_covers() {
 
 #[test]
 fn scaled_range_fields_follow_the_type_tool_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Axis label", "size": 12})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(text_editing(&app).is_some());
     app.run("object.scale", json!({"sx": 200})).unwrap();
     app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 4, "size": 10})).unwrap();
@@ -205,17 +205,17 @@ fn scaled_range_fields_follow_the_type_tool_selection() {
 /// The Kerning field at a caret kerns that pair, not the whole text (#2217).
 #[test]
 fn kerning_at_a_caret_sets_the_pair_not_the_whole_text() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AVAX", "size": 12})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 2, "end": 2}));
     set_kerning(&mut app, json!(-50));
-    let kerning = |app: &VectorcraftApp, at: usize| {
+    let kerning = |app: &PlumaApp, at: usize| {
         let st = app.session.active().unwrap();
         let Some(NodeKind::Text(t)) = st.doc.node(NodeId(id.as_u64().unwrap())).map(|n| &n.kind) else { panic!("text") };
-        vectorcraft_text::edit::style_at(&t.runs, at + 1).kerning // the character at `at`
+        pluma_text::edit::style_at(&t.runs, at + 1).kerning // the character at `at`
     };
     assert_eq!(kerning(&app, 1), Some(-50.0), "the character before the caret");
     assert_eq!(kerning(&app, 3), None, "the rest is untouched");
@@ -230,11 +230,11 @@ fn kerning_at_a_caret_sets_the_pair_not_the_whole_text() {
 fn character_kerning_setter_and_automatic_pair_value() {
     let german = crate::i18n::Lang::from_code("de").unwrap();
     assert!(crate::i18n::has(german, "Optical"));
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     app.run("text.create", json!({"x": 20, "y": 50, "text": "III", "size": 100, "font": "JetBrains Mono"})).unwrap();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 1, "end": 1}));
     set_kerning(&mut app, json!("optical"));
     assert!(text_style(&app).unwrap().0.optical_kerning);
@@ -262,7 +262,7 @@ fn character_kerning_setter_and_automatic_pair_value() {
 /// neither checked, so one mode can be set on all of it.
 #[test]
 fn kerning_menu_lists_auto_and_optical_for_mixed_modes() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "AV", "size": 12})).unwrap()["id"].clone();
     let b = app.run("text.create", json!({"x": 20, "y": 90, "text": "AV", "size": 12})).unwrap()["id"].clone();
@@ -282,7 +282,7 @@ fn kerning_menu_lists_auto_and_optical_for_mixed_modes() {
 /// the manual value sets the spacing; the menu then checks neither Auto nor Optical.
 #[test]
 fn kerning_menu_checks_neither_method_for_a_manual_value_after_optical() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "AV", "size": 12})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [a]})).unwrap();
@@ -299,11 +299,11 @@ fn kerning_menu_checks_neither_method_for_a_manual_value_after_optical() {
 /// selected type the panel shows and nothing takes the focus.
 #[test]
 fn highlight_commands_focus_the_font_kerning_and_tracking_fields() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AVAX", "size": 12})).unwrap()["id"].clone();
     let ctx = egui::Context::default();
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
     };
@@ -311,7 +311,7 @@ fn highlight_commands_focus_the_font_kerning_and_tracking_fields() {
         let enter = egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
         vec![egui::Event::Text(text.into()), enter]
     };
-    let spacing = |app: &VectorcraftApp| text_style(app).map(|(s, _)| (s.kerning, s.tracking)).unwrap();
+    let spacing = |app: &PlumaApp| text_style(app).map(|(s, _)| (s.kerning, s.tracking)).unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     assert_eq!(app.run("type.highlightKerning", json!({})).unwrap(), json!({"field": "kerning"}));
     assert!(crate::panel_docking::showing(&app.ui, "character"), "the panel shows");
@@ -347,10 +347,10 @@ fn highlight_commands_focus_the_font_kerning_and_tracking_fields() {
 /// font names it; a drag along one sets that axis of the selected type in one undo step.
 #[test]
 fn variable_fonts_get_a_slider_per_axis() {
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
-    let db = vectorcraft_text::FontDb::global();
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
+    let db = pluma_text::FontDb::global();
     db.add_font(two_axis_font().unwrap());
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let plain = app.run("text.create", json!({"x": 20, "y": 50, "text": "Static"})).unwrap()["id"].clone();
     let id = app.run("text.create", json!({"x": 20, "y": 120, "text": "lIn", "font": TWO_AXIS_FAMILY})).unwrap()["id"].clone();
@@ -381,7 +381,7 @@ fn variable_fonts_get_a_slider_per_axis() {
     assert_eq!(slider_value(&tree, "Weight"), (Some(400.0), range.0, range.1, Some("400".into())));
     // Drag the Weight slider from its start to past its end.
     let ctx = egui::Context::default();
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut slider = None;
         let input = egui::RawInput { events, ..Default::default() };
         ctx.run_ui(input, |ui| {
@@ -403,7 +403,7 @@ fn variable_fonts_get_a_slider_per_axis() {
     }
     frame(&mut app, vec![button(to, false)]);
     frame(&mut app, vec![]);
-    let axes = |app: &VectorcraftApp| shared(app, |s| s.font_axes.clone()).unwrap();
+    let axes = |app: &PlumaApp| shared(app, |s| s.font_axes.clone()).unwrap();
     assert_eq!(axes(&app).into_iter().collect::<Vec<_>>(), [("wght".to_string(), 700.0)]);
     app.run("edit.undo", json!({})).unwrap();
     assert!(axes(&app).is_empty(), "one undo step");
@@ -443,7 +443,7 @@ fn bold_and_italic_pick_the_familys_own_faces() {
     assert_eq!(face_of("SemiBold"), (false, false, false, vec![]));
     assert_eq!(face_of("Narrow Italic"), (false, true, true, vec!["narrow".to_string()]));
     // No type selected: a message, nothing changed.
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     assert!(toggle_face(&mut app, Face::Bold).is_err());
     assert!(!crate::menus::enabled(&app, "type.bold"));
@@ -451,7 +451,7 @@ fn bold_and_italic_pick_the_familys_own_faces() {
 
 /// From one frame of the panel: a point inside each of the Small Caps, Superscript and
 /// Subscript buttons, and which of them are drawn on.
-fn script_buttons(ctx: &egui::Context, app: &mut VectorcraftApp) -> ([egui::Pos2; 3], [bool; 3]) {
+fn script_buttons(ctx: &egui::Context, app: &mut PlumaApp) -> ([egui::Pos2; 3], [bool; 3]) {
     let (points, on) = style_buttons(ctx, app);
     ([points[1], points[2], points[3]], [on[1], on[2], on[3]])
 }
@@ -460,7 +460,7 @@ fn script_buttons(ctx: &egui::Context, app: &mut VectorcraftApp) -> ([egui::Pos2
 /// Subscript, Underline and Strikethrough buttons, and which of them are drawn on. The two buttons
 /// with a "1" are Superscript (the "1" up) and Subscript; the others sit one button apart from them
 /// in that order.
-fn style_buttons(ctx: &egui::Context, app: &mut VectorcraftApp) -> ([egui::Pos2; 6], [bool; 6]) {
+fn style_buttons(ctx: &egui::Context, app: &mut PlumaApp) -> ([egui::Pos2; 6], [bool; 6]) {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
     out.textures_delta.clear();
     fn walk(s: &egui::Shape, on: egui::Color32, ones: &mut Vec<egui::Pos2>, lit: &mut Vec<egui::Rect>) {
@@ -486,7 +486,7 @@ fn style_buttons(ctx: &egui::Context, app: &mut VectorcraftApp) -> ([egui::Pos2;
 }
 
 /// Each run's (small caps, position).
-fn scripts(app: &VectorcraftApp, id: &Value) -> Vec<(Option<f64>, &'static str)> {
+fn scripts(app: &PlumaApp, id: &Value) -> Vec<(Option<f64>, &'static str)> {
     match &app.session.active().unwrap().doc.node(NodeId(id.as_u64().unwrap())).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| (r.style.small_caps, r.style.position.id())).collect(),
         _ => panic!("text"),
@@ -498,7 +498,7 @@ fn scripts(app: &VectorcraftApp, id: &Value) -> Vec<(Option<f64>, &'static str)>
 /// each other off. While the Type tool edits, they set and show the selected characters.
 #[test]
 fn small_caps_superscript_and_subscript_buttons_set_and_show_the_text() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "E=mc2", "size": 12})).unwrap()["id"].clone();
@@ -522,7 +522,7 @@ fn small_caps_superscript_and_subscript_buttons_set_and_show_the_text() {
         assert_eq!(script_buttons(&ctx, &mut app).1, shown, "button {button}");
     }
     // The Type tool's selection: "2" alone.
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 5}));
     assert!(text_editing(&app).is_some());
     super::super::tests_appearance::click(&ctx, &mut app, at[1], show);
@@ -536,11 +536,11 @@ fn small_caps_superscript_and_subscript_buttons_set_and_show_the_text() {
 /// and position and show a check mark when on; Superscript and Subscript turn each other off.
 #[test]
 fn small_caps_superscript_and_subscript_menu_items_set_and_check_the_text() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "E=mc2", "size": 12})).unwrap()["id"].clone();
     let ctx = egui::Context::default();
-    let checked = |app: &mut VectorcraftApp| {
+    let checked = |app: &mut PlumaApp| {
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], menu);
         ["Small Caps", "Superscript", "Subscript"].map(|l| texts.iter().any(|(t, _)| *t == format!("✓ {l}")))
     };
@@ -567,16 +567,16 @@ fn small_caps_superscript_and_subscript_menu_items_set_and_check_the_text() {
 #[test]
 fn the_anti_aliasing_method_dropdown_shows_and_sets_the_types_method() {
     use super::super::tests_appearance::{click, frame_events, text_rect};
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hamburg", "size": 12})).unwrap()["id"].as_u64().unwrap();
-    let method = |app: &VectorcraftApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let method = |app: &PlumaApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.anti_alias,
         _ => panic!("text"),
     };
     let ctx = egui::Context::default();
-    let texts = |app: &mut VectorcraftApp| frame_events(&ctx, app, vec![], show);
-    let shown = |app: &mut VectorcraftApp| {
+    let texts = |app: &mut PlumaApp| frame_events(&ctx, app, vec![], show);
+    let shown = |app: &mut PlumaApp| {
         texts(app).into_iter().map(|(t, _)| t).filter(|t| ["None", "Sharp", "Crisp", "Strong"].contains(&t.as_str())).collect::<Vec<_>>()
     };
     assert_eq!(shown(&mut app), ["Sharp"]);
@@ -595,7 +595,7 @@ fn the_anti_aliasing_method_dropdown_shows_and_sets_the_types_method() {
     // The Type tool with two letters selected: the whole object takes the method.
     app.run("select.set", json!({"ids": [a]})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 1, "end": 3}));
     assert!(text_editing(&app).is_some());
     set_anti_alias(&mut app, TypeAntiAlias::Strong);
@@ -604,7 +604,7 @@ fn the_anti_aliasing_method_dropdown_shows_and_sets_the_types_method() {
     assert_eq!(shared_anti_alias(&app), Some(TypeAntiAlias::Strong));
     // Reset Panel sets Sharp, with the characters' attributes, in one undo step.
     range_style(&mut app, json!({"tracking": 50}));
-    let tracking = |app: &VectorcraftApp| shared(app, |s| s.tracking);
+    let tracking = |app: &PlumaApp| shared(app, |s| s.tracking);
     assert_eq!(tracking(&app), Some(50.0));
     reset_panel(&mut app);
     assert_eq!((method(&app, a), tracking(&app)), (TypeAntiAlias::Sharp, Some(0.0)));
@@ -616,7 +616,7 @@ fn the_anti_aliasing_method_dropdown_shows_and_sets_the_types_method() {
 /// that names the Contour tool's corner.
 #[test]
 fn the_sharp_method_takes_its_own_translation() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("text.create", json!({"x": 20, "y": 50, "text": "Hamburg", "size": 12})).unwrap();
     let de = crate::i18n::Lang::from_code("de").unwrap();
@@ -633,10 +633,10 @@ fn the_sharp_method_takes_its_own_translation() {
 /// open, with that document's later edits part of its step.
 #[test]
 fn reset_panel_closes_only_its_own_undo_group() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
-    let steps = |st: &vectorcraft_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
+    let steps = |st: &pluma_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
     // An undo group open in the same document (MCP `command_batch` with `atomic`).
     app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
     app.run("text.setFormat", json!({"id": a, "antiAlias": "crisp"})).unwrap();
@@ -673,11 +673,11 @@ fn reset_panel_closes_only_its_own_undo_group() {
 /// spacing on and back off for every text object.
 #[test]
 fn system_layout_menu_item_toggles_the_document() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hi", "size": 13})).unwrap()["id"].as_u64().unwrap();
     let ctx = egui::Context::default();
-    let on = |app: &VectorcraftApp| {
+    let on = |app: &PlumaApp| {
         let st = app.session.active().unwrap();
         let object = match &st.doc.node(NodeId(id)).unwrap().kind {
             NodeKind::Text(t) => t.system_layout,
@@ -685,7 +685,7 @@ fn system_layout_menu_item_toggles_the_document() {
         };
         (st.doc.setup.system_layout, object)
     };
-    let row = |app: &mut VectorcraftApp| {
+    let row = |app: &mut PlumaApp| {
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], menu);
         texts.into_iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == "System Layout")
     };
@@ -705,15 +705,15 @@ fn system_layout_menu_item_toggles_the_document() {
 /// back on for the whole type object.
 #[test]
 fn fractional_widths_menu_item_toggles_the_type_object() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hi", "size": 13})).unwrap()["id"].as_u64().unwrap();
     let ctx = egui::Context::default();
-    let flag = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let flag = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.fractional_widths,
         _ => panic!("text"),
     };
-    let row = |app: &mut VectorcraftApp| {
+    let row = |app: &mut PlumaApp| {
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], menu);
         texts.into_iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == "Fractional Widths")
     };
@@ -733,11 +733,11 @@ fn fractional_widths_menu_item_toggles_the_type_object() {
 /// options only (as Mojikumi Set and Top-to-Top Leading are in the Paragraph panel).
 #[test]
 fn character_alignment_shows_with_the_east_asian_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "雅楽"})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let shown = |app: &mut VectorcraftApp| {
+    let shown = |app: &mut PlumaApp| {
         let text = crate::tests_labels::painted_text(app, menu);
         (text.contains("Character Alignment"), text.contains("Proportional Metrics"))
     };
@@ -752,18 +752,18 @@ fn character_alignment_shows_with_the_east_asian_options() {
 #[test]
 fn show_font_height_options_shows_the_font_height_reference() {
     use super::super::tests_appearance::{click, frame_events, text_rect};
-    use vectorcraft_doc::FontHeightReference as R;
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    use pluma_doc::FontHeightReference as R;
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Hx", "size": 12})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
-    let reference = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let reference = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| r.style.font_height_reference).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let texts = |ctx: &egui::Context, app: &mut VectorcraftApp, f: fn(&mut VectorcraftApp, &mut Ui)| {
+    let texts = |ctx: &egui::Context, app: &mut PlumaApp, f: fn(&mut PlumaApp, &mut Ui)| {
         frame_events(ctx, app, vec![], f);
         frame_events(ctx, app, vec![], f)
     };
@@ -792,15 +792,15 @@ fn show_font_height_options_shows_the_font_height_reference() {
 /// selected characters.
 #[test]
 fn tate_chu_yoko_menu_item_shows_with_east_asian_options_and_toggles() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "2026"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
     let ctx = egui::Context::default();
-    let painted = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, menu);
+    let painted = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, menu);
     assert!(!painted(&mut app).contains("Tate-chu-yoko"));
     app.session.prefs.show_east_asian_options = true;
-    let on = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let on = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().all(|r| r.style.tate_chu_yoko),
         _ => panic!("text"),
     };
@@ -820,7 +820,7 @@ fn tate_chu_yoko_menu_item_shows_with_east_asian_options_and_toggles() {
 /// the dialog on the selected characters.
 #[test]
 fn tate_chu_yoko_settings_menu_item_shows_with_east_asian_options_and_opens_the_dialog() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "2026"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -838,7 +838,7 @@ fn tate_chu_yoko_settings_menu_item_shows_with_east_asian_options_and_opens_the_
 /// selected character has it, and a mixed selection turns it on.
 #[test]
 fn standard_vertical_roman_alignment_menu_item_toggles() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "ABC"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -846,13 +846,13 @@ fn standard_vertical_roman_alignment_menu_item_toggles() {
     let label = "Standard Vertical Roman Alignment";
     assert!(!crate::tests_labels::painted_text(&mut app, menu).contains(label));
     app.session.prefs.show_east_asian_options = true;
-    let on = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let on = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().all(|r| r.style.standard_vertical_roman),
         _ => panic!("text"),
     };
     // Only the first letter has it: the item is unchecked.
     app.session.execute("text.setRangeStyle", &json!({"id": id, "start": 0, "end": 1, "standardVerticalRoman": true})).unwrap();
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let before = undo(&app);
     assert!(!on(&app));
     assert!(!crate::tests_labels::painted_text(&mut app, menu).contains(&format!("✓ {label}")));
@@ -873,11 +873,11 @@ fn standard_vertical_roman_alignment_menu_item_toggles() {
 /// Direction is in the Paragraph panel.
 #[test]
 fn digits_show_with_the_indic_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "صفحة 3"})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let shown = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, menu).contains("Digits");
+    let shown = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, menu).contains("Digits");
     assert!(!shown(&mut app));
     app.session.prefs.show_indic_options = true;
     assert!(shown(&mut app));
@@ -887,8 +887,8 @@ fn digits_show_with_the_indic_options() {
 /// digits (#4942), and checks the selected characters' system.
 #[test]
 fn digits_submenu_lists_the_indic_scripts_and_checks_the_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    let text = crate::tests_labels::painted_text(&mut app, |app, ui| digits_items(app, ui, Some(vectorcraft_doc::Digits::Tamil)));
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    let text = crate::tests_labels::painted_text(&mut app, |app, ui| digits_items(app, ui, Some(pluma_doc::Digits::Tamil)));
     let items: Vec<_> = text.lines().map(|l| l.trim().trim_start_matches("✓ ")).collect();
     let want =
         ["Default", "Arabic", "Hindi", "Farsi", "Devanagari", "Bengali", "Gurmukhi", "Gujarati", "Odia", "Tamil", "Telugu", "Kannada", "Malayalam"];
@@ -901,15 +901,15 @@ fn digits_submenu_lists_the_indic_scripts_and_checks_the_selection() {
 /// selected type's, or the range the Type tool has selected. It checks no item when they differ.
 #[test]
 fn character_direction_checks_the_direction_of_the_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "שלום 21 10 2026"})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
-    let shown = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, menu).contains("Character Direction");
+    let shown = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, menu).contains("Character Direction");
     assert!(!shown(&mut app));
     app.session.prefs.show_indic_options = true;
     assert!(shown(&mut app));
-    let checked = |app: &mut VectorcraftApp| {
+    let checked = |app: &mut PlumaApp| {
         let text = crate::tests_labels::painted_text(app, char_direction_items);
         text.lines().filter_map(|l| l.strip_prefix("✓ ")).map(str::to_string).collect::<Vec<_>>()
     };
@@ -919,7 +919,7 @@ fn character_direction_checks_the_direction_of_the_selection() {
     assert!(checked(&mut app).is_empty());
     // The Type tool's selection: the date, then the Hebrew word.
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 9, "end": 19}));
     assert_eq!(checked(&mut app), ["Left to Right"]);
     app.session.set_tool_option("select", &json!({"start": 0, "end": 8}));
@@ -928,7 +928,7 @@ fn character_direction_checks_the_direction_of_the_selection() {
 
 #[test]
 fn shared_text_flag_optical_margin_three_object_selections() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     let a = app.run("text.create", json!({"x": 10, "y": 40, "text": "a"})).unwrap()["id"].clone();
     let b = app.run("text.create", json!({"x": 10, "y": 80, "text": "b"})).unwrap()["id"].clone();
@@ -952,7 +952,7 @@ fn shared_text_flag_optical_margin_three_object_selections() {
 
 #[test]
 fn shared_text_flag_vertical_three_object_selections() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     let v0 = app.run("text.create", json!({"x": 10, "y": 40, "text": "v0", "vertical": true})).unwrap()["id"].clone();
     let h1 = app.run("text.create", json!({"x": 10, "y": 80, "text": "h1"})).unwrap()["id"].clone();
@@ -971,7 +971,7 @@ fn shared_text_flag_vertical_three_object_selections() {
 /// Small Caps, Superscript and Subscript buttons and menu items stay off when the selection mixes them.
 #[test]
 fn character_mixed_small_caps_and_position_show_off() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
     let b = app.run("text.create", json!({"x": 20, "y": 90, "text": "B"})).unwrap()["id"].clone();
@@ -982,7 +982,7 @@ fn character_mixed_small_caps_and_position_show_off() {
     assert_eq!(shared(&app, |s| s.position), None);
     let ctx = egui::Context::default();
     assert_eq!(script_buttons(&ctx, &mut app).1, [false, false, false]);
-    let checked = |app: &mut VectorcraftApp| {
+    let checked = |app: &mut PlumaApp| {
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], menu);
         ["Small Caps", "Superscript", "Subscript"].map(|l| texts.iter().any(|(t, _)| *t == format!("✓ {l}")))
     };
@@ -993,12 +993,12 @@ fn character_mixed_small_caps_and_position_show_off() {
 /// characters have them, and a click turns them on for every character.
 #[test]
 fn mixed_all_caps_underline_and_strikethrough_buttons_show_off_and_turn_on() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AB", "size": 12})).unwrap()["id"].as_u64().unwrap();
     app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 1, "allCaps": true, "underline": true, "strikethrough": true})).unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
-    let flags = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let flags = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| [r.style.all_caps, r.style.underline, r.style.strikethrough]).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
@@ -1016,12 +1016,12 @@ fn mixed_all_caps_underline_and_strikethrough_buttons_show_off_and_turn_on() {
 /// underlined it underlines all of them, and with all of them underlined it turns underlining off.
 #[test]
 fn underline_command_underlines_a_mixed_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AB", "size": 12})).unwrap()["id"].as_u64().unwrap();
     app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 1, "underline": true})).unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
-    let underlined = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let underlined = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| r.style.underline).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
@@ -1047,19 +1047,19 @@ fn mixed_check_items_show_unchecked_and_turn_on() {
     ];
     let mut wrong = vec![];
     for (label, key, has) in items {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.prefs.show_east_asian_options = true;
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AB"})).unwrap()["id"].as_u64().unwrap();
         app.run("text.setRangeStyle", json!({"id": id, "start": 0, "end": 1, key: true})).unwrap();
         app.run("select.set", json!({"ids": [id]})).unwrap();
-        let on = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+        let on = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
             NodeKind::Text(t) => t.runs.iter().map(|r| has(&r.style)).collect::<Vec<_>>(),
             _ => panic!("text"),
         };
         assert_eq!(on(&app), [true, false], "{label}");
         let ctx = egui::Context::default();
-        let row = |app: &mut VectorcraftApp| {
+        let row = |app: &mut PlumaApp| {
             let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], menu);
             texts.into_iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == label).unwrap_or_else(|| panic!("{label} missing"))
         };
@@ -1077,7 +1077,7 @@ fn mixed_check_items_show_unchecked_and_turn_on() {
 /// characters differ, and check the value they share.
 #[test]
 fn character_alignment_and_digits_check_nothing_for_a_mixed_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.prefs.show_east_asian_options = true;
     app.session.prefs.show_indic_options = true;
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
@@ -1093,7 +1093,7 @@ fn character_alignment_and_digits_check_nothing_for_a_mixed_selection() {
     let ticked = |texts: &[(String, egui::Rect)]| texts.iter().filter_map(|(t, _)| t.strip_prefix("✓ ")).map(str::to_string).collect::<Vec<_>>();
     // The items checked in the submenu `name` opens (not in the panel menu itself), in a fresh
     // context, so that no other submenu is open.
-    let checked = |app: &mut VectorcraftApp, name: &str| {
+    let checked = |app: &mut PlumaApp, name: &str| {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut frame = |events: Vec<egui::Event>| super::super::tests_appearance::frame_events(&ctx, app, events, menu);
@@ -1118,20 +1118,20 @@ fn character_alignment_and_digits_check_nothing_for_a_mixed_selection() {
 /// Direction items are disabled: a click on one leaves the direction of every character as it was.
 #[test]
 fn character_direction_does_nothing_at_an_empty_caret() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "שלום 21 10 2026"})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 3, "end": 3}));
-    let directions = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let directions = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| (r.text.clone(), r.style.char_direction)).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
     let before = directions(&app);
     let ctx = egui::Context::default();
-    let click_rtl = |app: &mut VectorcraftApp| {
+    let click_rtl = |app: &mut PlumaApp| {
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], char_direction_items);
         let at = texts.iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == "Right to Left").unwrap_or_else(|| panic!("{texts:?}")).1;
         super::super::tests_appearance::click(&ctx, app, at.center(), char_direction_items);
@@ -1147,15 +1147,15 @@ fn character_direction_does_nothing_at_an_empty_caret() {
 /// No Break is in the panel menu, and choosing it marks the selected characters.
 #[test]
 fn no_break_menu_item_toggles_the_selected_characters() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hello"})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
     let ctx = egui::Context::default();
-    let painted = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, menu);
+    let painted = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, menu);
     assert!(painted(&mut app).contains("No Break"));
     assert!(!painted(&mut app).contains("✓ No Break"));
-    let on = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let on = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().all(|r| r.style.no_break),
         _ => panic!("text"),
     };
@@ -1175,13 +1175,13 @@ fn no_break_menu_item_toggles_the_selected_characters() {
 /// unchecked until the user enables all of its characters.
 #[test]
 fn kashidas_menu_item_handles_default_and_mixed_ranges() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.prefs.show_indic_options = true;
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "AB"})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     let ctx = egui::Context::default();
-    let row = |app: &mut VectorcraftApp| {
+    let row = |app: &mut PlumaApp| {
         super::super::tests_appearance::frame_events(&ctx, app, vec![], menu)
             .into_iter()
             .find(|(text, _)| text.trim_start_matches(['✓', ' ']) == "Kashidas")
@@ -1199,7 +1199,7 @@ fn kashidas_menu_item_handles_default_and_mixed_ranges() {
     };
     assert!(states.iter().all(|v| *v));
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 1, "end": 1}));
     let at = row(&mut app).1.center();
     super::super::tests_appearance::click(&ctx, &mut app, at, menu);
@@ -1216,10 +1216,10 @@ fn kashidas_menu_item_handles_default_and_mixed_ranges() {
 /// included), in the selected type and in the text the Type tool has selected while it edits.
 #[test]
 fn reset_panel_resets_every_attribute_but_the_font() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "One 12"})).unwrap()["id"].as_u64().unwrap();
-    let runs = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let runs = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().map(|r| (r.text.clone(), r.style.clone())).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
@@ -1249,7 +1249,7 @@ fn reset_panel_resets_every_attribute_but_the_font() {
             s.font_height_reference != d.font_height_reference,
         ]
     };
-    let custom = |app: &mut VectorcraftApp| {
+    let custom = |app: &mut PlumaApp| {
         app.run(
             "text.setRangeStyle",
             json!({
@@ -1272,7 +1272,7 @@ fn reset_panel_resets_every_attribute_but_the_font() {
     // While the Type tool edits text, Reset Panel resets only its selection.
     custom(&mut app);
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 6}));
     assert!(text_editing(&app).is_some());
     reset_panel(&mut app);
@@ -1285,20 +1285,20 @@ fn reset_panel_resets_every_attribute_but_the_font() {
 #[test]
 fn snap_to_glyph_options_show_from_the_menu_and_set_the_options() {
     use super::super::tests_appearance::{click, frame_events, text_rect};
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     let ctx = egui::Context::default();
-    let toggle = |app: &mut VectorcraftApp, label: &str| {
+    let toggle = |app: &mut PlumaApp, label: &str| {
         let texts = frame_events(&ctx, app, vec![], menu);
         let at = texts.iter().find(|(t, _)| t.trim() == label).unwrap_or_else(|| panic!("{label} in {texts:?}")).1;
         click(&ctx, app, at.center(), menu);
     };
-    let section = |app: &mut VectorcraftApp| frame_events(&ctx, app, vec![], show);
+    let section = |app: &mut PlumaApp| frame_events(&ctx, app, vec![], show);
     let labels = ["Baseline", "x-height", "Glyph Bounds", "Proximity Guides", "Angular Guides", "Anchor Point"];
     assert!(!section(&mut app).iter().any(|(t, _)| t == "Proximity Guides"), "hidden at first");
     toggle(&mut app, "Show Snap to Glyph Options");
     let texts = section(&mut app);
     assert!(labels.iter().all(|l| texts.iter().any(|(t, _)| t == l)), "{texts:?}");
-    let check = |app: &mut VectorcraftApp, label: &str| {
+    let check = |app: &mut PlumaApp, label: &str| {
         let at = text_rect(&section(app), label).center();
         click(&ctx, app, at, show);
     };
@@ -1321,14 +1321,14 @@ fn snap_to_glyph_options_show_from_the_menu_and_set_the_options() {
 #[test]
 fn snap_to_glyph_options_scroll_into_view_and_turn_snapping_on() {
     use super::super::tests_appearance::{click, frame_events, text_rect};
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 10, "y": 40, "text": "Glyphs"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     let ctx = egui::Context::default();
     const VIEW: f32 = 160.0;
     // The panel as a short dock shows it: in a scroll area.
-    let panel = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+    let panel = |app: &mut PlumaApp, ui: &mut egui::Ui| {
         egui::ScrollArea::vertical().max_height(VIEW).show(ui, |ui| show(app, ui));
     };
     let texts = frame_events(&ctx, &mut app, vec![], menu);
@@ -1357,7 +1357,7 @@ fn snap_to_glyph_options_scroll_into_view_and_turn_snapping_on() {
 #[test]
 fn copy_and_cut_take_a_story_that_left_the_edited_frame() {
     for cut in [false, true] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 600, "height": 300})).unwrap();
         let story = "The quick brown fox jumps over the lazy dog and keeps running far beyond the first frame. ".repeat(4);
         let area = json!({"x": 10, "y": 10, "text": story, "size": 12, "area": {"width": 150, "height": 60}});
@@ -1369,7 +1369,7 @@ fn copy_and_cut_take_a_story_that_left_the_edited_frame() {
         app.session.set_tool_option("textSelection", &json!({"editing": a, "anchor": 0, "caret": 0}));
         app.run("select.all", json!({})).unwrap();
         let c = app.run("text.thread.add", json!({"from": a, "before": true, "rect": [700, 10, 400, 600]})).unwrap()["id"].as_u64().unwrap();
-        let text = |app: &VectorcraftApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+        let text = |app: &PlumaApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
             NodeKind::Text(t) => t.plain_text(),
             _ => panic!("not text"),
         };
@@ -1400,7 +1400,7 @@ fn copy_and_cut_take_a_story_that_left_the_edited_frame() {
 /// the text of every frame of the story.
 #[test]
 fn select_all_in_threaded_text_formats_and_copies_the_whole_story() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 300})).unwrap();
     let story = "The quick brown fox jumps over the lazy dog and keeps running far beyond the first frame. ".repeat(4);
     let area = json!({"x": 10, "y": 10, "text": story, "size": 12, "area": {"width": 150, "height": 60}});
@@ -1413,7 +1413,7 @@ fn select_all_in_threaded_text_formats_and_copies_the_whole_story() {
     app.session.set_tool_option("textSelection", &json!({"editing": b, "anchor": 0, "caret": 0}));
     app.run("select.all", json!({})).unwrap();
     assert_eq!(text_story(&app), Some(vec![NodeId(a), NodeId(b)]));
-    let frame = |app: &VectorcraftApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let frame = |app: &PlumaApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => (**t).clone(),
         _ => panic!("not text"),
     };
@@ -1439,8 +1439,8 @@ fn select_all_in_threaded_text_formats_and_copies_the_whole_story() {
 }
 
 /// A story threaded through three frames in order, the first `height` tall.
-fn three_frame_story(height: u32) -> (VectorcraftApp, u64, u64, u64) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn three_frame_story(height: u32) -> (PlumaApp, u64, u64, u64) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 900, "height": 300})).unwrap();
     let story = "The quick brown fox jumps over the lazy dog and keeps running far beyond the first frame. ".repeat(6);
     let area = json!({"x": 10, "y": 10, "text": story, "size": 12, "area": {"width": 150, "height": height}});
@@ -1451,21 +1451,21 @@ fn three_frame_story(height: u32) -> (VectorcraftApp, u64, u64, u64) {
 }
 
 /// Select All with the Type tool in frame `id` of a story.
-fn select_all_from(app: &mut VectorcraftApp, id: u64) {
+fn select_all_from(app: &mut PlumaApp, id: u64) {
     app.run("select.set", json!({"ids": [id]})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     app.session.set_tool_option("textSelection", &json!({"editing": id, "anchor": 0, "caret": 0}));
     app.run("select.all", json!({})).unwrap();
 }
 
-fn story_frame(app: &VectorcraftApp, id: u64) -> vectorcraft_doc::TextObject {
+fn story_frame(app: &PlumaApp, id: u64) -> pluma_doc::TextObject {
     match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => (**t).clone(),
         _ => panic!("not text"),
     }
 }
 
-fn story_sizes(app: &VectorcraftApp, id: u64) -> Vec<f64> {
+fn story_sizes(app: &PlumaApp, id: u64) -> Vec<f64> {
     story_frame(app, id).runs.iter().map(|r| r.style.size).collect()
 }
 

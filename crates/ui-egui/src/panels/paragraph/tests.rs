@@ -1,9 +1,9 @@
 use super::*;
-use vectorcraft_doc::Mojikumi;
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
+use pluma_doc::Mojikumi;
+use pluma_doc::NodeId;
+use pluma_engine::Session;
 
-fn alignment_row(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) -> egui::Rect {
+fn alignment_row(app: &mut PlumaApp, ui: &mut Ui, size: f32) -> egui::Rect {
     let para = text_style(app).map_or_else(ParaStyle::default, |(_, p)| p);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 3.0;
@@ -14,7 +14,7 @@ fn alignment_row(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) -> egui::Rect
 }
 
 // Inspect the actual selected wells, including the shared Properties-size buttons.
-fn alignment_frame(ctx: &egui::Context, app: &mut VectorcraftApp, size: f32) -> (Vec<Justify>, egui::Pos2) {
+fn alignment_frame(ctx: &egui::Context, app: &mut PlumaApp, size: f32) -> (Vec<Justify>, egui::Pos2) {
     let mut row = egui::Rect::NOTHING;
     let mut frame = ctx.run_ui(egui::RawInput::default(), |ui| row = alignment_row(app, ui, size));
     frame.textures_delta.clear();
@@ -40,17 +40,17 @@ fn alignment_frame(ctx: &egui::Context, app: &mut VectorcraftApp, size: f32) -> 
     (selected, centers[1])
 }
 
-fn editing_text(text: &str) -> (VectorcraftApp, Value) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn editing_text(text: &str) -> (PlumaApp, Value) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": text})).unwrap()["id"].clone();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(super::super::character::text_editing(&app).is_some());
     (app, id)
 }
 
-fn select_range(app: &mut VectorcraftApp, start: usize, end: usize) {
+fn select_range(app: &mut PlumaApp, start: usize, end: usize) {
     app.session.set_tool_option("select", &json!({"start": start, "end": end}));
 }
 
@@ -113,7 +113,7 @@ fn paragraph_mixed_kinsoku_and_mojikumi_show_blank_dropdowns() {
 fn kinsoku_shori_type_sets_the_selected_paragraphs_in_one_undo_step() {
     let (mut app, id) = editing_text("あ\nい\n");
     app.session.prefs.show_east_asian_options = true;
-    let types = |app: &VectorcraftApp| {
+    let types = |app: &PlumaApp| {
         let node = app.session.active().unwrap().doc.node(NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         (text.para_at(0).kinsoku_type, text.para_at(1).kinsoku_type)
@@ -167,7 +167,7 @@ fn paragraph_mixed_alignment_click_center_and_undo() {
         alignment_row(app, ui, 28.0);
     });
     assert_eq!(alignment_frame(&ctx, &mut app, 28.0).0, [Justify::Center]);
-    let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
     let NodeKind::Text(text) = &node.kind else { panic!("text") };
     assert_eq!((text.para_at(0).justify, text.para_at(1).justify, text.para_at(2).justify), (Justify::Center, Justify::Center, Justify::JustifyAll));
     let NodeKind::Text(old) = &before.node(node.id).unwrap().kind else { panic!("text") };
@@ -286,10 +286,10 @@ fn paragraph_mixed_alignment_object_group_and_no_text_controls() {
 /// direction: Auto then follows it.
 #[test]
 fn alignment_buttons_show_the_resolved_alignment_and_direction_sets_it() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 200})).unwrap();
     app.session.execute("text.create", &json!({"x": 200, "y": 50, "text": "שלום"})).unwrap();
-    let shown = |app: &VectorcraftApp| {
+    let shown = |app: &PlumaApp| {
         let para = text_style(app).unwrap().1;
         shown_alignment(para.justify, resolved_rtl(app, &para))
     };
@@ -303,7 +303,7 @@ fn alignment_buttons_show_the_resolved_alignment_and_direction_sets_it() {
     assert_eq!(shown(&app), Justify::Left);
     // The direction buttons show with the Indic options only.
     crate::i18n::set_current(crate::i18n::Lang::EN);
-    let tips = |app: &mut VectorcraftApp| {
+    let tips = |app: &mut PlumaApp| {
         let ctx = egui::Context::default();
         let mut frame = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
         frame.textures_delta.clear();
@@ -318,26 +318,26 @@ fn alignment_buttons_show_the_resolved_alignment_and_direction_sets_it() {
 /// paragraph's setting, and Reset Panel sets it back to None.
 #[test]
 fn insert_kashidas_shows_with_the_indic_options_and_reset_panel_turns_it_off() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "كتب محمد"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     crate::i18n::set_current(crate::i18n::Lang::EN);
-    let painted = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, show);
+    let painted = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, show);
     assert!(!painted(&mut app).contains("Insert Kashidas"));
     app.session.prefs.show_indic_options = true;
     let text = painted(&mut app);
     assert!(text.contains("Insert Kashidas") && text.contains("None"), "{text}");
     app.run("text.setFormat", json!({"kashida": "medium"})).unwrap();
     assert!(painted(&mut app).contains("Medium"));
-    let kashida = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let kashida = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         text.para_at(0).kashida
     };
-    assert_eq!(kashida(&app), vectorcraft_doc::text::Kashida::Medium);
+    assert_eq!(kashida(&app), pluma_doc::text::Kashida::Medium);
     reset_panel(&mut app);
-    assert_eq!(kashida(&app), vectorcraft_doc::text::Kashida::None);
+    assert_eq!(kashida(&app), pluma_doc::text::Kashida::None);
 }
 
 /// The Bullets button makes the paragraphs the Type tool's selection touches a bulleted list
@@ -346,19 +346,19 @@ fn insert_kashidas_shows_with_the_indic_options_and_reset_panel_turns_it_off() {
 /// off.
 #[test]
 fn the_bullets_button_and_its_presets_set_the_list_and_reset_panel_clears_it() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     crate::i18n::set_current(crate::i18n::Lang::EN);
     let (mut app, id) = editing_text("One\nTwo");
     select_range(&mut app, 0, 0);
-    let lists = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let lists = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         (text.para_at(0).list, text.para_at(1).list)
     };
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let row = std::cell::Cell::new(egui::Rect::NOTHING);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| {
         row.set(ui.horizontal(|ui| bullets_button(app, ui, 28.0)).response.rect);
     };
     super::super::tests_appearance::frame_events(&ctx, &mut app, vec![], &mut draw);
@@ -367,7 +367,7 @@ fn the_bullets_button_and_its_presets_set_the_list_and_reset_panel_clears_it() {
     super::super::tests_appearance::click(&ctx, &mut app, button, &mut draw);
     assert_eq!(lists(&app), (Some(ParaList::bulleted(Bullet::Dot)), None), "the caret's paragraph");
     assert_eq!(shared_para(&app, |p| p.list.map(|l| l.bullet)), Some(Some(Bullet::Dot)), "the button shows pressed");
-    let mut pick = |app: &mut VectorcraftApp, name: &str| {
+    let mut pick = |app: &mut PlumaApp, name: &str| {
         super::super::tests_appearance::click(&ctx, app, arrow, &mut draw);
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], &mut draw);
         let at = super::super::tests_appearance::text_rect(&texts, name).center();
@@ -393,12 +393,12 @@ fn the_bullets_button_and_its_presets_set_the_list_and_reset_panel_clears_it() {
 /// applies a numbered list, and Reset Panel turns it off.
 #[test]
 fn the_numbered_list_button_and_its_presets_set_the_list_and_reset_panel_clears_it() {
-    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    use pluma_doc::text::{NumberStyle, ParaList};
     crate::i18n::set_current(crate::i18n::Lang::EN);
     let (mut app, id) = editing_text("One\nTwo");
     select_range(&mut app, 0, 0);
-    let lists = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let lists = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         (text.para_at(0).list, text.para_at(1).list)
     };
@@ -406,7 +406,7 @@ fn the_numbered_list_button_and_its_presets_set_the_list_and_reset_panel_clears_
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let row = std::cell::Cell::new(egui::Rect::NOTHING);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| {
         row.set(ui.horizontal(|ui| numbers_button(app, ui, 28.0)).response.rect);
     };
     super::super::tests_appearance::frame_events(&ctx, &mut app, vec![], &mut draw);
@@ -415,7 +415,7 @@ fn the_numbered_list_button_and_its_presets_set_the_list_and_reset_panel_clears_
     super::super::tests_appearance::click(&ctx, &mut app, button, &mut draw);
     assert_eq!(lists(&app), (numbered(NumberStyle::Arabic), None), "the caret's paragraph");
     assert_eq!(shared_para(&app, |p| p.list.and_then(|l| l.number)), Some(Some(NumberStyle::Arabic)), "the button shows pressed");
-    let mut pick = |app: &mut VectorcraftApp, name: &str| {
+    let mut pick = |app: &mut PlumaApp, name: &str| {
         super::super::tests_appearance::click(&ctx, app, arrow, &mut draw);
         let texts = super::super::tests_appearance::frame_events(&ctx, app, vec![], &mut draw);
         let at = super::super::tests_appearance::text_rect(&texts, name).center();
@@ -438,7 +438,7 @@ fn the_numbered_list_button_and_its_presets_set_the_list_and_reset_panel_clears_
     // The Numbered List button shows pressed and the Bullets button doesn't, and the other way
     // round for a bulleted list.
     // Each button and the arrow beside it have the same name; only a button shows pressed.
-    let pressed = |app: &mut VectorcraftApp| {
+    let pressed = |app: &mut PlumaApp| {
         let nodes = crate::widgets::accessibility_tests::tree(|ui| {
             ui.horizontal(|ui| {
                 bullets_button(app, ui, 28.0);
@@ -472,7 +472,7 @@ fn more_options_opens_bullets_and_numbering_on_its_tab() {
     crate::theme::install_fonts(&ctx);
     let numbers = std::cell::Cell::new(false);
     let row = std::cell::Cell::new(egui::Rect::NOTHING);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut Ui| {
         let r = ui.horizontal(|ui| if numbers.get() { numbers_button(app, ui, 28.0) } else { bullets_button(app, ui, 28.0) });
         row.set(r.response.rect);
     };
@@ -498,11 +498,11 @@ fn more_options_opens_bullets_and_numbering_on_its_tab() {
 /// type is selected or edited.
 #[test]
 fn convert_to_text_makes_the_selected_paragraphs_numbers_characters() {
-    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    use pluma_doc::text::{NumberStyle, ParaList};
     crate::i18n::set_current(crate::i18n::Lang::EN);
     let (mut app, id) = editing_text("One\nTwo");
-    let text = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let text = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         (text.plain_text(), text.para_at(0).list, text.para_at(1).list)
     };
@@ -529,7 +529,7 @@ fn convert_to_text_makes_the_selected_paragraphs_numbers_characters() {
 /// character it was next to, and that frame becomes the selection when it was not selected.
 #[test]
 fn convert_to_text_keeps_the_caret_by_its_character_in_threaded_type() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 300})).unwrap();
     let long = "The quick brown fox jumps over the lazy dog. ".repeat(4);
     let text = format!("One\nTwo\n{long}\nFour");
@@ -538,7 +538,7 @@ fn convert_to_text_keeps_the_caret_by_its_character_in_threaded_type() {
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
     app.run("text.thread.create", json!({})).unwrap();
     app.run("text.setFormat", json!({"ids": [a, b], "list": "number"})).unwrap();
-    let plain = |app: &VectorcraftApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+    let plain = |app: &PlumaApp, id: u64| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.plain_text(),
         _ => panic!("text"),
     };
@@ -569,7 +569,7 @@ fn convert_to_text_keeps_the_caret_by_its_character_in_threaded_type() {
 /// save neither.
 #[test]
 fn reset_panel_resets_the_hyphenation_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "First\nSecond"})).unwrap()["id"].clone();
     app.run(
@@ -580,8 +580,8 @@ fn reset_panel_resets_the_hyphenation_options() {
         }),
     )
     .unwrap();
-    let paras = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let paras = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         [text.para_at(0).clone(), text.para_at(1).clone()]
     };
@@ -589,7 +589,7 @@ fn reset_panel_resets_the_hyphenation_options() {
         assert!(para.hyphenate);
         assert_ne!(para.hyphenation, HyphenationOptions::default());
         assert!(para.roman_hanging);
-        assert_ne!(para.justification, vectorcraft_doc::JustificationOptions::default());
+        assert_ne!(para.justification, pluma_doc::JustificationOptions::default());
     }
     reset_panel(&mut app);
     for para in paras(&app) {
@@ -613,8 +613,8 @@ fn control_bar_ctx() -> egui::Context {
 }
 
 /// A document with the type `texts` (`text.create` params) makes, all of it selected.
-fn control_bar_app(texts: &[Value]) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn control_bar_app(texts: &[Value]) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 800, "height": 400})).unwrap();
     let ids: Vec<Value> = texts.iter().map(|p| app.run("text.create", p.clone()).unwrap()["id"].clone()).collect();
     app.run("select.set", json!({ "ids": ids })).unwrap();
@@ -622,7 +622,7 @@ fn control_bar_app(texts: &[Value]) -> VectorcraftApp {
 }
 
 /// The second of two headless frames of the whole Control bar, `width` wide (the first lays it out).
-fn control_bar_nodes(ctx: &egui::Context, app: &mut VectorcraftApp, width: f32, events: Vec<egui::Event>) -> Nodes {
+fn control_bar_nodes(ctx: &egui::Context, app: &mut PlumaApp, width: f32, events: Vec<egui::Event>) -> Nodes {
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(width, 300.0));
     let mut nodes = Vec::new();
     for events in [events, vec![]] {
@@ -669,7 +669,7 @@ fn the_control_bar_shows_the_paragraph_alignment_of_the_selected_type() {
         let b = n.bounds().unwrap_or_else(|| panic!("{n:?}"));
         egui::pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32)
     };
-    let click = |app: &mut VectorcraftApp, at: egui::Pos2| {
+    let click = |app: &mut PlumaApp, at: egui::Pos2| {
         let press = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         control_bar_nodes(&ctx, app, width, vec![egui::Event::PointerMoved(at), press(true)]);
         control_bar_nodes(&ctx, app, width, vec![press(false)]);
@@ -759,20 +759,20 @@ fn reset_panel_resets_the_mojikumi_set_and_tab_stops_in_one_step() {
     let (mut app, id) = editing_text("First\nSecond");
     app.run("text.setFormat", json!({"id": id, "mojikumi": "none"})).unwrap();
     app.run("text.tabs.set", json!({"id": id, "stops": [{"position": 36}, {"position": 90, "align": "right"}]})).unwrap();
-    let text = |app: &VectorcraftApp| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let text = |app: &PlumaApp| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         text.as_ref().clone()
     };
-    let paras = |app: &VectorcraftApp| {
+    let paras = |app: &PlumaApp| {
         let text = text(app);
         [text.para_at(0), text.para_at(1)].map(|p| (p.mojikumi, p.tabs.len()))
     };
     let custom = (Mojikumi::None, 2);
     let reset = (Mojikumi::LineEndHalf, 0);
     assert_eq!(paras(&app), [custom, custom]);
-    let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
-    let last_step = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.last().map(|e| e.label.clone());
+    let steps = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
+    let last_step = |app: &PlumaApp| app.session.active().unwrap().history.undo.last().map(|e| e.label.clone());
     // Type over the second paragraph's text: the typing session is still open.
     select_range(&mut app, 6, 12);
     let before = steps(&app);
@@ -818,8 +818,8 @@ fn reset_panel_resets_paragraphs_with_different_values_in_one_step() {
     app.run("text.setFormat", json!({"id": id, "start": 13, "end": 14, "mojikumi": "none"})).unwrap();
     app.run("text.tabs.set", json!({"id": id, "start": 0, "end": 1, "stops": [{"position": 36}, {"position": 90, "align": "right"}]})).unwrap();
     app.run("text.tabs.set", json!({"id": id, "start": 6, "end": 7, "stops": [{"position": 120, "align": "decimal", "leader": "."}]})).unwrap();
-    let paras = |app: &VectorcraftApp, id: &Value| {
-        let node = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap();
+    let paras = |app: &PlumaApp, id: &Value| {
+        let node = app.session.active().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap();
         let NodeKind::Text(text) = &node.kind else { panic!("text") };
         text.paragraph_styles().into_iter().map(|p| (p.mojikumi, p.tabs.iter().map(|t| t.position).collect::<Vec<_>>())).collect::<Vec<_>>()
     };
@@ -828,8 +828,8 @@ fn reset_panel_resets_paragraphs_with_different_values_in_one_step() {
     let third = (Mojikumi::None, vec![]);
     let reset = (Mojikumi::LineEndHalf, vec![]);
     assert_eq!(paras(&app, &id), [first.clone(), second.clone(), third.clone()]);
-    let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
-    let last_step = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.last().map(|e| e.label.clone());
+    let steps = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
+    let last_step = |app: &PlumaApp| app.session.active().unwrap().history.undo.last().map(|e| e.label.clone());
     // A selection from the first paragraph into the second.
     select_range(&mut app, 2, 8);
     let doc = app.session.active().unwrap().doc.clone();
@@ -863,7 +863,7 @@ fn reset_panel_resets_paragraphs_with_different_values_in_one_step() {
 /// stays open, and that document's later edits stay part of its step.
 #[test]
 fn reset_panel_leaves_an_undo_group_open_in_another_document() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
     let a = app.run("text.create", json!({"x": 20, "y": 50, "text": "A"})).unwrap()["id"].clone();
     // The second document is open before the group begins, so switching to it opens no group in it.
@@ -873,7 +873,7 @@ fn reset_panel_leaves_an_undo_group_open_in_another_document() {
     app.session.set_active(0);
     app.run("edit.undoGroup.begin", json!({"label": "Batch"})).unwrap();
     app.run("text.setFormat", json!({"id": a, "mojikumi": "none"})).unwrap();
-    let steps = |st: &vectorcraft_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
+    let steps = |st: &pluma_engine::DocState| (st.history.undo.len(), st.history.undo.last().map(|e| e.label.clone()));
     let a_steps = steps(&app.session.documents()[0]);
     assert_eq!(a_steps.1, Some("Batch".to_string()));
     app.session.set_active(1);

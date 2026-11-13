@@ -6,19 +6,19 @@
 //! back to the tool's default and leaves the dialog open (`ui.dialogReset`). A click-opened
 //! dialog previews its settings live; Reset refreshes that preview and Cancel rolls it back.
 //!
-//! Fields: the options (`vectorcraft_tools::extra::FLARE_OPTIONS`): `diameter` and `pathLength`
+//! Fields: the options (`pluma_tools::extra::FLARE_OPTIONS`): `diameter` and `pathLength`
 //! (points), `opacity`, `brightness`, `growth`, `fuzziness`, `longest`, `rayFuzziness` and
 //! `largest` (%), `rays` and `rings` (counts), `direction` (degrees); `raysOn` and `ringsOn`; and
 //! `x`, `y` where a click opened it, with `preview` on initially for that click.
 
+use pluma_geom::Point;
+use pluma_tools::extra::{FLARE_OPTIONS, flare_params};
 use serde_json::{Map, Value, json};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::extra::{FLARE_OPTIONS, flare_params};
 
 use super::document_setup::check;
 use super::{DialogResult, DialogSpec, form, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the Flare Tool Options.
 pub const KIND: &str = "flareOptions";
@@ -39,7 +39,7 @@ const FIELD_W: f32 = 90.0;
 
 /// Open the Flare Tool Options with the tool's values; `at`: where a click opened them, to draw a
 /// flare there on OK.
-pub fn open(app: &mut VectorcraftApp, at: Option<Point>) -> Value {
+pub fn open(app: &mut PlumaApp, at: Option<Point>) -> Value {
     let mut fields = match app.session.tool_options_of("flare") {
         Value::Object(o) => o,
         _ => Map::new(),
@@ -54,7 +54,7 @@ pub fn open(app: &mut VectorcraftApp, at: Option<Point>) -> Value {
 }
 
 /// A row for option `key`, kept within its range: a distance in `unit`, else a number.
-fn field(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit, (key, label): (&str, &str)) {
+fn field(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit, (key, label): (&str, &str)) {
     let Some(&(_, default, lo, hi)) = FLARE_OPTIONS.iter().find(|(k, ..)| *k == key) else { return };
     widgets::label_row(ui, label, LABEL_W, |ui| match key {
         "diameter" | "pathLength" => {
@@ -76,7 +76,7 @@ fn field(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit, (key, l
     });
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     // Center and Halo, then Rays and Rings, side by side as two rows of groups.
     egui::Grid::new("flare-groups").num_columns(2).spacing([28.0, 14.0]).show(ui, |ui| {
@@ -120,10 +120,10 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// A click-created flare previews at that original click; toolbar options draw no artwork.
-fn preview_command(app: &VectorcraftApp, d: &Dialog) -> Option<(String, Value)> {
+fn preview_command(app: &PlumaApp, d: &Dialog) -> Option<(String, Value)> {
     let at = Point::new(d.fields.get("x")?.as_f64().filter(|v| v.is_finite())?, d.fields.get("y")?.as_f64().filter(|v| v.is_finite())?);
     // Use the same clamping and whole-count conversion as accepted tool settings.
-    let mut tool = vectorcraft_tools::create("flare");
+    let mut tool = pluma_tools::create("flare");
     for (key, default, ..) in FLARE_OPTIONS {
         tool.set_option(key, &json!(d.f64(key, default)));
     }
@@ -131,19 +131,19 @@ fn preview_command(app: &VectorcraftApp, d: &Dialog) -> Option<(String, Value)> 
         tool.set_option(key, &json!(d.bool(key)));
     }
     let params = flare_params(&tool.options(), at);
-    Some(vectorcraft_engine::perspective_click(&app.session, "shape.flare", &params, at).unwrap_or_else(|| ("shape.flare".into(), params)))
+    Some(pluma_engine::perspective_click(&app.session, "shape.flare", &params, at).unwrap_or_else(|| ("shape.flare".into(), params)))
 }
 
 /// Reset (Cancel with Alt or Option held): every option goes back to the Flare tool's default
 /// (`FLARE_OPTIONS`, with Rays and Rings on). The dialog keeps a click's `x` and `y`, so OK still draws there.
-fn reset(_: &VectorcraftApp, d: &mut Dialog) {
-    if let Value::Object(defaults) = vectorcraft_tools::create("flare").options() {
+fn reset(_: &PlumaApp, d: &mut Dialog) {
+    if let Value::Object(defaults) = pluma_tools::create("flare").options() {
         d.fields.extend(defaults);
     }
 }
 
 /// OK: set the tool's options; opened by a click, draw a flare there with them.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     let command = preview_command(app, d);
     if command.is_none() && (d.fields.contains_key("x") || d.fields.contains_key("y") || d.fields.contains_key(form::PREVIEWED)) {
         return Err("Flare click coordinates must be finite numbers".into());
@@ -166,23 +166,23 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
-    use vectorcraft_engine::doc::NodeKind;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_engine::Session;
+    use pluma_engine::doc::NodeKind;
+    use pluma_tools::{PointerEvent, PointerKind};
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 600, "height": 600})).unwrap();
         app
     }
 
     /// The labels the open dialog paints.
-    fn painted(app: &mut VectorcraftApp) -> String {
+    fn painted(app: &mut PlumaApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
     }
 
     /// The children of the newest flare (a group named Flare), by name.
-    fn flare_parts(app: &VectorcraftApp) -> Vec<String> {
+    fn flare_parts(app: &PlumaApp) -> Vec<String> {
         let doc = &app.session.doc().unwrap().doc;
         let flare = doc.layers[0].children().unwrap().iter().rev().find(|n| n.name.as_deref() == Some("Flare")).expect("a flare");
         let NodeKind::Group { children, .. } = &flare.kind else { panic!("a flare is a group") };
@@ -278,7 +278,7 @@ mod tests {
         for (k, v) in [("rays", json!(4)), ("ringsOn", json!(false)), ("growth", json!(80))] {
             d.fields.insert(k.into(), v);
         }
-        let objects = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+        let objects = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
         super::super::confirm(&mut app).unwrap();
         assert!(app.ui.dialog.is_none());
         assert_eq!(objects(&app), 0, "OK from the toolbar draws nothing");

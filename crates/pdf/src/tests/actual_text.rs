@@ -1,7 +1,7 @@
 //! Original, synthetic PDF content; no external fonts needed for semantic coverage.
 
 use crate::{ImportOptions, ImportReport, TextAs, import_with_report};
-use vectorcraft_doc::{NodeKind, TextObject};
+use pluma_doc::{NodeKind, TextObject};
 
 fn stream(entries: &str, content: &[u8]) -> Vec<u8> {
     let mut bytes = format!("<< /Length {} {entries} >>\nstream\n", content.len()).into_bytes();
@@ -51,7 +51,7 @@ fn open(content: &str) -> ImportReport {
 // line length, so removing characters changes even an ordinary suffix's position.
 fn open_positioned(content: &str) -> ImportReport {
     let data = include_bytes!("../../../../assets/fonts/SourceSans3-Regular.ttf");
-    let face = vectorcraft_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
+    let face = pluma_text::FontDb::global().find_postscript("SourceSans3-Regular").unwrap();
     assert_eq!(face.file_data(), data);
     let widths = (32u8..=126)
         .map(|c| {
@@ -91,7 +91,7 @@ fn character_origin(report: &ImportReport, character: char) -> kurbo::Point {
     for text in texts(report) {
         let plain = text.plain_text();
         if let Some(byte) = plain.find(character) {
-            let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text);
+            let layout = pluma_text::layout(pluma_text::FontDb::global(), &text);
             let glyph = layout.glyphs.iter().find(|g| g.byte == byte).unwrap();
             return text.xf * glyph.origin;
         }

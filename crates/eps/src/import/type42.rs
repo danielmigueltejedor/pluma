@@ -10,8 +10,8 @@ use skrifa::outline::{DrawSettings, OutlinePen};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashMap;
 
+use pluma_geom::BezPath;
 use skrifa::{FontRef, GlyphId, MetadataProvider};
-use vectorcraft_geom::BezPath;
 
 use super::obj::Obj;
 

@@ -1,4 +1,4 @@
-use super::{Drag, Mods, PenPose, Point, PointerEvent, PointerKind, Pos2, StylusFeed, Ui, VectorcraftApp, Xf, widgets};
+use super::{Drag, Mods, PenPose, PlumaApp, Point, PointerEvent, PointerKind, Pos2, StylusFeed, Ui, Xf, widgets};
 
 /// Whether drag `d` is a press the tool holds. Every other drag (panning, zooming, turning the
 /// view, a touch gesture, Presentation Mode) never reaches the tool, so its hover ends with it.
@@ -134,7 +134,7 @@ pub(super) fn backquote_at_release(ui: &Ui, button: egui::PointerButton, before:
 /// ([`crate::Services::stylus`]: [`StylusFeed::press`] for a new press, [`StylusFeed::held`]
 /// after it), else the last one seen since the press (`pressed`: a new press, whose mouse has none
 /// until a pen reports it). A mouse presses fully (1).
-pub(super) fn pen_pressure(ui: &Ui, app: &VectorcraftApp, pressed: bool) -> f32 {
+pub(super) fn pen_pressure(ui: &Ui, app: &PlumaApp, pressed: bool) -> f32 {
     let stylus = app.services.stylus.as_ref();
     let id = egui::Id::unique("canvas-pressure");
     let force = ui.input(|i| {
@@ -152,14 +152,14 @@ pub(super) fn pen_pressure(ui: &Ui, app: &VectorcraftApp, pressed: bool) -> f32 
 /// The tilt and rotation of the pen in the host's feed while a pen is the pointer that moved last
 /// ([`crate::Services::stylus`], [`StylusFeed::pose`]), its tilt turned onto the page
 /// ([`pose_on_page`]); `None` for a mouse, or a pen that reads neither.
-pub(super) fn pen_pose(app: &VectorcraftApp, xf: &Xf) -> Option<PenPose> {
+pub(super) fn pen_pose(app: &PlumaApp, xf: &Xf) -> Option<PenPose> {
     app.services.stylus.as_ref().and_then(StylusFeed::pose).map(|q| pose_on_page(q, xf))
 }
 
 /// The tilt and rotation for one move: the pose the host's feed kept for that move
 /// ([`frame_moves`]), turned onto the page and `None` when the pen read neither, else the latest
 /// ([`pen_pose`]).
-pub(super) fn move_pose(app: &VectorcraftApp, xf: &Xf, kept: Option<PenPose>) -> Option<PenPose> {
+pub(super) fn move_pose(app: &PlumaApp, xf: &Xf, kept: Option<PenPose>) -> Option<PenPose> {
     match kept {
         Some(q) => (q != PenPose::default()).then(|| pose_on_page(q, xf)),
         None => pen_pose(app, xf),
@@ -250,12 +250,12 @@ pub(super) fn frame_moves(ui: &Ui, stylus: Option<&StylusFeed>, release: Option<
 }
 
 /// The moves of this frame ([`frame_moves`]) the active tool gets before the pointer's position:
-/// all of them for a tool that builds a stroke from them ([`vectorcraft_engine::Session::tool_wants_samples`]), none
+/// all of them for a tool that builds a stroke from them ([`pluma_engine::Session::tool_wants_samples`]), none
 /// for the others, which get one drag a frame. The moves are read either way, so the host's feed
 /// pairs the next frame's with its own. The tilt and rotation the feed kept for the pointer's
 /// position come second, for every tool. With `released`, only the moves before the primary
 /// button-up count.
-pub(super) fn tool_frame_moves(ui: &Ui, app: &VectorcraftApp, released: bool) -> (Vec<FrameMove>, Option<PenPose>) {
+pub(super) fn tool_frame_moves(ui: &Ui, app: &PlumaApp, released: bool) -> (Vec<FrameMove>, Option<PenPose>) {
     let release = released.then_some(egui::PointerButton::Primary);
     let (moves, last_pose) = frame_moves(ui, app.services.stylus.as_ref(), release);
     (if app.session.tool_wants_samples() { moves } else { vec![] }, last_pose)
@@ -267,7 +267,7 @@ pub fn mods(m: egui::Modifiers, space: bool) -> Mods {
 
 /// Drop the tool press in progress, if any: nothing it began is kept, and the rest of the press
 /// does nothing ([`Drag::Gesture`]).
-pub(super) fn drop_press(app: &mut VectorcraftApp, ui: &Ui, view: vectorcraft_engine::ViewInfo) {
+pub(super) fn drop_press(app: &mut PlumaApp, ui: &Ui, view: pluma_engine::ViewInfo) {
     match ui.data(|d| d.get_temp::<Drag>(drag_id())) {
         Some(Drag::Tool | Drag::Art) => {
             // The tool drops the press, and a mouse-up returns it to rest with the options it had
@@ -289,7 +289,7 @@ pub(super) fn drop_press(app: &mut VectorcraftApp, ui: &Ui, view: vectorcraft_en
 /// Back on the canvas, [`Drag::Art`] takes the move up again where the pointer is (#2826).
 /// The Direct and Group Selection tools hand over art they move whole too (#4233); a move of
 /// anchor points or segments stays a reshape.
-pub(super) fn drag_art_out(app: &VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
+pub(super) fn drag_art_out(app: &PlumaApp, ui: &Ui, resp: &egui::Response, p: Pos2) -> bool {
     let tool = app.session.tool_id();
     let Some(st) = app.session.active().filter(|_| matches!(tool, "selection" | "directSelection" | "groupSelection")) else { return false };
     // The tool's interaction while it moves (or Alt-copies) the selection.
@@ -313,7 +313,7 @@ pub(super) fn drag_art_out(app: &VectorcraftApp, ui: &Ui, resp: &egui::Response,
 /// A Selection tool move released over a panel: end it before the panels see the release, so a
 /// panel that takes the art ([`widgets::PanelDrag::Art`]) takes it where it was, and no move is
 /// left open (#2826). The art stays where it last moved while the pointer is over the panel.
-pub(crate) fn release_over_panel(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn release_over_panel(app: &mut PlumaApp, ctx: &egui::Context) {
     crate::document_drag::cleanup(app, ctx);
     let art = matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art));
     // Over a floating panel's own OS window the pointer is gone from this window, and the release
@@ -342,7 +342,7 @@ pub(crate) fn release_over_panel(app: &mut VectorcraftApp, ctx: &egui::Context) 
 
 /// A release in a floating panel's own OS window, during an art drag from the canvas: the move
 /// ends before that panel takes the art. The main window would only see it on its next pass.
-pub(crate) fn release_art_in_window(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn release_art_in_window(app: &mut PlumaApp, ctx: &egui::Context) {
     let art = matches!(ctx.data(|d| d.get_temp::<Drag>(drag_id())), Some(Drag::Art));
     if art && ctx.input(|i| i.pointer.primary_released()) {
         end_art_move(app, ctx);
@@ -350,7 +350,7 @@ pub(crate) fn release_art_in_window(app: &mut VectorcraftApp, ctx: &egui::Contex
 }
 
 /// Roll back the art move dragged off the canvas; a panel takes the art instead.
-fn end_art_move(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn end_art_move(app: &mut PlumaApp, ctx: &egui::Context) {
     // With no document open there is nothing to roll back; the tool still gets its mouse-up.
     let _ = app.session.cancel_interaction();
     let view = app.view_info();
@@ -362,7 +362,7 @@ fn end_art_move(app: &mut VectorcraftApp, ctx: &egui::Context) {
 }
 
 /// Send a pointer event to the active tool and act on UI requests (dialogs, tool switches).
-pub fn dispatch(app: &mut VectorcraftApp, ev: &PointerEvent, view: vectorcraft_engine::ViewInfo) {
+pub fn dispatch(app: &mut PlumaApp, ev: &PointerEvent, view: pluma_engine::ViewInfo) {
     // A press lent to a selection tool (Cmd/Ctrl held) does not use the tool of a held key.
     if ev.kind == PointerKind::Down && app.session.lent_tool_id(&ev.mods).is_none() {
         crate::shortcuts::note_tool_use(app);
@@ -386,8 +386,8 @@ pub fn dispatch(app: &mut VectorcraftApp, ev: &PointerEvent, view: vectorcraft_e
 /// makes it that document's active one (#693), as the Artboard tool's does: Paste in Place and in
 /// Front or Back then paste onto it, Align to Artboard aligns to it, and All on Active Artboard
 /// selects on it.
-fn pressed_with(app: &mut VectorcraftApp, index: Option<usize>, pos: Point, tool: &str) {
-    if !vectorcraft_tools::catalog::is_selection_tool(tool) {
+fn pressed_with(app: &mut PlumaApp, index: Option<usize>, pos: Point, tool: &str) {
+    if !pluma_tools::catalog::is_selection_tool(tool) {
         return;
     }
     app.sync_views();
@@ -400,17 +400,17 @@ fn pressed_with(app: &mut VectorcraftApp, index: Option<usize>, pos: Point, tool
 }
 
 /// Act on what a tool event asked the UI for (dialogs, tool switches), or show its error.
-pub fn apply_requests(app: &mut VectorcraftApp, r: vectorcraft_engine::Result<Vec<vectorcraft_engine::UiRequest>>) {
+pub fn apply_requests(app: &mut PlumaApp, r: pluma_engine::Result<Vec<pluma_engine::UiRequest>>) {
     match r {
         Ok(reqs) => {
             for r in reqs {
                 match r {
-                    vectorcraft_engine::UiRequest::Dialog(kind, p) => crate::dialogs::open_tool_dialog(app, &kind, p),
-                    vectorcraft_engine::UiRequest::SwitchTool(t) => app.select_tool(&t),
-                    vectorcraft_engine::UiRequest::Status(msg) => app.status(msg),
-                    vectorcraft_engine::UiRequest::Place(p) => crate::place::place_from_cursor(app, &p),
+                    pluma_engine::UiRequest::Dialog(kind, p) => crate::dialogs::open_tool_dialog(app, &kind, p),
+                    pluma_engine::UiRequest::SwitchTool(t) => app.select_tool(&t),
+                    pluma_engine::UiRequest::Status(msg) => app.status(msg),
+                    pluma_engine::UiRequest::Place(p) => crate::place::place_from_cursor(app, &p),
                     // In the document the press was made in, which may no longer be the active one.
-                    vectorcraft_engine::UiRequest::HeldPress { doc, pos, tool } => {
+                    pluma_engine::UiRequest::HeldPress { doc, pos, tool } => {
                         let index = doc.and_then(|uid| app.session.documents().iter().position(|d| d.uid == uid));
                         pressed_with(app, index, pos, tool);
                         // The selection tool Cmd lent has the press now, so its drag can carry art to another tab.

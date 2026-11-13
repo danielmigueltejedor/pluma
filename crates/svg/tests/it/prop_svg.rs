@@ -1,15 +1,15 @@
 //! SVG export/import properties: never panics, always re-imports, and plain art survives the round
 //! trip visually (render comparison with a perceptual tolerance).
 
+use pluma_color::{Color, Paint};
+use pluma_doc::Appearance;
+use pluma_geom::{PathData, Rect, shapes};
+use pluma_svg::{ExportOptions, ObjectIds, Styling, export, import};
+use pluma_testkit::fixtures::{self, DocBuilder, art_nodes};
+use pluma_testkit::invariants::check_document;
+use pluma_testkit::raster::{assert_similar, render_artboard};
+use pluma_testkit::strategies::{arb_closed_shape, arb_ops, arb_path_data};
 use proptest::prelude::*;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::Appearance;
-use vectorcraft_geom::{PathData, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, ObjectIds, Styling, export, import};
-use vectorcraft_testkit::fixtures::{self, DocBuilder, art_nodes};
-use vectorcraft_testkit::invariants::check_document;
-use vectorcraft_testkit::raster::{assert_similar, render_artboard};
-use vectorcraft_testkit::strategies::{arb_closed_shape, arb_ops, arb_path_data};
 
 fn all_options() -> Vec<ExportOptions> {
     let mut v = vec![];
@@ -115,8 +115,8 @@ proptest! {
 
 #[test]
 fn filled_ellipse_on_the_artboard_edge_survives_visually() {
-    use vectorcraft_geom::Point;
-    use vectorcraft_geom::path::{Anchor, AnchorKind, SubPath};
+    use pluma_geom::Point;
+    use pluma_geom::path::{Anchor, AnchorKind, SubPath};
     let a = |p: (f64, f64), i: (f64, f64), o: (f64, f64)| Anchor {
         p: Point::new(p.0, p.1),
         h_in: Point::new(i.0, i.1),

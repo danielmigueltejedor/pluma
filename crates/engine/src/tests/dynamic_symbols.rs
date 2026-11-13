@@ -3,11 +3,11 @@
 //! Selection picks one path, compound path or type object of an instance's art, and Fill, Stroke,
 //! opacity and blend change it for that instance.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::Rect;
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::Rect;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::tooling::{UiRequest, ViewInfo};
 use crate::*;
@@ -45,7 +45,7 @@ fn overrides(s: &Session, id: NodeId) -> usize {
 }
 
 fn pixel(s: &Session, x: u32, y: u32) -> [u8; 4] {
-    vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 100.0), 1.0, true).pixel(x, y)
+    pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 100.0), 1.0, true).pixel(x, y)
 }
 
 const RED: [u8; 4] = [255, 0, 0, 255];
@@ -79,7 +79,7 @@ fn a_dynamic_instance_paints_one_object_its_own_way_and_stays_linked() {
     assert!(o.opacity.is_none() && o.fill.is_some());
     // SVG export draws it too.
     let svg = s.execute("document.export", &json!({"format": "svg"})).unwrap();
-    let svg = String::from_utf8(vectorcraft_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
+    let svg = String::from_utf8(pluma_format::base64_decode(svg["dataBase64"].as_str().unwrap()).unwrap()).unwrap();
     assert!(svg.to_ascii_lowercase().contains("#ff0000") || svg.contains("rgb(255,0,0)"), "{svg}");
 }
 
@@ -121,7 +121,7 @@ fn top(s: &Session) -> NodeId {
 
 /// Every pixel of the page.
 fn page(s: &Session) -> Vec<[u8; 4]> {
-    let r = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 100.0), 1.0, true);
+    let r = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 100.0), 1.0, true);
     (0..r.height).flat_map(|y| (0..r.width).map(move |x| (x, y))).map(|(x, y)| r.pixel(x, y)).collect()
 }
 
@@ -135,7 +135,7 @@ fn art_of_top(s: &mut Session) -> NodeId {
 fn paint_root_red(s: &mut Session, inst: NodeId) {
     let red = Paint::solid(Color::rgb(1.0, 0.0, 0.0));
     s.edit("paint", |d, _| {
-        let o = vectorcraft_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(red.clone()), stroke: Some(red), ..Default::default() };
+        let o = pluma_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(red.clone()), stroke: Some(red), ..Default::default() };
         d.node_mut(inst).ok_or(EngineError::NoNode(inst))?.extras_mut().symbol_overrides.push(o);
         Ok(())
     })
@@ -145,7 +145,7 @@ fn paint_root_red(s: &mut Session, inst: NodeId) {
 /// A 30×30 red image placed with its frame from (50, 20) to (80, 50).
 fn place_image(s: &mut Session) {
     let png = crate::tests_links::png(30, 30, [255, 0, 0]);
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     s.execute("file.place", &json!({"name": "red.png", "dataBase64": data, "at": [65, 35], "link": false})).unwrap();
 }
 
@@ -159,13 +159,13 @@ fn select_top(s: &mut Session, n: usize) {
 #[test]
 fn objects_that_draw_no_fill_or_stroke_of_their_own_refuse_one() {
     let folder = crate::tests_links::Folder::new("dynamic-symbol-kinds");
-    let source = folder.file("placed.vectorcraft");
-    let mut doc = vectorcraft_doc::Document::new(40.0, 40.0);
+    let source = folder.file("placed.pluma");
+    let mut doc = pluma_doc::Document::new(40.0, 40.0);
     let layer = doc.layers[0].id;
-    let look = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(0.0, 0.0, 1.0)), Paint::None, 0.0);
-    let rect = vectorcraft_doc::Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 40.0, 40.0)), look);
+    let look = pluma_doc::Appearance::basic(Paint::solid(Color::rgb(0.0, 0.0, 1.0)), Paint::None, 0.0);
+    let rect = pluma_doc::Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 40.0, 40.0)), look);
     doc.insert(Some(layer), 0, rect).unwrap();
-    crate::tests_links::write(&source, &vectorcraft_format::save_file(&doc));
+    crate::tests_links::write(&source, &pluma_format::save_file(&doc));
     type Make = Box<dyn Fn(&mut Session)>;
     let cases: Vec<(&str, &str, Make)> = vec![
         (
@@ -293,7 +293,7 @@ fn a_symbol_instance_in_the_art_takes_a_fill_that_stains_it_and_no_stroke() {
     let before = page(&s);
     let red = Paint::solid(Color::rgb(1.0, 0.0, 0.0));
     s.edit("paint", |d, _| {
-        let o = vectorcraft_doc::symbol_overrides::SymbolOverride { path: vec![], stroke: Some(red), ..Default::default() };
+        let o = pluma_doc::symbol_overrides::SymbolOverride { path: vec![], stroke: Some(red), ..Default::default() };
         d.node_mut(inst).ok_or(EngineError::NoNode(inst))?.extras_mut().symbol_overrides.push(o);
         Ok(())
     })
@@ -317,9 +317,9 @@ fn a_symbol_instance_in_the_art_refuses_a_gradient_fill() {
     assert_eq!((overrides(&s, inst), undo_len(&s)), (0, undo), "nothing changes and no undo step");
     // A gradient fill stored past the command draws nothing.
     let before = page(&s);
-    let paint = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default())));
+    let paint = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::default())));
     s.edit("paint", |d, _| {
-        let o = vectorcraft_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(paint), ..Default::default() };
+        let o = pluma_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(paint), ..Default::default() };
         d.node_mut(inst).ok_or(EngineError::NoNode(inst))?.extras_mut().symbol_overrides.push(o);
         Ok(())
     })
@@ -353,7 +353,7 @@ fn a_symbol_instance_in_the_art_refuses_a_pattern_fill() {
     let paint = s.doc().unwrap().doc.swatch("Dots").unwrap().paint.clone();
     assert!(matches!(paint, Paint::Pattern { .. }), "{paint:?}");
     s.edit("paint", |d, _| {
-        let o = vectorcraft_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(paint), ..Default::default() };
+        let o = pluma_doc::symbol_overrides::SymbolOverride { path: vec![], fill: Some(paint), ..Default::default() };
         d.node_mut(inst).ok_or(EngineError::NoNode(inst))?.extras_mut().symbol_overrides.push(o);
         Ok(())
     })
@@ -529,7 +529,7 @@ fn direct_selection_paints_one_object_of_one_dynamic_instance() {
     direct(&mut s, (80.0, 30.0), (80.0, 30.0), Mods::default());
     let sel = s.doc().unwrap().selection.clone();
     assert_eq!(sel.objects, [inst]);
-    assert_eq!(sel.symbol_part, Some(vectorcraft_doc::SymbolPart { instance: inst, path: vec![1] }));
+    assert_eq!(sel.symbol_part, Some(pluma_doc::SymbolPart { instance: inst, path: vec![1] }));
     let undo = undo_steps(&s);
     // The Swatches panel, the Color panel and the Control bar set the fill with paint.setFill.
     assert_eq!(s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap()["objects"], 1);
@@ -624,7 +624,7 @@ fn commands_on_the_selection_leave_a_picked_objects_instance_alone() {
         let inst = pair(&mut s, "dynamic");
         let other = square(&mut s, 150.0);
         let desaturate = include_bytes!("../../../plugins/tests/fixtures/desaturate.wasm");
-        let plugin = s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(desaturate)})).unwrap();
+        let plugin = s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(desaturate)})).unwrap();
         let mask = square(&mut s, 20.0);
         s.execute("transparency.makeOpacityMask", &json!({"ids": [inst.0, mask.0]})).unwrap();
         assert!(node(&s, inst).extras().mask.is_some());
@@ -670,7 +670,7 @@ fn commands_on_the_selection_leave_a_picked_objects_instance_alone() {
         ("path.moveAnchors", json!({"dx": 5, "dy": 5})),
         (
             "file.place",
-            json!({"name": "a.svg", "dataBase64": vectorcraft_format::base64_encode(b"<svg xmlns='http://www.w3.org/2000/svg' width='9' height='9'><rect width='9' height='9'/></svg>"), "replace": true}),
+            json!({"name": "a.svg", "dataBase64": pluma_format::base64_encode(b"<svg xmlns='http://www.w3.org/2000/svg' width='9' height='9'><rect width='9' height='9'/></svg>"), "replace": true}),
         ),
         ("object.intertwine.arrange", json!({"at": [80, 30]})),
         ("transparency.editOpacityMask", json!({"id": null})),
@@ -777,13 +777,13 @@ fn image_symbol(s: &mut Session) -> (NodeId, Value) {
     pixels.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     let im = s
         .edit("Place", |d, _| {
-            d.images.insert("gray".into(), vectorcraft_doc::ImageBlob::png(png));
+            d.images.insert("gray".into(), pluma_doc::ImageBlob::png(png));
             let id = d.alloc_id();
-            let im = vectorcraft_doc::ImageObject {
+            let im = pluma_doc::ImageObject {
                 key: "gray".into(),
                 width: 40,
                 height: 40,
-                xf: vectorcraft_geom::Affine::translate((10.0, 10.0)),
+                xf: pluma_geom::Affine::translate((10.0, 10.0)),
                 link: None,
                 placement: Default::default(),
                 pixels: None,
@@ -913,7 +913,7 @@ fn opacity_and_blend_on_a_picked_object_go_through_transparency_set() {
     s.execute("transparency.set", &json!({"blend": "multiply"})).unwrap();
     let o = node(&s, inst).extras().symbol_overrides[0].clone();
     assert_eq!(o.opacity, Some(0.5));
-    assert_eq!(o.blend, Some(vectorcraft_color::BlendMode::Multiply));
+    assert_eq!(o.blend, Some(pluma_color::BlendMode::Multiply));
     // A static symbol's instance refuses selectPart, so transparency.set acts on the instance whole.
     let mut t = session();
     let static_inst = pair(&mut t, "static");
@@ -1016,7 +1016,7 @@ fn invert_and_complement_are_refused_for_picked_type_whose_characters_differ() {
     let mut art = (*s.doc().unwrap().doc.symbols[0].art).clone();
     let NodeKind::Text(tx) = &mut art.kind else { panic!("type: {art:?}") };
     let mut second = tx.runs[0].clone();
-    second.style.fill = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0));
+    second.style.fill = pluma_color::Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0));
     tx.runs.push(second);
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).symbols[0].art = std::sync::Arc::new(art);
     s.execute("symbol.instance.selectPart", &json!({"id": inst.0, "path": []})).unwrap();
@@ -1087,7 +1087,7 @@ fn selecting_a_guide_too_lets_go_of_the_picked_object() {
     assert_eq!(overrides(&s, inst), 0);
     // Pruning a selection with a guide in it lets go of the object as well.
     let mut sel = s.doc().unwrap().selection.clone();
-    sel.symbol_part = Some(vectorcraft_doc::SymbolPart { instance: inst, path: vec![1] });
+    sel.symbol_part = Some(pluma_doc::SymbolPart { instance: inst, path: vec![1] });
     sel.prune(&s.doc().unwrap().doc);
     assert_eq!(sel.symbol_part, None);
 }
@@ -1110,8 +1110,8 @@ fn direct_selection_picks_and_outlines_the_object_where_a_9_slice_instance_draws
     let (mut s, inst) = sliced_panel();
     let part_box = |s: &Session, path: &[u32]| {
         let d = &s.doc().unwrap().doc;
-        let o = vectorcraft_doc::hit::symbol_part_outline(d, d.node(inst).unwrap(), path).unwrap();
-        vectorcraft_geom::kurbo::Shape::bounding_box(&o)
+        let o = pluma_doc::hit::symbol_part_outline(d, d.node(inst).unwrap(), path).unwrap();
+        pluma_geom::kurbo::Shape::bounding_box(&o)
     };
     let close = |a: Rect, b: Rect| [(a.x0, b.x0), (a.y0, b.y0), (a.x1, b.x1), (a.y1, b.y1)].iter().all(|(x, y)| (x - y).abs() < 1e-6);
     // The center cell (75..125 of the art) is drawn at 75..325, so the center square at 175..225;
@@ -1119,7 +1119,7 @@ fn direct_selection_picks_and_outlines_the_object_where_a_9_slice_instance_draws
     assert!(close(part_box(&s, &[2]), Rect::new(175.0, 95.0, 225.0, 105.0)), "{:?}", part_box(&s, &[2]));
     assert!(close(part_box(&s, &[1]), Rect::new(50.0, 50.0, 60.0, 60.0)), "the corner keeps its size: {:?}", part_box(&s, &[1]));
     direct(&mut s, (177.0, 100.0), (177.0, 100.0), Mods::default());
-    assert_eq!(s.doc().unwrap().selection.symbol_part, Some(vectorcraft_doc::SymbolPart { instance: inst, path: vec![2] }));
+    assert_eq!(s.doc().unwrap().selection.symbol_part, Some(pluma_doc::SymbolPart { instance: inst, path: vec![2] }));
     direct(&mut s, (165.0, 100.0), (165.0, 100.0), Mods::default());
     let picked = s.doc().unwrap().selection.symbol_part.clone().map(|p| p.path);
     assert_ne!(picked, Some(vec![2]), "where the square is not drawn");
@@ -1138,8 +1138,8 @@ fn the_outline_of_an_object_drawn_in_each_9_slice_cell_matches_what_is_drawn() {
     let inst = id(&s.execute("symbol.new", &json!({"name": "Bar", "ids": ids, "type": "dynamic", "nineSlice": true})).unwrap());
     s.execute("object.setBounds", &json!({"x": 50, "y": 50, "width": 300, "height": 100, "reference": 0})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let o = vectorcraft_doc::hit::symbol_part_outline(d, d.node(inst).unwrap(), &[1]).unwrap();
-    let b = vectorcraft_geom::kurbo::Shape::bounding_box(&o);
+    let o = pluma_doc::hit::symbol_part_outline(d, d.node(inst).unwrap(), &[1]).unwrap();
+    let b = pluma_geom::kurbo::Shape::bounding_box(&o);
     // The left copy is drawn at 60..75, the center one (placed whole it reaches 0..400) at 75..325
     // and the right one at 325..340.
     let want = Rect::new(60.0, 95.0, 340.0, 105.0);
@@ -1176,7 +1176,7 @@ fn dynamic_symbols_and_their_changes_round_trip_and_old_documents_save_as_before
     let inst = pair(&mut s, "dynamic");
     s.execute("symbol.instance.setAppearance", &json!({"id": inst.0, "path": [1], "fill": "#ff0000", "opacity": 25})).unwrap();
     let doc = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(doc, false)).unwrap();
     assert!(back.symbols[0].dynamic);
     assert_eq!(back.node(inst).unwrap().extras().symbol_overrides, doc.node(inst).unwrap().extras().symbol_overrides);
     assert_eq!(back.symbols, doc.symbols);
@@ -1371,7 +1371,7 @@ fn a_replace_that_finishes_after_an_object_was_picked_selects_the_instance_again
     let inst = pair(&mut s, "dynamic");
     s.execute("select.set", &json!({"ids": [inst.0]})).unwrap();
     let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='9' height='9'><rect width='9' height='9'/></svg>";
-    let p = json!({"name": "a.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes()), "replace": true});
+    let p = json!({"name": "a.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes()), "replace": true});
     let read = s.prepare_place(&p).unwrap().read().unwrap();
     s.execute("symbol.instance.selectPart", &json!({"id": inst.0, "path": [1]})).unwrap();
     s.place_read(read).unwrap();

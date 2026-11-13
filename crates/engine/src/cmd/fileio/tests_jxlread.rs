@@ -36,7 +36,7 @@ fn rgba8() -> Vec<u8> {
 }
 
 fn b64(bytes: &[u8]) -> String {
-    vectorcraft_format::base64_encode(bytes)
+    pluma_format::base64_encode(bytes)
 }
 
 /// The pixels of the one image the active document holds.

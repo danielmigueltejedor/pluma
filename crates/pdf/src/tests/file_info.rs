@@ -1,8 +1,8 @@
 //! File Info read from a PDF: the information dictionary, the XMP packet, the packet's values
 //! where both give a field, and the dictionary's alone where the packet can't be read.
 
-use vectorcraft_doc::Document;
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with_catalog};
+use pluma_doc::Document;
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with_catalog};
 
 use crate::*;
 
@@ -210,7 +210,7 @@ fn a_written_pdf_gives_its_file_info_back() {
 
 #[test]
 fn a_written_pdf_gives_its_copyright_back() {
-    use vectorcraft_doc::CopyrightStatus;
+    use pluma_doc::CopyrightStatus;
     let notice = "(c) 2026 Ada & <Babbage>\r\nAll rights \"reserved\"";
     let url = "https://example.com/rights?a=1&b=2";
     for standard in [Standard::None, Standard::PdfA2b, Standard::PdfX1a, Standard::PdfX4] {

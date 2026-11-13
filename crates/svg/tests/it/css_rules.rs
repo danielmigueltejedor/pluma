@@ -2,11 +2,11 @@
 //! type its font, gradients `linear-gradient()`/`radial-gradient()`, and every property both write
 //! reads as SVG export writes it.
 
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Document, Effect, Justify, LiveShape, Node, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::shapes::{self, CornerKind};
-use vectorcraft_geom::{Affine, Point, Rect};
-use vectorcraft_svg::{CssOptions, CssRule, CssUnits, ExportOptions, Styling, css_rules, export};
+use pluma_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
+use pluma_doc::{Appearance, CharStyle, Document, Effect, Justify, LiveShape, Node, NodeId, NodeKind, TextObject};
+use pluma_geom::shapes::{self, CornerKind};
+use pluma_geom::{Affine, Point, Rect};
+use pluma_svg::{CssOptions, CssRule, CssUnits, ExportOptions, Styling, css_rules, export};
 
 fn doc() -> Document {
     Document::new(400.0, 300.0)
@@ -152,13 +152,13 @@ fn ellipses_round_fully_and_options_change_units_and_names() {
 /// a 0.7 em cap height is `font-size: 20px`, and its Auto leading is not written.
 #[test]
 fn type_gives_the_font_size_it_is_drawn_at() {
-    use vectorcraft_text::test_fonts::{HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+    use pluma_text::test_fonts::{HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
     let mut d = doc();
     let st = CharStyle {
         font_family: HEIGHT_FAMILY.into(),
         size: 14.0,
-        font_height_reference: vectorcraft_doc::FontHeightReference::CapHeight,
+        font_height_reference: pluma_doc::FontHeightReference::CapHeight,
         ..CharStyle::default()
     };
     let n = text(&mut d, "Hello", st);
@@ -208,15 +208,15 @@ fn shrunk_area_type_gives_the_size_it_draws_at() {
     let mut n = text(&mut d, "Area type that is too long for its frame", st);
     let mut fit = 1.0;
     if let NodeKind::Text(t) = &mut n.kind {
-        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 40.0)) };
-        t.area.fit = vectorcraft_doc::AreaFit::ShrinkText { min_percent: 10.0 };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        t.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 40.0)) };
+        t.area.fit = pluma_doc::AreaFit::ShrinkText { min_percent: 10.0 };
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         assert!(!lay.overflow && lay.fit_scale < 0.9, "the text is shrunk to fit: {}", lay.fit_scale);
         fit = lay.fit_scale;
     }
     let id = add(&mut d, n);
     let r = one(&d, id, &CssOptions::default());
-    let px = |v: f64| format!("{}px", vectorcraft_svg::fmt_num(v, 3));
+    let px = |v: f64| format!("{}px", pluma_svg::fmt_num(v, 3));
     assert_eq!(prop(&r, "font-size"), Some(px(18.0 * fit).as_str()), "{r:?}");
     assert_eq!(prop(&r, "letter-spacing"), Some(px(0.9 * fit).as_str()), "{r:?}");
     assert_eq!(prop(&r, "line-height"), Some(px(24.0 * fit).as_str()), "{r:?}");

@@ -1,4 +1,4 @@
-//! The document model the Craft apps import: spreads, artboards, layers, groups, curves, shapes,
+//! The document model Pluma and its sibling apps import: spreads, artboards, layers, groups, curves, shapes,
 //! text and images, with transforms composed into document space. Anything else is reported
 //! by [`Document::warnings`] instead of being dropped silently.
 

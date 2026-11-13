@@ -1,15 +1,15 @@
 //! Perspective planes: offsets, plane widgets (alone, Shift with the objects, Alt with copies),
 //! Move Plane to Match Object, and grid edits with attached art.
 
+use pluma_geom::{Point, Vec2};
+use pluma_tools::Mods;
+use pluma_tools::distort::perspective::{PerspectiveGrid, Plane};
 use serde_json::json;
-use vectorcraft_geom::{Point, Vec2};
-use vectorcraft_tools::Mods;
-use vectorcraft_tools::distort::perspective::{PerspectiveGrid, Plane};
 
 use crate::tests_persp_select::{attached, drag, grid, persp_session, plane_pts, undo_len};
 use crate::*;
 
-fn path(s: &Session, id: NodeId) -> vectorcraft_geom::PathData {
+fn path(s: &Session, id: NodeId) -> pluma_geom::PathData {
     s.doc().unwrap().doc.node(id).unwrap().path_data().unwrap().clone()
 }
 
@@ -119,7 +119,7 @@ fn double_clicking_a_plane_widget_asks_for_its_options() {
     let (_, w) = grid(&s).plane_widgets().into_iter().find(|(p, _)| *p == Plane::Ground).unwrap();
     for tool in ["perspectiveGrid", "perspectiveSelection"] {
         s.select_tool(tool, v).unwrap();
-        let r = s.pointer(&vectorcraft_tools::PointerEvent::new(vectorcraft_tools::PointerKind::DoubleClick, w.x, w.y), v).unwrap();
+        let r = s.pointer(&pluma_tools::PointerEvent::new(pluma_tools::PointerKind::DoubleClick, w.x, w.y), v).unwrap();
         assert_eq!(r, vec![crate::UiRequest::Dialog("perspectivePlane".into(), json!({"plane": "ground"}))], "{tool}");
     }
 }
@@ -171,7 +171,7 @@ fn grid_edits_keep_attached_art_in_place_unless_reprojected() {
 fn plane_offsets_round_trip_and_old_grids_have_none() {
     let (mut s, _) = persp_session();
     s.execute("perspective.grid.set", &json!({"leftOffset": 12, "groundOffset": -8})).unwrap();
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let g = PerspectiveGrid::from_doc(&doc).unwrap();
     assert_eq!((g.left_offset, g.right_offset, g.ground_offset), (12.0, 0.0, -8.0));
     let mut stored = doc.unknown["perspectiveGrid"].clone();

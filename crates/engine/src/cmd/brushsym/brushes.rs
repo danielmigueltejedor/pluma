@@ -143,7 +143,7 @@ fn set_stroke_brush(items: &mut [AppearanceItem], from: &str, to: Option<&str>) 
 /// Whether a stroke in `n` (its opacity masks included) paints with brush `name`.
 fn paints_with(n: &Node, name: &str) -> bool {
     let mut hit = false;
-    vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| {
+    pluma_doc::swatches::walk_with_masks(n, &mut |m| {
         hit |= m.appearance.items.iter().any(|i| matches!(i, AppearanceItem::Stroke(st) if st.brush.as_deref() == Some(name)));
     });
     hit
@@ -167,7 +167,7 @@ fn set_brush_in(n: &mut Node, from: &str, to: Option<&str>) {
 
 /// Returns the art a brush is made of ([`Brush::art`]) for editing.
 fn brush_art_mut(b: &mut Brush) -> Vec<&mut Node> {
-    use vectorcraft_brush::BrushKind;
+    use pluma_brush::BrushKind;
     match &mut b.kind {
         BrushKind::Scatter(s) => vec![&mut s.art],
         BrushKind::Art(a) => vec![&mut a.art],
@@ -358,7 +358,7 @@ fn stroke_brushes(items: &[AppearanceItem], out: &mut Vec<String>) {
 /// Adds the names of the brushes the strokes in `n` (its opacity masks included) paint with to
 /// `out`.
 fn art_brushes(n: &Node, out: &mut Vec<String>) {
-    vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| stroke_brushes(&m.appearance.items, out));
+    pluma_doc::swatches::walk_with_masks(n, &mut |m| stroke_brushes(&m.appearance.items, out));
 }
 
 /// The brushes no stroke paints with. Strokes in the art (opacity masks included), symbols, graph

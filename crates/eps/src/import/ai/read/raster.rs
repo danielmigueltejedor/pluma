@@ -37,16 +37,16 @@ impl Limits {
             return l;
         }
         static TARGET: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-        let target = *TARGET.get_or_init(|| target(vectorcraft_render::installed_memory()));
+        let target = *TARGET.get_or_init(|| target(pluma_render::installed_memory()));
         Self { target, pixels: MAX_PIXELS, bytes: MAX_BYTES }
     }
 
     /// The limits for an image of `channels` colour channels: a CMYK image comes in at most as
-    /// large as a CMYK TIFF holds ([`vectorcraft_doc::cmyk::MAX_CMYK_PIXELS`]).
+    /// large as a CMYK TIFF holds ([`pluma_doc::cmyk::MAX_CMYK_PIXELS`]).
     pub(super) fn for_channels(channels: usize) -> Self {
         let mut l = Self::get();
         if channels == 4 {
-            l.target = l.target.min(vectorcraft_doc::cmyk::MAX_CMYK_PIXELS);
+            l.target = l.target.min(pluma_doc::cmyk::MAX_CMYK_PIXELS);
         }
         l
     }
@@ -67,7 +67,7 @@ pub(crate) fn with_image_limits<T>(target: u64, pixels: u64, bytes: u64, f: impl
 /// web, a quarter of the largest image the renderer decodes, at most 2^27.
 fn target(memory: Option<u64>) -> u64 {
     if cfg!(target_arch = "wasm32") {
-        (1u64 << 27).min(vectorcraft_doc::MAX_RASTER_ALLOC / 4)
+        (1u64 << 27).min(pluma_doc::MAX_RASTER_ALLOC / 4)
     } else {
         memory.map_or(1 << 26, |m| (m / 32).clamp(1 << 26, 1 << 28))
     }
@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(rgb, Some(1));
         let k = cmyk.unwrap();
         assert_eq!(k, 2);
-        assert!(9000u64.div_ceil(k).pow(2) <= vectorcraft_doc::cmyk::MAX_CMYK_PIXELS);
+        assert!(9000u64.div_ceil(k).pow(2) <= pluma_doc::cmyk::MAX_CMYK_PIXELS);
     }
 
     /// The step keeps each side within 65,535 pixels, and sizes past the limits or overflowing

@@ -5,10 +5,10 @@
 //!
 //! Fields: `__action` (the save command it finishes), `__pick` (file name and format
 //! editable), `path`, `format`, and one field per option (agents set them with `ui.dialog.set`).
-//! Native and `.ai` files show their save options (VectorCraft Options after Save As): each
+//! Native and `.ai` files show their save options (Pluma Options after Save As): each
 //! artboard to a separate file, with `all` (true: every artboard) or `range`, Include Linked Files,
 //! Embed ICC Profiles, Create PDF-Compatible File and Use Compression. A native file's Version is a
-//! menu of the versions VectorCraft writes (`version`, named by the releases that read each). A
+//! menu of the versions Pluma writes (`version`, named by the releases that read each). A
 //! `.ai` file's Version comes first: PDF-compatible, or legacy version 7 (`aiVersion: "7"`, a file
 //! per artboard), which takes only Transparent Images (`transparentImages`), Hidden Objects
 //! (`hiddenObjects`: a hidden layer, omitted or made visible), Text (`outlineText`: editable or
@@ -17,13 +17,13 @@
 
 use std::sync::OnceLock;
 
+use pluma_engine::cmd::fileio::{self, ArtboardPick, Format, FormatOption, SAVE_FORMATS, SaveMode, TEMPLATE_FORMATS};
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::fileio::{self, ArtboardPick, Format, FormatOption, SAVE_FORMATS, SaveMode, TEMPLATE_FORMATS};
 
 use super::{DialogResult, DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 /// Dialog kind.
 pub const KIND: &str = "saveOptions";
@@ -32,7 +32,7 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading, body, confirm, min_width: 380.0, ok_enabled: Some(can_save), inputs: |_| &["all", "boards"], ..DialogSpec::FORM };
 
 /// OK saves a legacy `.ai` file only with an artboard checked.
-fn can_save(app: &VectorcraftApp, d: &Dialog) -> bool {
+fn can_save(app: &PlumaApp, d: &Dialog) -> bool {
     !legacy_ai(d) || picked_boards(d, app.session.active().map_or(0, |st| st.doc.artboards.len())).iter().any(|b| *b)
 }
 
@@ -53,7 +53,7 @@ fn heading(d: &Dialog) -> String {
 
 /// `f`'s options with the values a save would use (`file.formatOptions`: as last saved in that
 /// format, else the defaults). Text options start empty rather than null.
-pub(crate) fn option_values(app: &mut VectorcraftApp, f: &Format) -> Map<String, Value> {
+pub(crate) fn option_values(app: &mut PlumaApp, f: &Format) -> Map<String, Value> {
     let v = app.session.execute("file.formatOptions", &json!({ "format": f.id })).unwrap_or_default();
     f.options
         .iter()
@@ -148,7 +148,7 @@ fn template_labels() -> &'static [&'static str] {
     LABELS.get_or_init(|| TEMPLATE_FORMATS.iter().filter_map(|id| fileio::format(id)).map(|f| f.label).collect())
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let Some(f) = fileio::format(&d.str("format")) else { return false };
     let mut switch = None;
@@ -207,7 +207,7 @@ fn picked_boards(d: &Dialog, n: usize) -> Vec<bool> {
 
 /// The file each checked artboard is saved to (`None` for the others): the file itself when one
 /// is checked, else `{stem}-{artboard}.ai` beside it, as the save names them.
-fn board_files(app: &VectorcraftApp, d: &Dialog, boards: &[bool]) -> Vec<Option<String>> {
+fn board_files(app: &PlumaApp, d: &Dialog, boards: &[bool]) -> Vec<Option<String>> {
     let checked: Vec<usize> = boards.iter().enumerate().filter(|(_, on)| **on).map(|(i, _)| i).collect();
     let path = d.str("path");
     let file = std::path::Path::new(path.trim());
@@ -249,7 +249,7 @@ fn elide_before_tail(ui: &egui::Ui, text: &str, tail: usize, font: &egui::FontId
 }
 
 /// Legacy `.ai`: the artboards to save, as thumbnails to check; each is saved as a file of its own.
-fn artboard_picker(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn artboard_picker(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     const TILE: egui::Vec2 = egui::vec2(116.0, 84.0);
     let t = Tokens::get(ui.ctx());
     let names: Vec<String> = app.session.active().map(|st| st.doc.artboards.iter().map(|a| a.name.clone()).collect()).unwrap_or_default();
@@ -331,7 +331,7 @@ fn artboard_picker(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) 
 }
 
 /// One option: a checkbox, an artboard menu, a version menu, a number or a text field.
-fn option_row(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
+fn option_row(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
     let t = Tokens::get(ui.ctx());
     let label = label(o);
     let value = d.fields.get(o.name).cloned().unwrap_or(Value::Null);
@@ -421,11 +421,11 @@ fn option_row(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, o: &Forma
     ui.end_row();
 }
 
-/// The native versions VectorCraft writes, newest first, each with the first release that reads
+/// The native versions Pluma writes, newest first, each with the first release that reads
 /// it (the format version each release tag writes: 2 in 0.1, 3 from 0.2, 4 from 0.8).
 const NATIVE_VERSIONS: [(u32, &str); 4] = [(4, "0.8"), (3, "0.2"), (2, "0.1"), (1, "0.1")];
 
-/// A native file's Version (#4931): a menu of the versions VectorCraft writes, named by the
+/// A native file's Version (#4931): a menu of the versions Pluma writes, named by the
 /// releases that read them, so a version it can't write can't be chosen. A version without
 /// compression turns Use Compression off.
 fn native_version(ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
@@ -433,7 +433,7 @@ fn native_version(ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
     ui.label(egui::RichText::new(tl!("Version:")).color(t.text_dim)).on_hover_text(o.description);
     let names: Vec<String> = NATIVE_VERSIONS
         .iter()
-        .map(|(n, release)| crate::i18n::fmt(tl!("VectorCraft {release} and later (version {n})"), &[("release", release), ("n", &n.to_string())]))
+        .map(|(n, release)| crate::i18n::fmt(tl!("Pluma {release} and later (version {n})"), &[("release", release), ("n", &n.to_string())]))
         .collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();
     let at = NATIVE_VERSIONS.iter().position(|(n, _)| *n == native_version_of(d)).unwrap_or(0);
@@ -441,7 +441,7 @@ fn native_version(ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
         && let Some((n, _)) = NATIVE_VERSIONS.get(i)
     {
         d.fields.insert(o.name.into(), json!(n));
-        if *n < vectorcraft_format::COMPRESSED_SINCE {
+        if *n < pluma_format::COMPRESSED_SINCE {
             d.fields.insert("compress".into(), json!(false));
         }
     }
@@ -450,16 +450,16 @@ fn native_version(ui: &mut egui::Ui, d: &mut Dialog, o: &FormatOption) {
 
 /// The native version the dialog will write (the current one unless chosen).
 fn native_version_of(d: &Dialog) -> u32 {
-    d.fields.get("version").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).unwrap_or(vectorcraft_format::VERSION)
+    d.fields.get("version").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).unwrap_or(pluma_format::VERSION)
 }
 
 /// Is a native file to be saved in a version that can't be compressed?
 fn uncompressed(d: &Dialog) -> bool {
-    native_version_of(d) < vectorcraft_format::COMPRESSED_SINCE
+    native_version_of(d) < pluma_format::COMPRESSED_SINCE
 }
 
 /// Web Save As: another format brings its own options and file extension.
-fn switch_format(app: &mut VectorcraftApp, d: &mut Dialog, id: &str) {
+fn switch_format(app: &mut PlumaApp, d: &mut Dialog, id: &str) {
     let (Some(old), Some(new)) = (fileio::format(&d.str("format")), fileio::format(id)) else { return };
     for o in old.options {
         d.fields.remove(o.name);
@@ -478,7 +478,7 @@ fn with_extension(path: &str, f: &Format) -> String {
 }
 
 /// Write the file with the chosen options (blank ones fall back to the format's defaults).
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     let f = fileio::format(&d.str("format")).ok_or("unknown format")?;
     let path = d.str("path");
     if path.trim().is_empty() {

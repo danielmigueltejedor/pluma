@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{Action, ActionSet};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// The command that saves an action set to a file ([`save_set`]).
 pub const SAVE_SET: &str = "ui.actionSet.save";
@@ -124,7 +124,7 @@ pub fn read_set(text: &str, name: &str) -> Result<ActionSet, String> {
         return Err("not an action set file".into());
     }
     if !matches!(f.version, 1..=3) {
-        return Err("the action set file needs a later version of VectorCraft".into());
+        return Err("the action set file needs a later version of Pluma".into());
     }
     if f.actions.len() > MAX_SET_ACTIONS {
         return Err("the action set file holds more than 1,000 actions".into());
@@ -181,7 +181,7 @@ pub(super) fn set_file_stem(name: &str) -> String {
 /// which the panel menu passes: the set with this id is saved wherever it is when the file dialog
 /// answers, and `set` is not read. A set that [`read_set`] would refuse (larger than 8 MiB as a
 /// file, more than 1,000 actions, an action with more than 10,000 steps) is not written.
-pub fn save_set(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn save_set(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let len = app.ui.action_sets.len();
     let set = match (p.get("id"), p.get("set")) {
         (Some(id), _) if !id.is_null() => {
@@ -202,7 +202,7 @@ pub fn save_set(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 }
 
 /// Whether Load Actions… can ask for a file: not where there is no open dialog (the web).
-pub(crate) fn can_load(app: &VectorcraftApp) -> bool {
+pub(crate) fn can_load(app: &PlumaApp) -> bool {
     crate::picks::can(app, &crate::picks::PickRequest::Open(crate::FilePick::default()))
 }
 
@@ -250,7 +250,7 @@ fn step_name(step: &Value) -> (String, bool) {
 /// label of a submenu's item does not say which command it is: Select › Same › Opacity is "Opacity".
 fn step_commands() -> std::collections::HashMap<String, Option<&'static str>> {
     let mut by_label = std::collections::HashMap::new();
-    for c in vectorcraft_engine::command_specs().iter().filter(|c| !c.menu.is_empty()) {
+    for c in pluma_engine::command_specs().iter().filter(|c| !c.menu.is_empty()) {
         let can_stand =
             may_stand_for(c.id) && c.journal && c.menu.len() == 1 && !c.label.contains('…') && crate::shortcut_editor::runs_with_no_values(c);
         let mut labels = vec![bare_label(c.label), bare_label(crate::i18n::t_id(c.id, c.label))];
@@ -320,7 +320,7 @@ fn aia_set(read: &Value, name: &str) -> AiaLoad {
 
 /// [`load_set`] of an action set another app saved as text, which `actionSet.read` reads with
 /// `params`.
-fn load_aia(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+fn load_aia(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     // Text that starts `/version` and no number is not an action set either.
     let read = app.run("actionSet.read", params).map_err(|_| "not an action set file")?;
     // A set read only in part would play actions that differ from the file's.
@@ -353,12 +353,12 @@ fn load_aia(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
 /// larger than 8 MiB is refused after its first 8 MiB and one byte are read.
 ///
 /// An action set another app saved as text (`.aia`, read with `actionSet.read`) comes in with its
-/// actions and the steps that stand for a VectorCraft command ([`step_name`], [`step_commands`]),
+/// actions and the steps that stand for a Pluma command ([`step_name`], [`step_commands`]),
 /// with no params; a step that is off in the file is excluded from playback. A set with no name is
 /// called after the file, else `Actions`. The other steps are left out and listed, and the status
 /// bar says how many → `{set, name, actions, skipped: [{action, step}] (at most 1,000), leftOut: n}`.
 /// Such a file that `actionSet.read` marks `truncated` is refused, and no set is added.
-pub fn load_set(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn load_set(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let (text, stem) = match p.get("data") {
         Some(Value::String(data)) => {
             // Checked before the copy: `read_set` checks it again.
@@ -375,7 +375,7 @@ pub fn load_set(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
             let path = match p.get("path").and_then(Value::as_str) {
                 Some(path) => path.to_string(),
                 None => {
-                    let exts = [&[ACTIONS_EXT], vectorcraft_engine::cmd::actionset::EXTS].concat();
+                    let exts = [&[ACTIONS_EXT], pluma_engine::cmd::actionset::EXTS].concat();
                     let pick = crate::FilePick { filters: vec![crate::FilePick::filter("Action sets", &exts)], ..Default::default() };
                     crate::picks::open(app, &pick).ok_or("cancelled")?
                 }
@@ -390,7 +390,7 @@ pub fn load_set(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
                 return Err("the action set file is larger than 8 MiB".into());
             }
             if is_aia(&bytes) {
-                return load_aia(app, json!({ "name": path, "dataBase64": vectorcraft_format::base64_encode(&bytes) }));
+                return load_aia(app, json!({ "name": path, "dataBase64": pluma_format::base64_encode(&bytes) }));
             }
             let stem = std::path::Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
             (String::from_utf8(bytes).map_err(|_| "not an action set file")?, stem)

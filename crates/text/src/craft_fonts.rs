@@ -1,4 +1,4 @@
-//! Fonts from the optional craft-fonts build input (<https://github.com/storytold/craft-fonts>).
+//! Fonts from the optional craft-fonts build input (<https://github.com/getnodalia/foundation/tree/vendor/craft-fonts/main>).
 //!
 //! Built with `CRAFT_FONTS_DIR=<craft-fonts checkout>`, [`CRAFT_FONTS`] holds every font in its
 //! manifest (Japanese UI and document fonts, Arabic fonts and Noto Sans Thai); built without it,
@@ -15,7 +15,7 @@ pub struct CraftFont {
 
 /// A craft-fonts face the web (wasm32) build fetches from beside the wasm instead of embedding,
 /// listed in `crates/text/web-fonts.txt` (empty unless built with `CRAFT_FONTS_DIR`). Fetched by
-/// `apps/vectorcraft-web/src/fonts.rs`; copied into the site by `cargo xtask web-fonts`.
+/// `apps/pluma-web/src/fonts.rs`; copied into the site by `cargo xtask web-fonts`.
 pub struct WebFont {
     pub family: &'static str,
     pub style: &'static str,

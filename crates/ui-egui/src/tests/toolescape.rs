@@ -2,14 +2,14 @@
 //! Shape Builder and Measure tools.
 
 use egui::{Key, Modifiers};
+use pluma_engine::Session;
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// One frame pressing `key` through the shortcut handler.
-fn press(app: &mut VectorcraftApp, key: Key) {
+fn press(app: &mut PlumaApp, key: Key) {
     let ctx = egui::Context::default();
     let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
     let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
@@ -26,7 +26,7 @@ fn escape_cancels_an_anchor_point_mesh_shape_builder_or_measure_drag() {
         ("shapeBuilder", false, (150.0, 150.0)),
         ("measure", false, (150.0, 150.0)),
     ] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let a = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
         let b = app.run("shape.rectangle", json!({"x": 150, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();

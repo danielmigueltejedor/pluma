@@ -104,7 +104,7 @@ impl PathEffect {
 /// Type on a Path Options › Align to Path: which height of the type runs along the path. Each
 /// character is measured by its own font, size and vertical scale, and in vertical type by its own
 /// size and horizontal scale. An inline graphic moves as a character of its run would, by its
-/// run's vertical scale in vertical type too. These distances are VectorCraft's own values.
+/// run's vertical scale in vertical type too. These distances are Pluma's own values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PathAlign {

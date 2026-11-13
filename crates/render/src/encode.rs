@@ -17,8 +17,8 @@ pub mod web;
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{Document, Node, NodeKind, SymbolBoxes};
-use vectorcraft_geom::Rect;
+use pluma_doc::{Document, Node, NodeKind, SymbolBoxes};
+use pluma_geom::Rect;
 
 use crate::{AntiAlias, RenderOptions, Rendered, Renderer, fx};
 
@@ -198,7 +198,7 @@ pub(crate) fn webp(img: &Rendered) -> Result<Vec<u8>, String> {
 /// without effects of its own by the art it shows. `None` when nothing would be drawn.
 pub fn art_bounds(doc: &Document) -> Option<Rect> {
     let symbols = doc.symbol_boxes();
-    doc.layers.iter().fold(None, |acc, l| vectorcraft_geom::union_opt(acc, drawn_bounds(&symbols, l)))
+    doc.layers.iter().fold(None, |acc, l| pluma_geom::union_opt(acc, drawn_bounds(&symbols, l)))
 }
 
 /// Bounds of the art an export draws ([`art_bounds`]) that is on artboard rectangle `rect`: each
@@ -224,13 +224,13 @@ fn art_bounds_on_with(doc: &Document, rect: Rect, mut renderer: Option<&mut crat
     fn on(symbols: &SymbolBoxes, n: &Arc<Node>, rect: Rect, mut renderer: Option<&mut crate::Renderer>) -> Option<Rect> {
         match &n.kind {
             NodeKind::Layer { template: false, clip: false, children, .. } if n.visible => {
-                children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, on(symbols, c, rect, renderer.as_deref_mut())))
+                children.iter().fold(None, |acc, c| pluma_geom::union_opt(acc, on(symbols, c, rect, renderer.as_deref_mut())))
             }
             _ => drawn_bounds_with(symbols, n, Some(n), renderer).filter(|b| b.x0 < rect.x1 && b.x1 > rect.x0 && b.y0 < rect.y1 && b.y1 > rect.y0),
         }
     }
     let symbols = doc.symbol_boxes();
-    doc.layers.iter().fold(None, |acc, l| vectorcraft_geom::union_opt(acc, on(&symbols, l, rect, renderer.as_deref_mut())))
+    doc.layers.iter().fold(None, |acc, l| pluma_geom::union_opt(acc, on(&symbols, l, rect, renderer.as_deref_mut())))
 }
 
 /// Bounds of what an export draws of object `n` ([`art_bounds`]): `None` when `n` is hidden, a
@@ -252,7 +252,7 @@ fn drawn_bounds_with(symbols: &SymbolBoxes, n: &Node, held: Option<&Arc<Node>>, 
         NodeKind::Layer { children, clip: false, .. } | NodeKind::Group { children, clip: false } if !fx::has_object_fx(n) => children
             .iter()
             .skip(usize::from(n.extras().shaper.is_some()))
-            .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, drawn_bounds_with(symbols, c, Some(c), renderer.as_deref_mut()))),
+            .fold(None, |acc, c| pluma_geom::union_opt(acc, drawn_bounds_with(symbols, c, Some(c), renderer.as_deref_mut()))),
         _ => match (without_undrawn(n), held, renderer) {
             // A new object, measured once a pass by the one it was made from.
             (Some(kept), Some(a), Some(r)) => {

@@ -4,12 +4,12 @@
 use craft_keymap::egui::Hit;
 use craft_keymap::{Active, CommandRef};
 use egui::{Key, KeyboardShortcut, Modifiers};
+use pluma_engine::cmd::clipboard::{Flavour, TEXT};
+use pluma_engine::{Result as EngineResult, UiRequest, ViewInfo};
+use pluma_tools::{Mods, SurroundingUnit, ToolKey};
 use serde_json::json;
-use vectorcraft_engine::cmd::clipboard::{Flavour, TEXT};
-use vectorcraft_engine::{Result as EngineResult, UiRequest, ViewInfo};
-use vectorcraft_tools::{Mods, SurroundingUnit, ToolKey};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 mod held_tool;
 mod paste;
@@ -99,7 +99,7 @@ pub(crate) fn is_modifier(key: Key) -> bool {
 /// command's params: `{}`, or `{panel}` for the panel shortcuts (`window.panel`).
 pub(crate) fn all_shortcuts() -> Vec<(KeyboardShortcut, &'static str, serde_json::Value)> {
     let mut v = vec![];
-    for c in vectorcraft_engine::command_specs().iter().chain(vectorcraft_engine::cmd::plugin::command_specs()) {
+    for c in pluma_engine::command_specs().iter().chain(pluma_engine::cmd::plugin::command_specs()) {
         if let Some(sc) = crate::menus::shortcut_of(c.id).and_then(parse) {
             v.push((sc, c.id, json!({})));
         }
@@ -182,7 +182,7 @@ pub fn runs_a_shortcut(key: &str, code: &str, modifiers: Modifiers) -> bool {
 /// reruns cannot fire a shortcut or tool key twice: keymap commands, tools and panels, nudges,
 /// Delete/Backspace (left to a Layers or Appearance row that has the keys) and single-key tool
 /// shortcuts.
-pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn handle(app: &mut PlumaApp, ctx: &egui::Context) {
     // One UI pass takes a frame's events. A discarded rerun and a test helper that also calls
     // `logic` see the same events again; they must not fire a shortcut or tool key twice. The
     // key includes the context (a restarted host starts at frame 0) and the viewport (frame
@@ -304,7 +304,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 // Enter with a selection tool opens the Move dialog, as a double-click on its button
                 // does.
                 let tool = app.session.tool_id();
-                if app.ui.dialog.is_none() && vectorcraft_tools::catalog::is_selection_tool(tool) {
+                if app.ui.dialog.is_none() && pluma_tools::catalog::is_selection_tool(tool) {
                     // Nothing selected: it fails and nothing opens (the menu item is disabled then too).
                     let _ = crate::toolbar::open_options(app, tool);
                 }
@@ -382,7 +382,7 @@ pub(crate) fn pressed_anew(ctx: &egui::Context, key: Key) -> bool {
 
 /// Takes this frame's repeats of `key` when the tool claims it: a press acts once, and they stay out
 /// of the shortcuts. A chord a command is bound to keeps its repeats.
-fn take_claimed_repeat(app: &mut VectorcraftApp, ctx: &egui::Context, key: Key, tool_key: ToolKey, view: ViewInfo) -> bool {
+fn take_claimed_repeat(app: &mut PlumaApp, ctx: &egui::Context, key: Key, tool_key: ToolKey, view: ViewInfo) -> bool {
     let text = app.session.tool_wants_text();
     let runs_a_command = (text || !app.session.tool_busy()) && ctx.input(|i| runs_a_command(i, key, text));
     if runs_a_command || pressed_anew(ctx, key) || !ctx.input(|i| i.key_pressed(key)) || !app.session.tool_claims_key(tool_key, view) {
@@ -397,7 +397,7 @@ fn take_claimed_repeat(app: &mut VectorcraftApp, ctx: &egui::Context, key: Key, 
 /// Presentation Mode.
 type KeySurface = (Option<String>, bool, bool, bool);
 
-fn key_surface(app: &VectorcraftApp) -> KeySurface {
+fn key_surface(app: &PlumaApp) -> KeySurface {
     (app.ui.dialog.as_ref().map(|d| d.kind.clone()), app.ui.palette_open, app.ui.tools_drawer, app.ui.screen_mode == 3)
 }
 
@@ -407,7 +407,7 @@ fn key_surface_id(ctx: &egui::Context, key: Key) -> egui::Id {
 }
 
 /// Notes what a new press of Enter or Escape lands on, and forgets it once the key is up.
-fn note_key_surfaces(app: &VectorcraftApp, ctx: &egui::Context) {
+fn note_key_surfaces(app: &PlumaApp, ctx: &egui::Context) {
     for key in [Key::Enter, Key::Escape] {
         let id = key_surface_id(ctx, key);
         if pressed_anew(ctx, key) {
@@ -424,12 +424,12 @@ fn note_key_surfaces(app: &VectorcraftApp, ctx: &egui::Context) {
 /// Removes this frame's presses of Enter and Escape when the key went down on something that has
 /// since changed: the press that opened or closed a dialog, and its repeats until the key is let
 /// go, reach neither the new dialog nor what is under the old one.
-pub(crate) fn hold_back_keys(app: &VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn hold_back_keys(app: &PlumaApp, ctx: &egui::Context) {
     hold_back_key(app, ctx, Key::Enter);
     hold_back_key(app, ctx, Key::Escape);
 }
 
-fn hold_back_key(app: &VectorcraftApp, ctx: &egui::Context, key: Key) {
+fn hold_back_key(app: &PlumaApp, ctx: &egui::Context, key: Key) {
     let id = key_surface_id(ctx, key);
     let Some(pressed_on) = ctx.data(|m| m.get_temp::<Option<KeySurface>>(id)) else { return };
     if pressed_on.as_ref() == Some(&key_surface(app)) {
@@ -468,7 +468,7 @@ fn escape_ended_gesture(ctx: &egui::Context) -> bool {
 
 /// An Escape that no tool, field, popup or drag took ends the first of these that is on: pattern
 /// editing, isolation mode, Global Edit, a tool flyout, a full screen mode and a rotated view.
-fn escape_ends_one_thing(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn escape_ends_one_thing(app: &mut PlumaApp, ctx: &egui::Context) {
     if app.session.active().is_some_and(|d| d.doc.pattern_edit.is_some()) {
         let _ = app.run("object.pattern.done", json!({}));
     } else if app.session.active().is_some_and(|d| d.isolation.is_some()) {
@@ -498,15 +498,15 @@ fn escape_ends_one_thing(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
-/// What a tool's Escape can change besides what [`vectorcraft_engine::Session::tool_ends_on_escape`]
+/// What a tool's Escape can change besides what [`pluma_engine::Session::tool_ends_on_escape`]
 /// reports: the document's revision (edits and selection changes, such as the Curvature tool
 /// letting go of a selected path's current point).
-fn document_revision(app: &VectorcraftApp) -> Option<u64> {
+fn document_revision(app: &PlumaApp) -> Option<u64> {
     app.session.active().map(|d| d.revision)
 }
 
 /// Dispatch unmodified text keys to command bindings or tools.
-fn single_key_shortcuts(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn single_key_shortcuts(app: &mut PlumaApp, ctx: &egui::Context) {
     // Single-key tool shortcuts (no Cmd/Ctrl/Alt). With a layout without Latin letters (Persian,
     // Arabic, Russian, Greek…) the key's position stands in for what it types (#793).
     // A text's key is the press that typed it ([`typing_presses`]), and the text repeats with it.
@@ -561,7 +561,7 @@ fn single_key_shortcuts(app: &mut VectorcraftApp, ctx: &egui::Context) {
 }
 
 /// Route Alt+arrows to spacing controls when text objects are selected.
-fn alt_type_arrows(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
+fn alt_type_arrows(app: &mut PlumaApp, ctx: &egui::Context) -> bool {
     let m = ctx.input(|i| i.modifiers);
     if !m.alt {
         return false;
@@ -573,7 +573,7 @@ fn alt_type_arrows(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
         let mut all_vertical = true;
         for id in &st.selection.objects {
             let node = st.doc.node(*id)?;
-            let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { return None };
+            let pluma_doc::NodeKind::Text(t) = &node.kind else { return None };
             all_vertical &= t.vertical;
         }
         Some(all_vertical)
@@ -584,7 +584,7 @@ fn alt_type_arrows(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
     let keys = [(Key::ArrowLeft, ToolKey::Left), (Key::ArrowRight, ToolKey::Right), (Key::ArrowUp, ToolKey::Up), (Key::ArrowDown, ToolKey::Down)];
     for (key, tool_key) in keys {
         if ctx.input_mut(|i| i.consume_key(m, key)) {
-            if let Some((attribute, by)) = vectorcraft_tools::text::step_key(tool_key, m.shift, false, vertical) {
+            if let Some((attribute, by)) = pluma_tools::text::step_key(tool_key, m.shift, false, vertical) {
                 let by = if m.command { by * 5.0 } else { by };
                 let _ = app.run("type.step", json!({"attribute": attribute, "by": by}));
             }
@@ -595,7 +595,7 @@ fn alt_type_arrows(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
 }
 
 /// Route text-tool input and command chords while preserving IME composition ownership.
-fn type_tool_input(app: &mut VectorcraftApp, ctx: &egui::Context, composing: bool) {
+fn type_tool_input(app: &mut PlumaApp, ctx: &egui::Context, composing: bool) {
     // Route-level loss (no current target or caret geometry) retires a live guard before any
     // marker in this pass can be considered. The finalizer may re-arm on a later activation.
     crate::ime::suspend_if_route_lost(app, ctx);
@@ -621,7 +621,7 @@ fn type_tool_input(app: &mut VectorcraftApp, ctx: &egui::Context, composing: boo
 
 /// Apply arrow-key movement and clear selected art when no text editor owns input, unless a Layers
 /// or Appearance row has Delete/Backspace (`rows_keys`).
-fn nudge_and_clear(app: &mut VectorcraftApp, ctx: &egui::Context, rows_keys: bool) {
+fn nudge_and_clear(app: &mut PlumaApp, ctx: &egui::Context, rows_keys: bool) {
     // Arrow nudges (Shift = ×10, Alt = copy).
     let arrows = [(Key::ArrowLeft, -1.0, 0.0), (Key::ArrowRight, 1.0, 0.0), (Key::ArrowUp, 0.0, -1.0), (Key::ArrowDown, 0.0, 1.0)];
     for (k, dx, dy) in arrows {
@@ -640,7 +640,7 @@ fn nudge_and_clear(app: &mut VectorcraftApp, ctx: &egui::Context, rows_keys: boo
 }
 
 /// Route clipboard events to the system clipboard or the app's rich-format paste path.
-fn handle_clipboard(app: &mut VectorcraftApp, ctx: &egui::Context, textless_paste: Option<Modifiers>) {
+fn handle_clipboard(app: &mut PlumaApp, ctx: &egui::Context, textless_paste: Option<Modifiers>) {
     // A clipboard image (eframe's `clipboard` feature, 0.37): the host's text paste path never
     // carries it. With the app's rich-format `SystemClipboard`, it is only the signal that the
     // clipboard holds no text — the next tick invokes Paste, whose `adopt_system_clipboard` reads
@@ -658,7 +658,7 @@ fn handle_clipboard(app: &mut VectorcraftApp, ctx: &egui::Context, textless_past
                 if image_paste {
                     if pasted_image.is_none() {
                         let pixels: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-                        let rendered = vectorcraft_render::Rendered {
+                        let rendered = pluma_render::Rendered {
                             width: u32::try_from(image.size[0]).unwrap_or(0),
                             height: u32::try_from(image.size[1]).unwrap_or(0),
                             pixels,
@@ -687,7 +687,7 @@ fn handle_clipboard(app: &mut VectorcraftApp, ctx: &egui::Context, textless_past
     }
     if let Some(png) = pasted_image {
         let held = ctx.input(|i| i.modifiers);
-        app.clipboard_in = Some(Flavour { mime: vectorcraft_engine::cmd::clipboard::PNG, data: png });
+        app.clipboard_in = Some(Flavour { mime: pluma_engine::cmd::clipboard::PNG, data: png });
         crate::menus::invoke(app, paste_command(held), json!({}));
         return;
     }
@@ -719,7 +719,7 @@ fn handle_clipboard(app: &mut VectorcraftApp, ctx: &egui::Context, textless_past
 }
 
 /// Route arrows, digits and letters to a tool while a gesture is active.
-fn busy_tool_keys(app: &mut VectorcraftApp, ctx: &egui::Context, view: ViewInfo) {
+fn busy_tool_keys(app: &mut PlumaApp, ctx: &egui::Context, view: ViewInfo) {
     // The arrows while dragging: a polygon's sides, a grid's rows (↑/↓) and columns (←/→)…
     let arrows = [(Key::ArrowUp, ToolKey::Up), (Key::ArrowDown, ToolKey::Down), (Key::ArrowLeft, ToolKey::Left), (Key::ArrowRight, ToolKey::Right)];
     for (k, tk) in arrows {
@@ -787,7 +787,7 @@ fn busy_tool_keys(app: &mut VectorcraftApp, ctx: &egui::Context, view: ViewInfo)
 
 /// Give keys claimed by the active tool precedence over their command shortcuts, except a plain
 /// Delete or Backspace while a panel's rows have them (`rows_keys`).
-fn claimed_tool_keys(app: &mut VectorcraftApp, ctx: &egui::Context, view: ViewInfo, rows_keys: bool) -> bool {
+fn claimed_tool_keys(app: &mut PlumaApp, ctx: &egui::Context, view: ViewInfo, rows_keys: bool) -> bool {
     let m = ctx.input(|i| i.modifiers);
     let rows_take = |k: Key| rows_keys && m.is_none() && matches!(k, Key::Delete | Key::Backspace);
     for (k, tk) in [
@@ -875,7 +875,7 @@ fn claimed_tool_keys(app: &mut VectorcraftApp, ctx: &egui::Context, view: ViewIn
 
 /// Runs this frame's key presses against the keymap in effect; `accept` declines a hit, leaving
 /// its press (and the text it typed) to what follows.
-fn dispatch(app: &mut VectorcraftApp, ctx: &egui::Context, accept: impl FnMut(&Hit) -> bool) -> Vec<CommandRef> {
+fn dispatch(app: &mut PlumaApp, ctx: &egui::Context, accept: impl FnMut(&Hit) -> bool) -> Vec<CommandRef> {
     let mirror = crate::shortcut_editor::current();
     let dispatcher = &mut app.dispatcher;
     ctx.input_mut(|i| {
@@ -958,7 +958,7 @@ fn shortcut_params(c: &CommandRef) -> serde_json::Value {
 }
 
 /// Runs what a shortcut is bound to: a tool, a panel (`window.panel {panel}`) or a command.
-fn run_hit(app: &mut VectorcraftApp, ctx: &egui::Context, c: &CommandRef) {
+fn run_hit(app: &mut PlumaApp, ctx: &egui::Context, c: &CommandRef) {
     if let Some(tool) = c.id.strip_prefix("tool:") {
         app.select_tool(tool);
     } else if c.id == "select.all" && crate::panels::artboards::selects_all(app, ctx) {
@@ -983,7 +983,7 @@ fn mac(ctx: &egui::Context) -> bool {
 
 /// On a Mac, Cmd+, opens Settings as in every Mac app (#663), beside Preferences' own shortcut,
 /// when no shortcut took the press this frame. Runs after [`dispatch`]. `true` when it ran.
-fn settings_on_a_mac(app: &mut VectorcraftApp, ctx: &egui::Context, mac: bool) -> bool {
+fn settings_on_a_mac(app: &mut PlumaApp, ctx: &egui::Context, mac: bool) -> bool {
     if !mac {
         return false;
     }

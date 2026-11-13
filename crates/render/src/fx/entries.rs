@@ -56,7 +56,7 @@ pub(super) enum KeptImage {
 pub(crate) struct ShadowEntry {
     pub(super) node: Drawn,
     pub(super) linear: [u64; 4],
-    pub(super) anchor: vectorcraft_geom::Point,
+    pub(super) anchor: pluma_geom::Point,
     /// Pixel offset of the raster's top-left from the anchor's view position.
     pub(super) rel: (f64, f64),
     pub(super) image: std::sync::Arc<vello_cpu::Pixmap>,
@@ -86,7 +86,7 @@ pub(super) struct Shadow {
     pub(super) image: std::sync::Arc<vello_cpu::Pixmap>,
     /// Raster to view pixels.
     pub(super) at: Affine,
-    pub(super) mode: vectorcraft_doc::color::BlendMode,
+    pub(super) mode: pluma_doc::color::BlendMode,
     /// Made before its object moved ([`ShadowEntry::moved`]).
     pub(super) moved: bool,
     /// For a raster cropped to the view, or made over a raster that is ([`ShadowEntry::view`]), the
@@ -257,7 +257,7 @@ impl Reads {
     }
 
     fn add(&mut self, n: &Node) {
-        let pattern = |p: &vectorcraft_color::Paint| matches!(p, vectorcraft_color::Paint::Pattern { .. });
+        let pattern = |p: &pluma_color::Paint| matches!(p, pluma_color::Paint::Pattern { .. });
         n.walk(&mut |c| {
             self.plugins |= effects::has_plugin_effect(c);
             for item in &c.appearance.items {

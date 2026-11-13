@@ -1,13 +1,13 @@
-//! Pathfinder panel: Shape Modes (+ Expand) and Pathfinders, with icons drawn for VectorCraft.
+//! Pathfinder panel: Shape Modes (+ Expand) and Pathfinders, with icons drawn for Pluma.
 //! Alt-clicking a Shape Mode makes a compound shape; with members of one selected, a Shape Mode
 //! sets theirs.
 
 use egui::Ui;
+use pluma_engine::doc::ShapeMode;
 use serde_json::{Value, json};
-use vectorcraft_engine::doc::ShapeMode;
 
 use super::selection_len;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::{self, menu_item};
 
 pub const SHAPE_MODES: [(&str, &str, &str); 4] = [
@@ -36,13 +36,13 @@ pub fn operation_label(op: &str) -> Option<&'static str> {
     SHAPE_MODES.into_iter().chain(PATHFINDERS).find(|(_, _, id)| *id == op).map(|(_, label, _)| label)
 }
 
-fn run(app: &mut VectorcraftApp, op: &str) {
+fn run(app: &mut PlumaApp, op: &str) {
     // The command path reports a failed operation in the status bar.
     let _ = app.run(&format!("object.pathfinder.{op}"), json!({}));
 }
 
 /// Repeat the last successful Shape Mode or Pathfinder operation on the current selection.
-pub fn repeat(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn repeat(app: &mut PlumaApp) -> Result<Value, String> {
     match app.last_pathfinder.clone() {
         Some(op) => {
             let min = minimum_operands(&op);
@@ -57,10 +57,10 @@ pub fn repeat(app: &mut VectorcraftApp) -> Result<Value, String> {
 
 /// How many objects the selection gives an operation: a group selected alone counts as the shapes
 /// the operation takes from it, nested groups included (#1450, #1635).
-pub(crate) fn operands(app: &VectorcraftApp) -> usize {
+pub(crate) fn operands(app: &PlumaApp) -> usize {
     let alone = app.session.active().filter(|d| d.selection.len() == 1).and_then(|d| d.doc.node(*d.selection.objects.first()?));
-    match alone.filter(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Group { .. })) {
-        Some(group) => vectorcraft_engine::cmd::shape_count(group),
+    match alone.filter(|n| matches!(n.kind, pluma_doc::NodeKind::Group { .. })) {
+        Some(group) => pluma_engine::cmd::shape_count(group),
         None => selection_len(app),
     }
 }
@@ -80,7 +80,7 @@ fn button(ui: &mut Ui, icon: &str, tip: &str, selected: bool, n: usize, min: usi
 /// members of compound shapes selected they take `mode`; otherwise operation `op` runs. With the
 /// Compound Shapes add-on's setting on, a click on the selection (not on members) makes the
 /// compound shape and Alt gives the permanent result.
-fn shape_mode(app: &mut VectorcraftApp, ui: &Ui, op: &str, mode: ShapeMode, members: bool) {
+fn shape_mode(app: &mut PlumaApp, ui: &Ui, op: &str, mode: ShapeMode, members: bool) {
     let alt = ui.input(|i| i.modifiers.alt);
     if members {
         if alt {
@@ -95,11 +95,11 @@ fn shape_mode(app: &mut VectorcraftApp, ui: &Ui, op: &str, mode: ShapeMode, memb
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let n = operands(app);
     // The modes of the compound-shape members selected: their Shape Mode button lights when they
     // share one.
-    let modes = vectorcraft_engine::cmd::selected_member_modes(&app.session);
+    let modes = pluma_engine::cmd::selected_member_modes(&app.session);
     let shared = modes.first().copied().filter(|m| modes.iter().all(|x| x == m));
     let expand = crate::menus::enabled(app, "object.compoundShape.expand");
     widgets::subheader(ui, tl!("Shape Modes:"));
@@ -131,12 +131,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Pathfinder panel › Trap…: the Trap dialog (`object.pathfinder.trap`'s options) for two or more
 /// objects.
-pub fn open_trap(app: &mut VectorcraftApp) {
-    let params = vectorcraft_effects::trap::command_defaults();
+pub fn open_trap(app: &mut PlumaApp) {
+    let params = pluma_effects::trap::command_defaults();
     let _ = app.run("ui.paramDialog", json!({"command": "object.pathfinder.trap", "label": "Trap", "params": params}));
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     if menu_item(ui, tl!("Trap…"), operands(app) >= 2, false) {
         open_trap(app);
     }
@@ -168,15 +168,15 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 mod tests {
     use super::*;
     use crate::widgets::accessibility_tests::{named, role_and_state, tree};
+    use pluma_engine::doc::{NodeId, NodeKind};
     use serde_json::Value;
-    use vectorcraft_engine::doc::{NodeId, NodeKind};
 
     /// #1635: a stroked object expanded inside a group leaves a group holding one group (its fill
     /// and its outlined stroke). The Shape Modes take the group's shapes, so they stay enabled, and
     /// Unite merges the fill and the stroke into one path.
     #[test]
     fn shape_modes_take_the_shapes_of_an_expanded_stroke_in_a_group() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
         app.run("stroke.set", json!({"weight": 10})).unwrap();
@@ -198,7 +198,7 @@ mod tests {
     /// Screen readers name each Shape Mode and Pathfinder button, enabled for two selected objects.
     #[test]
     fn screen_readers_name_the_buttons() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
         let b = app.run("shape.rectangle", json!({"x": 40, "y": 40, "width": 50, "height": 50})).unwrap()["id"].clone();
@@ -217,11 +217,11 @@ mod tests {
     #[test]
     fn compound_shape_items_follow_the_selection() {
         use egui::accesskit::{Role, Toggled};
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
         let b = app.run("shape.rectangle", json!({"x": 40, "y": 40, "width": 50, "height": 50})).unwrap()["id"].clone();
-        let state = |app: &mut VectorcraftApp| {
+        let state = |app: &mut PlumaApp| {
             let items = tree(|ui| menu(app, ui));
             let on = |label: &str| !named(&items, &format!("   {label}")).is_disabled();
             let panel = tree(|ui| show(app, ui));
@@ -245,7 +245,7 @@ mod tests {
     /// trap above them as one selected group in one undo step.
     #[test]
     fn trap_opens_its_options_and_ok_traps_the_selection() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let mut rect = |x: f64, color: &str| {
             let id = app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
@@ -282,7 +282,7 @@ mod tests {
     /// them, and the next Divide leaves out the pieces of the object with no fill.
     #[test]
     fn pathfinder_options_open_and_ok_sets_what_the_next_divide_uses() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 100})).unwrap()["id"].clone();
         app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
@@ -314,30 +314,30 @@ mod tests {
     }
 
     /// A document with two overlapping 50 pt squares, both selected.
-    fn two_squares() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn two_squares() -> PlumaApp {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         select_two_squares(&mut app, 10.0);
         app
     }
 
     /// Draw two overlapping 50 pt squares, the first at (`x`, 10), and select only them.
-    fn select_two_squares(app: &mut VectorcraftApp, x: f64) {
+    fn select_two_squares(app: &mut PlumaApp, x: f64) {
         let a = app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
         let b = app.run("shape.rectangle", json!({"x": x + 30.0, "y": 40, "width": 50, "height": 50})).unwrap()["id"].clone();
         app.run("select.set", json!({"ids": [a, b]})).unwrap();
     }
 
     /// The kind and geometric bounds of each object on the first layer.
-    fn objects(app: &VectorcraftApp) -> Vec<(&'static str, [f64; 4])> {
+    fn objects(app: &PlumaApp) -> Vec<(&'static str, [f64; 4])> {
         let doc = &app.session.active().unwrap().doc;
-        let kind = |n: &vectorcraft_engine::doc::Node| if matches!(n.kind, NodeKind::Path { .. }) { "path" } else { "other" };
-        let bounds = |n: &vectorcraft_engine::doc::Node| n.geometric_bounds().map_or([0.0; 4], |b| [b.x0, b.y0, b.x1, b.y1]);
+        let kind = |n: &pluma_engine::doc::Node| if matches!(n.kind, NodeKind::Path { .. }) { "path" } else { "other" };
+        let bounds = |n: &pluma_engine::doc::Node| n.geometric_bounds().map_or([0.0; 4], |b| [b.x0, b.y0, b.x1, b.y1]);
         doc.layers[0].children().unwrap().iter().map(|n| (kind(n), bounds(n))).collect()
     }
 
     /// Cmd/Ctrl+4 pressed through the shortcut handler.
-    fn press_cmd_4(app: &mut VectorcraftApp) {
+    fn press_cmd_4(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         let ev = egui::Event::Key { key: egui::Key::Num4, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::COMMAND };
         let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
@@ -346,18 +346,18 @@ mod tests {
 
     /// A click on the panel button that screen readers name `label`. egui finds what the pointer
     /// is over from the frame before, so the move gets a frame of its own.
-    fn click_button(app: &mut VectorcraftApp, label: &str) {
+    fn click_button(app: &mut PlumaApp, label: &str) {
         click_button_with_modifiers(app, label, egui::Modifiers::NONE);
     }
 
     /// Click a panel button with a modifier held across the input frames.
-    fn click_button_with_modifiers(app: &mut VectorcraftApp, label: &str, modifiers: egui::Modifiers) {
+    fn click_button_with_modifiers(app: &mut PlumaApp, label: &str, modifiers: egui::Modifiers) {
         crate::i18n::set_current(crate::i18n::Lang::EN);
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         crate::theme::install_fonts(&ctx);
         let mut time = 0.0;
-        let mut frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let mut frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             time += 0.1;
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(300.0, 200.0));
             let mut events = events;
@@ -380,10 +380,10 @@ mod tests {
     }
 
     /// A click on the panel menu item labeled `label`.
-    fn click_menu_item(app: &mut VectorcraftApp, label: &str) {
+    fn click_menu_item(app: &mut PlumaApp, label: &str) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(236.0, 400.0));
             let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| menu(app, ui));
             out.textures_delta.clear();
@@ -408,12 +408,12 @@ mod tests {
         let chord = crate::shortcuts::parse("Cmd+4").expect("parses");
         assert_eq!((chord.modifiers, chord.logical_key), (egui::Modifiers::COMMAND, egui::Key::Num4));
         assert_eq!(crate::menus::pretty_shortcut("Cmd+4"), if cfg!(target_os = "macos") { "⌘4" } else { "Ctrl+4" });
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let listed = app.run("shortcuts.list", json!({"query": "pathfinder.repeat"})).unwrap();
         let rows: Vec<_> = listed.as_array().expect("rows").iter().map(|r| (r["label"].clone(), r["default"].clone())).collect();
         assert_eq!(rows, [(json!("Repeat Pathfinder"), json!("Cmd+4"))], "Keyboard Shortcuts lists it");
         assert_eq!(app.run("shortcuts.conflicts", json!({})).unwrap(), json!([]), "no other default has the key");
-        assert_eq!(vectorcraft_engine::command_specs().iter().filter(|c| c.shortcut == Some("Cmd+4")).count(), 0);
+        assert_eq!(pluma_engine::command_specs().iter().filter(|c| c.shortcut == Some("Cmd+4")).count(), 0);
         assert_eq!(crate::menus::UI_COMMANDS.iter().filter(|c| c.2 == "Cmd+4").map(|c| c.0).collect::<Vec<_>>(), ["pathfinder.repeat"]);
     }
 
@@ -597,7 +597,7 @@ mod tests {
     }
 
     /// How many compound shapes the active document holds.
-    fn compound_shapes(app: &VectorcraftApp) -> usize {
+    fn compound_shapes(app: &PlumaApp) -> usize {
         let mut n = 0;
         app.session.active().unwrap().doc.walk(|node| n += usize::from(node.is_compound_shape()));
         n
@@ -645,7 +645,7 @@ mod tests {
         app.run("select.set", json!({"ids": [front.0]})).unwrap();
         click_button(&mut app, "Minus Front");
         assert_eq!(compound_shapes(&app), 1, "no second compound shape");
-        assert_eq!(vectorcraft_engine::cmd::selected_member_modes(&app.session), [ShapeMode::Subtract]);
+        assert_eq!(pluma_engine::cmd::selected_member_modes(&app.session), [ShapeMode::Subtract]);
     }
 
     /// The setting is kept with the preferences; preferences saved before it read as off.

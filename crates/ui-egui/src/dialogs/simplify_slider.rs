@@ -3,24 +3,24 @@
 //! which opens the Simplify dialog at the slider's tolerance. While the strip is open, the canvas
 //! previews `object.path.simplify {level}`; Enter or a click outside the strip keeps the result as
 //! one undo step, and Escape puts the paths back. The slider opens at Auto-Simplify's level for
-//! the selection (`vectorcraft_engine::auto_simplify_level`), so the canvas first shows the
+//! the selection (`pluma_engine::auto_simplify_level`), so the canvas first shows the
 //! auto-simplified paths, as the Simplify help page describes
 //! (https://helpx.adobe.com/illustrator/desktop/draw-shapes-and-paths/modify-paths/manually-simplify-paths.html).
-//! `vectorcraft_pathops::simplify_level_tolerance` maps levels to tolerances.
+//! `pluma_pathops::simplify_level_tolerance` maps levels to tolerances.
 //!
 //! The strip itself ([`Strip`]) is shared with Object › Path › Smooth's slider (`smooth_slider`).
 //!
 //! Fields: `level` (0..=100, the command's parameter).
 
 use egui::{Color32, CornerRadius, Order, Pos2, Sense, Stroke, vec2};
+use pluma_engine::{SIMPLIFY_LEVEL, auto_simplify_level, simplify_level_tolerance};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_engine::{SIMPLIFY_LEVEL, auto_simplify_level, simplify_level_tolerance};
-use vectorcraft_geom::Rect;
 
 use super::{DialogResult, DialogSpec, form, modal};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the Simplify slider.
 pub(crate) const KIND: &str = "simplifySlider";
@@ -38,7 +38,7 @@ const STRIP: Strip = Strip {
 };
 
 /// A UI command a button of a strip runs.
-type Button = fn(&mut VectorcraftApp) -> Result<Value, String>;
+type Button = fn(&mut PlumaApp) -> Result<Value, String>;
 
 /// A slider strip under the selection that previews `cmd {level}` while it is open: its first
 /// button picks the level `cmd {auto: true}` does, and an optional last one, More Options, opens a
@@ -61,12 +61,12 @@ pub(super) struct Strip {
 
 impl Strip {
     /// Whether this strip is open.
-    pub fn showing(&self, app: &VectorcraftApp) -> bool {
+    pub fn showing(&self, app: &PlumaApp) -> bool {
         app.ui.dialog.as_ref().is_some_and(|d| d.kind == self.kind)
     }
 
     /// The open strip, if it is this one.
-    pub fn open(&self, app: &VectorcraftApp) -> Option<Dialog> {
+    pub fn open(&self, app: &PlumaApp) -> Option<Dialog> {
         app.ui.dialog.clone().filter(|d| d.kind == self.kind)
     }
 
@@ -80,13 +80,13 @@ impl Strip {
         json!({ "level": self.level(d) })
     }
 
-    pub fn confirm(&self, app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+    pub fn confirm(&self, app: &mut PlumaApp, d: &Dialog) -> DialogResult {
         form::commit_preview(app, self.cmd, self.params(d))
     }
 
     /// The open strip `d` moves to the level `cmd {auto: true}` picks for the selection, and the
     /// canvas previews it → {level}.
-    pub fn auto(&self, app: &mut VectorcraftApp, mut d: Dialog) -> Result<Value, String> {
+    pub fn auto(&self, app: &mut PlumaApp, mut d: Dialog) -> Result<Value, String> {
         let _ = app.session.begin_interaction(self.label);
         let r = app.session.preview(self.cmd, &json!({ "auto": true })).map_err(|e| e.to_string())?;
         let level = r["level"].as_f64().unwrap_or(self.default_level);
@@ -96,7 +96,7 @@ impl Strip {
         Ok(json!({ "level": level }))
     }
 
-    pub fn show(&self, app: &mut VectorcraftApp, ctx: &egui::Context) {
+    pub fn show(&self, app: &mut PlumaApp, ctx: &egui::Context) {
         let Some(mut d) = app.ui.dialog.clone() else { return };
         let t = Tokens::get(ctx);
         let id = egui::Id::unique(("dialog", self.kind));
@@ -147,33 +147,33 @@ impl Strip {
 
 /// The fields the slider opens with: Auto-Simplify's level for the selection, or
 /// [`SIMPLIFY_LEVEL`] without a document.
-pub(crate) fn fields(app: &VectorcraftApp) -> Value {
+pub(crate) fn fields(app: &PlumaApp) -> Value {
     json!({ "level": auto_simplify_level(&app.session).unwrap_or(SIMPLIFY_LEVEL) })
 }
 
 /// Whether the Simplify slider is open.
-pub(crate) fn showing(app: &VectorcraftApp) -> bool {
+pub(crate) fn showing(app: &PlumaApp) -> bool {
     STRIP.showing(app)
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     STRIP.confirm(app, d)
 }
 
-fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     STRIP.show(app, ctx);
 }
 
 /// Auto-Simplify (`ui.simplifyAuto`): the open slider moves to the level `object.path.simplify
 /// {auto: true}` picks for the selection, and the canvas previews it → {level}.
-pub(crate) fn auto(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn auto(app: &mut PlumaApp) -> Result<Value, String> {
     let d = STRIP.open(app).ok_or_else(|| "the Simplify slider is not open".to_string())?;
     STRIP.auto(app, d)
 }
 
 /// More Options (`ui.simplifyMoreOptions`): the Simplify dialog takes the slider's place, at the
 /// slider's tolerance → {tolerance}.
-pub(crate) fn more_options(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn more_options(app: &mut PlumaApp) -> Result<Value, String> {
     let d = STRIP.open(app).ok_or_else(|| "the Simplify slider is not open".to_string())?;
     let tolerance = simplify_level_tolerance(STRIP.level(&d));
     app.ui.dialog = Some(Dialog::new("simplify", super::path_ops::simplify_dialog(tolerance)));
@@ -185,7 +185,7 @@ const BOUNDS: &str = "__bounds";
 
 /// The selection's bounds before the preview: the interaction's snapshot when a preview runs, read
 /// once and kept in `d`, so the strip stays where it opened while the preview changes the paths.
-fn bounds(app: &mut VectorcraftApp, d: &mut Dialog) -> Option<Rect> {
+fn bounds(app: &mut PlumaApp, d: &mut Dialog) -> Option<Rect> {
     if let Some([x0, y0, x1, y1]) = d.fields.get(BOUNDS).and_then(|v| serde_json::from_value::<[f64; 4]>(v.clone()).ok()) {
         return Some(Rect::new(x0, y0, x1, y1));
     }
@@ -199,7 +199,7 @@ fn bounds(app: &mut VectorcraftApp, d: &mut Dialog) -> Option<Rect> {
 
 /// Where the strip goes: under the lowest corner on screen of `bounds` (the selection's, before the
 /// preview), centered on them, kept on the canvas.
-fn place(app: &mut VectorcraftApp, ctx: &egui::Context, id: egui::Id, bounds: Option<Rect>) -> Pos2 {
+fn place(app: &mut PlumaApp, ctx: &egui::Context, id: egui::Id, bounds: Option<Rect>) -> Pos2 {
     let size = egui::AreaState::load(ctx, id).and_then(|s| s.size).unwrap_or(vec2(270.0, 42.0));
     let screen = ctx.content_rect();
     let Some((rect, view)) = app.canvas_rect.zip(app.view().copied()) else { return screen.center() - size / 2.0 };

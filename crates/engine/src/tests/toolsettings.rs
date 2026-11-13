@@ -1,7 +1,7 @@
 //! Tool options that persist across tool switches, documents and launches (`Prefs::tool_settings`).
 
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -95,7 +95,7 @@ fn a_gesture_keeps_what_it_changed_and_a_document_switch_keeps_options() {
 /// while an option set during the drag stays.
 #[test]
 fn escape_on_a_drag_saves_the_options_it_put_back() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let mut s = session();
     select(&mut s, "rectangularGrid");
     let v = ViewInfo { smart_guides: false, ..Default::default() };
@@ -245,7 +245,7 @@ fn options_are_saved_with_the_preferences() {
 /// arrows changed, in the saved options and the Corner Radius preference too.
 #[test]
 fn escape_on_a_shape_drag_saves_the_option_it_put_back() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let mut s = session();
     let v = ViewInfo { smart_guides: false, ..Default::default() };
     let drag = |s: &mut Session| {
@@ -272,7 +272,7 @@ fn escape_on_a_shape_drag_saves_the_option_it_put_back() {
 /// still puts back the side count the arrow changed.
 #[test]
 fn escape_puts_back_the_sides_after_another_tool_s_option_is_set() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
+    use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
     let mut s = session();
     let v = ViewInfo { smart_guides: false, ..Default::default() };
     select(&mut s, "polygon");
@@ -292,7 +292,7 @@ fn escape_puts_back_the_sides_after_another_tool_s_option_is_set() {
 
 /// The Fidelity an Alt smoothing drag uses on a selected path.
 fn alt_smooth_fidelity(s: &mut Session) -> Option<f64> {
-    use vectorcraft_tools::{Action, Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Action, Mods, PointerEvent, PointerKind};
     let mods = Mods { alt: true, ..Default::default() };
     let mut last = vec![];
     for (kind, x, y) in [(PointerKind::Down, 50.0, 150.0), (PointerKind::Drag, 150.0, 150.0), (PointerKind::Up, 250.0, 160.0)] {

@@ -1,6 +1,6 @@
+use pluma_doc::Effect;
+use pluma_geom::{Affine, PathData, Point, Rect, Shape, SubPath, shapes};
 use serde_json::{Value, json};
-use vectorcraft_doc::Effect;
-use vectorcraft_geom::{Affine, PathData, Point, Rect, Shape, SubPath, shapes};
 
 use super::*;
 
@@ -137,7 +137,7 @@ fn geometry_effects_are_deterministic() {
 /// effects that do not reshape it.
 #[test]
 fn nine_slice_painted_effects_are_raster_effects() {
-    for id in vectorcraft_doc::PAINTED_EFFECTS {
+    for id in pluma_doc::PAINTED_EFFECTS {
         assert!(is_raster(id) && !is_geometry(id), "{id}");
     }
 }
@@ -280,7 +280,7 @@ fn stacked_transform_copies_stay_within_the_anchor_budget() {
 fn stacked_transform_copies_stay_within_the_image_budget() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::{ImageObject, NodeId};
+    use pluma_doc::{ImageObject, NodeId};
     let id = NodeId(9);
     let image = || {
         Node::new(
@@ -407,7 +407,7 @@ fn a_path_past_the_anchor_budget_still_takes_effects() {
 fn stacked_effects_on_art_stay_within_the_anchor_budget() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::NodeId;
+    use pluma_doc::NodeId;
     let id = NodeId(9);
     let leaf = |x: f64| Arc::new(Node::path(id, shapes::rectangle(Rect::new(x, 0.0, x + 100.0, 100.0)), Appearance::default()));
     let mut art = Node::group(id, (0..10).map(|k| leaf(k as f64 * 120.0)).collect());
@@ -431,10 +431,10 @@ fn stacked_effects_on_art_stay_within_the_anchor_budget() {
 fn art_past_the_budget_keeps_its_own_gradients_in_place() {
     use std::sync::Arc;
 
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
-    use vectorcraft_doc::{AppearanceItem, FillLayer, NodeId, color::Paint};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_doc::{AppearanceItem, FillLayer, NodeId, color::Paint};
     let id = NodeId(9);
-    let stops = vec![GradientStop::new(0.0, vectorcraft_color::Color::BLACK), GradientStop::new(1.0, vectorcraft_color::Color::WHITE)];
+    let stops = vec![GradientStop::new(0.0, pluma_color::Color::BLACK), GradientStop::new(1.0, pluma_color::Color::WHITE)];
     let geom = GradientGeom { start: (0.0, 50.0).into(), end: (100.0, 50.0).into(), aspect: 1.0, focal: None };
     let placed = Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..GradientPaint::new(Gradient::new(GradientKind::Linear, stops)) }));
     let circle = || Arc::new(Node::path(id, shapes::ellipse(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::default()));
@@ -481,9 +481,9 @@ fn art_past_the_budget_keeps_its_own_gradients_in_place() {
 fn a_hidden_path_past_the_budget_leaves_a_layers_gradients_free_to_move() {
     use std::sync::Arc;
 
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
-    use vectorcraft_doc::{AppearanceItem, FillLayer, LayerColor, NodeId, NodeKind, color::Paint};
-    let stops = vec![GradientStop::new(0.0, vectorcraft_color::Color::BLACK), GradientStop::new(1.0, vectorcraft_color::Color::WHITE)];
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_doc::{AppearanceItem, FillLayer, LayerColor, NodeId, NodeKind, color::Paint};
+    let stops = vec![GradientStop::new(0.0, pluma_color::Color::BLACK), GradientStop::new(1.0, pluma_color::Color::WHITE)];
     let geom = GradientGeom { start: (0.0, 50.0).into(), end: (100.0, 50.0).into(), aspect: 1.0, focal: None };
     let placed = Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..GradientPaint::new(Gradient::new(GradientKind::Linear, stops)) }));
     let end = |ap: &Appearance| match ap.fill_paint() {
@@ -530,8 +530,8 @@ fn a_hidden_path_past_the_budget_leaves_a_layers_gradients_free_to_move() {
 fn edited_freeform_points_follow_a_transform_effect_and_free_distort() {
     use std::sync::Arc;
 
-    use vectorcraft_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint};
-    use vectorcraft_doc::{AppearanceItem, FillLayer, NodeId, color::Paint};
+    use pluma_color::{Color, Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint};
+    use pluma_doc::{AppearanceItem, FillLayer, NodeId, color::Paint};
     let mut ramp = GradientPaint::new(Gradient { kind: GradientKind::Freeform, ..Gradient::default() });
     let pt = |x: f64, c| FreeformPoint::new(Point::new(x, 50.0), c);
     ramp.set_freeform(Freeform { points: vec![pt(0.0, Color::BLACK), pt(100.0, Color::WHITE)], ..Default::default() });
@@ -615,8 +615,8 @@ fn transform_copies_before_offset_path_evaluates_without_ram_spike() {
 
 #[test]
 fn reshape_leaves_within_optimizes_transform_before_terminal_offset_path() {
+    use pluma_doc::{Appearance, Node, NodeId};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, NodeId};
 
     let id = NodeId(10);
     let leaf = |x: f64| Arc::new(Node::path(id, shapes::rectangle(Rect::new(x, 0.0, x + 20.0, 20.0)), Appearance::default()));
@@ -640,8 +640,8 @@ fn reshape_leaves_within_optimizes_transform_before_terminal_offset_path() {
 
 #[test]
 fn reshape_leaves_within_preserves_order_when_not_terminal_or_not_style_safe() {
+    use pluma_doc::{Appearance, Node, NodeId, NodeKind};
     use std::sync::Arc;
-    use vectorcraft_doc::{Appearance, Node, NodeId, NodeKind};
 
     let id = NodeId(11);
     // 1. EvenOdd fill rule: preserving order causes Transform copies to union in Offset Path into 1 subpath.
@@ -698,7 +698,7 @@ fn transform_copies_stop_before_they_overflow() {
 fn transform_on_a_group_moves_and_copies_its_images() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::{Appearance, ImageObject, Node, NodeId, NodeKind};
+    use pluma_doc::{Appearance, ImageObject, Node, NodeId, NodeKind};
     let id = NodeId(9);
     let sq = Node::path(id, square(), Appearance::default());
     let image = Node::new(
@@ -751,7 +751,7 @@ fn transform_on_a_group_moves_and_copies_its_images() {
 fn transform_on_a_group_moves_and_copies_its_symbol_instances() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::{Appearance, Node, NodeId, NodeKind};
+    use pluma_doc::{Appearance, Node, NodeId, NodeKind};
     let id = NodeId(9);
     let instance = || Node::new(id, NodeKind::SymbolInstance { symbol: "s".into(), xf: Affine::translate((5.0, 40.0)) });
     let xs = |art: &Node| {
@@ -774,7 +774,7 @@ fn transform_on_a_group_moves_and_copies_its_symbol_instances() {
 fn images_and_symbol_instances_share_the_copy_budget() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::{ImageObject, NodeId};
+    use pluma_doc::{ImageObject, NodeId};
     let id = NodeId(9);
     let image = Node::new(
         id,
@@ -804,7 +804,7 @@ fn images_and_symbol_instances_share_the_copy_budget() {
 fn transform_copies_of_images_stop_at_the_reach_limit() {
     use std::sync::Arc;
 
-    use vectorcraft_doc::{ImageObject, NodeId};
+    use pluma_doc::{ImageObject, NodeId};
     let id = NodeId(9);
     let image = Node::new(
         id,
@@ -918,7 +918,7 @@ fn zigzag_spaces_ridges_evenly_along_a_straight_line() {
 /// follows a cosine, even where the ridges are much taller than they are apart.
 #[test]
 fn zigzag_smooth_is_a_wave() {
-    use vectorcraft_geom::kurbo::ParamCurve;
+    use pluma_geom::kurbo::ParamCurve;
     let line = PathData::single(SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(100.0, 0.0)], false));
     for size in [3.0, 30.0] {
         let out = run("distort.zigZag", json!({"ridges": 9, "points": "smooth", "size": size}), &line);
@@ -959,13 +959,10 @@ fn zigzag_on_a_circle_is_regular() {
 /// #1554 on an uneven curve: the ridges divide its length, not its parameter, into equal parts.
 #[test]
 fn zigzag_spaces_ridges_by_length_on_an_uneven_curve() {
-    use vectorcraft_geom::kurbo::{ParamCurve, ParamCurveArclen, ParamCurveNearest};
+    use pluma_geom::kurbo::{ParamCurve, ParamCurveArclen, ParamCurveNearest};
     let (a, b) = (Point::new(0.0, 0.0), Point::new(300.0, 0.0));
     let curve = PathData::single(SubPath::new(
-        vec![
-            vectorcraft_geom::Anchor::with_handles(a, a, Point::new(10.0, 40.0)),
-            vectorcraft_geom::Anchor::with_handles(b, Point::new(100.0, 200.0), b),
-        ],
+        vec![pluma_geom::Anchor::with_handles(a, a, Point::new(10.0, 40.0)), pluma_geom::Anchor::with_handles(b, Point::new(100.0, 200.0), b)],
         false,
     ));
     let c = curve.subpaths[0].segment(0);
@@ -988,7 +985,7 @@ fn offset_path_grows_and_shrinks() {
 
 #[test]
 fn outline_stroke_uses_context_stroke() {
-    let st = vectorcraft_doc::StrokeLayer::new(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), 10.0);
+    let st = pluma_doc::StrokeLayer::new(pluma_color::Paint::solid(pluma_color::Color::BLACK), 10.0);
     let ctx = GeomContext { stroke: Some(&st), ..Default::default() };
     let out = apply_geometry_with(&[fx("path.outlineStroke", json!({}))], &square(), Rect::new(0.0, 0.0, 100.0, 100.0), &ctx);
     let b = out.bounds().unwrap();
@@ -1037,7 +1034,7 @@ fn round_corners_replaces_corners() {
 /// A D: a straight back, a curved bowl, and two corners where the bowl meets the straight
 /// sides (the anchors there carry the bowl's handles).
 fn d_shape() -> PathData {
-    use vectorcraft_geom::Anchor;
+    use pluma_geom::Anchor;
     let p = Point::new;
     PathData::new(vec![SubPath::new(
         vec![
@@ -1058,7 +1055,7 @@ fn round_corners_also_rounds_where_a_curve_meets_a_line() {
     assert_eq!(out.anchor_count(), 8);
     assert!(all_finite(&out));
     // Every cut leaves both sides smoothly: no corner is left anywhere.
-    assert!(vectorcraft_geom::corners::path_corners(&out).is_empty(), "{out:?}");
+    assert!(pluma_geom::corners::path_corners(&out).is_empty(), "{out:?}");
     let (before, after) = (d.to_bezpath().area().abs(), out.to_bezpath().area().abs());
     assert!(after < before && after > before - 4.0 * 8.0 * 8.0, "{before} -> {after}");
     // The cut at a curve-line corner meets the straight side 8 from the corner.
@@ -1070,7 +1067,7 @@ fn round_corners_also_rounds_where_a_curve_meets_a_line() {
 fn round_corners_keeps_straight_corners_as_they_were() {
     // The D's straight corners are rounded as before, next to the new cuts: same anchors, same
     // quarter-circle handles, and the path still starts at its first corner's rounding.
-    use vectorcraft_geom::Anchor;
+    use pluma_geom::Anchor;
     let p = Point::new;
     let k = 8.0 * shapes::KAPPA;
     let out = stylize::round_corners(&d_shape(), 8.0);
@@ -1126,11 +1123,11 @@ fn scribble_does_not_cross_holes() {
     let out = run("stylize.scribble", params, &u).to_bezpath();
     for x in [40.0, 50.0, 60.0] {
         for y in [12.5, 32.5, 52.5] {
-            assert_eq!(vectorcraft_geom::kurbo::Shape::winding(&out, Point::new(x, y)), 0, "scribble covers the notch at ({x}, {y})");
+            assert_eq!(pluma_geom::kurbo::Shape::winding(&out, Point::new(x, y)), 0, "scribble covers the notch at ({x}, {y})");
         }
     }
     // The bar below the notch is still hatched.
-    assert_ne!(vectorcraft_geom::kurbo::Shape::winding(&out, Point::new(50.0, 82.5)), 0);
+    assert_ne!(pluma_geom::kurbo::Shape::winding(&out, Point::new(50.0, 82.5)), 0);
 }
 
 #[test]
@@ -1233,7 +1230,7 @@ fn raster_effects_parse_and_outset() {
     assert_eq!(r.len(), 5);
     match &r[0] {
         RasterFx::DropShadow { mode, opacity, dx, dy, blur, color, darkness } => {
-            assert_eq!(*mode, vectorcraft_doc::color::BlendMode::Multiply);
+            assert_eq!(*mode, pluma_doc::color::BlendMode::Multiply);
             assert!(close(*opacity as f64, 0.5, 1e-6));
             assert_eq!((*dx, *dy, *blur), (10.0, -4.0, 6.0));
             assert_eq!(color.to_rgb(), [1.0, 0.0, 0.0]);
@@ -1242,8 +1239,8 @@ fn raster_effects_parse_and_outset() {
         other => panic!("{other:?}"),
     }
     assert!(matches!(r[2], RasterFx::InnerGlow { center: true, .. }));
-    assert!(close(outset(&list, vectorcraft_geom::Rect::ZERO), 10.0 + 9.0, 1e-9));
-    assert_eq!(outset(&[], vectorcraft_geom::Rect::ZERO), 0.0);
+    assert!(close(outset(&list, pluma_geom::Rect::ZERO), 10.0 + 9.0, 1e-9));
+    assert_eq!(outset(&[], pluma_geom::Rect::ZERO), 0.0);
 }
 
 #[test]
@@ -1306,7 +1303,7 @@ fn rasterize_compose_leaves_the_raster_alone_when_the_sizes_do_not_fit() {
 
 #[test]
 fn blend_mode_names() {
-    use vectorcraft_doc::color::BlendMode;
+    use pluma_doc::color::BlendMode;
     assert_eq!(raster::blend_mode("Color-Burn"), BlendMode::ColorBurn);
     assert_eq!(raster::blend_mode("screen"), BlendMode::Screen);
     assert_eq!(raster::blend_mode("???"), BlendMode::Normal);
@@ -1343,8 +1340,8 @@ fn bench_catalog_lookup() {
 
 #[test]
 fn a_repeat_of_a_symbol_whose_art_is_a_repeat_shares_the_instance_budget() {
+    use pluma_doc::{Document, NodeId, RepeatKind, RepeatSpec, Symbol};
     use std::sync::Arc;
-    use vectorcraft_doc::{Document, NodeId, RepeatKind, RepeatSpec, Symbol};
     let unit = || {
         Arc::new(Node::path(
             NodeId(0),

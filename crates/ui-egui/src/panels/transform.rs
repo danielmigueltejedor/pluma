@@ -5,16 +5,16 @@
 //! their X (vertical guides) and Y (horizontal ones).
 
 use egui::Ui;
+use pluma_doc::{LiveShape, Node, NodeKind, OrientedBox};
+use pluma_geom::shapes::CornerKind;
+use pluma_geom::{Point, Rect, Vec2};
 use serde_json::json;
-use vectorcraft_doc::{LiveShape, Node, NodeKind, OrientedBox};
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_geom::{Point, Rect, Vec2};
 
 use super::{corner_radius_row, first_selected, pstate, set_pstate};
 use crate::dialogs::corners::kind_label as corner_kind;
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 pub const ANGLE_PRESETS: [f64; 9] = [-180.0, -135.0, -90.0, -45.0, 0.0, 45.0, 90.0, 135.0, 180.0];
 /// The shear angle's presets: steep enough to be useful, short of the degenerate ±90°.
@@ -30,7 +30,7 @@ pub fn constrained(w: f64, h: f64, new_w: Option<f64>, new_h: Option<f64>) -> (f
 }
 
 /// The artboard the Artboard tool has active, while that tool is in use.
-fn tool_artboard(app: &VectorcraftApp) -> Option<(usize, Rect)> {
+fn tool_artboard(app: &PlumaApp) -> Option<(usize, Rect)> {
     if app.session.tool_id() != "artboard" {
         return None;
     }
@@ -41,7 +41,7 @@ fn tool_artboard(app: &VectorcraftApp) -> Option<(usize, Rect)> {
 /// Where an artboard goes when the panel sets its X, Y, W or H: the reference point `refi` moves to
 /// the new X/Y or stays put while the size changes (both sides together when `link` is on).
 pub fn artboard_rect(r: Rect, refi: usize, x: Option<f64>, y: Option<f64>, w: Option<f64>, h: Option<f64>, link: bool) -> Rect {
-    let rp = vectorcraft_geom::reference_point(r, refi);
+    let rp = pluma_geom::reference_point(r, refi);
     let (w0, h0) = (r.width(), r.height());
     let (nw, nh) = if link { constrained(w0, h0, w, h) } else { (w.unwrap_or(w0), h.unwrap_or(h0)) };
     // Where the reference point sits across the box (0, ½ or 1 of each side).
@@ -88,7 +88,7 @@ impl PanelReference {
 /// › Registration) where the instance's transform puts it, with the box's reference point nearest
 /// it: after a flip the art's top-left corner is the box's top-right one, after a rotation the
 /// box turns with the art.
-pub fn panel_reference(app: &VectorcraftApp, ui: &Ui, bx: &OrientedBox) -> PanelReference {
+pub fn panel_reference(app: &PlumaApp, ui: &Ui, bx: &OrientedBox) -> PanelReference {
     let Some(q) = symbol_registration(app) else {
         let index = reference_index(ui);
         return PanelReference { index, point: bx.reference_point(index), shift: Vec2::ZERO };
@@ -103,16 +103,16 @@ pub fn panel_reference(app: &VectorcraftApp, ui: &Ui, bx: &OrientedBox) -> Panel
 /// Where the registration point of the one selected symbol instance is on the page, while Use
 /// Registration Point for Symbol is on: the point of the symbol's art box on the 9-point grid,
 /// placed by the instance's transform.
-fn symbol_registration(app: &VectorcraftApp) -> Option<Point> {
+fn symbol_registration(app: &PlumaApp) -> Option<Point> {
     if !app.session.prefs.use_registration_point_for_symbol {
         return None;
     }
     let st = app.session.active()?;
     let [id] = st.selection.objects.as_slice() else { return None };
     let NodeKind::SymbolInstance { symbol, xf } = &st.doc.node(*id)?.kind else { return None };
-    let own = Node::new(*id, NodeKind::SymbolInstance { symbol: symbol.clone(), xf: vectorcraft_geom::Affine::IDENTITY });
+    let own = Node::new(*id, NodeKind::SymbolInstance { symbol: symbol.clone(), xf: pluma_geom::Affine::IDENTITY });
     let art = own.geometric_bounds_with(&st.doc.symbol_boxes())?;
-    Some(*xf * vectorcraft_geom::reference_point(art, usize::from(st.doc.symbol_registration(symbol).0)))
+    Some(*xf * pluma_geom::reference_point(art, usize::from(st.doc.symbol_registration(symbol).0)))
 }
 
 /// The Transform panel menu's choices for what the panel transforms: the value of the
@@ -125,7 +125,7 @@ const PATTERN_MODES: [(&str, &str); 3] = [("object", "Transform Object Only"), (
 /// Only (the pattern tiles alone) or Transform Both. Until one is chosen (`default`, or any other
 /// value) neither is passed: patterns follow General › Transform Pattern Tiles. Errors are
 /// dropped, as the panels' fields have always done.
-pub fn run_transform(app: &mut VectorcraftApp, cmd: &str, mut params: serde_json::Value) {
+pub fn run_transform(app: &mut PlumaApp, cmd: &str, mut params: serde_json::Value) {
     let switches = match app.session.prefs.transform_panel_patterns.as_str() {
         "object" => Some((true, false)),
         "pattern" => Some((false, true)),
@@ -142,7 +142,7 @@ pub fn run_transform(app: &mut VectorcraftApp, cmd: &str, mut params: serde_json
 /// The panel menu's checked choice of [`PATTERN_MODES`]: the one chosen, else (`default`) what
 /// General › Transform Pattern Tiles makes the panel do, Transform Both when it is on and
 /// Transform Object Only when it is off.
-fn pattern_mode(app: &VectorcraftApp) -> &'static str {
+fn pattern_mode(app: &PlumaApp) -> &'static str {
     let prefs = &app.session.prefs;
     PATTERN_MODES.iter().map(|(v, _)| *v).find(|v| *v == prefs.transform_panel_patterns).unwrap_or(if prefs.transform_pattern_tiles {
         "both"
@@ -163,7 +163,7 @@ pub fn reference_locator(ui: &mut Ui, refi: usize) {
 /// `moveArt` and `scaleArt`; an error is shown in the status bar. A new X or Y moves artboard
 /// `index` alone; a new W or H resizes every selected artboard about its own reference point
 /// ([`crate::panels::artboards::resized_with`]), in one undo step.
-pub fn set_artboard(app: &mut VectorcraftApp, index: usize, refi: usize, xywh: [Option<f64>; 4], link: bool) {
+pub fn set_artboard(app: &mut PlumaApp, index: usize, refi: usize, xywh: [Option<f64>; 4], link: bool) {
     let [x, y, w, h] = xywh;
     let scale_art = crate::panels::artboards::scale_art(app);
     let move_art = crate::panels::artboards::move_art(app);
@@ -181,13 +181,13 @@ pub fn set_artboard(app: &mut VectorcraftApp, index: usize, refi: usize, xywh: [
 /// The Artboard tool's view of the panel, and the Properties panel's Transform section in Edit
 /// Artboards: the reference point, artboard `index`'s position and size at `r` in fields
 /// `fw` wide ([`set_artboard`]), and the Constrain Width and Height Proportions link.
-pub(crate) fn artboard_fields(app: &mut VectorcraftApp, ui: &mut Ui, index: usize, r: Rect, fw: f32) {
+pub(crate) fn artboard_fields(app: &mut PlumaApp, ui: &mut Ui, index: usize, r: Rect, fw: f32) {
     let units = app.session.general_unit();
     let origin = app.ruler_origin();
     let refi = reference_index(ui);
     let link = proportional(app, ui);
-    let rp = vectorcraft_geom::reference_point(r, refi);
-    let set = |app: &mut VectorcraftApp, x, y, w, h| set_artboard(app, index, refi, [x, y, w, h], link);
+    let rp = pluma_geom::reference_point(r, refi);
+    let set = |app: &mut PlumaApp, x, y, w, h| set_artboard(app, index, refi, [x, y, w, h], link);
     ui.horizontal(|ui| {
         reference_locator(ui, refi);
         ui.add_space(4.0);
@@ -217,7 +217,7 @@ pub(crate) fn artboard_fields(app: &mut VectorcraftApp, ui: &mut Ui, index: usiz
 
 /// With ruler guides selected and no art: the X of the vertical ones and the Y of the horizontal
 /// ones (the least of each; none where no such guide is selected).
-pub(crate) fn selected_guides(app: &VectorcraftApp) -> Option<(Option<f64>, Option<f64>)> {
+pub(crate) fn selected_guides(app: &PlumaApp) -> Option<(Option<f64>, Option<f64>)> {
     let st = app.session.active()?;
     if !st.selection.objects.is_empty() || st.selection.guides.is_empty() {
         return None;
@@ -231,7 +231,7 @@ pub(crate) fn selected_guides(app: &VectorcraftApp) -> Option<(Option<f64>, Opti
 /// The selected ruler guides' view of the panel (#1597), also the Properties panel's Transform
 /// section for them: X moves the vertical ones and Y the horizontal ones, together. The fields
 /// are `width` wide.
-pub(crate) fn guide_fields(app: &mut VectorcraftApp, ui: &mut Ui, (x, y): (Option<f64>, Option<f64>), width: f32) {
+pub(crate) fn guide_fields(app: &mut PlumaApp, ui: &mut Ui, (x, y): (Option<f64>, Option<f64>), width: f32) {
     let units = app.session.general_unit();
     let origin = app.ruler_origin();
     egui::Grid::new("xfp-guide-grid").num_columns(2).spacing([4.0, 6.0]).min_col_width(0.0).show(ui, |ui| {
@@ -249,7 +249,7 @@ pub(crate) fn guide_fields(app: &mut VectorcraftApp, ui: &mut Ui, (x, y): (Optio
     });
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     if app.session.active().is_none() {
         widgets::dim_label(ui, tl!("No document"));
@@ -344,7 +344,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // Live shape properties (a path with live corners is no shape).
     if let Some(n) = first_selected(app)
         && let NodeKind::Path { live: Some(live), .. } = &n.kind
-        && !matches!(**live, vectorcraft_doc::LiveShape::Path { .. })
+        && !matches!(**live, pluma_doc::LiveShape::Path { .. })
     {
         widgets::divider(ui);
         if !live_shape_rows(app, ui, &n, live, "xfp", true) {
@@ -369,7 +369,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// The selected objects' Align to Pixel Grid: on or off when they agree, `None` when they differ,
 /// with whether every one can be aligned (a path that is not a guide and not inside a compound path,
 /// or a compound path) and their ids. `None` with nothing selected.
-fn pixel_aligned_state(app: &VectorcraftApp) -> Option<(Option<bool>, bool, Vec<u64>)> {
+fn pixel_aligned_state(app: &PlumaApp) -> Option<(Option<bool>, bool, Vec<u64>)> {
     let st = app.session.active()?;
     let nodes: Vec<&Node> = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)).collect();
     let first = nodes.first()?.extras().pixel_aligned;
@@ -382,7 +382,7 @@ fn pixel_aligned_state(app: &VectorcraftApp) -> Option<(Option<bool>, bool, Vec<
 /// The Align to Pixel Grid checkbox (`object.setPixelAligned`): a dash when the selected objects
 /// differ, and unavailable unless every selected object can be aligned. A click turns it on for
 /// them all, or off when it is on for them all.
-fn pixel_grid_check(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn pixel_grid_check(app: &mut PlumaApp, ui: &mut Ui) {
     let (value, alignable, ids) = pixel_aligned_state(app).unwrap_or((Some(false), false, vec![]));
     if widgets::check3(ui, tl!("Align to Pixel Grid"), value, alignable)
         && let Err(e) = app.run("object.setPixelAligned", json!({"ids": ids, "on": value != Some(true)}))
@@ -395,7 +395,7 @@ fn pixel_grid_check(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// Contextual Task Bar), their widget ids under `id`. `headed` adds the Rectangle and Polygon
 /// Properties headings; an ellipse's heading always shows. Returns false, drawing nothing, for
 /// other live shapes.
-pub(crate) fn live_shape_rows(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, live: &LiveShape, id: &str, headed: bool) -> bool {
+pub(crate) fn live_shape_rows(app: &mut PlumaApp, ui: &mut Ui, n: &Node, live: &LiveShape, id: &str, headed: bool) -> bool {
     match live {
         LiveShape::Rectangle { .. } => {
             if headed {
@@ -420,7 +420,7 @@ pub(crate) fn live_shape_rows(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, l
 
 /// An ellipse's Pie Start and End Angle (degrees, counterclockwise from 3 o'clock; 0 to 360 is the
 /// whole ellipse) and Invert Pie, which shows the other part of it (Transform and Properties panels).
-pub(crate) fn pie_rows(app: &mut VectorcraftApp, ui: &mut Ui, pie: (f64, f64), id: &str) {
+pub(crate) fn pie_rows(app: &mut PlumaApp, ui: &mut Ui, pie: (f64, f64), id: &str) {
     for (label, key, v) in [(tl!("Pie Start Angle:"), "pieStart", pie.0), (tl!("Pie End Angle:"), "pieEnd", pie.1)] {
         ui.horizontal(|ui| {
             widgets::dim_label(ui, label);
@@ -437,7 +437,7 @@ pub(crate) fn pie_rows(app: &mut VectorcraftApp, ui: &mut Ui, pie: (f64, f64), i
 /// A live polygon's Polygon Properties (Transform and Properties panels): its side count, angle
 /// (counterclockwise), corner type and radius, radius (centre to vertex) and side length, and Make
 /// Sides Equal, which an uneven scale enables.
-pub(crate) fn polygon_rows(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, live: &LiveShape, id: &str) {
+pub(crate) fn polygon_rows(app: &mut PlumaApp, ui: &mut Ui, n: &Node, live: &LiveShape, id: &str) {
     let LiveShape::Polygon { sides, .. } = live else { return };
     let (units, fw) = (app.session.general_unit(), super::field_width(ui));
     let radius = live.polygon_radius();
@@ -488,7 +488,7 @@ pub(crate) fn polygon_rows(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, live
 
 /// The Control bar's underlined "Transform" link: a click toggles the Transform panel in a
 /// popover under it, as the Stroke link does with the Stroke panel.
-pub fn link(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn link(app: &mut PlumaApp, ui: &mut Ui) {
     let resp = ui.link(link_text(ui)).on_hover_text(tl!("Transform options"));
     widgets::popover(&resp, resp.clicked(), |ui| {
         ui.set_width(300.0);
@@ -512,7 +512,7 @@ pub const CONSTRAIN_LINK_SIZE: f32 = 22.0;
 /// The link between W and H (Transform panel, Properties panel, Control bar): one toggle, the
 /// `constrainProportions` preference, which the size fields pass on as `proportional`. It is drawn
 /// after the fields it sits between, so Tab reaches the fields first and the link after them.
-pub fn constrain_link(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn constrain_link(app: &mut PlumaApp, ui: &mut Ui) {
     let (_, resp) = ui.allocate_exact_size(egui::Vec2::splat(CONSTRAIN_LINK_SIZE), egui::Sense::click());
     constrain_link_at(app, ui, resp);
 }
@@ -520,7 +520,7 @@ pub fn constrain_link(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// [`constrain_link`]'s toggle, made over `at`: the Control bar keeps the link's place between W
 /// and H but makes it after H, so Tab goes from W straight to H and finds the link after it. With
 /// the keyboard on it, Space or Enter toggles it, as a dialog's button takes them.
-pub fn constrain_link_at(app: &mut VectorcraftApp, ui: &mut Ui, at: egui::Response) {
+pub fn constrain_link_at(app: &mut PlumaApp, ui: &mut Ui, at: egui::Response) {
     let on = app.session.prefs.constrain_proportions;
     let tip = tl!("Constrain Width and Height Proportions");
     let keyed = at.has_focus()
@@ -538,25 +538,25 @@ pub fn constrain_link_room(ui: &mut Ui) -> egui::Rect {
 /// The `copy` param of a command that a field of the Transform panel, the Properties panel's
 /// Transform section or the Control bar runs: true when Alt+Enter (Option+Return) applied the value
 /// and no anchors are selected with Direct Selection.
-pub fn alt_enter_copies(app: &VectorcraftApp, ui: &Ui) -> bool {
+pub fn alt_enter_copies(app: &PlumaApp, ui: &Ui) -> bool {
     widgets::enter_modifiers(ui).is_some_and(|m| m.alt) && app.session.active().is_some_and(|st| st.selection.anchors.is_empty())
 }
 
 /// The `proportional` param of the W and H fields of the Transform panel (the artboard's too), the
 /// Properties panel's Transform section and the Control bar: the Constrain Width and Height
 /// Proportions link, or true when Ctrl/Cmd+Enter applied the value.
-pub fn proportional(app: &VectorcraftApp, ui: &Ui) -> bool {
+pub fn proportional(app: &PlumaApp, ui: &Ui) -> bool {
     app.session.prefs.constrain_proportions || widgets::enter_modifiers(ui).is_some_and(|m| m.command)
 }
 
 /// Toggle a boolean preference (through `prefs.set`, as agents do).
-pub fn set_pref(app: &mut VectorcraftApp, key: &str, on: bool) {
+pub fn set_pref(app: &mut PlumaApp, key: &str, on: bool) {
     if let Err(e) = app.run("prefs.set", json!({ "key": key, "value": on })) {
         app.status(e);
     }
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let hidden: bool = pstate(ui.ctx(), "xf-hide-options");
     let has = super::selection_len(app) > 0;
     // The flips mirror across the panel's reference point, as its flip buttons do.

@@ -1,12 +1,12 @@
 use super::*;
+use pluma_color::{Color, Paint};
+use pluma_doc::{CharStyle, Effect, NodeId, TextObject};
+use pluma_geom::{Point, Rect, shapes};
 use serde_json::json;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{CharStyle, Effect, NodeId, TextObject};
-use vectorcraft_geom::{Point, Rect, shapes};
 
 /// Type tests need glyph outlines, which only the optional craft-fonts build input provides.
 fn skip_without_craft_fonts() -> bool {
-    let skip = vectorcraft_text::CRAFT_FONTS.is_empty();
+    let skip = pluma_text::CRAFT_FONTS.is_empty();
     if skip {
         eprintln!("skipped: built without craft-fonts (set CRAFT_FONTS_DIR to a craft-fonts checkout to run it)");
     }
@@ -18,7 +18,7 @@ fn fx(id: &str, params: serde_json::Value) -> Effect {
 }
 
 /// Asserts that placed gradient `got` has `want`'s start, end, aspect and focal point, within 1e-6.
-fn assert_geom_near(got: vectorcraft_color::GradientGeom, want: vectorcraft_color::GradientGeom, what: &str) {
+fn assert_geom_near(got: pluma_color::GradientGeom, want: pluma_color::GradientGeom, what: &str) {
     let near = |a: Point, b: Point| a.distance(b) < 1e-6;
     let focal = match (got.focal, want.focal) {
         (None, None) => true,
@@ -61,7 +61,7 @@ fn object_effects_become_geometry_and_raster_effects_stay() {
 
 #[test]
 fn a_baked_transform_moves_a_placed_gradient_with_the_path() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let geom = GradientGeom { start: Point::new(0.0, 50.0), end: Point::new(100.0, 50.0), aspect: 1.0, focal: None };
@@ -109,7 +109,7 @@ fn a_baked_transform_moves_a_placed_gradient_with_the_path() {
 /// A stroke's own Transform effect or Free Distort moves the gradient placed on that stroke.
 #[test]
 fn a_strokes_own_transform_and_free_distort_move_its_placed_gradient() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let geom = GradientGeom { start: Point::new(0.0, 50.0), end: Point::new(100.0, 50.0), aspect: 1.0, focal: None };
@@ -145,7 +145,7 @@ fn a_strokes_own_transform_and_free_distort_move_its_placed_gradient() {
 
 #[test]
 fn a_fills_gradient_follows_the_effects_around_its_transform_with_options() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let geom = GradientGeom { start: Point::new(0.0, 50.0), end: Point::new(100.0, 50.0), aspect: 1.0, focal: None };
@@ -175,7 +175,7 @@ fn a_fills_gradient_follows_the_effects_around_its_transform_with_options() {
 
 #[test]
 fn baked_free_distort_moves_placed_gradients_from_the_bounds_to_the_distorted_bounds() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = |kind| GradientPaint::new(Gradient::new(kind, stops.clone()));
     let linear = GradientGeom { start: Point::new(20.0, 50.0), end: Point::new(80.0, 50.0), aspect: 1.0, focal: None };
@@ -215,7 +215,7 @@ fn baked_free_distort_moves_placed_gradients_from_the_bounds_to_the_distorted_bo
 /// Moves and even scales leave it fitted.
 #[test]
 fn a_fitted_gradient_turns_reflects_and_stretches_with_a_transform_effect() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let fitted = |kind| Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(kind, stops.clone()))));
     let geom = |start: (f64, f64), end: (f64, f64)| GradientGeom { start: start.into(), end: end.into(), aspect: 1.0, focal: None };
@@ -310,7 +310,7 @@ fn a_fitted_gradient_turns_reflects_and_stretches_with_a_transform_effect() {
 /// mapping it with the effect would flatten it to one color.
 #[test]
 fn a_transform_effect_that_scales_to_nothing_leaves_a_fitted_gradient_fitted() {
-    use vectorcraft_color::{Gradient, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let fitted = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
     // With Scale Strokes & Effects or Transform Patterns on, and for each copy, as without them.
@@ -345,7 +345,7 @@ fn a_transform_effect_that_scales_to_nothing_leaves_a_fitted_gradient_fitted() {
 
 #[test]
 fn baked_warps_move_placed_gradients_from_the_bounds_to_the_warped_bounds() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = |kind| GradientPaint::new(Gradient::new(kind, stops.clone()));
     // A ramp across the square and one down it, so both axes of the box map show.
@@ -444,7 +444,7 @@ fn baked_warps_move_placed_gradients_from_the_bounds_to_the_warped_bounds() {
 /// exactly where it was, even where warping the outline moves its bounds by a rounding error.
 #[test]
 fn a_warp_with_no_bend_leaves_a_placed_gradient_exactly_in_place() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let geom = GradientGeom { start: Point::new(13.7, 31.3), end: Point::new(91.1, 47.9), aspect: 1.0, focal: None };
     let placed = Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..GradientPaint::new(Gradient::new(GradientKind::Linear, stops)) }));
@@ -474,7 +474,7 @@ fn a_warp_with_no_bend_leaves_a_placed_gradient_exactly_in_place() {
 /// path's bounds before the warp to its bounds after it (a stroke: its stroke-inflated bounds).
 #[test]
 fn a_fills_and_a_strokes_own_warp_move_its_placed_gradient_with_the_bounds() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let ramp = GradientPaint::new(Gradient::new(GradientKind::Linear, stops));
     let geom = GradientGeom { start: Point::new(20.0, 60.0), end: Point::new(80.0, 60.0), aspect: 1.0, focal: None };
@@ -547,7 +547,7 @@ fn a_baked_stroke_leaves_dither_behind() {
     // Strokes ignore dither, so the filled outline goes without it and looks as the stroke did.
     let mut n = Node::path(NodeId(50), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::default_art());
     if let AppearanceItem::Stroke(s) = &mut n.appearance.items[1] {
-        let mut g = vectorcraft_color::GradientPaint::new(Default::default());
+        let mut g = pluma_color::GradientPaint::new(Default::default());
         g.gradient.dither = true;
         s.paint = Paint::Gradient(Box::new(g));
     }
@@ -563,8 +563,8 @@ fn a_baked_stroke_with_a_gradient_along_it_becomes_meshes_clipped_to_its_outline
     let mut n = Node::path(NodeId(50), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0)), Appearance::default_art());
     if let AppearanceItem::Stroke(s) = &mut n.appearance.items[1] {
         s.width = 10.0;
-        s.paint = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(Default::default())));
-        s.gradient_mode = vectorcraft_doc::StrokeGradientMode::Along;
+        s.paint = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(Default::default())));
+        s.gradient_mode = pluma_doc::StrokeGradientMode::Along;
         s.opacity = 0.5;
     }
     let m = bake_appearance(None, &n).unwrap();
@@ -609,7 +609,7 @@ fn a_baked_transform_copy_keeps_its_scaled_stroke() {
 
 #[test]
 fn a_baked_transform_copy_keeps_its_moved_pattern() {
-    let paint = Paint::Pattern { pattern: "p".into(), xf: vectorcraft_geom::Affine::IDENTITY };
+    let paint = Paint::Pattern { pattern: "p".into(), xf: pluma_geom::Affine::IDENTITY };
     let n = transformed(paint, Paint::None, 0.0, json!({"moveH": 30, "copies": 1, "patterns": true}));
     let m = bake_appearance(None, &n).unwrap();
     let xs: Vec<f64> = baked_paths(&m)
@@ -835,7 +835,7 @@ fn type_with_a_look_of_its_own_in_a_moved_group_is_still_outlined() {
     shadowed.appearance.effects.push(fx("stylize.dropShadow", json!({})));
     let mut gradient = type_node(50);
     if let NodeKind::Text(t) = &mut gradient.kind {
-        t.runs[0].style.fill = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default())));
+        t.runs[0].style.fill = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::default())));
     }
     let mut reshaped = type_node(50);
     let mut fill = FillLayer::new(Paint::solid(Color::BLACK));
@@ -955,7 +955,7 @@ fn type_is_copied_only_when_the_effect_makes_every_copy() {
     // A 10 pt line with `n` anchors.
     let line = |n: usize| {
         let pts: Vec<Point> = (0..n).map(|i| Point::new(i as f64 * 10.0 / n as f64, 0.0)).collect();
-        PathData::new(vec![vectorcraft_geom::SubPath::polyline(&pts, false)])
+        PathData::new(vec![pluma_geom::SubPath::polyline(&pts, false)])
     };
     let right = json!({"moveH": 10, "copies": 1000});
     let down = json!({"moveV": 10, "copies": 1});
@@ -974,7 +974,7 @@ fn type_is_copied_only_when_the_effect_makes_every_copy() {
 }
 /// A 10 pt square painted with a red to blue gradient and a Transform effect with 2 copies.
 fn gradient_copies(id: u64) -> Node {
-    use vectorcraft_color::{Gradient, GradientKind, GradientPaint, GradientStop};
+    use pluma_color::{Gradient, GradientKind, GradientPaint, GradientStop};
     let stops = vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))];
     let paint = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
     let mut n = Node::path(NodeId(id), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::basic(paint, Paint::None, 0.0));

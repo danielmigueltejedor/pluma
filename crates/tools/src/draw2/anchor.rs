@@ -12,15 +12,15 @@
 //! follow the same conversions (#2544).
 //! Scissors: click a path to split it there (Alt = add, as the Add Anchor Point tool does).
 
+use pluma_doc::NodeId;
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Point;
 
 use super::{hit_anchor, hit_segment, insert_anchor, remove_anchor};
 use crate::direct::hit_handle;
 use crate::guides::HandleSnap;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
-use vectorcraft_geom::constrain_angle_from;
+use pluma_geom::constrain_angle_from;
 
 #[derive(Clone, Copy, Debug)]
 enum State {
@@ -121,7 +121,7 @@ impl AnchorTool {
     }
 
     /// Nearest point of this eligible spine, in document coordinates.
-    fn spine_point(path: &vectorcraft_geom::PathData, p: Point, tol: f64) -> Option<usize> {
+    fn spine_point(path: &pluma_geom::PathData, p: Point, tol: f64) -> Option<usize> {
         path.anchors()
             .filter(|(si, _, a)| *si == 0 && a.p.distance(p) <= tol)
             .min_by(|a, b| a.2.p.distance(p).total_cmp(&b.2.p.distance(p)))
@@ -129,7 +129,7 @@ impl AnchorTool {
     }
 
     /// Nearest shown handle, only when closer than its own anchor (short handles).
-    fn spine_handle(cx: &ToolContext, path: &vectorcraft_geom::PathData, p: Point, tol: f64) -> Option<(usize, bool)> {
+    fn spine_handle(cx: &ToolContext, path: &pluma_geom::PathData, p: Point, tol: f64) -> Option<(usize, bool)> {
         let anchors: Vec<_> = path.anchors().filter(|(si, _, _)| *si == 0).collect();
         if !cx.handles_multiple && anchors.len() > 1 {
             return None;
@@ -276,7 +276,7 @@ impl AnchorTool {
     }
 
     /// How far a Shift-dragged anchor has gone: Shift still held keeps it at 45° steps.
-    fn move_delta(cx: &ToolContext, start: Point, p: Point, shift: bool) -> vectorcraft_geom::Vec2 {
+    fn move_delta(cx: &ToolContext, start: Point, p: Point, shift: bool) -> pluma_geom::Vec2 {
         if shift { constrain_angle_from(p - start, 45.0, cx.constrain_angle) } else { p - start }
     }
 

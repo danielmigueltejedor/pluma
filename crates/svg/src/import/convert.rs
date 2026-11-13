@@ -1,11 +1,11 @@
 use super::{Affine, Arc, BezPath, BlendMode, Color, FillRule, GradientStop, HashMap, Node, PathData, Point, XNode, roxmltree};
-use vectorcraft_geom::path::{Anchor, AnchorKind, SubPath};
-use vectorcraft_geom::shapes::KAPPA;
+use pluma_geom::path::{Anchor, AnchorKind, SubPath};
+use pluma_geom::shapes::KAPPA;
 
 /// `n` with every object id (its descendants' and its mask art's too) zeroed, to compare art.
 pub(super) fn without_ids(n: &Node) -> Node {
     let mut n = n.clone();
-    n.id = vectorcraft_doc::NodeId(0);
+    n.id = pluma_doc::NodeId(0);
     if let Some(m) = n.extras_if_any().and_then(|e| e.mask.as_deref_mut()) {
         m.art = Arc::new(without_ids(&m.art));
     }
@@ -79,7 +79,7 @@ pub(super) fn mask_flags(xml: &roxmltree::Document) -> HashMap<String, (bool, bo
 }
 
 /// Prefix of the ids [`prepass`] gives the elements it has to find again that have none.
-pub(super) const MADE_UP_ID: &str = "vectorcraft-id-";
+pub(super) const MADE_UP_ID: &str = "pluma-id-";
 
 /// Is `id` one [`prepass`] made up (not a name)?
 pub(super) fn made_up(id: &str) -> bool {
@@ -143,7 +143,7 @@ pub(super) fn bezpath(p: &usvg::tiny_skia_path::Path, m: Affine) -> BezPath {
 }
 
 /// The path usvg makes of a `<circle>` or `<ellipse>` (`p`: one closed outline of arcs from the
-/// right end of the horizontal axis round through the bottom) as the ellipse VectorCraft draws: four
+/// right end of the horizontal axis round through the bottom) as the ellipse Pluma draws: four
 /// smooth anchors on the axes in the same order, each quarter a cubic with handles [`KAPPA`] of the
 /// radii long, the ellipse export writes as `<ellipse>`. `None` when `p` is not such an outline.
 pub(super) fn drawn_ellipse(p: &usvg::tiny_skia_path::Path) -> Option<PathData> {
@@ -253,12 +253,12 @@ fn intersect_shapes(shapes: &[(BezPath, FillRule)], clips: &[(BezPath, FillRule)
         _ => {
             let paths: Vec<(PathData, FillRule)> = clips.iter().map(|(bp, r)| (PathData::from_bezpath(bp), *r)).collect();
             let refs: Vec<(&PathData, FillRule)> = paths.iter().map(|(p, r)| (p, *r)).collect();
-            (vectorcraft_pathops::unite_all(&refs), FillRule::NonZero)
+            (pluma_pathops::unite_all(&refs), FillRule::NonZero)
         }
     };
     for (bp, r) in shapes {
         let child_data = PathData::from_bezpath(bp);
-        let inter = vectorcraft_pathops::boolean(&child_data, *r, &clip_data.0, clip_data.1, vectorcraft_pathops::BoolOp::Intersect);
+        let inter = pluma_pathops::boolean(&child_data, *r, &clip_data.0, clip_data.1, pluma_pathops::BoolOp::Intersect);
         if !inter.subpaths.is_empty() {
             out.push((inter.to_bezpath(), FillRule::NonZero));
         }

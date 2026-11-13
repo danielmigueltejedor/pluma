@@ -45,7 +45,7 @@ impl<'a> Writer<'a> {
         Self {
             doc,
             to_art,
-            cms: vectorcraft_color::cms::active(),
+            cms: pluma_color::cms::active(),
             body: String::new(),
             gradients: vec![],
             spots: vec![],
@@ -282,7 +282,7 @@ impl<'a> Writer<'a> {
                 self.warn(LIVE);
                 if let Some(sym) = self.doc.symbols.iter().find(|s| &s.name == symbol)
                     && self.nest < MAX_NEST
-                    && let Some(mut art) = self.doc.place_symbol_art(symbol, &vectorcraft_doc::symbol_overrides::dynamic_art(&sym.art, n), *xf)
+                    && let Some(mut art) = self.doc.place_symbol_art(symbol, &pluma_doc::symbol_overrides::dynamic_art(&sym.art, n), *xf)
                 {
                     art.visible = true;
                     self.nest += 1;
@@ -298,7 +298,7 @@ impl<'a> Writer<'a> {
             | NodeKind::Intertwine { .. } => {
                 self.warn(LIVE);
                 if self.nest < MAX_NEST {
-                    let g = vectorcraft_effects::expand_live_deep(Some(self.doc), n);
+                    let g = pluma_effects::expand_live_deep(Some(self.doc), n);
                     self.nest += 1;
                     if let Some(children) = g.children() {
                         self.group(children, false, locked);
@@ -330,7 +330,7 @@ impl<'a> Writer<'a> {
     fn clip_group(&mut self, children: &[Arc<Node>], locked: bool) {
         let Some((clip, rest)) = children.split_first() else { return };
         // Nothing to clip by hides the clipped art.
-        let Some((outline, rule)) = vectorcraft_effects::clip_outline(clip) else { return };
+        let Some((outline, rule)) = pluma_effects::clip_outline(clip) else { return };
         let paint = clip.clip_paint();
         self.lock(locked);
         self.line("q");
@@ -665,12 +665,12 @@ impl<'a> Writer<'a> {
     /// Type: a text object when the format can hold it as text, else its outlines (type with
     /// rotated characters among them, which keeps their rotation). A run whose
     /// font size measures a height other than the em box is written at the em size it is drawn
-    /// at ([`vectorcraft_text::FontDb::font_heights_resolved`]).
+    /// at ([`pluma_text::FontDb::font_heights_resolved`]).
     fn text(&mut self, t: &TextObject) {
         if !invertible(t.xf) {
             return;
         }
-        let resolved = vectorcraft_text::FontDb::global().font_heights_resolved(t);
+        let resolved = pluma_text::FontDb::global().font_heights_resolved(t);
         let t = &*resolved;
         if !self.outline_text {
             if writable(self.doc, t) {
@@ -695,10 +695,10 @@ impl<'a> Writer<'a> {
             self.warn(TYPE_ATTRIBUTES);
         }
         // Area type that Shrink Text to Fit scales down is written in the styles it draws in.
-        let fitted = matches!((&t.kind, t.area.fit), (TextKind::Area { .. }, vectorcraft_doc::AreaFit::ShrinkText { .. }))
-            .then(|| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).fit_scale)
+        let fitted = matches!((&t.kind, t.area.fit), (TextKind::Area { .. }, pluma_doc::AreaFit::ShrinkText { .. }))
+            .then(|| pluma_text::layout(pluma_text::FontDb::global(), t).fit_scale)
             .filter(|f| *f != 1.0)
-            .map(|f| vectorcraft_text::scaled(t, f));
+            .map(|f| pluma_text::scaled(t, f));
         let t = fitted.as_ref().unwrap_or(t);
         let m = self.to_art * t.xf * Affine::new([1.0, 0.0, 0.0, -1.0, 0.0, 0.0]);
         let (kind, path, start) = match &t.kind {
@@ -810,7 +810,7 @@ impl<'a> Writer<'a> {
     /// Type as its glyphs' outlines: a group of a compound path for each run, with the run's fill
     /// and stroke.
     fn outlines(&mut self, t: &TextObject) {
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), t);
         let scale = t.xf.determinant().abs().sqrt();
         self.line("u");
         for (i, run) in t.runs.iter().enumerate() {
@@ -832,8 +832,8 @@ impl<'a> Writer<'a> {
                 s
             });
             let items: Vec<AppearanceItem> = fill.map(AppearanceItem::Fill).into_iter().chain(stroke.map(AppearanceItem::Stroke)).collect();
-            let mut n = Node::path(vectorcraft_doc::NodeId(0), path.clone(), vectorcraft_doc::Appearance::default());
-            n.appearance = vectorcraft_doc::Appearance { items, ..vectorcraft_doc::Appearance::default() }.into();
+            let mut n = Node::path(pluma_doc::NodeId(0), path.clone(), pluma_doc::Appearance::default());
+            n.appearance = pluma_doc::Appearance { items, ..pluma_doc::Appearance::default() }.into();
             self.shape(&n, &path, FillRule::NonZero);
         }
         // Colour bitmap glyphs (emoji): their images, which the runs' paint doesn't paint.

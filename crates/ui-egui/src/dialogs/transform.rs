@@ -10,7 +10,7 @@
 use serde_json::{Value, json};
 
 use super::{DialogSpec, form, run_and_close};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 
 pub(super) const SPEC: DialogSpec = DialogSpec { heading: |d| title(&d.kind).into(), body, confirm, preview: true, inputs, ..DialogSpec::FORM };
@@ -35,7 +35,7 @@ fn title(kind: &str) -> &'static str {
     }
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if d.kind == "move" {
         link_distance_and_angle(d);
     }
@@ -89,7 +89,7 @@ fn clean(v: f64) -> f64 {
 /// The Move dialog's fields as it opens: Horizontal and Vertical are the offset moved last, Distance
 /// and Angle are the same offset, and Copy, Transform Objects and Preview are as it was last
 /// confirmed with (Transform Patterns is General › Transform Pattern Tiles, which its OK sets).
-pub(crate) fn move_fields(app: &VectorcraftApp) -> Value {
+pub(crate) fn move_fields(app: &PlumaApp) -> Value {
     let (dx, dy) = last_move(app).unwrap_or_default();
     let [dx, dy, distance, angle] = [dx, dy, dx.hypot(dy), (-dy).atan2(dx).to_degrees()].map(clean);
     let mut fields = json!({
@@ -111,17 +111,17 @@ pub(crate) fn move_fields(app: &VectorcraftApp) -> Value {
 
 /// The offset of the last move the session's journal keeps: a drag that moved the selection (a
 /// Transform that only translates) or Move.
-fn last_move(app: &VectorcraftApp) -> Option<(f64, f64)> {
+fn last_move(app: &PlumaApp) -> Option<(f64, f64)> {
     let length = |v: Option<&Value>| match v {
         Some(Value::Number(n)) => n.as_f64(),
-        Some(Value::String(s)) => vectorcraft_doc::Unit::Points.parse(s),
+        Some(Value::String(s)) => pluma_doc::Unit::Points.parse(s),
         _ => Some(0.0),
     };
     let finite = |(dx, dy): (f64, f64)| (dx.is_finite() && dy.is_finite()).then_some((dx, dy));
     app.session.journal.iter().rev().find_map(|(id, p)| match id.as_str() {
         "object.move" => finite((length(p.get("dx"))?, length(p.get("dy"))?)),
         "object.transform" => {
-            let [a, b, c, d, e, f] = vectorcraft_engine::cmd::matrix_param(p, "matrix")?.as_coeffs();
+            let [a, b, c, d, e, f] = pluma_engine::cmd::matrix_param(p, "matrix")?.as_coeffs();
             let translates = (a, b, c, d) == (1.0, 0.0, 0.0, 1.0) && (e, f) != (0.0, 0.0);
             translates.then_some((e, f)).and_then(finite)
         }
@@ -130,7 +130,7 @@ fn last_move(app: &VectorcraftApp) -> Option<(f64, f64)> {
 }
 
 /// Transform Patterns: the dialog's field, else General › Transform Pattern Tiles.
-fn transform_patterns(app: &VectorcraftApp, d: &Dialog) -> bool {
+fn transform_patterns(app: &PlumaApp, d: &Dialog) -> bool {
     d.fields.get("patterns").and_then(Value::as_bool).unwrap_or(app.session.prefs.transform_pattern_tiles)
 }
 
@@ -141,7 +141,7 @@ fn transform_objects(d: &Dialog) -> bool {
 }
 
 /// The Transform Objects and Transform Patterns checkboxes (fields `objects` and `patterns`).
-pub(super) fn object_options(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(super) fn object_options(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     d.fields.insert("objects".into(), Value::Bool(transform_objects(d)));
     form::check(ui, d, "objects", tl!("Transform Objects"));
     d.fields.insert("patterns".into(), Value::Bool(transform_patterns(app, d)));
@@ -149,7 +149,7 @@ pub(super) fn object_options(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Di
 }
 
 /// Add the dialog's Transform Objects and Transform Patterns options to command `params`.
-pub(super) fn add_object_options(app: &VectorcraftApp, d: &Dialog, params: &mut Value) {
+pub(super) fn add_object_options(app: &PlumaApp, d: &Dialog, params: &mut Value) {
     params["objects"] = json!(transform_objects(d));
     params["patterns"] = json!(transform_patterns(app, d));
 }
@@ -158,20 +158,20 @@ pub(super) fn add_object_options(app: &VectorcraftApp, d: &Dialog, params: &mut 
 const SCALE_OPTIONS: [(&str, &str, &str); 2] = [("corners", "scaleCorners", "Scale Corners"), ("strokes", "scaleStrokes", "Scale Strokes & Effects")];
 
 /// A scale option's value: the dialog's field, else the preference.
-fn scale_option(app: &VectorcraftApp, d: &Dialog, field: &str) -> bool {
+fn scale_option(app: &PlumaApp, d: &Dialog, field: &str) -> bool {
     let prefs = &app.session.prefs;
     d.fields.get(field).and_then(Value::as_bool).unwrap_or(if field == "corners" { prefs.scale_corners } else { prefs.scale_strokes })
 }
 
 /// The Scale Corners and Scale Strokes & Effects checkboxes (fields `corners` and `strokes`),
 /// starting from the preferences.
-pub(super) fn scale_options(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(super) fn scale_options(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     scale_options_ordered(app, ui, d, false);
 }
 
 /// [`scale_options`], with `strokes_first` putting Scale Strokes & Effects above Scale Corners as
 /// Transform Each lists them.
-pub(super) fn scale_options_ordered(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, strokes_first: bool) {
+pub(super) fn scale_options_ordered(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, strokes_first: bool) {
     let mut options = SCALE_OPTIONS;
     if strokes_first {
         options.reverse();
@@ -184,7 +184,7 @@ pub(super) fn scale_options_ordered(app: &VectorcraftApp, ui: &mut egui::Ui, d: 
 }
 
 /// Add the dialog's scale options to command `params`.
-pub(super) fn add_scale_options(app: &VectorcraftApp, d: &Dialog, params: &mut Value) {
+pub(super) fn add_scale_options(app: &PlumaApp, d: &Dialog, params: &mut Value) {
     for (field, _, _) in SCALE_OPTIONS {
         params[field] = json!(scale_option(app, d, field));
     }
@@ -192,7 +192,7 @@ pub(super) fn add_scale_options(app: &VectorcraftApp, d: &Dialog, params: &mut V
 
 /// `params` with the dialog's scale options, which also become the preferences (they are shared
 /// with the Transform panel and Preferences, as in the reference app).
-pub(super) fn with_scale_options(app: &mut VectorcraftApp, d: &Dialog, mut params: Value) -> Result<Value, String> {
+pub(super) fn with_scale_options(app: &mut PlumaApp, d: &Dialog, mut params: Value) -> Result<Value, String> {
     add_scale_options(app, d, &mut params);
     let prefs: serde_json::Map<String, Value> = SCALE_OPTIONS.iter().map(|(field, pref, _)| (pref.to_string(), params[*field].clone())).collect();
     app.run("prefs.set", json!({ "values": prefs }))?;
@@ -208,7 +208,7 @@ fn origin_params(d: &Dialog, mut p: Value) -> Value {
 }
 
 /// The dialog's command and its params (Scale's without its scale options).
-fn command(app: &VectorcraftApp, d: &Dialog) -> (&'static str, Value) {
+fn command(app: &PlumaApp, d: &Dialog) -> (&'static str, Value) {
     let (id, mut params) = match d.kind.as_str() {
         "move" => ("object.move", json!({"dx": d.f64("dx", 0.0), "dy": d.f64("dy", 0.0)})),
         "rotate" => ("object.rotate", json!({"angle": d.f64("angle", 0.0)})),
@@ -228,7 +228,7 @@ fn command(app: &VectorcraftApp, d: &Dialog) -> (&'static str, Value) {
     if id == "object.move" { (id, params) } else { (id, origin_params(d, params)) }
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     // The preview is rolled back and the command run as without one, so its undo step, its journal
     // entry and Transform Again are the same either way.
     if app.session.in_interaction() {
@@ -258,14 +258,14 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
 
-    use crate::VectorcraftApp;
+    use crate::PlumaApp;
 
     #[test]
     fn scale_options_start_from_and_update_the_preferences() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50, "radius": 5})).unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -294,22 +294,22 @@ mod tests {
     /// that Transform Again repeats.
     #[test]
     fn preview_follows_the_stepped_angle() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 20})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let frame = |app: &mut VectorcraftApp, key: Option<(egui::Key, egui::Modifiers)>| {
+        let frame = |app: &mut PlumaApp, key: Option<(egui::Key, egui::Modifiers)>| {
             let events = key.map(|(key, modifiers)| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers });
             let mut out =
                 ctx.run_ui(egui::RawInput { events: events.into_iter().collect(), ..Default::default() }, |ui| crate::dialogs::show(app, ui.ctx()));
             out.textures_delta.clear();
         };
-        let size = |app: &VectorcraftApp| {
+        let size = |app: &PlumaApp| {
             let b = app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap();
             (b.width().round(), b.height().round())
         };
-        let undo_steps = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+        let undo_steps = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
         let steps = undo_steps(&app);
         crate::menus::invoke(&mut app, "object.rotate", json!({}));
         frame(&mut app, None);
@@ -355,7 +355,7 @@ mod tests {
     /// the command (on until switched off).
     #[test]
     fn reflect_takes_an_angle_and_transform_objects() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 20})).unwrap();
         let ctx = egui::Context::default();
@@ -381,19 +381,19 @@ mod tests {
     /// The angle is counter-clockwise on the page and Vertical is down = +, so 90° moves up.
     #[test]
     fn move_takes_a_distance_and_an_angle() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 20})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let frame = |app: &mut VectorcraftApp| {
+        let frame = |app: &mut PlumaApp| {
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| crate::dialogs::show(app, ui.ctx()));
             out.textures_delta.clear();
         };
-        let set = |app: &mut VectorcraftApp, values: [(&str, f64); 2]| {
+        let set = |app: &mut PlumaApp, values: [(&str, f64); 2]| {
             app.ui.dialog.as_mut().unwrap().fields.extend(values.map(|(k, v)| (k.to_string(), json!(v))));
         };
-        let fields = |app: &VectorcraftApp| {
+        let fields = |app: &PlumaApp| {
             let d = app.ui.dialog.as_ref().unwrap();
             ["dx", "dy", "distance", "angle"].map(|k| d.f64(k, f64::NAN))
         };
@@ -422,12 +422,12 @@ mod tests {
     /// offset (as `ui.dialog.set` then `ui.dialog.confirm` from a control client).
     #[test]
     fn move_takes_a_distance_and_an_angle_set_before_a_frame() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 60, "height": 20})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let corner = |app: &VectorcraftApp| {
+        let corner = |app: &PlumaApp| {
             let b = app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap();
             (b.x0, b.y0)
         };
@@ -455,19 +455,19 @@ mod tests {
     /// confirmed with: Enter, Enter makes copies at the same spacing.
     #[test]
     fn move_opens_on_the_last_move_and_checkboxes() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let open = |app: &mut VectorcraftApp| {
+        let open = |app: &mut PlumaApp| {
             crate::toolbar::open_options(app, "selection").unwrap();
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| crate::dialogs::show(app, ui.ctx()));
             out.textures_delta.clear();
             let d = app.ui.dialog.as_ref().unwrap();
             ([d.f64("dx", f64::NAN), d.f64("dy", f64::NAN)], ["copy", "objects", "preview"].map(|k| d.bool(k)))
         };
-        let lefts = |app: &VectorcraftApp| {
+        let lefts = |app: &PlumaApp| {
             let kids = app.session.doc().unwrap().doc.layers[0].children().unwrap();
             kids.iter().map(|n| n.geometric_bounds().unwrap().x0).collect::<Vec<_>>()
         };
@@ -498,12 +498,12 @@ mod tests {
     /// Transform Pattern Tiles, which it starts from.
     #[test]
     fn move_keeps_transform_patterns_in_the_preference() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let open = |app: &mut VectorcraftApp| {
+        let open = |app: &mut PlumaApp| {
             crate::menus::invoke(app, "object.move", json!({}));
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| crate::dialogs::show(app, ui.ctx()));
             out.textures_delta.clear();
@@ -524,7 +524,7 @@ mod tests {
     /// command.
     #[test]
     fn transform_patterns_starts_from_the_preference() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap();
         let ctx = egui::Context::default();

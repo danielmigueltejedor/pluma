@@ -1,15 +1,15 @@
 //! OpenType SVG glyphs: the art of a font's glyph from the SVG document its `SVG ` table holds for
 //! it, made as the importer makes art of any SVG file. The text crate asks for it through the
-//! reader the app registers ([`vectorcraft_text::set_svg_glyph_reader`]).
+//! reader the app registers ([`pluma_text::set_svg_glyph_reader`]).
 
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
+use pluma_doc::color::Color;
+use pluma_doc::{Document, Node, NodeId, NodeKind};
+use pluma_geom::Affine;
 use usvg::roxmltree;
-use vectorcraft_doc::color::Color;
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::Affine;
 
 use crate::ImportOptions;
 

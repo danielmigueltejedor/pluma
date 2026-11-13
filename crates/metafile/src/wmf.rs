@@ -9,8 +9,8 @@
 //! bitmaps composited over white.
 
 use kurbo::PathEl;
-use vectorcraft_doc::{LineCap, LineJoin};
-use vectorcraft_geom::{Affine, BezPath, FillRule, Point, Rect};
+use pluma_doc::{LineCap, LineJoin};
+use pluma_geom::{Affine, BezPath, FillRule, Point, Rect};
 
 use crate::bytes::Out;
 use crate::dib::{self, Rgba};
@@ -75,7 +75,7 @@ pub(crate) fn checksum(header: &[u8]) -> u16 {
 fn flatten(bp: &BezPath, tol: f64) -> Vec<(Vec<Point>, bool)> {
     let mut out: Vec<(Vec<Point>, bool)> = vec![];
     let mut cur: Vec<Point> = vec![];
-    vectorcraft_geom::flatten(bp.iter(), tol, |el| match el {
+    pluma_geom::flatten(bp.iter(), tol, |el| match el {
         PathEl::MoveTo(p) => {
             if cur.len() > 1 {
                 out.push((std::mem::take(&mut cur), false));

@@ -1,9 +1,9 @@
 //! A stroke weight set on type is a document-space weight, whether the type was enlarged by its
 //! font size or by a transform (issue #3241).
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
 
 const MM: f64 = 72.0 / 25.4;
 

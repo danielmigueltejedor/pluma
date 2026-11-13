@@ -37,11 +37,12 @@ impl Brightness {
     }
 }
 
-/// User Interface › Accent Color: the one colour for what is on, chosen or focused. Coral, the
-/// default, is the app icon's.
+/// User Interface › Accent Color: the one colour for what is on, chosen or focused. Pluma, the
+/// default, is the app's orange in the Nodalia palette.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Accent {
     #[default]
+    Pluma,
     Coral,
     Blue,
     Violet,
@@ -51,9 +52,10 @@ pub enum Accent {
 }
 
 impl Accent {
-    pub const ALL: [Accent; 6] = [Accent::Coral, Accent::Blue, Accent::Violet, Accent::Green, Accent::Amber, Accent::Pink];
+    pub const ALL: [Accent; 7] = [Accent::Pluma, Accent::Coral, Accent::Blue, Accent::Violet, Accent::Green, Accent::Amber, Accent::Pink];
     pub fn id(self) -> &'static str {
         match self {
+            Accent::Pluma => "pluma",
             Accent::Coral => "coral",
             Accent::Blue => "blue",
             Accent::Violet => "violet",
@@ -69,6 +71,8 @@ impl Accent {
     /// with white lettering.
     fn colors(self, dark: bool) -> (u32, u32) {
         match (self, dark) {
+            (Accent::Pluma, true) => (0xff8a3d, 0xe8691c),
+            (Accent::Pluma, false) => (0xc4520c, 0xc4520c),
             (Accent::Coral, true) => (0xf06a52, 0xe8573f),
             (Accent::Coral, false) => (0xd9472f, 0xd14a33),
             (Accent::Blue, true) => (0x5b96ff, 0x2f74f0),
@@ -85,20 +89,28 @@ impl Accent {
     }
 }
 
-/// User Interface › Color Scheme: Modern (the default: slate greys and the chosen accent) or
-/// Classic (the neutral greys and blue accent of earlier versions). Both keep the same layout,
-/// cards and corners; only the colours differ.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// User Interface › Color Scheme: Nodalia (the default: the Nodalia Design Language, rounded
+/// islands on the window's frame), Modern (slate greys and the chosen accent) or Classic (neutral
+/// greys and a blue accent). All keep the same layout; Nodalia has larger corners.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scheme {
-    #[default]
+    Nodalia,
     Modern,
     Classic,
 }
 
+impl Default for Scheme {
+    /// Nodalia; unit tests keep Modern, which the geometry and colour tests were written against.
+    fn default() -> Self {
+        if cfg!(test) { Scheme::Modern } else { Scheme::Nodalia }
+    }
+}
+
 impl Scheme {
-    pub const ALL: [Scheme; 2] = [Scheme::Modern, Scheme::Classic];
+    pub const ALL: [Scheme; 3] = [Scheme::Nodalia, Scheme::Modern, Scheme::Classic];
     pub fn id(self) -> &'static str {
         match self {
+            Scheme::Nodalia => "nodalia",
             Scheme::Modern => "modern",
             Scheme::Classic => "classic",
         }
@@ -112,6 +124,9 @@ impl Scheme {
 #[derive(Clone, Copy, Debug)]
 pub struct Tokens {
     pub dark: bool,
+    /// The Nodalia scheme: islands on the window's frame, the main menu behind a hamburger and
+    /// round window controls.
+    pub nodalia: bool,
     pub app_bar: Color32,
     pub panel: Color32,
     pub panel_darker: Color32,
@@ -136,6 +151,8 @@ pub struct Tokens {
     pub measure_bg: Color32,
     pub button: Color32,
     pub radius: u8,
+    /// Corners of [`card`]s (the toolbar, the panel dock, the icon rail) and floating windows.
+    pub card_radius: u8,
     /// Field values, button labels, link labels.
     pub text_strong: Color32,
     /// Panel tab strips, doc-tab bar, dock header.
@@ -177,6 +194,7 @@ impl Tokens {
         // style and differ only in their greys.
         let base = Tokens {
             dark: true,
+            nodalia: false,
             app_bar: hex(0x0b0d12),
             panel: hex(0x181b22),
             panel_darker: hex(0x13161c),
@@ -201,6 +219,7 @@ impl Tokens {
             measure_bg: Color32::from_rgba_unmultiplied(24, 27, 34, 235),
             button: hex(0x282d37),
             radius: 4,
+            card_radius: CARD_RADIUS,
             text_strong: hex(0xffffff),
             tab_strip: hex(0x0f1116),
             button_border: hex(0x4a5363),
@@ -422,11 +441,62 @@ impl Tokens {
         }
     }
 
-    /// The tokens for `b` in `scheme`; Modern takes `accent`, Classic has its own blue.
+    /// The tokens for `b` in `scheme`; Nodalia and Modern take `accent`, Classic has its own blue.
     pub fn for_scheme(scheme: Scheme, b: Brightness, accent: Accent) -> Self {
         match scheme {
+            Scheme::Nodalia if accent == Accent::Pluma => Self::nodalia(b),
+            Scheme::Nodalia => Self::nodalia(b).with_accent(accent),
             Scheme::Modern => Self::for_brightness(b).with_accent(accent),
             Scheme::Classic => Self::classic(b),
+        }
+    }
+
+    /// The Nodalia Design Language at brightness `b`: NDL's dark palette for Dark and Medium Dark
+    /// (Medium Dark, the default, lifted a step so art and islands stand apart), its light one for
+    /// Light and Medium Light (whose frame is a shade deeper). Every colour comes from
+    /// `nodalia-theme`; only the canvas marks (guides, selection, axes) keep Pluma's own.
+    pub fn nodalia(b: Brightness) -> Self {
+        let mode = if matches!(b, Brightness::Dark | Brightness::MediumDark) { nodalia_theme::Mode::Dark } else { nodalia_theme::Mode::Light };
+        let p = ndl_palette(b);
+        let c = ndl;
+        let dark = mode.is_dark();
+        let base = Self::for_brightness(if dark { Brightness::Dark } else { Brightness::Light });
+        let overlay = p.surface_overlay;
+        Tokens {
+            dark,
+            nodalia: true,
+            app_bar: c(p.surface_window),
+            panel: c(p.surface_panel),
+            panel_darker: c(p.control_bg),
+            input: c(p.control_field_bg),
+            input_border: c(p.border_default),
+            border: c(p.border_subtle),
+            divider: c(p.border_subtle),
+            text: c(p.text_primary),
+            text_strong: c(p.text_primary),
+            text_dim: c(p.text_secondary),
+            text_disabled: c(p.text_disabled),
+            icon: c(p.text_primary),
+            hover: c(p.control_bg_hover),
+            tool_active: c(p.accent_subtle),
+            accent: c(p.accent_default),
+            accent_strong: c(p.accent_default),
+            flyout_active: c(p.accent_text),
+            row_selected: c(p.accent_subtle),
+            pasteboard: c(p.surface_sunken),
+            ruler: c(p.surface_panel),
+            ruler_tick: c(p.text_tertiary),
+            measure_bg: Color32::from_rgba_unmultiplied(overlay.r, overlay.g, overlay.b, 235),
+            button: c(p.control_bg),
+            button_border: c(p.border_strong),
+            radius: nodalia_theme::component::CONTROL_RADIUS as u8,
+            card_radius: ISLAND_RADIUS as u8,
+            tab_strip: c(p.surface_window),
+            caption_close: c(WINDOW_CLOSE),
+            caption_close_text: Color32::WHITE,
+            error: c(p.status_danger_fg),
+            warning: c(p.status_warning_fg),
+            ..base
         }
     }
 
@@ -458,6 +528,96 @@ impl Tokens {
     }
 }
 
+/// Pluma's accent in the Nodalia palette.
+pub const PLUMA: nodalia_theme::Accent = nodalia_theme::Accent::Pluma;
+/// An island's corner radius in the Nodalia scheme.
+pub const ISLAND_RADIUS: f32 = nodalia_theme::component::PANEL_RADIUS;
+/// The window-colour gap between two islands, and between an island and the window's edge.
+pub const ISLAND_GAP: f32 = nodalia_theme::component::WINDOW_GAP;
+
+/// Which side of a bar faces the next island, and so keeps a gap.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Gap {
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
+/// A bar's frame: the panel colour with `inner` padding and a hairline border, or in Nodalia a
+/// rounded island kept [`ISLAND_GAP`] from its neighbour on side `gap`. Returns the frame and the
+/// size the gap adds along the bar's axis (add it to the panel's exact size).
+pub fn bar_frame(t: &Tokens, inner: egui::Margin, gap: Gap) -> (egui::Frame, f32) {
+    let frame = egui::Frame::NONE.fill(t.panel).inner_margin(inner);
+    if !t.nodalia {
+        return (frame.stroke(egui::Stroke::new(1.0, t.border)), 0.0);
+    }
+    let g = ISLAND_GAP as i8;
+    let outer = match gap {
+        Gap::Top => egui::Margin { top: g, ..Default::default() },
+        Gap::Bottom => egui::Margin { bottom: g, ..Default::default() },
+        Gap::Left => egui::Margin { left: g, ..Default::default() },
+        Gap::Right => egui::Margin { right: g, ..Default::default() },
+    };
+    (frame.corner_radius(t.card_radius).outer_margin(outer), ISLAND_GAP)
+}
+
+/// Rounds the corners of an island whose contents paint edge to edge (the canvas, a dock
+/// column): a window-coloured ring outside a rounded `rect`, clipped to it, covers the square
+/// corners. Paint it after the contents. Nothing in the other schemes.
+pub fn round_island_corners(painter: &egui::Painter, t: &Tokens, rect: egui::Rect) {
+    if t.nodalia && rect.is_positive() {
+        let r = f32::from(t.card_radius);
+        painter.with_clip_rect(rect).rect_stroke(
+            rect,
+            egui::CornerRadius::same(t.card_radius),
+            egui::Stroke::new(r, t.app_bar),
+            egui::StrokeKind::Outside,
+        );
+    }
+}
+/// `component.window.close`: coral under the pointer, in every mode.
+const WINDOW_CLOSE: nodalia_theme::Rgba = nodalia_theme::Rgba::new(0xff, 0x5c, 0x4d, 0xff);
+
+pub(crate) fn ndl(c: nodalia_theme::Rgba) -> Color32 {
+    Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
+}
+
+/// Nodalia's palette with Pluma's accent for brightness `b`. NDL's own dark surfaces are near
+/// black; Medium Dark lifts them a step (the canvas further, so dark art stands out from it), and
+/// Medium Light deepens the light frame a little.
+pub(crate) fn ndl_palette(b: Brightness) -> nodalia_theme::Palette {
+    let dark = matches!(b, Brightness::Dark | Brightness::MediumDark);
+    let mut p = if dark { nodalia_theme::Mode::Dark } else { nodalia_theme::Mode::Light }.palette_with(PLUMA);
+    let shift = |c: nodalia_theme::Rgba, k: f32| {
+        let to = if k >= 0.0 { 255.0 } else { 0.0 };
+        let k = k.abs();
+        let m = |v: u8| (f32::from(v) + (to - f32::from(v)) * k).round() as u8;
+        nodalia_theme::Rgba::new(m(c.r), m(c.g), m(c.b), c.a)
+    };
+    match b {
+        Brightness::MediumDark => {
+            p.surface_window = shift(p.surface_window, 0.10);
+            p.surface_panel = shift(p.surface_panel, 0.11);
+            p.surface_raised = shift(p.surface_raised, 0.11);
+            p.surface_overlay = shift(p.surface_overlay, 0.11);
+            p.surface_sunken = shift(p.surface_sunken, 0.19);
+            p.control_bg = shift(p.control_bg, 0.11);
+            p.control_bg_hover = shift(p.control_bg_hover, 0.11);
+            p.control_bg_pressed = shift(p.control_bg_pressed, 0.11);
+            p.control_field_bg = shift(p.control_field_bg, 0.08);
+            p.border_subtle = shift(p.border_subtle, 0.11);
+            p.text_tertiary = shift(p.text_tertiary, 0.10);
+        }
+        Brightness::MediumLight => {
+            p.surface_window = shift(p.surface_window, -0.08);
+            p.surface_sunken = shift(p.surface_sunken, -0.06);
+        }
+        Brightness::Dark | Brightness::Light => {}
+    }
+    p
+}
+
 /// The toolbar, the panel dock and the icon rail are cards: `body` drawn on the panel colour with
 /// soft corners, `margin` of the window's frame colour around it.
 pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, body: impl FnOnce(&mut egui::Ui) -> R) -> R {
@@ -467,7 +627,7 @@ pub fn card<R>(ui: &mut egui::Ui, t: &Tokens, margin: egui::Margin, body: impl F
         .show(ui, |ui| {
             egui::Frame::NONE
                 .fill(t.panel)
-                .corner_radius(CARD_RADIUS)
+                .corner_radius(t.card_radius)
                 .show(ui, |ui| {
                     ui.set_min_size(ui.available_size());
                     body(ui)
@@ -503,7 +663,7 @@ pub fn mono(size: f32) -> FontId {
 /// ([`FONT_UI`], [`FONT_UI_SEMIBOLD`], [`FONT_MONO`]). egui 0.37 only bundles its own faces when
 /// its `default_fonts` feature is on (this crate enables it); without any face a family lays out
 /// tofu, and the `egui_kittest` harness alone panics on a missing glyph. Every context that shows
-/// these families needs this once: [`crate::VectorcraftApp::ui`] calls it on its first pass, and
+/// these families needs this once: [`crate::PlumaApp::ui`] calls it on its first pass, and
 /// an embedder that draws the panels or dialogs without it calls it when it makes the context. It
 /// replaces the context's font definitions: add other fonts after it, or keep these families in
 /// definitions of one's own. Without the `interface-fonts` feature the families are egui's built-in
@@ -513,7 +673,7 @@ pub fn install_fonts(ctx: &egui::Context) {
     ctx.set_fonts(interface_fonts());
 }
 
-/// The definitions [`install_fonts`] installs. [`crate::VectorcraftApp::ui`] keeps them to tell
+/// The definitions [`install_fonts`] installs. [`crate::PlumaApp::ui`] keeps them to tell
 /// whether egui applied them at once or deferred them to the next pass (it must not take input
 /// or draw with fallback metrics while they are pending).
 pub fn interface_fonts() -> FontDefinitions {
@@ -559,7 +719,7 @@ fn interface_faces(_fonts: &mut FontDefinitions) -> (Vec<&'static str>, Vec<&'st
 }
 
 /// The egui name of a craft-fonts face.
-pub(crate) fn craft_font_name(f: &vectorcraft_text::CraftFont) -> String {
+pub(crate) fn craft_font_name(f: &pluma_text::CraftFont) -> String {
     format!("craft-fonts {} {}", f.family, f.style)
 }
 
@@ -571,7 +731,7 @@ pub(crate) fn craft_font_name(f: &vectorcraft_text::CraftFont) -> String {
 fn add_craft_fonts(fonts: &mut FontDefinitions) {
     // The name of each face's copy in each family.
     let mut copies: std::collections::HashMap<(FontFamily, String), String> = std::collections::HashMap::new();
-    for f in vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese() || f.is_georgian() || f.scripts.contains(&"Deva")) {
+    for f in pluma_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese() || f.is_georgian() || f.scripts.contains(&"Deva")) {
         let name = craft_font_name(f);
         for (copy, data, families) in crate::ui_fonts::baseline_copies(fonts, &name, &FontData::from_static(f.bytes)) {
             for family in families {
@@ -582,13 +742,13 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
     }
     for (family, stack) in fonts.families.iter_mut() {
         let bold = *family == FontFamily::Name(FONT_UI_SEMIBOLD.into());
-        let copy = |f: &vectorcraft_text::CraftFont| {
+        let copy = |f: &pluma_text::CraftFont| {
             let name = craft_font_name(f);
             copies.get(&(family.clone(), name.clone())).cloned().unwrap_or(name)
         };
-        stack.extend(vectorcraft_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(copy));
-        stack.extend(vectorcraft_text::craft_fonts::georgian_ui_fonts().into_iter().map(copy));
-        stack.extend(vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.scripts.contains(&"Deva")).map(copy));
+        stack.extend(pluma_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(copy));
+        stack.extend(pluma_text::craft_fonts::georgian_ui_fonts().into_iter().map(copy));
+        stack.extend(pluma_text::CRAFT_FONTS.iter().filter(|f| f.scripts.contains(&"Deva")).map(copy));
     }
 }
 
@@ -616,8 +776,8 @@ pub fn apply_with(ctx: &egui::Context, b: Brightness, accent: Accent, scheme: Sc
     v.extreme_bg_color = t.input;
     v.faint_bg_color = t.panel_darker;
     v.window_stroke = Stroke::new(1.0, t.border);
-    v.window_corner_radius = CornerRadius::same(10);
-    v.menu_corner_radius = CornerRadius::same(8);
+    v.window_corner_radius = CornerRadius::same(t.card_radius.max(10));
+    v.menu_corner_radius = CornerRadius::same(t.card_radius.clamp(8, 12));
     v.selection.bg_fill = t.accent.gamma_multiply(0.55);
     v.selection.stroke = Stroke::new(1.0, t.accent);
     v.hyperlink_color = t.accent;

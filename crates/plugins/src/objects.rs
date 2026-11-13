@@ -9,15 +9,15 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
-use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, Cms, CmykLut, lab};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::cmyk::oversized_tiff;
-use vectorcraft_doc::{
+use pluma_color::cms::{self, Cms, CmykLut, lab};
+use pluma_color::{Color, Paint};
+use pluma_doc::cmyk::oversized_tiff;
+use pluma_doc::{
     Appearance, AppearanceItem, Document, Effect, FillLayer, ImageBlob, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer, SymbolBoxes,
     TextKind, TextObject,
 };
-use vectorcraft_geom::{Affine, FillRule, PathData, Point, Rect};
+use pluma_geom::{Affine, FillRule, PathData, Point, Rect};
+use serde_json::{Value, json};
 
 use crate::{Error, InputKind, Result};
 
@@ -505,7 +505,7 @@ fn rgba_pixels(b: &ImageBlob, w: u32, h: u32, max: usize, charged: &mut usize) -
 static CMYK_DISPLAY: Mutex<Option<(Arc<Cms>, Arc<CmykLut>)>> = Mutex::new(None);
 
 /// The pixels of CMYK image `b` as straight RGBA, when it is `w` × `h` pixels: its inks shown
-/// through the working CMYK profile, by a table built as `vectorcraft-render`'s `InkLut` builds its
+/// through the working CMYK profile, by a table built as `pluma-render`'s `InkLut` builds its
 /// own and kept for the active color settings.
 fn cmyk_rgba(b: &ImageBlob, w: u32, h: u32) -> Option<Vec<u8>> {
     let inks = b.cmyk().filter(|i| (i.width, i.height) == (w, h))?;

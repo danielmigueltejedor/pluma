@@ -9,12 +9,12 @@
 
 use std::rc::Rc;
 
+use pluma_geom::BezPath;
 use skrifa::raw::ps::cff::CffFontRef;
 use skrifa::raw::ps::cff::index::Index;
 use skrifa::raw::ps::cs::{CharstringContext, CharstringKind, CommandSink, NopFilterSink, TransformSink};
 use skrifa::raw::ps::error::Error as CsError;
 use skrifa::raw::types::{Fixed, GlyphId};
-use vectorcraft_geom::BezPath;
 
 use super::interp::{Interp, matrix_obj};
 use super::obj::{Dict, DictRef, Key, Obj, Op, PsError, Res, Shared, ps_err};
@@ -447,7 +447,7 @@ impl Interp<'_> {
         d.insert(Key::name("CIDFontName"), key.obj());
         d.insert(Key::name("CIDFontType"), Obj::Int(0));
         d.insert(Key::name("FontType"), Obj::Int(9));
-        d.insert(Key::name("FontMatrix"), matrix_obj(vectorcraft_geom::Affine::scale(0.001)));
+        d.insert(Key::name("FontMatrix"), matrix_obj(pluma_geom::Affine::scale(0.001)));
         Ok(DictRef::new(d))
     }
 
@@ -474,7 +474,7 @@ impl Interp<'_> {
         d.insert(Key::name("FontName"), key.obj());
         d.insert(Key::name("FontType"), Obj::Int(0));
         d.insert(Key::name("FMapType"), Obj::Int(9));
-        d.insert(Key::name("FontMatrix"), matrix_obj(vectorcraft_geom::Affine::IDENTITY));
+        d.insert(Key::name("FontMatrix"), matrix_obj(pluma_geom::Affine::IDENTITY));
         d.insert(Key::name("Encoding"), Obj::array((0..deps.len() as i64).map(Obj::Int).collect()));
         d.insert(Key::name("FDepVector"), Obj::array(deps));
         if let Some(w) = cmap.borrow().get(&Key::name("WMode")).cloned() {
@@ -528,13 +528,13 @@ impl Interp<'_> {
         // fonts, and each FDArray matrix scaled to it (PLRM 3rd ed., §5.11.3).
         // The changes go through the journal, so `restore` undoes them as it does the program's.
         if !d.borrow().contains_key(&Key::name("FontMatrix")) {
-            self.insert(&d, Key::name("FontMatrix"), Some(matrix_obj(vectorcraft_geom::Affine::scale(0.001))))?;
+            self.insert(&d, Key::name("FontMatrix"), Some(matrix_obj(pluma_geom::Affine::scale(0.001))))?;
             let fds = d.borrow().get(&Key::name("FDArray")).and_then(|a| a.items().map(|i| i.to_vec())).unwrap_or_default();
             for fd in fds {
                 if let Obj::Dict(fd) = fd {
                     let m = fd.borrow().get(&Key::name("FontMatrix")).and_then(|o| o.items().and_then(|i| super::interp::matrix_of(&i.borrow())));
                     if let Some(m) = m {
-                        self.insert(&fd, Key::name("FontMatrix"), Some(matrix_obj(vectorcraft_geom::Affine::scale(1000.0) * m)))?;
+                        self.insert(&fd, Key::name("FontMatrix"), Some(matrix_obj(pluma_geom::Affine::scale(1000.0) * m)))?;
                     }
                 }
             }
@@ -574,7 +574,7 @@ impl Interp<'_> {
             d.insert(Key::name("CIDFontName"), Obj::name(&name));
             d.insert(Key::name("CIDFontType"), Obj::Int(0));
             d.insert(Key::name("FontType"), Obj::Int(9));
-            d.insert(Key::name("FontMatrix"), matrix_obj(vectorcraft_geom::Affine::scale(1.0 / upem)));
+            d.insert(Key::name("FontMatrix"), matrix_obj(pluma_geom::Affine::scale(1.0 / upem)));
             let d = DictRef::new(d);
             self.instances(&Obj::name("CIDFont"))?.borrow_mut().insert(Key::name(&name), Obj::Dict(d.clone()));
             self.cff.push((d, Rc::new(Cff::new(data.clone(), index))));
@@ -746,7 +746,7 @@ impl Interp<'_> {
         let fdm = fd
             .get(&Key::name("FontMatrix"))
             .and_then(|o| o.items().and_then(|i| super::interp::matrix_of(&i.borrow())))
-            .unwrap_or(vectorcraft_geom::Affine::IDENTITY);
+            .unwrap_or(pluma_geom::Affine::IDENTITY);
         let Some(Obj::Dict(private)) = fd.get(&Key::name("Private")).cloned() else { return Ok(None) };
         drop(fd);
         let len_iv = private.borrow().get(&Key::name("lenIV")).and_then(Obj::as_num).unwrap_or(4.0);
@@ -759,7 +759,7 @@ impl Interp<'_> {
         let Some((outline, width)) = glyph else { return Ok(None) };
         let mut outline = outline;
         outline.apply_affine(fdm);
-        let w = fdm * vectorcraft_geom::Point::new(width, 0.0) - fdm * vectorcraft_geom::Point::ZERO;
+        let w = fdm * pluma_geom::Point::new(width, 0.0) - fdm * pluma_geom::Point::ZERO;
         Ok(Some((outline, w.x)))
     }
 

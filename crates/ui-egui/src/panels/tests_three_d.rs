@@ -3,27 +3,27 @@
 //! drag or a typed value.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
+use pluma_engine::Session;
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::Session;
 
 use super::{ID, Target, changed_settings, send, set_type, show, target};
 use crate::tests_labels::painted_text;
-use crate::{Services, VectorcraftApp};
+use crate::{PlumaApp, Services};
 
 /// An app with a selected blue square.
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
     app.run("paint.setFill", json!({"color": "#338ad6"})).unwrap();
     app
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
-fn effect(app: &VectorcraftApp) -> (String, Value) {
+fn effect(app: &PlumaApp) -> (String, Value) {
     let t = target(app).unwrap();
     (t.effect, t.params)
 }
@@ -76,9 +76,9 @@ fn an_object_type_applies_its_effect_then_changes_it_in_place() {
 }
 
 /// The ids of the effects of objects `ids`, in order.
-fn effect_ids(app: &VectorcraftApp, ids: &[u64]) -> Vec<Vec<String>> {
+fn effect_ids(app: &PlumaApp, ids: &[u64]) -> Vec<Vec<String>> {
     let st = app.session.active().unwrap();
-    ids.iter().map(|id| st.doc.node(vectorcraft_doc::NodeId(*id)).unwrap().appearance.effects.iter().map(|e| e.id.clone()).collect()).collect()
+    ids.iter().map(|id| st.doc.node(pluma_doc::NodeId(*id)).unwrap().appearance.effects.iter().map(|e| e.id.clone()).collect()).collect()
 }
 
 #[test]
@@ -191,9 +191,8 @@ fn a_change_reaches_each_selected_3d_effect_and_no_other_effect() {
     let c = app.run("shape.rectangle", json!({"x": 100, "y": 250, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "stylize.dropShadow", "item": null})).unwrap();
     app.run("select.set", json!({"ids": [a, b, c]})).unwrap();
-    let shadow = |app: &VectorcraftApp, id: u64| {
-        app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params.clone()
-    };
+    let shadow =
+        |app: &PlumaApp, id: u64| app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params.clone();
     let (b_shadow, c_shadow) = (shadow(&app, b), shadow(&app, c));
     let history = undo_len(&app);
     let ctx = egui::Context::default();
@@ -202,7 +201,7 @@ fn a_change_reaches_each_selected_3d_effect_and_no_other_effect() {
     send(&mut app, &ctx, Map::new(), false);
     assert_eq!(undo_len(&app), history + 1);
     let st = app.session.active().unwrap();
-    let fx = |id: u64| st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects.clone();
+    let fx = |id: u64| st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects.clone();
     assert_eq!(fx(a)[0].params["depth"], 75.0);
     assert_eq!(fx(a)[0].params["bevel"], "classic");
     assert_eq!(fx(b)[1].params["depth"], 75.0);
@@ -229,7 +228,7 @@ fn settings_the_selected_effects_disagree_on_are_unset_so_a_reset_reaches_them_a
     let b = app.run("shape.rectangle", json!({"x": 250, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "threeD.extrude", "item": null, "params": {"depth": 80.0}})).unwrap();
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
-    let mut fields = target(&app).map(|t| vectorcraft_effects::merged_params(&t.effect, &t.params)).unwrap().as_object().cloned().unwrap();
+    let mut fields = target(&app).map(|t| pluma_effects::merged_params(&t.effect, &t.params)).unwrap().as_object().cloned().unwrap();
     super::mark_mixed(&app, &mut fields);
     assert_eq!(fields["depth"], Value::Null);
     assert_eq!(fields["twist"], 0.0);
@@ -241,7 +240,7 @@ fn settings_the_selected_effects_disagree_on_are_unset_so_a_reset_reaches_them_a
     send(&mut app, &egui::Context::default(), changed, false);
     let st = app.session.active().unwrap();
     for id in [a, b] {
-        assert_eq!(st.doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["depth"], 50.0);
+        assert_eq!(st.doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["depth"], 50.0);
     }
 }
 
@@ -251,7 +250,7 @@ fn a_light_list_edit_reaches_only_the_objects_with_the_same_lights() {
     let two = json!([{"color": "#ff8040"}, {"color": "#4080ff", "rotation": -35.0}]);
     app.run("effect.apply", json!({"effect": "threeD.extrude", "item": null, "params": {"lights": two}})).unwrap();
     let a = app.session.active().unwrap().selection.objects[0].0;
-    let add = |app: &mut VectorcraftApp, x: f64, lights: Value| {
+    let add = |app: &mut PlumaApp, x: f64, lights: Value| {
         let id = app.run("shape.rectangle", json!({"x": x, "y": 250, "width": 80, "height": 80})).unwrap()["id"].as_u64().unwrap();
         app.run("effect.apply", json!({"effect": "threeD.extrude", "item": null, "params": {"lights": lights}})).unwrap();
         id
@@ -259,8 +258,8 @@ fn a_light_list_edit_reaches_only_the_objects_with_the_same_lights() {
     let b = add(&mut app, 50.0, json!([{"color": "#00ff00"}]));
     let c = add(&mut app, 200.0, two.clone());
     app.run("select.set", json!({"ids": [a, b, c]})).unwrap();
-    let lights = |app: &VectorcraftApp, id: u64| {
-        app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["lights"].clone()
+    let lights = |app: &PlumaApp, id: u64| {
+        app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["lights"].clone()
     };
     let b_before = lights(&app, b);
     let three = json!([{"color": "#ff8040"}, {"color": "#4080ff", "rotation": -35.0}, {"color": "#ffffff", "rotation": 0.0, "height": 90.0}]);
@@ -278,7 +277,7 @@ fn a_drag_keeps_its_objects_and_a_new_selection_starts_a_new_step() {
     let a = app.session.active().unwrap().selection.objects[0];
     set_type(&mut app, "extrude").unwrap();
     let b = app.run("shape.rectangle", json!({"x": 250, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
-    let b = vectorcraft_doc::NodeId(b);
+    let b = pluma_doc::NodeId(b);
     app.run("effect.apply", json!({"effect": "threeD.extrude", "item": null})).unwrap();
     app.run("select.set", json!({"ids": [a.0]})).unwrap();
     let history = undo_len(&app);
@@ -288,7 +287,7 @@ fn a_drag_keeps_its_objects_and_a_new_selection_starts_a_new_step() {
     app.session.active_mut().unwrap().selection.objects = vec![b];
     send(&mut app, &ctx, Map::from_iter([("depth".to_string(), json!(70.0))]), true);
     send(&mut app, &ctx, Map::new(), false);
-    let depth = |app: &VectorcraftApp, id| app.session.active().unwrap().doc.node(id).unwrap().appearance.effects[0].params["depth"].clone();
+    let depth = |app: &PlumaApp, id| app.session.active().unwrap().doc.node(id).unwrap().appearance.effects[0].params["depth"].clone();
     assert_eq!(depth(&app, a), 90.0);
     assert_eq!(depth(&app, b), 70.0);
     assert_eq!(undo_len(&app), history + 2);
@@ -308,8 +307,7 @@ fn a_light_drag_keeps_the_objects_whose_lights_matched_when_it_started() {
     send(&mut app, &ctx, Map::from_iter([("lights".to_string(), one("#00ff00"))]), true);
     send(&mut app, &ctx, Map::from_iter([("lights".to_string(), one("#0000ff"))]), true);
     send(&mut app, &ctx, Map::new(), false);
-    let lights =
-        |id: u64| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["lights"].clone();
+    let lights = |id: u64| app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["lights"].clone();
     assert_eq!(lights(a), one("#0000ff"));
     assert_eq!(lights(b), one("#00ff00"));
 }
@@ -338,7 +336,7 @@ fn a_drag_ends_when_the_panel_is_no_longer_drawn() {
 }
 
 /// The panel's controls, drawn once with the accessibility tree on.
-fn controls(app: &mut VectorcraftApp, ctx: &egui::Context) -> Vec<egui::accesskit::Node> {
+fn controls(app: &mut PlumaApp, ctx: &egui::Context) -> Vec<egui::accesskit::Node> {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
     out.textures_delta.clear();
     out.platform_output.accesskit_update.map(|u| u.nodes.into_iter().map(|(_, n)| n).collect()).unwrap_or_default()
@@ -373,8 +371,8 @@ fn a_mixed_checkbox_shows_a_dash_and_another_change_keeps_each_effects_value() {
     let history = undo_len(&app);
     click(&ctx, &mut app, at, show);
     assert_eq!(undo_len(&app), history + 1);
-    let params = |id: u64| app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params.clone();
-    let merged = |id: u64| vectorcraft_effects::merged_params("threeD.extrude", &params(id));
+    let params = |id: u64| app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params.clone();
+    let merged = |id: u64| pluma_effects::merged_params("threeD.extrude", &params(id));
     assert_eq!((merged(a)["shade"].clone(), merged(b)["shade"].clone()), (json!(true), json!(false)));
     assert_eq!((merged(a)["lightBehind"].clone(), merged(b)["lightBehind"].clone()), (json!(true), json!(true)));
     // A single light whose settings differ: Add Light is off.

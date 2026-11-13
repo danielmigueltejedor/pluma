@@ -8,7 +8,7 @@ use craft_pdf::syntax::page::Page;
 use craft_pdf::syntax::xref::XRef;
 use craft_pdf::syntax::{DecryptionError, LoadPdfError, Pdf};
 use kurbo::{Affine, Rect};
-use vectorcraft_doc::setup::MAX_BLEED;
+use pluma_doc::setup::MAX_BLEED;
 
 use crate::import_color::{direct, items, readable, values};
 use crate::streams::{Refusal, Refused, refused};
@@ -247,7 +247,7 @@ pub struct Opened {
 /// The PDF `bytes`, read and checked as [`crate::import_with_report`] reads it (with `password`, as
 /// [`info`] takes it, and on a thread with the import's stack), to read several things from.
 pub fn open_pdf(bytes: &[u8], password: Option<&str>) -> Result<Opened, PdfError> {
-    vectorcraft_doc::depth::with_deep_stack(|| open(bytes, password)).map(|pdf| Opened { pdf })
+    pluma_doc::depth::with_deep_stack(|| open(bytes, password)).map(|pdf| Opened { pdf })
 }
 
 impl Opened {
@@ -468,7 +468,7 @@ const MAX_PRIVATE: usize = 256 << 20;
 /// streams in order, joined. A PDF saved with the editing data has its streams under
 /// `AIPDFPrivateData1`, `AIPDFPrivateData2`, … instead: those are read when there is no
 /// `AIPrivateData1`. `None` for a PDF without either (or with a stream that can't be read).
-/// What it holds is the editor's own copy of the art (see `vectorcraft_eps::layered_ai`).
+/// What it holds is the editor's own copy of the art (see `pluma_eps::layered_ai`).
 pub fn illustrator_data(bytes: &[u8], password: Option<&str>) -> Option<Vec<u8>> {
     private_data(&open(bytes, password).ok()?)
 }

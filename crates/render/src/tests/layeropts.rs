@@ -1,9 +1,9 @@
 //! Layer Options on screen: Preview off draws a layer in outline, Dim Images fades its images;
 //! exports (which leave templates out) draw both as they are.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ImageBlob, ImageObject, Node, NodeId, NodeKind};
-use vectorcraft_geom::shapes;
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, ImageBlob, ImageObject, Node, NodeId, NodeKind};
+use pluma_geom::shapes;
 
 use crate::*;
 
@@ -103,7 +103,7 @@ fn a_template_layer_stays_in_preview_in_outline_view() {
             *preview = false;
         }
     });
-    let top = Node::layer(d.alloc_id(), "Drawing", vectorcraft_doc::LayerColor::Preset(0));
+    let top = Node::layer(d.alloc_id(), "Drawing", pluma_doc::LayerColor::Preset(0));
     let top_id = d.insert(None, 9, top).unwrap();
     let red = Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0);
     let sq = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(10.0, 60.0, 40.0, 90.0)), red);
@@ -208,11 +208,7 @@ fn hidden_guide_paths_leave_the_artwork_and_refresh_cached_effects() {
         );
         let mut group = Node::group(d.alloc_id(), vec![Arc::new(guide), Arc::new(art)]);
         if effect {
-            group.appearance.effects.push(vectorcraft_doc::Effect {
-                id: "blur.gaussian".into(),
-                params: serde_json::json!({"radius":2}),
-                visible: true,
-            });
+            group.appearance.effects.push(pluma_doc::Effect { id: "blur.gaussian".into(), params: serde_json::json!({"radius":2}), visible: true });
         }
         d.insert(Some(layer), 0, group).unwrap();
         let mut without_guide = d.clone();

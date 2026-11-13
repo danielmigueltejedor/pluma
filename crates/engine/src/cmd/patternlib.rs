@@ -5,10 +5,10 @@
 
 use std::sync::{Arc, LazyLock};
 
-use vectorcraft_color::{Color, Paint, Swatch, SwatchLibrary};
-use vectorcraft_doc::pattern::pattern_paint;
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, PatternDef, TileType};
-use vectorcraft_geom::{PathData, Point, Rect, SubPath, shapes};
+use pluma_color::{Color, Paint, Swatch, SwatchLibrary};
+use pluma_doc::pattern::pattern_paint;
+use pluma_doc::{Appearance, Document, Node, NodeId, PatternDef, TileType};
+use pluma_geom::{PathData, Point, Rect, SubPath, shapes};
 
 use super::clipboard::Clipboard;
 use super::clipboard::resources::SwatchChoices;

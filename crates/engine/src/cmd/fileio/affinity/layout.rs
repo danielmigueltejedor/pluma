@@ -68,7 +68,7 @@ pub(super) fn master_prefix(index: usize) -> String {
 /// A table cell's text `w` × `h` at the origin, placed as Affinity places it. Affinity aligns the
 /// block from the first line's capitals' tops to the last baseline in the cell, and draws it even
 /// where it doesn't fit (centred cells measured on a document's thumbnail: two lines in a cell
-/// shorter than them reach out of it at both ends). VectorCraft aligns the block down to the last
+/// shorter than them reach out of it at both ends). Pluma aligns the block down to the last
 /// line's descenders and keeps lines inside the frame: the frame moves by what this returns (down
 /// the cell) and grows where the lines need more room.
 pub(super) fn place_cell(obj: &mut TextObject, w: f64, h: f64) -> f64 {
@@ -80,7 +80,7 @@ pub(super) fn place_cell(obj: &mut TextObject, w: f64, h: f64) -> f64 {
     let mut tall = obj.clone();
     tall.area.vertical_align = VerticalAlign::Top;
     tall.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, h * 4.0 + 10_000.0)) };
-    let lines = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &tall).lines;
+    let lines = pluma_text::layout(pluma_text::FontDb::global(), &tall).lines;
     let Some(last) = lines.iter().rfind(|l| l.region == 0) else { return 0.0 };
     let (baseline, descent) = (last.baseline, last.descent);
     if !(baseline.is_finite() && descent.is_finite() && h.is_finite()) {
@@ -89,26 +89,26 @@ pub(super) fn place_cell(obj: &mut TextObject, w: f64, h: f64) -> f64 {
     // (A little more than the lines need, for the rounding of the layout.)
     let frame = h.max(baseline + descent + 0.05);
     obj.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, frame)) };
-    // Where Affinity has the block's top, less where VectorCraft puts it in the frame.
+    // Where Affinity has the block's top, less where Pluma puts it in the frame.
     (h - baseline) * share - (frame - baseline - descent) * share
 }
 
 /// Area type `w` × `h` at the origin whose lines don't all fit. Affinity shows each line whose
-/// baseline is inside the frame, its descenders hanging out of it; VectorCraft's area type leaves
+/// baseline is inside the frame, its descenders hanging out of it; Pluma's area type leaves
 /// such a line out. The frame is made taller, from its top, by what those lines need. Whether it was.
 pub(super) fn fit_lines(obj: &mut TextObject, w: f64, h: f64) -> bool {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     if !(w > 0.0 && h > 0.0 && h.is_finite()) {
         return false;
     }
-    let first = vectorcraft_text::layout(db, obj);
+    let first = pluma_text::layout(db, obj);
     if !first.overflow {
         return false;
     }
     // Where the lines go in a frame with room for all of them.
     let mut tall = obj.clone();
     tall.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, h * 4.0 + 10_000.0)) };
-    let need = vectorcraft_text::layout(db, &tall)
+    let need = pluma_text::layout(db, &tall)
         .lines
         .iter()
         .filter(|l| l.region == 0 && l.baseline <= h + 1e-6)
@@ -122,7 +122,7 @@ pub(super) fn fit_lines(obj: &mut TextObject, w: f64, h: f64) -> bool {
     // (A little more than they need, for the rounding of the layout.)
     let short = std::mem::replace(&mut obj.kind, TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, w, need + 0.05)) });
     // Something else keeps the lines out: as the source has it.
-    if vectorcraft_text::layout(db, obj).lines.len() <= before {
+    if pluma_text::layout(db, obj).lines.len() <= before {
         obj.kind = short;
         return false;
     }
@@ -148,7 +148,7 @@ fn share(j: Justify) -> f64 {
 
 /// Artistic text whose paragraphs are aligned differently. Affinity aligns each line within the
 /// width of the longest, and places that block at the anchor by the text's own alignment (its
-/// first paragraph's); VectorCraft's point type aligns each line on the anchor. Indents move the
+/// first paragraph's); Pluma's point type aligns each line on the anchor. Indents move the
 /// lines to where Affinity has them and keep their alignment: a centred line centres between its
 /// indents and a right-aligned one ends at its right indent, whatever its width.
 pub(super) fn align_lines(obj: &mut TextObject) {
@@ -156,7 +156,7 @@ pub(super) fn align_lines(obj: &mut TextObject) {
     if obj.paras.iter().all(|p| share(p.justify) == block) {
         return;
     }
-    let lines = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), obj).lines;
+    let lines = pluma_text::layout(pluma_text::FontDb::global(), obj).lines;
     let w = lines.iter().map(|l| l.x1 - l.x0).filter(|w| w.is_finite()).fold(0.0, f64::max);
     if !(w > 0.0 && w < 1e6) {
         return;
@@ -191,13 +191,13 @@ pub(super) fn justify(a: AfAlign) -> Justify {
     }
 }
 
-/// A font's line gap in em, as VectorCraft will set it (the installed face, or the fallback for
+/// A font's line gap in em, as Pluma will set it (the installed face, or the fallback for
 /// a missing one); 0 when no font is loaded.
 pub(super) fn line_gap(family: &str, style: &str) -> f64 {
     let defaults = CharStyle::default();
     let family = if family.is_empty() { defaults.font_family.as_str() } else { family };
     let style = if style.is_empty() { defaults.font_style.as_str() } else { style };
-    let Some(face) = vectorcraft_text::FontDb::global().face(family, style) else { return 0.0 };
+    let Some(face) = pluma_text::FontDb::global().face(family, style) else { return 0.0 };
     let upem = face.units_per_em();
     let gap = if upem > 0.0 { face.line_gap() / upem } else { 0.0 };
     if gap.is_finite() { gap.clamp(0.0, 2.0) } else { 0.0 }

@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
+use pluma_doc::Document;
 use serde_json::{Value, json};
-use vectorcraft_doc::Document;
 
 use super::super::{Result, Session, bad, str_param};
 use crate::{DocState, EngineError};

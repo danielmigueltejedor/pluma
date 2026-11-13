@@ -1,6 +1,6 @@
-//! VectorCraft's egui frontend: an Illustrator-style UI over `vectorcraft-engine`.
+//! Pluma's egui frontend: an Illustrator-style UI over `pluma-engine`.
 //!
-//! The UI is thin: every action goes through [`VectorcraftApp::run`], which dispatches UI commands
+//! The UI is thin: every action goes through [`PlumaApp::run`], which dispatches UI commands
 //! (view/window) here and everything else to the engine. The same entry point serves menus,
 //! shortcuts, the ⌘K palette and the control channel ([`control`]).
 #![forbid(unsafe_code)]
@@ -8,7 +8,7 @@
 /// Where this app's releases live, for the in-app updates (`updates_ui`).
 #[cfg(not(target_arch = "wasm32"))]
 pub const UPDATE_APP: nodalia_update::App =
-    nodalia_update::App { name: "Pluma", repo: "getnodalia/pluma", bundle: "VectorCraft.app", version: env!("CARGO_PKG_VERSION"), edition: None };
+    nodalia_update::App { name: "Pluma", repo: "getnodalia/pluma", bundle: "Pluma.app", version: env!("CARGO_PKG_VERSION"), edition: None };
 
 /// Translate a UI string literal into the language the UI is drawn in (see [`i18n`]).
 #[macro_export]
@@ -94,10 +94,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 
+use pluma_engine::cmd::fileio;
+use pluma_engine::file_access::{self, AutomationRoots};
+use pluma_engine::{Session, ViewInfo};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_engine::file_access::{self, AutomationRoots};
-use vectorcraft_engine::{Session, ViewInfo};
 
 pub use control::{ControlRequest, ControlResponse, Ticket as ControlTicket};
 pub use state::{UiState, View};
@@ -120,12 +120,12 @@ pub use services::{
 use state::{GeometryStamp, InputGeneration, PendingScreenshot, QueuedScreenshot};
 pub(crate) use state::{InputFrame, take_frame_once};
 
-pub struct VectorcraftApp {
+pub struct PlumaApp {
     pub session: Session,
     pub ui: UiState,
     pub views: Vec<View>,
-    /// The document ([`vectorcraft_engine::DocState::uid`]) each of `views` belonged to at the last
-    /// [`VectorcraftApp::sync_views`], which puts the views back with their documents after
+    /// The document ([`pluma_engine::DocState::uid`]) each of `views` belonged to at the last
+    /// [`PlumaApp::sync_views`], which puts the views back with their documents after
     /// `document.move` reorders them (#5663).
     pub(crate) view_uids: Vec<u64>,
     pub services: Services,
@@ -186,19 +186,19 @@ pub struct VectorcraftApp {
     /// An unfinished control-channel Rotate View gesture, kept only for this app instance.
     pub(crate) control_rotate_press: Option<control::RotateViewPress>,
     /// Hover position in document coordinates.
-    pub hover_doc: Option<vectorcraft_geom::Point>,
+    pub hover_doc: Option<pluma_geom::Point>,
     /// System clipboard: SVG to publish next frame, the last SVG we published (so pasting it back
     /// uses the lossless internal clipboard) and what came with a paste (a Paste event's text, a
     /// picture or file the host read: [`Self::paste_from_host`]).
     clipboard_out: Option<String>,
     clipboard_published: Option<String>,
-    pub(crate) clipboard_in: Option<vectorcraft_engine::cmd::clipboard::Flavour>,
+    pub(crate) clipboard_in: Option<pluma_engine::cmd::clipboard::Flavour>,
     /// The Copy or Cut whose formats go to the system clipboard ([`Self::publish_clipboard`]).
     clipboard_publishing: sysclip::Publishing,
     /// A URL to open through egui next frame (when the host has no `open_url` service).
     pending_url: Option<String>,
-    /// `VECTORCRAFT_TITLEBAR` chose this window's frame (Linux and the BSDs), so Preferences › User
-    /// Interface › System Title Bar and VectorCraft Title Bar on Every Desktop do not apply while
+    /// `PLUMA_TITLEBAR` chose this window's frame (Linux and the BSDs), so Preferences › User
+    /// Interface › System Title Bar and Pluma Title Bar on Every Desktop do not apply while
     /// it is set. `false` unless the host sets it.
     pub titlebar_from_env: bool,
     /// Windows and Linux: the window has no OS decorations, so the app bar is the title bar (drag,
@@ -299,8 +299,8 @@ pub struct VectorcraftApp {
     /// A numeric field is being scrubbed: the document's edits meanwhile are one undo step
     /// ([`scrub::begin_frame`]).
     scrub_group: bool,
-    /// The undo step of the scrub in progress ([`vectorcraft_engine::Session::begin_undo_scope`]).
-    scrub_scope: Option<vectorcraft_engine::UndoScope>,
+    /// The undo step of the scrub in progress ([`pluma_engine::Session::begin_undo_scope`]).
+    scrub_scope: Option<pluma_engine::UndoScope>,
     /// The folders control requests, and the input they inject, may read and write
     /// (`--automation-read-root`, `--automation-write-root`); `None`: anywhere. See
     /// [`Self::with_automation_roots`].

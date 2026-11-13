@@ -149,9 +149,9 @@ mod tests {
         let doc = b"/AI11Text :\r0 /FreeUndo ,\r0 /FrameIndex ,\r3 /StoryIndex ,\r/Art :\rX=\r40 130 m\r40 250 L\r240 250 L\r240 130 L\r40 130 L\rn\rX+\r; /ConfiningPath ,\r;\r\
             /AI11Text :\r0 /FreeUndo ,\r0 /FrameIndex ,\r4 /StoryIndex ,\r/Art :\rX=\r40 130 m\r40 250 L\r240 250 L\rN\rX+\r; /ConfiningPath ,\r;\r";
         let f = text_frames(doc);
-        let closed = vectorcraft_geom::PathData::from_bezpath(&f[&(3, 0)]);
+        let closed = pluma_geom::PathData::from_bezpath(&f[&(3, 0)]);
         assert!(closed.subpaths[0].closed);
         assert_eq!(closed.subpaths[0].anchors.len(), 4, "the last point merges with the first");
-        assert!(!vectorcraft_geom::PathData::from_bezpath(&f[&(4, 0)]).subpaths[0].closed);
+        assert!(!pluma_geom::PathData::from_bezpath(&f[&(4, 0)]).subpaths[0].closed);
     }
 }

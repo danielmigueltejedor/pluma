@@ -29,14 +29,14 @@
 //! Behaviour from the public descriptions only:
 //! <https://helpx.adobe.com/illustrator/using/trapping.html> and
 //! <https://helpx.adobe.com/illustrator/using/pathfinder-panel-overview.html> (feature names and
-//! option ranges; the defaults of 0.25 pt, 100% and 40% are VectorCraft's own choices, the pages
+//! option ranges; the defaults of 0.25 pt, 100% and 40% are Pluma's own choices, the pages
 //! give none).
 
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, FillLayer, Node, NodeId};
+use pluma_geom::{FillRule, PathData, Rect};
+use pluma_pathops as po;
 use serde_json::{Value, json};
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, FillLayer, Node, NodeId};
-use vectorcraft_geom::{FillRule, PathData, Rect};
-use vectorcraft_pathops as po;
 
 use crate::util::{flag, num};
 
@@ -291,8 +291,8 @@ pub fn trap_node(id: NodeId, piece: TrapPiece) -> Node {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_geom::Rect;
-    use vectorcraft_geom::shapes::rectangle;
+    use pluma_geom::Rect;
+    use pluma_geom::shapes::rectangle;
 
     use super::*;
 

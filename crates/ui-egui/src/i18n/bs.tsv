@@ -1,14 +1,14 @@
 # Bosnian (bs) catalog, Latin script, Ijekavian. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|few|other" forms).
 #
-# Clean-room: every entry is written from the meaning of VectorCraft's English label, in standard
+# Clean-room: every entry is written from the meaning of Pluma's English label, in standard
 # Bosnian (historija, sačuvaj, tačka, datoteka, postavke); no other application's localisation was
 # consulted or copied. Drafted with AI assistance (Claude Code) from the English meaning; not yet
 # reviewed by a native speaker. The wording is shared with storytold/craft-i18n
-# (locales/bs/vectorcraft.tsv and common.tsv). Vocabulary: radna ploča (artboard), putanja (path),
+# (locales/bs/pluma.tsv and common.tsv). Vocabulary: radna ploča (artboard), putanja (path),
 # sidrena tačka (anchor point), potez (stroke), ispuna (fill), gradijent, uzorci boja (Swatches),
 # uzorak (pattern), neprozirnost (opacity), četkica (brush), praćenje slike (Image Trace).
-# Product and format names (VectorCraft, OpenType, PDF ...) stay as they are; `{placeholders}`,
+# Product and format names (Pluma, OpenType, PDF ...) stay as they are; `{placeholders}`,
 # `code` in backticks and a trailing "…" are kept.
 
 	New Design	Novi dizajn
@@ -16,17 +16,16 @@
 	Paste Design	Zalijepi dizajn
 	Select Unused	Odaberi nekorišteno
 	Glowing Edges…	Užarene ivice…
-	About VectorCraft	O VectorCraftu
+	About Pluma	O Plumau
 	Align to Path	Poravnaj s putanjom
 	Cut Path at Selected Anchor Points	Presijeci putanju na odabranim sidrenim tačkama
-	Join Our Discord	Pridružite se našem Discordu
 	Language	Jezik
 	UI Brightness	Svjetlina interfejsa
 	Dark	Tamno
 	Medium Dark	Srednje tamno
 	Medium Light	Srednje svijetlo
 	Light	Svijetlo
-	Quit VectorCraft	Zatvori VectorCraft
+	Quit Pluma	Zatvori Pluma
 	Drop Artwork	Ispusti crtež
 @msg	{key} must be [x, y] with finite coordinates	{key} mora biti [x, y] s konačnim koordinatama
 @msg	ids must contain 1–10000 object ids	ids mora sadržavati 1–10000 ID-ova objekata
@@ -115,7 +114,7 @@
 	Keyboard Shortcuts…	Prečice na tastaturi…
 	Import Shortcut Set	Uvezi skup prečica
 	Import Shortcut Set…	Uvezi skup prečica…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Svaki unos datoteke uparuje se s alatom, naredbom ili panelom VectorCrafta. Provjerite uparivanja i odgovorite na ostatak.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Svaki unos datoteke uparuje se s alatom, naredbom ili panelom Plumaa. Provjerite uparivanja i odgovorite na ostatak.
 	Keys	Tipke
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Datoteka zapisuje tipke i modifikatore kao kodove. Provjerite predložena značenja i odgovorite na kodove koji još nisu poznati.
 	Click, then press the key this code stands for (Esc cancels)	Kliknite, zatim pritisnite tipku koju ovaj kod predstavlja (Esc otkazuje)
@@ -125,7 +124,7 @@
 	not known yet	još nije poznato
 	Shortcuts	Prečice
 	In the File	U datoteci
-	In VectorCraft	U VectorCraftu
+	In Pluma	U Plumau
 	Needs Attention Only	Samo oni koji zahtijevaju pažnju
 	Ready	Spremno
 	Needs a choice	Treba izbor
@@ -134,7 +133,7 @@
 	Tools take a single key (optionally with Shift)	Alati primaju jednu tipku (po želji sa Shiftom)
 	A later row takes this shortcut	Kasniji red preuzima ovu prečicu
 	Same item as a later row	Ista stavka kao kasniji red
-	Start from VectorCraft Defaults	Počni od zadanih postavki VectorCrafta
+	Start from Pluma Defaults	Počni od zadanih postavki Plumaa
 	Add to the Current Shortcuts	Dodaj u trenutne prečice
 	Remember My Choices	Zapamti moje izbore
 	{ready} of {total} ready	Spremno {ready} od {total}
@@ -149,7 +148,7 @@
 	Forget Import Matches	Zaboravi uparivanja uvoza
 @plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	slaže se s {n} zadanom prečicom|slaže se s {n} zadane prečice|slaže se s {n} zadanih prečica
 @plural	{n} part of the file wasn't read|{n} parts of the file weren't read	{n} dio datoteke nije pročitan|{n} dijela datoteke nisu pročitana|{n} dijelova datoteke nije pročitano
-@msg	This shortcut file is in a form VectorCraft can't read.	Ova datoteka prečica je u obliku koji VectorCraft ne može pročitati.
+@msg	This shortcut file is in a form Pluma can't read.	Ova datoteka prečica je u obliku koji Pluma ne može pročitati.
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	nije skup prečica: tekst ne počinje nazivom s kosom crtom i otvarajućom vitičastom zagradom
 	Preferences…	Postavke…
 	Object	Objekat
@@ -553,7 +552,7 @@
 	Working CMYK	Radni CMYK
 	RGB	RGB
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
-	VectorCraft Generic CMYK (SWOP-like)	VectorCraft generički CMYK (sličan SWOP-u)
+	Pluma Generic CMYK (SWOP-like)	Pluma generički CMYK (sličan SWOP-u)
 	Legacy Macintosh RGB (Gamma 1.8)	Naslijeđeni Macintosh RGB (gama 1.8)
 	Internet Standard RGB (sRGB)	Internet standardni RGB (sRGB)
 	Monitor RGB	RGB monitora
@@ -799,11 +798,10 @@
 	Save Swatch Library…	Sačuvaj biblioteku uzoraka boja…
 	Symbol Libraries	Biblioteke simbola
 	Help	Pomoć
-	ArtCraft Website	Web stranica ArtCrafta
-	VectorCraft on getartcraft.com	VectorCraft na getartcraft.com
-	VectorCraft on GitHub	VectorCraft na GitHubu
+	Pluma Website	Web stranica Plume
+	Pluma on GitHub	Pluma na GitHubu
 	Search Commands…	Pretraži naredbe…
-	VectorCraft Help…	Pomoć za VectorCraft…
+	Pluma Help…	Pomoć za Pluma…
 	Auto Color	Automatska boja
 	Automatic	Automatski
 	Isolate Selected Group	Izoliraj odabranu grupu
@@ -856,7 +854,7 @@
 	Dock Control Bar	Usidri kontrolnu traku
 	Float Tool Group	Odvoji grupu alata
 	Services	Usluge
-	Hide VectorCraft	Sakrij VectorCraft
+	Hide Pluma	Sakrij Pluma
 	Hide Others	Sakrij ostale
 	Minimize	Minimiziraj
 	Zoom	Zumiranje
@@ -911,8 +909,8 @@
 	Stained Glass…	Vitraž…
 	Texturizer…	Teksturizator…
 	System Title Bar	Sistemska naslovna traka
-	VectorCraft Title Bar on Every Desktop	Naslovna traka VectorCrafta na svakoj radnoj površini
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Dok je varijabla okruženja VECTORCRAFT_TITLEBAR postavljena, ona bira naslovnu traku.
+	Pluma Title Bar on Every Desktop	Naslovna traka Plumaa na svakoj radnoj površini
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Dok je varijabla okruženja PLUMA_TITLEBAR postavljena, ona bira naslovnu traku.
 	System Title Bar takes precedence over this option while it is on.	Dok je uključena, Sistemska naslovna traka ima prednost pred ovom opcijom.
 	Exit	Izlaz
 	Distort	Izobliči
@@ -2178,8 +2176,8 @@ digits	Malayalam	Malajalam
 	Select All Bound Objects	Odaberi sve vezane objekte
 	Multiple objects	Više objekata
 	Graphics: {adapter}	Grafika: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Dio ArtCrafta. MIT OR Apache-2.0. Fontovi: Source Sans 3, Inter, JetBrains Mono (OFL). Ikone: Lucide (ISC) + VectorCraft.
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Dio ArtCrafta. MIT OR Apache-2.0. Fontovi: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Ikone: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Dio Nodaliaa. MIT OR Apache-2.0. Fontovi: Source Sans 3, Inter, JetBrains Mono (OFL). Ikone: Lucide (ISC) + Pluma.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Dio Nodaliaa. MIT OR Apache-2.0. Fontovi: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Ikone: Lucide (ISC) + Pluma.
 	Version {version} — open-source vector illustration in pure Rust.	Verzija {version} — vektorska ilustracija otvorenog koda u čistom Rustu.
 	Align to Page	Poravnaj sa stranicom
 	Smooth Color	Glatka boja
@@ -2524,7 +2522,7 @@ digits	Malayalam	Malajalam
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	Foldera ili datoteka koje nije moguće pročitati: {n}|Foldera ili datoteka koje nije moguće pročitati: {n}|Foldera ili datoteka koje nije moguće pročitati: {n}
 	The search stopped at its limit: search a smaller folder.	Pretraga se zaustavila na svom ograničenju: pretražite manji folder.
 	Copy only fonts you own or are licensed to install.	Kopirajte samo fontove koje posjedujete ili imate licencu za instaliranje.
-	VectorCraft copies the fonts to {folder}.	VectorCraft kopira fontove u {folder}.
+	Pluma copies the fonts to {folder}.	Pluma kopira fontove u {folder}.
 @plural	Apply to All ({n} more missing)|Apply to All ({n} more missing)	Primijeni na sve (još {n} nedostaje)|Primijeni na sve (još {n} nedostaju)|Primijeni na sve (još {n} nedostaje)
 	Ignore	Zanemari
 	Linked File Not Found	Povezana datoteka nije pronađena
@@ -2614,7 +2612,7 @@ digits	Malayalam	Malajalam
 	On: one locked object showing the document, updated when it changes.	Uključeno: jedan zaključani objekat koji prikazuje dokument, ažuriran kad se on promijeni.
 	Off: an editable copy of its art, embedded in this document.	Isključeno: kopija njegovog crteža koja se može uređivati, ugrađena u ovaj dokument.
 	Images: link to the file instead of only embedding it.	Slike: poveži s datotekom umjesto samo ugrađivanja.
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft dokumenti: jedan zaključani objekat, ažuriran kad se datoteka promijeni.
+	Pluma documents: one locked object, updated when the file changes.	Pluma dokumenti: jedan zaključani objekat, ažuriran kad se datoteka promijeni.
 	Alignment:	Poravnanje:
 	Applies when the linked file is relinked or updated.	Primjenjuje se kad se povezana datoteka ponovo poveže ili ažurira.
 	Bounds (Fill Proportionally)	Granice (proporcionalna ispuna)
@@ -2702,7 +2700,7 @@ digits	Malayalam	Malajalam
 	A new preset starting from the selected one	Novi predložak koji počinje od odabranog
 	Differences from {preset}:	Razlike od {preset}:
 	Differences from [Default]:	Razlike od [Zadano]:
-	Differences from VectorCraft Default:	Razlike od VectorCraft zadano:
+	Differences from Pluma Default:	Razlike od Pluma zadano:
 	Edit…	Uredi…
 	None.	Ništa.
 	Presets:	Unaprijed postavljene vrijednosti:
@@ -2756,7 +2754,7 @@ digits	Malayalam	Malajalam
 	3 Color Job	Posao s 3 boje
 	Recover Documents	Oporavi dokumente
 	Restored documents open unsaved: save them to keep them.	Vraćeni dokumenti otvaraju se nesačuvani: sačuvajte ih da ih zadržite.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft se prošli put nije normalno zatvorio. Ovi dokumenti su imali nesačuvane promjene:
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma se prošli put nije normalno zatvorio. Ovi dokumenti su imali nesačuvane promjene:
 	Do you want to save the changes you made to “{name}”?	Želite li sačuvati promjene koje ste napravili u „{name}”?
 	Don't Save	Nemoj sačuvati
 	Your changes will be lost if you don't save them.	Vaše promjene će biti izgubljene ako ih ne sačuvate.
@@ -2826,7 +2824,7 @@ antiAlias	Sharp	Oštro
 	Color images	Slike u boji
 	Compatibility:	Kompatibilnost:
 	PDF 1.7	PDF 1.7
-	VectorCraft Default	VectorCraft zadano
+	Pluma Default	Pluma zadano
 	High Quality Print	Štampa visokog kvaliteta
 	[High Quality Print]	[Štampa visokog kvaliteta]
 	Press Quality	Štamparski kvalitet
@@ -2839,7 +2837,7 @@ antiAlias	Sharp	Oštro
 	[PDF/X-3:2002]	[PDF/X-3:2002]
 	PDF/X-4:2010	PDF/X-4:2010
 	[PDF/X-4:2010]	[PDF/X-4:2010]
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Dokument ostaje uređiv: VectorCraft ponovo otvara PDF bez gubitaka. Za datoteke koje ćete ponovo uređivati.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	Dokument ostaje uređiv: Pluma ponovo otvara PDF bez gubitaka. Za datoteke koje ćete ponovo uređivati.
 	Compress text and line art	Komprimiraj tekst i linijsku grafiku
 	Compression	Kompresija
 	Compression › Color › Above Ppi	Kompresija › Boja › Iznad ppi
@@ -2917,14 +2915,14 @@ antiAlias	Sharp	Oštro
 	A File…	Datoteka…
 	GPL palettes keep solid colours only, as RGB.	GPL palete zadržavaju samo pune boje, kao RGB.
 	Save Swatch Library	Sačuvaj biblioteku uzoraka boja
-	VectorCraft Swatches (.vcswatches)	VectorCraft uzorci boja (.vcswatches)
+	Pluma Swatches (.vcswatches)	Pluma uzorci boja (.vcswatches)
 	Save To:	Sačuvaj u:
 	Saved to User Defined: {}	Sačuvano u korisnički definisano: {}
 	Selected Swatches Only	Samo odabrani uzorci boja
 	Selected Swatches Only (0)	Samo odabrani uzorci boja (0)
 	User Defined Libraries	Korisnički definisane biblioteke
 	Copy Report	Kopiraj izvještaj
-	VectorCraft read this script without running it.	VectorCraft je pročitao ovu skriptu bez izvršavanja.
+	Pluma read this script without running it.	Pluma je pročitao ovu skriptu bez izvršavanja.
 	Needs nothing beyond plain JavaScript	Ne treba ništa osim običnog JavaScripta
 	Needs the script language's own objects or directives	Treba vlastite objekte ili direktive jezika skripte
 	Needs the document model	Treba model dokumenta
@@ -3915,7 +3913,7 @@ axis	Both	Obje
 	Print as Bitmap	Štampaj kao bitmapu
 	Draft	Nacrt
 	Default	Zadano
-	[VectorCraft Default]	[VectorCraft zadano]
+	[Pluma Default]	[Pluma zadano]
 	Magenta	Magenta
 	Page	Stranica
 	Print Tiling	Popločavanje štampe
@@ -4013,7 +4011,7 @@ axis	Both	Obje
 	Width	Širina
 	:	:
 effect	Regular	Obično
-	Saving Poster.vectorcraft	Čuvanje Poster.vectorcraft
+	Saving Poster.pluma	Čuvanje Poster.pluma
 	Community	Zajednica
 	Hide Bar	Sakrij traku
 	More Options	Više opcija
@@ -4025,11 +4023,7 @@ effect	Regular	Obično
 	Quickly start a new file	Brzo započnite novu datoteku
 	Recent Files	Nedavne datoteke
 	Vector illustration — fast, open, scriptable.	Vektorska ilustracija — brza, otvorena, skriptabilna.
-	Welcome to VectorCraft	Dobro došli u VectorCraft
-	ArtCraft website	Web stranica ArtCrafta
-	Discord	Discord
-	Join our Discord	Pridružite nam se na Discordu
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Pridružite se ArtCraft zajednici na Discordu (discord.gg/artcraft)
+	Welcome to Pluma	Dobro došli u Pluma
 	Source code on GitHub	Izvorni kod na GitHubu
 	All Tools	Svi alati
 	Draw	Crtaj
@@ -4074,9 +4068,9 @@ font-technology	Variable	Varijabilni
 	Installed plug-in {}	Instaliran dodatak {}
 	Revert to the saved version of “{name}”?	Vratiti na sačuvanu verziju dokumenta „{name}”?
 	Replace “{name}”, the file this document was opened from?	Zamijeniti „{name}”, datoteku iz koje je ovaj dokument otvoren?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Pri otvaranju izostavljeno je ono što VectorCraft još ne može pročitati ({what}), pa se zamjenom to trajno gubi. Sačuvajte pod drugim nazivom da to zadržite.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Pri otvaranju izostavljeno je ono što Pluma još ne može pročitati ({what}), pa se zamjenom to trajno gubi. Sačuvajte pod drugim nazivom da to zadržite.
 	“{name}” already exists. Replace it?	„{name}” već postoji. Zamijeniti?
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	Naziv u panelu za čuvanje bio je „{typed}”; VectorCraft je dodao ekstenziju vrste datoteke. Zamjena datoteke prepisuje njen sadržaj.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	Naziv u panelu za čuvanje bio je „{typed}”; Pluma je dodao ekstenziju vrste datoteke. Zamjena datoteke prepisuje njen sadržaj.
 	Saved {path}	Sačuvano: {path}
 	Saving	Čuvanje
 	Saving {}	Čuvanje {}
@@ -4084,7 +4078,7 @@ font-technology	Variable	Varijabilni
 	Dashed Line	Isprekidana linija
 	Panel menu	Meni panela
 	Unembed…	Poništi ugrađivanje…
-	Applies the next time VectorCraft starts.	Primjenjuje se pri sljedećem pokretanju VectorCrafta.
+	Applies the next time Pluma starts.	Primjenjuje se pri sljedećem pokretanju Plumaa.
 	Enable Contextual Task Bar	Omogući kontekstnu traku zadataka
 	Next	Sljedeće
 	OK	U redu
@@ -4531,7 +4525,7 @@ imageTrace	Outline	Obris
 @msg	can't encode the document: {0}	nije moguće kodirati dokument: {0}
 @msg	can't parse shortcut `{c}`	nije moguće raščlaniti prečicu `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	nije moguće raščlaniti prečicu `{s}` za `{k}`
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	nije moguće sačuvati verziju {0}: VectorCraft zapisuje verzije od {MIN_VERSION} do {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	nije moguće sačuvati verziju {0}: Pluma zapisuje verzije od {MIN_VERSION} do {VERSION}
 @msg	can't write .{ext} images	nije moguće zapisati .{ext} slike
 @msg	cannot distort a zero-size bounding box	nije moguće izobličiti granični okvir nulte veličine
 @msg	cannot read PDF: {0}	nije moguće pročitati PDF: {0}
@@ -4558,7 +4552,7 @@ imageTrace	Outline	Obris
 @msg	empty brush stroke	prazan potez četkicom
 @msg	empty cutter	prazan rezač
 @msg	empty path	prazna putanja
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	verzija datoteke {0} novija je od one koju ovaj VectorCraft podržava ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	verzija datoteke {0} novija je od one koju ovaj Pluma podržava ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	tačka slobodnog oblika {i} treba `at` [x, y] i važeću `color`
 @msg	freeform line {i} must be an array of point indices	linija slobodnog oblika {i} mora biti niz indeksa tačaka
 @msg	give both `start` and `end` [x, y] (or neither)	navedite i `start` i `end` [x, y] (ili nijedno)
@@ -4579,9 +4573,9 @@ imageTrace	Outline	Obris
 @msg	invalid PDF setting: {0}	nevažeća PDF postavka: {0}
 @msg	invalid image data for `{0}`	nevažeći podaci slike za `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	nevažeći parametri za `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	nije slika koju VectorCraft čita
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	koristi `{at}`, što PostScript čitač VectorCrafta ne poznaje
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	koristi `{at}`, što PostScript čitač VectorCrafta ne poznaje, u {procs}
+@msg	is not an image Pluma reads	nije slika koju Pluma čita
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	koristi `{at}`, što PostScript čitač Plumaa ne poznaje
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	koristi `{at}`, što PostScript čitač Plumaa ne poznaje, u {procs}
 @msg	its Windows metafile preview was opened instead, which may simplify the art	umjesto nje otvoren je njen Windows metafile pregled, što može pojednostaviti crtež
 @msg	its preview was placed instead, at screen resolution	umjesto nje postavljen je njen pregled, u rezoluciji ekrana
 @msg	join needs open paths	spajanje zahtijeva otvorene putanje
@@ -4635,7 +4629,7 @@ imageTrace	Outline	Obris
 @msg	no file system here	ovdje nema datotečnog sistema
 @msg	no file writer	nema zapisivača datoteka
 @msg	no files to place	nema datoteka za postavljanje
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` nije VectorCraft dokument, PDF niti .ai datoteka kompatibilna s PDF-om
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` nije Pluma dokument, PDF niti .ai datoteka kompatibilna s PDF-om
 @msg	no format to export to	nema formata za izvoz
 @msg	no free recovery area	nema slobodnog područja za oporavak
 @msg	no gradient stop or freeform point is selected	nije odabrana tačka gradijenta ni tačka slobodnog oblika
@@ -4681,7 +4675,7 @@ imageTrace	Outline	Obris
 @msg	not an action set file	nije datoteka skupa akcija
 @msg	the action set file is larger than 8 MiB	datoteka skupa akcija je veća od 8 MiB
 @msg	the action set file holds more than 1,000 actions	datoteka skupa akcija sadrži više od 1.000 akcija
-@msg	the action set file needs a later version of VectorCraft	datoteka skupa akcija zahtijeva noviju verziju programa VectorCraft
+@msg	the action set file needs a later version of Pluma	datoteka skupa akcija zahtijeva noviju verziju programa Pluma
 @msg	an action in the action set file has more than 10,000 steps	akcija u datoteci skupa akcija ima više od 10.000 koraka
 @msg	no such anchor	nema takvog sidra
 @msg	no such artboard	nema takve radne ploče
@@ -4712,8 +4706,8 @@ imageTrace	Outline	Obris
 @msg	no user workspace `{from}`	nema korisničkog radnog prostora `{from}`
 @msg	node {_1} is not text	čvor {_1} nije tekst
 @msg	not a DXF drawing	nije DXF crtež
-@msg	not a VectorCraft file: {0}	nije VectorCraft datoteka: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	nije VectorCraft skup prečica (nedostaje `overrides`)
+@msg	not a Pluma file: {0}	nije Pluma datoteka: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	nije Pluma skup prečica (nedostaje `overrides`)
 @msg	not a blend	nije stapanje
 @msg	not a graphic style library (format `{_1}`)	nije biblioteka grafičkih stilova (format `{_1}`)
 @msg	not a stored central record	nije sačuvani centralni zapis
@@ -4998,11 +4992,11 @@ imageTrace	Outline	Obris
 @msg	Sent to {_1}	Poslano na {_1}
 @msg	{_1} files	{_1} datoteke
 @msg	The graphics were lost and have been restarted	Grafika je izgubljena i ponovo je pokrenuta
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	Grafički procesor koji je prvi pokušan nije mogao prikazati prozor, pa se VectorCraft ponovo pokrenuo na {summary}
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Posljednje pokretanje VectorCrafta završilo je na {name} prije nego što se pojavio prozor, pa je pokrenut na {summary}. Da ponovo pokušate taj grafički procesor, promijenite Postavke › Performanse › Grafički procesor ili pokrenite s postavljenim WGPU_BACKEND
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Posljednje pokretanje VectorCrafta završilo je dok je izlistavao grafičke procesore, pa je pokrenut na {summary} samo s OpenGL-om. Da ponovo pokušate druge grafičke pozadinske sisteme, promijenite Postavke › Performanse › Grafički procesor ili pokrenite s postavljenim WGPU_BACKEND
-@msg	Loading VectorCraft…	Učitavanje VectorCrafta…
-@msg	VectorCraft failed to start: {e}	VectorCraft se nije uspio pokrenuti: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	Grafički procesor koji je prvi pokušan nije mogao prikazati prozor, pa se Pluma ponovo pokrenuo na {summary}
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Posljednje pokretanje Plumaa završilo je na {name} prije nego što se pojavio prozor, pa je pokrenut na {summary}. Da ponovo pokušate taj grafički procesor, promijenite Postavke › Performanse › Grafički procesor ili pokrenite s postavljenim WGPU_BACKEND
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Posljednje pokretanje Plumaa završilo je dok je izlistavao grafičke procesore, pa je pokrenut na {summary} samo s OpenGL-om. Da ponovo pokušate druge grafičke pozadinske sisteme, promijenite Postavke › Performanse › Grafički procesor ili pokrenite s postavljenim WGPU_BACKEND
+@msg	Loading Pluma…	Učitavanje Plumaa…
+@msg	Pluma failed to start: {e}	Pluma se nije uspio pokrenuti: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	Potreban je preglednik s WebGPU ili WebGL2.
 @msg	The graphics were lost and couldn't be restarted.	Grafika je izgubljena i nije je moguće ponovo pokrenuti.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Vaše nesačuvane promjene čuvaju se u ovom pregledniku: ponovo učitajte stranicu da ih vratite.
@@ -5025,20 +5019,20 @@ imageTrace	Outline	Obris
 @msg	it has more than {MAX_NODES} objects	ima više od {MAX_NODES} objekata
 @msg	it has no layers	nema slojeva
 @msg	it has too many values in a row	ima previše vrijednosti u redu
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	sadrži {_1}, što VectorCraft još ne čita iz nje
+@msg	it has {_1}, which Pluma doesn't read from it yet	sadrži {_1}, što Pluma još ne čita iz nje
 @msg	its objects are nested too deeply	njeni objekti su previše duboko ugniježđeni
 @msg	its section ending with `%{end}` doesn't end	njen odjeljak koji završava s `%{end}` ne završava
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	četkice koje VectorCraft još ne može pročitati izostavljene su iz panela Četkice ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	četkice koje Pluma još ne može pročitati izostavljene su iz panela Četkice ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	objekti s više ispuna ili poteza, poteza promjenljive širine, efekata ili četkica stigli su kao njihov iscrtani izgled ({_1}): njihov izgled se još ne može uređivati
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	naziv `{name}` nije u UTF-8 i pročitan je kao {label}: ako izgleda pogrešno, otvorite datoteku s drugim legacyNameEncoding
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	naziv `{name}` nije u UTF-8, a dijelovi nisu ispravni ni u {label}: otvorite datoteku s drugim legacyNameEncoding
 @msg	more names that aren't UTF-8 were read as {label} ({count})	još naziva koji nisu u UTF-8 pročitano je kao {label} ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	gradijent „{name}” nije definisan u datoteci: umjesto njega koristi se obična boja
-@msg	an image VectorCraft can't read was left out	izostavljena je slika koju VectorCraft ne može pročitati
+@msg	an image Pluma can't read was left out	izostavljena je slika koju Pluma ne može pročitati
 @msg	an image whose data is cut short was left out	izostavljena je slika čiji su podaci skraćeni
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	ugrađena slika od {_1} × {_2} piksela smanjena je na {_3} × {_4} piksela kako bi se zadržali slojevi
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	povezane slike prikazuju pregled niske rezolucije sačuvan u datoteci dok se njihove datoteke ne pronađu: ponovo ih povežite u panelu Veze
-@msg	linked type areas past VectorCraft's limits were left out	povezana područja teksta izvan ograničenja programa VectorCraft su izostavljena
+@msg	linked type areas past Pluma's limits were left out	povezana područja teksta izvan ograničenja programa Pluma su izostavljena
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	tekst koji mijenja smjer pisanja unutar tekstualnog objekta otvara se u smjeru svog prvog znaka
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	tekst korišten kao maska u povezanim područjima, omotanom tekstu ili složenoj putanji ne odsijeca
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	povezane slike bez pregleda u datoteci prikazuju čuvar mjesta dok se njihove datoteke ne pronađu: ponovo ih povežite u panelu Veze
@@ -5047,13 +5041,13 @@ imageTrace	Outline	Obris
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	ova datoteka je sačuvana bez PDF kompatibilnosti, a njeni podaci za uređivanje se ne mogu pročitati ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	PDF dio se nije mogao pročitati ({_1}): datoteka je otvorena iz svojih podataka za uređivanje
 @msg	No fonts are missing in this document	U ovom dokumentu ne nedostaje nijedan font
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft ne pretražuje foldere drugih aplikacija ni sistemske foldere: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft ne pretražuje folder Shared ili Public u Users: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma ne pretražuje foldere drugih aplikacija ni sistemske foldere: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma ne pretražuje folder Shared ili Public u Users: {path}
 @msg	{path} is not a folder	{path} nije folder
 @msg	the search couldn't start: try again in a moment	pretraga nije mogla početi: pokušajte ponovo za trenutak
 @msg	searching a folder isn't available on the web	pretraživanje foldera nije dostupno na webu
 @msg	every search thread stopped on an internal error (please report this bug)	sve niti pretrage su se zaustavile zbog interne greške (molimo prijavite ovu grešku)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	Folder Fontovi VectorCrafta ovdje nije postavljen: postavljaju ga desktop aplikacija i vectorcraft-cli
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Folder Fontovi Plumaa ovdje nije postavljen: postavljaju ga desktop aplikacija i pluma-cli
 @msg	choose the font files to add	odaberite datoteke fontova za dodavanje
 @msg	not a file	nije datoteka
 @msg	not a font file	nije datoteka fonta
@@ -5207,7 +5201,7 @@ imageTrace	Outline	Obris
 	All shortcuts reset to defaults.	Sve prečice su vraćene na zadane.
 	Imported. Press OK to keep the imported set.	Uvezeno. Pritisnite U redu da zadržite uvezeni skup.
 	⚠ {chord} was already used by {names} — it has been removed there.	⚠ {chord} je već koristio {names} — tamo je uklonjena.
-	VectorCraft Defaults	Zadane postavke VectorCrafta
+	Pluma Defaults	Zadane postavke Plumaa
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} prečica je dodijeljena više puta|{n} prečice su dodijeljene više puta|{n} prečica je dodijeljeno više puta
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	Simuliraj štampa pretiske onako kako ih prikazuje Pregled pretiska; separacije ih uvijek zadržavaju. Predložak spljoštava prozirnost prije štampanja (PostScript datoteke je uvijek spljoštavaju).
 	Preserve	Očuvaj
@@ -5448,7 +5442,7 @@ file-filter	Print presets	Predlošci štampanja
 file-filter	Export presets	Predlošci izvoza
 file-filter	SVG Compressed	Komprimirani SVG
 file-filter	PDF-compatible .ai	.ai kompatibilan s PDF-om
-file-filter	VectorCraft Template	VectorCraft predložak
+file-filter	Pluma Template	Pluma predložak
 file-filter	Templates	Predlošci
 diagnostics	render	iscrtavanje
 diagnostics	ui	interfejs
@@ -5459,7 +5453,7 @@ diagnostics	ui	interfejs
 @plural	{n} commit|{n} commits	{n} commit|{n} commita|{n} commitova
 gradient-kind	Radial	Radijalno
 mark-style	Japanese	Japanski
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	komprimirana datoteka se raspakuje na više nego što VectorCraft čita ({_1} MB dokumenta, {_2} MB po slici)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	komprimirana datoteka se raspakuje na više nego što Pluma čita ({_1} MB dokumenta, {_2} MB po slici)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	dokument je prevelik za komprimirano čuvanje ({0}): sačuvajte ga s isključenim Koristi kompresiju
 @msg	the file stopped being read (please report this bug)	čitanje datoteke je prestalo (molimo prijavite ovu grešku)
 	Concentric Dividers:	Koncentrični razdjelnici:
@@ -6111,7 +6105,7 @@ anchor	Points:	Tačke:
 	Tracing	Praćenje
 	Touch	Dodir
 	Typography	Tipografija
-	VectorCraft	VectorCraft
+	Pluma	Pluma
 	Web	Web
 	[1P-High View]	[Pogled 1T - visoki]
 	[1P-Low View]	[Pogled 1T - niski]
@@ -6189,7 +6183,7 @@ swatch	White, Black	Bijela, crna
 swatch	Yellow	Žuta
 swatch	Yellow Green	Žuto-zelena
 	Check for Updates…	Provjeri ažuriranja…
-	VectorCraft Updates	VectorCraft ažuriranja
+	Pluma Updates	Pluma ažuriranja
 	Preparing the image…	Priprema slike…
 	Tracing the colors…	Praćenje boja…
 	Units & Scale	Jedinice i skala
@@ -6347,7 +6341,7 @@ shape	Open	Otvoren
 	Malayalam	Malajalam
 	Odia	Odija
 	Urdu	Urdu
-	VectorCraft {release} and later (version {n})	VectorCraft {release} i novije (verzija {n})
+	Pluma {release} and later (version {n})	Pluma {release} i novije (verzija {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Izvezi sve otvorene dokumente kao PDF
 	Export All Open Documents as SVG	Izvezi sve otvorene dokumente kao SVG
@@ -6487,14 +6481,14 @@ shape	Open	Otvoren
 	Safe Mode	Sigurni način rada
 	Help › Safe Mode…	Pomoć › Sigurni način rada…
 	Enable on Re-launch	Omogući pri sljedećem pokretanju
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	Posljednje pokretanje programa VectorCraft zaustavilo se dok se učitavao dodatak {name}. Možda on nije uzrok zaustavljanja.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Posljednje pokretanje programa Pluma zaustavilo se dok se učitavao dodatak {name}. Možda on nije uzrok zaustavljanja.
 	Disable and Continue	Onemogući i nastavi
 	Start Normally	Pokreni normalno
 	Start in Safe Mode	Pokreni u sigurnom načinu rada
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft je u sigurnom načinu rada: dodaci se ne učitavaju niti pokreću dok se program ne pokrene normalno.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma je u sigurnom načinu rada: dodaci se ne učitavaju niti pokreću dok se program ne pokrene normalno.
 	Disabled plug-ins	Onemogućeni dodaci
 	No plug-ins are disabled.	Nijedan dodatak nije onemogućen.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Sigurni način rada je uključen: dodaci se ne učitavaju niti pokreću dok se VectorCraft ne pokrene normalno
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Sigurni način rada je uključen: dodaci se ne učitavaju niti pokreću dok se Pluma ne pokrene normalno
 @msg	give `id` or `file` (see plugin.safeMode)	navedite `id` ili `file` (vidi plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	taj dodatak nije onemogućen (vidi plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	Onemogućeni dodaci nisu mogli biti sačuvani za sljedeće pokretanje

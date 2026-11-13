@@ -1,8 +1,8 @@
 //! Copying and pasting ruler guides (#3226): selected guides go on the clipboard with the objects
 //! or alone, and paste into another document or onto another artboard.
 
+use pluma_doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
 
 use crate::*;
 

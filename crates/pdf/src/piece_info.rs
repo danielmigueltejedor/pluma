@@ -82,7 +82,7 @@ fn stream(bytes: &[u8]) -> Vec<u8> {
 /// `at` (Unix seconds) as a PDF date string in UTC (ISO 32000-1 §7.9.4), with the offset written
 /// as hours and minutes, as in the files users sent.
 fn pdf_date(at: i64) -> String {
-    let [y, mo, d, h, mi, s] = vectorcraft_doc::metadata::civil(at);
+    let [y, mo, d, h, mi, s] = pluma_doc::metadata::civil(at);
     format!("(D:{y:04}{mo:02}{d:02}{h:02}{mi:02}{s:02}+00'00')")
 }
 
@@ -90,7 +90,7 @@ fn pdf_date(at: i64) -> String {
 mod tests {
     use super::*;
     use crate::{PdfOptions, export};
-    use vectorcraft_doc::Document;
+    use pluma_doc::Document;
 
     fn data(len: usize) -> PrivateData {
         PrivateData {
@@ -123,7 +123,7 @@ mod tests {
     fn every_page_refers_to_the_one_data_dictionary() {
         let mut doc = Document::new(200.0, 100.0);
         let mut second = doc.artboards[0].clone();
-        (second.id, second.name, second.rect) = (2, "Back".into(), vectorcraft_geom::Rect::new(240.0, 0.0, 440.0, 100.0));
+        (second.id, second.name, second.rect) = (2, "Back".into(), pluma_geom::Rect::new(240.0, 0.0, 440.0, 100.0));
         doc.artboards.push(second);
         let opts = PdfOptions { private_data: Some(data(10)), ..PdfOptions::uncompressed() };
         let pdf = export(&doc, &opts).unwrap();

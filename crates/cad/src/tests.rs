@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Dash, Document, ImageBlob, ImageObject, Node, NodeKind, TextObject, Unit};
-use vectorcraft_geom::{Affine, ParamCurve, PathData, Point, Rect, Shape, shapes};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, CharStyle, Dash, Document, ImageBlob, ImageObject, Node, NodeKind, TextObject, Unit};
+use pluma_geom::{Affine, ParamCurve, PathData, Point, Rect, Shape, shapes};
 
 use crate::*;
 
@@ -257,7 +257,7 @@ fn circles_and_circular_arcs_are_native_dxf_entities() {
         let c = Point::new(120.0, 50.0);
         let r = 30.0;
         let k = r * shapes::KAPPA;
-        let mut arc = vectorcraft_geom::BezPath::new();
+        let mut arc = pluma_geom::BezPath::new();
         arc.move_to(Point::new(c.x + r, c.y));
         arc.curve_to(Point::new(c.x + r, c.y - k), Point::new(c.x + k, c.y - r), Point::new(c.x, c.y - r));
         vec![
@@ -277,7 +277,7 @@ fn circles_and_circular_arcs_are_native_dxf_entities() {
 
 /// A cubic arc about `c` of radius `r` from `deg0` to `deg1` (degrees, y down), from the current
 /// point, which is the arc's start.
-fn arc_cubic(b: &mut vectorcraft_geom::BezPath, c: Point, r: f64, deg0: f64, deg1: f64) {
+fn arc_cubic(b: &mut pluma_geom::BezPath, c: Point, r: f64, deg0: f64, deg1: f64) {
     let (a0, a1) = (deg0.to_radians(), deg1.to_radians());
     let k = 4.0 / 3.0 * ((a1 - a0) / 4.0).tan() * r;
     let (p0, p3) = (Point::new(c.x + r * a0.cos(), c.y + r * a0.sin()), Point::new(c.x + r * a1.cos(), c.y + r * a1.sin()));
@@ -287,7 +287,7 @@ fn arc_cubic(b: &mut vectorcraft_geom::BezPath, c: Point, r: f64, deg0: f64, deg
 /// A slot (two lines, two half circles) about y = 50, a D shape (a half circle closed by its
 /// diameter) and a rounded rectangle with 10 pt corners.
 fn lines_and_arcs() -> [PathData; 3] {
-    let mut slot = vectorcraft_geom::BezPath::new();
+    let mut slot = pluma_geom::BezPath::new();
     slot.move_to((60.0, 30.0));
     slot.line_to((140.0, 30.0));
     arc_cubic(&mut slot, Point::new(140.0, 50.0), 20.0, -90.0, 0.0);
@@ -296,7 +296,7 @@ fn lines_and_arcs() -> [PathData; 3] {
     arc_cubic(&mut slot, Point::new(60.0, 50.0), 20.0, 90.0, 180.0);
     arc_cubic(&mut slot, Point::new(60.0, 50.0), 20.0, 180.0, 270.0);
     slot.close_path();
-    let mut d = vectorcraft_geom::BezPath::new();
+    let mut d = pluma_geom::BezPath::new();
     d.move_to((150.0, 20.0));
     arc_cubic(&mut d, Point::new(150.0, 50.0), 30.0, -90.0, 0.0);
     arc_cubic(&mut d, Point::new(150.0, 50.0), 30.0, 0.0, 90.0);
@@ -332,7 +332,7 @@ fn paths_of_lines_and_circular_arcs_are_polylines_with_bulges() {
     let [slot, d_shape, rounded] = lines_and_arcs();
     let d = doc_with(|d| {
         let black = || Paint::solid(Color::BLACK);
-        let mut open = vectorcraft_geom::BezPath::new();
+        let mut open = pluma_geom::BezPath::new();
         open.move_to((10.0, 90.0));
         open.line_to((30.0, 90.0));
         arc_cubic(&mut open, Point::new(30.0, 80.0), 10.0, 90.0, 0.0);
@@ -415,7 +415,7 @@ fn polylines_with_bulges_read_back_as_the_same_outline() {
 #[test]
 fn a_path_with_a_curve_that_is_not_a_circular_arc_stays_a_spline() {
     // The slot with one end drawn by a longer-handled curve.
-    let mut slot = vectorcraft_geom::BezPath::new();
+    let mut slot = pluma_geom::BezPath::new();
     slot.move_to((60.0, 30.0));
     slot.line_to((140.0, 30.0));
     slot.curve_to((165.0, 30.0), (165.0, 70.0), (140.0, 70.0));
@@ -437,7 +437,7 @@ fn drawing_extents_reach_the_extreme_points_of_arcs() {
     // An arc about (100, 50) of radius 40 from -60° to 30° passes x = 140 at 0°, between the points
     // along it that recognition samples.
     let arc = |closed: bool| {
-        let mut b = vectorcraft_geom::BezPath::new();
+        let mut b = pluma_geom::BezPath::new();
         let start = Point::new(100.0 + 40.0 * 60f64.to_radians().cos(), 50.0 - 40.0 * 60f64.to_radians().sin());
         b.move_to(start);
         arc_cubic(&mut b, Point::new(100.0, 50.0), 40.0, -60.0, 30.0);
@@ -459,7 +459,7 @@ fn drawing_extents_reach_the_extreme_points_of_arcs() {
 fn a_shallow_curve_that_is_not_circular_is_not_an_arc() {
     // 100 pt across and 1.5 pt deep: the circle through its ends and middle has a radius of about
     // 834 pt, and the curve is 0.12 pt off it a quarter of the way along.
-    let mut b = vectorcraft_geom::BezPath::new();
+    let mut b = pluma_geom::BezPath::new();
     b.move_to((0.0, 50.0));
     b.curve_to((20.0, 48.0), (80.0, 48.0), (100.0, 50.0));
     let d = doc_with(|d| vec![path(d, PathData::from_bezpath(&b), Paint::None, Paint::solid(Color::BLACK), 1.0)]);
@@ -564,7 +564,7 @@ fn exported_ellipses_read_back_as_the_same_ellipse() {
 fn closed_four_cubic_shapes_that_are_not_writable_ellipses_stay_splines() {
     // A rounded square: four cubics through the ellipse's anchors with longer handles.
     let (c, r, k) = (Point::new(50.0, 50.0), 30.0, 30.0 * 0.8);
-    let mut squircle = vectorcraft_geom::BezPath::new();
+    let mut squircle = pluma_geom::BezPath::new();
     squircle.move_to(Point::new(c.x + r, c.y));
     squircle.curve_to(Point::new(c.x + r, c.y - k), Point::new(c.x + k, c.y - r), Point::new(c.x, c.y - r));
     squircle.curve_to(Point::new(c.x - k, c.y - r), Point::new(c.x - r, c.y - k), Point::new(c.x - r, c.y));
@@ -593,7 +593,7 @@ fn closed_four_cubic_shapes_that_are_not_writable_ellipses_stay_splines() {
 #[test]
 fn a_lone_straight_segment_is_a_line() {
     let segment = |closed: bool, extra: Option<Point>| {
-        let mut b = vectorcraft_geom::BezPath::new();
+        let mut b = pluma_geom::BezPath::new();
         b.move_to(Point::new(20.0, 30.0));
         b.line_to(Point::new(120.0, 70.0));
         if let Some(p) = extra {
@@ -645,7 +645,7 @@ fn closed_circular_arc_with_a_closing_chord_is_not_a_circle() {
         let c = Point::new(50.0, 50.0);
         let r = 30.0;
         let k = r * shapes::KAPPA;
-        let mut arc = vectorcraft_geom::BezPath::new();
+        let mut arc = pluma_geom::BezPath::new();
         arc.move_to(Point::new(c.x + r, c.y));
         arc.curve_to(Point::new(c.x + r, c.y - k), Point::new(c.x + k, c.y - r), Point::new(c.x, c.y - r));
         arc.curve_to(Point::new(c.x - k, c.y - r), Point::new(c.x - r, c.y - k), Point::new(c.x - r, c.y));
@@ -673,7 +673,7 @@ fn a_closed_sliver_along_a_circle_is_not_a_circle() {
             let rad = deg.to_radians();
             Point::new(cx + r * rad.cos(), cy + r * rad.sin())
         };
-        let along = |sliver: &mut vectorcraft_geom::BezPath, deg0: f64, deg1: f64| {
+        let along = |sliver: &mut pluma_geom::BezPath, deg0: f64, deg1: f64| {
             let p0 = at(deg0);
             let p3 = at(deg1);
             let step = (deg1 - deg0).to_radians();
@@ -684,7 +684,7 @@ fn a_closed_sliver_along_a_circle_is_not_a_circle() {
             let p2 = Point::new(p3.x + r * r1.sin() * k, p3.y - r * r1.cos() * k);
             sliver.curve_to(p1, p2, p3);
         };
-        let mut sliver = vectorcraft_geom::BezPath::new();
+        let mut sliver = pluma_geom::BezPath::new();
         sliver.move_to(at(-110.0));
         along(&mut sliver, -110.0, -90.0);
         along(&mut sliver, -90.0, -70.0);
@@ -705,7 +705,7 @@ fn a_closed_sliver_along_a_circle_is_not_a_circle() {
 #[test]
 fn cubic_with_hidden_angular_reversal_is_not_promoted_to_arc() {
     let d = doc_with(|d| {
-        let mut b = vectorcraft_geom::BezPath::new();
+        let mut b = pluma_geom::BezPath::new();
         b.move_to(Point::new(-8.404028665134, 62.061475842818));
         b.curve_to(Point::new(-13.285253116737, 62.103123153545), Point::new(52.811163576591, 52.471253544459), Point::new(60.0, 50.0));
         vec![path(d, PathData::from_bezpath(&b), Paint::None, Paint::solid(Color::BLACK), 1.0)]
@@ -906,7 +906,7 @@ fn alter_paths_writes_strokes_as_filled_outlines() {
     let mut d = shapes_doc();
     let c = Point::new(150.0, 95.0);
     let k = 20.0 * shapes::KAPPA;
-    let mut arc = vectorcraft_geom::BezPath::new();
+    let mut arc = pluma_geom::BezPath::new();
     arc.move_to(Point::new(c.x + 20.0, c.y));
     arc.curve_to(Point::new(c.x + 20.0, c.y - k), Point::new(c.x + k, c.y - 20.0), Point::new(c.x, c.y - 20.0));
     let arc = path(&mut d, PathData::from_bezpath(&arc), Paint::None, Paint::solid(Color::BLACK), 1.0);
@@ -942,7 +942,7 @@ fn alter_paths_writes_strokes_as_filled_outlines() {
     let mut d = shapes_doc();
     let rect = d.layers[0].children().and_then(|c| c.first()).map(|n| n.id).unwrap();
     if let Some(st) = d.node_mut(rect).and_then(|n| n.appearance.stroke_mut()) {
-        st.align = vectorcraft_doc::StrokeAlign::Outside;
+        st.align = pluma_doc::StrokeAlign::Outside;
     }
     assert_eq!(kinds(&export(&d, &opts(&d)).unwrap()), [&fill[..], &rect_stroke, &["CIRCLE"]].concat());
     let editable = export(&d, &DxfOptions { preserve: Preserve::Editability, ..opts(&d) }).unwrap();
@@ -1045,7 +1045,7 @@ fn a_bullet_is_text_of_its_own_before_its_paragraph() {
     let mut d = text_doc("Item", 20.0);
     let id = d.layers[0].children().unwrap()[0].id;
     if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
-        t.para.list = Some(vectorcraft_doc::text::ParaList::bulleted(vectorcraft_doc::text::Bullet::Dot));
+        t.para.list = Some(pluma_doc::text::ParaList::bulleted(pluma_doc::text::Bullet::Dot));
         t.para.left_indent = 18.0;
         t.para.first_line_indent = -18.0;
     }
@@ -1060,8 +1060,8 @@ fn a_bullet_is_text_of_its_own_before_its_paragraph() {
     let id = d.layers[0].children().unwrap()[0].id;
     let mut bullet_x = f64::NAN;
     if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
-        t.para.list = Some(vectorcraft_doc::text::ParaList::bulleted(vectorcraft_doc::text::Bullet::Dot));
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        t.para.list = Some(pluma_doc::text::ParaList::bulleted(pluma_doc::text::Bullet::Dot));
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         let m = &lay.markers[0];
         let bullet = m.glyphs.clone().find(|&i| i != m.tab).unwrap();
         assert!(lay.glyphs[m.tab].origin.x < lay.glyphs[bullet].origin.x, "the tab before the bullet");
@@ -1079,7 +1079,7 @@ fn a_bullet_is_text_of_its_own_before_its_paragraph() {
 /// number's left, with the marker aligned left or right.
 #[test]
 fn a_number_is_text_of_its_own_before_its_paragraph() {
-    use vectorcraft_doc::text::{ListAlign, NumberStyle, ParaList};
+    use pluma_doc::text::{ListAlign, NumberStyle, ParaList};
     let numbered_aligned = |text: &str, count: u32, align: ListAlign| {
         let mut d = text_doc(text, 20.0);
         let id = d.layers[0].children().unwrap()[0].id;
@@ -1122,9 +1122,9 @@ fn shrunk_area_type_is_text_at_the_size_it_draws_at() {
     let id = d.layers[0].children().unwrap()[0].id;
     let mut fit = 1.0;
     if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
-        t.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 30.0)) };
-        t.area.fit = vectorcraft_doc::AreaFit::ShrinkText { min_percent: 10.0 };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        t.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 30.0)) };
+        t.area.fit = pluma_doc::AreaFit::ShrinkText { min_percent: 10.0 };
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         assert!(!lay.overflow && lay.fit_scale < 0.9, "the text is shrunk to fit: {}", lay.fit_scale);
         fit = lay.fit_scale;
     }
@@ -1151,13 +1151,13 @@ fn text_outside_ascii_is_escaped_before_2007() {
 /// measuring a 0.7 em cap height is 20 pt type, whose TEXT height is 14.
 #[test]
 fn a_font_height_reference_is_written_as_the_size_drawn() {
-    use vectorcraft_text::test_fonts::{HEIGHT_FAMILY, height_font};
-    vectorcraft_text::FontDb::global().add_font(height_font(true).unwrap());
+    use pluma_text::test_fonts::{HEIGHT_FAMILY, height_font};
+    pluma_text::FontDb::global().add_font(height_font(true).unwrap());
     let mut d = text_doc("Plan A", 14.0);
     let id = d.layers[0].children().and_then(|c| c.first()).map(|n| n.id).unwrap();
     if let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) {
         t.runs[0].style.font_family = HEIGHT_FAMILY.into();
-        t.runs[0].style.font_height_reference = vectorcraft_doc::FontHeightReference::CapHeight;
+        t.runs[0].style.font_height_reference = pluma_doc::FontHeightReference::CapHeight;
     }
     let editable = export(&d, &DxfOptions { preserve: Preserve::Editability, ..opts(&d) }).unwrap();
     let e = entities(&editable);
@@ -1244,7 +1244,7 @@ fn crop_keeps_an_instance_whose_art_reaches_the_region() {
     // while the 20 × 20 square around the origin, moved to (-60, -60) to (-40, -40), is off it.
     let mut d = doc_with(|d| vec![Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "Far".into(), xf: Affine::translate((-50.0, -50.0)) })]);
     let art = path(&mut d, shapes::rectangle(Rect::new(100.0, 50.0, 140.0, 90.0)), Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Far".into(), art: Arc::new(art) });
     let o = DxfOptions { crop: true, ..opts(&d) };
     assert!(!kinds(&export(&d, &o).unwrap()).is_empty());
 }
@@ -1255,13 +1255,13 @@ fn symbols_fanning_out_into_empty_symbols_stop_at_the_symbol_budget() {
     // instances, which write no entities, past the million objects tests export with.
     let mut d = doc_with(|d| vec![Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "L5".into(), xf: Affine::IDENTITY })]);
     let empty = Node::group(d.alloc_id(), vec![]);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "L0".into(), art: Arc::new(empty) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "L0".into(), art: Arc::new(empty) });
     for level in 1..=5 {
         let below = format!("L{}", level - 1);
         let children =
             (0..100).map(|_| Arc::new(Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: below.clone(), xf: Affine::IDENTITY }))).collect();
         let art = Node::group(d.alloc_id(), children);
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: format!("L{level}"), art: Arc::new(art) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: format!("L{level}"), art: Arc::new(art) });
     }
     let out = export(&d, &opts(&d)).unwrap();
     assert!(entities(&out).is_empty());

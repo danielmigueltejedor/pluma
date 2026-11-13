@@ -47,7 +47,7 @@ fn extend_spine(spec: &mut BlendSpec, old: &[Arc<Node>], old_spec: &BlendSpec, k
     let Some((mut path, anchors)) = live::pin_spine(old, old_spec) else { return };
     let Some(first) = old.first().and_then(|f| keys.iter().position(|k| k.id == f.id)) else { return };
     let Some(sp) = path.subpaths.first_mut().filter(|sp| !sp.closed) else { return };
-    let center = |k: &Arc<Node>| vectorcraft_geom::Anchor::corner(k.geometric_bounds().map(|b| b.center()).unwrap_or_default());
+    let center = |k: &Arc<Node>| pluma_geom::Anchor::corner(k.geometric_bounds().map(|b| b.center()).unwrap_or_default());
     let before: Vec<_> = keys.iter().take(first).map(center).collect();
     let after: Vec<_> = keys.iter().skip(first + old.len()).map(center).collect();
     let shift = before.len();
@@ -88,7 +88,7 @@ pub(super) fn blend_make(s: &mut Session, p: &Value) -> Result<Value> {
             // knockout group, so translucent steps don't show through each other.
             let mut n = base.unwrap_or_else(|| {
                 let mut n = Node::new(id, NodeKind::Group { children: vec![], clip: false });
-                n.knockout = vectorcraft_doc::Knockout::On;
+                n.knockout = pluma_doc::Knockout::On;
                 n
             });
             let mut spec = BlendSpec { spacing, orientation, ease, color_shift, starts, ..Default::default() };
@@ -123,7 +123,7 @@ pub(super) fn blend_release(s: &mut Session, _: &Value) -> Result<Value> {
             // What the blend itself carries stays on a group around what it gave back.
             if n.name.is_some()
                 || n.opacity < 1.0
-                || n.blend != vectorcraft_color::BlendMode::Normal
+                || n.blend != pluma_color::BlendMode::Normal
                 || n.isolate
                 || n.extras().mask.is_some()
                 || !n.appearance.items.is_empty()
@@ -158,7 +158,7 @@ fn edit_spine<T>(
     p: &Value,
     cmd: &str,
     label: &str,
-    f: impl FnOnce(&mut vectorcraft_geom::SubPath, &mut Vec<usize>, &mut [Arc<Node>]) -> Result<T>,
+    f: impl FnOnce(&mut pluma_geom::SubPath, &mut Vec<usize>, &mut [Arc<Node>]) -> Result<T>,
 ) -> Result<T> {
     let id = match crate::cmd::object_param(p, "id", cmd)? {
         Some(id) => id,
@@ -250,7 +250,7 @@ pub(super) fn spine_convert_anchor(s: &mut Session, p: &Value) -> Result<Value> 
             if index >= sp.anchors.len() {
                 return Err(bad(C, "no such spine point"));
             }
-            vectorcraft_tools::draw2::curvature_smooth(sp, index);
+            pluma_tools::draw2::curvature_smooth(sp, index);
             return Ok(());
         }
         let a = sp.anchors.get_mut(index).ok_or_else(|| bad(C, "no such spine point"))?;
@@ -421,7 +421,7 @@ pub(super) fn blend_expand(s: &mut Session, _: &Value) -> Result<Value> {
 fn expand_blend(d: &mut Document, id: NodeId) -> Result<()> {
     let Some(n) = d.node(id).filter(|n| is_blend(n)).cloned() else { return Ok(()) };
     let mut g = n.clone();
-    g.kind = NodeKind::Group { children: vectorcraft_render::expand_live(&n).into_iter().map(Arc::new).collect(), clip: false };
+    g.kind = NodeKind::Group { children: pluma_render::expand_live(&n).into_iter().map(Arc::new).collect(), clip: false };
     fix_ids(d, &mut g);
     *d.node_mut(id).ok_or(EngineError::NoNode(id))? = g;
     Ok(())

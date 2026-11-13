@@ -49,10 +49,10 @@ fn checker_opens_and_places_with_exact_pixels() {
     for (name, bytes) in [("checker.jp2", JP2), ("checker-raw.j2k", RAW)] {
         assert_eq!(pixels(bytes), COLORS, "{name}");
         let mut s = Session::new();
-        let encoded = vectorcraft_format::base64_encode(bytes);
+        let encoded = pluma_format::base64_encode(bytes);
         let opened = s.execute("document.open", &json!({"name": name, "dataBase64": encoded})).unwrap();
         assert_eq!(opened["format"], "jpeg2000");
-        assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), vectorcraft_geom::Size::new(2.0, 2.0));
+        assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), pluma_geom::Size::new(2.0, 2.0));
         let blob = s.doc().unwrap().doc.images.values().next().unwrap();
         assert_eq!(image::load_from_memory(&blob.bytes).unwrap().to_rgba8().pixels().map(|p| p.0).collect::<Vec<_>>(), COLORS);
         s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -82,7 +82,7 @@ fn resolution_boxes_prefer_display_then_last_valid_axis_and_72_fallback() {
         let got = ppi::resolution(&file).unwrap();
         assert!((got.0 - want.0).abs() < 0.01 && (got.1 - want.1).abs() < 0.01, "{got:?} != {want:?}");
         let mut s = Session::new();
-        s.execute("document.open", &json!({"name": "a.jp2", "dataBase64": vectorcraft_format::base64_encode(&file)})).unwrap();
+        s.execute("document.open", &json!({"name": "a.jp2", "dataBase64": pluma_format::base64_encode(&file)})).unwrap();
         let size = s.doc().unwrap().doc.artboards[0].rect.size();
         assert!((size.width - 144.0 / want.0).abs() < 0.01 && (size.height - 144.0 / want.1).abs() < 0.01);
     };
@@ -98,7 +98,7 @@ fn resolution_boxes_prefer_display_then_last_valid_axis_and_72_fallback() {
     assert_eq!(ppi::resolution(RAW), Some((72.0, 72.0)));
     assert!((ppi::resolution(PPI300).unwrap().0 - 300.0).abs() < 0.01);
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "a.jp2", "dataBase64": vectorcraft_format::base64_encode(PPI300)})).unwrap();
+    s.execute("document.open", &json!({"name": "a.jp2", "dataBase64": pluma_format::base64_encode(PPI300)})).unwrap();
     let size = s.doc().unwrap().doc.artboards[0].rect.size();
     assert!((size.width - 0.48).abs() < 0.001 && (size.height - 0.48).abs() < 0.001);
     let blob = s.doc().unwrap().doc.images.values().next().unwrap();
@@ -277,7 +277,7 @@ fn cielab_images_are_refused() {
 
 #[test]
 fn embedded_srgb_profile_keeps_checker_pixels() {
-    let icc = vectorcraft_color::cms::icc_bytes(vectorcraft_color::cms::SRGB).unwrap();
+    let icc = pluma_color::cms::icc_bytes(pluma_color::cms::SRGB).unwrap();
     let mut colr_data = vec![2, 0, 0];
     colr_data.extend_from_slice(&icc);
     let header = super::jp2read::boxes(JP2).find_map(|(ty, data)| (ty == b"jp2h").then_some(data)).unwrap();

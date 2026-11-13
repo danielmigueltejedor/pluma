@@ -50,7 +50,7 @@ pub const MAX_DISABLED: usize = 1000;
 /// The largest disabled-items file read, in bytes: room for [`MAX_DISABLED`] stored items.
 pub const MAX_DISABLED_FILE_BYTES: u64 = (MAX_DISABLED * MAX_ITEM_JSON_BYTES + 256) as u64;
 /// The `format` of a launch marker, and its version.
-const MARKER_FORMAT: &str = "vectorcraft-launch";
+const MARKER_FORMAT: &str = "pluma-launch";
 const MARKER_VERSION: u64 = 1;
 
 /// Why Safe Mode is on.
@@ -386,7 +386,7 @@ pub fn disabled_file() -> Vec<u8> {
 
 /// `items` as the file the apps keep the disabled items in.
 fn file_bytes(items: &[Item]) -> Vec<u8> {
-    serde_json::to_vec_pretty(&json!({"format": "vectorcraft-disabled-plugins", "version": 1, "items": items})).unwrap_or_default()
+    serde_json::to_vec_pretty(&json!({"format": "pluma-disabled-plugins", "version": 1, "items": items})).unwrap_or_default()
 }
 
 /// The items of a file [`disabled_file`] wrote; none when it isn't one.
@@ -399,7 +399,7 @@ pub fn parse_disabled_file(bytes: &[u8]) -> Vec<Item> {
 /// items any launch can read: none.
 pub fn read_disabled_file(bytes: &[u8]) -> Option<Vec<Item>> {
     let Ok(v) = serde_json::from_slice::<Value>(bytes) else { return Some(vec![]) };
-    if v["format"] != "vectorcraft-disabled-plugins" || v["version"] != 1 {
+    if v["format"] != "pluma-disabled-plugins" || v["version"] != 1 {
         return None;
     }
     Some(
@@ -692,16 +692,15 @@ mod tests {
             &b""[..],
             b"{",
             b"[]",
-            br#"{"format":"vectorcraft-launch","version":2,"item":{"id":"x"}}"#,
+            br#"{"format":"pluma-launch","version":2,"item":{"id":"x"}}"#,
             br#"{"format":"other","version":1,"item":{"id":"x"}}"#,
-            br#"{"format":"vectorcraft-launch","version":1,"item":"x"}"#,
-            br#"{"format":"vectorcraft-launch","version":1,"item":{}}"#,
-            br#"{"format":"vectorcraft-launch","version":1,"item":{"id":"x""#,
+            br#"{"format":"pluma-launch","version":1,"item":"x"}"#,
+            br#"{"format":"pluma-launch","version":1,"item":{}}"#,
+            br#"{"format":"pluma-launch","version":1,"item":{"id":"x""#,
         ] {
             assert_eq!(parse_marker(bad), None, "{}", String::from_utf8_lossy(bad));
         }
-        let mut big =
-            format!(r#"{{"format":"vectorcraft-launch","version":1,"item":{{"id":"{}"}}}}"#, "y".repeat(MAX_MARKER_BYTES as usize)).into_bytes();
+        let mut big = format!(r#"{{"format":"pluma-launch","version":1,"item":{{"id":"{}"}}}}"#, "y".repeat(MAX_MARKER_BYTES as usize)).into_bytes();
         assert_eq!(parse_marker(&big), None, "larger than the limit");
         big.truncate(10);
         assert_eq!(parse_marker(&big), None, "cut short");

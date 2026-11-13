@@ -1,13 +1,13 @@
 //! Safe Mode in the app: the choice after a launch that stopped while a plug-in was loading
 //! ([`ask_about_stopped`]: Disable and Continue, Start Normally, or Start in Safe Mode), and Help ›
 //! Safe Mode ([`open`]), which lists the disabled plug-ins with Enable on Re-launch. Safe Mode
-//! itself, the disabled list and the launch marker are `vectorcraft_plugins::safe_mode`'s.
+//! itself, the disabled list and the launch marker are `pluma_plugins::safe_mode`'s.
 
+use pluma_plugins::safe_mode::{self, Item};
 use serde_json::{Value, json};
-use vectorcraft_plugins::safe_mode::{self, Item};
 
 use super::DialogSpec;
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::theme::Tokens;
 
@@ -45,10 +45,10 @@ pub fn end_launch() {
 
 /// Once the app is made: the choice about `stopped` ([`begin_launch`]), or in Safe Mode a status
 /// line saying so.
-pub fn after_start(app: &mut VectorcraftApp, stopped: Option<Item>) {
+pub fn after_start(app: &mut PlumaApp, stopped: Option<Item>) {
     match stopped {
         Some(item) => ask_about_stopped(app, &item),
-        None if safe_mode::active() => app.status(vectorcraft_plugins::Error::SafeMode.to_string()),
+        None if safe_mode::active() => app.status(pluma_plugins::Error::SafeMode.to_string()),
         None => {}
     }
 }
@@ -56,14 +56,14 @@ pub fn after_start(app: &mut VectorcraftApp, stopped: Option<Item>) {
 /// Ask what to do about `item`, the plug-in the last launch was loading when it stopped. Safe Mode
 /// is on until the user chooses. A dialog that takes the choice's place leaves it waiting: it opens
 /// again once no dialog is open ([`reopen`]).
-pub fn ask_about_stopped(app: &mut VectorcraftApp, item: &Item) {
+pub fn ask_about_stopped(app: &mut PlumaApp, item: &Item) {
     let item = item.to_json();
     app.ui.stopped_plugin = Some(item.clone());
     app.ui.dialog = Some(Dialog::new(STOPPED, json!({ "item": item })));
 }
 
 /// With no dialog open, the choice about a stopped plug-in that another dialog replaced opens again.
-pub(super) fn reopen(app: &mut VectorcraftApp) {
+pub(super) fn reopen(app: &mut PlumaApp) {
     if app.ui.dialog.is_none()
         && let Some(item) = app.ui.stopped_plugin.clone()
     {
@@ -73,18 +73,18 @@ pub(super) fn reopen(app: &mut VectorcraftApp) {
 
 /// The choice's Cancel, Start in Safe Mode: Safe Mode stays on for this launch, and the plug-in
 /// stays pending for the next one.
-pub(super) fn cancel_stopped(app: &mut VectorcraftApp) {
+pub(super) fn cancel_stopped(app: &mut PlumaApp) {
     app.ui.stopped_plugin = None;
 }
 
 /// The choice about a stopped plug-in is waiting for the user (shown, or replaced by another
 /// dialog): Safe Mode is on, and nothing has loaded yet.
-pub fn choosing(app: &VectorcraftApp) -> bool {
+pub fn choosing(app: &PlumaApp) -> bool {
     app.ui.stopped_plugin.is_some()
 }
 
 /// Safe Mode is on for the rest of this launch: `--safe-mode`, or Start in Safe Mode chosen.
-pub fn staying_on(app: &VectorcraftApp) -> bool {
+pub fn staying_on(app: &PlumaApp) -> bool {
     safe_mode::active() && !choosing(app)
 }
 
@@ -96,7 +96,7 @@ fn item_of(v: &Value) -> Item {
 
 /// The choice's Disable and Continue (OK) or Start Normally: Safe Mode ends and the plug-ins load,
 /// without the stopped one for Disable and Continue (kept off for later launches too).
-fn confirm_stopped(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm_stopped(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     app.ui.stopped_plugin = None;
     let item = item_of(d.fields.get("item").unwrap_or(&Value::Null));
@@ -108,12 +108,12 @@ fn confirm_stopped(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String
         not_saved(app);
     }
     safe_mode::set_active(None);
-    vectorcraft_engine::cmd::plugin::load_prefs_folder(&mut app.session);
+    pluma_engine::cmd::plugin::load_prefs_folder(&mut app.session);
     Ok(Value::Null)
 }
 
 /// Help › Safe Mode: the disabled plug-ins, none ticked for Enable on Re-launch.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let items: Vec<Value> = safe_mode::disabled()
         .iter()
         .map(|i| {
@@ -128,7 +128,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
 
 /// Help › Safe Mode's OK: each ticked plug-in loads again from the next launch
 /// (`plugin.setEnabled`).
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     let mut errors = vec![];
     let mut unsaved = false;
@@ -151,7 +151,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 
 /// The disabled plug-ins couldn't be written to the plug-in folder: the next launch doesn't have
 /// the change, which goes with the next change that saves.
-fn not_saved(app: &mut VectorcraftApp) {
+fn not_saved(app: &mut PlumaApp) {
     app.status("Couldn't save the disabled plug-ins for the next launch");
 }
 
@@ -161,7 +161,7 @@ pub(super) const STOPPED_SPEC: DialogSpec = DialogSpec {
         let t = Tokens::get(ui.ctx());
         let name = item_of(d.fields.get("item").unwrap_or(&Value::Null)).label();
         let text = crate::i18n::fmt(
-            tl!("The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it."),
+            tl!("The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it."),
             &[("name", &name)],
         );
         ui.label(egui::RichText::new(text).color(t.text));
@@ -181,7 +181,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
     body: |_, ui, d| {
         let t = Tokens::get(ui.ctx());
         if safe_mode::active() {
-            ui.label(egui::RichText::new(tl!("VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.")).color(t.text));
+            ui.label(egui::RichText::new(tl!("Pluma is in Safe Mode: no plug-ins load or run until it starts normally.")).color(t.text));
             ui.add_space(8.0);
         }
         ui.label(egui::RichText::new(tl!("Disabled plug-ins")).color(t.text_dim));

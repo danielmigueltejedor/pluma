@@ -18,7 +18,7 @@ mod caps;
 mod mesh;
 pub use mesh::{Mesh, extrude_mesh, inflate_meshes, plane_mesh, revolve_mesh};
 
-use vectorcraft_geom::{BezPath, FillRule, ParamCurve, PathData, Point, Rect, Shape, Vec2, kurbo::ParamCurveDeriv};
+use pluma_geom::{BezPath, FillRule, ParamCurve, PathData, Point, Rect, Shape, Vec2, kurbo::ParamCurveDeriv};
 
 /// Resource limits shared by desktop, CLI and browser evaluation.
 const MAX_PROFILE_POINTS: usize = 16_384;
@@ -652,7 +652,7 @@ impl HoleSearch {
         if self.contours.get(own).and_then(|c| c.2).is_none() {
             return Ok(vec![]);
         }
-        let line = vectorcraft_geom::kurbo::Line::new(a, b);
+        let line = pluma_geom::kurbo::Line::new(a, b);
         let reach = Rect::from_points(a, b);
         let mut out = vec![];
         for j in self.candidates(own, reach)? {

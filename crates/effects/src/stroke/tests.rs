@@ -1,6 +1,6 @@
 use kurbo::{BezPath, PathEl, Point, Rect, Shape, Vec2};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{ArrowAlign, Arrowhead, Dash, LineCap, StrokeLayer, WidthProfile};
+use pluma_color::{Color, Paint};
+use pluma_doc::{ArrowAlign, Arrowhead, Dash, LineCap, StrokeLayer, WidthProfile};
 
 use super::*;
 
@@ -208,10 +208,10 @@ fn dot_outlines_take_the_cap_shape_and_wind_like_stroked_dashes() {
 
 #[test]
 fn expand_stroke_region_of_a_round_line_stays_compact() {
+    use pluma_geom::{FillRule, PathData, Point, SubPath};
     use std::f64::consts::PI;
-    use vectorcraft_geom::{FillRule, PathData, Point, SubPath};
     let path = PathData::single(SubPath::polyline(&[Point::new(0.0, 50.0), Point::new(100.0, 50.0)], false));
-    let st = stroke(10.0, |s| s.cap = vectorcraft_doc::LineCap::Round);
+    let st = stroke(10.0, |s| s.cap = pluma_doc::LineCap::Round);
     let region = crate::stroke::outline::outline_region(&path, FillRule::NonZero, &st);
     let anchors = region.subpaths.iter().map(|s| s.anchors.len()).sum::<usize>();
     assert!(anchors <= 8, "expand stroke should use few anchors for a round line, got {anchors}");
@@ -247,10 +247,10 @@ fn line_outline_uses_the_profile_dashes_or_a_plain_stroke() {
 
 #[test]
 fn aligned_width_doubles_only_closed_inside_and_outside_strokes() {
-    let mut st = stroke(3.0, |s| s.align = vectorcraft_doc::StrokeAlign::Inside);
+    let mut st = stroke(3.0, |s| s.align = pluma_doc::StrokeAlign::Inside);
     assert_eq!(aligned_width(&st, true), 6.0);
     assert_eq!(aligned_width(&st, false), 3.0);
-    st.align = vectorcraft_doc::StrokeAlign::Center;
+    st.align = pluma_doc::StrokeAlign::Center;
     assert_eq!(aligned_width(&st, true), 3.0);
 }
 

@@ -2,12 +2,12 @@
 //! palette, RLE, row order) and Targa (depth), after the raster export rows they share with PNG
 //! Options ([`super::png_options`]): the `tiffOptions`, `bmpOptions` and `tgaOptions` dialogs.
 
+use pluma_render::encode::bmp::{self, BmpOptions};
+use pluma_render::encode::jpeg::ColorModel;
+use pluma_render::encode::quantize::{Dither, PaletteOptions, Reduction};
+use pluma_render::encode::tga::{self, TgaOptions};
+use pluma_render::encode::tiff::{ByteOrder, TiffOptions};
 use serde_json::{Map, Value, json};
-use vectorcraft_render::encode::bmp::{self, BmpOptions};
-use vectorcraft_render::encode::jpeg::ColorModel;
-use vectorcraft_render::encode::quantize::{Dither, PaletteOptions, Reduction};
-use vectorcraft_render::encode::tga::{self, TgaOptions};
-use vectorcraft_render::encode::tiff::{ByteOrder, TiffOptions};
 
 use super::form;
 use super::png_options::choice;

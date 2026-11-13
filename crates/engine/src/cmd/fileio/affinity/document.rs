@@ -15,7 +15,7 @@ impl Builder {
             cmyk_profile: None,
             cmyk_lut: None,
             working_cmyk: None,
-            overlay_work: vectorcraft_affinity::overlay::MAX_WORK,
+            overlay_work: pluma_affinity::overlay::MAX_WORK,
             copy_left: MAX_MASTER_COPIES,
             master_parts: std::collections::HashMap::new(),
         }

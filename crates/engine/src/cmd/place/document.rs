@@ -1,4 +1,4 @@
-//! Placed documents (`file.place` of a VectorCraft document, a PDF or a `.ai` file from a file,
+//! Placed documents (`file.place` of a Pluma document, a PDF or a `.ai` file from a file,
 //! with `link`): one locked object showing an artboard of the document or a page of the PDF, a
 //! [`PlacedDocument`].
 //!
@@ -18,30 +18,30 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use vectorcraft_doc::links::hash_bytes;
-use vectorcraft_doc::placed_document::{PREVIEW_MAX, PREVIEW_PX_PER_PT, key_for};
-use vectorcraft_doc::{Document, ImageBlob, LinkInfo, Node, NodeKind, PageBox, PlacedDocument, PlacementOptions};
-use vectorcraft_geom::{Affine, Rect};
-use vectorcraft_pdf::CropTo;
+use pluma_doc::links::hash_bytes;
+use pluma_doc::placed_document::{PREVIEW_MAX, PREVIEW_PX_PER_PT, key_for};
+use pluma_doc::{Document, ImageBlob, LinkInfo, Node, NodeKind, PageBox, PlacedDocument, PlacementOptions};
+use pluma_geom::{Affine, Rect};
+use pluma_pdf::CropTo;
 
 use super::super::fileio;
 use super::super::{EngineError, NodeId, Result, bad};
 
 /// The largest file placed (bytes).
 pub(crate) const MAX_FILE: usize = 256 << 20;
-/// The format ids of VectorCraft documents.
+/// The format ids of Pluma documents.
 const NATIVE: [&str; 2] = ["vectorcraft", "template"];
-/// The type a placed VectorCraft document's bytes are stored with (a PDF's: its format's).
+/// The type a placed Pluma document's bytes are stored with (a PDF's: its format's).
 const MIME: &str = "application/json";
 
-/// Is `name` with `bytes` a VectorCraft document?
+/// Is `name` with `bytes` a Pluma document?
 pub(crate) fn is_native(name: &str, bytes: &[u8]) -> bool {
     fileio::detect(name, bytes).is_some_and(|f| NATIVE.contains(&f.id))
 }
 
 /// Is `name` with `bytes` a PDF, or a `.ai` or `.ait` file read as PDF pages (not PostScript)?
 pub(crate) fn is_pdf(name: &str, bytes: &[u8]) -> bool {
-    fileio::detect(name, bytes).is_some_and(|f| matches!(f.id, "pdf" | "ai" | "ait")) && !vectorcraft_pdf::is_postscript(bytes)
+    fileio::detect(name, bytes).is_some_and(|f| matches!(f.id, "pdf" | "ai" | "ait")) && !pluma_pdf::is_postscript(bytes)
 }
 
 /// The editing data of the `.ai` file `name` (`bytes`) when its PDF part is only a placeholder, or
@@ -89,7 +89,7 @@ fn crop_to(b: PageBox) -> CropTo {
     }
 }
 
-/// An artboard of a VectorCraft document, or a page of a PDF or `.ai` file, read as art to place.
+/// An artboard of a Pluma document, or a page of a PDF or `.ai` file, read as art to place.
 pub(crate) struct DocumentArt {
     /// The document, its layers taken: the art's resources.
     pub doc: Document,
@@ -102,7 +102,7 @@ pub(crate) struct DocumentArt {
     pub warnings: Vec<String>,
 }
 
-/// Artboard `page` (1-based) of the VectorCraft document `name` (`bytes`, read from `path` when
+/// Artboard `page` (1-based) of the Pluma document `name` (`bytes`, read from `path` when
 /// there is one, so its linked images are found), clipped to the artboard unless `bounding`; or
 /// page `page` of the PDF or `.ai` file `name`, clipped to its box `page_box` unless `bounding`
 /// ([`super::pdf_art`]).
@@ -118,7 +118,7 @@ pub(crate) fn document_art(
     let file = fileio::file_name(name);
     let pdf = is_pdf(name, bytes);
     if !pdf && !is_native(name, bytes) {
-        return Err(bad(cmd, format!("`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file")));
+        return Err(bad(cmd, format!("`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file")));
     }
     if bytes.len() > MAX_FILE {
         return Err(bad(cmd, format!("`{file}` is over {} MB", MAX_FILE >> 20)));
@@ -185,14 +185,14 @@ fn group(nodes: Vec<Node>, clip: Option<Rect>) -> Node {
 }
 
 /// `p`'s file (`bytes`) read as the art it shows: how the document model reads placed documents
-/// ([`vectorcraft_doc::placed_document::set_loader`]).
+/// ([`pluma_doc::placed_document::set_loader`]).
 pub(crate) fn read_document(p: &PlacedDocument, bytes: &[u8]) -> Option<(Document, Node, Rect)> {
     let a = document_art(p.link.name(), bytes, Some(&p.link.path), p.page(), p.bounding, p.page_box, "draw").ok()?;
     Some((a.doc, group(a.nodes, a.clip), a.frame))
 }
 
 /// `p`'s file read again, while it is the file it was read from (how the document model gets it
-/// when only the preview is stored, [`vectorcraft_doc::placed_document::set_file_reader`]).
+/// when only the preview is stored, [`pluma_doc::placed_document::set_file_reader`]).
 pub(crate) fn read_file_again(p: &PlacedDocument) -> Option<Vec<u8>> {
     // The stored path is followed as stored paths are, but with no document to share a network
     // folder with: a file on another computer is never read here, even one resolving refused
@@ -209,7 +209,7 @@ pub(crate) fn read_file_again(p: &PlacedDocument) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
-/// A VectorCraft document, or a PDF or `.ai` file, read for placing linked.
+/// A Pluma document, or a PDF or `.ai` file, read for placing linked.
 #[derive(Clone)]
 pub(crate) struct Source {
     /// The file's bytes, with their preview.
@@ -223,7 +223,7 @@ pub(crate) struct Source {
     pub warnings: Vec<String>,
 }
 
-/// The VectorCraft document `name` (`bytes`, from `path` when there is one) read for showing
+/// The Pluma document `name` (`bytes`, from `path` when there is one) read for showing
 /// artboard `page`, or the PDF or `.ai` file for showing page `page` clipped to its box
 /// `page_box` (its art's bounds when `bounding`).
 pub(crate) fn source(name: &str, bytes: &[u8], path: Option<&str>, page: u32, bounding: bool, page_box: PageBox, cmd: &str) -> Result<Source> {
@@ -250,7 +250,7 @@ pub(crate) fn source(name: &str, bytes: &[u8], path: Option<&str>, page: u32, bo
     let art = group(a.nodes, a.clip);
     blob.proxy = preview(&a.doc, &art, a.frame).map(Arc::new);
     // Drawing it needn't read it again.
-    vectorcraft_doc::placed_document::prime(&shown, blob.bytes.clone(), (a.doc, art, a.frame));
+    pluma_doc::placed_document::prime(&shown, blob.bytes.clone(), (a.doc, art, a.frame));
     let s = Source { blob, key, page_box, frame: a.frame, warnings: a.warnings };
     if !confined {
         let mut m = lock_memo();
@@ -281,8 +281,8 @@ fn preview(doc: &Document, art: &Node, frame: Rect) -> Option<Vec<u8>> {
     let (w, h) = (side(frame.width()), side(frame.height()));
     let view = Affine::scale_non_uniform(w as f64 / frame.width().max(1e-9), h as f64 / frame.height().max(1e-9))
         * Affine::translate((-frame.x0, -frame.y0));
-    let mut r = vectorcraft_render::Renderer::new();
-    let img = vectorcraft_render::placed_document::render_inside(&mut r, doc, &Arc::new(art.clone()), w as u16, h as u16, view)?;
+    let mut r = pluma_render::Renderer::new();
+    let img = pluma_render::placed_document::render_inside(&mut r, doc, &Arc::new(art.clone()), w as u16, h as u16, view)?;
     // Premultiplied → straight.
     let px = img
         .pixels
@@ -354,7 +354,7 @@ pub(crate) fn full_documents(d: &Document) -> (Cow<'_, Document>, Vec<String>) {
     let mut previews = BTreeSet::new();
     for p in need {
         let Some(blob) = out.images.get(&p.key) else { continue };
-        match vectorcraft_doc::placed_document::full_bytes(&p, blob) {
+        match pluma_doc::placed_document::full_bytes(&p, blob) {
             Some(bytes) => {
                 out.images.insert(p.key.clone(), ImageBlob { mime: mime(p.link.name(), &bytes).into(), bytes, proxy: blob.proxy.clone() });
             }
@@ -382,7 +382,7 @@ pub(crate) fn expand(d: &mut Document, id: NodeId, cmd: &str) -> Result<()> {
     let n = d.node(id).cloned().ok_or(EngineError::NoNode(id))?;
     let NodeKind::PlacedDocument(p) = &n.kind else { return Err(bad(cmd, format!("object {} is not a placed document", id.0))) };
     let blob = d.images.get(&p.key).ok_or_else(|| bad(cmd, format!("object {} has lost its file's contents: relink it", id.0)))?;
-    let bytes = vectorcraft_doc::placed_document::full_bytes(p, blob)
+    let bytes = pluma_doc::placed_document::full_bytes(p, blob)
         .ok_or_else(|| bad(cmd, format!("{} can't be read, or changed since it was read: relink or update it first", p.link.path)))?;
     let a = document_art(p.link.name(), &bytes, Some(&p.link.path), p.page(), p.bounding, p.page_box, cmd)?;
     let m = p.art_xf(a.frame).ok_or_else(|| bad(cmd, format!("object {} has no size", id.0)))?;

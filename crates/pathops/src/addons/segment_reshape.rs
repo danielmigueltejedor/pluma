@@ -5,7 +5,7 @@
 //! moved, so the path stays smooth there.
 
 use kurbo::Vec2;
-use vectorcraft_geom::SubPath;
+use pluma_geom::SubPath;
 
 /// The range the grab position `t` is held to: right at an end, the handle beside it would have
 /// to grow without bound to move the point.
@@ -120,7 +120,7 @@ fn keep_angles(sp: &mut SubPath, seg: usize, t: f64, dv: Vec2) -> bool {
 #[cfg(test)]
 mod tests {
     use kurbo::{ParamCurve, Point, Vec2};
-    use vectorcraft_geom::{Anchor, AnchorKind, SubPath};
+    use pluma_geom::{Anchor, AnchorKind, SubPath};
 
     use super::*;
 

@@ -3,10 +3,10 @@ use super::{Arc, BlendMode, Color, Exporter, Image, NodeKind, Paint, Rect, Size,
 use krilla::color::device_n::{Colorant, DeviceNSpace, Process};
 use krilla::image::{BitsPerComponent, CustomImage, ImageColorspace};
 
-/// The byte count of a repeated color channel, within [`vectorcraft_doc::MAX_RASTER_ALLOC`].
+/// The byte count of a repeated color channel, within [`pluma_doc::MAX_RASTER_ALLOC`].
 fn tinted_color_len(samples: usize, pixels: usize) -> Option<usize> {
     let bytes = samples.checked_mul(pixels)?;
-    (u64::try_from(bytes).ok()? <= vectorcraft_doc::MAX_RASTER_ALLOC).then_some(bytes)
+    (u64::try_from(bytes).ok()? <= pluma_doc::MAX_RASTER_ALLOC).then_some(bytes)
 }
 
 /// A colorized image's pixels: one color in every pixel, shown as much as its soft mask says.
@@ -51,17 +51,17 @@ impl CustomImage for Tinted {
 }
 
 impl Exporter<'_> {
-    /// Image `im` colorized with `paint` ([`vectorcraft_doc::NodeExtras::colorize`]): every pixel
-    /// in the paint's color, with the image's coverage ([`vectorcraft_doc::ImageBlob::coverage`])
+    /// Image `im` colorized with `paint` ([`pluma_doc::NodeExtras::colorize`]): every pixel
+    /// in the paint's color, with the image's coverage ([`pluma_doc::ImageBlob::coverage`])
     /// as its soft mask, so white pixels are transparent. A spot color is written as its tint of
     /// that ink (a DeviceN space of the one ink, which lists its Separation space), Registration in
     /// every process ink and every spot ink of the document, other colors in gray, RGB or CMYK as
     /// the Output settings write them. The coverage is resampled as the Compression settings ask
     /// ([`crate::images::coverage_sized`]). `None` when the paint isn't a solid color, the image is
     /// missing or left out, its pixels can't be decoded, or its color channel exceeds
-    /// [`vectorcraft_doc::MAX_RASTER_ALLOC`]; image rejections are cached like [`Self::load_image`].
+    /// [`pluma_doc::MAX_RASTER_ALLOC`]; image rejections are cached like [`Self::load_image`].
     /// With `interpolate` (and the export's own setting), viewers may smooth it.
-    pub(super) fn colorized_image(&mut self, im: &vectorcraft_doc::ImageObject, paint: &Paint, interpolate: bool) -> Option<Image> {
+    pub(super) fn colorized_image(&mut self, im: &pluma_doc::ImageObject, paint: &Paint, interpolate: bool) -> Option<Image> {
         let Paint::Solid { color, swatch, tint } = paint else { return None };
         let size = placed_size(im);
         let interpolate = interpolate && self.interpolate;
@@ -83,7 +83,7 @@ impl Exporter<'_> {
             return None;
         };
         let n = alpha.len();
-        let registration = swatch.as_deref() == Some(vectorcraft_color::swatch::REGISTRATION);
+        let registration = swatch.as_deref() == Some(pluma_color::swatch::REGISTRATION);
         let inks: Vec<(String, [f32; 4])> = if registration {
             let spots: Vec<String> = doc.swatches_iter().filter(|w| w.spot).map(|w| w.name.clone()).collect();
             spots.iter().filter_map(|name| self.spot_ink(name)).collect()
@@ -121,7 +121,7 @@ impl Exporter<'_> {
     /// cached by key (and size when images are resampled). With `interpolate` (and the export's
     /// own setting), viewers may smooth it. `None`, with [`UNDECODED`] among the warnings, for an
     /// image that is missing, can't be decoded or is in [`Self::left_out`].
-    fn load_image(&mut self, im: &vectorcraft_doc::ImageObject, size: (f64, f64), interpolate: bool) -> Option<Image> {
+    fn load_image(&mut self, im: &pluma_doc::ImageObject, size: (f64, f64), interpolate: bool) -> Option<Image> {
         let key = im.key.as_str();
         let c = self.compression;
         let sized = [c.color.downsample, c.gray.downsample, c.mono.downsample].iter().any(|d| *d != crate::Downsample::None);
@@ -137,7 +137,7 @@ impl Exporter<'_> {
         let out = self.out.clone();
         let img = doc.image_blob(im).filter(|_| !self.left_out.contains(key)).and_then(|blob| {
             let cmyk_image = blob.is_cmyk();
-            if !cmyk_image && self.convert && doc.color_mode == vectorcraft_doc::ColorMode::Cmyk {
+            if !cmyk_image && self.convert && doc.color_mode == pluma_doc::ColorMode::Cmyk {
                 self.rgb_in_cmyk.images.insert(key.to_string());
             }
             let r = if cmyk_image {
@@ -162,7 +162,7 @@ impl Exporter<'_> {
     /// image's soft mask, as an RGBA image's is, rather than as a luminosity soft mask over it,
     /// through which CoreGraphics draws CMYK images on black boxes (#2159). `None` for other
     /// images and masks; cached like [`Self::load_image`], `interpolate` as there.
-    pub(super) fn masked_image(&mut self, im: &vectorcraft_doc::ImageObject, m: &vectorcraft_doc::OpacityMask, interpolate: bool) -> Option<Image> {
+    pub(super) fn masked_image(&mut self, im: &pluma_doc::ImageObject, m: &pluma_doc::OpacityMask, interpolate: bool) -> Option<Image> {
         let art = &m.art;
         let NodeKind::Image(mi) = &art.kind else { return None };
         let plain =
@@ -193,8 +193,8 @@ impl Exporter<'_> {
     }
 
     /// Draw image `im`: `img` when given (its pixels already written), else as it is loaded; with
-    /// `pixelated` ([`vectorcraft_doc::NodeExtras::pixelated`]) viewers are asked not to smooth it.
-    pub(super) fn image(&mut self, s: &mut Surface, im: &vectorcraft_doc::ImageObject, img: Option<Image>, pixelated: bool) {
+    /// `pixelated` ([`pluma_doc::NodeExtras::pixelated`]) viewers are asked not to smooth it.
+    pub(super) fn image(&mut self, s: &mut Surface, im: &pluma_doc::ImageObject, img: Option<Image>, pixelated: bool) {
         // An image placed or sized beyond [`MAX_COORD`] is left out.
         if !writable(s, im.xf, Rect::new(0.0, 0.0, im.width.max(1).into(), im.height.max(1).into())) {
             if self.image_left_out.is_some() {
@@ -221,7 +221,7 @@ impl Exporter<'_> {
 }
 
 /// The size image `im` is placed at: its pixel grid's sides through its transform.
-fn placed_size(im: &vectorcraft_doc::ImageObject) -> (f64, f64) {
+fn placed_size(im: &pluma_doc::ImageObject) -> (f64, f64) {
     let [a, b, c, d, ..] = im.xf.as_coeffs();
     (im.width as f64 * a.hypot(b), im.height as f64 * c.hypot(d))
 }
@@ -257,7 +257,7 @@ pub(super) fn png_8_bit(bytes: &[u8]) -> Option<Vec<u8>> {
 /// Image `blob` as it is: PNG, JPEG, GIF and WebP through the PDF writer (JPEG data unchanged),
 /// other formats decoded. Without `sixteen_bit` (a file before PDF 1.5), a PNG of 16 bits a
 /// sample is written at 8 bits ([`png_8_bit`]).
-pub(super) fn embed(blob: &vectorcraft_doc::ImageBlob, interpolate: bool, sixteen_bit: bool) -> Option<Image> {
+pub(super) fn embed(blob: &pluma_doc::ImageBlob, interpolate: bool, sixteen_bit: bool) -> Option<Image> {
     let bytes = blob.bytes.as_ref().clone();
     let direct = match blob.mime.as_str() {
         "image/png" if !sixteen_bit && png_16_bit(&bytes) => png_8_bit(&bytes).and_then(|png| Image::from_png(png.into(), interpolate).ok()),
@@ -277,9 +277,9 @@ pub(super) fn embed(blob: &vectorcraft_doc::ImageBlob, interpolate: bool, sixtee
 #[cfg(test)]
 mod tests {
     use super::{Exporter, tinted_color_len};
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_doc::{Document, ImageBlob, ImageObject};
-    use vectorcraft_geom::Affine;
+    use pluma_color::{Color, Paint};
+    use pluma_doc::{Document, ImageBlob, ImageObject};
+    use pluma_geom::Affine;
 
     #[test]
     fn colorized_image_caches_rejected_images() {
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn tinted_color_rejects_oversized_and_overflowing_buffers() {
-        let max = usize::try_from(vectorcraft_doc::MAX_RASTER_ALLOC).unwrap_or(usize::MAX);
+        let max = usize::try_from(pluma_doc::MAX_RASTER_ALLOC).unwrap_or(usize::MAX);
         assert_eq!(tinted_color_len(4, max / 4), Some(max));
         assert_eq!(tinted_color_len(4, max / 4 + 1), None);
         assert_eq!(tinted_color_len(4, usize::MAX), None);

@@ -8,14 +8,14 @@
 //! `typography` never breaks, `ty-pog-ra-phy` breaks only where the hyphens mark. See
 //! [`set_hyphenation_exceptions`].
 //!
-//! Each run hyphenates in its own language ([`vectorcraft_doc::CharStyle::language`]). English
+//! Each run hyphenates in its own language ([`pluma_doc::CharStyle::language`]). English
 //! uses the rules above; eleven Indian languages use bundled hyph-utf8 patterns. Other languages
 //! only break at user exceptions. Indic breaks always preserve Unicode grapheme boundaries.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use vectorcraft_doc::HyphenationOptions;
+use pluma_doc::HyphenationOptions;
 
 mod indic;
 
@@ -186,7 +186,7 @@ fn onset_pair(a: char, b: char) -> bool {
     )
 }
 
-/// Whether text in `language` (a [`vectorcraft_doc::CharStyle::language`]: a BCP 47 tag, `None` for
+/// Whether text in `language` (a [`pluma_doc::CharStyle::language`]: a BCP 47 tag, `None` for
 /// the default, English: USA) has break points of its own.
 pub fn language_has_patterns(language: Option<&str>) -> bool {
     !matches!(Language::from_tag(language), Language::None)

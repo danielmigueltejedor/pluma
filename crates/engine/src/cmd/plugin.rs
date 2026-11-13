@@ -1,12 +1,12 @@
-//! `plugin.*` commands: sandboxed WebAssembly plug-ins (`vectorcraft-plugins`).
+//! `plugin.*` commands: sandboxed WebAssembly plug-ins (`pluma-plugins`).
 //!
 //! Plug-ins are installed with `plugin.install` (kept across restarts in the apps' plug-in folder,
 //! [`Session::attach_plugin_store`]) or from every `*.wasm` in the Additional Plug-ins Folder
 //! preference, and listed with `plugin.list` / `plugin.info`. Object filters run
 //! with `plugin.run` on the selected paths and compound paths (one undo step, transactional: a
 //! plug-in that fails leaves the document untouched), and read and write the data they keep with
-//! the document ([`vectorcraft_doc::plugin_data`], theirs alone); live-effect plug-ins are applied
-//! like any effect (`effect.apply {effect: "plugin.<id>"}`) and drawn by `vectorcraft-effects`;
+//! the document ([`pluma_doc::plugin_data`], theirs alone); live-effect plug-ins are applied
+//! like any effect (`effect.apply {effect: "plugin.<id>"}`) and drawn by `pluma-effects`;
 //! exporters add a file format that `document.export` writes, and importers one that
 //! `document.open` reads (`fileio::plugin_formats`).
 //!
@@ -32,8 +32,8 @@
 //! id in `_context`, its own checked parameters and the plug-in's permissions, as one undo step.
 //!
 //! A plug-in of API level 2 that lists `progress` may import the host's `vc_progress`,
-//! `vc_cancelled` and `vc_log` ([`vectorcraft_plugins::host`]): run inside a
-//! [`vectorcraft_doc::cancel::scope`] (the app's heavy filters and background exports), its
+//! `vc_cancelled` and `vc_log` ([`pluma_plugins::host`]): run inside a
+//! [`pluma_doc::cancel::scope`] (the app's heavy filters and background exports), its
 //! progress goes to the scope's sink and it sees the scope's Cancel; its log lines go to the log
 //! under its id. One that lists `settings` or `cache` may keep settings and a cache of its own
 //! (`vc_settings_*`, `vc_cache_*`), in the plug-in store under its id ([`crate::store`]):
@@ -46,18 +46,18 @@
 
 use std::sync::{Arc, Mutex, RwLock};
 
+use pluma_doc::{Effect, Node};
+use pluma_plugins::{Budget, Command, Kind, Plugin, effect, export, objects, registry, safe_mode};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Effect, Node};
-use vectorcraft_plugins::{Budget, Command, Kind, Plugin, effect, export, objects, registry, safe_mode};
 
 use super::{CommandSpec, EngineError, NodeId, Result, Session, always, bad, cmd, has_doc, ids_param, str_param, switch_or};
 
-use vectorcraft_plugins::permissions::{self, Grant, Permission};
+use pluma_plugins::permissions::{self, Grant, Permission};
 
 /// What a plug-in error looks like to the user. A run the caller cancelled changed nothing.
-fn err(e: vectorcraft_plugins::Error) -> EngineError {
+fn err(e: pluma_plugins::Error) -> EngineError {
     match e {
-        vectorcraft_plugins::Error::Cancelled => EngineError::Cancelled,
+        pluma_plugins::Error::Cancelled => EngineError::Cancelled,
         e => EngineError::Other(e.to_string()),
     }
 }
@@ -119,7 +119,7 @@ fn plugin_params(p: &Value) -> Value {
 
 fn plugin_by_id(cmd: &str, p: &Value) -> Result<Arc<Plugin>> {
     let id = str_param(p, "id").ok_or_else(|| bad(cmd, "missing `id` (see plugin.list)"))?;
-    registry::get(id).ok_or_else(|| err(vectorcraft_plugins::Error::NotFound(id.into())))
+    registry::get(id).ok_or_else(|| err(pluma_plugins::Error::NotFound(id.into())))
 }
 
 /// One run of an object filter, split so the plug-in can compute away from the session: made from
@@ -212,7 +212,7 @@ impl FilterRun {
         let parent = st.insertion_parent();
         let bounds = st.doc.bounds_of(&inputs, false);
         let board = bounds.and_then(|b| st.doc.artboard_at(b.center())).and_then(|i| st.doc.artboards.get(i)).or(st.doc.artboards.first());
-        let rect = |r: vectorcraft_geom::Rect| json!([r.x0, r.y0, r.x1, r.y1]);
+        let rect = |r: pluma_geom::Rect| json!([r.x0, r.y0, r.x1, r.y1]);
         // What the plug-in keeps with the document, as it last wrote it.
         let data = st.doc.plugin_data(&m.id).filter(|_| may.contains(&Permission::State)).cloned().unwrap_or(Value::Null);
         params["_context"] = json!({"mode": "filter", "bounds": bounds.map(rect), "artboard": board.map(|a| rect(a.rect)), "documentData": data});
@@ -252,7 +252,7 @@ impl FilterRun {
     }
 
     /// Runs the plug-in → its output, or why it failed or stopped. It touches no document, so it
-    /// can run on any thread; inside a [`vectorcraft_doc::cancel::scope`] Cancel stops it between
+    /// can run on any thread; inside a [`pluma_doc::cancel::scope`] Cancel stops it between
     /// two slices of its budget.
     pub fn run(&self) -> Result<Vec<u8>> {
         self.plugin.run(&self.input, &self.params).map_err(err)
@@ -303,7 +303,7 @@ impl FilterRun {
 /// The error of a filter `name` whose output needs `permission`, which it wasn't granted.
 fn not_granted(name: &str, permission: Permission) -> EngineError {
     let (name, p) = (permissions::display_text(name, permissions::MAX_SHOWN_NAME), permission.name());
-    err(vectorcraft_plugins::Error::Output(format!("“{name}” wasn't granted `{p}`, which its output needs: nothing was changed")))
+    err(pluma_plugins::Error::Output(format!("“{name}” wasn't granted `{p}`, which its output needs: nothing was changed")))
 }
 
 /// `plugin.run`: runs filter `id` on `ids` (else the selected paths and compound paths) with its
@@ -328,18 +328,18 @@ fn run(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The command id of plug-in `plugin`'s command `command`: `plugin.<plugin>.<command>`.
 pub fn command_id(plugin: &str, command: &str) -> String {
-    format!("{}{plugin}.{command}", vectorcraft_plugins::PREFIX)
+    format!("{}{plugin}.{command}", pluma_plugins::PREFIX)
 }
 
 /// Is `id` shaped as a plug-in command's id (`plugin.<plug-in id>.<command id>`)? This module's
 /// own `plugin.*` commands have no dot after the prefix, and a command id has none.
 pub fn is_command_id(id: &str) -> bool {
-    id.strip_prefix(vectorcraft_plugins::PREFIX).is_some_and(|rest| rest.contains('.'))
+    id.strip_prefix(pluma_plugins::PREFIX).is_some_and(|rest| rest.contains('.'))
 }
 
 /// The installed plug-in and its command that command id `id` names.
 pub fn command_of(id: &str) -> Option<(Arc<Plugin>, Command)> {
-    let (plugin, command) = id.strip_prefix(vectorcraft_plugins::PREFIX)?.rsplit_once('.')?;
+    let (plugin, command) = id.strip_prefix(pluma_plugins::PREFIX)?.rsplit_once('.')?;
     let p = registry::get(plugin)?;
     let c = p.manifest().command(command)?.clone();
     Some((p, c))
@@ -481,7 +481,7 @@ fn admit_effects(fx: &[Effect], n: &Node) -> std::result::Result<Vec<Effect>, St
 /// [`admit_effects`] for command `cmd`, which bad parameters name: `plugin.run`, or `document.open`
 /// for the objects an importer plug-in returns.
 pub(crate) fn admit_effects_for(cmd: &str, fx: &[Effect], n: &Node) -> std::result::Result<Vec<Effect>, String> {
-    use vectorcraft_render::effects;
+    use pluma_render::effects;
     let mut out = Vec::with_capacity(fx.len());
     for (j, e) in fx.iter().enumerate() {
         if n.appearance.effects.contains(e) {
@@ -530,8 +530,8 @@ fn load_given(c: &str, p: &Value) -> Result<(Plugin, Vec<u8>)> {
             if data.len() > MAX_DATA_CHARS {
                 return Err(bad(c, "`dataBase64` is larger than the module limit"));
             }
-            let bytes = vectorcraft_format::base64_decode(data).ok_or_else(|| bad(c, "`dataBase64` is not valid base64"))?;
-            let plugin = Plugin::load(&bytes, vectorcraft_plugins::Limits::default()).map_err(err)?;
+            let bytes = pluma_format::base64_decode(data).ok_or_else(|| bad(c, "`dataBase64` is not valid base64"))?;
+            let plugin = Plugin::load(&bytes, pluma_plugins::Limits::default()).map_err(err)?;
             let plugin = match str_param(p, "name") {
                 Some(name) => plugin.with_source(name),
                 None => plugin,
@@ -591,7 +591,7 @@ impl Session {
     }
 
     /// Makes `plugin.install` accept `grant` and `allowHeavy` from any request in this session.
-    /// For the person starting the process (`vectorcraft-cli --allow-plugin-grants`), never for
+    /// For the person starting the process (`pluma-cli --allow-plugin-grants`), never for
     /// a request.
     pub fn allow_plugin_grants_from_requests(&mut self) {
         self.plugin_grants_from_requests = true;
@@ -656,7 +656,7 @@ fn install(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // A heavy plug-in is installed once a person agrees.
     if plugin.manifest().budget == Budget::Heavy && !allow_heavy {
-        let (minutes, times) = vectorcraft_plugins::heavy_terms();
+        let (minutes, times) = pluma_plugins::heavy_terms();
         return Err(bad(
             C,
             format!(
@@ -745,7 +745,7 @@ fn inspect(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(not(target_arch = "wasm32"))]
 fn load_path(path: &str) -> Result<(Plugin, Vec<u8>)> {
     crate::file_access::check_read(path).map_err(EngineError::Other)?;
-    let limits = vectorcraft_plugins::Limits::default();
+    let limits = pluma_plugins::Limits::default();
     let bytes = crate::store::read_capped(std::path::Path::new(path), limits.max_module_bytes as u64).map_err(EngineError::Other)?;
     Ok((Plugin::load(&bytes, limits).map_err(err)?.with_source(path), bytes))
 }
@@ -918,7 +918,7 @@ fn remove(s: &mut Session, p: &Value) -> Result<Value> {
     let id = str_param(p, "id").ok_or_else(|| bad("plugin.remove", "missing `id`"))?;
     let installed = registry::get(id).is_some();
     // Settings and cache the store keeps for an id that isn't installed are deleted too.
-    let stored = !installed && vectorcraft_plugins::manifest::valid_id(id) && s.has_plugin_storage(id);
+    let stored = !installed && pluma_plugins::manifest::valid_id(id) && s.has_plugin_storage(id);
     // Installed again, it asks again. A grant that can't be removed still approves the module, and
     // so may a grants file that can't be opened or read. One that is too large or doesn't hold a
     // list approves nothing and doesn't stop the removal.
@@ -940,7 +940,7 @@ fn remove(s: &mut Session, p: &Value) -> Result<Value> {
     registry::revoke(id);
     s.unstore_plugin(id);
     if !stored && (!installed || !registry::remove(id)) {
-        return Err(err(vectorcraft_plugins::Error::NotFound(id.into())));
+        return Err(err(pluma_plugins::Error::NotFound(id.into())));
     }
     Ok(json!({"removed": id}))
 }
@@ -998,7 +998,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Install Plug-in",
             [],
             None,
-            "{path: a .wasm file (desktop) | dataBase64: the module (+ name?: shown as its source), replace?: bool (true once the user agreed: a module with other bytes than the plug-in installed with its id, or with none installed, one whose id has settings or a cache in the plug-in store, installs only with it, takes that plug-in's place and gets its settings and cache; false: one whose id is installed is refused; left out, the same module installs again), name?: file name (with dataBase64), allowHeavy?: bool (a filter whose manifest asks for a heavy budget, budget \"heavy\" in plugin.inspect, installs only with it), grant?: [permission] (a plug-in whose manifest lists permissions, needsApproval in plugin.inspect, installs only when grant holds every one of them; the grant is recorded with the module's hash and covers only that module, so a module with other bytes needs a new grant even when it lists the same permissions; installing a module that lists no permissions forgets the grant held for its id; a refused install keeps the grant, a failed write of the module to the plug-in store leaves the grant in the store, and a stored module that is disabled or not read in Safe Mode keeps the grant for its id; with a plug-in store attached, only the grants kept there count; a request's allowHeavy and grant are refused unless the session was started with vectorcraft-cli --allow-plugin-grants: in the desktop app a person approves the install, see ui.installPlugin, and a module whose hash is already recorded, by a person's approval or by a grant accepted under that flag, needs no grant), hash?: string (the module's SHA-256 as plugin.inspect gave it: a module with other bytes is refused)} validate and install a WebAssembly plug-in for this session → its plugin.list entry",
+            "{path: a .wasm file (desktop) | dataBase64: the module (+ name?: shown as its source), replace?: bool (true once the user agreed: a module with other bytes than the plug-in installed with its id, or with none installed, one whose id has settings or a cache in the plug-in store, installs only with it, takes that plug-in's place and gets its settings and cache; false: one whose id is installed is refused; left out, the same module installs again), name?: file name (with dataBase64), allowHeavy?: bool (a filter whose manifest asks for a heavy budget, budget \"heavy\" in plugin.inspect, installs only with it), grant?: [permission] (a plug-in whose manifest lists permissions, needsApproval in plugin.inspect, installs only when grant holds every one of them; the grant is recorded with the module's hash and covers only that module, so a module with other bytes needs a new grant even when it lists the same permissions; installing a module that lists no permissions forgets the grant held for its id; a refused install keeps the grant, a failed write of the module to the plug-in store leaves the grant in the store, and a stored module that is disabled or not read in Safe Mode keeps the grant for its id; with a plug-in store attached, only the grants kept there count; a request's allowHeavy and grant are refused unless the session was started with pluma-cli --allow-plugin-grants: in the desktop app a person approves the install, see ui.installPlugin, and a module whose hash is already recorded, by a person's approval or by a grant accepted under that flag, needs no grant), hash?: string (the module's SHA-256 as plugin.inspect gave it: a module with other bytes is refused)} validate and install a WebAssembly plug-in for this session → its plugin.list entry",
             always,
             install
         ),

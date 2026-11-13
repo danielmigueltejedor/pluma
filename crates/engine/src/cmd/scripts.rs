@@ -1,15 +1,15 @@
 //! `script.check`: a script written for the reference app (`.jsx`, `.jsxinc`, `.js`, or a compiled
-//! `.jsxbin`) checked without running any of it, by `vectorcraft-scriptcheck`: what kind of file it
+//! `.jsxbin`) checked without running any of it, by `pluma-scriptcheck`: what kind of file it
 //! is, what it needs, its directives and includes, the platform features and document-model member
 //! chains it uses, the menu commands it runs, what it does outside the document, and its problems.
 //! With a path and `includes`, the files its `#include` lines name are read from inside its folder,
 //! each through the same checks as every other file a command reads.
 
+use pluma_scriptcheck::{Limits, Loaded, Loader, Report};
 use serde_json::{Value, json};
-use vectorcraft_scriptcheck::{Limits, Loaded, Loader, Report};
 
 /// The ids a reply can hold, for the windows that show it.
-pub use vectorcraft_scriptcheck::{IncludeStatus, Need, OUTSIDE, PROBLEMS};
+pub use pluma_scriptcheck::{IncludeStatus, Need, OUTSIDE, PROBLEMS};
 
 use super::{CommandSpec, EngineError, Result, Session, always, bad, bool_or, cmd, str_param};
 use crate::script;
@@ -32,7 +32,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Run Script",
             [],
             None,
-            "{path?: a .js or .jsx file | source?: the script's text (exactly one of the two), name?: the name errors and the report use (default: the path's file name, or \"script\"), args?: {…} (at most 1 MiB as JSON; vc.args in the script), answers?: {} (no prompts exist yet: only an empty object is taken), maxFuel?: whole number from 1 to 100000000000 (instructions in all; default 1000000000)} run a JavaScript file against the open documents, through the vc object: vc.run(id, params) runs a command and returns its result, a failed command throws an error the script can catch and puts back the documents and the session state it changed, while any file it wrote stays written and is named; vc.document is a snapshot of the active document or null; vc.commands lists the commands a script may run; vc.log(value) adds to the report; vc.args is args; vc.api.version and vc.api.has(feature) describe the API. The run is one transaction: on success each changed document gets one undo step, Run Script, and each preference it changed keeps its value, and on an uncaught error, a limit or script.stop every open document and the session go back as they were; files a command wrote before that stay written and are named. While it runs, other commands that change anything end with a busy error. Commands that change anything outside the documents (script.*, except script.check, plugin.*, prefs.*, actionSet.*, shortcutSet.*, help.*, print.*, library.*, importMatches.*, edit.undoGroup.*, file.recovery.*, stroke.widthProfile.*, saving, importing or deleting a preset, text.addFontFiles, text.findFontFiles, text.rescanFonts, links.findFiles, file.place.queue, color.loadProfile, color.removeProfile, file.print, view.proofSetup, view.proofColors, view.overprintPreview, view.separationsPreview) throw. VectorCraft's own limits: 8 MiB of source, 256 MiB of heap (128 MiB on the web), 2000000 host calls, 200000000 instructions without a pause, 64 levels, 16 MiB and 1048576 entries for a value crossing to or from a command, 10000 log entries and 4 MiB of log, and 100000 objects and 512 MiB of new document data, past which a person is asked to continue or stop and a run with nobody to ask ends → {ok: true, name, changed: [document names], written: [paths], log: [values], fuelUsed, hostCalls}, or, in the app, {running: true, name} and the report later in ui.inspect's scriptReport",
+            "{path?: a .js or .jsx file | source?: the script's text (exactly one of the two), name?: the name errors and the report use (default: the path's file name, or \"script\"), args?: {…} (at most 1 MiB as JSON; vc.args in the script), answers?: {} (no prompts exist yet: only an empty object is taken), maxFuel?: whole number from 1 to 100000000000 (instructions in all; default 1000000000)} run a JavaScript file against the open documents, through the vc object: vc.run(id, params) runs a command and returns its result, a failed command throws an error the script can catch and puts back the documents and the session state it changed, while any file it wrote stays written and is named; vc.document is a snapshot of the active document or null; vc.commands lists the commands a script may run; vc.log(value) adds to the report; vc.args is args; vc.api.version and vc.api.has(feature) describe the API. The run is one transaction: on success each changed document gets one undo step, Run Script, and each preference it changed keeps its value, and on an uncaught error, a limit or script.stop every open document and the session go back as they were; files a command wrote before that stay written and are named. While it runs, other commands that change anything end with a busy error. Commands that change anything outside the documents (script.*, except script.check, plugin.*, prefs.*, actionSet.*, shortcutSet.*, help.*, print.*, library.*, importMatches.*, edit.undoGroup.*, file.recovery.*, stroke.widthProfile.*, saving, importing or deleting a preset, text.addFontFiles, text.findFontFiles, text.rescanFonts, links.findFiles, file.place.queue, color.loadProfile, color.removeProfile, file.print, view.proofSetup, view.proofColors, view.overprintPreview, view.separationsPreview) throw. Pluma's own limits: 8 MiB of source, 256 MiB of heap (128 MiB on the web), 2000000 host calls, 200000000 instructions without a pause, 64 levels, 16 MiB and 1048576 entries for a value crossing to or from a command, 10000 log entries and 4 MiB of log, and 100000 objects and 512 MiB of new document data, past which a person is asked to continue or stop and a run with nobody to ask ends → {ok: true, name, changed: [document names], written: [paths], log: [values], fuelUsed, hostCalls}, or, in the app, {running: true, name} and the report later in ui.inspect's scriptReport",
             always,
             run
         ),
@@ -190,7 +190,7 @@ pub(super) fn decode_head(b64: &str, max: usize) -> Option<Vec<u8>> {
             kept > chars
         })
         .unwrap_or(b64.len());
-    vectorcraft_format::base64_decode(b64.get(..end)?)
+    pluma_format::base64_decode(b64.get(..end)?)
 }
 
 fn check(_: &mut Session, p: &Value) -> Result<Value> {
@@ -210,7 +210,7 @@ fn check(_: &mut Session, p: &Value) -> Result<Value> {
     // `name` names the reply.
     let file = path.map(super::fileio::file_name).unwrap_or_else(|| name.clone());
     let mut folder = path.filter(|_| bool_or(p, "includes", false)).map(Folder::of);
-    let report = vectorcraft_scriptcheck::check(&file, &bytes, folder.as_mut().map(|f| f as &mut dyn Loader), &limits);
+    let report = pluma_scriptcheck::check(&file, &bytes, folder.as_mut().map(|f| f as &mut dyn Loader), &limits);
     Ok(report_json(&name, &report))
 }
 

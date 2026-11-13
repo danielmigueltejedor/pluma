@@ -44,7 +44,7 @@ fn strip_of(n: &Node) -> Option<Strip> {
         return None;
     }
     let Some(AppearanceItem::Fill(f)) = n.appearance.items.first() else { return None };
-    if f.opacity != 1.0 || !f.visible || !f.effects.is_empty() || f.blend != vectorcraft_color::BlendMode::Normal {
+    if f.opacity != 1.0 || !f.visible || !f.effects.is_empty() || f.blend != pluma_color::BlendMode::Normal {
         return None;
     }
     let Paint::Solid { color, swatch: None, .. } = &f.paint else { return None };

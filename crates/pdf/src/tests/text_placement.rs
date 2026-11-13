@@ -7,9 +7,9 @@
 use std::sync::Arc;
 
 use kurbo::{BezPath, PathEl, Point, Rect, Shape};
-use vectorcraft_doc::{Document, NodeKind, TextKind, TextObject};
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
-use vectorcraft_text::{FontDb, FontFace};
+use pluma_doc::{Document, NodeKind, TextKind, TextObject};
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
+use pluma_text::{FontDb, FontFace};
 
 use crate::tests_import_fidelity::stream;
 use crate::*;
@@ -204,7 +204,7 @@ fn contours(d: &Document) -> Vec<Rect> {
     d.walk(|n| match &n.kind {
         NodeKind::Path { path, .. } => contours_of(&path.to_bezpath(), &mut out),
         NodeKind::Text(t) => {
-            for g in vectorcraft_text::layout(FontDb::global(), t).glyphs {
+            for g in pluma_text::layout(FontDb::global(), t).glyphs {
                 contours_of(&(t.xf * g.outline), &mut out);
             }
         }
@@ -384,7 +384,7 @@ fn text_boxes_open_where_their_lines_were() {
     content += "ET";
     let t = texts(&open_as(&page(&content, ""), TextAs::Text));
     assert_eq!(t.len(), 1, "one text box: {:?}", t.iter().map(TextObject::plain_text).collect::<Vec<_>>());
-    assert_eq!(t[0].para.justify, vectorcraft_doc::Justify::JustifyLeft);
+    assert_eq!(t[0].para.justify, pluma_doc::Justify::JustifyLeft);
     lands(&content, "", &[PARAGRAPH_TEXT]);
 }
 
@@ -557,7 +557,7 @@ fn text_boxes_word_spaced_throughout_open_as_one() {
     let t = texts(&open_as(&page(&content, ""), TextAs::Text));
     assert_eq!(t.len(), 1, "one text box: {:?}", t.iter().map(TextObject::plain_text).collect::<Vec<_>>());
     assert!(matches!(t[0].kind, TextKind::Area { .. }));
-    assert_eq!(t[0].para.justify, vectorcraft_doc::Justify::Left);
+    assert_eq!(t[0].para.justify, pluma_doc::Justify::Left);
     let spaces: Vec<f64> = t[0].runs.iter().filter(|r| r.text.trim().is_empty()).map(|r| r.style.tracking).collect();
     assert!(!spaces.is_empty() && spaces.iter().all(|s| (s - 2.0 / 12.0 * 1000.0).abs() < 1.0), "{:?}", t[0].runs);
     lands(&content, "", &[PARAGRAPH_TEXT]);

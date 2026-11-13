@@ -18,10 +18,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, vec2};
+use pluma_doc::{ExportAsset, Node, NodeId};
+use pluma_engine::DocState;
+use pluma_engine::cmd::fileio::{FORMATS_3D, SCREEN_SETTINGS_KEYS, format_3d_label, screen_export_preset_list};
 use serde_json::{Value, json};
-use vectorcraft_doc::{ExportAsset, Node, NodeId};
-use vectorcraft_engine::DocState;
-use vectorcraft_engine::cmd::fileio::{FORMATS_3D, SCREEN_SETTINGS_KEYS, format_3d_label, screen_export_preset_list};
 
 use super::{pstate, set_pstate};
 use crate::dialogs::{
@@ -31,7 +31,7 @@ use crate::dialogs::{
 use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
-use crate::{VectorcraftApp, io};
+use crate::{PlumaApp, io};
 
 pub const ID: &str = "assetExport";
 /// A tile: the thumbnail over the name.
@@ -59,7 +59,7 @@ type Revision = (u64, u64);
 /// object is a new allocation, so its address is a free change detector, as in the Layers panel).
 pub(crate) fn paint_thumb(ui: &Ui, st: &DocState, a: &ExportAsset, r: Rect) {
     thread_local! {
-        static RENDERER: RefCell<vectorcraft_render::Renderer> = RefCell::new(vectorcraft_render::Renderer::new());
+        static RENDERER: RefCell<pluma_render::Renderer> = RefCell::new(pluma_render::Renderer::new());
         /// The addresses of each asset's objects in one document revision (no tree walks per frame).
         static KEYS: RefCell<(Revision, HashMap<u64, Look>)> = RefCell::new(Default::default());
         static CACHE: crate::graphics::TexCache<HashMap<(Look, u32), egui::TextureHandle>> = crate::graphics::TexCache::default();
@@ -82,7 +82,7 @@ pub(crate) fn paint_thumb(ui: &Ui, st: &DocState, a: &ExportAsset, r: Rect) {
         let art: Vec<&Node> = ids().iter().filter_map(|id| st.doc.node(*id)).collect();
         // Same Art Optimized supersample as assets.export (#983): abutting fills leave no seam in
         // the tile (Layers row thumbs stay cheap without it).
-        let opts = vectorcraft_render::RenderOptions { image_mips: true, precise: true, supersample: true, ..Default::default() };
+        let opts = pluma_render::RenderOptions { image_mips: true, precise: true, supersample: true, ..Default::default() };
         let img = RENDERER.with(|rr| match art.as_slice() {
             [one] => rr.borrow_mut().render_node_thumbnail_with(&st.doc, one, px, None, &opts),
             many => {
@@ -197,13 +197,13 @@ fn drop_zone(ui: &Ui, zone: &egui::Response, ev: &mut Events) {
 }
 
 /// Run `cmd`, reporting a failure in the status bar.
-fn run(app: &mut VectorcraftApp, cmd: &str, params: Value) -> Option<Value> {
+fn run(app: &mut PlumaApp, cmd: &str, params: Value) -> Option<Value> {
     app.run(cmd, params).map_err(|e| app.status(e)).ok()
 }
 
 /// Collect `ids` (else the selection) as assets (one of them all with `single`), and select them
 /// in the panel.
-fn collect(app: &mut VectorcraftApp, ctx: &egui::Context, ids: Option<Vec<NodeId>>, single: bool) {
+fn collect(app: &mut PlumaApp, ctx: &egui::Context, ids: Option<Vec<NodeId>>, single: bool) {
     let mut p = json!({ "multiple": !single });
     if let Some(ids) = ids {
         p["ids"] = json!(ids.iter().map(|id| id.0).collect::<Vec<_>>());
@@ -217,12 +217,12 @@ fn collect(app: &mut VectorcraftApp, ctx: &egui::Context, ids: Option<Vec<NodeId
 /// Export assets `ids` (`files_each`: the files one asset makes) into a picked folder (without a
 /// folder picker: the last folder Export for Screens used, else the Desktop); the web downloads
 /// them, several as one zip.
-fn export(app: &mut VectorcraftApp, ids: Vec<u64>, files_each: usize) {
+fn export(app: &mut PlumaApp, ids: Vec<u64>, files_each: usize) {
     // The folder picked off the UI thread exports them then.
     crate::picks::button(app, move |app| export_now(app, ids.clone(), files_each));
 }
 
-fn export_now(app: &mut VectorcraftApp, ids: Vec<u64>, files_each: usize) {
+fn export_now(app: &mut PlumaApp, ids: Vec<u64>, files_each: usize) {
     // 3D assets are written as mesh files (`assets.export3D`), the others as pictures.
     let Some(st) = app.session.active() else { return };
     let format = |id: &u64| st.doc.asset(*id).and_then(|a| a.format_3d.clone());
@@ -235,7 +235,7 @@ fn export_now(app: &mut VectorcraftApp, ids: Vec<u64>, files_each: usize) {
         && screen_saved_rows(&st.doc.export_settings)
             .0
             .iter()
-            .any(|row| row["format"].as_str().and_then(vectorcraft_engine::cmd::fileio::format).is_some_and(|f| f.id == "tiff"))
+            .any(|row| row["format"].as_str().and_then(pluma_engine::cmd::fileio::format).is_some_and(|f| f.id == "tiff"))
     {
         let saved = &st.doc.export_settings;
         let mut settings = saved.get("settings").and_then(Value::as_object).cloned().unwrap_or_default();
@@ -260,7 +260,7 @@ fn export_now(app: &mut VectorcraftApp, ids: Vec<u64>, files_each: usize) {
                 .and_then(Value::as_str)
                 .filter(|f| !f.is_empty())
                 .map(str::to_string)
-                .or_else(vectorcraft_engine::cmd::fileio::export_folder)
+                .or_else(pluma_engine::cmd::fileio::export_folder)
             {
                 Some(f) => f,
                 None => return app.status("choose a folder to export to".to_string()),
@@ -335,7 +335,7 @@ fn settings(ui: &mut Ui, st: &DocState) -> (Option<Settings>, usize) {
     (change, n)
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     screen_preset_list(&mut app.asset_export_presets, &app.session.prefs.screen_export_presets);
     let Some(st) = app.session.active() else {
@@ -464,7 +464,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// Act on a preset menu pick for document `doc` (uid): a preset applied to the shared settings,
 /// the shared settings saved as one, a saved one deleted, presets imported from a file or the
 /// current one written to a file.
-pub(crate) fn preset(app: &mut VectorcraftApp, ctx: &egui::Context, doc: u64, pick: ScreenPresetPick) {
+pub(crate) fn preset(app: &mut PlumaApp, ctx: &egui::Context, doc: u64, pick: ScreenPresetPick) {
     let done = match pick {
         ScreenPresetPick::Apply(p) => {
             let name = p["name"].as_str().unwrap_or_default().to_string();
@@ -513,7 +513,7 @@ pub(crate) fn preset(app: &mut VectorcraftApp, ctx: &egui::Context, doc: u64, pi
 /// What Save Preset saves for document `doc` (uid): the preset the panel applied to this document,
 /// with the document's current shared settings over it, replacing its format choice; else the
 /// shared settings alone.
-fn preset_settings(app: &VectorcraftApp, ctx: &egui::Context, doc: u64) -> Value {
+fn preset_settings(app: &PlumaApp, ctx: &egui::Context, doc: u64) -> Value {
     let shared = shared_settings(app).as_object().cloned().unwrap_or_default();
     let (shown_doc, current): (u64, String) = pstate(ctx, PRESET);
     if shown_doc != doc || current.is_empty() {
@@ -541,7 +541,7 @@ fn preset_settings(app: &VectorcraftApp, ctx: &egui::Context, doc: u64) -> Value
 
 /// The settings the panel shows, as a preset keeps them: the shared settings and effective folder
 /// choice, with the row shown when the document has no rows or mobile/density preset of its own.
-fn shared_settings(app: &VectorcraftApp) -> Value {
+fn shared_settings(app: &PlumaApp) -> Value {
     let Some(st) = app.session.active() else { return json!({}) };
     let saved = &st.doc.export_settings;
     let mut settings: serde_json::Map<String, Value> =
@@ -568,7 +568,7 @@ fn sel_or_all(sel: &[u64], all: &[u64]) -> Vec<u64> {
 }
 
 /// The panel (≡) menu.
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     screen_preset_list(&mut app.asset_export_presets, &app.session.prefs.screen_export_presets);
     let Some(st) = app.session.active() else { return };

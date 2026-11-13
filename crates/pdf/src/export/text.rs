@@ -1,4 +1,4 @@
-use vectorcraft_geom::Point;
+use pluma_geom::Point;
 
 use super::exporter::{GlyphLine, MAX_INLINE_DEPTH, in_range, norm, to_path, writable, xf};
 use super::images::embed;
@@ -9,21 +9,21 @@ use super::{
 
 impl Exporter<'_> {
     ///
-    /// Inline graphics ([`vectorcraft_doc::TextRun::inline`]) are drawn as their symbols' art
+    /// Inline graphics ([`pluma_doc::TextRun::inline`]) are drawn as their symbols' art
     /// (vector paths, like symbol instances) where the layout placed them; their characters
     /// write no glyph.
     pub(super) fn text(&mut self, s: &mut Surface, n: &Node, t: &TextObject, page: Rect) {
         let doc = self.doc;
         let resolved = doc.inline_resolved(t);
         let t = &*resolved;
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), t);
         let tb = t.xf.transform_rect_bbox(layout.bounds);
         // The object's own fills and strokes paint the whole outline: those below the Characters
         // row under the characters, the others over them.
         let (below, above) = n.appearance.split_contents();
         let all = (!n.appearance.items.is_empty()).then(|| {
             let mut all = layout.to_bezpath();
-            for (_, bar) in vectorcraft_text::decorations(&layout, vectorcraft_text::FontDb::global(), t) {
+            for (_, bar) in pluma_text::decorations(&layout, pluma_text::FontDb::global(), t) {
                 all.extend(bar.iter());
             }
             all.apply_affine(t.xf);
@@ -40,7 +40,7 @@ impl Exporter<'_> {
         // Ruby can't be real text in one run (it isn't characters of the base text): the type's
         // characters go out as outlines where ruby is present, ruby included.
         let plain = (!self.outline_text && t.ruby.is_empty()).then(|| t.plain_text());
-        let bars = vectorcraft_text::decorations(&layout, vectorcraft_text::FontDb::global(), t);
+        let bars = pluma_text::decorations(&layout, pluma_text::FontDb::global(), t);
         for (i, run) in t.runs.iter().enumerate() {
             let mut bp = BezPath::new();
             for g in layout.glyphs.iter().filter(|g| g.run == i).chain(layout.ruby.iter().filter(|g| g.run == i)) {
@@ -183,7 +183,7 @@ impl Exporter<'_> {
     /// a list marker are written as the marker's characters ([`marker_chars`]), apart from the
     /// plain text's glyphs; a marker glyph that stands for none of them is drawn as a path.
     ///
-    /// `bent`: `Some(false)` writes the glyphs bent along a path ([`vectorcraft_text::GlyphBend`])
+    /// `bent`: `Some(false)` writes the glyphs bent along a path ([`pluma_text::GlyphBend`])
     /// as outlines, not text (text is set straight); `Some(true)` writes only those, as text where
     /// they stand straight; `None` writes all of them as text.
     #[allow(clippy::too_many_arguments)]
@@ -315,7 +315,7 @@ impl Exporter<'_> {
     }
 
     /// Draw colour bitmap glyph `g`'s image (on `s` in text space), its PNG written once.
-    fn glyph_image(&mut self, s: &mut Surface, g: &vectorcraft_text::PositionedGlyph) {
+    fn glyph_image(&mut self, s: &mut Surface, g: &pluma_text::PositionedGlyph) {
         let Some((image, to_text)) = g.placed_image() else { return };
         if !writable(s, to_text, image.rect()) {
             return;
@@ -373,7 +373,7 @@ impl Exporter<'_> {
         if let Some(f) = self.fonts.get(&id) {
             return f.clone();
         }
-        let Some(face) = vectorcraft_text::FontDb::global().face_by_id(id) else {
+        let Some(face) = pluma_text::FontDb::global().face_by_id(id) else {
             self.fonts.insert(id, None);
             return None;
         };
@@ -407,8 +407,8 @@ impl Exporter<'_> {
 }
 
 /// Is `g` drawn from its font's SVG document, which the PDF writer can't draw as a font's glyph?
-fn is_svg_glyph(g: &vectorcraft_text::PositionedGlyph) -> bool {
-    vectorcraft_text::FontDb::global().is_svg_glyph(g.font_id, g.gid)
+fn is_svg_glyph(g: &pluma_text::PositionedGlyph) -> bool {
+    pluma_text::FontDb::global().is_svg_glyph(g.font_id, g.gid)
 }
 
 /// The characters a line-break hyphen can stand for, as real text: '-' and U+2010 (HYPHEN).
@@ -418,11 +418,11 @@ const BREAK_HYPHENS: &str = "-\u{2010}";
 /// where it breaks a line inside a word: a glyph that stands for no character of the text (length
 /// 0) and that its face's character map gives to '-' or, failing that, to U+2010. `None` for any
 /// other glyph, kashida tatweels included.
-fn break_hyphen(g: &vectorcraft_text::PositionedGlyph) -> Option<std::ops::Range<usize>> {
+fn break_hyphen(g: &pluma_text::PositionedGlyph) -> Option<std::ops::Range<usize>> {
     if g.len != 0 || g.gid == 0 {
         return None;
     }
-    let face = vectorcraft_text::FontDb::global().face_by_id(g.font_id)?;
+    let face = pluma_text::FontDb::global().face_by_id(g.font_id)?;
     BREAK_HYPHENS.char_indices().find(|&(_, c)| face.glyph_for(c) == g.gid).map(|(i, c)| i..i + c.len_utf8())
 }
 
@@ -433,7 +433,7 @@ fn break_hyphen(g: &vectorcraft_text::PositionedGlyph) -> Option<std::ops::Range
 /// OpenType feature such as oldstyle figures replaced them) are as many as the characters left,
 /// they stand for those characters, in order.
 fn marker_chars(layout: &TextLayout, m: &ListMarker) -> Vec<Option<std::ops::Range<usize>>> {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let mut left: Vec<(std::ops::Range<usize>, char)> = m.text.char_indices().map(|(i, c)| (i..i + c.len_utf8(), c)).collect();
     let mut chars = vec![None; m.glyphs.len()];
     let mut unmapped = vec![];

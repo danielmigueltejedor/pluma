@@ -31,7 +31,7 @@ fn library_bytes(p: &Value, cmd: &str) -> Result<Vec<u8>> {
         // One byte past the cap is enough to refuse the file below.
         (Some(path), ..) => read_file_head(&absolute_path(path), MAX_LIBRARY_BYTES + 1)?,
         (None, Some(xml), _) => xml.as_bytes().to_vec(),
-        (None, None, Some(b64)) => vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?,
+        (None, None, Some(b64)) => pluma_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?,
         _ => return Err(bad(cmd, "give `path`, `xml` or `dataBase64`")),
     };
     if bytes.len() > MAX_LIBRARY_BYTES {

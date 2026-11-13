@@ -15,9 +15,9 @@
 //! displacement field weighted by a smooth falloff `(1 − r²)²` inside the (elliptical, rotated)
 //! brush. Noise for Scallop/Crystallize/Wrinkle is a hash of the dab and anchor indices.
 
+use pluma_geom::kurbo::ParamCurveArclen;
+use pluma_geom::{Anchor, AnchorKind, PathData, Point, Rect, SubPath, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_geom::kurbo::ParamCurveArclen;
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, Point, Rect, SubPath, Vec2};
 
 use super::ellipse_path;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -382,9 +382,9 @@ fn subdivide(sp: &mut SubPath, prm: &LiquifyParams, c: Point, spacing: f64) {
             return;
         }
         let cub = sp.segment(seg);
-        let sb = vectorcraft_geom::kurbo::ParamCurveExtrema::bounding_box(&cub);
+        let sb = pluma_geom::kurbo::ParamCurveExtrema::bounding_box(&cub);
         let touched = sb.intersect(bb).area() > 0.0 || (sb.width() == 0.0 || sb.height() == 0.0) && sb.inflate(1e-6, 1e-6).intersect(bb).area() > 0.0;
-        if !touched || !(0..=8).any(|i| prm.falloff(c, vectorcraft_geom::kurbo::ParamCurve::eval(&cub, i as f64 / 8.0)) > 0.0) {
+        if !touched || !(0..=8).any(|i| prm.falloff(c, pluma_geom::kurbo::ParamCurve::eval(&cub, i as f64 / 8.0)) > 0.0) {
             seg += 1;
             continue;
         }
@@ -893,7 +893,7 @@ impl Tool for LiquifyTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_geom::shapes;
+    use pluma_geom::shapes;
 
     fn square() -> PathData {
         shapes::rectangle(Rect::new(0.0, 0.0, 200.0, 200.0))
@@ -1017,7 +1017,7 @@ mod tests {
     fn escape_cancels_a_stroke_or_a_brush_size_drag() {
         use crate::testutil::{cx, doc_with_rect, paint};
         let (d, id) = doc_with_rect();
-        let s = vectorcraft_doc::Selection { objects: vec![id], ..Default::default() };
+        let s = pluma_doc::Selection { objects: vec![id], ..Default::default() };
         let p = paint();
         let c = cx(&d, &s, &p);
         let alt = Mods { alt: true, ..Default::default() };

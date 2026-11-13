@@ -1,6 +1,6 @@
-use super::{Value, VectorcraftApp, View, ViewInfo, panels};
+use super::{PlumaApp, Value, View, ViewInfo, panels};
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Keep `views` aligned with the session's documents (a new one starts at its saved view, and
     /// opens in a floating window while Open Documents As Tabs is cleared). The views Window › New
     /// Window opened go with their documents.
@@ -51,7 +51,7 @@ impl VectorcraftApp {
     }
 
     /// The active document's uid, how many times the tool has started afresh
-    /// ([`vectorcraft_engine::Session::tool_resets`]) and the artboards the Artboard tool has
+    /// ([`pluma_engine::Session::tool_resets`]) and the artboards the Artboard tool has
     /// selected (null with another tool), which [`Self::follow_artboard_tool`] compares before and
     /// after a command.
     pub(super) fn artboard_tool_state(&self) -> (Option<u64>, u64, Value) {
@@ -99,9 +99,9 @@ impl VectorcraftApp {
 
     /// The zero point shown by rulers and position fields: the document's with global rulers, the
     /// active artboard's with artboard rulers. Command coordinates stay absolute.
-    pub(crate) fn ruler_origin(&self) -> vectorcraft_geom::Point {
+    pub(crate) fn ruler_origin(&self) -> pluma_geom::Point {
         let artboard = self.view().map_or(0, |v| v.artboard);
-        self.session.active().map_or(vectorcraft_geom::Point::ZERO, |d| d.doc.ruler_origin_for(artboard))
+        self.session.active().map_or(pluma_geom::Point::ZERO, |d| d.doc.ruler_origin_for(artboard))
     }
 
     pub fn view_mut(&mut self) -> Option<&mut View> {
@@ -130,12 +130,12 @@ impl VectorcraftApp {
     }
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// The selection's bounding box, rotated with rotated objects ([`Session::transform_box`]); with
     /// anchors selected with Direct Selection, the box around them square to the page, which
     /// `object.setBounds` then edits (#1824). The canvas and the transform fields read it every
     /// frame: it is measured once per revision.
-    pub fn selection_box(&mut self) -> Option<vectorcraft_doc::OrientedBox> {
+    pub fn selection_box(&mut self) -> Option<pluma_doc::OrientedBox> {
         let st = self.session.active()?;
         let measure = self.session.bounds_measure();
         let key = (st.uid, st.revision, measure);
@@ -144,8 +144,8 @@ impl VectorcraftApp {
         {
             return b;
         }
-        let b = match vectorcraft_effects::preview::anchor_bounds_with(&st.selection, &st.doc, measure) {
-            Some(r) => Some(vectorcraft_doc::OrientedBox::aligned(r)),
+        let b = match pluma_effects::preview::anchor_bounds_with(&st.selection, &st.doc, measure) {
+            Some(r) => Some(pluma_doc::OrientedBox::aligned(r)),
             None => self.session.transform_box(&st.selection.objects),
         };
         self.canvas.selection_box = Some((key, b));
@@ -155,7 +155,7 @@ impl VectorcraftApp {
     /// The selection's visual bounds (strokes included, effects left out), square to the page:
     /// measured once per revision, as the canvas reads it every frame (a traced photo selects a
     /// group of hundreds of thousands of paths).
-    pub fn selection_bounds(&mut self) -> Option<vectorcraft_geom::Rect> {
+    pub fn selection_bounds(&mut self) -> Option<pluma_geom::Rect> {
         let st = self.session.active()?;
         let key = (st.uid, st.revision);
         if let Some((k, b)) = self.canvas.selection_bounds
@@ -170,7 +170,7 @@ impl VectorcraftApp {
 
     /// The art and the artboards together, the span of the canvas's scroll bars: measured once
     /// per revision, as the canvas reads it every frame.
-    pub fn content_bounds(&mut self) -> Option<vectorcraft_geom::Rect> {
+    pub fn content_bounds(&mut self) -> Option<pluma_geom::Rect> {
         let st = self.session.active()?;
         let key = (st.uid, st.revision);
         if let Some((k, b)) = self.canvas.content_bounds
@@ -179,7 +179,7 @@ impl VectorcraftApp {
             return b;
         }
         let boards = st.doc.artboards.iter().map(|a| a.rect).reduce(|r, a| r.union(a));
-        let b = vectorcraft_geom::union_opt(st.doc.art_bounds(), boards);
+        let b = pluma_geom::union_opt(st.doc.art_bounds(), boards);
         self.canvas.content_bounds = Some((key, b));
         b
     }

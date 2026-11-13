@@ -1,9 +1,9 @@
 //! Arrange Tools' commands: the geometry each one leaves, one undo step each, when they are off,
 //! and bad params refused without a change.
 
+use pluma_doc::NodeId;
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Rect;
 
 use crate::Session;
 

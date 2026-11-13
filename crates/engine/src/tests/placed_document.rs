@@ -1,17 +1,17 @@
-//! Placed documents: a VectorCraft document placed linked (`file.place`'s default for one read
+//! Placed documents: a Pluma document placed linked (`file.place`'s default for one read
 //! from a file), drawn and output as vectors, saved with its preview, checked, updated and
 //! relinked when the file changes, and turned into an editable copy (Break Link, Expand). A PDF
 //! or `.ai` page places the same way.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node, NodeKind, PlacedDocument};
+use pluma_geom::{Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node, NodeKind, PlacedDocument};
-use vectorcraft_geom::{Rect, shapes};
 
 use crate::tests_links::{BLUE, Folder, RED, centre_colour, near, open, save, session, write};
 use crate::*;
 
-/// A VectorCraft document at `path`: one `w`×`h` artboard filled with `rgb` (and `extra` more
+/// A Pluma document at `path`: one `w`×`h` artboard filled with `rgb` (and `extra` more
 /// rectangles, which change the file's size).
 fn source(path: &str, w: f64, h: f64, rgb: [u8; 3], extra: usize) {
     let mut d = Document::new(w, h);
@@ -22,7 +22,7 @@ fn source(path: &str, w: f64, h: f64, rgb: [u8; 3], extra: usize) {
         let look = Appearance::basic(Paint::solid(Color::rgb8(r, g, b)), Paint::None, 0.0);
         d.insert(Some(layer), i, Node::path(id, shapes::rectangle(Rect::new(0.0, 0.0, w, h)), look)).unwrap();
     }
-    write(path, &vectorcraft_format::save_file(&d));
+    write(path, &pluma_format::save_file(&d));
 }
 
 /// A document drawing symbol `Star` (a blue 100×50 rectangle) at `path`, titled `title` (tests
@@ -31,11 +31,11 @@ fn star_source(path: &str, title: &str) {
     let mut d = Document::new(100.0, 50.0);
     d.title = title.into();
     let layer = d.layers[0].id;
-    let art = Node::path(vectorcraft_doc::NodeId(900), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 50.0)), look(BLUE));
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Star".into(), art: std::sync::Arc::new(art) });
+    let art = Node::path(pluma_doc::NodeId(900), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 50.0)), look(BLUE));
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Star".into(), art: std::sync::Arc::new(art) });
     let id = d.alloc_id();
-    d.insert(Some(layer), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "Star".into(), xf: vectorcraft_geom::Affine::IDENTITY })).unwrap();
-    write(path, &vectorcraft_format::save_file(&d));
+    d.insert(Some(layer), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "Star".into(), xf: pluma_geom::Affine::IDENTITY })).unwrap();
+    write(path, &pluma_format::save_file(&d));
 }
 
 fn look(c: [u8; 3]) -> Appearance {
@@ -44,8 +44,8 @@ fn look(c: [u8; 3]) -> Appearance {
 
 /// The active document gets a red symbol named `Star` of its own.
 fn parent_star(s: &mut Session) {
-    let star = Node::path(vectorcraft_doc::NodeId(901), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), look(RED));
-    std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).symbols.push(vectorcraft_doc::Symbol {
+    let star = Node::path(pluma_doc::NodeId(901), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), look(RED));
+    std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).symbols.push(pluma_doc::Symbol {
         dynamic: false,
         name: "Star".into(),
         art: std::sync::Arc::new(star),
@@ -71,12 +71,12 @@ fn bounds(s: &Session, id: NodeId) -> Rect {
 }
 
 fn decode(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
 }
 
 /// Images and paths in `bytes`, a PDF, read back.
 fn pdf_contents(bytes: &[u8]) -> (usize, usize) {
-    // The page as drawn (not the VectorCraft document the PDF carries).
+    // The page as drawn (not the Pluma document the PDF carries).
     let (doc, _) = crate::cmd::fileio::page_document(bytes, 0, &Default::default()).unwrap();
     let (mut images, mut paths) = (0, 0);
     doc.walk(|n| match n.kind {
@@ -87,16 +87,16 @@ fn pdf_contents(bytes: &[u8]) -> (usize, usize) {
     (images, paths)
 }
 
-/// The JSON of a `.vectorcraft` file (the data after it left out).
+/// The JSON of a `.pluma` file (the data after it left out).
 fn file_json(bytes: &[u8]) -> Value {
-    let end = bytes.windows(vectorcraft_format::BLOB_MAGIC.len()).position(|w| w == vectorcraft_format::BLOB_MAGIC).unwrap_or(bytes.len());
+    let end = bytes.windows(pluma_format::BLOB_MAGIC.len()).position(|w| w == pluma_format::BLOB_MAGIC).unwrap_or(bytes.len());
     serde_json::from_slice(&bytes[..end]).unwrap()
 }
 
 #[test]
 fn a_document_places_linked_by_default_at_its_artboard_size() {
     let dir = Folder::new("placed-basic");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -105,7 +105,7 @@ fn a_document_places_linked_by_default_at_its_artboard_size() {
     assert_eq!(bounds(&s, id), Rect::new(150.0, 125.0, 250.0, 175.0));
     assert_eq!((p.link.path.as_str(), p.link.page), (src.as_str(), Some(1)));
     let n = s.doc().unwrap().doc.node(id).unwrap();
-    assert_eq!((n.name.as_deref(), n.kind_label()), (Some("logo.vectorcraft"), "Placed Document"));
+    assert_eq!((n.name.as_deref(), n.kind_label()), (Some("logo.pluma"), "Placed Document"));
     assert!(near(centre_colour(&s.doc().unwrap().doc), RED));
     // It moves and scales like any object.
     s.execute("object.move", &json!({"dx": 10, "dy": 0})).unwrap();
@@ -115,8 +115,8 @@ fn a_document_places_linked_by_default_at_its_artboard_size() {
     let layer = d.layers[0].id;
     let id2 = d.alloc_id();
     d.insert(Some(layer), 0, Node::path(id2, shapes::rectangle(Rect::new(10.0, 10.0, 40.0, 30.0)), look(RED))).unwrap();
-    let small = dir.file("small.vectorcraft");
-    write(&small, &vectorcraft_format::save_file(&d));
+    let small = dir.file("small.pluma");
+    write(&small, &pluma_format::save_file(&d));
     let r = s.execute("file.place", &json!({"path": small, "crop": "bounding", "at": [200, 150]})).unwrap();
     let p = placed(&s, NodeId(r["ids"][0].as_u64().unwrap()));
     assert!(p.bounding && (p.width - 30.0).abs() < 1e-6 && (p.height - 20.0).abs() < 1e-6, "{p:?}");
@@ -125,11 +125,11 @@ fn a_document_places_linked_by_default_at_its_artboard_size() {
 #[test]
 fn without_link_or_a_file_a_document_places_as_an_editable_copy() {
     let dir = Folder::new("placed-copy");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
-    let data = vectorcraft_format::base64_encode(&std::fs::read(&src).unwrap());
-    for p in [json!({"path": src, "link": false}), json!({"name": "logo.vectorcraft", "dataBase64": data})] {
+    let data = pluma_format::base64_encode(&std::fs::read(&src).unwrap());
+    for p in [json!({"path": src, "link": false}), json!({"name": "logo.pluma", "dataBase64": data})] {
         let r = s.execute("file.place", &p).unwrap();
         assert_eq!(r["linked"], false, "{r}");
         let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap();
@@ -141,7 +141,7 @@ fn without_link_or_a_file_a_document_places_as_an_editable_copy() {
 #[test]
 fn a_placed_document_is_vectors_in_every_output() {
     let dir = Folder::new("placed-outputs");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     place(&mut s, &src);
@@ -165,18 +165,18 @@ fn a_placed_document_is_vectors_in_every_output() {
 #[test]
 fn the_preview_is_saved_so_the_document_shows_it_without_its_file() {
     let dir = Folder::new("placed-saved");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     // Content of its own: files read are cached by content, and this one is removed.
     source(&src, 100.0, 50.0, RED, 2);
     let mut s = session();
     let id = place(&mut s, &src);
-    let doc_path = dir.file("poster/poster.vectorcraft");
+    let doc_path = dir.file("poster/poster.pluma");
     std::fs::create_dir_all(dir.file("poster")).unwrap();
     save(&mut s, &doc_path);
     let saved: Value = serde_json::from_slice(&std::fs::read(&doc_path).unwrap()).unwrap();
     let kind = &saved["document"]["layers"][0]["kind"]["children"][0]["kind"];
     assert_eq!(kind["type"], "placeddocument");
-    assert_eq!(kind["link"]["relative"], "../logo.vectorcraft");
+    assert_eq!(kind["link"]["relative"], "../logo.pluma");
     let key = kind["key"].as_str().unwrap();
     let entry = &saved["images"][key];
     assert_eq!((entry["proxy"].as_bool(), entry["mime"].as_str()), (Some(true), Some("image/jpeg")), "the preview, as JPEG (opaque)");
@@ -205,11 +205,11 @@ fn the_preview_is_saved_so_the_document_shows_it_without_its_file() {
 fn ai_export_preserves_placed_links_while_drawing_full_art_or_previews() {
     for missing in [false, true] {
         let dir = Folder::new(&format!("placed-ai-editable-{missing}"));
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, &format!("placed-ai-editable-{missing}"));
         let mut s = session();
         let id = place(&mut s, &src);
-        let parent = dir.file("parent.vectorcraft");
+        let parent = dir.file("parent.pluma");
         save(&mut s, &parent);
         if missing {
             std::fs::remove_file(&src).unwrap();
@@ -222,8 +222,8 @@ fn ai_export_preserves_placed_links_while_drawing_full_art_or_previews() {
             {
                 let out = s.execute(command, &json!({"format": "ai", "pdfCompatible": pdf_compatible, "includeLinked": include_linked})).unwrap();
                 let bytes = decode(&out);
-                let editing = vectorcraft_pdf::editing(&bytes).unwrap();
-                let native = vectorcraft_format::load(&editing.data).unwrap();
+                let editing = pluma_pdf::editing(&bytes).unwrap();
+                let native = pluma_format::load(&editing.data).unwrap();
                 assert_eq!(
                     native.images[&original.key].is_proxy(),
                     missing || !include_linked,
@@ -240,15 +240,14 @@ fn ai_export_preserves_placed_links_while_drawing_full_art_or_previews() {
                     }
                 }
                 let mut restored = session();
-                let result = restored
-                    .execute("document.open", &json!({"name": "export.ai", "dataBase64": vectorcraft_format::base64_encode(&bytes)}))
-                    .unwrap();
+                let result =
+                    restored.execute("document.open", &json!({"name": "export.ai", "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
                 assert_eq!(result["restored"], true);
                 assert_eq!(placed(&restored, id), original, "link metadata stays editable");
                 assert_eq!(placed(&s, id), original, "export leaves the source intact");
                 if missing {
                     assert_eq!(restored.execute("links.check", &json!({})).unwrap()["missing"], 1);
-                    let replacement = dir.file("replacement.vectorcraft");
+                    let replacement = dir.file("replacement.pluma");
                     source(&replacement, 100.0, 50.0, BLUE, 1);
                     let relinked = restored.execute("links.relink", &json!({"ids": [id.0], "path": replacement})).unwrap();
                     assert_eq!(relinked["relinked"], json!([id.0]));
@@ -262,25 +261,23 @@ fn ai_export_preserves_placed_links_while_drawing_full_art_or_previews() {
 #[test]
 fn ai_export_public_aliases_preserve_missing_placed_links() {
     let dir = Folder::new("placed-ai-public-aliases-latest");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     star_source(&src, "placed-ai-public-aliases-latest-unique");
     let mut s = session();
     let id = place(&mut s, &src);
-    let parent = dir.file("parent.vectorcraft");
+    let parent = dir.file("parent.pluma");
     save(&mut s, &parent);
     std::fs::remove_file(&src).unwrap();
     open(&mut s, &parent);
     let original = placed(&s, id);
     assert!(s.doc().unwrap().doc.images[&original.key].is_proxy());
 
-    for alias in
-        ["vectorcraft", ".vectorcraft", "VECTORCRAFT", "drawcraft", ".DRAWCRAFT", "template", "vctemplate", ".VCTEMPLATE", "ai", ".ai", "AI", ".AI"]
-    {
+    for alias in ["vectorcraft", ".pluma", "PLUMA", "drawcraft", ".DRAWCRAFT", "template", "vctemplate", ".VCTEMPLATE", "ai", ".ai", "AI", ".AI"] {
         let canonical = cmd::fileio::format(alias).unwrap().id;
         let enc = cmd::fileio::encode_all(&s.doc().unwrap().doc, alias, &json!({"pdfCompatible": false, "includeLinked": false})).unwrap();
         let bytes = &enc.files[0].1;
-        let raw = if canonical == "ai" { vectorcraft_pdf::editing(bytes).unwrap().data } else { bytes.clone() };
-        let native = vectorcraft_format::load(&raw).unwrap();
+        let raw = if canonical == "ai" { pluma_pdf::editing(bytes).unwrap().data } else { bytes.clone() };
+        let native = pluma_format::load(&raw).unwrap();
         assert!(
             matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original),
             "{alias}: preparation discarded the editable placed link"
@@ -295,11 +292,11 @@ fn ai_export_public_aliases_preserve_missing_placed_links() {
 #[test]
 fn ai_editing_copy_warns_about_missing_placed_files() {
     let dir = Folder::new("placed-ai-editing-copy-missing");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     star_source(&src, "placed-ai-editing-copy-missing-unique");
     let mut s = session();
     place(&mut s, &src);
-    let parent = dir.file("parent.vectorcraft");
+    let parent = dir.file("parent.pluma");
     save(&mut s, &parent);
     std::fs::remove_file(&src).unwrap();
     open(&mut s, &parent);
@@ -319,7 +316,7 @@ fn ai_editing_copy_warns_about_missing_placed_files() {
 fn native_included_links_keep_missing_placed_documents_editable() {
     for missing in [true, false] {
         let dir = Folder::new(&format!("native-included-links-{missing}"));
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, &format!("native-included-links-{missing}"));
         let source_bytes = std::fs::read(&src).unwrap();
         let mut s = session();
@@ -328,7 +325,7 @@ fn native_included_links_keep_missing_placed_documents_editable() {
         if missing {
             std::fs::remove_file(&src).unwrap();
         }
-        s.execute("document.open", &json!({"name": "parent.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&parent)})).unwrap();
+        s.execute("document.open", &json!({"name": "parent.pluma", "dataBase64": pluma_format::base64_encode(&parent)})).unwrap();
         let original = placed(&s, id);
         assert!(s.doc().unwrap().doc.images[&original.key].is_proxy());
         let before = s.execute("document.json", &json!({})).unwrap();
@@ -337,8 +334,8 @@ fn native_included_links_keep_missing_placed_documents_editable() {
                 for include_linked in [true, false] {
                     let out = s.execute(command, &json!({"format": format, "includeLinked": include_linked, "compress": false})).unwrap();
                     let bytes = decode(&out);
-                    let native = vectorcraft_format::load(&bytes).unwrap();
-                    assert_eq!(file_json(&bytes)["version"], vectorcraft_format::VERSION);
+                    let native = pluma_format::load(&bytes).unwrap();
+                    assert_eq!(file_json(&bytes)["version"], pluma_format::VERSION);
                     assert!(
                         matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original),
                         "{command}/{format}/{missing}/{include_linked}: discarded the editable link"
@@ -352,14 +349,11 @@ fn native_included_links_keep_missing_placed_documents_editable() {
                     if missing && include_linked {
                         let mut restored = Session::new();
                         restored
-                            .execute(
-                                "document.open",
-                                &json!({"name": "included.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&bytes)}),
-                            )
+                            .execute("document.open", &json!({"name": "included.pluma", "dataBase64": pluma_format::base64_encode(&bytes)}))
                             .unwrap();
                         assert_eq!(placed(&restored, id), original);
                         assert_eq!(restored.execute("links.check", &json!({})).unwrap()["missing"], 1);
-                        let replacement = dir.file("replacement.vectorcraft");
+                        let replacement = dir.file("replacement.pluma");
                         source(&replacement, 100.0, 50.0, BLUE, 1);
                         assert_eq!(
                             restored.execute("links.relink", &json!({"ids": [id.0], "path": replacement})).unwrap()["relinked"],
@@ -379,7 +373,7 @@ fn native_included_links_keep_missing_placed_documents_editable() {
 fn a_confined_export_does_not_reuse_full_art_read_for_another_caller() {
     let dir = Folder::new("placed-confined");
     let other = Folder::new("placed-confined-other");
-    let src = dir.file("src.vectorcraft");
+    let src = dir.file("src.pluma");
     source(&src, 100.0, 50.0, BLUE, 0);
     let mut s = session();
     place(&mut s, &src);
@@ -390,7 +384,7 @@ fn a_confined_export_does_not_reuse_full_art_read_for_another_caller() {
         }
     }
     let d = s.doc().unwrap().doc.clone();
-    let preview = |d: &Document| d.images.keys().any(|k| k.starts_with(vectorcraft_doc::placed_document::RESOURCE_PREFIX) && k.ends_with("/preview"));
+    let preview = |d: &Document| d.images.keys().any(|k| k.starts_with(pluma_doc::placed_document::RESOURCE_PREFIX) && k.ends_with("/preview"));
     assert!(!preview(&d.with_placed_art()), "the file is read in full");
     let roots = crate::file_access::AutomationRoots::new(&[&other.0], &[]).unwrap().unwrap();
     let confined = crate::file_access::confine(Some(&roots), || d.with_placed_art().into_owned());
@@ -400,11 +394,11 @@ fn a_confined_export_does_not_reuse_full_art_read_for_another_caller() {
 #[test]
 fn a_document_saved_with_previews_outputs_its_files_art() {
     let dir = Folder::new("placed-preview-output");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     open(&mut s, &doc_path);
     let key = placed(&s, id).key;
@@ -424,7 +418,7 @@ fn a_document_saved_with_previews_outputs_its_files_art() {
 #[test]
 fn a_changed_file_is_modified_and_update_links_reads_it_again() {
     let dir = Folder::new("placed-update");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -434,7 +428,7 @@ fn a_changed_file_is_modified_and_update_links_reads_it_again() {
     assert_eq!((c["modified"].as_u64(), c["links"][0]["status"].as_str()), (Some(0), Some("ok")), "{c}");
     let list = s.execute("links.list", &json!({})).unwrap();
     let row = &list["links"][0];
-    assert_eq!((row["format"].as_str(), row["document"].as_bool(), row["status"].as_str()), (Some("VectorCraft"), Some(true), Some("ok")), "{row}");
+    assert_eq!((row["format"].as_str(), row["document"].as_bool(), row["status"].as_str()), (Some("Pluma"), Some(true), Some("ok")), "{row}");
     // A blue document, wider, and a different file size.
     source(&src, 200.0, 50.0, BLUE, 1);
     assert_eq!(s.execute("links.check", &json!({})).unwrap()["links"][0]["status"], "modified");
@@ -456,11 +450,11 @@ fn a_changed_file_is_modified_and_update_links_reads_it_again() {
 #[test]
 fn update_links_on_open_reads_a_modified_file_again() {
     let dir = Folder::new("placed-open");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     place(&mut s, &src);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     source(&src, 100.0, 50.0, BLUE, 1);
     // Ask When Modified (the default): reported, left as it was.
@@ -479,7 +473,7 @@ fn update_links_on_open_reads_a_modified_file_again() {
 #[test]
 fn a_placed_document_without_its_bytes_or_a_hash_is_reported_not_read() {
     let dir = Folder::new("placed-no-hash");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -497,7 +491,7 @@ fn a_placed_document_without_its_bytes_or_a_hash_is_reported_not_read() {
 #[test]
 fn relink_points_a_placed_document_at_another_file() {
     let dir = Folder::new("placed-relink");
-    let (a, b) = (dir.file("a.vectorcraft"), dir.file("b.vectorcraft"));
+    let (a, b) = (dir.file("a.pluma"), dir.file("b.pluma"));
     source(&a, 100.0, 50.0, RED, 0);
     source(&b, 100.0, 50.0, BLUE, 0);
     let mut s = session();
@@ -513,12 +507,12 @@ fn relink_points_a_placed_document_at_another_file() {
 #[test]
 fn relink_missing_in_folder_finds_placed_documents_except_with_copy() {
     let dir = Folder::new("placed-missing-folder");
-    let (doc_file, pic) = (dir.file("art/a.vectorcraft"), dir.file("art/photo.png"));
+    let (doc_file, pic) = (dir.file("art/a.pluma"), dir.file("art/photo.png"));
     write(&pic, &crate::tests_links::png(60, 30, RED));
     source(&doc_file, 100.0, 50.0, RED, 0);
     let mut s = session();
     let (placed_id, image_id) = (place(&mut s, &doc_file), place(&mut s, &pic));
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     std::fs::remove_file(&doc_file).unwrap();
     std::fs::remove_file(&pic).unwrap();
@@ -526,7 +520,7 @@ fn relink_missing_in_folder_finds_placed_documents_except_with_copy() {
     let found = dir.0.join("found");
     let chosen = found.join("renamed.png").to_string_lossy().into_owned();
     write(&chosen, &crate::tests_links::png(60, 30, BLUE));
-    source(&found.join("a.vectorcraft").to_string_lossy(), 100.0, 50.0, BLUE, 0);
+    source(&found.join("a.pluma").to_string_lossy(), 100.0, 50.0, BLUE, 0);
     let p = json!({"ids": [image_id.0], "path": chosen, "scope": "missingInFolder", "copy": true});
     let r = s.execute("links.relink", &p).unwrap();
     assert_eq!(r["relinked"], json!([image_id.0]), "{r}");
@@ -623,7 +617,7 @@ fn a_changed_pdf_is_modified_and_update_links_reads_it_again() {
     let notes = dir.file("notes.txt");
     write(&notes, b"not a page");
     let e = s.execute("links.relink", &json!({"ids": [id.0], "path": notes})).unwrap_err().to_string();
-    assert!(e.contains("isn't a VectorCraft document, a PDF or a PDF-compatible .ai file"), "{e}");
+    assert!(e.contains("isn't a Pluma document, a PDF or a PDF-compatible .ai file"), "{e}");
     assert_eq!(placed(&s, id).link.path, other);
 }
 
@@ -634,7 +628,7 @@ fn a_linked_pdf_page_outputs_as_vectors_after_the_document_reopens() {
     pdf_source(&src, "pdf", &[RED], 3);
     let mut s = session();
     let id = place(&mut s, &src);
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     open(&mut s, &doc_path);
     let key = placed(&s, id).key;
@@ -662,9 +656,9 @@ fn saving_and_reopening_keeps_a_linked_pdf_pages_number_and_box() {
     assert_eq!(r["linked"], true, "{r}");
     let id = NodeId(r["ids"][0].as_u64().unwrap());
     let before = placed(&s, id);
-    assert_eq!((before.link.page, before.page_box), (Some(2), vectorcraft_doc::PageBox::Media), "{before:?}");
+    assert_eq!((before.link.page, before.page_box), (Some(2), pluma_doc::PageBox::Media), "{before:?}");
     assert!(near(centre_colour(&s.doc().unwrap().doc), BLUE), "page 2");
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     let saved = file_json(&std::fs::read(&doc_path).unwrap());
     let kind = &saved["document"]["layers"][0]["kind"]["children"][0]["kind"];
@@ -679,7 +673,7 @@ fn saving_and_reopening_keeps_a_linked_pdf_pages_number_and_box() {
     pdf_source(&src, "pdf", &[RED, RED], 5);
     s.execute("links.update", &json!({})).unwrap();
     let after = placed(&s, id);
-    assert_eq!((after.link.page, after.page_box), (Some(2), vectorcraft_doc::PageBox::Media));
+    assert_eq!((after.link.page, after.page_box), (Some(2), pluma_doc::PageBox::Media));
     assert!(near(centre_colour(&s.doc().unwrap().doc), RED));
 }
 
@@ -688,7 +682,7 @@ fn saving_and_reopening_keeps_a_linked_pdf_pages_number_and_box() {
 /// place. Its file found in the folder kept relative to the document, it shows that page.
 #[test]
 fn a_pdf_page_placed_in_an_ai_files_editing_data_opens_as_a_placed_document() {
-    use vectorcraft_testkit::ai;
+    use pluma_testkit::ai;
     let dir = Folder::new("placed-pdf-in-ai");
     let place = "%AI5_BeginPlace\n%%FileType: 1\n[0.1 0 0 -0.1 20 80] 0 0 600 600 4 4 0\n(/no/such/folder/src/flyer.pdf)`\n\
          %%IncludeFile:/no/such/folder/src/flyer.pdf\n%AI17_Begin_Content_if_version_gt:24 12\n%AI28_BeginPlacedRelativePath\n(src/)\n\
@@ -700,7 +694,7 @@ fn a_pdf_page_placed_in_an_ai_files_editing_data_opens_as_a_placed_document() {
     // The page draws what the half-covering preview draws over white.
     write(&doc_path, &ai::ai(data.as_bytes(), "0.54 0.54 0.95 rg 20 20 60 60 re f"));
     let shown = |s: &Session| {
-        let img = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 100.0, 100.0), 1.0, true);
+        let img = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 100.0, 100.0), 1.0, true);
         let [r, g, b, _] = img.pixel(50, 50);
         [r, g, b]
     };
@@ -716,7 +710,7 @@ fn a_pdf_page_placed_in_an_ai_files_editing_data_opens_as_a_placed_document() {
     assert_eq!(r["missingLinks"][0]["name"].as_str(), Some("flyer.pdf"), "{r}");
     let (id, p, proxy) = one(&s);
     assert!(proxy, "the preview");
-    assert_eq!((p.link.page, p.page_box, p.bounding), (Some(2), vectorcraft_doc::PageBox::Media, false));
+    assert_eq!((p.link.page, p.page_box, p.bounding), (Some(2), pluma_doc::PageBox::Media, false));
     assert_eq!(p.link.relative.as_deref(), Some("src/flyer.pdf"));
     let place = bounds(&s, id);
     assert!((place.x0 - 20.0).abs() < 0.01 && (place.width() - 60.0).abs() < 0.01 && (place.height() - 60.0).abs() < 0.01, "{place:?}");
@@ -727,7 +721,7 @@ fn a_pdf_page_placed_in_an_ai_files_editing_data_opens_as_a_placed_document() {
     assert_eq!((r["missingLinks"].clone(), r["modifiedLinks"].clone()), (json!([]), json!([])), "{r}");
     let (id, p, proxy) = one(&s);
     assert!(!proxy, "the file's bytes, not the preview");
-    assert_eq!((p.link.page, p.page_box, p.bounding), (Some(2), vectorcraft_doc::PageBox::Media, false));
+    assert_eq!((p.link.page, p.page_box, p.bounding), (Some(2), pluma_doc::PageBox::Media, false));
     assert!(p.link.hash.is_some() && p.link.size.is_some(), "{:?}", p.link);
     assert_eq!(bounds(&s, id), place, "the same place");
     assert!(near(shown(&s), RED), "page 2 of the file shows: {:?}", shown(&s));
@@ -737,7 +731,7 @@ fn a_pdf_page_placed_in_an_ai_files_editing_data_opens_as_a_placed_document() {
 /// read once inside itself: the copy inside keeps its link as stored, and the file opens.
 #[test]
 fn an_ai_file_that_places_itself_opens() {
-    use vectorcraft_testkit::ai;
+    use pluma_testkit::ai;
     let dir = Folder::new("ai-places-itself");
     let doc_path = dir.file("poster.ai");
     let at = doc_path.replace('\\', "/");
@@ -777,7 +771,7 @@ fn a_pdf_compatible_ai_file_places_linked_like_a_pdf() {
 #[test]
 fn a_placed_document_inside_a_placed_document_outputs_from_its_own_file() {
     let dir = Folder::new("placed-nested");
-    let (logo, card) = (dir.file("logo.vectorcraft"), dir.file("card.vectorcraft"));
+    let (logo, card) = (dir.file("logo.pluma"), dir.file("card.pluma"));
     source(&logo, 100.0, 50.0, RED, 0);
     // The card places the logo, and is saved with the logo's preview only.
     let mut s = session();
@@ -796,7 +790,7 @@ fn a_placed_document_inside_a_placed_document_outputs_from_its_own_file() {
 #[test]
 fn documents_that_place_each_other_dont_loop() {
     let dir = Folder::new("placed-loop");
-    let (a, b) = (dir.file("a.vectorcraft"), dir.file("b.vectorcraft"));
+    let (a, b) = (dir.file("a.pluma"), dir.file("b.pluma"));
     source(&a, 100.0, 50.0, RED, 0);
     // B places A; A then places B.
     let mut s = session();
@@ -818,7 +812,7 @@ fn documents_that_place_each_other_dont_loop() {
 #[test]
 fn what_cant_be_placed_linked_is_an_error() {
     let dir = Folder::new("placed-errors");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let place = |s: &mut Session, p: Value| s.execute("file.place", &p).unwrap_err().to_string();
@@ -826,8 +820,8 @@ fn what_cant_be_placed_linked_is_an_error() {
     assert!(e.contains("page 2") && e.contains("1 artboard"), "{e}");
     let e = place(&mut s, json!({"path": src, "crop": "art"}));
     assert!(e.contains("crop"), "{e}");
-    let empty = dir.file("empty.vectorcraft");
-    write(&empty, &vectorcraft_format::save_file(&Document::new(100.0, 50.0)));
+    let empty = dir.file("empty.pluma");
+    write(&empty, &pluma_format::save_file(&Document::new(100.0, 50.0)));
     let e = place(&mut s, json!({"path": empty, "crop": "bounding"}));
     assert!(e.contains("no art to place"), "{e}");
     // Junk params are errors, not crashes.
@@ -841,7 +835,7 @@ fn what_cant_be_placed_linked_is_an_error() {
 #[test]
 fn a_placed_documents_resources_stay_its_own() {
     let dir = Folder::new("placed-symbols");
-    let src = dir.file("badge.vectorcraft");
+    let src = dir.file("badge.pluma");
     star_source(&src, "star");
     let mut s = session();
     parent_star(&mut s);
@@ -849,7 +843,7 @@ fn a_placed_documents_resources_stay_its_own() {
     assert!(near(centre_colour(&s.doc().unwrap().doc), BLUE), "the file's own Star");
     let doc = &s.doc().unwrap().doc;
     assert_eq!(doc.symbols.len(), 1, "nothing joins the document");
-    let prefix = vectorcraft_doc::placed_document::RESOURCE_PREFIX;
+    let prefix = pluma_doc::placed_document::RESOURCE_PREFIX;
     assert!(doc.images.keys().all(|k| !k.starts_with(prefix)));
     let svg = s.execute("document.serialize", &json!({"format": "svg"})).unwrap();
     assert!(!svg["text"].as_str().unwrap().contains("<image"));
@@ -857,7 +851,7 @@ fn a_placed_documents_resources_stay_its_own() {
     let saved = String::from_utf8(decode(&s.execute("document.serialize", &json!({"format": "vectorcraft"})).unwrap())).unwrap();
     assert!(!saved.contains(prefix), "{saved}");
     // Saved for older apps: the art and its resources, as plain objects.
-    let old = vectorcraft_format::load(&decode(&s.execute("document.serialize", &json!({"format": "vectorcraft", "version": 2})).unwrap())).unwrap();
+    let old = pluma_format::load(&decode(&s.execute("document.serialize", &json!({"format": "vectorcraft", "version": 2})).unwrap())).unwrap();
     assert!(!old.has_placed());
     assert!(near(centre_colour(&old), BLUE));
 }
@@ -865,14 +859,14 @@ fn a_placed_documents_resources_stay_its_own() {
 #[test]
 fn saved_for_older_apps_with_a_precision_the_placed_art_is_rounded_too() {
     let dir = Folder::new("placed-precision");
-    let src = dir.file("triangle.vectorcraft");
+    let src = dir.file("triangle.pluma");
     let mut d = Document::new(100.0, 100.0);
     let layer = d.layers[0].id;
     let id = d.alloc_id();
-    let points = [(3.4876474632797176, 1.0), (90.0, 2.123456789), (40.0, 80.0)].map(|(x, y)| vectorcraft_geom::Point::new(x, y));
-    let path = vectorcraft_geom::PathData::single(vectorcraft_geom::path::SubPath::polyline(&points, true));
+    let points = [(3.4876474632797176, 1.0), (90.0, 2.123456789), (40.0, 80.0)].map(|(x, y)| pluma_geom::Point::new(x, y));
+    let path = pluma_geom::PathData::single(pluma_geom::path::SubPath::polyline(&points, true));
     d.insert(Some(layer), 0, Node::path(id, path, look(BLUE))).unwrap();
-    write(&src, &vectorcraft_format::save_file(&d));
+    write(&src, &pluma_format::save_file(&d));
     let mut s = session();
     place(&mut s, &src);
     // The coordinates of every anchor and handle in a file's layers.
@@ -903,16 +897,16 @@ fn saved_for_older_apps_with_a_precision_the_placed_art_is_rounded_too() {
     assert!(rounded.iter().all(|x| at4(*x)), "{rounded:?}");
     // The preview shows the rounded art the older app opens, not the placed file's exact art.
     let file = decode(&s.execute("file.saveCopy", &json!({"version": 3, "precision": 0, "preview": true})).unwrap());
-    let preview = vectorcraft_format::preview(&file);
+    let preview = pluma_format::preview(&file);
     assert!(preview.is_some());
-    assert_eq!(preview, crate::cmd::fileio::preview_png(&vectorcraft_format::load(&file).unwrap()).unwrap());
+    assert_eq!(preview, crate::cmd::fileio::preview_png(&pluma_format::load(&file).unwrap()).unwrap());
     assert_ne!(preview, crate::cmd::fileio::preview_png(&s.doc().unwrap().doc).unwrap());
 }
 
 #[test]
 fn break_link_gives_the_editable_copy_placing_without_link_gives() {
     let dir = Folder::new("placed-break");
-    let src = dir.file("badge.vectorcraft");
+    let src = dir.file("badge.pluma");
     star_source(&src, "break");
     let mut s = session();
     parent_star(&mut s);
@@ -942,7 +936,7 @@ fn break_link_gives_the_editable_copy_placing_without_link_gives() {
     assert!(s.doc().unwrap().doc.has_placed());
     // A file that can't be read stays linked.
     std::fs::remove_file(&src).unwrap();
-    let doc_path = dir.file("poster.vectorcraft");
+    let doc_path = dir.file("poster.pluma");
     save(&mut s, &doc_path);
     open(&mut s, &doc_path);
     let r = s.execute("links.embed", &json!({"ids": [id.0]})).unwrap();
@@ -952,7 +946,7 @@ fn break_link_gives_the_editable_copy_placing_without_link_gives() {
 #[test]
 fn expand_turns_a_placed_document_into_editable_art_with_its_resources() {
     let dir = Folder::new("placed-expand");
-    let src = dir.file("badge.vectorcraft");
+    let src = dir.file("badge.pluma");
     star_source(&src, "star");
     let mut s = session();
     parent_star(&mut s);
@@ -966,8 +960,8 @@ fn expand_turns_a_placed_document_into_editable_art_with_its_resources() {
     let after = n.geometric_bounds().unwrap();
     assert!((after.width() - before.width()).abs() < 0.5 && (after.height() - before.height()).abs() < 0.5, "{after:?} vs {before:?}");
     assert!(near(centre_colour(doc), BLUE));
-    let saved = vectorcraft_format::save_file(doc);
-    assert!(near(centre_colour(&vectorcraft_format::load(&saved).unwrap()), BLUE), "saved with its resources");
+    let saved = pluma_format::save_file(doc);
+    assert!(near(centre_colour(&pluma_format::load(&saved).unwrap()), BLUE), "saved with its resources");
     let info = s.execute("object.expand.info", &json!({})).unwrap();
     assert_eq!(info["object"], false, "nothing left to expand: {info}");
 }
@@ -977,7 +971,7 @@ fn expand_turns_a_placed_document_into_editable_art_with_its_resources() {
 #[test]
 fn expand_expands_a_placed_document_in_a_symbol_instances_art() {
     let dir = Folder::new("placed-expand-symbol");
-    let src = dir.file("badge.vectorcraft");
+    let src = dir.file("badge.pluma");
     star_source(&src, "star");
     let mut s = session();
     let id = place(&mut s, &src);
@@ -993,7 +987,7 @@ fn expand_expands_a_placed_document_in_a_symbol_instances_art() {
 #[test]
 fn saving_a_document_refreshes_the_open_documents_that_place_it() {
     let dir = Folder::new("placed-refresh");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -1017,7 +1011,7 @@ fn saving_a_document_refreshes_the_open_documents_that_place_it() {
 #[test]
 fn saving_a_document_refreshes_its_placed_copies_inside_symbols_and_patterns() {
     let dir = Folder::new("placed-refresh-nested");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -1033,7 +1027,7 @@ fn saving_a_document_refreshes_its_placed_copies_inside_symbols_and_patterns() {
     s.execute("select.all", &json!({})).unwrap();
     s.execute("paint.setFill", &json!({"color": "#1414e6"})).unwrap();
     s.execute("document.save", &json!({})).unwrap();
-    let hash = Some(vectorcraft_doc::links::hash_bytes(&std::fs::read(&src).unwrap()));
+    let hash = Some(pluma_doc::links::hash_bytes(&std::fs::read(&src).unwrap()));
     let doc = &s.documents()[parent];
     assert_eq!(doc.history.undo.last().unwrap().label, "Update Links");
     assert!(near(centre_colour(&doc.doc), BLUE), "the symbol's instance shows the saved version");
@@ -1045,7 +1039,7 @@ fn saving_a_document_refreshes_its_placed_copies_inside_symbols_and_patterns() {
 #[test]
 fn link_info_gives_the_artboards_size_not_pixels() {
     let dir = Folder::new("placed-info");
-    let src = dir.file("logo.vectorcraft");
+    let src = dir.file("logo.pluma");
     source(&src, 100.0, 50.0, RED, 0);
     let mut s = session();
     let id = place(&mut s, &src);
@@ -1053,11 +1047,7 @@ fn link_info_gives_the_artboards_size_not_pixels() {
     let i = s.execute("links.info", &json!({"id": id.0})).unwrap();
     assert_eq!((i["pageWidth"].as_f64(), i["pageHeight"].as_f64(), i["document"].as_bool()), (Some(100.0), Some(50.0), Some(true)), "{i}");
     assert!(i.get("pixelWidth").is_none() && i.get("ppi").is_none(), "no pixels: {i}");
-    assert_eq!(
-        (i["status"].as_str(), i["fileName"].as_str(), i["scale"].clone()),
-        (Some("ok"), Some("logo.vectorcraft"), json!([200.0, 200.0])),
-        "{i}"
-    );
+    assert_eq!((i["status"].as_str(), i["fileName"].as_str(), i["scale"].clone()), (Some("ok"), Some("logo.pluma"), json!([200.0, 200.0])), "{i}");
 }
 
 /// Save As reads its defaults from the catalog; using them must retain current editable links.
@@ -1065,7 +1055,7 @@ fn link_info_gives_the_artboards_size_not_pixels() {
 fn native_save_catalog_defaults_keep_placed_documents_editable() {
     for missing in [false, true] {
         let dir = Folder::new(if missing { "native-default-missing" } else { "native-default-linked" });
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, if missing { "native-default-missing" } else { "native-default-linked" });
         let mut s = session();
         let id = place(&mut s, &src);
@@ -1074,16 +1064,16 @@ fn native_save_catalog_defaults_keep_placed_documents_editable() {
             std::fs::remove_file(&src).unwrap();
         }
         let options = s.execute("file.formatOptions", &json!({"format": "vectorcraft"})).unwrap();
-        let saved = dir.file("default-options.vectorcraft");
+        let saved = dir.file("default-options.pluma");
         s.execute("document.save", &json!({"path": saved, "version": options["options"]["version"]["value"]})).unwrap();
         let bytes = std::fs::read(&saved).unwrap();
-        let native = vectorcraft_format::load(&bytes).unwrap();
+        let native = pluma_format::load(&bytes).unwrap();
         let mut written = original.clone();
         // Native saves record a sibling link relative to the destination as well as its
         // absolute path. This is relocation metadata, not a change to the placed object.
-        written.link.relative = Some("logo.vectorcraft".into());
+        written.link.relative = Some("logo.pluma".into());
         assert!(matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == written), "source missing: {missing}");
-        assert_eq!(file_json(&bytes)["version"], vectorcraft_format::VERSION);
+        assert_eq!(file_json(&bytes)["version"], pluma_format::VERSION);
         assert_eq!(placed(&s, id), original, "saving does not rewrite the live link");
         let mut reopened = Session::new();
         open(&mut reopened, &saved);
@@ -1097,7 +1087,7 @@ fn native_save_catalog_defaults_keep_placed_documents_editable() {
 fn pdf_editing_keeps_placed_links_separate_from_drawn_previews() {
     for missing in [true, false] {
         let dir = Folder::new(&format!("pdf-editable-links-{missing}"));
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, &format!("pdf-editable-links-{missing}"));
         let mut s = session();
         parent_star(&mut s);
@@ -1107,16 +1097,16 @@ fn pdf_editing_keeps_placed_links_separate_from_drawn_previews() {
         if missing {
             std::fs::remove_file(&src).unwrap();
         }
-        s.execute("document.open", &json!({"name": "parent.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&parent)})).unwrap();
+        s.execute("document.open", &json!({"name": "parent.pluma", "dataBase64": pluma_format::base64_encode(&parent)})).unwrap();
         let original = placed(&s, id);
         assert!(s.doc().unwrap().doc.images[&original.key].is_proxy());
         let before = s.execute("document.json", &json!({})).unwrap();
         for command in ["document.serialize", "document.export", "document.save", "document.exportPdf"] {
             let out = s.execute(command, &json!({"format":"pdf","preserveEditing":true,"range":"all","thumbnails":false})).unwrap();
             let bytes = decode(&out);
-            let editing = vectorcraft_pdf::editing(&bytes).unwrap();
+            let editing = pluma_pdf::editing(&bytes).unwrap();
             assert!(editing.intact);
-            let native = vectorcraft_format::load(&editing.data).unwrap();
+            let native = pluma_format::load(&editing.data).unwrap();
             assert!(matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original), "{command}: discarded editable link");
             let (images, paths) = pdf_contents(&bytes);
             assert_eq!(images > 0, missing, "{command}: pages still draw previews or vectors");
@@ -1130,28 +1120,28 @@ fn pdf_editing_keeps_placed_links_separate_from_drawn_previews() {
             );
             let mut restored = Session::new();
             assert_eq!(
-                restored.execute("document.open", &json!({"name":"editable.pdf","dataBase64":vectorcraft_format::base64_encode(&bytes)})).unwrap()["restored"],
+                restored.execute("document.open", &json!({"name":"editable.pdf","dataBase64":pluma_format::base64_encode(&bytes)})).unwrap()["restored"],
                 true
             );
             assert_eq!(placed(&restored, id), original);
             assert_eq!(restored.execute("links.check", &json!({})).unwrap()["missing"], usize::from(missing));
             assert_eq!(s.execute("document.json", &json!({})).unwrap(), before);
             if missing {
-                let replacement = dir.file("replacement.vectorcraft");
+                let replacement = dir.file("replacement.pluma");
                 source(&replacement, 100.0, 50.0, BLUE, 1);
                 assert_eq!(restored.execute("links.relink", &json!({"ids":[id.0],"path":replacement})).unwrap()["relinked"], json!([id.0]));
             }
         }
         for alias in ["PDF", ".pdf"] {
             let enc = cmd::fileio::encode_all(&s.doc().unwrap().doc, alias, &json!({"preserveEditing":true})).unwrap();
-            let editing = vectorcraft_pdf::editing(&enc.files[0].1).unwrap();
-            let native = vectorcraft_format::load(&editing.data).unwrap();
+            let editing = pluma_pdf::editing(&enc.files[0].1).unwrap();
+            let native = pluma_format::load(&editing.data).unwrap();
             assert!(matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original), "{alias}");
         }
         for params in [json!({"format":"pdf","preserveEditing":false}), json!({"format":"pdf","preserveEditing":true,"range":"1"})] {
             let out = s.execute("document.serialize", &params).unwrap();
             let bytes = decode(&out);
-            assert!(vectorcraft_pdf::editing(&bytes).is_none(), "{params}");
+            assert!(pluma_pdf::editing(&bytes).is_none(), "{params}");
             assert_eq!(pdf_contents(&bytes).0 > 0, missing);
         }
     }
@@ -1162,7 +1152,7 @@ fn pdf_editing_keeps_placed_links_separate_from_drawn_previews() {
 fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
     for missing in [true, false] {
         let dir = Folder::new(&format!("eps-editable-links-{missing}"));
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, &format!("eps-editable-links-{missing}"));
         let source_bytes = std::fs::read(&src).unwrap();
         let mut s = session();
@@ -1172,7 +1162,7 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
         if missing {
             std::fs::remove_file(&src).unwrap();
         }
-        s.execute("document.open", &json!({"name":"parent.vectorcraft","dataBase64":vectorcraft_format::base64_encode(&parent)})).unwrap();
+        s.execute("document.open", &json!({"name":"parent.pluma","dataBase64":pluma_format::base64_encode(&parent)})).unwrap();
         let original = placed(&s, id);
         assert!(s.doc().unwrap().doc.images[&original.key].is_proxy());
         let before = s.execute("document.json", &json!({})).unwrap();
@@ -1181,8 +1171,8 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
             for command in ["document.serialize", "document.export", "document.exportEps"] {
                 let out = s.execute(command, &params).unwrap();
                 let bytes = decode(&out);
-                let raw = vectorcraft_eps::native(&bytes).unwrap();
-                let native = vectorcraft_format::load(&raw).unwrap();
+                let raw = pluma_eps::native(&bytes).unwrap();
+                let native = pluma_format::load(&raw).unwrap();
                 assert!(
                     matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original),
                     "{command}/{missing}/{include_linked}: editable link lost"
@@ -1198,7 +1188,7 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
                     "{out}"
                 );
                 // Read the printed page, independently of the native editing attachment.
-                let drawn = vectorcraft_eps::import_with(&bytes, false).unwrap();
+                let drawn = pluma_eps::import_with(&bytes, false).unwrap();
                 assert!(!drawn.preview);
                 let (mut images, mut paths) = (0, 0);
                 drawn.document.walk(|n| match n.kind {
@@ -1212,16 +1202,14 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
                 }
                 let mut restored = Session::new();
                 assert_eq!(
-                    restored
-                        .execute("document.open", &json!({"name":"editable.eps","dataBase64":vectorcraft_format::base64_encode(&bytes)}))
-                        .unwrap()["restored"],
+                    restored.execute("document.open", &json!({"name":"editable.eps","dataBase64":pluma_format::base64_encode(&bytes)})).unwrap()["restored"],
                     true
                 );
                 assert_eq!(placed(&restored, id), original);
                 assert_eq!(restored.execute("links.check", &json!({})).unwrap()["missing"], usize::from(missing));
                 assert_eq!(s.execute("document.json", &json!({})).unwrap(), before);
                 if missing {
-                    let replacement = dir.file("replacement.vectorcraft");
+                    let replacement = dir.file("replacement.pluma");
                     source(&replacement, 100.0, 50.0, BLUE, 1);
                     assert_eq!(restored.execute("links.relink", &json!({"ids":[id.0],"path":replacement})).unwrap()["relinked"], json!([id.0]));
                 }
@@ -1229,7 +1217,7 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
         }
         for alias in ["EPS", ".eps"] {
             let enc = cmd::fileio::encode_all(&s.doc().unwrap().doc, alias, &json!({"previewFormat":"none","thumbnails":false})).unwrap();
-            let native = vectorcraft_format::load(&vectorcraft_eps::native(&enc.files[0].1).unwrap()).unwrap();
+            let native = pluma_format::load(&pluma_eps::native(&enc.files[0].1).unwrap()).unwrap();
             assert!(matches!(&native.node(id).unwrap().kind, NodeKind::PlacedDocument(p) if **p == original), "{alias}");
         }
     }
@@ -1240,7 +1228,7 @@ fn eps_editing_keeps_placed_links_and_requested_source_bytes() {
 fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
     for missing in [true, false] {
         let dir = Folder::new(&format!("svg-editable-links-{missing}"));
-        let src = dir.file("logo.vectorcraft");
+        let src = dir.file("logo.pluma");
         star_source(&src, &format!("svg-editable-links-{missing}"));
         let mut s = session();
         parent_star(&mut s);
@@ -1249,7 +1237,7 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
         if missing {
             std::fs::remove_file(&src).unwrap();
         }
-        s.execute("document.open", &json!({"name": "parent.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&parent)})).unwrap();
+        s.execute("document.open", &json!({"name": "parent.pluma", "dataBase64": pluma_format::base64_encode(&parent)})).unwrap();
         let original = placed(&s, id);
         assert!(s.doc().unwrap().doc.images[&original.key].is_proxy());
         let before = s.execute("document.json", &json!({})).unwrap();
@@ -1258,9 +1246,9 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
                 let out = s.execute(command, &json!({"format": format, "svg": {"preserveEditing": true, "range": "1"}})).unwrap();
                 let bytes = out
                     .get("dataBase64")
-                    .map(|b| vectorcraft_format::base64_decode(b.as_str().unwrap()).unwrap())
+                    .map(|b| pluma_format::base64_decode(b.as_str().unwrap()).unwrap())
                     .unwrap_or_else(|| out["text"].as_str().unwrap().as_bytes().to_vec());
-                let text = vectorcraft_svg::text_of(&bytes).unwrap();
+                let text = pluma_svg::text_of(&bytes).unwrap();
                 assert_eq!(text.contains("<image"), missing, "{format}/{command}: {text}");
                 assert_eq!(
                     out["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("1 placed document output as its preview")),
@@ -1269,7 +1257,7 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
                 );
                 let mut restored = Session::new();
                 let opened = restored
-                    .execute("document.open", &json!({"name": format!("editable.{format}"), "dataBase64": vectorcraft_format::base64_encode(&bytes)}))
+                    .execute("document.open", &json!({"name": format!("editable.{format}"), "dataBase64": pluma_format::base64_encode(&bytes)}))
                     .unwrap();
                 assert_eq!(opened["restored"], true, "{opened}");
                 eprintln!("SVG_EDITING_RESTORED_READY missing={missing} format={format} command={command}");
@@ -1277,7 +1265,7 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
                 assert_eq!(restored.execute("links.check", &json!({})).unwrap()["missing"], usize::from(missing));
                 assert_eq!(s.execute("document.json", &json!({})).unwrap(), before, "source unchanged");
                 if missing {
-                    let replacement = dir.file("replacement.vectorcraft");
+                    let replacement = dir.file("replacement.pluma");
                     source(&replacement, 100.0, 50.0, BLUE, 1);
                     assert_eq!(restored.execute("links.relink", &json!({"ids": [id.0], "path": replacement})).unwrap()["relinked"], json!([id.0]));
                     assert_eq!(placed(&restored, id).link.path, replacement);
@@ -1286,13 +1274,13 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
             let out = s.execute("document.serialize", &json!({"format": format, "preserveEditing": false})).unwrap();
             let bytes = out
                 .get("dataBase64")
-                .map(|b| vectorcraft_format::base64_decode(b.as_str().unwrap()).unwrap())
+                .map(|b| pluma_format::base64_decode(b.as_str().unwrap()).unwrap())
                 .unwrap_or_else(|| out["text"].as_str().unwrap().as_bytes().to_vec());
-            assert_eq!(vectorcraft_svg::text_of(&bytes).unwrap().contains("<image"), missing);
+            assert_eq!(pluma_svg::text_of(&bytes).unwrap().contains("<image"), missing);
             let mut reopened = Session::new();
             assert_eq!(
                 reopened
-                    .execute("document.open", &json!({"name": format!("plain.{format}"), "dataBase64": vectorcraft_format::base64_encode(&bytes)}))
+                    .execute("document.open", &json!({"name": format!("plain.{format}"), "dataBase64": pluma_format::base64_encode(&bytes)}))
                     .unwrap()["restored"],
                 false
             );
@@ -1303,10 +1291,7 @@ fn svg_editing_keeps_placed_links_separate_from_drawn_previews() {
             let format = cmd::fileio::format(alias).unwrap().id;
             let mut restored = Session::new();
             restored
-                .execute(
-                    "document.open",
-                    &json!({"name": format!("alias.{format}"), "dataBase64": vectorcraft_format::base64_encode(&enc.files[0].1)}),
-                )
+                .execute("document.open", &json!({"name": format!("alias.{format}"), "dataBase64": pluma_format::base64_encode(&enc.files[0].1)}))
                 .unwrap();
             assert_eq!(placed(&restored, id), original, "{alias}");
         }

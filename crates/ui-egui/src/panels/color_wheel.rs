@@ -8,13 +8,13 @@
 //! objects, the proxy, the color and the color settings are unchanged, so a gray keeps its hue.
 
 use egui::{Ui, UiBuilder};
-use vectorcraft_color::cms::{self, Cms};
-use vectorcraft_color::{Color, Paint, hsb_to_rgb, rgb_to_hsb};
-use vectorcraft_doc::{ColorMode, NodeId};
+use pluma_color::cms::{self, Cms};
+use pluma_color::{Color, Paint, hsb_to_rgb, rgb_to_hsb};
+use pluma_doc::{ColorMode, NodeId};
 
 use super::color::{Target, apply, wheel_target};
 use super::{pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::{self, FieldAxis, Live};
 
 pub const ID: &str = "colorWheel";
@@ -43,7 +43,7 @@ struct Owner {
 }
 
 impl Owner {
-    fn of(app: &VectorcraftApp, tgt: &Target, color: Color) -> Self {
+    fn of(app: &PlumaApp, tgt: &Target, color: Color) -> Self {
         let st = app.session.active();
         let slot = match tgt {
             Target::Paint(..) => None,
@@ -100,7 +100,7 @@ pub(crate) fn stored(cms: &Cms, hsb: [f32; 3], was: Option<&Color>, cmyk_doc: bo
 
 /// The color a pick replaces, which sets the model of the new one: the target's, or with Alt
 /// (`behind`) the inactive proxy's solid color. None for a tint of a global swatch.
-fn replaced(app: &VectorcraftApp, tgt: &Target, behind: bool) -> Option<Color> {
+fn replaced(app: &PlumaApp, tgt: &Target, behind: bool) -> Option<Color> {
     if !behind {
         return tgt.color().filter(|_| tgt.tint().is_none());
     }
@@ -114,7 +114,7 @@ fn replaced(app: &VectorcraftApp, tgt: &Target, behind: bool) -> Option<Color> {
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let tgt = wheel_target(app, ui);
     let color = tgt.color();
     let cms = cms::active();

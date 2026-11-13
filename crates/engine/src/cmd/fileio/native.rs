@@ -6,11 +6,11 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
+use pluma_color::cms;
+use pluma_doc::Document;
+use pluma_format::{PREVIEW_MAX, SaveOptions};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vectorcraft_color::cms;
-use vectorcraft_doc::Document;
-use vectorcraft_format::{PREVIEW_MAX, SaveOptions};
 
 use super::super::{EngineError, Result, bad};
 use super::{Format, FormatOption};
@@ -27,7 +27,7 @@ pub const OPTIONS: &[FormatOption] = &[
         name: "version",
         ty: "integer",
         default: "4",
-        description: "the format version to write: 4 (current), or 3, 2 or 1 for older VectorCraft versions (1 and 2 are never compressed; newer features they don't know are lost there)",
+        description: "the format version to write: 4 (current), or 3, 2 or 1 for older Pluma versions (1 and 2 are never compressed; newer features they don't know are lost there)",
     },
     FormatOption {
         name: "preview",
@@ -115,7 +115,7 @@ pub const AI_OPTIONS: &[FormatOption] = &[
         name: "aiVersion",
         ty: "string",
         default: "\"pdf\"",
-        description: "pdf (a PDF-compatible .ai carrying the VectorCraft document) or 7 (the legacy, PostScript-form .ai of version 7, which keeps layers, groups, compound paths and clipping groups in apps that read it; one file per artboard, transparent objects opaque; the other .ai options don't apply; an error for a .ait template)",
+        description: "pdf (a PDF-compatible .ai carrying the Pluma document) or 7 (the legacy, PostScript-form .ai of version 7, which keeps layers, groups, compound paths and clipping groups in apps that read it; one file per artboard, transparent objects opaque; the other .ai options don't apply; an error for a .ait template)",
     },
     FormatOption {
         name: "transparentImages",
@@ -162,7 +162,7 @@ pub(super) fn save_options(cmd: &str, f: &Format, doc: &Document, p: &Value) -> 
     // Pretty or compact is decided by [`encode_to`] on the document it writes.
     let mut so = SaveOptions {
         compress: o.compress.unwrap_or(false),
-        version: o.version.unwrap_or(vectorcraft_format::VERSION),
+        version: o.version.unwrap_or(pluma_format::VERSION),
         include_linked: o.include_linked,
         precision: o.precision.map(|v| precision(cmd, &v)).transpose()?,
         ..SaveOptions::default()
@@ -177,9 +177,9 @@ pub(super) fn save_options(cmd: &str, f: &Format, doc: &Document, p: &Value) -> 
 }
 
 /// The `precision` option `v`: a whole number of decimal places, 0 to
-/// [`vectorcraft_format::MAX_PRECISION`]. Any other value, a string included, gets the range message.
+/// [`pluma_format::MAX_PRECISION`]. Any other value, a string included, gets the range message.
 fn precision(cmd: &str, v: &Value) -> Result<u8> {
-    let (key, min, max) = ("precision", 0u8, vectorcraft_format::MAX_PRECISION);
+    let (key, min, max) = ("precision", 0u8, pluma_format::MAX_PRECISION);
     if let Some(x) = v.as_f64()
         && x.fract() == 0.0
         && (f64::from(min)..=f64::from(max)).contains(&x)
@@ -190,19 +190,19 @@ fn precision(cmd: &str, v: &Value) -> Result<u8> {
     Err(bad(cmd, format!("`{key}` must be a whole number between {min} and {max} (got {x})")))
 }
 
-/// The `.vectorcraft` file of `doc` with the options in `p`.
+/// The `.pluma` file of `doc` with the options in `p`.
 pub(super) fn encode(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     encode_to(cmd, f, doc, p, &mut out)?;
     Ok(out)
 }
 
-/// [`encode`], written to `w` as it is made ([`vectorcraft_format::save_to`]: give it a buffered
+/// [`encode`], written to `w` as it is made ([`pluma_format::save_to`]: give it a buffered
 /// writer).
 pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: impl std::io::Write) -> Result<()> {
     let (mut so, extras) = save_options(cmd, f, doc, p)?;
     // Include Linked Files keeps placed documents' files; older versions get their art.
-    let full = if so.include_linked || so.version < vectorcraft_format::VERSION {
+    let full = if so.include_linked || so.version < pluma_format::VERSION {
         crate::cmd::place::document::full_documents(doc).0
     } else {
         std::borrow::Cow::Borrowed(doc)
@@ -223,7 +223,7 @@ pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: imp
     }
     drop(drawn);
     let native = match full {
-        Cow::Owned(full) if so.include_linked && so.version >= vectorcraft_format::VERSION => {
+        Cow::Owned(full) if so.include_linked && so.version >= pluma_format::VERSION => {
             // Include available bytes without replacing missing, relinkable placed objects.
             let mut original = doc.clone();
             original.images = full.images;
@@ -232,25 +232,25 @@ pub(super) fn encode_to(cmd: &str, f: &Format, doc: &Document, p: &Value, w: imp
         other => other,
     };
     so.pretty = so.pretty_fits(&native);
-    vectorcraft_format::save_to(&native, &so, w).map_err(|e| bad(cmd, e.to_string()))
+    pluma_format::save_to(&native, &so, w).map_err(|e| bad(cmd, e.to_string()))
 }
 
-/// `doc` with its path geometry rounded to `decimals` places, as [`vectorcraft_format::save_to`]
+/// `doc` with its path geometry rounded to `decimals` places, as [`pluma_format::save_to`]
 /// writes it for `version`: placed documents become groups of their art for older versions.
 fn rounded(doc: &Document, version: u32, decimals: u8) -> Document {
-    let mut d = if version < vectorcraft_format::VERSION && doc.has_placed() {
+    let mut d = if version < pluma_format::VERSION && doc.has_placed() {
         let mut d = doc.with_placed_art().into_owned();
         d.placed_as_groups();
         d
     } else {
         doc.clone()
     };
-    d.round_geometry(decimals.min(vectorcraft_format::MAX_PRECISION));
+    d.round_geometry(decimals.min(pluma_format::MAX_PRECISION));
     d
 }
 
 /// The ICC files of the profiles `doc` is tagged with that were loaded from files (the built-in
-/// ones are there wherever VectorCraft runs).
+/// ones are there wherever Pluma runs).
 fn embedded_profiles(doc: &Document) -> BTreeMap<String, Vec<u8>> {
     [&doc.color_profiles.rgb, &doc.color_profiles.cmyk]
         .into_iter()
@@ -310,18 +310,18 @@ pub(super) fn ai_native(cmd: &str, doc: &Document, so: &SaveOptions) -> Result<V
     } else {
         Cow::Borrowed(doc)
     };
-    vectorcraft_format::save_with(&native, so).map_err(|e| bad(cmd, e.to_string()))
+    pluma_format::save_with(&native, so).map_err(|e| bad(cmd, e.to_string()))
 }
 
 /// The first artboard (else the art) as a PNG fitted into [`PREVIEW_MAX`] pixels (`None`: nothing
 /// to show).
 pub(crate) fn preview_png(doc: &Document) -> Result<Option<Vec<u8>>> {
-    let Some(r) = doc.artboards.first().map(|a| a.rect).or_else(|| vectorcraft_render::encode::art_bounds(doc)) else { return Ok(None) };
+    let Some(r) = doc.artboards.first().map(|a| a.rect).or_else(|| pluma_render::encode::art_bounds(doc)) else { return Ok(None) };
     let scale = f64::from(PREVIEW_MAX) / r.width().max(r.height());
-    if vectorcraft_render::raster_size(r, scale).is_err() {
+    if pluma_render::raster_size(r, scale).is_err() {
         return Ok(None);
     }
-    vectorcraft_render::Renderer::new().render_region(doc, r, scale, false).to_png().map(Some).map_err(EngineError::Other)
+    pluma_render::Renderer::new().render_region(doc, r, scale, false).to_png().map(Some).map_err(EngineError::Other)
 }
 
 /// `p` with `compress` from the Use Compression preference when it doesn't say (saves only;
@@ -331,7 +331,7 @@ pub fn with_compression_pref(prefs: &crate::Prefs, p: &Value) -> Value {
     if let Some(o) = q.as_object_mut()
         && o.get("compress").is_none_or(Value::is_null)
         // Older versions can't read compressed files: those saves stay plain.
-        && o.get("version").and_then(Value::as_u64).is_none_or(|v| v >= u64::from(vectorcraft_format::COMPRESSED_SINCE))
+        && o.get("version").and_then(Value::as_u64).is_none_or(|v| v >= u64::from(pluma_format::COMPRESSED_SINCE))
     {
         o.insert("compress".into(), Value::Bool(prefs.use_compression));
     }

@@ -2,10 +2,10 @@
 //! Auto-Smooth, as the Smooth slider help page describes
 //! (https://helpx.adobe.com/illustrator/desktop/draw-shapes-and-paths/modify-paths/refine-path-segments-with-the-smooth-slider.html).
 
+use pluma_doc::NodeKind;
+use pluma_geom::kurbo::ParamCurveNearest;
+use pluma_geom::{ParamCurve, PathData, Point};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_geom::kurbo::ParamCurveNearest;
-use vectorcraft_geom::{ParamCurve, PathData, Point};
 
 use crate::*;
 

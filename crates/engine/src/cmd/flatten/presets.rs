@@ -149,7 +149,7 @@ pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
     let bytes = match (str_param(p, "path"), str_param(p, "data"), str_param(p, "dataBase64")) {
         (Some(path), ..) => crate::cmd::fileio::read_file(path)?,
         (None, Some(text), _) => text.as_bytes().to_vec(),
-        (None, None, Some(b64)) => vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(C, "bad dataBase64"))?,
+        (None, None, Some(b64)) => pluma_format::base64_decode(b64).ok_or_else(|| bad(C, "bad dataBase64"))?,
         _ => return Err(bad(C, "give `path`, `data` or `dataBase64`")),
     };
     let file: PresetFile = serde_json::from_slice(&bytes).map_err(|e| bad(C, format!("not a flattener presets file: {e}")))?;

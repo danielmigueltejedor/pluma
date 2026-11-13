@@ -4,7 +4,7 @@
 //! naming each by a key ([`valid_name`]), never by a path; the host keeps them per plug-in id
 //! ([`Storage`], given with [`crate::registry::set_storage`]), so one plug-in can't reach another's.
 //!
-//! The caps are VectorCraft's own values: [`MAX_SETTINGS`] keys of at most [`MAX_SETTING_BYTES`]
+//! The caps are Pluma's own values: [`MAX_SETTINGS`] keys of at most [`MAX_SETTING_BYTES`]
 //! each in a settings file of at most [`MAX_SETTINGS_BYTES`], and cache entries of at most
 //! [`MAX_CACHE_ENTRY`] bytes, [`MAX_CACHE_BYTES`] and [`MAX_CACHE_ENTRIES`] in all. A write that
 //! would pass one fails with [`StorageError::Full`] and changes nothing.

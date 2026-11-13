@@ -26,7 +26,7 @@ nothing below L6 depends on a UI toolkit (egui, eframe, winit, rfd). Table: `xta
 | L4 | `tools` | tool state machines: pointer events in, commands and overlays out (Pen, Direct Selection, smart guides…) |
 | L5 | `engine` | sessions, history (unlimited undo by structural sharing), selection, the command registry (~710 commands), file I/O, the panic guard |
 | L6 | `ui-egui`, `mcp` | the egui front end (menus, panels, dialogs, canvas, i18n); the MCP server (JSON-RPC over stdio) |
-| L7 | `apps/vectorcraft`, `apps/vectorcraft-cli`, `apps/vectorcraft-web`, `xtask` | desktop app (eframe, wgpu), CLI (`run`, `convert`, `info`, `bench`, `perf`, `mcp`), browser runner (WebGPU, WebGL2 fallback), build tooling |
+| L7 | `apps/pluma`, `apps/pluma-cli`, `apps/pluma-web`, `xtask` | desktop app (eframe, wgpu), CLI (`run`, `convert`, `info`, `bench`, `perf`, `mcp`), browser runner (WebGPU, WebGL2 fallback), build tooling |
 
 `testkit` holds test helpers (fixtures, generators, render comparison) and is only a dev-dependency.
 
@@ -47,7 +47,7 @@ effects are rendered offscreen per object and cached while panning. See
 
 ## Files
 
-The native `.vectorcraft` format is versioned, compressed JSON with embedded images, saved atomically, readable
+The native `.pluma` format is versioned, compressed JSON with embedded images, saved atomically, readable
 down to v1 and from the old `.drawcraft` name. The `FORMATS` table in `crates/engine/src/cmd/fileio/formats.rs`
 lists every format read or written; importers are fuzzed (`crates/engine/tests/import_fuzz.rs`). See
 [file-format-parity.md](file-format-parity.md).
@@ -71,14 +71,14 @@ See [pdf-backend.md](pdf-backend.md).
   injection and screenshots ([control-protocol.md](control-protocol.md)). Synthetic gestures are validated
   before queue mutation; the pending input queue is capped, and control requests yield after a bounded
   batch per frame (#1709).
-- **MCP:** `vectorcraft-cli mcp`, attached to a running app or headless ([mcp.md](mcp.md)).
+- **MCP:** `pluma-cli mcp`, attached to a running app or headless ([mcp.md](mcp.md)).
 - **Sandboxing:** `--automation-read-root` / `--automation-write-root` confine what agents read and write.
 
 ## Robustness
 
 No panics in shipped code (workspace clippy lints ban `unwrap`, `expect`, `panic!` and friends outside tests);
-`vectorcraft_engine::guard` catches a panic at every entry point and rolls the document back; Data Recovery
-saves copies in the background. See [development.md](development.md#robustness-vectorcraft-never-crashes).
+`pluma_engine::guard` catches a panic at every entry point and rolls the document back; Data Recovery
+saves copies in the background. See [development.md](development.md#robustness-pluma-never-crashes).
 
 ## Corpus fetching
 

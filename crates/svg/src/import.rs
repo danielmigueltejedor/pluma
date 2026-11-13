@@ -5,13 +5,13 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use usvg::roxmltree;
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{
+use pluma_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{
     Appearance, AppearanceItem, Dash, Document, FillLayer, ForeignAttribute, ImageBlob, ImageObject, LayerColor, LineCap, LineJoin, MAX_SVG_SCRIPTS,
     Node, NodeId, NodeKind, PatternDef, SVG_EVENTS, StrokeLayer, Unit,
 };
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2, shapes};
+use pluma_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2, shapes};
+use usvg::roxmltree;
 
 use crate::export::Reuse;
 use crate::{ImportOptions, SvgError, fnv1a};
@@ -72,7 +72,7 @@ const SVG_NS: &str = "http://www.w3.org/2000/svg";
 /// passes the positivity guard — and the multiply overflows: a debug or overflow-checks build
 /// panics while opening the file. A release build wraps instead, and with a one-entry
 /// `kernelMatrix` the wrapped product passes usvg's length check, leaving a filter that claims a
-/// 2147483647×2147483647 kernel (which VectorCraft then drops as an unsupported filter primitive,
+/// 2147483647×2147483647 kernel (which Pluma then drops as an unsupported filter primitive,
 /// so nothing reaches the document). Any order usvg can multiply — however large — keeps
 /// importing exactly as before: a missing, unparseable or non-positive `order` falls back to 3,
 /// and a `kernelMatrix` that fails to parse or match the order leaves the filter empty, which
@@ -101,7 +101,7 @@ fn convolve_matrices_ok(xml: &roxmltree::Document) -> Result<(), SvgError> {
     Ok(())
 }
 
-/// The SVG filters of SVG text `svg` ([`vectorcraft_effects::svg_filter::filters_of`]), read with
+/// The SVG filters of SVG text `svg` ([`pluma_effects::svg_filter::filters_of`]), read with
 /// the limits on depth and entities that [`import`] reads documents with: up to `room`, leaving
 /// out the names `taken` says.
 pub(crate) fn svg_filters(svg: &str, room: usize, taken: impl Fn(&str) -> bool) -> Result<(Vec<(String, String)>, usize), SvgError> {
@@ -113,7 +113,7 @@ pub(crate) fn svg_filters(svg: &str, room: usize, taken: impl Fn(&str) -> bool) 
     if depth::height(&xml, depth::MAX_ELEMENT_DEPTH).is_none() {
         return Err(too_deep());
     }
-    Ok(vectorcraft_effects::svg_filter::filters_of(&xml, svg, room, taken))
+    Ok(pluma_effects::svg_filter::filters_of(&xml, svg, room, taken))
 }
 
 /// The document SVG text `svg` holds, read with `opts`, and the warnings about what it couldn't keep.
@@ -259,7 +259,7 @@ pub(crate) fn import(svg: &str, opts: &ImportOptions, max_nodes: usize) -> Resul
             let Some(id) = im.alloc_id() else {
                 return Err(im.error.unwrap_or(SvgError::TooLarge(im.max_nodes)));
             };
-            let preset = (im.doc.layers.len() % vectorcraft_doc::LAYER_COLORS.len()) as u8;
+            let preset = (im.doc.layers.len() % pluma_doc::LAYER_COLORS.len()) as u8;
             let mut l = Node::layer(id, &name, LayerColor::Preset(preset));
             l.set_clips(clip);
             if let Some(ch) = l.children_mut() {

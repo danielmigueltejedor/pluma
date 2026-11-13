@@ -202,7 +202,7 @@ impl Default for RenderOptions {
             skip_templates: false,
             hide_templates: false,
             hide_guides: false,
-            tile_edge: vectorcraft_doc::LAYER_COLORS[0].1,
+            tile_edge: pluma_doc::LAYER_COLORS[0].1,
             guide: ([0x4a, 0xd8, 0xff], false),
             mask_view: None,
             highlight_substitutions: false,

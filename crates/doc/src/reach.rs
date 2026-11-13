@@ -2,10 +2,10 @@
 //! visual bounds and the clicks of a stroke take in its alignment, its width profile, miter spikes
 //! up to the miter limit, projecting caps and arrowheads. Butt caps end at the path's end points.
 
-use vectorcraft_geom::bez::{CORNER_COS, has_length, kink, segments, subpaths, tangent, unit};
-use vectorcraft_geom::hit::fill_contains;
-use vectorcraft_geom::kurbo::{ParamCurveArclen, ParamCurveExtrema, ParamCurveNearest};
-use vectorcraft_geom::{BezPath, FillRule, ParamCurve, PathSeg, Point, Rect, Shape, Vec2};
+use pluma_geom::bez::{CORNER_COS, has_length, kink, segments, subpaths, tangent, unit};
+use pluma_geom::hit::fill_contains;
+use pluma_geom::kurbo::{ParamCurveArclen, ParamCurveExtrema, ParamCurveNearest};
+use pluma_geom::{BezPath, FillRule, ParamCurve, PathSeg, Point, Rect, Shape, Vec2};
 
 use crate::{Appearance, ArrowAlign, Dash, LineCap, LineJoin, StrokeAlign, StrokeLayer, WidthProfile};
 
@@ -14,7 +14,7 @@ const ARCLEN_ACCURACY: f64 = 1e-3;
 
 /// The segments of a subpath that have length (zero-length ones, all of whose points coincide,
 /// have no direction).
-fn drawn(els: &[vectorcraft_geom::PathEl]) -> Vec<PathSeg> {
+fn drawn(els: &[pluma_geom::PathEl]) -> Vec<PathSeg> {
     segments(els).into_iter().filter(has_length).collect()
 }
 
@@ -262,7 +262,7 @@ impl StrokeLayer {
                 continue;
             }
             if !even_only {
-                even = vectorcraft_geom::union_opt(even, segs.iter().map(ParamCurveExtrema::bounding_box).reduce(|a, b| a.union(b)));
+                even = pluma_geom::union_opt(even, segs.iter().map(ParamCurveExtrema::bounding_box).reduce(|a, b| a.union(b)));
             }
             if square {
                 for (at, dir) in ends(&segs).into_iter().flatten() {
@@ -437,7 +437,7 @@ impl Appearance {
     /// a segment that starts or ends at a slant, not square to the axes, once placed by `a`? The
     /// visual box's margin at the stroke's corners there depends on their direction, which a scale
     /// out of proportion changes.
-    pub fn has_slanted_butt_stroke(&self, bp: &BezPath, a: vectorcraft_geom::Affine) -> bool {
+    pub fn has_slanted_butt_stroke(&self, bp: &BezPath, a: pluma_geom::Affine) -> bool {
         if !self.has_butt_stroke() {
             return false;
         }
@@ -468,12 +468,12 @@ impl crate::Node {
     /// symbol instance's art from `symbols`, placed by `a`, run along an open path with a segment
     /// at a slant ([`Appearance::has_slanted_butt_stroke`])? Past [`SLANT_INSTANCES`] instances it
     /// answers yes.
-    pub fn has_slanted_butt_stroke(&self, symbols: &crate::SymbolBoxes, a: vectorcraft_geom::Affine) -> bool {
+    pub fn has_slanted_butt_stroke(&self, symbols: &crate::SymbolBoxes, a: pluma_geom::Affine) -> bool {
         self.slanted_butt(symbols, a, &std::cell::Cell::new(SLANT_INSTANCES))
     }
 
     /// [`Self::has_slanted_butt_stroke`] with `left` instances still to look into.
-    fn slanted_butt(&self, symbols: &crate::SymbolBoxes, a: vectorcraft_geom::Affine, left: &std::cell::Cell<usize>) -> bool {
+    fn slanted_butt(&self, symbols: &crate::SymbolBoxes, a: pluma_geom::Affine, left: &std::cell::Cell<usize>) -> bool {
         if let crate::NodeKind::SymbolInstance { symbol, xf } = &self.kind {
             let Some(l) = left.get().checked_sub(1) else { return true };
             left.set(l);
@@ -486,8 +486,8 @@ impl crate::Node {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_geom::{PathData, shapes};
+    use pluma_color::{Color, Paint};
+    use pluma_geom::{PathData, shapes};
 
     use super::*;
     use crate::{Arrowhead, Document, Node, StrokeAlign, hit};
@@ -681,14 +681,14 @@ mod tests {
     fn a_butt_stroke_is_slanted_where_a_segment_starts_or_ends_at_a_slant() {
         let mut ap = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 2.0);
         ap.stroke_mut().unwrap().cap = LineCap::Butt;
-        let id = vectorcraft_geom::Affine::IDENTITY;
+        let id = pluma_geom::Affine::IDENTITY;
         assert!(!ap.has_slanted_butt_stroke(&polyline(&[(0.0, 0.0), (0.0, 50.0), (30.0, 50.0)]), id));
         // Square ends, slanted segments in the middle.
         let apex = polyline(&[(0.0, 50.0), (0.0, 40.0), (10.0, 0.0), (20.0, 40.0), (20.0, 50.0)]);
         assert!(ap.has_slanted_butt_stroke(&apex, id));
         // A rotation slants a vertical line; a round cap is never slanted.
         let v = polyline(&[(0.0, 0.0), (0.0, 50.0)]);
-        assert!(ap.has_slanted_butt_stroke(&v, vectorcraft_geom::Affine::rotate(0.3)));
+        assert!(ap.has_slanted_butt_stroke(&v, pluma_geom::Affine::rotate(0.3)));
         ap.stroke_mut().unwrap().cap = LineCap::Round;
         assert!(!ap.has_slanted_butt_stroke(&apex, id));
     }
@@ -705,20 +705,20 @@ mod tests {
         d.symbols.push(crate::Symbol { dynamic: false, name: "S0".into(), art: std::sync::Arc::new(line) });
         for k in 1..=12 {
             let mut instance = |dx: f64| {
-                let xf = vectorcraft_geom::Affine::translate((dx, 0.0));
+                let xf = pluma_geom::Affine::translate((dx, 0.0));
                 std::sync::Arc::new(Node::new(d.alloc_id(), crate::NodeKind::SymbolInstance { symbol: format!("S{}", k - 1), xf }))
             };
             let pair = vec![instance(0.0), instance(20.0)];
             let art = Node::group(d.alloc_id(), pair);
             d.symbols.push(crate::Symbol { dynamic: false, name: format!("S{k}"), art: std::sync::Arc::new(art) });
         }
-        let top = Node::new(d.alloc_id(), crate::NodeKind::SymbolInstance { symbol: "S12".into(), xf: vectorcraft_geom::Affine::IDENTITY });
+        let top = Node::new(d.alloc_id(), crate::NodeKind::SymbolInstance { symbol: "S12".into(), xf: pluma_geom::Affine::IDENTITY });
         let symbols = d.symbol_boxes();
-        assert!(top.has_slanted_butt_stroke(&symbols, vectorcraft_geom::Affine::IDENTITY));
+        assert!(top.has_slanted_butt_stroke(&symbols, pluma_geom::Affine::IDENTITY));
         assert!(symbols.art_measured() <= SLANT_INSTANCES, "{}", symbols.art_measured());
         // One instance of S1 holds three instances, all looked into.
-        let one = Node::new(d.alloc_id(), crate::NodeKind::SymbolInstance { symbol: "S1".into(), xf: vectorcraft_geom::Affine::IDENTITY });
-        assert!(!one.has_slanted_butt_stroke(&d.symbol_boxes(), vectorcraft_geom::Affine::IDENTITY));
+        let one = Node::new(d.alloc_id(), crate::NodeKind::SymbolInstance { symbol: "S1".into(), xf: pluma_geom::Affine::IDENTITY });
+        assert!(!one.has_slanted_butt_stroke(&d.symbol_boxes(), pluma_geom::Affine::IDENTITY));
     }
 
     #[test]

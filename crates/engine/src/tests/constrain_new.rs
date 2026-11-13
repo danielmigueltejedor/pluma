@@ -3,10 +3,10 @@
 //! size dialogs, and the Line Segment tool's Shift steps. 0° and whole turns draw exactly as
 //! before; quarter turns are exact.
 
+use pluma_doc::{LiveShape, NodeKind, TextKind};
+use pluma_geom::{PathData, Point, Rect};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveShape, NodeKind, TextKind};
-use vectorcraft_geom::{PathData, Point, Rect};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 

@@ -57,17 +57,17 @@ impl Renderer {
     /// ([`depends_on_document`]), and art that the cache has no room for. Art that holds type is
     /// placed again when the fonts change.
     pub(super) fn placed_art(&mut self, art: &Arc<Node>, xf: Affine, scale_strokes: bool, inst: Option<&Node>) -> (Arc<Node>, bool) {
-        let kept_kind = matches!(art.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) || vectorcraft_doc::live::is_live(art);
+        let kept_kind = matches!(art.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) || pluma_doc::live::is_live(art);
         // An instance with appearance changes of its own isn't kept: the key doesn't tell them apart.
         let overridden = inst.is_some_and(|i| !i.extras().symbol_overrides.is_empty());
         if !kept_kind || overridden || fx::has_object_fx(art) {
             return (place(art, xf, scale_strokes, inst), false);
         }
-        let stain = stain_bits(inst.and_then(vectorcraft_brush::stain));
+        let stain = stain_bits(inst.and_then(pluma_brush::stain));
         let key = (Arc::as_ptr(art) as usize, xf.as_coeffs().map(f64::to_bits), scale_strokes, stain);
         if let Some(e) = self.placed_arts.get(&key, self.stamp)
             && std::ptr::eq(e.art.as_ptr(), Arc::as_ptr(art))
-            && e.fonts.is_none_or(|g| g == vectorcraft_text::FontDb::global().generation())
+            && e.fonts.is_none_or(|g| g == pluma_text::FontDb::global().generation())
             && e.slice.is_none()
         {
             return match &e.placed {
@@ -81,24 +81,24 @@ impl Renderer {
     }
 
     /// Symbol art `art` placed for instance `inst` (placed by `xf`) through 9-slice map `map`
-    /// ([`vectorcraft_doc::NineSliceMap::place`], stained by the instance), and whether it is kept,
-    /// when the frame's symbol budget (`used`, see [`vectorcraft_doc::charge_symbol_art`]) has room
+    /// ([`pluma_doc::NineSliceMap::place`], stained by the instance), and whether it is kept,
+    /// when the frame's symbol budget (`used`, see [`pluma_doc::charge_symbol_art`]) has room
     /// for it. The art is kept between frames as [`Self::placed_art`] keeps it, under the same key
     /// and only with the same map. Kept art is charged by its own object count, the art of its
     /// opacity masks included ([`Node::count_with_masks`]), and is not placed
-    /// again; other art is charged by [`vectorcraft_doc::NineSliceMap::most_placed`] before it is
+    /// again; other art is charged by [`pluma_doc::NineSliceMap::most_placed`] before it is
     /// placed.
     pub(super) fn sliced_art(
         &mut self,
-        doc: &vectorcraft_doc::Document,
+        doc: &pluma_doc::Document,
         art: &Arc<Node>,
-        map: &vectorcraft_doc::NineSliceMap,
+        map: &pluma_doc::NineSliceMap,
         xf: Affine,
         inst: &Node,
         used: &mut u64,
     ) -> Option<(Arc<Node>, bool)> {
-        let kept_kind = matches!(art.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) || vectorcraft_doc::live::is_live(art);
-        let stain = stain_bits(vectorcraft_brush::stain(inst));
+        let kept_kind = matches!(art.kind, NodeKind::Group { .. } | NodeKind::Layer { .. }) || pluma_doc::live::is_live(art);
+        let stain = stain_bits(pluma_brush::stain(inst));
         let key = (Arc::as_ptr(art) as usize, xf.as_coeffs().map(f64::to_bits), false, stain);
         // As in `placed_art`, an instance with appearance changes of its own isn't kept.
         let overridden = !inst.extras().symbol_overrides.is_empty();
@@ -106,20 +106,20 @@ impl Renderer {
         if keeps
             && let Some(e) = self.placed_arts.get(&key, self.stamp)
             && std::ptr::eq(e.art.as_ptr(), Arc::as_ptr(art))
-            && e.fonts.is_none_or(|g| g == vectorcraft_text::FontDb::global().generation())
+            && e.fonts.is_none_or(|g| g == pluma_text::FontDb::global().generation())
             && e.slice.as_ref() == Some(map)
         {
             match e.placed.clone() {
                 Some(placed) => {
                     let count = placed.count_with_masks() as u64;
-                    return vectorcraft_doc::charge_symbol_art(used, count, || ((placed, true), count));
+                    return pluma_doc::charge_symbol_art(used, count, || ((placed, true), count));
                 }
                 None => keeps = false,
             }
         }
         let stained = crate::brush_fx::instance_art(art, inst);
         let most = map.most_placed(&stained, doc);
-        let placed = vectorcraft_doc::charge_symbol_art(used, most, || {
+        let placed = pluma_doc::charge_symbol_art(used, most, || {
             let placed = Arc::new(map.place(&stained, doc));
             let count = placed.count_with_masks() as u64;
             (placed, count)
@@ -131,10 +131,10 @@ impl Renderer {
     /// Keep `placed`, symbol art `art` as placed under `key` (through 9-slice map `slice`, when it
     /// has one), unless `art` depends on the document ([`depends_on_document`]): then the entry
     /// records that it is placed again in every frame. Whether `placed` is kept.
-    fn keep_placed(&mut self, key: PlacedKey, art: &Arc<Node>, placed: &Arc<Node>, slice: Option<vectorcraft_doc::NineSliceMap>) -> bool {
+    fn keep_placed(&mut self, key: PlacedKey, art: &Arc<Node>, placed: &Arc<Node>, slice: Option<pluma_doc::NineSliceMap>) -> bool {
         let kept = (!depends_on_document(art)).then(|| placed.clone());
         let keeps = kept.is_some();
-        let fonts = (keeps && holds_type(art)).then(|| vectorcraft_text::FontDb::global().generation());
+        let fonts = (keeps && holds_type(art)).then(|| pluma_text::FontDb::global().generation());
         // The bytes count the key and the entry, the art's allocation that the weak reference
         // keeps, and the kept art.
         let bytes = size_of::<(PlacedKey, PlacedEntry, Node)>() + kept.as_deref().map_or(0, lru::node_bytes);
@@ -150,7 +150,7 @@ impl Renderer {
         if !matches!(&a.kind, NodeKind::Text(own) if std::ptr::eq(&**own, t)) {
             return (Arc::new(text_geom(t)), false);
         }
-        let fonts = vectorcraft_text::FontDb::global().generation();
+        let fonts = pluma_text::FontDb::global().generation();
         if fonts != self.text_fonts {
             self.texts.clear();
             self.text_ids.clear();
@@ -233,7 +233,7 @@ impl Renderer {
         let overprints = proof::overprints(f.opts);
         let overprint = |ctx: &mut RenderContext, on: bool| {
             if overprints {
-                ctx.set_blend_mode(if on { blend_mode(vectorcraft_color::BlendMode::Darken) } else { BlendMode::default() });
+                ctx.set_blend_mode(if on { blend_mode(pluma_color::BlendMode::Darken) } else { BlendMode::default() });
             }
         };
         // The object's own fills and strokes paint the whole outline: those below the Characters
@@ -330,7 +330,7 @@ impl Renderer {
         if proof::overprints(f.opts) && t.runs.iter().any(|r| r.style.overprint_fill || r.style.overprint_stroke) {
             return false;
         }
-        let normal = vectorcraft_color::BlendMode::Normal;
+        let normal = pluma_color::BlendMode::Normal;
         let brush = |i: &AppearanceItem| matches!(i, AppearanceItem::Stroke(st) if st.brush.is_some());
         if t.runs.iter().any(|r| r.inline.is_some()) || n.appearance.items.iter().any(|i| i.visible() && (i.blend() != normal || brush(i))) {
             return false;
@@ -459,9 +459,9 @@ impl Renderer {
         if t.anti_alias == TypeAntiAlias::None {
             return draw(self, frame, n, &sharp);
         }
-        let black = |p: &mut vectorcraft_color::Paint| {
+        let black = |p: &mut pluma_color::Paint| {
             if !p.is_none() {
-                *p = vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK);
+                *p = pluma_color::Paint::solid(pluma_color::Color::BLACK);
             }
         };
         // A group of paints drawn on its own, its pixels taking the method from its own coverage,
@@ -532,7 +532,7 @@ impl Renderer {
         for item in items.iter().filter(|i| i.visible() && !i.paint().is_none()) {
             match item {
                 AppearanceItem::Fill(fl) => {
-                    let layered = fl.opacity < 1.0 || fl.blend != vectorcraft_color::BlendMode::Normal;
+                    let layered = fl.opacity < 1.0 || fl.blend != pluma_color::BlendMode::Normal;
                     if layered {
                         ctx.set_transform(Affine::IDENTITY);
                         ctx.push_layer(None, Some(blend_mode(fl.blend)), Some(fl.opacity), None, None);
@@ -567,7 +567,7 @@ impl Renderer {
 
     /// Draw colour bitmap glyph `image` through `xf` (its pixels → document space), its pixels
     /// decoded once and kept with the images' pixels.
-    fn draw_glyph_image(&mut self, ctx: &mut RenderContext, f: &Frame, image: &vectorcraft_text::GlyphImage, xf: Affine) {
+    fn draw_glyph_image(&mut self, ctx: &mut RenderContext, f: &Frame, image: &pluma_text::GlyphImage, xf: Affine) {
         let Some((key, pm)) = blob_pixmap(&image.blob, true) else { return };
         // Shrunk before it is inked, as images are (`draw_image_in`).
         let unit = f.view * xf * Affine::scale_non_uniform(image.width as f64, image.height as f64);
@@ -666,7 +666,7 @@ fn type_paints(n: &Node, t: &TextObject, g: &TextGeom, opaque: bool) -> Option<V
         let fill = (!run.style.fill.is_none()).then_some((TypePaint::Fill(i), &run.style.fill));
         let stroke = run.style.has_stroke().then_some((TypePaint::Stroke(i), &run.style.stroke));
         for (p, paint) in [fill, stroke].into_iter().flatten() {
-            let solid = opaque && matches!(paint, vectorcraft_color::Paint::Solid { .. });
+            let solid = opaque && matches!(paint, pluma_color::Paint::Solid { .. });
             // A run's fill and stroke overlap along every outline, so they never share a group.
             let own_fill = matches!(p, TypePaint::Stroke(_)) && groups.last().is_some_and(|last| last.contains(&TypePaint::Fill(i)));
             match groups.last_mut() {
@@ -686,15 +686,15 @@ fn type_paint_only(n: &Node, t: &TextObject, keep: &[TypePaint]) -> (Node, TextO
     let (mut n, mut t) = (n.clone(), t.clone());
     for (j, item) in n.appearance.items.iter_mut().enumerate() {
         if !keep.contains(&TypePaint::Item(j)) {
-            *item.paint_mut() = vectorcraft_color::Paint::None;
+            *item.paint_mut() = pluma_color::Paint::None;
         }
     }
     for (i, run) in t.runs.iter_mut().enumerate() {
         if !keep.contains(&TypePaint::Fill(i)) {
-            run.style.fill = vectorcraft_color::Paint::None;
+            run.style.fill = pluma_color::Paint::None;
         }
         if !keep.contains(&TypePaint::Stroke(i)) {
-            run.style.stroke = vectorcraft_color::Paint::None;
+            run.style.stroke = pluma_color::Paint::None;
         }
     }
     (n, t)

@@ -15,7 +15,7 @@
   timestamp server, ...). Optional overrides: WINDOWS_TIMESTAMP_URL, SIGNTOOL (path to signtool.exe).
 
 .EXAMPLE
-  pwsh packaging/windows/sign.ps1 dist/vectorcraft.exe dist/Vectorcraft.msi
+  pwsh packaging/windows/sign.ps1 dist/pluma.exe dist/Pluma.msi
 #>
 param(
   [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
@@ -55,8 +55,8 @@ if (-not $haveCert -and -not $haveAzure) {
 }
 
 $script:SignTool = Find-SignTool
-$common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'VectorCraft', '/du', 'https://github.com/storytold/vectorcraft')
-$tmp = Join-Path ([IO.Path]::GetTempPath()) "vectorcraft-sign-$([IO.Path]::GetRandomFileName())"
+$common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'Pluma', '/du', 'https://github.com/getnodalia/pluma')
+$tmp = Join-Path ([IO.Path]::GetTempPath()) "pluma-sign-$([IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
 try {

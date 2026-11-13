@@ -9,11 +9,11 @@
 
 use std::path::PathBuf;
 
+use pluma_engine::cmd::fileio;
+use pluma_engine::{EngineError, Session};
+use pluma_plugins::wat::{self as tpl, Given};
+use pluma_plugins::{Limits, Plugin};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_engine::{EngineError, Session};
-use vectorcraft_plugins::wat::{self as tpl, Given};
-use vectorcraft_plugins::{Limits, Plugin};
 
 /// An importer's output: one red rectangle from (10, 20) to (110, 70) and a warning.
 const RECT: &str = r#"{"objects":[{"type":"path","name":"Box","path":{"subpaths":[{"closed":true,"anchors":[{"p":[10,20]},{"p":[110,20]},{"p":[110,70]},{"p":[10,70]}]}]},"fills":[{"type":"solid","color":{"model":"rgb","r":1,"g":0,"b":0}}]}],"warnings":["2 layers merged"]}"#;
@@ -27,7 +27,7 @@ const SPINS: &str = "(loop $l (br $l)) (i64.const 0)";
 /// Installs the plug-in written in WAT `src` → its `plugin.list` entry.
 fn install(s: &mut Session, src: &str) -> Value {
     let wasm = wat::parse_str(src).unwrap_or_else(|e| panic!("bad test WAT: {e}"));
-    s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap()
+    s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap()
 }
 
 /// An importer `id` reading `extensions` (a JSON list) whose objects are the file it is given.
@@ -37,7 +37,7 @@ fn echo(s: &mut Session, id: &str, extensions: &str) -> Value {
 
 /// `document.open` of a file `name` holding `bytes`, with more params `extra`.
 fn open(s: &mut Session, name: &str, bytes: &[u8], extra: Value) -> Result<Value, EngineError> {
-    let mut p = json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)});
+    let mut p = json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)});
     if let (Some(p), Some(extra)) = (p.as_object_mut(), extra.as_object()) {
         p.extend(extra.clone());
     }
@@ -199,7 +199,7 @@ fn file_open_lists_only_the_extensions_it_opens_with_an_importer() {
     let filters: Vec<_> = fileio::open_filters().collect();
     assert!(filters.contains(&("Test test.claimed", &["tcl"][..])), "{filters:?}");
     assert!(!filters.iter().any(|(label, _)| *label == "Test test.claimedonly"), "{filters:?}");
-    assert!(filters.contains(&("Composite fonts", vectorcraft_engine::cmd::compositefonts::EXTS)), "{filters:?}");
+    assert!(filters.contains(&("Composite fonts", pluma_engine::cmd::compositefonts::EXTS)), "{filters:?}");
     s.execute("plugin.remove", &json!({"id": "test.claimed"})).unwrap();
     s.execute("plugin.remove", &json!({"id": "test.claimedonly"})).unwrap();
 }
@@ -253,7 +253,7 @@ fn the_importer_is_given_its_parameters_and_the_file_s_name() {
     for (i, needle) in needles.into_iter().enumerate() {
         // RECT when the parameters hold the needle; the file, which isn't JSON, otherwise.
         let wasm = wat::parse_str(tpl::when_given(&tpl::importer("test.params", r#"["tsc"]"#, params), Given::Params, needle, RECT)).unwrap();
-        s.execute("plugin.install", &json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "replace": i > 0})).unwrap();
+        s.execute("plugin.install", &json!({"dataBase64": pluma_format::base64_encode(&wasm), "replace": i > 0})).unwrap();
         let r = open(&mut s, "Shapes.tsc", b"not json", json!({"params": {"density": 12}}));
         assert_eq!(r.map(|r| r["format"].clone()).map_err(|e| e.to_string()), Ok(json!("plugin.test.params")), "{needle}");
     }
@@ -294,9 +294,9 @@ fn failures_open_nothing() {
         assert!(open(&mut s, "x.tsf", b"?", json!({"importer": format!("plugin.{id}")})).is_err(), "{id}");
         assert_eq!(state(&mut s), before, "{id}");
     }
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || open(&mut s, "x.tsf", b"?", json!({"importer": "plugin.test.fail.spins"})));
+    let r = pluma_doc::cancel::scope(&token, None, || open(&mut s, "x.tsf", b"?", json!({"importer": "plugin.test.fail.spins"})));
     assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
     assert_eq!(state(&mut s), before, "canceled");
 }
@@ -307,9 +307,9 @@ fn failures_open_nothing() {
 fn a_canceled_open_stops_the_importer() {
     let mut s = Session::new();
     install(&mut s, &tpl::module(&tpl::importer("test.spins", r#"["tss"]"#, "{}"), SPINS, "", 1));
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || open(&mut s, "x.tss", b"?", json!({})));
+    let r = pluma_doc::cancel::scope(&token, None, || open(&mut s, "x.tss", b"?", json!({})));
     assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
     assert!(s.documents().is_empty());
 }
@@ -326,7 +326,7 @@ fn an_importer_past_its_budget_opens_nothing() {
     ];
     for (id, limits, _) in &cases {
         let wasm = wat::parse_str(tpl::module(&tpl::importer(id, r#"["tbg"]"#, "{}"), SPINS, "", 1)).unwrap();
-        vectorcraft_plugins::registry::install(Plugin::load(&wasm, limits.clone()).unwrap());
+        pluma_plugins::registry::install(Plugin::load(&wasm, limits.clone()).unwrap());
     }
     let mut s = Session::new();
     for (id, _, why) in &cases {
@@ -341,7 +341,7 @@ fn an_importer_past_its_budget_opens_nothing() {
         assert_eq!(state(&mut s), before, "{id}");
     }
     for (id, _, _) in &cases {
-        vectorcraft_plugins::registry::remove(id);
+        pluma_plugins::registry::remove(id);
     }
 }
 
@@ -353,7 +353,7 @@ fn a_file_past_the_input_limit_is_refused() {
     let mut s = Session::new();
     echo(&mut s, "test.large", r#"["tsb"]"#);
     let path = dir.join("big.tsb");
-    let max = vectorcraft_plugins::import::MAX_INPUT_BYTES;
+    let max = pluma_plugins::import::MAX_INPUT_BYTES;
     std::fs::File::create(&path).unwrap().set_len(max as u64 + 1).unwrap();
     let e = s.execute("document.open", &json!({"path": path_of(&path)})).unwrap_err();
     assert!(e.to_string().contains("larger than"), "{e}");
@@ -395,15 +395,15 @@ fn a_built_in_file_past_the_input_limit_still_opens() {
     let mut png = std::io::Cursor::new(vec![]);
     image::RgbaImage::new(2, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
     std::fs::write(&path, png.get_ref()).unwrap();
-    std::fs::OpenOptions::new().write(true).open(&path).unwrap().set_len(vectorcraft_plugins::import::MAX_INPUT_BYTES as u64 + 1).unwrap();
+    std::fs::OpenOptions::new().write(true).open(&path).unwrap().set_len(pluma_plugins::import::MAX_INPUT_BYTES as u64 + 1).unwrap();
     let e = s.execute("document.open", &json!({"path": path_of(&path), "importer": "plugin.test.largepng"})).unwrap_err();
     assert!(e.to_string().contains("larger than"), "{e}");
     assert!(s.documents().is_empty());
     let r = s.execute("document.open", &json!({"path": path_of(&path)})).unwrap();
     assert_eq!(r["format"], "png");
     let mut data = png.into_inner();
-    data.resize((vectorcraft_plugins::import::MAX_INPUT_BYTES + 3) / 3 * 3, 0);
-    let encoded = json!({"name": "big.tsp", "dataBase64": vectorcraft_format::base64_encode(&data)});
+    data.resize((pluma_plugins::import::MAX_INPUT_BYTES + 3) / 3 * 3, 0);
+    let encoded = json!({"name": "big.tsp", "dataBase64": pluma_format::base64_encode(&data)});
     assert_eq!(s.execute("document.open", &encoded).unwrap()["format"], "png");
     let _ = std::fs::remove_dir_all(&dir);
 }

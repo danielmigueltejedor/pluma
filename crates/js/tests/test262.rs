@@ -1,5 +1,5 @@
 //! The ES5 parse subset of test262, the ECMAScript conformance suite, when `cargo xtask test262`
-//! has fetched it (it sets `VECTORCRAFT_TEST262_DIR`; without it the test looks in
+//! has fetched it (it sets `PLUMA_TEST262_DIR`; without it the test looks in
 //! `corpus/test262/` and skips when the suite is absent).
 //!
 //! The subset is every test under `test/language/` that names the ES5 section it was written for
@@ -31,7 +31,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use vectorcraft_js::{JsValue, Limits, Options, Realm, RunErrorKind, TokenKind, parse, tokenize};
+use pluma_js::{JsValue, Limits, Options, Realm, RunErrorKind, TokenKind, parse, tokenize};
 
 /// A test file's metadata, from its `/*--- … ---*/` block.
 #[derive(Default)]
@@ -47,7 +47,7 @@ struct Meta {
 }
 
 fn suite_dir() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("VECTORCRAFT_TEST262_DIR") {
+    if let Ok(dir) = std::env::var("PLUMA_TEST262_DIR") {
         return Some(PathBuf::from(dir));
     }
     let corpus = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus/test262");
@@ -131,8 +131,8 @@ fn es5_parse_subset() {
     assert!(language.is_dir(), "{} is not a test262 checkout", dir.display());
     let files = test_files(&language);
     assert!(!files.is_empty(), "no tests under {}", language.display());
-    // VECTORCRAFT_TEST262_VERBOSE=1 prints each test before it is parsed.
-    let verbose = std::env::var_os("VECTORCRAFT_TEST262_VERBOSE").is_some();
+    // PLUMA_TEST262_VERBOSE=1 prints each test before it is parsed.
+    let verbose = std::env::var_os("PLUMA_TEST262_VERBOSE").is_some();
 
     let (mut positive, mut negative, mut with_features, mut modules) = (0usize, 0usize, 0usize, 0usize);
     let (mut passed, mut failed) = (0usize, 0usize);
@@ -417,7 +417,7 @@ fn run_tests(dir: &Path, root: &Path, missing: &HashSet<&str>, later: bool) -> (
         String::from_utf8_lossy(&bytes.unwrap_or_default()).into_owned()
     };
     let prelude = format!("{}\n{}\n", read(&harness_dir.join("assert.js")), read(&harness_dir.join("sta.js")));
-    let verbose = std::env::var_os("VECTORCRAFT_TEST262_VERBOSE").is_some();
+    let verbose = std::env::var_os("PLUMA_TEST262_VERBOSE").is_some();
     let (mut es5_counts, mut later_counts) = (RunCounts::default(), RunCounts::default());
     for path in test_files(root) {
         let source = read(&path);

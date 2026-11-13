@@ -1,7 +1,7 @@
 # Dutch (nl) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms)
 #
-# Clean-room: written from the meaning of VectorCraft's English labels in neutral, international
+# Clean-room: written from the meaning of Pluma's English labels in neutral, international
 # Dutch, using the feature names Dutch speakers of vector illustration software know. No other
 # localisation was copied. Labels use sentence case (only the first word capitalised).
 	New Design	Nieuw ontwerp
@@ -9,17 +9,16 @@
 	Paste Design	Ontwerp plakken
 	Select Unused	Ongebruikte selecteren
 	Glowing Edges…	Gloeiende randen…
-	About VectorCraft	Over VectorCraft
+	About Pluma	Over Pluma
 	Align to Path	Uitlijnen op pad
 	Cut Path at Selected Anchor Points	Pad knippen op geselecteerde ankerpunten
-	Join Our Discord	Word lid van onze Discord
 	Language	Taal
 	UI Brightness	UI-helderheid
 	Dark	Donker
 	Medium Dark	Gemiddeld donker
 	Medium Light	Gemiddeld licht
 	Light	Licht
-	Quit VectorCraft	VectorCraft afsluiten
+	Quit Pluma	Pluma afsluiten
 # Artwork drag between document tabs.
 	Drop Artwork	Illustratie neerzetten
 @msg	{key} must be [x, y] with finite coordinates	{key} moet [x, y] met eindige coördinaten zijn
@@ -108,7 +107,7 @@
 	Keyboard Shortcuts…	Sneltoetsen…
 	Import Shortcut Set	Sneltoetsenset importeren
 	Import Shortcut Set…	Sneltoetsenset importeren…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Elk item in het bestand is gekoppeld aan een VectorCraft-gereedschap, -opdracht of -paneel. Controleer de overeenkomsten en geef aan wat er overblijft.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Elk item in het bestand is gekoppeld aan een Pluma-gereedschap, -opdracht of -paneel. Controleer de overeenkomsten en geef aan wat er overblijft.
 	Keys	Toetsen
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	In het bestand worden toetsen en modificatietoetsen als codes geschreven. Controleer de voorgestelde betekenissen en geef aan welke codes nog niet bekend zijn.
 	Click, then press the key this code stands for (Esc cancels)	Klik en druk vervolgens op de toets waar deze code voor staat (Esc annuleert)
@@ -118,7 +117,7 @@
 	not known yet	nog niet bekend
 	Shortcuts	Sneltoetsen
 	In the File	In het bestand
-	In VectorCraft	In VectorCraft
+	In Pluma	In Pluma
 	Needs Attention Only	Alleen aandacht vereist
 	Ready	Klaar
 	Needs a choice	Keuze vereist
@@ -127,7 +126,7 @@
 	Tools take a single key (optionally with Shift)	Gereedschappen gebruiken één toets (eventueel met Shift)
 	A later row takes this shortcut	Een latere rij gebruikt deze sneltoets
 	Same item as a later row	Zelfde item als een latere rij
-	Start from VectorCraft Defaults	Beginnen met de standaardinstellingen van VectorCraft
+	Start from Pluma Defaults	Beginnen met de standaardinstellingen van Pluma
 	Add to the Current Shortcuts	Toevoegen aan de huidige sneltoetsen
 	Remember My Choices	Mijn keuzes onthouden
 	{ready} of {total} ready	{ready} van {total} klaar
@@ -156,7 +155,7 @@
 	Posterization	Posterisatie
 	Small Gaps	Kleine openingen
 
-@msg	This shortcut file is in a form VectorCraft can't read.	Dit sneltoetsbestand heeft een vorm die VectorCraft niet kan lezen.
+@msg	This shortcut file is in a form Pluma can't read.	Dit sneltoetsbestand heeft een vorm die Pluma niet kan lezen.
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	geen sneltoetsenset: de tekst begint niet met een slash-naam en een openingsaccolade
 	Preferences…	Voorkeuren…
 	Object	Object
@@ -531,7 +530,7 @@
 	Working CMYK	CMYK-werkruimte
 	RGB	RGB
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
-	VectorCraft Generic CMYK (SWOP-like)	Generieke VectorCraft-CMYK (SWOP-achtig)
+	Pluma Generic CMYK (SWOP-like)	Generieke Pluma-CMYK (SWOP-achtig)
 	Legacy Macintosh RGB (Gamma 1.8)	Verouderde Macintosh-RGB (Gamma 1.8)
 	Internet Standard RGB (sRGB)	Internetstandaard-RGB (sRGB)
 	Monitor RGB	Monitor-RGB
@@ -759,11 +758,10 @@
 	Save Swatch Library…	Staalenbibliotheek opslaan…
 	Symbol Libraries	Symboolbibliotheken
 	Help	Help
-	ArtCraft Website	ArtCraft-website
-	VectorCraft on getartcraft.com	VectorCraft op getartcraft.com
-	VectorCraft on GitHub	VectorCraft op GitHub
+	Pluma Website	Pluma-website
+	Pluma on GitHub	Pluma op GitHub
 	Search Commands…	Opdrachten zoeken…
-	VectorCraft Help…	VectorCraft-help…
+	Pluma Help…	Pluma-help…
 	Auto Color	Automatische kleur
 	Automatic	Automatisch
 	Isolate Selected Group	Geselecteerde groep isoleren
@@ -815,7 +813,7 @@
 	Dock Control Bar	Bedieningsbalk dokken
 	Float Tool Group	Gereedschapsgroep laten zweven
 	Services	Diensten
-	Hide VectorCraft	VectorCraft verbergen
+	Hide Pluma	Pluma verbergen
 	Hide Others	Anderen verbergen
 	Minimize	Minimaliseren
 	Zoom	Zoom
@@ -867,8 +865,8 @@
 	Stained Glass…	Glas in lood…
 	Texturizer…	Texturizer…
 	System Title Bar	Systeemtitelbalk
-	VectorCraft Title Bar on Every Desktop	VectorCraft-titelbalk op elk bureaublad
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Zolang de omgevingsvariabele VECTORCRAFT_TITLEBAR is ingesteld, kiest die de titelbalk.
+	Pluma Title Bar on Every Desktop	Pluma-titelbalk op elk bureaublad
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Zolang de omgevingsvariabele PLUMA_TITLEBAR is ingesteld, kiest die de titelbalk.
 	System Title Bar takes precedence over this option while it is on.	Zolang Systeemtitelbalk is ingeschakeld, heeft die voorrang op deze optie.
 	Exit	Afsluiten
 	Distort	Vervormen
@@ -2025,8 +2023,8 @@ digits	Malayalam	Malayalam
 	Select All Bound Objects	Alle gekoppelde objecten selecteren
 	Multiple objects	Meerdere objecten
 	Graphics: {adapter}	Grafisch: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Onderdeel van ArtCraft. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono (OFL). Pictogrammen: Lucide (ISC) + VectorCraft.
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Onderdeel van ArtCraft. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Pictogrammen: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Onderdeel van Nodalia. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono (OFL). Pictogrammen: Lucide (ISC) + Pluma.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Onderdeel van Nodalia. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Pictogrammen: Lucide (ISC) + Pluma.
 	Version {version} — open-source vector illustration in pure Rust.	Versie {version} — open-source vectorillustratie in pure Rust.
 	Align to Page	Uitlijnen op pagina
 	Smooth Color	Vloeiende kleur
@@ -2357,7 +2355,7 @@ digits	Malayalam	Malayalam
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	{n} map of bestand kon niet worden gelezen|{n} mappen of bestanden konden niet worden gelezen
 	The search stopped at its limit: search a smaller folder.	De zoekopdracht is gestopt bij de limiet: doorzoek een kleinere map.
 	Copy only fonts you own or are licensed to install.	Kopieer alleen lettertypen die je bezit of waarvoor je een licentie hebt om ze te installeren.
-	VectorCraft copies the fonts to {folder}.	VectorCraft kopieert de lettertypen naar {folder}.
+	Pluma copies the fonts to {folder}.	Pluma kopieert de lettertypen naar {folder}.
 @plural	Apply to All ({n} more missing)|Apply to All ({n} more missing)	Op alles toepassen (er ontbreekt nog {n})|Op alles toepassen (er ontbreken nog {n})
 	Ignore	Negeren
 	Linked File Not Found	Gekoppeld bestand niet gevonden
@@ -2447,7 +2445,7 @@ digits	Malayalam	Malayalam
 	On: one locked object showing the document, updated when it changes.	Aan: één vergrendeld object dat het document weergeeft, bijgewerkt wanneer het verandert.
 	Off: an editable copy of its art, embedded in this document.	Uit: een bewerkbare kopie van de artwork, ingesloten in dit document.
 	Images: link to the file instead of only embedding it.	Afbeeldingen: koppel aan het bestand in plaats van het alleen in te sluiten.
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft-documenten: één vergrendeld object, bijgewerkt wanneer het bestand verandert.
+	Pluma documents: one locked object, updated when the file changes.	Pluma-documenten: één vergrendeld object, bijgewerkt wanneer het bestand verandert.
 	Alignment:	Uitlijning:
 	Applies when the linked file is relinked or updated.	Is van toepassing wanneer het gekoppelde bestand opnieuw gekoppeld of bijgewerkt wordt.
 	Bounds (Fill Proportionally)	Begrenzing (proportioneel vullen)
@@ -2536,7 +2534,7 @@ digits	Malayalam	Malayalam
 	A new preset starting from the selected one	Een nieuwe voorinstelling, beginnend bij de geselecteerde
 	Differences from {preset}:	Verschillen met {preset}:
 	Differences from [Default]:	Verschillen met [Standaard]:
-	Differences from VectorCraft Default:	Verschillen met de VectorCraft-standaard:
+	Differences from Pluma Default:	Verschillen met de Pluma-standaard:
 	Edit…	Bewerken…
 	None.	Geen.
 	Presets:	Voorinstellingen:
@@ -2590,7 +2588,7 @@ digits	Malayalam	Malayalam
 	3 Color Job	Opdracht in 3 kleuren
 	Recover Documents	Documenten herstellen
 	Restored documents open unsaved: save them to keep them.	Herstelde documenten worden onopgeslagen geopend: sla ze op om ze te bewaren.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft is de vorige keer niet normaal afgesloten. Deze documenten hadden niet-opgeslagen wijzigingen:
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma is de vorige keer niet normaal afgesloten. Deze documenten hadden niet-opgeslagen wijzigingen:
 	Do you want to save the changes you made to “{name}”?	Wil je de wijzigingen die je in „{name}” hebt aangebracht, opslaan?
 	Don't Save	Niet opslaan
 	Your changes will be lost if you don't save them.	Je wijzigingen gaan verloren als je ze niet opslaat.
@@ -2660,7 +2658,7 @@ antiAlias	Sharp	Scherp
 	Color images	Kleurafbeeldingen
 	Compatibility:	Compatibiliteit:
 	PDF 1.7	PDF 1.7
-	VectorCraft Default	VectorCraft-standaard
+	Pluma Default	Pluma-standaard
 	High Quality Print	Hoge afdrukkwaliteit
 	[High Quality Print]	[Hoge afdrukkwaliteit]
 	Press Quality	Perskwaliteit
@@ -2673,7 +2671,7 @@ antiAlias	Sharp	Scherp
 	[PDF/X-3:2002]	[PDF/X-3:2002]
 	PDF/X-4:2010	PDF/X-4:2010
 	[PDF/X-4:2010]	[PDF/X-4:2010]
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Behoudt de bewerkbaarheid van het document: VectorCraft opent de PDF opnieuw zonder dat er iets verloren gaat. Voor bestanden die je opnieuw gaat bewerken.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	Behoudt de bewerkbaarheid van het document: Pluma opent de PDF opnieuw zonder dat er iets verloren gaat. Voor bestanden die je opnieuw gaat bewerken.
 	Compress text and line art	Tekst en lijnwerk comprimeren
 	Compression	Compressie
 	Compression › Color › Above Ppi	Compressie › Kleur › Boven Ppi
@@ -2751,14 +2749,14 @@ antiAlias	Sharp	Scherp
 	A File…	Een bestand…
 	GPL palettes keep solid colours only, as RGB.	GPL-paletten bevatten alleen effen kleuren, als RGB.
 	Save Swatch Library	Bibliotheek met stalen opslaan
-	VectorCraft Swatches (.vcswatches)	VectorCraft-stalen (.vcswatches)
+	Pluma Swatches (.vcswatches)	Pluma-stalen (.vcswatches)
 	Save To:	Opslaan in:
 	Saved to User Defined: {}	Opgeslagen in Door gebruiker gedefinieerd: {}
 	Selected Swatches Only	Alleen geselecteerde stalen
 	Selected Swatches Only (0)	Alleen geselecteerde stalen (0)
 	User Defined Libraries	Door gebruiker gedefinieerde bibliotheken
 	Copy Report	Rapport kopiëren
-	VectorCraft read this script without running it.	VectorCraft heeft dit script gelezen zonder het uit te voeren.
+	Pluma read this script without running it.	Pluma heeft dit script gelezen zonder het uit te voeren.
 	Needs nothing beyond plain JavaScript	Heeft alleen gewone JavaScript nodig
 	Needs the script language's own objects or directives	Heeft de eigen objecten of richtlijnen van de scripttaal nodig
 	Needs the document model	Heeft het documentmodel nodig
@@ -3704,7 +3702,7 @@ axis	Both	Beide
 	Print as Bitmap	Afdrukken als bitmap
 	Draft	Concept
 	Default	Standaard
-	[VectorCraft Default]	[VectorCraft-standaard]
+	[Pluma Default]	[Pluma-standaard]
 	Magenta	Magenta
 	Page	Pagina
 	Print Tiling	Tegelgewijs afdrukken
@@ -3795,7 +3793,7 @@ axis	Both	Beide
 	Width	Breedte
 	:	:
 effect	Regular	Regelmatig
-	Saving Poster.vectorcraft	Poster.vectorcraft wordt opgeslagen
+	Saving Poster.pluma	Poster.pluma wordt opgeslagen
 	Community	Community
 	Hide Bar	Balk verbergen
 	More Options	Meer opties
@@ -3807,11 +3805,7 @@ effect	Regular	Regelmatig
 	Quickly start a new file	Snel een nieuw bestand starten
 	Recent Files	Recente bestanden
 	Vector illustration — fast, open, scriptable.	Vectorillustratie — snel, open, scriptbaar.
-	Welcome to VectorCraft	Welkom bij VectorCraft
-	ArtCraft website	Website van ArtCraft
-	Discord	Discord
-	Join our Discord	Word lid van onze Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Word lid van de ArtCraft-community op Discord (discord.gg/artcraft)
+	Welcome to Pluma	Welkom bij Pluma
 	Source code on GitHub	Broncode op GitHub
 	All Tools	Alle gereedschappen
 	Draw	Tekenen
@@ -3856,7 +3850,7 @@ font-technology	Variable	Variabel
 	Installed plug-in {}	Plug-in {} geïnstalleerd
 	Revert to the saved version of “{name}”?	Teruggaan naar de opgeslagen versie van „{name}”?
 	Replace “{name}”, the file this document was opened from?	Vervang „{name}”, het bestand waarvan dit document is geopend?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Bij het openen is wat VectorCraft nog niet kan lezen ({what}) weggelaten, dus als je het vervangt, raak je dat definitief kwijt. Sla het onder een andere naam op om het te bewaren.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Bij het openen is wat Pluma nog niet kan lezen ({what}) weggelaten, dus als je het vervangt, raak je dat definitief kwijt. Sla het onder een andere naam op om het te bewaren.
 	Saved {path}	{path} opgeslagen
 	Saving	Bezig met opslaan
 	Saving {}	{} wordt opgeslagen
@@ -3864,7 +3858,7 @@ font-technology	Variable	Variabel
 	Dashed Line	Streepjeslijn
 	Panel menu	Paneelmenu
 	Unembed…	Insluiten ongedaan maken…
-	Applies the next time VectorCraft starts.	Wordt toegepast de volgende keer dat VectorCraft start.
+	Applies the next time Pluma starts.	Wordt toegepast de volgende keer dat Pluma start.
 	Enable Contextual Task Bar	Contextuele taakbalk inschakelen
 	Next	Volgende
 	OK	OK
@@ -4271,7 +4265,7 @@ imageTrace	Outline	Contour
 @msg	can't encode the document: {0}	kan het document niet coderen: {0}
 @msg	can't parse shortcut `{c}`	kan sneltoets `{c}` niet parseren
 @msg	can't parse shortcut `{s}` for `{k}`	kan sneltoets `{s}` voor `{k}` niet parseren
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	kan versie {0} niet opslaan: VectorCraft schrijft versies {MIN_VERSION} tot {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	kan versie {0} niet opslaan: Pluma schrijft versies {MIN_VERSION} tot {VERSION}
 @msg	can't write .{ext} images	kan geen .{ext}-afbeeldingen schrijven
 @msg	cannot distort a zero-size bounding box	kan een omtrekkader met afmetingen nul niet vervormen
 @msg	cannot read PDF: {0}	kan PDF niet lezen: {0}
@@ -4296,7 +4290,7 @@ imageTrace	Outline	Contour
 @msg	empty brush stroke	lege penseelstreek
 @msg	empty cutter	lege snijder
 @msg	empty path	leeg pad
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	bestandsversie {0} is nieuwer dan deze VectorCraft ondersteunt ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	bestandsversie {0} is nieuwer dan deze Pluma ondersteunt ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	vrijvormpunt {i} heeft `at` [x, y] en een geldige `color` nodig
 @msg	freeform line {i} must be an array of point indices	vrijvormlijn {i} moet een array van puntindexen zijn
 @msg	give both `start` and `end` [x, y] (or neither)	geef zowel `start` als `end` [x, y] (of geen van beide)
@@ -4315,9 +4309,9 @@ imageTrace	Outline	Contour
 @msg	invalid PDF setting: {0}	ongeldige PDF-instelling: {0}
 @msg	invalid image data for `{0}`	ongeldige afbeeldingsgegevens voor `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	ongeldige parameters voor `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	is geen afbeelding die VectorCraft leest
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	het gebruikt `{at}`, die de PostScript-lezer van VectorCraft niet kent
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	het gebruikt `{at}`, die de PostScript-lezer van VectorCraft niet kent, in {procs}
+@msg	is not an image Pluma reads	is geen afbeelding die Pluma leest
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	het gebruikt `{at}`, die de PostScript-lezer van Pluma niet kent
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	het gebruikt `{at}`, die de PostScript-lezer van Pluma niet kent, in {procs}
 @msg	its Windows metafile preview was opened instead, which may simplify the art	zijn Windows-metabestandvoorbeeld is in plaats daarvan geopend, wat het artwork kan vereenvoudigen
 @msg	its preview was placed instead, at screen resolution	zijn voorvertoning is in plaats daarvan geplaatst, op schermresolutie
 @msg	join needs open paths	samenvoegen heeft open paden nodig
@@ -4409,7 +4403,7 @@ imageTrace	Outline	Contour
 @msg	not an action set file	geen actiesetbestand
 @msg	the action set file is larger than 8 MiB	het actiesetbestand is groter dan 8 MiB
 @msg	the action set file holds more than 1,000 actions	het actiesetbestand bevat meer dan 1.000 acties
-@msg	the action set file needs a later version of VectorCraft	het actiesetbestand vereist een nieuwere versie van VectorCraft
+@msg	the action set file needs a later version of Pluma	het actiesetbestand vereist een nieuwere versie van Pluma
 @msg	an action in the action set file has more than 10,000 steps	een actie in het actiesetbestand heeft meer dan 10.000 stappen
 @msg	no such anchor	anker bestaat niet
 @msg	no such artboard	tekengebied bestaat niet
@@ -4435,8 +4429,8 @@ imageTrace	Outline	Contour
 @msg	no user workspace `{from}`	geen gebruikerswerkruimte `{from}`
 @msg	node {_1} is not text	knooppunt {_1} is geen tekst
 @msg	not a DXF drawing	geen DXF-tekening
-@msg	not a VectorCraft file: {0}	geen VectorCraft-bestand: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	geen VectorCraft-sneltoetsenset (`overrides` ontbreekt)
+@msg	not a Pluma file: {0}	geen Pluma-bestand: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	geen Pluma-sneltoetsenset (`overrides` ontbreekt)
 @msg	not a graphic style library (format `{_1}`)	geen bibliotheek met grafische stijlen (indeling `{_1}`)
 @msg	not a stored central record	geen opgeslagen centraal record
 @msg	not a valid plug-in module: {0}	geen geldige plug-inmodule: {0}
@@ -4697,9 +4691,9 @@ imageTrace	Outline	Contour
 @msg	Sent to {_1}	Verzonden naar {_1}
 @msg	{_1} files	{_1}-bestanden
 @msg	The graphics were lost and have been restarted	De grafische weergave is verloren gegaan en opnieuw gestart
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	De grafische processor die eerst werd geprobeerd, kon het venster niet weergeven, dus VectorCraft is opnieuw gestart met {summary}
-@msg	Loading VectorCraft…	VectorCraft laden…
-@msg	VectorCraft failed to start: {e}	VectorCraft kon niet starten: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	De grafische processor die eerst werd geprobeerd, kon het venster niet weergeven, dus Pluma is opnieuw gestart met {summary}
+@msg	Loading Pluma…	Pluma laden…
+@msg	Pluma failed to start: {e}	Pluma kon niet starten: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	Er is een browser met WebGPU of WebGL2 vereist.
 @msg	The graphics were lost and couldn't be restarted.	De grafische weergave is verloren gegaan en kon niet opnieuw worden gestart.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Je niet-opgeslagen wijzigingen worden in deze browser bewaard: laad de pagina opnieuw om ze terug te krijgen.
@@ -4729,20 +4723,20 @@ imageTrace	Outline	Contour
 @msg	it has more than {MAX_NODES} objects	het heeft meer dan {MAX_NODES} objecten
 @msg	it has no layers	het heeft geen lagen
 @msg	it has too many values in a row	het heeft te veel waarden achter elkaar
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	het bevat {_1}, wat VectorCraft er nog niet uit leest
+@msg	it has {_1}, which Pluma doesn't read from it yet	het bevat {_1}, wat Pluma er nog niet uit leest
 @msg	its objects are nested too deeply	de objecten ervan zijn te diep genest
 @msg	its section ending with `%{end}` doesn't end	zijn sectie die op `%{end}` eindigt, eindigt niet
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	penselen die VectorCraft nog niet kan lezen, zijn weggelaten uit het deelvenster Penselen ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	penselen die Pluma nog niet kan lezen, zijn weggelaten uit het deelvenster Penselen ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	objecten met meerdere vullingen of lijnen, lijnen met variabele breedte, effecten of penselen zijn als hun getekende uiterlijk binnengekomen ({_1}): hun vormgeving is nog niet bewerkbaar
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	de naam `{name}` is geen UTF-8 en is gelezen als {label}: als die er verkeerd uitziet, open het bestand dan met een andere legacyNameEncoding
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	de naam `{name}` is geen UTF-8, en delen ervan zijn ook geen geldige {label}: open het bestand met een andere legacyNameEncoding
 @msg	more names that aren't UTF-8 were read as {label} ({count})	meer namen die geen UTF-8 zijn, zijn gelezen als {label} ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	verloop „{name}” is niet gedefinieerd in het bestand: er is een effen kleur voor gebruikt
-@msg	an image VectorCraft can't read was left out	een afbeelding die VectorCraft niet kan lezen, is weggelaten
+@msg	an image Pluma can't read was left out	een afbeelding die Pluma niet kan lezen, is weggelaten
 @msg	an image whose data is cut short was left out	een afbeelding waarvan de gegevens zijn afgekapt, is weggelaten
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	een ingesloten afbeelding van {_1} × {_2} pixels is verkleind tot {_3} × {_4} pixels om de lagen te behouden
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	gekoppelde afbeeldingen tonen het in het bestand opgeslagen voorbeeld met lage resolutie totdat hun bestanden zijn gevonden: koppel ze opnieuw in het paneel Koppelingen
-@msg	linked type areas past VectorCraft's limits were left out	gekoppelde tekstvlakken buiten de limieten van VectorCraft zijn weggelaten
+@msg	linked type areas past Pluma's limits were left out	gekoppelde tekstvlakken buiten de limieten van Pluma zijn weggelaten
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	tekst die binnen een tekstobject van schrijfrichting verandert, wordt geopend in de richting van het eerste teken
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	tekst die als masker wordt gebruikt in gekoppelde vlakken, tekstomloop of een samengesteld pad knipt niet uit
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	gekoppelde afbeeldingen zonder voorbeeld in het bestand tonen een tijdelijke aanduiding totdat hun bestanden zijn gevonden: koppel ze opnieuw in het paneel Koppelingen
@@ -4751,13 +4745,13 @@ imageTrace	Outline	Contour
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	dit bestand is opgeslagen zonder PDF-compatibiliteit en de bewerkingsgegevens kunnen niet worden gelezen ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	het PDF-gedeelte kon niet worden gelezen ({_1}): het bestand is geopend vanuit de bewerkingsgegevens
 @msg	No fonts are missing in this document	Er ontbreken geen lettertypen in dit document
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft doorzoekt geen mappen van andere apps of van het systeem: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft doorzoekt de map Gedeeld of Openbaar onder Gebruikers niet: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma doorzoekt geen mappen van andere apps of van het systeem: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma doorzoekt de map Gedeeld of Openbaar onder Gebruikers niet: {path}
 @msg	{path} is not a folder	{path} is geen map
 @msg	the search couldn't start: try again in a moment	de zoekopdracht kon niet starten: probeer het over een ogenblik opnieuw
 @msg	searching a folder isn't available on the web	een map doorzoeken is niet beschikbaar op het web
 @msg	every search thread stopped on an internal error (please report this bug)	elke zoekthread is gestopt door een interne fout (meld deze bug)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	de map Lettertypen van VectorCraft is hier niet ingesteld: de desktopapp en vectorcraft-cli stellen die in
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	de map Lettertypen van Pluma is hier niet ingesteld: de desktopapp en pluma-cli stellen die in
 @msg	choose the font files to add	kies de lettertypebestanden die je wilt toevoegen
 @msg	not a file	geen bestand
 @msg	not a font file	geen lettertypebestand
@@ -4898,7 +4892,7 @@ imageTrace	Outline	Contour
 	All shortcuts reset to defaults.	Alle sneltoetsen zijn teruggezet op de standaardwaarden.
 	Imported. Press OK to keep the imported set.	Geïmporteerd. Druk op OK om de geïmporteerde set te behouden.
 	⚠ {chord} was already used by {names} — it has been removed there.	Waarschuwing: {chord} werd al gebruikt door {names} — hij is daar verwijderd.
-	VectorCraft Defaults	VectorCraft-standaard
+	Pluma Defaults	Pluma-standaard
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} sneltoets is meer dan één keer toegewezen|{n} sneltoetsen zijn meer dan één keer toegewezen
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	Simuleren drukt overdrukken af zoals het Overdrukvoorbeeld ze toont; scheidingen behouden ze altijd. Een voorinstelling vlakt transparantie af vóór het afdrukken (PostScript-bestanden vlakken die altijd af).
 	Preserve	Behouden
@@ -5113,7 +5107,7 @@ file-filter	Print presets	Afdrukvoorinstellingen
 file-filter	Export presets	Exportvoorinstellingen
 file-filter	SVG Compressed	Gecomprimeerde SVG
 file-filter	PDF-compatible .ai	PDF-compatibel .ai
-file-filter	VectorCraft Template	VectorCraft-sjabloon
+file-filter	Pluma Template	Pluma-sjabloon
 file-filter	Templates	Sjablonen
 diagnostics	render	render
 diagnostics	ui	ui
@@ -5124,7 +5118,7 @@ diagnostics	ui	ui
 @plural	{n} commit|{n} commits	{n} commit|{n} commits
 gradient-kind	Radial	Radiaal
 mark-style	Japanese	Japans
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	het gecomprimeerde bestand pakt uit tot meer dan VectorCraft leest ({_1} MB document, {_2} MB per afbeelding)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	het gecomprimeerde bestand pakt uit tot meer dan Pluma leest ({_1} MB document, {_2} MB per afbeelding)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	het document is te groot om gecomprimeerd op te slaan ({0}): sla het op met Compressie gebruiken uit
 @msg	the file stopped being read (please report this bug)	het lezen van het bestand is gestopt (meld deze bug)
 	Concentric Dividers:	Concentrische verdelers:
@@ -5249,7 +5243,7 @@ mark-style	Japanese	Japans
 	Tracing	Tracering
 	Touch	Touch
 	Typography	Typografie
-	VectorCraft	VectorCraft
+	Pluma	Pluma
 	Web	Web
 	Decrease Font Size by Five Steps	Tekengrootte met vijf stappen verkleinen
 	Increase Font Size by Five Steps	Tekengrootte met vijf stappen vergroten
@@ -5258,8 +5252,8 @@ mark-style	Japanese	Japans
 	Rotate View to Selection	Weergave naar selectie draaien
 @msg	select an Intertwine group	selecteer een verstrengelingsgroep
 @msg	this is a PostScript file (an .ai saved in an older format or without PDF compatibility, or an EPS file), not a PDF: File › Open and File › Place read it as EPS	dit is een PostScript-bestand (een .ai dat in een ouder formaat of zonder PDF-compatibiliteit is opgeslagen, of een EPS-bestand), geen PDF: Bestand › Openen en Bestand › Plaatsen lezen het als EPS
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	De laatste start van VectorCraft eindigde op {name} voordat het venster verscheen, dus het is gestart op {summary}. Om die grafische processor opnieuw te proberen, wijzig Voorkeuren › Prestaties › Grafische processor of start met WGPU_BACKEND ingesteld
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	De laatste start van VectorCraft eindigde tijdens het weergeven van de grafische processors, dus het is gestart op {summary} met alleen OpenGL. Om de andere grafische backends opnieuw te proberen, wijzig Voorkeuren › Prestaties › Grafische processor of start met WGPU_BACKEND ingesteld
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	De laatste start van Pluma eindigde op {name} voordat het venster verscheen, dus het is gestart op {summary}. Om die grafische processor opnieuw te proberen, wijzig Voorkeuren › Prestaties › Grafische processor of start met WGPU_BACKEND ingesteld
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	De laatste start van Pluma eindigde tijdens het weergeven van de grafische processors, dus het is gestart op {summary} met alleen OpenGL. Om de andere grafische backends opnieuw te proberen, wijzig Voorkeuren › Prestaties › Grafische processor of start met WGPU_BACKEND ingesteld
 	Loaded Texture	Geladen textuur
 	Load Texture…	Textuur laden…
 	Texture Image	Textuurafbeelding
@@ -5579,7 +5573,7 @@ swatch	Bright Violet	Felviolet
 	Resize	Grootte wijzigen
 	Scale Design	Ontwerp schalen
 	Sliding	Verschuivend
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	De naam in het opslagvenster was „{typed}”, en VectorCraft heeft de extensie van het bestandstype toegevoegd. Als je het bestand vervangt, wordt de inhoud overschreven.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	De naam in het opslagvenster was „{typed}”, en Pluma heeft de extensie van het bestandstype toegevoegd. Als je het bestand vervangt, wordt de inhoud overschreven.
 	Uniformly Scaled	Gelijkmatig geschaald
 	Vertically Scaled	Verticaal geschaald
 	“{name}” already exists. Replace it?	„{name}” bestaat al. Vervangen?
@@ -6362,7 +6356,7 @@ breakText	Glyphs	Glyphs
 	Malayalam	Malayalam
 	Odia	Odia
 	Urdu	Urdu
-	VectorCraft {release} and later (version {n})	VectorCraft {release} en nieuwer (versie {n})
+	Pluma {release} and later (version {n})	Pluma {release} en nieuwer (versie {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Alle geopende documenten exporteren als PDF
 	Export All Open Documents as SVG	Alle geopende documenten exporteren als SVG
@@ -6501,14 +6495,14 @@ breakText	Glyphs	Glyphs
 	Safe Mode	Veilige modus
 	Help › Safe Mode…	Help › Veilige modus…
 	Enable on Re-launch	Inschakelen bij volgende start
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	De laatste start van VectorCraft stopte terwijl de plug-in {name} werd geladen. Deze is mogelijk niet de oorzaak.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	De laatste start van Pluma stopte terwijl de plug-in {name} werd geladen. Deze is mogelijk niet de oorzaak.
 	Disable and Continue	Uitschakelen en doorgaan
 	Start Normally	Normaal starten
 	Start in Safe Mode	Starten in veilige modus
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft is in veilige modus: er worden geen plug-ins geladen of uitgevoerd totdat het normaal start.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma is in veilige modus: er worden geen plug-ins geladen of uitgevoerd totdat het normaal start.
 	Disabled plug-ins	Uitgeschakelde plug-ins
 	No plug-ins are disabled.	Er zijn geen plug-ins uitgeschakeld.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Veilige modus is aan: plug-ins worden niet geladen of uitgevoerd totdat VectorCraft normaal start
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Veilige modus is aan: plug-ins worden niet geladen of uitgevoerd totdat Pluma normaal start
 @msg	give `id` or `file` (see plugin.safeMode)	geef `id` of `file` op (zie plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	die plug-in is niet uitgeschakeld (zie plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	De uitgeschakelde plug-ins konden niet worden opgeslagen voor de volgende start

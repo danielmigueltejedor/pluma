@@ -5,14 +5,14 @@
 //! takes the Move cursor, and dragging the guide moves it (`symbol.options`'s
 //! `nineSliceGuides`), in one undo step.
 //!
-//! VectorCraft's own rules: a guide stays within the art's box and stops short of the opposite
+//! Pluma's own rules: a guide stays within the art's box and stops short of the opposite
 //! guide; the drag does not snap and its modifiers change nothing; a guide within reach takes the
 //! press before the art and the bounding box, and of two guides within reach the nearer one, else
 //! the first of left, top, right and bottom; Escape during the drag puts the guide back.
 
+use pluma_doc::{EditedNineSlice, NineSliceGuide};
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_doc::{EditedNineSlice, NineSliceGuide};
-use vectorcraft_geom::Point;
 
 use crate::{Action, PointerEvent, ToolContext};
 
@@ -101,8 +101,8 @@ mod tests {
     use crate::select::SelectionTool;
     use crate::testutil::*;
     use crate::{Cursor, Mods, PointerKind, Tool, ToolKey};
-    use vectorcraft_doc::{Appearance, Document, Node, Selection, Symbol, SymbolEdit, SymbolNineSlice};
-    use vectorcraft_geom::{Affine, Rect, shapes};
+    use pluma_doc::{Appearance, Document, Node, Selection, Symbol, SymbolEdit, SymbolNineSlice};
+    use pluma_geom::{Affine, Rect, shapes};
 
     /// A 100 × 100 symbol "S" with 9-slice guides `guides`, edited in symbol editing mode with its
     /// art, a filled square, at (100, 100) on the editing layer: its guides lie at x and y = 125
@@ -190,7 +190,7 @@ mod tests {
         let shifted = PointerEvent { mods: Mods { shift: true, alt: true, ..Mods::default() }, ..ev(PointerKind::Drag, 190.0, 150.0) };
         let (_, v) = preview(&t.pointer(&c, &shifted)[0]);
         let left = v["nineSliceGuides"][0].as_f64().unwrap();
-        assert!((left - (0.75 - vectorcraft_doc::MIN_CENTER_BAND)).abs() < 1e-12, "{v}");
+        assert!((left - (0.75 - pluma_doc::MIN_CENTER_BAND)).abs() < 1e-12, "{v}");
         assert_eq!(t.pointer(&c, &ev(PointerKind::Up, 190.0, 150.0)), vec![Action::Commit]);
         assert!(!t.busy());
         // A click on a guide without moving.

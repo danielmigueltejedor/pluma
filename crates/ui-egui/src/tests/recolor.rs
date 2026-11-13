@@ -2,15 +2,15 @@
 
 use egui::{Event, Modifiers, PointerButton, Pos2, Rect, vec2};
 use egui_kittest::kittest::Queryable;
+use pluma_color::Color;
+use pluma_color::recolor::ColorKey;
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_color::recolor::ColorKey;
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, dialogs, panels};
+use crate::{PlumaApp, dialogs, panels};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 200})).unwrap();
     app
 }
@@ -21,14 +21,14 @@ fn context() -> egui::Context {
     ctx
 }
 
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, time: f64, draw: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>, time: f64, draw: fn(&mut PlumaApp, &mut egui::Ui)) {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(900.0, 800.0)));
     let input = egui::RawInput { events, time: Some(time), screen_rect, ..Default::default() };
     let mut out = ctx.run_ui(input, |ui| draw(app, ui));
     out.textures_delta.clear();
 }
 
-fn dialog_frame(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn dialog_frame(app: &mut PlumaApp, ctx: &egui::Context) {
     let time = ctx.input(|i| i.time) + 1.0;
     frame(app, ctx, vec![], time, |app, ui| dialogs::show(app, ui.ctx()));
 }
@@ -39,7 +39,7 @@ fn press(at: Pos2, clicks: usize) -> Vec<Event> {
 }
 
 /// Rectangles filled with `colors`, all selected.
-fn art(app: &mut VectorcraftApp, colors: &[&str]) {
+fn art(app: &mut PlumaApp, colors: &[&str]) {
     for (i, c) in colors.iter().enumerate() {
         let id = app.run("shape.rectangle", json!({"x": 10 + 30 * i, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
         app.run("paint.setFill", json!({"ids": [id], "color": c})).unwrap();
@@ -48,21 +48,21 @@ fn art(app: &mut VectorcraftApp, colors: &[&str]) {
     app.run("select.all", json!({})).unwrap();
 }
 
-fn colors(app: &mut VectorcraftApp) -> usize {
+fn colors(app: &mut PlumaApp) -> usize {
     app.session.execute("recolor.colors", &json!({})).unwrap()["colors"].as_array().unwrap().len()
 }
 
-fn group_keys(app: &VectorcraftApp, name: &str) -> Vec<Value> {
+fn group_keys(app: &PlumaApp, name: &str) -> Vec<Value> {
     let d = &app.session.doc().unwrap().doc;
     let g = d.swatch_groups.iter().find(|g| g.name == name).unwrap();
     g.swatches.iter().filter_map(|w| w.paint.color()).map(|c| json!(ColorKey::of(&c).to_string())).collect()
 }
 
-fn field(app: &VectorcraftApp, k: &str) -> Value {
+fn field(app: &PlumaApp, k: &str) -> Value {
     app.ui.dialog.as_ref().and_then(|d| d.fields.get(k).cloned()).unwrap_or(Value::Null)
 }
 
-fn set(app: &mut VectorcraftApp, k: &str, v: Value) {
+fn set(app: &mut PlumaApp, k: &str, v: Value) {
     app.ui.dialog.as_mut().unwrap().fields.insert(k.into(), v);
 }
 
@@ -113,7 +113,7 @@ fn presets_open_colour_jobs_and_libraries_and_both_tabs_draw() {
     app.run("ui.recolorDialog", presets[3].1.clone()).unwrap();
     assert_eq!(field(&app, "limitTo"), "web-safe-216", "Color Library starts on the first library");
     dialog_frame(&mut app, &ctx);
-    let web = |k: &Value| vectorcraft_engine::cmd::color_value(k).unwrap().to_rgb().iter().all(|v| ((v * 5.0).round() - v * 5.0).abs() < 1e-3);
+    let web = |k: &Value| pluma_engine::cmd::color_value(k).unwrap().to_rgb().iter().all(|v| ((v * 5.0).round() - v * 5.0).abs() < 1e-3);
     assert!(field(&app, "rows").as_array().unwrap().iter().all(|r| web(&r["to"])));
     dialogs::cancel(&mut app);
     // The Color Guide's colours become the new colours.
@@ -128,7 +128,7 @@ fn presets_open_colour_jobs_and_libraries_and_both_tabs_draw() {
 fn double_clicking_a_colour_group_opens_it_and_ok_rewrites_it() {
     let mut app = app();
     let ctx = context();
-    let show: fn(&mut VectorcraftApp, &mut egui::Ui) = panels::swatches::show;
+    let show: fn(&mut PlumaApp, &mut egui::Ui) = panels::swatches::show;
     frame(&mut app, &ctx, vec![], 0.0, show);
     let folder = ctx.read_response(egui::Id::unique(("swatch-tile", "Brights"))).expect("the Brights folder").rect.center();
     frame(&mut app, &ctx, press(folder, 2), 1.0, show);
@@ -156,7 +156,7 @@ fn the_options_button_edits_a_selected_group_and_applies_it_to_the_art() {
     let mut app = app();
     let ctx = context();
     art(&mut app, &["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"]);
-    let show: fn(&mut VectorcraftApp, &mut egui::Ui) = panels::swatches::show;
+    let show: fn(&mut PlumaApp, &mut egui::Ui) = panels::swatches::show;
     frame(&mut app, &ctx, vec![], 0.0, show);
     let folder = ctx.read_response(egui::Id::unique(("swatch-tile", "Brights"))).unwrap().rect.center();
     frame(&mut app, &ctx, press(folder, 1), 1.0, show);
@@ -205,7 +205,7 @@ fn a_group_keeps_the_colours_no_art_row_took() {
 }
 
 /// Recolor Artwork on art filled with `colors`, on the Edit tab, drawn by a kittest harness.
-fn edit_harness(colors: &[&str]) -> egui_kittest::Harness<'static, VectorcraftApp> {
+fn edit_harness(colors: &[&str]) -> egui_kittest::Harness<'static, PlumaApp> {
     let mut app = app();
     art(&mut app, colors);
     app.run("ui.recolorDialog", json!({})).unwrap();
@@ -213,7 +213,7 @@ fn edit_harness(colors: &[&str]) -> egui_kittest::Harness<'static, VectorcraftAp
     assert_eq!(field(&app, "linked"), json!(true));
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(900.0, 800.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -227,12 +227,12 @@ fn edit_harness(colors: &[&str]) -> egui_kittest::Harness<'static, VectorcraftAp
 }
 
 /// Recolor Artwork open on the Assign tab of `app` (its art selected), drawn by a kittest harness.
-fn assign_harness(mut app: VectorcraftApp, open: Value) -> egui_kittest::Harness<'static, VectorcraftApp> {
+fn assign_harness(mut app: PlumaApp, open: Value) -> egui_kittest::Harness<'static, PlumaApp> {
     app.run("ui.recolorDialog", open).unwrap();
     set(&mut app, "method", json!("exact"));
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(900.0, 800.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -246,7 +246,7 @@ fn assign_harness(mut app: VectorcraftApp, open: Value) -> egui_kittest::Harness
 }
 
 /// Clicks the color slider named `name` at `at` (0 to 1) along its rail.
-fn click_slider(h: &mut egui_kittest::Harness<'_, VectorcraftApp>, name: &str, at: f32) {
+fn click_slider(h: &mut egui_kittest::Harness<'_, PlumaApp>, name: &str, at: f32) {
     let r = h.get_by_role_and_label(egui::accesskit::Role::Slider, name).rect();
     let pos = egui::pos2(r.left() + 4.0 + at * (r.width() - 8.0), r.center().y);
     h.input_mut().events.extend(press(pos, 1));
@@ -254,7 +254,7 @@ fn click_slider(h: &mut egui_kittest::Harness<'_, VectorcraftApp>, name: &str, a
 }
 
 /// The fill of the first object of the document.
-fn first_fill(app: &VectorcraftApp) -> vectorcraft_color::Paint {
+fn first_fill(app: &PlumaApp) -> pluma_color::Paint {
     let d = &app.session.doc().unwrap().doc;
     let id = d.layers[0].children().unwrap()[0].id;
     d.node(id).unwrap().appearance.fill_paint()
@@ -294,7 +294,7 @@ fn the_color_sliders_edit_the_selected_rows_new_color_in_their_mode() {
         assert!(h.state().ui.dialog.is_none());
         let app = h.state();
         if confirm {
-            assert_eq!(first_fill(app).color(), vectorcraft_engine::cmd::color_value(&json!(to)), "OK keeps the color, in CMYK");
+            assert_eq!(first_fill(app).color(), pluma_engine::cmd::color_value(&json!(to)), "OK keeps the color, in CMYK");
             assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
         } else {
             assert_eq!(first_fill(app), before, "Cancel leaves the art unchanged");
@@ -338,7 +338,7 @@ fn the_tint_slider_sets_a_spot_rows_tint() {
     h.get_by_label("OK").click();
     h.run_steps(2);
     match first_fill(h.state()) {
-        vectorcraft_color::Paint::Solid { swatch, tint, .. } => {
+        pluma_color::Paint::Solid { swatch, tint, .. } => {
             assert_eq!(swatch.as_deref(), Some("Ink"), "linked to the spot color");
             assert!((tint - 0.4).abs() < 1e-4, "at the row's tint: {tint}");
         }
@@ -373,7 +373,7 @@ fn a_new_color_from_the_edit_tab_drops_a_spot_rows_tint() {
     h.get_by_label("OK").click();
     h.run_steps(2);
     match first_fill(h.state()) {
-        vectorcraft_color::Paint::Solid { swatch, tint, .. } => {
+        pluma_color::Paint::Solid { swatch, tint, .. } => {
             assert_eq!(swatch.as_deref(), Some("Mix Dark"), "linked to the new spot color");
             assert!((tint - 1.0).abs() < 1e-4, "at full strength: {tint}");
         }
@@ -427,7 +427,7 @@ fn a_saturation_change_that_snaps_back_keeps_the_tint() {
 
 /// Makes the swatches of the `swatch.new` params `swatches`, saves them as a library and loads it,
 /// removes them from the document again, and returns the library's id.
-fn library_of(app: &mut VectorcraftApp, swatches: &[Value]) -> String {
+fn library_of(app: &mut PlumaApp, swatches: &[Value]) -> String {
     let names: Vec<Value> = swatches.iter().map(|s| s["name"].clone()).collect();
     for s in swatches {
         app.run("swatch.new", s.clone()).unwrap();
@@ -530,7 +530,7 @@ fn a_new_color_count_after_a_slider_edit_keeps_the_arts_model() {
 }
 
 /// The fill of the `n`th object of the document.
-fn fill_of(app: &VectorcraftApp, n: usize) -> vectorcraft_color::Paint {
+fn fill_of(app: &PlumaApp, n: usize) -> pluma_color::Paint {
     let d = &app.session.doc().unwrap().doc;
     let id = d.layers[0].children().unwrap()[n].id;
     d.node(id).unwrap().appearance.fill_paint()
@@ -566,7 +566,7 @@ fn switching_tabs_or_slider_modes_keeps_the_dialog_height() {
     art(&mut app, &["#ff0000", "#0000ff"]);
     let mut h = assign_harness(app, json!({}));
     set(h.state_mut(), "__sel", json!([0]));
-    let height = |h: &mut egui_kittest::Harness<'_, VectorcraftApp>, k: &str, v: Value| {
+    let height = |h: &mut egui_kittest::Harness<'_, PlumaApp>, k: &str, v: Value| {
         set(h.state_mut(), k, v);
         h.run_steps(6);
         h.ctx.memory(|m| m.area_rect(egui::Id::unique(("dialog", "recolor")))).unwrap().height()
@@ -588,7 +588,7 @@ fn switching_tabs_or_slider_modes_keeps_the_dialog_height() {
 }
 
 /// The fills of the document's objects, in order.
-fn fills(app: &VectorcraftApp) -> Vec<Option<Color>> {
+fn fills(app: &PlumaApp) -> Vec<Option<Color>> {
     let d = &app.session.doc().unwrap().doc;
     d.layers[0].children().unwrap().iter().map(|n| d.node(n.id).unwrap().appearance.fill_paint().color()).collect()
 }
@@ -619,7 +619,7 @@ fn global_adjust_changes_every_color_at_once() {
         click_slider(&mut h, "Saturation", 0.0);
         assert_eq!(field(h.state(), "globalAdjust")["saturation"], json!(-100.0));
         assert_eq!(field(h.state(), "rows"), rows, "the rows keep their new colors");
-        let gray = |app: &VectorcraftApp| fills(app).iter().all(|c| c.is_some_and(|c| c.to_hsb()[1] < 1e-3));
+        let gray = |app: &PlumaApp| fills(app).iter().all(|c| c.is_some_and(|c| c.to_hsb()[1] < 1e-3));
         assert!(gray(h.state()), "every color previews gray: {:?}", fills(h.state()));
         click_slider(&mut h, "Saturation", 0.5);
         assert_eq!(field(h.state(), "globalAdjust")["saturation"], json!(0.0));
@@ -652,7 +652,7 @@ fn global_adjust_on_a_new_group_keeps_its_colors_in_the_library() {
     let mut app = app();
     app.run("ui.recolorDialog", json!({"colors": ["#123456", "#abcdef"], "library": ""})).unwrap();
     assert_eq!(field(&app, "limitTo"), "web-safe-216");
-    let web = |k: &Value| vectorcraft_engine::cmd::color_value(k).unwrap().to_rgb().iter().all(|v| ((v * 5.0).round() - v * 5.0).abs() < 1e-3);
+    let web = |k: &Value| pluma_engine::cmd::color_value(k).unwrap().to_rgb().iter().all(|v| ((v * 5.0).round() - v * 5.0).abs() < 1e-3);
     let rows: Vec<Value> = field(&app, "rows").as_array().unwrap().iter().map(|r| r["to"].clone()).collect();
     assert!(rows.iter().all(web), "the rows open snapped: {rows:?}");
     set(&mut app, "globalAdjust", json!({"brightness": -60}));
@@ -680,7 +680,7 @@ fn each_recolor_hex_field_has_its_row_number() {
 fn the_preserve_checkboxes_open_as_they_were_last_confirmed() {
     let mut app = app();
     art(&mut app, &["#ff0000", "#ffffff", "#000000", "#808080"]);
-    let preserve = |app: &VectorcraftApp| ["preserveWhite", "preserveBlack", "preserveGrays"].map(|k| field(app, k));
+    let preserve = |app: &PlumaApp| ["preserveWhite", "preserveBlack", "preserveGrays"].map(|k| field(app, k));
     app.run("ui.recolorDialog", json!({})).unwrap();
     assert_eq!(preserve(&app), [json!(true), json!(true), json!(false)], "a first open");
     set(&mut app, "preserveWhite", json!(false));
@@ -697,14 +697,14 @@ fn the_preserve_checkboxes_open_as_they_were_last_confirmed() {
 }
 
 /// The rect of the widget drawn `size` big (the wheel is 220 across, its Brightness slider 220 by 22).
-fn widget_of_size(h: &egui_kittest::Harness<'_, VectorcraftApp>, size: egui::Vec2) -> Rect {
+fn widget_of_size(h: &egui_kittest::Harness<'_, PlumaApp>, size: egui::Vec2) -> Rect {
     h.ctx
         .viewport(|vp| vp.prev_pass.widgets.layers().flat_map(|(_, w)| w.iter()).find(|w| w.rect.size() == size).map(|w| w.rect))
         .expect("the widget")
 }
 
-fn new_hsb(app: &VectorcraftApp) -> Vec<[f32; 3]> {
-    field(app, "rows").as_array().unwrap().iter().map(|row| vectorcraft_engine::cmd::color_value(&row["to"]).unwrap().to_hsb()).collect()
+fn new_hsb(app: &PlumaApp) -> Vec<[f32; 3]> {
+    field(app, "rows").as_array().unwrap().iter().map(|row| pluma_engine::cmd::color_value(&row["to"]).unwrap().to_hsb()).collect()
 }
 
 /// #1733: on the Edit tab, dragging a handle of CMYK art (linked, Complementary) must leave every
@@ -716,13 +716,13 @@ fn dragging_a_wheel_handle_keeps_the_other_handles_apart() {
     let wheel = widget_of_size(&h, vec2(220.0, 220.0));
     let (c, r) = (wheel.center(), 100.0);
     // Each row's new colour: its hue, and where its handle is drawn (as `widgets::harmony_wheel`).
-    let handles = |app: &VectorcraftApp| -> Vec<(f32, Pos2)> {
+    let handles = |app: &PlumaApp| -> Vec<(f32, Pos2)> {
         field(app, "rows")
             .as_array()
             .unwrap()
             .iter()
             .map(|row| {
-                let [hue, s, _] = vectorcraft_engine::cmd::color_value(&row["to"]).unwrap().to_hsb();
+                let [hue, s, _] = pluma_engine::cmd::color_value(&row["to"]).unwrap().to_hsb();
                 (hue, c + vec2(hue.to_radians().cos(), -hue.to_radians().sin()) * r * s)
             })
             .collect()
@@ -743,8 +743,8 @@ fn dragging_a_wheel_handle_keeps_the_other_handles_apart() {
     }
     let moved = handles(h.state());
     assert!(gap(moved[1].0, start[1].0) > 10.0, "linked: the other handle turned with it (intended): {start:?} -> {moved:?}");
-    let brightness = |app: &VectorcraftApp| -> Vec<f32> {
-        field(app, "rows").as_array().unwrap().iter().map(|row| vectorcraft_engine::cmd::color_value(&row["to"]).unwrap().to_hsb()[2]).collect()
+    let brightness = |app: &PlumaApp| -> Vec<f32> {
+        field(app, "rows").as_array().unwrap().iter().map(|row| pluma_engine::cmd::color_value(&row["to"]).unwrap().to_hsb()[2]).collect()
     };
     let moved_v = brightness(h.state());
     // Hold the pointer still: nothing should change.
@@ -762,7 +762,7 @@ fn dragging_a_wheel_handle_keeps_the_other_handles_apart() {
     h.run_steps(1);
     assert_eq!(field(h.state(), "rows"), rows, "releasing keeps the colours the drag ended on");
     // OK keeps the whole drag as one undo step; undo brings the art's colours back.
-    let keys = |app: &mut VectorcraftApp| -> Vec<Value> {
+    let keys = |app: &mut PlumaApp| -> Vec<Value> {
         let mut k: Vec<Value> =
             app.session.execute("recolor.colors", &json!({})).unwrap()["colors"].as_array().unwrap().iter().map(|c| c["key"].clone()).collect();
         k.sort_by_key(Value::to_string);
@@ -889,7 +889,7 @@ fn the_last_edit_color_can_be_selected_edited_and_undone() {
         let before = h.state().session.doc().unwrap().doc.clone();
         let undo = h.state().session.doc().unwrap().history.undo.len();
         let wheel = widget_of_size(&h, vec2(220.0, 220.0));
-        let chips = |h: &egui_kittest::Harness<'_, VectorcraftApp>| -> Vec<Rect> {
+        let chips = |h: &egui_kittest::Harness<'_, PlumaApp>| -> Vec<Rect> {
             h.ctx.viewport(|vp| {
                 vp.prev_pass.widgets.layers().flat_map(|(_, w)| w.iter()).filter(|w| w.rect.size() == vec2(28.0, 20.0)).map(|w| w.rect).collect()
             })
@@ -944,12 +944,12 @@ fn the_last_edit_color_can_be_selected_edited_and_undone() {
 }
 
 /// The height of the open Recolor Artwork dialog.
-fn dialog_height(h: &egui_kittest::Harness<'_, VectorcraftApp>) -> f32 {
+fn dialog_height(h: &egui_kittest::Harness<'_, PlumaApp>) -> f32 {
     h.ctx.memory(|m| m.area_rect(egui::Id::unique(("dialog", "recolor")))).unwrap().height()
 }
 
 /// Clicks the Edit tab's display button named `name` and lets the dialog settle.
-fn show_display(h: &mut egui_kittest::Harness<'_, VectorcraftApp>, name: &str) {
+fn show_display(h: &mut egui_kittest::Harness<'_, PlumaApp>, name: &str) {
     h.get_by_role_and_label(egui::accesskit::Role::Button, name).click();
     h.run_steps(6);
 }
@@ -963,8 +963,8 @@ fn the_edit_tab_shows_a_smooth_or_segmented_wheel_or_color_bars() {
     set(h.state_mut(), "__sel", json!([1]));
     h.run_steps(4);
     let (rows, height) = (field(h.state(), "rows"), dialog_height(&h));
-    let slider = |h: &egui_kittest::Harness<'_, VectorcraftApp>, name: &str| h.query_by_role_and_label(egui::accesskit::Role::Slider, name).is_some();
-    let bar = |h: &egui_kittest::Harness<'_, VectorcraftApp>, name: &str| h.query_by_role_and_label(egui::accesskit::Role::Button, name).is_some();
+    let slider = |h: &egui_kittest::Harness<'_, PlumaApp>, name: &str| h.query_by_role_and_label(egui::accesskit::Role::Slider, name).is_some();
+    let bar = |h: &egui_kittest::Harness<'_, PlumaApp>, name: &str| h.query_by_role_and_label(egui::accesskit::Role::Button, name).is_some();
     assert!(slider(&h, "Color wheel") && !slider(&h, "Segmented color wheel"), "the smooth wheel first");
     assert!(!bar(&h, "Color 1"));
     show_display(&mut h, "Show segmented color wheel");
@@ -1060,7 +1060,7 @@ fn a_segmented_wheel_marker_moves_freely() {
 }
 
 /// The rows as `(current colors, new color)` pairs, sorted.
-fn row_pairs(app: &VectorcraftApp) -> Vec<String> {
+fn row_pairs(app: &PlumaApp) -> Vec<String> {
     let mut v: Vec<String> = field(app, "rows").as_array().unwrap().iter().map(|r| format!("{} {}", r["from"], r["to"])).collect();
     v.sort();
     v
@@ -1081,9 +1081,8 @@ fn color_bars_select_edit_and_reorder_the_rows() {
         set(h.state_mut(), "linked", json!(false));
         set(h.state_mut(), "sliderMode", json!("hsb"));
         show_display(&mut h, "Show color bars");
-        let bar = |h: &egui_kittest::Harness<'_, VectorcraftApp>, name: &str| {
-            h.query_by_role_and_label(egui::accesskit::Role::Button, name).map(|n| n.rect())
-        };
+        let bar =
+            |h: &egui_kittest::Harness<'_, PlumaApp>, name: &str| h.query_by_role_and_label(egui::accesskit::Role::Button, name).map(|n| n.rect());
         assert!(bar(&h, "Color 2").is_none(), "no bar for the excluded row");
         let first = bar(&h, "Color 1").expect("a bar per recolored row");
         let last = bar(&h, "Color 4").expect("a bar per recolored row");
@@ -1144,7 +1143,7 @@ fn color_bars_scroll_and_show_when_nothing_is_recolored() {
     assert_eq!(dialog_height(&h), height, "40 bars keep the dialog's height");
     let first = h.get_by_role_and_label(egui::accesskit::Role::Button, "Color 1").rect();
     let wheel_bottom = first.top() + 251.0;
-    let last = |h: &egui_kittest::Harness<'_, VectorcraftApp>| h.get_by_role_and_label(egui::accesskit::Role::Button, "Color 40").rect();
+    let last = |h: &egui_kittest::Harness<'_, PlumaApp>| h.get_by_role_and_label(egui::accesskit::Role::Button, "Color 40").rect();
     assert!(last(&h).top() > wheel_bottom, "the last bar starts out of view: {:?}", last(&h));
     h.input_mut().events.extend([
         Event::PointerMoved(first.center()),

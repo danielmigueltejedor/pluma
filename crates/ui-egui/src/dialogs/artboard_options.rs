@@ -13,14 +13,14 @@
 //! Sizing choices also go to the other selected artboards; fitting changes only the active
 //! artboard around stationary artwork.
 
+use pluma_color::Color;
+use pluma_doc::Unit;
+use pluma_engine::cmd::color_value;
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::Unit;
-use vectorcraft_engine::cmd::color_value;
-use vectorcraft_geom::{Point, Rect};
 
 use super::{DialogSpec, form, run_and_close};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::panels::artboards::{FILLS, fill_colors, fill_name};
 use crate::panels::properties::ArtboardSizeChoice;
 use crate::panels::transform::{artboard_rect, reference_index, reference_locator};
@@ -52,7 +52,7 @@ fn placed(d: &Dialog) -> Rect {
 /// that picks a color of its own, the Show Center Mark, Show Cross Hairs and Show Video Safe Areas
 /// checkboxes, and the Video Ruler Pixel Aspect Ratio field. Last, under Global, the Fade Region
 /// Outside Artboard and Update While Dragging checkboxes.
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let (unit, origin, refi) = (app.session.general_unit(), app.ruler_origin(), reference_index(ui));
     let (was, w0, h0) = (placed(d), d.f64("width", 0.0), d.f64("height", 0.0));
     let bounds = [fit_bounds(app, ui.ctx(), false), fit_bounds(app, ui.ctx(), true)];
@@ -123,7 +123,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     ui.horizontal(|ui| {
         let row = form::row_label(ui, tl!("Video Ruler Pixel Aspect Ratio:"));
         ui.label_inputs_by(row.id, |ui| {
-            let range = vectorcraft_doc::VIDEO_PIXEL_ASPECT_RANGE;
+            let range = pluma_doc::VIDEO_PIXEL_ASPECT_RANGE;
             let now = d.f64(PIXEL_ASPECT, 1.0);
             if let Some(v) = crate::widgets::range_field(ui, ("dlg-num", PIXEL_ASPECT), now, range, "", 4, 60.0) {
                 d.fields.insert(PIXEL_ASPECT.into(), json!(v));
@@ -145,7 +145,7 @@ const FADE: &str = "fadeRegionOutsideArtboard";
 const UPDATE_WHILE_DRAGGING: &str = "artboardUpdateWhileDragging";
 
 /// `fields` with the Global checkboxes ([`global_fields`]) added.
-fn with_globals(app: &VectorcraftApp, mut fields: Value) -> Value {
+fn with_globals(app: &PlumaApp, mut fields: Value) -> Value {
     for (key, on) in global_fields(app) {
         fields[key] = json!(on);
     }
@@ -153,14 +153,14 @@ fn with_globals(app: &VectorcraftApp, mut fields: Value) -> Value {
 }
 
 /// The Global checkboxes as the preferences have them, for the dialog's fields.
-fn global_fields(app: &VectorcraftApp) -> [(&'static str, bool); 2] {
+fn global_fields(app: &PlumaApp) -> [(&'static str, bool); 2] {
     let prefs = &app.session.prefs;
     [(FADE, prefs.fade_region_outside_artboard), (UPDATE_WHILE_DRAGGING, prefs.artboard_update_while_dragging)]
 }
 
 /// The Global checkboxes' preferences that the form changed. A value that is not true or false is
 /// an error, which keeps the dialog open before anything changes.
-fn global_changes(app: &VectorcraftApp, d: &Dialog) -> Result<serde_json::Map<String, Value>, String> {
+fn global_changes(app: &PlumaApp, d: &Dialog) -> Result<serde_json::Map<String, Value>, String> {
     let mut values = serde_json::Map::new();
     for (key, now) in global_fields(app) {
         match d.fields.get(key) {
@@ -176,7 +176,7 @@ fn global_changes(app: &VectorcraftApp, d: &Dialog) -> Result<serde_json::Map<St
 
 /// OK sets the Global checkboxes' preferences that the form changed ([`global_changes`]), in one
 /// `prefs.set`, and leaves the preferences alone when none changed.
-fn set_globals(app: &mut VectorcraftApp, values: serde_json::Map<String, Value>) -> Result<(), String> {
+fn set_globals(app: &mut PlumaApp, values: serde_json::Map<String, Value>) -> Result<(), String> {
     if values.is_empty() {
         return Ok(());
     }
@@ -222,7 +222,7 @@ struct ArtworkFitBounds {
 /// Artwork fitting includes all drawn artwork, even outside every artboard; selection uses
 /// the shared selection cache. Draft/target geometry never restricts membership. Global artwork
 /// bounds are cached only for the active document and its revision.
-fn fit_bounds(app: &mut VectorcraftApp, ctx: &egui::Context, selection: bool) -> Option<Rect> {
+fn fit_bounds(app: &mut PlumaApp, ctx: &egui::Context, selection: bool) -> Option<Rect> {
     if selection {
         return app.selection_bounds();
     }
@@ -234,7 +234,7 @@ fn fit_bounds(app: &mut VectorcraftApp, ctx: &egui::Context, selection: bool) ->
     {
         return cached.bounds;
     }
-    let bounds = vectorcraft_render::encode::art_bounds(&st.doc);
+    let bounds = pluma_render::encode::art_bounds(&st.doc);
     ctx.data_mut(|data| data.insert_temp(id, ArtworkFitBounds { key, bounds }));
     bounds
 }
@@ -244,7 +244,7 @@ fn fit_bounds(app: &mut VectorcraftApp, ctx: &egui::Context, selection: bool) ->
 /// lands there.
 fn position_rows(ui: &mut egui::Ui, d: &mut Dialog, refi: usize, unit: Unit, origin: Point) {
     let r = placed(d);
-    let rp = vectorcraft_geom::reference_point(r, refi);
+    let rp = pluma_geom::reference_point(r, refi);
     let mut indent = 0.0;
     for (key, label, at, zero) in [("x", "X:", rp.x, origin.x), ("y", "Y:", rp.y, origin.y)] {
         let row = ui
@@ -277,7 +277,7 @@ fn position_rows(ui: &mut egui::Ui, d: &mut Dialog, refi: usize, unit: Unit, ori
 pub const KIND: &str = "artboardOptions";
 
 /// The active artboard's index: the Artboard tool's while it is in use, else the window's.
-pub(crate) fn active_index(app: &VectorcraftApp) -> usize {
+pub(crate) fn active_index(app: &PlumaApp) -> usize {
     if app.session.tool_id() == "artboard" {
         app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok()).unwrap_or(0)
     } else {
@@ -286,7 +286,7 @@ pub(crate) fn active_index(app: &VectorcraftApp) -> usize {
 }
 
 /// Open Artboard Options for the active artboard ([`active_index`]).
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let index = active_index(app);
     let st = app.session.active().ok_or("no document")?;
     let a = st.doc.artboards.get(index).ok_or("no artboard")?;
@@ -308,7 +308,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
 /// row; the top-left corner when the form set none), all in one undo step. Fitting applies only
 /// to this artboard and never moves its artwork. The Global checkboxes' preferences are set only
 /// after the artboard command succeeds, so an error leaves them as they were.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let globals = global_changes(app, d)?;
     if d.bool("new") {
         let r = confirm_new(app, d)?;
@@ -361,10 +361,10 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 /// `ui.newArtboard` (Alt-click on the Artboards panel's New Artboard): Artboard Options for a new
 /// artboard (field `new`), filled in as `artboard.new {}` would make it: named Artboard N (N one
 /// more than the number of artboards), as large as the last artboard and 20 pt to the right of it.
-pub fn open_new(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open_new(app: &mut PlumaApp) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document")?;
     let abs = &st.doc.artboards;
-    let last = abs.last().map_or(vectorcraft_geom::Rect::new(0.0, 0.0, 612.0, 792.0), |a| a.rect);
+    let last = abs.last().map_or(pluma_geom::Rect::new(0.0, 0.0, 612.0, 792.0), |a| a.rect);
     let fields = json!({
         "new": true, "name": format!("Artboard {}", abs.len() + 1),
         "x": last.x1 + 20.0, "y": last.y0, "width": last.width(), "height": last.height(),
@@ -376,7 +376,7 @@ pub fn open_new(app: &mut VectorcraftApp) -> Result<Value, String> {
 /// OK for a new artboard: `artboard.new` with the fields (an empty name gives the default one),
 /// the background color picked, the display marks ticked and the Video Ruler Pixel Aspect Ratio
 /// typed, and the new artboard becomes the active one.
-fn confirm_new(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm_new(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut p = json!({});
     for k in ["x", "y", "width", "height"] {
         p[k] = json!(d.f64(k, 0.0));

@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use egui::vec2;
 use egui_kittest::kittest::Queryable;
+use pluma_engine::Session;
+use pluma_plugins::wat as tpl;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::wat as tpl;
 
 use super::*;
 
@@ -40,14 +40,14 @@ fn manifest(id: &str) -> String {
 /// The dialog of plug-in `id` in a kittest harness; the web pages it opens go to `opened`.
 fn harness(id: &str, opened: Arc<Mutex<Vec<String>>>) -> Harness {
     let services = crate::Services { open_url: Some(Box::new(move |u: &str| opened.lock().unwrap().push(u.to_string()))), ..Default::default() };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let wasm = wat::parse_str(tpl::module(&manifest(id), tpl::ECHO, "", 1)).unwrap();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm)})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm)})).unwrap();
     app.run("plugin.dialog", json!({"id": id})).unwrap();
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(900.0, 800.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -60,7 +60,7 @@ fn harness(id: &str, opened: Arc<Mutex<Vec<String>>>) -> Harness {
     h
 }
 
-type Harness = egui_kittest::Harness<'static, VectorcraftApp>;
+type Harness = egui_kittest::Harness<'static, PlumaApp>;
 
 /// The text label `text` (a checkbox is called by its row's label too).
 fn label<'h>(h: &'h Harness, text: &'h str) -> Option<egui_kittest::Node<'h>> {
@@ -156,13 +156,13 @@ fn plugin_fields_picture() {
             "visibleWhen":{"outline":[true]}}}}"#;
     let src = tpl::module(manifest, tpl::ECHO, "", 1);
     std::fs::write(dir.join("hatch-test-filter.wasm"), wat::parse_str(&src).unwrap()).unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(&src).unwrap())})).unwrap();
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(&src).unwrap())})).unwrap();
     app.run("plugin.dialog", json!({"id": "org.example.hatch"})).unwrap();
     let mut ready = false;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(720.0, 620.0)).wgpu().build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut ready, true) {
                 crate::theme::install_fonts(ui.ctx());
                 crate::theme::apply(ui.ctx(), crate::theme::Brightness::MediumDark);

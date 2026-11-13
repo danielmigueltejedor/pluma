@@ -1,10 +1,10 @@
 //! Linked measurements, history, portable artwork and hostile command input.
-use serde_json::{Value, json};
-use vectorcraft_engine::{
+use pluma_engine::{
     Session, ViewInfo,
     doc::{Document, NodeId, NodeKind},
     tools::{Mods, PointerEvent, PointerKind, ToolKey},
 };
+use serde_json::{Value, json};
 
 fn session() -> Session {
     let mut s = Session::new();
@@ -30,7 +30,7 @@ fn text(s: &Session, id: u64) -> String {
     let n = s.doc().unwrap().doc.node(NodeId(id)).unwrap();
     n.children().unwrap().iter().find_map(|n| if let NodeKind::Text(t) = &n.kind { Some(t.plain_text()) } else { None }).unwrap()
 }
-fn recipe(s: &Session, id: u64) -> vectorcraft_doc::dimension::Dimension {
+fn recipe(s: &Session, id: u64) -> pluma_doc::dimension::Dimension {
     (**s.doc().unwrap().doc.node(NodeId(id)).unwrap().extras().dimension.as_ref().unwrap()).clone()
 }
 fn ev(s: &mut Session, kind: PointerKind, x: f64, y: f64) {
@@ -251,8 +251,8 @@ fn dimension_anchor_links_and_native_file_survive_source_moves() {
     let second = edge(&mut s);
     let id=run(&mut s,"dimension.create",json!({"a":[100,100],"b":[172,100],"source":{"kind":"points","a":{"node":first,"subpath":0,"anchor":0},"b":{"node":second,"subpath":0,"anchor":1},"vertex":null},"options":{"units":"pt","precision":0}}))["id"].as_u64().unwrap();
     assert_eq!(text(&s, id), "72 pt");
-    let bytes = vectorcraft_format::save(&s.doc().unwrap().doc, false);
-    let doc = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save(&s.doc().unwrap().doc, false);
+    let doc = pluma_format::load(&bytes).unwrap();
     let mut s = Session::new();
     s.add_document(doc, None);
     run(&mut s, "select.set", json!({"ids":[second]}));
@@ -348,7 +348,7 @@ fn an_expanded_dimension_stays_plain_art() {
     assert_eq!((art(&s, id), bounds(&s, id)), (plain, at));
     assert!(s.doc().unwrap().doc.node(NodeId(other)).is_none());
     // Saved and opened again, it is still plain art.
-    let doc = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let doc = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let mut reopened = Session::new();
     reopened.add_document(doc, None);
     stays_plain_art(&mut reopened, id);
@@ -628,9 +628,9 @@ fn dimension_options_are_persistent_and_invalid_updates_report_errors() {
     s.set_tool_option_cmd(&json!({"tool":"dimension","values":{"style":{"scale":"10:1","units":"mm","precision":3},"mode":"radial"}})).unwrap();
     assert_eq!(s.tool_options_of("dimension")["style"]["scale"], "10:1");
     assert!(s.set_tool_option_cmd(&json!({"tool":"dimension","values":{"style":{"scale":"1:0"}}})).is_err());
-    let o: vectorcraft_doc::dimension::DimensionOptions = serde_json::from_value(s.tool_options_of("dimension")["style"].clone()).unwrap();
+    let o: pluma_doc::dimension::DimensionOptions = serde_json::from_value(s.tool_options_of("dimension")["style"].clone()).unwrap();
     assert_eq!(o.label(72.0, false).unwrap(), "2.540 mm");
-    let picas: vectorcraft_doc::dimension::DimensionOptions = serde_json::from_value(json!({"units":"pc","precision":1})).unwrap();
+    let picas: pluma_doc::dimension::DimensionOptions = serde_json::from_value(json!({"units":"pc","precision":1})).unwrap();
     assert_eq!(picas.label(72.0, false).unwrap(), "6.0 pc");
     let prefs = serde_json::to_value(&s.prefs).unwrap();
     let mut fresh = Session::new();
@@ -708,7 +708,7 @@ fn unknown_dimension_options_are_refused_by_commands_but_a_newer_file_still_open
     assert!(bad.unwrap_err().to_string().contains("Unknown dimension option color"));
     assert!(s.set_tool_option_cmd(&json!({"tool":"dimension","values":{"style":{"precison":2}}})).is_err());
     let id = dim(&mut s, line);
-    let saved = vectorcraft_format::save(&s.doc().unwrap().doc, false);
+    let saved = pluma_format::save(&s.doc().unwrap().doc, false);
     let mut v: Value = serde_json::from_slice(&saved).unwrap();
     // A later version's dimension carries fields this one doesn't know.
     fn add_unknown(v: &mut Value) {
@@ -727,7 +727,7 @@ fn unknown_dimension_options_are_refused_by_commands_but_a_newer_file_still_open
         }
     }
     add_unknown(&mut v);
-    let doc = vectorcraft_format::load(&serde_json::to_vec(&v).unwrap()).unwrap();
+    let doc = pluma_format::load(&serde_json::to_vec(&v).unwrap()).unwrap();
     assert!(doc.node(NodeId(id)).unwrap().extras().dimension.is_some());
 }
 
@@ -735,7 +735,7 @@ fn unknown_dimension_options_are_refused_by_commands_but_a_newer_file_still_open
 /// second click will pick (#2432), not the raw pointer.
 #[test]
 fn shift_shows_the_constrained_line_while_picking_the_second_point() {
-    use vectorcraft_engine::tools::Overlay;
+    use pluma_engine::tools::Overlay;
     let mut s = session();
     s.select_tool("dimension", ViewInfo::default()).unwrap();
     ev(&mut s, PointerKind::Down, 300.0, 300.0);
@@ -767,7 +767,7 @@ fn clicking_near_a_line_snaps_the_measured_point_onto_it() {
 /// snap before the click, and the dimension stays linked to the anchors (#2516).
 #[test]
 fn both_points_snap_onto_anchors_with_a_visible_indicator() {
-    use vectorcraft_engine::tools::Overlay;
+    use pluma_engine::tools::Overlay;
     let mut s = session();
     let line = edge(&mut s);
     s.select_tool("dimension", ViewInfo::default()).unwrap();
@@ -799,7 +799,7 @@ fn both_points_snap_onto_anchors_with_a_visible_indicator() {
 /// the construction guide through the first. The dimension measures between the snapped points.
 #[test]
 fn linear_picks_show_and_snap_to_smart_guides() {
-    use vectorcraft_engine::tools::Overlay;
+    use pluma_engine::tools::Overlay;
     let mut s = session();
     run(&mut s, "shape.rectangle", json!({"x":300,"y":200,"width":80,"height":60}));
     run(&mut s, "select.none", json!({}));
@@ -828,7 +828,7 @@ fn linear_picks_show_and_snap_to_smart_guides() {
 
 /// The page content streams of exported PDF `v`, inflated.
 fn pdf_content(v: &Value) -> String {
-    let bytes = vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
     let mut out = String::new();
     let mut rest = &bytes[..];
     while let Some(at) = rest.windows(7).position(|w| w == b"stream\n" || w == b"stream\r") {
@@ -862,7 +862,7 @@ fn dimension_colours_follow_the_document_colour_model() {
         v
     };
     let black = colours(&s, id);
-    assert!(!black.is_empty() && black.iter().all(|c| *c == vectorcraft_color::Color::cmyk(0.0, 0.0, 0.0, 1.0)), "{black:?}");
+    assert!(!black.is_empty() && black.iter().all(|c| *c == pluma_color::Color::cmyk(0.0, 0.0, 0.0, 1.0)), "{black:?}");
     let pdf = pdf_content(&run(&mut s, "document.exportPdf", json!({"preset":"PDF/X-4:2010"})));
     // PDF/X-4 paints in the output intent's CMYK space: `/c0 CS 0 0 0 1 SCN` strokes, `scn` fills.
     let operands = |op: &str| pdf.match_indices(op).map(|(i, _)| pdf[i.saturating_sub(7)..i].to_string()).collect::<Vec<_>>();
@@ -871,25 +871,25 @@ fn dimension_colours_follow_the_document_colour_model() {
     assert!(strokes.iter().chain(&fills).all(|v| v == "0 0 0 1"), "K-only colours: {strokes:?} {fills:?}");
     run(&mut s, "dimension.update", json!({"ids":[id],"options":{"lineColor":[255,0,0]}}));
     let red = colours(&s, id);
-    assert!(red.iter().any(|c| matches!(c, vectorcraft_color::Color::Cmyk { m, y, .. } if *m > 0.5 && *y > 0.5)), "{red:?}");
-    assert!(red.iter().all(|c| matches!(c, vectorcraft_color::Color::Cmyk { .. })), "{red:?}");
+    assert!(red.iter().any(|c| matches!(c, pluma_color::Color::Cmyk { m, y, .. } if *m > 0.5 && *y > 0.5)), "{red:?}");
+    assert!(red.iter().all(|c| matches!(c, pluma_color::Color::Cmyk { .. })), "{red:?}");
     // RGB documents are unchanged.
     let mut s = session();
     let line = edge(&mut s);
     let id = dim(&mut s, line);
-    assert!(colours(&s, id).iter().all(|c| *c == vectorcraft_color::Color::rgb8(0, 0, 0)));
+    assert!(colours(&s, id).iter().all(|c| *c == pluma_color::Color::rgb8(0, 0, 0)));
     // Document Color Mode redraws dimensions in the new mode: K-only black in CMYK, RGB black back
     // in RGB (not a profile conversion of the old art).
-    let k = vectorcraft_color::Color::cmyk(0.0, 0.0, 0.0, 1.0);
+    let k = pluma_color::Color::cmyk(0.0, 0.0, 0.0, 1.0);
     run(&mut s, "file.documentColorMode", json!({"mode":"cmyk"}));
     let after = colours(&s, id);
     assert!(!after.is_empty() && after.iter().all(|c| *c == k), "{after:?}");
     run(&mut s, "file.documentColorMode", json!({"mode":"rgb"}));
-    assert!(colours(&s, id).iter().all(|c| *c == vectorcraft_color::Color::rgb8(0, 0, 0)), "{:?}", colours(&s, id));
+    assert!(colours(&s, id).iter().all(|c| *c == pluma_color::Color::rgb8(0, 0, 0)), "{:?}", colours(&s, id));
     // A CMYK file saved with RGB dimension art (before dimensions followed the colour mode) opens
     // with its dimensions redrawn in CMYK.
     let mut old = (*s.doc().unwrap().doc).clone();
-    old.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    old.color_mode = pluma_doc::ColorMode::Cmyk;
     s.add_document(old, None);
     let opened = colours(&s, id);
     assert!(!opened.is_empty() && opened.iter().all(|c| *c == k), "{opened:?}");
@@ -898,20 +898,20 @@ fn dimension_colours_follow_the_document_colour_model() {
     let label = {
         let mut found = None;
         old.node(NodeId(id)).unwrap().walk(&mut |n| {
-            if matches!(n.kind, vectorcraft_doc::NodeKind::Text(_)) {
+            if matches!(n.kind, pluma_doc::NodeKind::Text(_)) {
                 found = Some(n.id);
             }
         });
         found.expect("a dimension label")
     };
-    if let Some(vectorcraft_doc::NodeKind::Text(t)) = old.node_mut(label).map(|n| &mut n.kind) {
+    if let Some(pluma_doc::NodeKind::Text(t)) = old.node_mut(label).map(|n| &mut n.kind) {
         for r in &mut t.runs {
-            r.style.fill = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(0, 0, 0));
+            r.style.fill = pluma_color::Paint::solid(pluma_color::Color::rgb8(0, 0, 0));
         }
     }
     s.add_document(old, None);
     let runs = |s: &Session| match &s.doc().unwrap().doc.node(label).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(t) => t.runs.iter().filter_map(|r| r.style.fill.color()).collect::<Vec<_>>(),
+        pluma_doc::NodeKind::Text(t) => t.runs.iter().filter_map(|r| r.style.fill.color()).collect::<Vec<_>>(),
         _ => Vec::new(),
     };
     assert!(!runs(&s).is_empty() && runs(&s).iter().all(|c| *c == k), "{:?}", runs(&s));

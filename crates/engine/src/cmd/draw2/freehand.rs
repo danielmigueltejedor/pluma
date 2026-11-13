@@ -12,7 +12,7 @@ use super::{
 /// Fit a freehand polyline: drop jitter, build a spline through the samples (sharp turns stay
 /// corners) and simplify it to `tol`.
 fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
-    let min = (tol * 0.3).max(vectorcraft_tools::draw2::MIN_FIT_TOLERANCE * 0.3);
+    let min = (tol * 0.3).max(pluma_tools::draw2::MIN_FIT_TOLERANCE * 0.3);
     let (Some(&p0), Some(&pn)) = (pts.first(), pts.last()) else { return SubPath::new(vec![], closed) };
     let mut kept: Vec<Point> = vec![p0];
     for &p in pts.iter().skip(1) {
@@ -40,7 +40,7 @@ fn fit_freehand(pts: &[Point], tol: f64, closed: bool) -> SubPath {
             (kept[i], corner)
         })
         .collect();
-    let sp = vectorcraft_tools::draw2::catmull_rom(&marked, closed);
+    let sp = pluma_tools::draw2::catmull_rom(&marked, closed);
     if sp.anchors.len() < 3 {
         return sp;
     }
@@ -150,7 +150,7 @@ pub(super) fn freehand(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let pen = PenRecord::of_samples(&samples);
     let mut pts: Vec<Point> = samples.into_iter().map(|s| s.pt).collect();
-    let tol = number_or(p, "fidelity", 1.5, C)?.clamp(vectorcraft_tools::draw2::MIN_FIT_TOLERANCE, 100.0);
+    let tol = number_or(p, "fidelity", 1.5, C)?.clamp(pluma_tools::draw2::MIN_FIT_TOLERANCE, 100.0);
     // The tolerance the stroke is fitted at; with `fit: false` it is not fitted.
     let fit_tol = switch_or(p, "fit", true, C)?.then_some(tol);
     let closed = switch_or(p, "closed", false, C)?;
@@ -390,7 +390,7 @@ pub(super) fn blob(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let angle = angle.clamp(-180.0, 180.0);
     let roundness = roundness.clamp(0.0, 100.0);
-    let tip = vectorcraft_tools::draw2::blob_tip(angle, roundness);
+    let tip = pluma_tools::draw2::blob_tip(angle, roundness);
     let squash = tip.inverse();
     // Width profiles use distance along the spine, so measure pressure on the same squashed
     // points that the outline reads for a non-round tip.
@@ -416,7 +416,7 @@ pub(super) fn blob(s: &mut Session, p: &Value) -> Result<Value> {
     // its start), the brush follows every point.
     let fidelity = match p.get("fidelity") {
         None | Some(Value::Null) => None,
-        Some(_) => Some(number_or(p, "fidelity", 0.0, C)?.clamp(vectorcraft_tools::draw2::MIN_FIDELITY, 100.0)),
+        Some(_) => Some(number_or(p, "fidelity", 0.0, C)?.clamp(pluma_tools::draw2::MIN_FIDELITY, 100.0)),
     };
     let spine = |tol: Option<f64>| {
         let path = match tol {
@@ -437,7 +437,7 @@ pub(super) fn blob(s: &mut Session, p: &Value) -> Result<Value> {
             }
         }
         // A click: one dab as wide as the pen pressed.
-        (Some((prof, variation)), false) => brush_region(&mapped_pts, vectorcraft_tools::draw2::pressure_size(size, *variation, prof.at(0.0))),
+        (Some((prof, variation)), false) => brush_region(&mapped_pts, pluma_tools::draw2::pressure_size(size, *variation, prof.at(0.0))),
         (None, _) => {
             let fitted = fidelity
                 .filter(|_| pts.len() > 1)

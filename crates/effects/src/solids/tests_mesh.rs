@@ -1,7 +1,7 @@
+use pluma_doc::NodeId;
+use pluma_doc::color::{Color, Gradient, GradientKind, GradientPaint, GradientStop};
+use pluma_geom::BezPath;
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_doc::color::{Color, Gradient, GradientKind, GradientPaint, GradientStop};
-use vectorcraft_geom::BezPath;
 
 use super::*;
 
@@ -175,6 +175,6 @@ fn a_gradient_takes_the_average_of_its_stops() {
         vec![GradientStop::new(0.0, Color::rgb(1.0, 0.0, 0.0)), GradientStop { opacity: 0.5, ..GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0)) }];
     let paint = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
     assert!(close(mesh_color(&paint, 1.0), [0.5, 0.0, 0.5, 0.75]));
-    let pattern = Paint::Pattern { pattern: "x".into(), xf: vectorcraft_geom::Affine::IDENTITY };
+    let pattern = Paint::Pattern { pattern: "x".into(), xf: pluma_geom::Affine::IDENTITY };
     assert!(close(mesh_color(&pattern, 0.5), [0.5, 0.5, 0.5, 0.5]));
 }

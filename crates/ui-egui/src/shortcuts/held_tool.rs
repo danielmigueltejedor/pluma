@@ -2,10 +2,10 @@
 //! Temporarily, `holdToolKeys`): the tool it chose stays until the key is let go, and then the tool
 //! active before comes back. A quick press chooses the tool for good.
 
-use super::{Key, VectorcraftApp};
+use super::{Key, PlumaApp};
 
 /// A key let go this many seconds or more after its press returns to the tool active before it.
-/// VectorCraft's own value.
+/// Pluma's own value.
 pub(crate) const HOLD_SECONDS: f64 = 0.25;
 
 /// A tool shortcut's key held down since it chose its tool.
@@ -33,7 +33,7 @@ pub(crate) struct HeldTool {
 /// and letting go of the earlier key then returns to the tool before both. With the preference on,
 /// a key's repeats choose nothing: a key held down chooses its tool once. With it off, each repeat
 /// chooses the tool again.
-pub(super) fn choose(app: &mut VectorcraftApp, ctx: &egui::Context, tool: &str, key: Option<Key>, repeat: bool) {
+pub(super) fn choose(app: &mut PlumaApp, ctx: &egui::Context, tool: &str, key: Option<Key>, repeat: bool) {
     if repeat && app.session.prefs.hold_tool_keys {
         return;
     }
@@ -61,7 +61,7 @@ pub(super) fn choose(app: &mut VectorcraftApp, ctx: &egui::Context, tool: &str, 
 /// A press that reaches the active tool, a drag of the Zoom, Hand or Rotate View tool, or the
 /// tool's dialog opened with Enter, uses the tool of the key held last when that tool is active,
 /// also when that and the key's release come between two frames of [`follow`].
-pub(crate) fn note_tool_use(app: &mut VectorcraftApp) {
+pub(crate) fn note_tool_use(app: &mut PlumaApp) {
     let active = app.session.tool_id();
     if let Some(held) = app.held_tool.last_mut().filter(|h| h.tool == active) {
         held.used = true;
@@ -69,7 +69,7 @@ pub(crate) fn note_tool_use(app: &mut VectorcraftApp) {
 }
 
 /// After the tool takes `key`: a dialog that Enter left open is the tool's, so it uses the tool.
-pub(super) fn note_enter_dialog(app: &mut VectorcraftApp, key: Key) {
+pub(super) fn note_enter_dialog(app: &mut PlumaApp, key: Key) {
     if key == Key::Enter && app.ui.dialog.is_some() {
         note_tool_use(app);
     }
@@ -80,7 +80,7 @@ pub(super) fn note_enter_dialog(app: &mut VectorcraftApp, key: Key) {
 /// go during a drag, with the button held or with a dialog open, goes back once that ends. Choosing
 /// another tool, a quick press, turning the preference off or the window losing the keyboard ends
 /// every hold without going back. A frame of another viewport that has the keyboard also ends them.
-pub(super) fn follow(app: &mut VectorcraftApp, ctx: &egui::Context, focused: bool) {
+pub(super) fn follow(app: &mut PlumaApp, ctx: &egui::Context, focused: bool) {
     // Every key let go is timed in the frame that first sees it up, under the key held last too.
     let (viewport, time) = (ctx.viewport_id(), ctx.input(|i| i.time));
     for held in app.held_tool.iter_mut().filter(|h| h.viewport == viewport && h.released.is_none()) {

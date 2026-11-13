@@ -104,7 +104,7 @@ impl Serialize for Node {
 
 /// Most objects [`with_node_budget`] lets a document read: 4M (about 1 GB of the smallest
 /// objects), 512K in the web build. Paths have their own anchor budget
-/// ([`vectorcraft_geom::path::MAX_READ_ANCHORS`]); this one bounds the objects themselves.
+/// ([`pluma_geom::path::MAX_READ_ANCHORS`]); this one bounds the objects themselves.
 pub const MAX_READ_NODES: usize = if cfg!(target_arch = "wasm32") { 512 << 10 } else { 4 << 20 };
 
 std::thread_local! {
@@ -229,7 +229,7 @@ pub(super) struct NodeWire {
     #[serde(default)]
     objects_on_path: Option<Box<crate::objects_on_path::ObjectsOnPath>>,
     #[serde(default)]
-    colorize: Option<Box<vectorcraft_color::Paint>>,
+    colorize: Option<Box<pluma_color::Paint>>,
     #[serde(default)]
     compound_shape: bool,
     #[serde(default)]

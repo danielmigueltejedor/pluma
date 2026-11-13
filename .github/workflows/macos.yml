@@ -85,7 +85,7 @@ jobs:
       - name: Check the DMG
         run: |
           set -euo pipefail
-          dmgs=("$DIST"/vectorcraft-*-macos-"$ARCH".dmg)
+          dmgs=("$DIST"/pluma-*-macos-"$ARCH".dmg)
           if [[ ${#dmgs[@]} -ne 1 || ! -f "${dmgs[0]}" ]]; then
             echo "expected exactly one macOS DMG" >&2
             exit 1
@@ -104,12 +104,12 @@ jobs:
           echo "linked against SDK $sdk"
           test "${sdk%%.*}" -ge 26
           hdiutil detach /Volumes/check
-          (cd "$DIST" && shasum -a 256 vectorcraft-*-macos-* > SHA256SUMS-macos && cat SHA256SUMS-macos)
+          (cd "$DIST" && shasum -a 256 pluma-*-macos-* > SHA256SUMS-macos && cat SHA256SUMS-macos)
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: vectorcraft-macos-${{ env.ARCH }}
-          path: dist/vectorcraft-*-macos-*
+          name: pluma-macos-${{ env.ARCH }}
+          path: dist/pluma-*-macos-*
           if-no-files-found: error
           retention-days: 14
 
@@ -118,4 +118,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" "$DIST"/vectorcraft-*-macos-* --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" "$DIST"/pluma-*-macos-* --clobber --repo "$GITHUB_REPOSITORY"

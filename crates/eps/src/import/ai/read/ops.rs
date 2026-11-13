@@ -471,7 +471,7 @@ impl<'a> Reader<'a> {
         a.dim = flag(4, false).then_some(dim_pct.round() as u8);
         let index = n.get(at).copied().unwrap_or(0.0);
         let rgb = |i: usize| n.get(at + i).map_or(0, |v| v.clamp(0.0, 255.0) as u8);
-        a.color = Some(if (0.0..vectorcraft_doc::LAYER_COLORS.len() as f64).contains(&index) && index.fract() == 0.0 {
+        a.color = Some(if (0.0..pluma_doc::LAYER_COLORS.len() as f64).contains(&index) && index.fract() == 0.0 {
             LayerColor::Preset(index as u8)
         } else {
             LayerColor::Custom([rgb(1), rgb(2), rgb(3)])
@@ -535,8 +535,8 @@ impl<'a> Reader<'a> {
         // Registration (`Xs`, `Xz`) says nothing of the document's colour model.
         let registration = matches!(w, "Xs" | "XS" | "Xz" | "XZ") || p.is_registration();
         match p.color().filter(|_| !registration) {
-            Some(vectorcraft_color::Color::Rgb { .. }) => self.rgb_colors += 1,
-            Some(vectorcraft_color::Color::Cmyk { .. }) => self.cmyk_colors += 1,
+            Some(pluma_color::Color::Rgb { .. }) => self.rgb_colors += 1,
+            Some(pluma_color::Color::Cmyk { .. }) => self.cmyk_colors += 1,
             _ => {}
         }
         if let Some(n) = named {
@@ -800,7 +800,7 @@ impl<'a> Reader<'a> {
             let k = space.determinant().abs().sqrt();
             if k.is_finite() && k > 0.0 && (k - 1.0).abs() > 1e-9 {
                 appearance.scale_strokes(k);
-                appearance.scale_effects(k, vectorcraft_effects::scale_effect);
+                appearance.scale_effects(k, pluma_effects::scale_effect);
             }
             let Some(mut object) = f.children.pop() else { return };
             let Some(look) = f.children.pop() else { return };
@@ -1136,7 +1136,7 @@ fn styled(object: &Node, look: &Node, st: &crate::import::ai::style::ArtStyle, p
                     (None, 1, Some(own)) => own.paint.clone(),
                     _ => {
                         let gradient = name.as_ref().and_then(|n| paints.gradients.get(n))?;
-                        let mut g = vectorcraft_color::gradient::GradientPaint::new(gradient.clone());
+                        let mut g = pluma_color::gradient::GradientPaint::new(gradient.clone());
                         // Fitted to the object's bounds at its angle (art space turns counter-clockwise, as the document's angles do).
                         g.angle = *angle;
                         Paint::Gradient(Box::new(g))
@@ -1415,8 +1415,8 @@ impl<'s> Dictionaries<'s> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_doc::ImageObject;
-    use vectorcraft_geom::shapes;
+    use pluma_doc::ImageObject;
+    use pluma_geom::shapes;
 
     fn square(id: u64, fill: Paint) -> Arc<Node> {
         Arc::new(Node::path(NodeId(id), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::basic(fill, Paint::None, 0.0)))
@@ -1452,7 +1452,7 @@ mod tests {
             bending: &bending,
             space: Affine::IDENTITY,
         };
-        let look = Node::group(NodeId(1), vec![square(2, Paint::solid(vectorcraft_color::Color::rgb(1.0, 0.0, 0.0)))]);
+        let look = Node::group(NodeId(1), vec![square(2, Paint::solid(pluma_color::Color::rgb(1.0, 0.0, 0.0)))]);
         assert!(styled(&square(3, Paint::None), &look, st, &paints).is_some(), "a path takes the style");
         let image =
             ImageObject { key: "a".into(), width: 1, height: 1, xf: Affine::IDENTITY, link: None, placement: Default::default(), pixels: None };
@@ -1476,9 +1476,9 @@ mod tests {
     #[test]
     fn only_outlines_without_gradients_move_alike() {
         // GUARDS: an image's pixels and a placed gradient stay behind when an effect moves the outline.
-        let solid = || square(2, Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0)));
+        let solid = || square(2, Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0)));
         assert!(moves_alike(&Node::group(NodeId(1), vec![solid(), solid()]), 1));
-        let gradient = square(3, Paint::Gradient(Box::new(vectorcraft_color::gradient::GradientPaint::new(Gradient::default()))));
+        let gradient = square(3, Paint::Gradient(Box::new(pluma_color::gradient::GradientPaint::new(Gradient::default()))));
         assert!(!moves_alike(&Node::group(NodeId(1), vec![solid(), gradient]), 1));
         let image =
             ImageObject { key: "a".into(), width: 1, height: 1, xf: Affine::IDENTITY, link: None, placement: Default::default(), pixels: None };
@@ -1490,15 +1490,11 @@ mod tests {
         slot.name = Some(format!("{}0", super::super::document::TEXT_SLOT));
         assert!(!moves_alike(&Node::group(NodeId(1), vec![solid(), Arc::new(slot)]), 1));
         let mut masked = Node::clone(&solid());
-        masked.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(Node::group(NodeId(7), vec![]), true)));
+        masked.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(Node::group(NodeId(7), vec![]), true)));
         assert!(!moves_alike(&Node::group(NodeId(1), vec![solid(), Arc::new(masked)]), 1));
         // A member with an effect of its own.
         let mut turned = Node::clone(&solid());
-        turned.appearance.effects.push(vectorcraft_doc::Effect {
-            id: "distort.twist".into(),
-            params: serde_json::json!({"angle": 30.0}),
-            visible: true,
-        });
+        turned.appearance.effects.push(pluma_doc::Effect { id: "distort.twist".into(), params: serde_json::json!({"angle": 30.0}), visible: true });
         assert!(!moves_alike(&Node::group(NodeId(1), vec![solid(), Arc::new(turned)]), 1));
         // A member painting a pattern, whose tiles stay where they are, and a clipping group.
         let tiled = square(8, Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY });
@@ -1514,13 +1510,13 @@ mod tests {
     fn an_outline_moves_with_its_effect_only_on_outlines() {
         // GUARDS: a top-level image or masked path took an effect that moves the outline.
         use crate::import::ai::style::ArtStyle;
-        let effect = |id: &str, params| vectorcraft_doc::Effect { id: id.into(), params, visible: true };
+        let effect = |id: &str, params| pluma_doc::Effect { id: id.into(), params, visible: true };
         let style = |e| ArtStyle { effects: vec![e], ..ArtStyle::default() };
         let twist = style(effect("distort.twist", serde_json::json!({"angle": 30.0})));
-        let path = square(2, Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0)));
+        let path = square(2, Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0)));
         assert!(moves_with(&path, &twist));
         let mut masked = Node::clone(&path);
-        masked.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(Node::group(NodeId(7), vec![]), true)));
+        masked.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(Node::group(NodeId(7), vec![]), true)));
         assert!(!moves_with(&masked, &twist));
         let image =
             ImageObject { key: "a".into(), width: 1, height: 1, xf: Affine::IDENTITY, link: None, placement: Default::default(), pixels: None };

@@ -1,8 +1,8 @@
 //! Type names the available family as the font spells it, not as the PostScript name splits into
 //! words (#130).
 
-use vectorcraft_doc::NodeKind;
-use vectorcraft_text::FontDb;
+use pluma_doc::NodeKind;
+use pluma_text::FontDb;
 
 use crate::import::import;
 

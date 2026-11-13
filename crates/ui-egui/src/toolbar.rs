@@ -8,12 +8,12 @@
 use std::sync::Arc;
 
 use egui::{Color32, CornerRadius, Sense, Stroke, Ui, pos2, vec2};
+use pluma_color::Paint;
+use pluma_tools::{Mods, TOOL_GROUPS, ToolInfo, ToolKey, tool_info};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_tools::{Mods, TOOL_GROUPS, ToolInfo, ToolKey, tool_info};
 
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, icons, widgets};
+use crate::{PlumaApp, icons, widgets};
 
 pub(crate) const PITCH: f32 = 30.0;
 pub(crate) const WIDTH: f32 = 48.0;
@@ -75,7 +75,7 @@ pub(crate) fn tip(t: &ToolInfo) -> String {
 
 /// Slots of the current layout, as Edit Toolbar left it: (category label for the first slot of a
 /// category, tool ids).
-pub(crate) fn slots(app: &VectorcraftApp) -> Vec<(Option<&'static str>, Vec<&'static str>)> {
+pub(crate) fn slots(app: &PlumaApp) -> Vec<(Option<&'static str>, Vec<&'static str>)> {
     if let Some(edited) = crate::edit_toolbar::edited_slots(app) {
         edited
     } else if app.ui.toolbar_advanced {
@@ -86,7 +86,7 @@ pub(crate) fn slots(app: &VectorcraftApp) -> Vec<(Option<&'static str>, Vec<&'st
 }
 
 /// Remember the tool shown in the slot that contains `id`.
-pub fn remember(app: &mut VectorcraftApp, id: &str) {
+pub fn remember(app: &mut PlumaApp, id: &str) {
     for (_, s) in slots(app) {
         if s.contains(&id) {
             app.ui.slot_tool.insert(s[0].to_string(), id.to_string());
@@ -121,7 +121,7 @@ pub(crate) fn docked_width(ui: &crate::state::UiState) -> f32 {
 ///
 /// The canvas's right edge, left of the panels, is a redocking target too, and Tools docked there
 /// (`UiState::toolbar_right`) is drawn at it whichever way the setting is.
-pub(crate) fn show_beside_canvas(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn show_beside_canvas(app: &mut PlumaApp, ui: &mut Ui) {
     if !app.ui.toolbar || app.ui.screen_mode >= 3 {
         return;
     }
@@ -140,7 +140,7 @@ pub(crate) fn docked_right(ui: &crate::state::UiState) -> bool {
     ui.toolbar_right && ui.toolbar_pos.is_none()
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     // The user's choice alone: a window too short for the tools scrolls them.
     let cols = if app.ui.toolbar_double { 2 } else { 1 };
@@ -150,12 +150,19 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     match app.ui.toolbar_pos {
         None => {
             // The card's outer gap faces the edge it docks at.
-            let (panel, margin) = if app.ui.toolbar_right {
+            // In Nodalia, Tools docked at the window's edge is an island of its own: the window's
+            // edge already keeps its gap, so only the side facing the canvas has one.
+            let island = t.nodalia && !app.ui.toolbar_right && !app.ui.tools_beside_canvas;
+            let (panel, margin) = if island {
+                let g = crate::theme::ISLAND_GAP as i8;
+                (egui::Panel::left("toolbar"), egui::Margin { left: 0, right: g, top: 0, bottom: 0 })
+            } else if app.ui.toolbar_right {
                 (egui::Panel::right("toolbar"), egui::Margin { left: 0, right: 6, top: 6, bottom: 6 })
             } else {
                 (egui::Panel::left("toolbar"), egui::Margin { left: 6, right: 0, top: 6, bottom: 6 })
             };
-            let docked = panel.resizable(false).exact_size(w + 6.0).frame(egui::Frame::NONE).show(ui, |ui| {
+            let gap = if island { crate::theme::ISLAND_GAP } else { 6.0 };
+            let docked = panel.resizable(false).show_separator_line(!island).exact_size(w + gap).frame(egui::Frame::NONE).show(ui, |ui| {
                 crate::theme::card(ui, &t, margin, |ui| body(app, ui, cols, None));
             });
             ui.ctx().data_mut(|d| d.insert_temp(docked_rect_id(), docked.response.rect));
@@ -189,7 +196,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// The toolbars made with New Toolbar while the Tools panel is hidden (Window › Tools off): their
 /// flyouts and the groups torn off them, and the All Tools drawer beside the one it edits.
-pub fn show_custom(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show_custom(app: &mut PlumaApp, ctx: &egui::Context) {
     floating(app, ctx, true);
     crate::custom_toolbars::show(app, ctx);
     // A flyout of the hidden Tools panel closes with it.
@@ -203,7 +210,7 @@ pub fn show_custom(app: &mut VectorcraftApp, ctx: &egui::Context) {
 }
 
 /// The Tools panel's contents, docked or floating at `floating`.
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, cols: usize, floating: Option<egui::Pos2>) {
+fn body(app: &mut PlumaApp, ui: &mut Ui, cols: usize, floating: Option<egui::Pos2>) {
     let t = Tokens::get(ui.ctx());
     let all = slots(app);
     let bounds = ui.max_rect();
@@ -401,15 +408,15 @@ pub(crate) fn flyout_press(ui: &Ui, resp: &egui::Response, rect: egui::Rect) -> 
 /// on Path tools' are their Tool Options, as are the Line Segment, Arc, Rectangular Grid and Polar Grid tools'
 /// ([`crate::dialogs::shapes::open_options`]). The Type on a Path and Vertical Type on a Path
 /// tools' are Type on a Path Options for the selected type on a path.
-pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::Value, String> {
+pub fn open_options(app: &mut PlumaApp, tool: &str) -> Result<serde_json::Value, String> {
     match tool {
         "dimension" => crate::dialogs::dimension::open(app),
         "hand" => app.run("view.fitArtboard", json!({})),
         "zoom" => app.run("view.actualSize", json!({})),
         "rotate" | "scale" | "reflect" | "shear" | "selection" | "directSelection" | "groupSelection" => {
-            let dialog = if vectorcraft_tools::catalog::is_selection_tool(tool) { "move" } else { tool };
+            let dialog = if pluma_tools::catalog::is_selection_tool(tool) { "move" } else { tool };
             let id = format!("object.{dialog}");
-            if let Some(c) = vectorcraft_engine::find_command(&id) {
+            if let Some(c) = pluma_engine::find_command(&id) {
                 (c.enabled)(&app.session)?;
             }
             crate::menus::invoke(app, &id, json!({}));
@@ -442,7 +449,7 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
         // A double click on the Print Tiling tool puts the pages back where the placement puts them.
         "printTiling" => app.run("print.tiling.set", json!({ "reset": true })),
         // The Liquify tools: their Tool Options (the Global Brush Dimensions and the tool's own).
-        _ if vectorcraft_tools::settings::LIQUIFY.contains(&tool) => crate::dialogs::liquify::open(app, tool),
+        _ if pluma_tools::settings::LIQUIFY.contains(&tool) => crate::dialogs::liquify::open(app, tool),
         // The freehand tools: their Tool Options (Fidelity, fill, the tolerances, the brush size).
         _ if crate::dialogs::freehand::TOOLS.contains(&tool) => crate::dialogs::freehand::open(app, tool),
         // The Live Paint Selection tool: its Tool Options (what a click selects, the highlight).
@@ -450,14 +457,14 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
         // The Live Paint Bucket: its options (what a click paints, the highlight).
         "livePaintBucket" => crate::dialogs::live_paint_bucket::open(app),
         // The Symbolism tools: the brush they share.
-        _ if vectorcraft_tools::settings::SYMBOLISM.contains(&tool) => Ok(crate::dialogs::symbolism_options::open(app, tool)),
+        _ if pluma_tools::settings::SYMBOLISM.contains(&tool) => Ok(crate::dialogs::symbolism_options::open(app, tool)),
         // The graph tools: Graph Type for the selected graph.
-        _ if vectorcraft_tools::extra::is_graph_tool(tool) => crate::menus::graph_dialog(app, "graph.setType"),
+        _ if pluma_tools::extra::is_graph_tool(tool) => crate::menus::graph_dialog(app, "graph.setType"),
         // The Type on a Path tools: Type on a Path Options for the selected type on a path, as
         // Type › Type on a Path › Type on a Path Options… opens it.
         "typeOnPath" | "verticalTypeOnPath" => {
             let id = "type.pathOptions";
-            if let Some(c) = vectorcraft_engine::find_command(id) {
+            if let Some(c) = pluma_engine::find_command(id) {
                 (c.enabled)(&app.session)?;
             }
             app.session.execute(id, &json!({})).map_err(|e| e.to_string())?;
@@ -466,7 +473,7 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
         }
         // The add-ons' tools.
         _ if crate::addons::pathtools::has_options(tool) => crate::addons::pathtools::open_options(app, tool),
-        _ if vectorcraft_tools::tool_info(tool).is_none() => Err(format!("unknown tool `{tool}`")),
+        _ if pluma_tools::tool_info(tool).is_none() => Err(format!("unknown tool `{tool}`")),
         _ => Err(format!("the {tool} tool has no options")),
     }
 }
@@ -474,7 +481,7 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
 /// The active tool's options in the Control bar: Mirror & Cut's axis and the side it keeps, Puppet
 /// Warp's mesh and pins (set through `tool.setOption`). The Artboard tool's options are drawn by
 /// [`crate::panels::artboards::control_bar`].
-pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn control_bar_options(app: &mut PlumaApp, ui: &mut Ui) {
     if crate::addons::shapes::control_bar(app, ui) {
         return;
     }
@@ -490,7 +497,7 @@ pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
     if app.session.tool_id() == "puppetWarp" {
         return puppet_warp_options(app, ui);
     }
-    if app.session.tool_id() == vectorcraft_tools::cropimage::ID {
+    if app.session.tool_id() == pluma_tools::cropimage::ID {
         return crop_options(app, ui);
     }
     if app.session.tool_id() != "mirrorCut" {
@@ -512,12 +519,12 @@ pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Crop Image's box: its centre (X, Y) and size (W, H) in the general unit, set through the tool's
 /// `rect` option, then Apply (Enter) and Cancel (Escape).
-fn crop_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn crop_options(app: &mut PlumaApp, ui: &mut Ui) {
     let set = app.session.tool_options()["rect"].as_array().and_then(|v| match v.iter().filter_map(Value::as_f64).collect::<Vec<_>>()[..] {
-        [x, y, w, h] => Some(vectorcraft_geom::Rect::new(x, y, x + w, y + h)),
+        [x, y, w, h] => Some(pluma_geom::Rect::new(x, y, x + w, y + h)),
         _ => None,
     });
-    let Some((_, _, r)) = app.session.active().and_then(|st| vectorcraft_tools::cropimage::crop_box(&st.doc, &st.selection, set)) else { return };
+    let Some((_, _, r)) = app.session.active().and_then(|st| pluma_tools::cropimage::crop_box(&st.doc, &st.selection, set)) else { return };
     let t = Tokens::get(ui.ctx());
     let units = app.session.general_unit();
     let c = r.center();
@@ -550,7 +557,7 @@ fn crop_options(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// large as the toolbar's `cols` (one or two) leave room for (#1129): in two columns the proxy and
 /// buttons grow and the three drawing modes show side by side.
 /// The All Tools drawer's Show section hides any of them but Edit Toolbar.
-fn bottom_controls(app: &mut VectorcraftApp, ui: &mut Ui, t: &Tokens, cols: usize) {
+fn bottom_controls(app: &mut PlumaApp, ui: &mut Ui, t: &Tokens, cols: usize) {
     let two = cols == 2;
     let show = app.ui.toolbar_show;
     if show.fill_stroke {
@@ -588,9 +595,9 @@ fn bottom_controls(app: &mut VectorcraftApp, ui: &mut Ui, t: &Tokens, cols: usiz
         ui.add_space(6.0);
     }
     let modes = [
-        (vectorcraft_engine::DrawMode::Normal, "dc-draw-normal", "Draw Normal", "normal"),
-        (vectorcraft_engine::DrawMode::Behind, "dc-draw-behind", "Draw Behind", "behind"),
-        (vectorcraft_engine::DrawMode::Inside, "dc-draw-inside", "Draw Inside", "inside"),
+        (pluma_engine::DrawMode::Normal, "dc-draw-normal", "Draw Normal", "normal"),
+        (pluma_engine::DrawMode::Behind, "dc-draw-behind", "Draw Behind", "behind"),
+        (pluma_engine::DrawMode::Inside, "dc-draw-inside", "Draw Inside", "inside"),
     ];
     if two && show.draw_mode {
         // Side by side, each one a click away.
@@ -608,7 +615,7 @@ fn bottom_controls(app: &mut VectorcraftApp, ui: &mut Ui, t: &Tokens, cols: usiz
         if !two
             && show.draw_mode
             && let Some((mode, icon, name, _)) = modes.into_iter().find(|m| m.0 == app.session.draw_mode)
-            && widgets::icon_button(ui, icon, &format!("{} (Shift+D)", tl!(name)), mode != vectorcraft_engine::DrawMode::Normal, 26.0).clicked()
+            && widgets::icon_button(ui, icon, &format!("{} (Shift+D)", tl!(name)), mode != pluma_engine::DrawMode::Normal, 26.0).clicked()
         {
             app.run("view.drawMode", json!({})).ok();
         }
@@ -616,7 +623,7 @@ fn bottom_controls(app: &mut VectorcraftApp, ui: &mut Ui, t: &Tokens, cols: usiz
             app.run("view.screenMode", json!({})).ok();
         }
         // Edit Toolbar: the All Tools drawer opens beside the toolbar, by this button.
-        let editing = |app: &VectorcraftApp| app.ui.tools_drawer && app.ui.drawer_toolbar.is_none();
+        let editing = |app: &PlumaApp| app.ui.tools_drawer && app.ui.drawer_toolbar.is_none();
         let edit = widgets::icon_button(ui, "ellipsis", "Edit Toolbar", editing(app), 26.0);
         if edit.clicked() {
             app.run("window.editToolbar", json!({})).ok();
@@ -637,7 +644,7 @@ const FLOAT_AT: [f32; 2] = [90.0, 100.0];
 /// it back in the toolbar, or toggle (`floating` omitted), as a flyout's tear-off bar and the
 /// strip's × do (`window.floatTools`; `toolbar`: the group of the toolbar made with New Toolbar
 /// called that). Returns the new state.
-pub fn float_group(app: &mut VectorcraftApp, tool: &str, floating: Option<bool>, toolbar: Option<&str>) -> Result<bool, String> {
+pub fn float_group(app: &mut PlumaApp, tool: &str, floating: Option<bool>, toolbar: Option<&str>) -> Result<bool, String> {
     let groups: Vec<Vec<&'static str>> = match toolbar {
         None => slots(app).into_iter().map(|(_, s)| s).collect(),
         Some(name) => crate::custom_toolbars::find(&app.ui, name)
@@ -680,7 +687,7 @@ fn strips_mut<'a>(ui: &'a mut crate::state::UiState, toolbar: Option<&str>) -> O
 
 /// Whether the group whose first tool is `key`, of the Tools panel's toolbar (`toolbar` none) or of
 /// the toolbar made with New Toolbar called `toolbar`, floats as its own panel.
-pub(crate) fn is_floating(app: &VectorcraftApp, toolbar: Option<&str>, key: &str) -> bool {
+pub(crate) fn is_floating(app: &PlumaApp, toolbar: Option<&str>, key: &str) -> bool {
     strips(&app.ui, toolbar).iter().any(|f| f.tools.first().is_some_and(|k| k == key))
 }
 
@@ -875,7 +882,7 @@ fn press_travel(ctx: &egui::Context) -> Option<egui::Vec2> {
 
 /// Where the toolbar's flyouts and drawer may open: the window, or with the toolbar docked right
 /// the part left of it, so they open toward the canvas instead of over the panels.
-pub(crate) fn room(app: &VectorcraftApp, ctx: &egui::Context) -> egui::Rect {
+pub(crate) fn room(app: &PlumaApp, ctx: &egui::Context) -> egui::Rect {
     let mut r = ctx.content_rect();
     if docked_right(&app.ui)
         && let Some(x) = ctx.data(|d| d.get_temp::<egui::Rect>(docked_rect_id())).map(|bar| bar.right())
@@ -894,7 +901,7 @@ pub(crate) fn beside(anchor: egui::Rect, width: f32, gap: f32, screen: egui::Rec
     x.min(screen.right() - width).max(screen.left())
 }
 
-fn flyout(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn flyout(app: &mut PlumaApp, ctx: &egui::Context) {
     if app.ui.flyout.is_none() {
         return;
     }
@@ -978,7 +985,7 @@ pub(crate) fn flyout_toolbar_id() -> egui::Id {
 /// The flyouts torn off the toolbar, each floating where its bar was dragged; its × puts it back.
 /// `custom_only`: the Tools panel is hidden, and only those torn off toolbars made with New Toolbar
 /// show.
-fn floating(app: &mut VectorcraftApp, ctx: &egui::Context, custom_only: bool) {
+fn floating(app: &mut PlumaApp, ctx: &egui::Context, custom_only: bool) {
     // A group torn off a toolbar made with New Toolbar shows while that toolbar does.
     let owners: Vec<Option<String>> = (!custom_only)
         .then_some(None)
@@ -991,7 +998,7 @@ fn floating(app: &mut VectorcraftApp, ctx: &egui::Context, custom_only: bool) {
 }
 
 /// The strips torn off one toolbar (`toolbar` none: the Tools panel's).
-fn floating_strips(app: &mut VectorcraftApp, ctx: &egui::Context, toolbar: Option<&str>) {
+fn floating_strips(app: &mut PlumaApp, ctx: &egui::Context, toolbar: Option<&str>) {
     let t = Tokens::get(ctx);
     let screen = ctx.content_rect();
     let now = ctx.input(|i| i.time);
@@ -1043,7 +1050,7 @@ fn floating_strips(app: &mut VectorcraftApp, ctx: &egui::Context, toolbar: Optio
 
 /// The Puppet Warp tool's Control bar: Expand (how far the mesh reaches past the art), Show Mesh
 /// and Select All Pins.
-fn puppet_warp_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn puppet_warp_options(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let opts = app.session.tool_options();
     ui.label(egui::RichText::new(tl!("Expand:")).size(12.0).color(t.text));

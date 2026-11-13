@@ -1,9 +1,9 @@
 use super::*;
-use vectorcraft_doc::{CharStyle, Justify, TextKind};
-use vectorcraft_geom::{Affine, PathData, Rect, shapes};
+use pluma_doc::{CharStyle, Justify, TextKind};
+use pluma_geom::{Affine, PathData, Rect, shapes};
 
 fn frame(x: f64) -> TextObject {
-    let mut t = TextObject::point(vectorcraft_geom::Point::ZERO, "", CharStyle::default());
+    let mut t = TextObject::point(pluma_geom::Point::ZERO, "", CharStyle::default());
     t.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(x, 0.0, x + 120.0, 60.0)) };
     t.xf = Affine::IDENTITY;
     t
@@ -11,7 +11,7 @@ fn frame(x: f64) -> TextObject {
 
 /// Type on a straight path `length` long.
 fn path_frame(length: f64) -> TextObject {
-    let mut t = TextObject::point(vectorcraft_geom::Point::ZERO, "", CharStyle::default());
+    let mut t = TextObject::point(pluma_geom::Point::ZERO, "", CharStyle::default());
     let line = kurbo::Line::new((0.0, 0.0), (length, 0.0));
     t.kind = TextKind::OnPath { path: PathData::from_bezpath(&kurbo::Shape::to_path(&line, 0.1)), start: 0.0, end: None };
     t.xf = Affine::IDENTITY;
@@ -121,7 +121,7 @@ fn paragraph_styles_flow_with_their_paragraphs() {
     let text = "The quick brown fox jumps over the lazy dog. ".repeat(4) + "\nSecond paragraph.\nThird.";
     let story = vec![TextRun { text, style: CharStyle::default(), inline: None }];
     let style = |j| ParaStyle { justify: j, ..Default::default() };
-    use vectorcraft_doc::Justify::*;
+    use pluma_doc::Justify::*;
     let paras = vec![style(Left), style(Center), style(Right)];
     let parts = distribute(db, &[&a, &b], &story, &paras);
     assert!(!parts[0].runs.is_empty() && !parts[1].runs.is_empty());
@@ -201,7 +201,7 @@ fn a_restyled_empty_frame_keeps_its_style_after_a_paragraph_break() {
 /// in the first frame only, and the paragraph after it takes the next number.
 #[test]
 fn numbered_list_paragraphs_count_on_through_the_frames() {
-    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    use pluma_doc::text::{NumberStyle, ParaList};
     let db = FontDb::global();
     let (a, mut b) = (frame(0.0), frame(200.0));
     b.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(200.0, 0.0, 320.0, 400.0)) };
@@ -255,7 +255,7 @@ fn line_start(lay: &crate::TextLayout, k: usize) -> f64 {
 /// keeps both there.
 #[test]
 fn a_paragraph_continued_into_the_next_frame_has_no_first_line_indent_or_bullet_there() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let db = FontDb::global();
     let (a, b, mut c) = (frame(0.0), frame(200.0), frame(400.0));
     c.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(400.0, 0.0, 520.0, 300.0)) };
@@ -361,7 +361,7 @@ fn filled(frames: &[&TextObject], parts: &[Slice]) -> Vec<TextObject> {
 /// A paragraph that continues onto type on a path starts the path without its bullet.
 #[test]
 fn a_list_paragraph_continued_onto_a_path_has_no_bullet_there() {
-    use vectorcraft_doc::text::{Bullet, ParaList};
+    use pluma_doc::text::{Bullet, ParaList};
     let db = FontDb::global();
     let para = ParaStyle { left_indent: 18.0, first_line_indent: -18.0, list: Some(ParaList::bulleted(Bullet::Dot)), ..Default::default() };
     let text = "The quick brown fox jumps over the lazy dog. ".repeat(6);
@@ -382,7 +382,7 @@ fn a_list_paragraph_continued_onto_a_path_has_no_bullet_there() {
 /// frame going on with the count its paragraphs reached in the frame before.
 #[test]
 fn list_levels_count_on_through_the_frames() {
-    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    use pluma_doc::text::{NumberStyle, ParaList};
     let db = FontDb::global();
     let (a, mut b) = (frame(0.0), frame(200.0));
     b.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(200.0, 0.0, 320.0, 400.0)) };

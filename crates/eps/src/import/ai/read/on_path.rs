@@ -11,7 +11,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use vectorcraft_doc::objects_on_path::{Member, ObjectsOnPath, attachable_path};
+use pluma_doc::objects_on_path::{Member, ObjectsOnPath, attachable_path};
 
 use super::{Affine, Document, NodeId, NodeKind, Obj, Reader, V};
 

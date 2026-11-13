@@ -11,14 +11,14 @@
 //! Apply Colors opens Recolor Artwork with the harmony colours, limited the same way.
 
 use egui::{Rect, Sense, Ui, vec2};
+use pluma_color::harmony::{Guide, GuideOptions, Harmony, Variation};
+use pluma_color::{Color, Paint};
+use pluma_engine::cmd::swatchlib;
 use serde_json::{Value, json};
-use vectorcraft_color::harmony::{Guide, GuideOptions, Harmony, Variation};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_engine::cmd::swatchlib;
 
 use super::swatches::{self, colour_libraries, limit_key, limit_name};
 use super::{active_paint, apply_click, c32, color_json, library_panel, pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::{self, menu_item};
 
 /// The base colour before one is set: an orange.
@@ -26,13 +26,13 @@ const DEFAULT_BASE: Color = Color::Rgb { r: 230.0 / 255.0, g: 120.0 / 255.0, b: 
 
 /// The guide's base color: the one last chosen or set with the base chip; before that, the current
 /// color.
-pub(crate) fn base_color(app: &VectorcraftApp) -> Color {
+pub(crate) fn base_color(app: &PlumaApp) -> Color {
     app.ui.color_guide_base.unwrap_or_else(|| active_paint(app).color().unwrap_or(DEFAULT_BASE))
 }
 
 /// Make `c` the guide's base color: a color chosen in the Color panel, the Swatches panel or the
 /// Color Picker. A color applied from the guide itself leaves the base as it is.
-pub(crate) fn choose_base(app: &mut VectorcraftApp, c: Color) {
+pub(crate) fn choose_base(app: &mut PlumaApp, c: Color) {
     app.ui.color_guide_base = Some(c);
 }
 
@@ -63,7 +63,7 @@ struct GuideKey {
 }
 
 /// The guide the panel shows, limited to the Limit to Library colours.
-fn guide(app: &VectorcraftApp, ctx: &egui::Context) -> Guide {
+fn guide(app: &PlumaApp, ctx: &egui::Context) -> Guide {
     let (base, rule, opts) = (base_color(app), rule(ctx), app.ui.color_guide);
     let limit = &app.ui.color_guide_limit;
     if limit.is_empty() {
@@ -87,7 +87,7 @@ fn guide(app: &VectorcraftApp, ctx: &egui::Context) -> Guide {
 
 /// `ui.colorGuideLimit {library}`: limit the panel's colours to a swatch library (an id or name),
 /// the document's swatches ("document"), or nothing (`""` or null). → {limitTo, name}
-pub(crate) fn set_limit(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn set_limit(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let key = match p.get("library").and_then(Value::as_str).unwrap_or_default() {
         "" => String::new(),
         l => limit_key(app, l)?,
@@ -98,7 +98,7 @@ pub(crate) fn set_limit(app: &mut VectorcraftApp, p: &Value) -> Result<Value, St
 }
 
 /// The Limit to Library popup: None, Document Swatches, then the colour libraries.
-fn limit_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn limit_menu(app: &mut PlumaApp, ui: &mut Ui) {
     ui.set_min_width(200.0);
     let cur = app.ui.color_guide_limit.clone();
     let mut chosen = None;
@@ -117,7 +117,7 @@ fn limit_menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Edit or Apply Colors: Recolor Artwork with the harmony colours as the new colours (of the
 /// selected art, or of the colours alone), limited to the panel's library.
-fn edit_or_apply(app: &mut VectorcraftApp, g: &Guide) {
+fn edit_or_apply(app: &mut PlumaApp, g: &Guide) {
     let mut p = json!({ "colors": g.colors.iter().map(color_json).collect::<Vec<_>>() });
     if limit_name(app, &app.ui.color_guide_limit).is_some() {
         p["library"] = json!(app.ui.color_guide_limit);
@@ -126,7 +126,7 @@ fn edit_or_apply(app: &mut VectorcraftApp, g: &Guide) {
 }
 
 /// Save the selected cells' colors as swatches (one undo step), each in its own model.
-fn save_selected(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn save_selected(app: &mut PlumaApp, ctx: &egui::Context) {
     let g = guide(app, ctx);
     let colors: Vec<Value> = selected(ctx).into_iter().filter_map(|(r, c)| g.grid.get(r)?.get(c)).map(color_json).collect();
     if !colors.is_empty() {
@@ -134,7 +134,7 @@ fn save_selected(app: &mut VectorcraftApp, ctx: &egui::Context) {
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
     // The current color becomes the base when the panel first shows; selecting artwork later
@@ -254,7 +254,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let mode = app.ui.color_guide.variation;
     for (m, l) in [
         (Variation::TintsShades, tl!("Show Tints/Shades")),
@@ -278,15 +278,15 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app
     }
 
-    fn frame(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    fn frame(app: &mut PlumaApp, ctx: &egui::Context) {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             show(app, ui);
             menu(app, ui);
@@ -336,7 +336,7 @@ mod tests {
     }
 
     /// The rect of the panel widget `id` after one frame.
-    fn rect_of(app: &mut VectorcraftApp, ctx: &egui::Context, id: impl std::hash::Hash + std::fmt::Debug) -> Rect {
+    fn rect_of(app: &mut PlumaApp, ctx: &egui::Context, id: impl std::hash::Hash + std::fmt::Debug) -> Rect {
         let mut r = None;
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             show(app, ui);
@@ -346,7 +346,7 @@ mod tests {
         r.expect("the widget is drawn")
     }
 
-    fn click(app: &mut VectorcraftApp, ctx: &egui::Context, at: egui::Pos2) {
+    fn click(app: &mut PlumaApp, ctx: &egui::Context, at: egui::Pos2) {
         let button =
             |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
         for events in [vec![egui::Event::PointerMoved(at), button(true)], vec![button(false)]] {
@@ -365,7 +365,7 @@ mod tests {
         let ctx = egui::Context::default();
         frame(&mut app, &ctx);
         let g = guide(&app, &ctx);
-        let fill = |app: &VectorcraftApp| crate::panels::current_paints(app).0.color().map(|c| c.to_hex());
+        let fill = |app: &PlumaApp| crate::panels::current_paints(app).0.color().map(|c| c.to_hex());
         let at = rect_of(&mut app, &ctx, ("cg-h", 1)).center();
         click(&mut app, &ctx, at);
         assert_eq!(fill(&app), Some(g.colors[1].to_hex()), "the harmony color paints the art");
@@ -421,12 +421,12 @@ mod tests {
     }
 
     /// Every colour of the panel's guide.
-    fn shown(app: &VectorcraftApp, ctx: &egui::Context) -> Vec<String> {
+    fn shown(app: &PlumaApp, ctx: &egui::Context) -> Vec<String> {
         let g = guide(app, ctx);
         g.grid.iter().flatten().chain(&g.colors).map(Color::to_hex).collect()
     }
 
-    fn library_hexes(app: &VectorcraftApp, id: &str) -> Vec<String> {
+    fn library_hexes(app: &PlumaApp, id: &str) -> Vec<String> {
         let (_, lib) = swatchlib::library(&app.session, id).unwrap();
         lib.iter().filter_map(|w| w.paint.color()).map(|c| c.to_hex()).collect()
     }
@@ -488,6 +488,6 @@ mod tests {
         // Colours from elsewhere snap to the library as the dialog opens.
         app.run("ui.recolorDialog", json!({"colors": ["#123457"], "library": "web-safe-216"})).unwrap();
         let to = app.ui.dialog.as_ref().unwrap().fields["rows"][0]["to"].clone();
-        assert_eq!(vectorcraft_engine::cmd::color_value(&to).map(|c| c.to_hex()).as_deref(), Some("#003366"));
+        assert_eq!(pluma_engine::cmd::color_value(&to).map(|c| c.to_hex()).as_deref(), Some("#003366"));
     }
 }

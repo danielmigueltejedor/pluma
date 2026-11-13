@@ -1,4 +1,4 @@
-Pluma app icon (vectorcraft.svg, vectorcraft-small.svg and every file derived from them in this
+Pluma app icon (pluma.svg, pluma-small.svg and every file derived from them in this
 directory, and the web favicon where the project has one).
 
 The icon is a portrait of René Descartes cut out, converted to black and white and placed over the

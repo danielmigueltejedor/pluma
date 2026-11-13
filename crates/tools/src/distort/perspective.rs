@@ -17,10 +17,10 @@
 
 use std::collections::BTreeMap;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, PerspectiveAttachment};
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, PerspectiveAttachment};
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use crate::bbox::{Handle as BoxHandle, scale_for_drag};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
@@ -85,7 +85,7 @@ pub fn constrain_move_delta(delta: Vec2) -> (Vec2, Vec2) {
 /// Plane Switching widget: (plane, face quad) list and the "no plane" circle (centre, radius).
 pub type WidgetGeom = (Vec<(Plane, [Point; 4])>, (Point, f64));
 
-pub use vectorcraft_geom::Homography;
+pub use pluma_geom::Homography;
 
 mod tools;
 
@@ -750,11 +750,11 @@ fn mapped_bounds(n: &Node, hi: &Homography) -> Option<Rect> {
                     }
                 }
             }
-            acc = vectorcraft_geom::union_opt(acc, path.bounds());
+            acc = pluma_geom::union_opt(acc, path.bounds());
         }
         NodeKind::Layer { .. } | NodeKind::Group { .. } | NodeKind::Compound { .. } | NodeKind::Blend { .. } => {}
         _ => match c.geometric_bounds().map(|b| hi.map_rect_bbox(b)) {
-            Some(Some(b)) => acc = vectorcraft_geom::union_opt(acc, Some(b)),
+            Some(Some(b)) => acc = pluma_geom::union_opt(acc, Some(b)),
             Some(None) => ok = false,
             None => {}
         },
@@ -978,7 +978,7 @@ fn drag_handle(press: &Press, p: Point, mods: Mods) -> PerspectiveGrid {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     fn grid(kind: u8) -> PerspectiveGrid {
         PerspectiveGrid::preset(kind, Rect::new(0.0, 0.0, 800.0, 600.0))
@@ -1229,10 +1229,10 @@ mod tests {
             d.insert(
                 Some(layer),
                 0,
-                vectorcraft_doc::Node::path(
+                pluma_doc::Node::path(
                     id,
-                    vectorcraft_geom::shapes::rectangle(Rect::new(from.x - 20.0, from.y - 20.0, from.x + 20.0, from.y + 20.0)),
-                    vectorcraft_doc::Appearance::default_art(),
+                    pluma_geom::shapes::rectangle(Rect::new(from.x - 20.0, from.y - 20.0, from.x + 20.0, from.y + 20.0)),
+                    pluma_doc::Appearance::default_art(),
                 ),
             )
             .unwrap();

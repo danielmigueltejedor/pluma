@@ -5,7 +5,7 @@
 #            a trailing "…" (dialog commands) is kept.
 #   lines starting with # and blank lines are ignored.
 #
-# Written from VectorCraft's English strings, using ordinary Turkish software vocabulary. No other catalog
+# Written from Pluma's English strings, using ordinary Turkish software vocabulary. No other catalog
 # and no proprietary localisation was translated from or copied. Labels use sentence case, commands
 # are imperatives; product, format and key-cap names keep their spelling.
 
@@ -88,7 +88,7 @@
 	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	Daha düşük bir değer konturu yakından takip eder; daha yüksek olanı daha az nokta ve daha yumuşak eğriler verir.
 	A new preset starting from the selected one	Seçilenden başlayarak yeni bir ön ayar
 	A saved copy of the selected preset	Seçilen ön ayarın kaydedilmiş bir kopyası
-	About VectorCraft	VectorCraft Hakkında
+	About Pluma	Pluma Hakkında
 	above	yukarıda
 	Absolute Position	Mutlak Konum
 	Accurate	Doğru
@@ -198,7 +198,7 @@ font-technology	Variable	Değişken
 	Appearance Panel	Görünüm Paneli
 	Appearance panel	Görünüm paneli
 	Applies when the linked file is relinked or updated.	Bağlantılı dosya yeniden bağlandığında veya güncellendiğinde geçerlidir.
-	Applies the next time VectorCraft starts.	VectorCraft'ın bir sonraki başlatılışında uygulanır.
+	Applies the next time Pluma starts.	Pluma'ın bir sonraki başlatılışında uygulanır.
 	Apply	Uygula
 	Apply Brush	Fırça Uygula
 	Apply Character Style	Karakter Stilini Uygula
@@ -235,8 +235,7 @@ font-technology	Variable	Değişken
 	Artboard {number}	Çalışma yüzeyi {number}
 	Artboard:	Çalışma yüzeyi:
 	Artboards	Çalışma Yüzeyleri
-	ArtCraft Website	ArtCraft Web Sitesi
-	ArtCraft website	ArtCraft web sitesi
+	Pluma Website	Pluma Web Sitesi
 	Artwork Colors	Sanat Eseri Renkleri
 	As Multiple Assets	Çoklu Varlıklar Olarak
 	As Single Asset	Tek Varlık Olarak
@@ -404,7 +403,7 @@ font-technology	Variable	Değişken
 	Check Script	Komut Dosyasını Kontrol Et
 	Check Script…	Komut Dosyasını Kontrol Et…
 	Copy Report	Raporu Kopyala
-	VectorCraft read this script without running it.	VectorCraft bu betiği çalıştırmadan okudu.
+	Pluma read this script without running it.	Pluma bu betiği çalıştırmadan okudu.
 	Needs nothing beyond plain JavaScript	Sade JavaScript'in ötesinde hiçbir şeye ihtiyaç duymaz
 	Needs the script language's own objects or directives	Betik dilinin kendi nesnelerine veya direktiflerine ihtiyaç duyar
 	Needs the document model	Belge modeline ihtiyaç var
@@ -800,7 +799,6 @@ font-technology	Variable	Değişken
 	Discard Empty Type	Boş Türü At
 	Discard Recovered Documents	Kurtarılan Belgeleri Atın
 	Discard White Overprint in Output	Çıktıdaki Beyaz Üst Baskıyı At
-	Discord	Discord
 	Discretionary Hyphen	İsteğe Bağlı Kısa Çizgi
 	Discretionary Ligatures	İsteğe Bağlı Bitişik Harfler
 	Display All Blacks Accurately	Tüm Siyahları Doğru Şekilde Görüntüleyin
@@ -1531,9 +1529,6 @@ font-technology	Variable	Değişken
 	Italian	İtalyan
 	Japanese	Japonca
 	Join	Katıl
-	Join Our Discord	Discord'umuza Katılın
-	Join our Discord	Discord'umuza katılın
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Discord'daki ArtCraft topluluğuna katılın (discord.gg/artcraft)
 	Join the lines of each paragraph	Her paragrafın satırlarını birleştirin
 	Join Tool	Birleştirme Aracı
 	Justification…	İki Yana Yaslama…
@@ -1560,7 +1555,7 @@ font-technology	Variable	Değişken
 	Keyboard Shortcuts…	Klavye Kısayolları…
 	Import Shortcut Set	Kısayol Kümesini İçe Aktar
 	Import Shortcut Set…	Kısayol Kümesini İçe Aktar…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Dosyanın her girişi bir VectorCraft aracı, komutu veya paneliyle eşleştirilir. Eşleşmeleri kontrol edin ve kalanları cevaplayın.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Dosyanın her girişi bir Pluma aracı, komutu veya paneliyle eşleştirilir. Eşleşmeleri kontrol edin ve kalanları cevaplayın.
 	Keys	Anahtarlar
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Dosya, anahtarları ve değiştiricileri kod olarak yazar. Önerilen anlamları kontrol ederek henüz bilinmeyen kodları cevaplayınız.
 	Click, then press the key this code stands for (Esc cancels)	Tıklayın ve ardından bu kodun temsil ettiği tuşa basın (Esc iptal eder)
@@ -1570,7 +1565,7 @@ font-technology	Variable	Değişken
 	not known yet	henüz bilinmiyor
 	Shortcuts	Kısayollar
 	In the File	Dosyada
-	In VectorCraft	VectorCraft'ta
+	In Pluma	Pluma'ta
 	Needs Attention Only	Yalnızca Dikkat Gerekir
 	Ready	Hazır
 	Needs a choice	Bir seçime ihtiyacı var
@@ -1579,7 +1574,7 @@ font-technology	Variable	Değişken
 	Tools take a single key (optionally with Shift)	Araçlar tek bir tuş alır (isteğe bağlı olarak Shift ile)
 	A later row takes this shortcut	Daha sonraki bir satır bu kısayolu alır
 	Same item as a later row	Daha sonraki bir satırla aynı öğe
-	Start from VectorCraft Defaults	VectorCraft Varsayılanlarından Başlayın
+	Start from Pluma Defaults	Pluma Varsayılanlarından Başlayın
 	Add to the Current Shortcuts	Geçerli Kısayollara Ekle
 	Remember My Choices	Seçimlerimi Hatırla
 	{ready} of {total} ready	{total}'nin {ready}'si hazır
@@ -2216,7 +2211,7 @@ shape	Open	Açık
 	Paragraph Style Options	Paragraf Stili Seçenekleri
 	Paragraph Styles	Paragraf Stilleri
 	Paragraph Symbol	Paragraf Sembolü
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft'ın bir parçası. MIT VEYA Apache-2.0. Yazı Tipleri: Source Sans 3, Inter, JetBrains Mono (OFL). Simgeler: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia'ın bir parçası. MIT VEYA Apache-2.0. Yazı Tipleri: Source Sans 3, Inter, JetBrains Mono (OFL). Simgeler: Lucide (ISC) + Pluma.
 	Password	Şifre
 	Paste	Yapıştır
 	Paste in Back	Arkaya Yapıştır
@@ -2411,7 +2406,7 @@ digits	Malayalam	Malayalam
 	Quarter Space	Çeyrek Alan
 	Quick Actions	Hızlı Eylemler
 	Quickly start a new file	Hızlı bir şekilde yeni bir dosya başlatın
-	Quit VectorCraft	VectorCraft'tan çıkın
+	Quit Pluma	Pluma'tan çıkın
 	Radar Graph Tool	Radar Grafik Aracı
 	Radial	Radyal
 	Radial Glows	Radyal Parıltılar
@@ -2539,7 +2534,7 @@ digits	Malayalam	Malayalam
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	{n} klasör veya dosya okunamadı
 	The search stopped at its limit: search a smaller folder.	Arama sınırda durdu: daha küçük bir klasörde arama yapın.
 	Copy only fonts you own or are licensed to install.	Yalnızca sahip olduğunuz veya yükleme lisansına sahip olduğunuz yazı tiplerini kopyalayın.
-	VectorCraft copies the fonts to {folder}.	VectorCraft yazı tiplerini {folder}'ye kopyalar.
+	Pluma copies the fonts to {folder}.	Pluma yazı tiplerini {folder}'ye kopyalar.
 	Registered Trademark Symbol	Kayıtlı Ticari Marka Sembolü
 	Registration marks	Kayıt işaretleri
 	Registry name:	Kayıt adı:
@@ -2659,7 +2654,7 @@ digits	Malayalam	Malayalam
 	Revert	Geri Döndür
 	Revert to the saved version of “{name}”?	“{name}”nin kayıtlı sürümüne dönülsün mü?
 	Replace “{name}”, the file this document was opened from?	Bu belgenin açıldığı dosya olan "{name}" değiştirilsin mi?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Bunu açmak, VectorCraft'ın henüz okuyamadığı şeyi ({what}) dışarıda bıraktı, bu nedenle onu değiştirmek onu tamamen kaybeder. Saklamak için başka bir adla kaydedin.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Bunu açmak, Pluma'ın henüz okuyamadığı şeyi ({what}) dışarıda bıraktı, bu nedenle onu değiştirmek onu tamamen kaybeder. Saklamak için başka bir adla kaydedin.
 	Revolve…	Döndür…
 	RGB Color	RGB Rengi
 	Right	Sağ
@@ -2816,7 +2811,7 @@ digits	Malayalam	Malayalam
 	Saves the current bars, toolbar and panel layout.	Geçerli çubukları, araç çubuğunu ve panel düzenini kaydeder.
 	Save…	Kaydet…
 	Saving	Kaydediliyor
-	Saving Poster.vectorcraft	Poster.vectorcraft Kaydediliyor
+	Saving Poster.pluma	Poster.pluma Kaydediliyor
 	Saving recovery data for {}	{} için kurtarma verileri kaydediliyor
 	Saving {}	{} kaydediliyor
 	Scale	Ölçek
@@ -3590,10 +3585,9 @@ digits	Malayalam	Malayalam
 	Vector Halftone	Vektör Noktalı Resim
 	Vector Halftone…	Vektör Noktalı Resim…
 	Vector illustration — fast, open, scriptable.	Vektör illüstrasyonu — hızlı, açık, yazılabilir.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft geçen sefer normal şekilde kapanmamıştı. Bu belgelerde kaydedilmemiş değişiklikler vardı:
-	VectorCraft Help…	VectorCraft Yardımı…
-	VectorCraft on getartcraft.com	Getartcraft.com'da VectorCraft
-	VectorCraft on GitHub	GitHub'da VectorCraft
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma geçen sefer normal şekilde kapanmamıştı. Bu belgelerde kaydedilmemiş değişiklikler vardı:
+	Pluma Help…	Pluma Yardımı…
+	Pluma on GitHub	GitHub'da Pluma
 	Vectors	Vektörler
 	Version {version} — open-source vector illustration in pure Rust.	Sürüm {version} — saf Rust'ta açık kaynaklı vektör çizimi.
 	Version:	Sürüm:
@@ -3633,7 +3627,7 @@ digits	Malayalam	Malayalam
 	Web Snap:	Web Snap:
 	Weight	Ağırlık
 	Weight:	Ağırlık:
-	Welcome to VectorCraft	VectorCraft'a hoş geldiniz
+	Welcome to Pluma	Pluma'a hoş geldiniz
 	When pasting text	Metin yapıştırırken
 	White	Beyaz
 	Widget Position:	Widget Konumu:
@@ -3952,7 +3946,7 @@ axis	Both	Her İkisi
 @msg	Split Into Grid: select paths large enough for the grid	Izgaraya Böl: ızgara için yeterince büyük yollar seçin
 @msg	Targa files are RGB: colorModel rgb	Targa dosyaları RGB'dir: colorModel rgb
 @msg	Text Wrap: select a wrap object	Metin Sarma: bir sarma nesnesi seçin
-@msg	This shortcut file is in a form VectorCraft can't read.	Bu kısayol dosyası VectorCraft'ın okuyamayacağı bir biçimdedir.
+@msg	This shortcut file is in a form Pluma can't read.	Bu kısayol dosyası Pluma'ın okuyamayacağı bir biçimdedir.
 @msg	`antiAlias` must be "none", "sharp", "crisp" or "strong"	`antiAlias` "none", "sharp", "crisp" veya "strong" olmalıdır
 @msg	`aspect` must be a number (%)	`aspect` bir sayı olmalıdır (%)
 @msg	`at` must be [x, y]	`at` [x, y] olmalıdır
@@ -4058,7 +4052,7 @@ axis	Both	Her İkisi
 @msg	can't encode the document: {0}	belge kodlanamıyor: {0}
 @msg	can't parse shortcut `{c}`	`{c}` kısayolu ayrıştırılamıyor
 @msg	can't parse shortcut `{s}` for `{k}`	`{k}` için `{s}` kısayolu ayrıştırılamıyor
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	{0} sürümü kaydedilemiyor: VectorCraft, {MIN_VERSION} sürümlerini {VERSION}'ye yazıyor
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	{0} sürümü kaydedilemiyor: Pluma, {MIN_VERSION} sürümlerini {VERSION}'ye yazıyor
 @msg	can't write .{ext} images	.{ext} görselleri yazılamıyor
 @msg	cannot distort a zero-size bounding box	sıfır boyutlu bir sınırlayıcı kutuyu bozamaz
 @msg	cannot read PDF: {0}	PDF okunamıyor: {0}
@@ -4085,7 +4079,7 @@ axis	Both	Her İkisi
 @msg	empty brush stroke	boş fırça darbesi
 @msg	empty cutter	boş kesici
 @msg	empty path	boş yol
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	dosya sürümü {0}, VectorCraft'ın desteklediğinden daha yenidir ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	dosya sürümü {0}, Pluma'ın desteklediğinden daha yenidir ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	serbest biçimli nokta {i} için `at` [x, y] ve geçerli bir `color` gerekir
 @msg	freeform line {i} must be an array of point indices	Serbest biçimli çizgi {i}, bir nokta indeks dizisi olmalıdır
 @msg	give both `start` and `end` [x, y] (or neither)	hem `start` hem de `end` [x, y] verin (ya da hiçbirini)
@@ -4104,14 +4098,14 @@ axis	Both	Her İkisi
 @msg	invalid PDF setting: {0}	geçersiz PDF ayarı: {0}
 @msg	invalid image data for `{0}`	`{0}` için geçersiz resim verileri
 @msg	invalid parameters for `{cmd}`: {msg}	`{cmd}` için geçersiz parametreler: {msg}
-@msg	is not an image VectorCraft reads	VectorCraft'ın okuduğu bir resim değil
+@msg	is not an image Pluma reads	Pluma'ın okuduğu bir resim değil
 @msg	{path}: not a PNG, JPEG, WebP, TIFF or BMP image	{path}: PNG, JPEG, WebP, TIFF veya BMP resmi değil
 @msg	the image is {iw} × {ih} pixels and the artboard at that width is {rw} × {rh} pixels: their proportions differ	resim {iw} × {ih} piksel, çalışma yüzeyi bu genişlikte {rw} × {rh} piksel: oranları farklı
 @msg	`threshold` must be a number from 0 to 1	`threshold` 0 ile 1 arasında bir sayı olmalıdır
 @msg	background {v}: a color such as "#808080"	background {v}: "#808080" gibi bir renk
 @msg	comparing with an image file isn't available in the browser	bir resim dosyasıyla karşılaştırma tarayıcıda kullanılamaz
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	VectorCraft'ın PostScript okuyucusunun bilmediği `{at}`yi kullanıyor
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	{procs}'de VectorCraft'ın PostScript okuyucusunun bilmediği `{at}`yi kullanıyor
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	Pluma'ın PostScript okuyucusunun bilmediği `{at}`yi kullanıyor
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	{procs}'de Pluma'ın PostScript okuyucusunun bilmediği `{at}`yi kullanıyor
 @msg	its Windows metafile preview was opened instead, which may simplify the art	bunun yerine Windows meta dosyası önizlemesi açıldı, bu da işi basitleştirebilir
 @msg	its preview was placed instead, at screen resolution	bunun yerine önizlemesi ekran çözünürlüğüne yerleştirildi
 @msg	join needs open paths	katılmak için açık yollara ihtiyaç var
@@ -4164,7 +4158,7 @@ axis	Both	Her İkisi
 @msg	no file system here	burada dosya sistemi yok
 @msg	no file writer	dosya yazarı yok
 @msg	no files to place	yerleştirilecek dosya yok
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` bir VectorCraft belgesi, bir PDF ya da PDF ile uyumlu bir .ai dosyası değil
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` bir Pluma belgesi, bir PDF ya da PDF ile uyumlu bir .ai dosyası değil
 @msg	no format to export to	dışa aktarılacak format yok
 @msg	no free recovery area	ücretsiz kurtarma alanı yok
 @msg	no gradient stop or freeform point is selected	degrade durağı veya serbest biçim noktası seçili değil
@@ -4209,7 +4203,7 @@ axis	Both	Her İkisi
 @msg	the action set file is larger than 8 MiB	eylem seti dosyası 8 MiB'den büyük
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: başvuru {MAX_BYTES} bayttan büyük olur
 @msg	the action set file holds more than 1,000 actions	eylem seti dosyası 1.000'den fazla eylem içeriyor
-@msg	the action set file needs a later version of VectorCraft	eylem seti dosyası VectorCraft'ın daha yeni bir sürümünü gerektiriyor
+@msg	the action set file needs a later version of Pluma	eylem seti dosyası Pluma'ın daha yeni bir sürümünü gerektiriyor
 @msg	an action in the action set file has more than 10,000 steps	eylem seti dosyasındaki bir eylemde 10.000'den fazla adım var
 @msg	no such anchor	öyle bir çapa yok
 @msg	no such artboard	böyle bir çalışma yüzeyi yok
@@ -4236,8 +4230,8 @@ axis	Both	Her İkisi
 @msg	node {_1} is not text	{_1} düğümü metin değil
 @msg	node {_1} is on a locked artboard	{_1} düğümü kilitli bir çalışma yüzeyinde
 @msg	not a DXF drawing	DXF çizimi değil
-@msg	not a VectorCraft file: {0}	bir VectorCraft dosyası değil: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	VectorCraft kısayol seti değil (`overrides` eksik)
+@msg	not a Pluma file: {0}	bir Pluma dosyası değil: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	Pluma kısayol seti değil (`overrides` eksik)
 @msg	not a graphic style library (format `{_1}`)	grafik stili kitaplığı değil (`{_1}` biçimi)
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	bir kısayol seti değil: metin eğik çizgi adı ve açılış paranteziyle başlamıyor
 @msg	not a stored central record	saklanan merkezi bir kayıt değil
@@ -4506,11 +4500,11 @@ axis	Both	Her İkisi
 @msg	Sent to {_1}	{_1}'ye gönderildi
 @msg	{_1} files	{_1} dosyaları
 @msg	The graphics were lost and have been restarted	Grafikler kayboldu ve yeniden başlatıldı
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	İlk önce denenen grafik işlemcisi pencereyi gösteremedi, bu yüzden VectorCraft {summary}'de yeniden başladı
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft'ın son başlangıcı, penceresi görünmeden önce {name}'de sona erdi, bu nedenle {summary}'de başladı. Bu grafik işlemciyi tekrar denemek için Tercihler › Performans › Grafik İşlemcisi seçeneğini değiştirin veya WGPU_BACKEND ayarıyla başlayın
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	VectorCraft'ın son başlangıcı grafik işlemcilerini listelerken sona erdi ve {summary}'de yalnızca OpenGL ile başladı. Diğer grafik arka uçlarını tekrar denemek için Tercihler › Performans › Grafik İşlemci seçeneğini değiştirin veya WGPU_BACKEND ayarıyla başlayın
-@msg	Loading VectorCraft…	VectorCraft Yükleniyor…
-@msg	VectorCraft failed to start: {e}	VectorCraft başlatılamadı: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	İlk önce denenen grafik işlemcisi pencereyi gösteremedi, bu yüzden Pluma {summary}'de yeniden başladı
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma'ın son başlangıcı, penceresi görünmeden önce {name}'de sona erdi, bu nedenle {summary}'de başladı. Bu grafik işlemciyi tekrar denemek için Tercihler › Performans › Grafik İşlemcisi seçeneğini değiştirin veya WGPU_BACKEND ayarıyla başlayın
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Pluma'ın son başlangıcı grafik işlemcilerini listelerken sona erdi ve {summary}'de yalnızca OpenGL ile başladı. Diğer grafik arka uçlarını tekrar denemek için Tercihler › Performans › Grafik İşlemci seçeneğini değiştirin veya WGPU_BACKEND ayarıyla başlayın
+@msg	Loading Pluma…	Pluma Yükleniyor…
+@msg	Pluma failed to start: {e}	Pluma başlatılamadı: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	WebGPU veya WebGL2'ye sahip bir tarayıcı gereklidir.
 @msg	The graphics were lost and couldn't be restarted.	Grafikler kayboldu ve yeniden başlatılamadı.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Kaydedilmemiş değişiklikleriniz bu tarayıcıda tutuluyor: onları geri almak için sayfayı yeniden yükleyin.
@@ -4541,21 +4535,21 @@ axis	Both	Her İkisi
 @msg	it has more than {MAX_NODES} objects	{MAX_NODES}'den daha fazla nesneye sahip
 @msg	it has no layers	katmanı yok
 @msg	it has too many values in a row	arka arkaya çok fazla değer var
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	VectorCraft'ın henüz okumadığı {_1} var
+@msg	it has {_1}, which Pluma doesn't read from it yet	Pluma'ın henüz okumadığı {_1} var
 @msg	its objects are nested too deeply	nesneleri çok derin bir şekilde iç içe geçmiş
 @msg	its section ending with `%{end}` doesn't end	`%{end}` ile biten bölümü bitmiyor
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	VectorCraft'ın henüz okuyamadığı fırçalar Fırçalar panelinin dışında bırakıldı ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	Pluma'ın henüz okuyamadığı fırçalar Fırçalar panelinin dışında bırakıldı ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	çeşitli dolgulara veya konturlara, değişken genişlikli konturlara, efektlere veya fırçalara sahip nesneler çizilmiş görünümleri olarak geldi ({_1}): görünümleri henüz düzenlenemez
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	`{name}` adı UTF-8 değil ve {label} olarak okundu: yanlış görünüyorsa dosyayı başka bir legacyNameEncoding ile açın
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	`{name}` adı UTF-8 değil ve bazı bölümleri {label} olarak da geçerli değil: dosyayı başka bir legacyNameEncoding ile açın
 @msg	more names that aren't UTF-8 were read as {label} ({count})	UTF-8 olmayan diğer adlar {label} olarak okundu ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	“{name}” degradesi dosyada tanımlı değil: onun yerine düz bir renk geliyor
-@msg	an image VectorCraft can't read was left out	VectorCraft'ın okuyamadığı bir resim dışarıda bırakıldı
+@msg	an image Pluma can't read was left out	Pluma'ın okuyamadığı bir resim dışarıda bırakıldı
 @msg	graphs come in as plain art, without their data or settings	grafikler, verileri ve ayarları olmadan düz çizim olarak içe aktarılır
 @msg	an image whose data is cut short was left out	verileri kısa kesilen bir resim dışarıda bırakıldı
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	katmanları korumak için {_1} × {_2} piksellik gömülü bir resim {_3} × {_4} piksele küçültüldü
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	bağlantılı resimler, dosyaları bulunana kadar dosyaya kaydedilen düşük çözünürlüklü önizlemeyi gösterir: bunları Bağlantılar panelinde yeniden bağlayın
-@msg	linked type areas past VectorCraft's limits were left out	VectorCraft sınırlarını aşan bağlantılı metin alanları dışarıda bırakıldı
+@msg	linked type areas past Pluma's limits were left out	Pluma sınırlarını aşan bağlantılı metin alanları dışarıda bırakıldı
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	bir metin nesnesi içinde yazı yönünü değiştiren metin, ilk karakterinin yönünde açılır
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	bağlantılı alanlarda, kaydırılan metinde veya bileşik yolda maske olarak kullanılan metin kırpmaz
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	dosyada önizlemesi olmayan bağlantılı resimler, dosyaları bulunana kadar bir yer tutucu gösterir: bunları Bağlantılar panelinde yeniden bağlayın
@@ -4564,13 +4558,13 @@ axis	Both	Her İkisi
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	bu dosya PDF uyumluluğu olmadan kaydedildi ve düzenleme verileri okunamıyor ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	PDF kısmı okunamadı ({_1}): dosya düzenleme verilerinden açıldı
 @msg	No fonts are missing in this document	Bu belgede eksik yazı tipi yok
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft diğer uygulamaların veya sistemin klasörlerini aramaz: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft, Kullanıcılar'daki Paylaşılan veya Genel klasörü aramıyor: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma diğer uygulamaların veya sistemin klasörlerini aramaz: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma, Kullanıcılar'daki Paylaşılan veya Genel klasörü aramıyor: {path}
 @msg	{path} is not a folder	{path} bir klasör değil
 @msg	the search couldn't start: try again in a moment	arama başlatılamadı: birazdan tekrar deneyin
 @msg	searching a folder isn't available on the web	Web'de klasör arama özelliği kullanılamıyor
 @msg	every search thread stopped on an internal error (please report this bug)	her arama dizisi dahili bir hata nedeniyle durduruldu (lütfen bu hatayı bildirin)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	VectorCraft'ın Fonts klasörü burada ayarlanmamış: masaüstü uygulaması ve Vectorcraft-cli bunu ayarlıyor
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Pluma'ın Fonts klasörü burada ayarlanmamış: masaüstü uygulaması ve Pluma-cli bunu ayarlıyor
 @msg	choose the font files to add	eklenecek yazı tipi dosyalarını seçin
 @msg	not a file	dosya değil
 @msg	not a font file	yazı tipi dosyası değil
@@ -4581,7 +4575,7 @@ axis	Both	Her İkisi
 @msg	every numbered name for {name} is taken in the document's folder	{name} için numaralandırılmış her ad belgenin klasöründe alınır
 @msg	No linked files to look for	Aranacak bağlantılı dosya yok
 	Services	Hizmetler
-	Hide VectorCraft	VectorCraft'ı gizle
+	Hide Pluma	Pluma'ı gizle
 	Zoom	Yakınlaştır
 	Bring All to Front	Herkesi Öne Çıkarın
 	Settings	Ayarlar
@@ -4589,7 +4583,7 @@ axis	Both	Her İkisi
 	On: one locked object showing the document, updated when it changes.	Açık: Belgeyi gösteren, değiştiğinde güncellenen kilitli bir nesne.
 	Off: an editable copy of its art, embedded in this document.	Kapalı: Bu belgeye yerleştirilmiş resmin düzenlenebilir bir kopyası.
 	Images: link to the file instead of only embedding it.	Resimler: dosyayı yalnızca gömmek yerine dosyaya bağlantı verin.
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft belgeleri: Dosya değiştiğinde güncellenen tek bir kilitli nesne.
+	Pluma documents: one locked object, updated when the file changes.	Pluma belgeleri: Dosya değiştiğinde güncellenen tek bir kilitli nesne.
 	A file dialog is open: choose there first	Bir dosya iletişim kutusu açık: önce orayı seçin
 	The document was closed while its file dialog was open	Belge, dosya iletişim kutusu açıkken kapatıldı
 	The dialog was closed before its file dialog answered	Dosya iletişim kutusu yanıtlanmadan iletişim kutusu kapatıldı
@@ -4723,8 +4717,8 @@ axis	Both	Her İkisi
 effect	Soft	Yumuşak
 	Edge	Kenar
 	System Title Bar	Sistem Başlık Çubuğu
-	VectorCraft Title Bar on Every Desktop	Her Masaüstünde VectorCraft Başlık Çubuğu
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	VECTORCRAFT_TITLEBAR ortam değişkeni ayarlı olduğu sürece başlık çubuğunu o seçer.
+	Pluma Title Bar on Every Desktop	Her Masaüstünde Pluma Başlık Çubuğu
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	PLUMA_TITLEBAR ortam değişkeni ayarlı olduğu sürece başlık çubuğunu o seçer.
 	System Title Bar takes precedence over this option while it is on.	Sistem Başlık Çubuğu açık olduğu sürece bu seçeneğe göre önceliklidir.
 	Value Axis	Değer Ekseni
 	On Left Side	Sol Tarafta
@@ -4842,7 +4836,7 @@ lighting	Light	Işık
 	Artistic	Sanatsal
 	Film Grain…	Film Tahıl…
 	Highlight Area	Alanı Vurgula
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	sıkıştırılmış dosya, VectorCraft'ın okuduğundan daha fazlasına açılır (belgenin {_1} MB'ı, görüntü başına {_2} MB)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	sıkıştırılmış dosya, Pluma'ın okuduğundan daha fazlasına açılır (belgenin {_1} MB'ı, görüntü başına {_2} MB)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	belge sıkıştırılmış olarak kaydedilemeyecek kadar büyük ({0}): Sıkıştırmayı Kullan kapalı olarak kaydedin
 @msg	the file stopped being read (please report this bug)	dosyanın okunması durduruldu (lütfen bu hatayı bildirin)
 	Concentric Dividers:	Eşmerkezli Bölücüler:
@@ -4996,7 +4990,7 @@ lighting	Light	Işık
 	DWG (use DXF)	DWG (DXF kullanın)
 	Default Graphic Style	Varsayılan Grafik Stili
 	Diamond (open)	Elmas (açık)
-	Differences from VectorCraft Default:	VectorCraft Varsayılanından Farklar:
+	Differences from Pluma Default:	Pluma Varsayılanından Farklar:
 	Differences from [Default]:	[Varsayılan]'dan farkları:
 	Diffusion	Difüzyon
 	Direct Selection	Doğrudan Seçim
@@ -5064,7 +5058,7 @@ lighting	Light	Işık
 	Inserting, deleting and rotating pages	Sayfa ekleme, silme ve döndürme
 	Joins:	Katılma:
 	Justify	İki Yana Yasla
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Belgeyi düzenlenebilir tutar: VectorCraft, PDF'yi hiçbir şey kaybolmadan yeniden açar. Dosyalar için tekrar düzenleme yapacaksınız.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	Belgeyi düzenlenebilir tutar: Pluma, PDF'yi hiçbir şey kaybolmadan yeniden açar. Dosyalar için tekrar düzenleme yapacaksınız.
 	Keyboard Shortcuts	Klavye Kısayolları
 	Kite	Uçurtma
 	LF (macOS, Linux)	LF (macOS, Linux)
@@ -5114,7 +5108,7 @@ lighting	Light	Işık
 	PDF/X-4:2010	PDF/X-4:2010
 	PRs	PR'ler
 	Page Cover 1640×624	Sayfa Kapağı 1640×624
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft'ın bir parçası. MIT VEYA Apache-2.0. Yazı Tipleri: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Simgeler: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia'ın bir parçası. MIT VEYA Apache-2.0. Yazı Tipleri: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Simgeler: Lucide (ISC) + Pluma.
 	Pattern Swatches	Desen Örnekleri
 	Pen	Kalem
 	Pentagram	Pentagram
@@ -5252,10 +5246,10 @@ lighting	Light	Işık
 	Up (right reading)	Yukarı (sağ okuma)
 	Use Default	Varsayılanı Kullan
 	Variation	Varyasyon
-	VectorCraft Default	VectorCraft Varsayılanı
-	VectorCraft Defaults	VectorCraft Varsayılanları
-	VectorCraft Generic CMYK (SWOP-like)	VectorCraft Genel CMYK (SWOP benzeri)
-	VectorCraft Swatches (.vcswatches)	VectorCraft Renk Örnekleri (.vcswatches)
+	Pluma Default	Pluma Varsayılanı
+	Pluma Defaults	Pluma Varsayılanları
+	Pluma Generic CMYK (SWOP-like)	Pluma Genel CMYK (SWOP benzeri)
+	Pluma Swatches (.vcswatches)	Pluma Renk Örnekleri (.vcswatches)
 	Vertical Align	Dikey Hizalama
 	Vertical Area Type	Dikey Alan Türü
 	Vertical Type	Dikey Tip
@@ -5292,7 +5286,7 @@ lighting	Light	Işık
 	[PDF/X-4:2010]	[PDF/X-4:2010]
 	[Press Quality]	[Basın Kalitesi]
 	[Smallest File Size]	[En Küçük Dosya Boyutu]
-	[VectorCraft Default]	[VectorCraft Varsayılanı]
+	[Pluma Default]	[Pluma Varsayılanı]
 	of	arasında
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
 	x Height	x Yükseklik
@@ -5321,7 +5315,7 @@ file-filter	Print presets	Baskı önayarları
 file-filter	SVG Compressed	Sıkıştırılmış SVG
 file-filter	Swatch libraries	Renk örneği kitaplıkları
 file-filter	Templates	Şablonlar
-file-filter	VectorCraft Template	VectorCraft Şablonu
+file-filter	Pluma Template	Pluma Şablonu
 gradient-kind	Radial	Radyal
 mark-style	Japanese	Japon
 theme	Appearance	Görünüm
@@ -5567,7 +5561,7 @@ theme	Appearance	Görünüm
 	Symbol Stainer	Sembol Renklendirici
 	Symbol Styler	Sembol Stil Verici
 	Text Orientation	Metin Yönü
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	Kayıt panelindeki ad “{typed}” idi; VectorCraft dosya türünün uzantısını ekledi. Dosyayı değiştirmek içeriğinin üzerine yazar.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	Kayıt panelindeki ad “{typed}” idi; Pluma dosya türünün uzantısını ekledi. Dosyayı değiştirmek içeriğinin üzerine yazar.
 	Thread Text	Metni Bağla
 	Trackpad Gesture to Rotate View	Görünümü Döndürmek İçin İzleme Dörtgeni Hareketi
 	Hold a Tool Shortcut to Use the Tool Temporarily	Aracı Geçici Olarak Kullanmak İçin Kısayolunu Basılı Tutma
@@ -6490,7 +6484,7 @@ breakText	Glyphs	Glifler
 	Malayalam	Malayalam dili
 	Odia	Oriya dili
 	Urdu	Urduca
-	VectorCraft {release} and later (version {n})	VectorCraft {release} ve sonrası (sürüm {n})
+	Pluma {release} and later (version {n})	Pluma {release} ve sonrası (sürüm {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Tüm Açık Belgeleri PDF Olarak Dışa Aktar
 	Export All Open Documents as SVG	Tüm Açık Belgeleri SVG Olarak Dışa Aktar
@@ -6642,14 +6636,14 @@ breakText	Glyphs	Glifler
 	Safe Mode	Güvenli Mod
 	Help › Safe Mode…	Yardım › Güvenli Mod…
 	Enable on Re-launch	Sonraki Başlatmada Etkinleştir
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	VectorCraft'ın son başlatılması, {name} eklentisi yüklenirken durdu. Nedeni bu eklenti olmayabilir.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Pluma'ın son başlatılması, {name} eklentisi yüklenirken durdu. Nedeni bu eklenti olmayabilir.
 	Disable and Continue	Devre Dışı Bırak ve Devam Et
 	Start Normally	Normal Başlat
 	Start in Safe Mode	Güvenli Modda Başlat
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft Güvenli Mod'da: normal başlatılana kadar hiçbir eklenti yüklenmez veya çalıştırılmaz.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma Güvenli Mod'da: normal başlatılana kadar hiçbir eklenti yüklenmez veya çalıştırılmaz.
 	Disabled plug-ins	Devre dışı eklentiler
 	No plug-ins are disabled.	Devre dışı bırakılmış eklenti yok.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Güvenli Mod açık: VectorCraft normal başlatılana kadar eklentiler yüklenmez veya çalıştırılmaz
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Güvenli Mod açık: Pluma normal başlatılana kadar eklentiler yüklenmez veya çalıştırılmaz
 @msg	give `id` or `file` (see plugin.safeMode)	`id` veya `file` belirtin (bkz. plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	bu eklenti devre dışı değil (bkz. plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	Devre dışı eklentiler bir sonraki başlatma için kaydedilemedi

@@ -4,12 +4,12 @@
 
 use std::rc::Rc;
 
+use pluma_color::Paint;
 use std::sync::Arc;
-use vectorcraft_color::Paint;
 
-use vectorcraft_doc::{CharStyle, Node, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::{Affine, Point, Vec2};
-use vectorcraft_text::TextLayout;
+use pluma_doc::{CharStyle, Node, NodeId, NodeKind, TextObject};
+use pluma_geom::{Affine, Point, Vec2};
+use pluma_text::TextLayout;
 
 use super::cid::Base;
 use super::graphics::MAX_APART;
@@ -55,7 +55,7 @@ pub fn family_style(name: &str) -> (String, String) {
         Some((base, n)) if !base.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => base,
         _ => name,
     };
-    if let Some(face) = vectorcraft_text::FontDb::global().find_postscript(name) {
+    if let Some(face) = pluma_text::FontDb::global().find_postscript(name) {
         return (face.family.clone(), face.style.clone());
     }
     let (family, style) = name.split_once('-').unwrap_or((name, ""));
@@ -489,11 +489,11 @@ impl Interp<'_> {
         }
         let (family, font_style) = family_style(&name);
         // The available family's own spelling: `MicrosoftYaHei` is Microsoft YaHei, not "Microsoft Ya Hei".
-        let font_family = vectorcraft_text::FontDb::global().find_family(&family).unwrap_or(family);
-        let fill = if self.g.paint.is_none() { Paint::solid(vectorcraft_color::Color::BLACK) } else { self.g.paint.clone() };
+        let font_family = pluma_text::FontDb::global().find_family(&family).unwrap_or(family);
+        let fill = if self.g.paint.is_none() { Paint::solid(pluma_color::Color::BLACK) } else { self.g.paint.clone() };
         let style = CharStyle { font_family, font_style, size, fill, stroke: Paint::None, ..CharStyle::default() };
         let mut t = TextObject::point(Point::ZERO, text, style);
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), &t);
         t.xf = m * Affine::scale_non_uniform(1.0 / size, -1.0 / size);
         t.cached_bounds = Some(layout.bounds);
         let adv: f64 = layout.glyphs.iter().map(|g| g.advance).sum();
@@ -545,7 +545,7 @@ impl Interp<'_> {
             for run in &mut t.runs {
                 run.style.features.push("-liga".into());
             }
-            layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+            layout = pluma_text::layout(pluma_text::FontDb::global(), &t);
             t.cached_bounds = Some(layout.bounds);
         }
         // Each character's advance in the layout (text space).
@@ -621,11 +621,11 @@ impl Interp<'_> {
             if tracking.iter().any(|t| *t != 0.0)
                 && let Some(run) = t.runs.first().cloned()
             {
-                let mut runs: Vec<vectorcraft_doc::TextRun> = Vec::new();
+                let mut runs: Vec<pluma_doc::TextRun> = Vec::new();
                 for (c, tr) in text.chars().zip(&tracking) {
                     match runs.last_mut() {
                         Some(last) if last.style.tracking == *tr => last.text.push(c),
-                        _ => runs.push(vectorcraft_doc::TextRun {
+                        _ => runs.push(pluma_doc::TextRun {
                             text: c.to_string(),
                             style: CharStyle { tracking: *tr, ..run.style.clone() },
                             inline: run.inline.clone(),
@@ -633,7 +633,7 @@ impl Interp<'_> {
                     }
                 }
                 t.runs = runs;
-                t.cached_bounds = Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds);
+                t.cached_bounds = Some(pluma_text::layout(pluma_text::FontDb::global(), &t).bounds);
             }
             if lead != Vec2::ZERO {
                 t.xf = Affine::translate(self.xf() * Point::new(lead.x, lead.y) - self.xf() * Point::ZERO) * t.xf;
@@ -699,7 +699,7 @@ impl Interp<'_> {
 
     /// Glyph outline `outline` (glyph space) under font matrix `fm` at user point `at`: filled, or
     /// added to the current path (`charpath`).
-    fn type42_paint(&mut self, mut outline: vectorcraft_geom::BezPath, at: Point, fm: Affine, paint: Draw) -> Res {
+    fn type42_paint(&mut self, mut outline: pluma_geom::BezPath, at: Point, fm: Affine, paint: Draw) -> Res {
         // Measuring a glyph reads its outline too, so `stringwidth` in a loop pays for it.
         self.spend((outline.elements().len() as u64).saturating_add(16))?;
         if paint == Draw::No {
@@ -707,7 +707,7 @@ impl Interp<'_> {
         }
         outline.apply_affine(self.xf() * Affine::translate(at.to_vec2()) * fm);
         if paint == Draw::Fill {
-            return self.fill_path(outline, vectorcraft_geom::FillRule::NonZero);
+            return self.fill_path(outline, pluma_geom::FillRule::NonZero);
         }
         if self.g.path.elements().len().saturating_add(outline.elements().len()) > super::graphics::MAX_PATH {
             return Err(PsError::Limit("a path has too many points"));
@@ -1084,7 +1084,7 @@ impl Interp<'_> {
             Some(g) => g,
             None => {
                 self.out.warn(MISSING_CID_FONT);
-                (vectorcraft_geom::BezPath::new(), em)
+                (pluma_geom::BezPath::new(), em)
             }
         };
         if g.vertical {
@@ -1097,7 +1097,7 @@ impl Interp<'_> {
 
     /// Glyph `code` (or the glyph named `name`) of font `font` from the font program it carries
     /// (a Type 42 or Type 1 font): its outline and width in ems, or `None` when it carries none.
-    fn type42_glyph(&mut self, font: &DictRef, code: u8, name: Option<&str>) -> Res<Option<(vectorcraft_geom::BezPath, f64)>> {
+    fn type42_glyph(&mut self, font: &DictRef, code: u8, name: Option<&str>) -> Res<Option<(pluma_geom::BezPath, f64)>> {
         let Some(data) = self.embedded(font)? else { return Ok(None) };
         let standard = font.borrow().get(&Key::name("Encoding")).and_then(|e| self.standard_encoding(e));
         let gid = match name {

@@ -14,9 +14,9 @@ mod print_fixes;
 #[cfg(test)]
 mod tests;
 
+use pluma_doc::{CharStyle, Document, Node, NodeId, NodeKind};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_doc::{CharStyle, Document, Node, NodeId, NodeKind};
-use vectorcraft_render::effects;
 
 use super::super::colorcmds::recolor_links;
 use super::super::paint::{restore_unpainted_stroke, set_run_stroke};
@@ -125,7 +125,7 @@ fn is_of_kind(d: &Document, n: &Node, kind: &str) -> bool {
         "colorEffects" => effects::has_adjustment(n),
         "spotColors" if !n.is_container() => {
             let mut spot = false;
-            vectorcraft_doc::swatches::node_colors(n, &mut |_, swatch| {
+            pluma_doc::swatches::node_colors(n, &mut |_, swatch| {
                 spot |= swatch.is_some_and(|name| d.swatch(name).is_some_and(|w| w.spot));
             });
             spot
@@ -213,7 +213,7 @@ fn copy_paint(s: &mut Session, p: &Value, to_stroke: bool) -> Result<Value> {
         let n = super::super::overprint::edit_counted(s, label, |d| {
             for &(id, a, b) in &ranges {
                 let Some(NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) else { return Err(EngineError::NoNode(id)) };
-                vectorcraft_text::edit::style_range(&mut t.runs, a, b, copy_run);
+                pluma_text::edit::style_range(&mut t.runs, a, b, copy_run);
                 super::super::typecmd::refresh_bounds(t);
             }
             Ok(super::super::appearance::count_changed(d, &before, &ids))

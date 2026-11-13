@@ -78,10 +78,10 @@ fn public_affinity_documents_render_like_their_affinity_thumbnails() {
     let mut failures = Vec::new();
     for (name, ceiling) in FILES {
         let bytes = std::fs::read(dir.join(name)).unwrap();
-        let loaded = vectorcraft_engine::cmd::fileio::load(name, &bytes).unwrap();
+        let loaded = pluma_engine::cmd::fileio::load(name, &bytes).unwrap();
         assert!(!loaded.preview_only, "{name} opened as its preview: {:?}", loaded.warnings);
         let d = &loaded.doc;
-        let thumb = image::load_from_memory(vectorcraft_affinity::preview(&bytes).unwrap().png).unwrap().to_rgba8();
+        let thumb = image::load_from_memory(pluma_affinity::preview(&bytes).unwrap().png).unwrap().to_rgba8();
         // The embedded thumbnail shows the union of the artboards. Check every board,
         // including small ones that the previous largest-board-only check omitted.
         let union = d.artboards.iter().map(|a| a.rect).reduce(|a, b| a.union(b)).unwrap();
@@ -95,7 +95,7 @@ fn public_affinity_documents_render_like_their_affinity_thumbnails() {
             let (w, h) = (crop(board.width()).min(thumb.width() - x), crop(board.height()).min(thumb.height() - y));
             assert!(w > 0 && h > 0, "{name} board {index}: empty thumbnail crop");
             let expected = image::imageops::crop_imm(&thumb, x, y, w, h).to_image();
-            let rendered = vectorcraft_render::Renderer::new().render_region(d, board, scale, false);
+            let rendered = pluma_render::Renderer::new().render_region(d, board, scale, false);
             let got = image::RgbaImage::from_raw(rendered.width, rendered.height, rendered.to_straight()).unwrap();
             let got = image::imageops::resize(&got, w, h, image::imageops::FilterType::Triangle);
             let diff = difference(expected.as_raw(), got.as_raw());
@@ -122,28 +122,24 @@ fn affinity3_all_artboards_survive_native_save_and_export() {
         .collect();
     for name in names {
         let bytes = std::fs::read(dir.join(name)).unwrap();
-        let loaded = vectorcraft_engine::cmd::fileio::load(name, &bytes).unwrap();
+        let loaded = pluma_engine::cmd::fileio::load(name, &bytes).unwrap();
         assert!(!loaded.preview_only, "{name}: preview-only import: {:?}", loaded.warnings);
         let doc = &loaded.doc;
         assert!(!doc.artboards.is_empty(), "{name}: no artboards");
-        let native = vectorcraft_format::save(doc, false);
-        let reloaded = vectorcraft_format::load(&native).unwrap();
+        let native = pluma_format::save(doc, false);
+        let reloaded = pluma_format::load(&native).unwrap();
         assert_eq!(serde_json::to_value(&reloaded).unwrap(), serde_json::to_value(doc).unwrap(), "{name}: native save/reload lost document data");
         if doc.artboards.len() > 1 {
             let params = serde_json::json!({"range": "all", "useArtboards": true, "preserveEditing": false});
-            let svg = vectorcraft_engine::cmd::fileio::encode_all(doc, "svg", &params).unwrap();
+            let svg = pluma_engine::cmd::fileio::encode_all(doc, "svg", &params).unwrap();
             assert_eq!(svg.files.len(), doc.artboards.len(), "{name}: SVG must write every artboard");
             assert_eq!(
                 svg.files.iter().map(|(index, _)| *index).collect::<Vec<_>>(),
                 (0..doc.artboards.len()).map(Some).collect::<Vec<_>>(),
                 "{name}: SVG artboard order"
             );
-            let pdf = vectorcraft_engine::cmd::fileio::encode(doc, "pdf", &params).unwrap();
-            assert_eq!(
-                vectorcraft_pdf::info(&pdf, None).unwrap().pages.len(),
-                doc.artboards.len(),
-                "{name}: PDF must write every artboard as a page"
-            );
+            let pdf = pluma_engine::cmd::fileio::encode(doc, "pdf", &params).unwrap();
+            assert_eq!(pluma_pdf::info(&pdf, None).unwrap().pages.len(), doc.artboards.len(), "{name}: PDF must write every artboard as a page");
         }
         for (index, board) in doc.artboards.iter().enumerate() {
             assert!(
@@ -153,19 +149,19 @@ fn affinity3_all_artboards_survive_native_save_and_export() {
             let scale = 128.0 / board.rect.width().max(board.rect.height());
             let params =
                 serde_json::json!({"artboard": index, "useArtboards": true, "scale": scale, "background": "transparent", "preserveEditing": false});
-            let svg = vectorcraft_engine::cmd::fileio::encode(doc, "svg", &params).unwrap();
-            let svg = vectorcraft_svg::import(std::str::from_utf8(&svg).unwrap()).unwrap();
+            let svg = pluma_engine::cmd::fileio::encode(doc, "svg", &params).unwrap();
+            let svg = pluma_svg::import(std::str::from_utf8(&svg).unwrap()).unwrap();
             assert_eq!(svg.artboards.len(), 1, "{name} board {index}: SVG page count");
             assert!((svg.artboards[0].rect.width() - board.rect.width()).abs() < 0.01, "{name} board {index}: SVG width");
             assert!((svg.artboards[0].rect.height() - board.rect.height()).abs() < 0.01, "{name} board {index}: SVG height");
-            let pdf = vectorcraft_engine::cmd::fileio::encode(doc, "pdf", &params).unwrap();
-            let info = vectorcraft_pdf::info(&pdf, None).unwrap();
+            let pdf = pluma_engine::cmd::fileio::encode(doc, "pdf", &params).unwrap();
+            let info = pluma_pdf::info(&pdf, None).unwrap();
             assert_eq!(info.pages.len(), 1, "{name} board {index}: PDF page count");
             assert!((info.pages[0].width - board.rect.width()).abs() < 0.01, "{name} board {index}: PDF width");
             assert!((info.pages[0].height - board.rect.height()).abs() < 0.01, "{name} board {index}: PDF height");
-            assert_eq!(vectorcraft_pdf::import(&pdf).unwrap().artboards.len(), 1, "{name} board {index}: PDF reimport");
-            let psd = vectorcraft_engine::cmd::fileio::encode(doc, "psd", &params).unwrap();
-            let png = vectorcraft_engine::cmd::fileio::encode(doc, "png", &params).unwrap();
+            assert_eq!(pluma_pdf::import(&pdf).unwrap().artboards.len(), 1, "{name} board {index}: PDF reimport");
+            let psd = pluma_engine::cmd::fileio::encode(doc, "psd", &params).unwrap();
+            let png = pluma_engine::cmd::fileio::encode(doc, "png", &params).unwrap();
             let png = image::load_from_memory(&png).unwrap().to_rgba8();
             let (merged, has_alpha) = psd_merged(&psd);
             assert_eq!(merged.dimensions(), png.dimensions(), "{name} board {index}: PSD image dimensions");

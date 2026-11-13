@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use super::{Color32, Point, Pos2, Rect, Shape, Stroke, Ui, VectorcraftApp, Xf, vec2};
+use super::{Color32, PlumaApp, Point, Pos2, Rect, Shape, Stroke, Ui, Xf, vec2};
 
 /// The width an artboard needs on screen for its name to show (px): narrower, the name is left
 /// out rather than spilling over its neighbours.
@@ -46,9 +46,9 @@ const CENTER_MARK_ARM: f32 = 6.0;
 /// arms run along the artboard's sides, [`CENTER_MARK_ARM`] long on screen
 /// (https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/modify-display-settings-of-artboards.html);
 /// with Show Video Safe Areas, the outlines of its action-safe and title-safe areas
-/// ([`vectorcraft_doc::Artboard::video_safe_areas`],
+/// ([`pluma_doc::Artboard::video_safe_areas`],
 /// https://helpx.adobe.com/illustrator/desktop/create-manage-artboards/organize-manage-artboards/set-video-display-options-for-artboards.html).
-pub(super) fn artboard_marks(painter: &egui::Painter, xf: &Xf, ab: &vectorcraft_doc::Artboard, color: Color32) {
+pub(super) fn artboard_marks(painter: &egui::Painter, xf: &Xf, ab: &pluma_doc::Artboard, color: Color32) {
     let (r, stroke) = (ab.rect, Stroke::new(1.0, color));
     let c = r.center();
     let at = |x: f64, y: f64| xf.to_screen(Point::new(x, y));
@@ -93,7 +93,7 @@ pub(super) fn tool_name_rect(painter: &egui::Painter, xf: &Xf, rect: Rect, index
 
 /// The artboards the Artboard tool labels itself, following a move or resize (its selected
 /// ones): the canvas doesn't name them again. Empty with another tool.
-pub(super) fn tool_labelled(app: &VectorcraftApp) -> Vec<u64> {
+pub(super) fn tool_labelled(app: &PlumaApp) -> Vec<u64> {
     if app.session.tool_id() != "artboard" {
         return vec![];
     }
@@ -101,7 +101,7 @@ pub(super) fn tool_labelled(app: &VectorcraftApp) -> Vec<u64> {
 }
 
 /// The artboard whose on-canvas name contains `screen`, if that name is being drawn.
-pub(super) fn artboard_name_at(app: &VectorcraftApp, ui: &Ui, xf: &Xf, screen: Pos2) -> Option<usize> {
+pub(super) fn artboard_name_at(app: &PlumaApp, ui: &Ui, xf: &Xf, screen: Pos2) -> Option<usize> {
     let st = app.session.active()?;
     let artboard_tool = app.session.tool_id() == "artboard";
     if !artboard_tool && st.doc.artboards.len() <= 1 {
@@ -133,7 +133,7 @@ pub(super) fn artboard_name_at(app: &VectorcraftApp, ui: &Ui, xf: &Xf, screen: P
     hit
 }
 
-pub(super) fn select_named_artboard(app: &mut VectorcraftApp, index: usize, shift: bool) {
+pub(super) fn select_named_artboard(app: &mut PlumaApp, index: usize, shift: bool) {
     let n = app.session.active().map(|st| st.doc.artboards.len()).unwrap_or(0);
     if index >= n {
         return;
@@ -152,12 +152,12 @@ pub(super) fn select_named_artboard(app: &mut VectorcraftApp, index: usize, shif
 
 /// Start editing artboard `index`'s name on the canvas, unless the artboard is locked (the
 /// Artboards panel still renames it).
-pub(super) fn begin_artboard_name_edit(ui: &Ui, app: &VectorcraftApp, index: usize) {
+pub(super) fn begin_artboard_name_edit(ui: &Ui, app: &PlumaApp, index: usize) {
     let Some(name) = app.session.active().and_then(|st| st.doc.artboards.get(index).filter(|a| !a.locked).map(|a| a.name.clone())) else { return };
     ui.data_mut(|d| d.insert_temp(name_edit_id(), ArtboardNameEdit { index, text: name, fresh: true }));
 }
 
-pub(super) fn commit_artboard_name(app: &mut VectorcraftApp, index: usize, text: &str) {
+pub(super) fn commit_artboard_name(app: &mut PlumaApp, index: usize, text: &str) {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return;
@@ -171,7 +171,7 @@ pub(super) fn commit_artboard_name(app: &mut VectorcraftApp, index: usize, text:
 }
 
 /// The text field over an artboard name a double-click opened.
-pub(super) fn artboard_name_editor(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
+pub(super) fn artboard_name_editor(app: &mut PlumaApp, ui: &mut Ui, xf: &Xf) {
     let Some(mut edit) = ui.data(|d| d.get_temp::<ArtboardNameEdit>(name_edit_id())) else { return };
     let alive = app.session.active().is_some_and(|st| edit.index < st.doc.artboards.len());
     if !alive {
@@ -209,7 +209,7 @@ pub(super) fn artboard_name_editor(app: &mut VectorcraftApp, ui: &mut Ui, xf: &X
 }
 
 /// Where the rename field sits: the name label's rectangle, at least wide enough to type in.
-pub(super) fn artboard_name_field_rect(app: &VectorcraftApp, ui: &Ui, xf: &Xf, index: usize) -> Option<egui::Rect> {
+pub(super) fn artboard_name_field_rect(app: &PlumaApp, ui: &Ui, xf: &Xf, index: usize) -> Option<egui::Rect> {
     let st = app.session.active()?;
     let ab = st.doc.artboards.get(index)?;
     let tool_selected = tool_labelled(app);

@@ -7,15 +7,15 @@
 //! (setting them on a saved preset saves it; a new `name` renames it once the field isn't being
 //! edited; on a built-in preset they go back).
 
+use pluma_engine::cmd::flatten::{PRESET_EXTS, PRESET_FORMAT};
+use pluma_engine::cmd::{FlattenOptions, FlattenerPreset};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::flatten::{PRESET_EXTS, PRESET_FORMAT};
-use vectorcraft_engine::cmd::{FlattenOptions, FlattenerPreset};
 
 use super::flatten::{options_editor, put_options};
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Transparency Flattener Presets.
 pub const KIND: &str = "flattenerPresets";
@@ -37,7 +37,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 
 /// Open the presets manager on `selected` (default: the first preset), holding its name and
 /// options.
-pub fn open(app: &mut VectorcraftApp, selected: Option<&str>) {
+pub fn open(app: &mut PlumaApp, selected: Option<&str>) {
     let first = FlattenOptions::preset_label(FlattenOptions::PRESETS[0]).unwrap_or_default();
     let mut d = Dialog::new(KIND, json!({ "selected": selected.unwrap_or(first) }));
     show_selected(&app.session.flattener_presets(), &mut d);
@@ -68,7 +68,7 @@ enum Action {
     Export,
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let presets = app.session.flattener_presets();
     let builtins = FlattenOptions::PRESETS.len();
@@ -180,7 +180,7 @@ fn select(d: &mut Dialog, name: &str) {
     d.fields.remove(SHOWN);
 }
 
-fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> Result<(), String> {
+fn run(app: &mut PlumaApp, d: &mut Dialog, act: Action, current: &str) -> Result<(), String> {
     match act {
         Action::Select(name) => select(d, &name),
         Action::New => {
@@ -218,27 +218,27 @@ fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
     }
 
-    fn set(app: &mut VectorcraftApp, k: &str, v: Value) {
+    fn set(app: &mut PlumaApp, k: &str, v: Value) {
         app.ui.dialog.as_mut().unwrap().fields.insert(k.into(), v);
         frame(app);
     }
 
-    fn field(app: &VectorcraftApp, k: &str) -> Value {
+    fn field(app: &PlumaApp, k: &str) -> Value {
         app.ui.dialog.as_ref().unwrap().fields.get(k).cloned().unwrap_or_default()
     }
 
     #[test]
     fn edits_save_saved_presets_and_leave_built_in_ones() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("ui.flattenerPresetsDialog", json!({})).unwrap();
         frame(&mut app);
         assert_eq!((field(&app, "selected"), field(&app, "lineArtPpi")), (json!("High Resolution"), json!(1200.0)));
@@ -275,14 +275,14 @@ mod tests {
 
     #[test]
     fn saved_presets_persist_with_the_ui_state_and_preferences_still_apply() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("flattener.presets.save", json!({"name": "Kept", "lineArtPpi": 600})).unwrap();
         // Preferences OK with saved presets around (they aren't preference fields).
         app.run("edit.preferences", json!({})).unwrap();
         crate::prefs_dialog::confirm(&mut app).unwrap();
         crate::prefs_dialog::snapshot(&mut app);
         let saved = serde_json::to_vec(&app.ui).unwrap();
-        let mut back = VectorcraftApp::new(Session::new(), Default::default());
+        let mut back = PlumaApp::new(Session::new(), Default::default());
         back.ui = serde_json::from_slice::<crate::UiState>(&saved).unwrap().sanitized();
         crate::prefs_dialog::restore(&mut back);
         assert_eq!(back.session.prefs.flattener_presets, app.session.prefs.flattener_presets);
@@ -300,7 +300,7 @@ mod tests {
             write: Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string()))),
             ..Default::default()
         };
-        let mut app = VectorcraftApp::new(Session::new(), services);
+        let mut app = PlumaApp::new(Session::new(), services);
         app.run("flattener.presets.save", json!({"name": "Mine", "balance": 20})).unwrap();
         app.run("ui.flattenerPresetsDialog", json!({"selected": "Mine"})).unwrap();
         let mut d = app.ui.dialog.clone().unwrap();

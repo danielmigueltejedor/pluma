@@ -2,9 +2,9 @@
 //! once, and limited in bytes.
 
 use kurbo::{Affine, Point};
-use vectorcraft_doc::color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{CharStyle, Dash, RubySpan, TabAlign, TabStop, TextKind, TextObject, TextWrap, WrapShape};
-use vectorcraft_geom::PathData;
+use pluma_doc::color::{Color, Gradient, GradientPaint, Paint};
+use pluma_doc::{CharStyle, Dash, RubySpan, TabAlign, TabStop, TextKind, TextObject, TextWrap, WrapShape};
+use pluma_geom::PathData;
 
 use crate::kept::test_shelf::{FRAMES, PER_HASH, TestShelf, bytes_of, stamp};
 use crate::{FontDb, ListMarker, TextLayout, layout};
@@ -165,7 +165,7 @@ fn a_layout_with_color_art_is_not_kept() {
     let at = stamp(1, true, 1);
     let t = object("Type");
     let mut l = laid_out(&t);
-    l.glyphs[0].colour = Some(std::sync::Arc::new(vectorcraft_doc::Node::group(vectorcraft_doc::NodeId(1), vec![])));
+    l.glyphs[0].colour = Some(std::sync::Arc::new(pluma_doc::Node::group(pluma_doc::NodeId(1), vec![])));
     let mut shelf = TestShelf::default();
     shelf.keep(&t, at, at, l, BUDGET);
     assert_eq!(shelf.bytes(), 0);
@@ -282,13 +282,13 @@ fn the_budget_counts_frames_paths_and_markers() {
     let mut with_carets = laid_out(&t);
     let no_carets = bytes_of(&t, &with_carets);
     with_carets.glyphs[0].carets = vec![(0, 0.0); 1000];
-    let anchors = 999 * size_of::<vectorcraft_geom::Anchor>();
+    let anchors = 999 * size_of::<pluma_geom::Anchor>();
     let counted = [
         ("frames", with_frames >= plain + 1000 * size_of::<kurbo::Rect>()),
         ("markers", with_markers >= with_frames + 1000),
         ("the frame's path", bytes_of(&area, &l) >= with_markers + anchors),
         ("the wrap's path", bytes_of(&wrapped, &l) >= with_markers + anchors),
-        ("paragraphs", bytes_of(&paragraphs, &l) >= with_markers + 100 * size_of::<vectorcraft_doc::ParaStyle>()),
+        ("paragraphs", bytes_of(&paragraphs, &l) >= with_markers + 100 * size_of::<pluma_doc::ParaStyle>()),
         ("a run's family", bytes_of(&styled, &l) >= with_markers + 900),
         ("a run's features", bytes_of(&featured, &l) >= with_markers + 1000),
         ("a swatch's name", bytes_of(&swatched, &l) >= with_markers + 1000),

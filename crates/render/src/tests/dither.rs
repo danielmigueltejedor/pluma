@@ -2,9 +2,9 @@
 //! pixels on every render, and nothing changed without dither or on strokes.
 
 use crate::*;
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, Node};
-use vectorcraft_geom::shapes;
+use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{Appearance, Node};
+use pluma_geom::shapes;
 
 const W: u32 = 400;
 const H: u32 = 40;
@@ -89,7 +89,7 @@ fn dither_leaves_strokes_and_undithered_fills_as_they_were() {
 
 #[test]
 fn a_zoomed_or_rotated_dithered_gradient_keeps_its_colours() {
-    for xf in [Affine::scale(3.0), Affine::rotate_about(0.3, vectorcraft_geom::Point::new(200.0, 20.0)), Affine::scale(40.0)] {
+    for xf in [Affine::scale(3.0), Affine::rotate_about(0.3, pluma_geom::Point::new(200.0, 20.0)), Affine::scale(40.0)] {
         let plain = render(&doc(shallow(GradientKind::Linear, false), Paint::None), xf);
         let dithered = render(&doc(shallow(GradientKind::Linear, true), Paint::None), xf);
         for (x, y) in [(50, 10), (150, 20), (250, 30)] {
@@ -135,7 +135,7 @@ fn a_dithered_gradient_without_stops_draws_nothing_and_samples_nothing() {
 }
 
 /// Blue to yellow across the document, mixed `method`'s way, dithered or not.
-fn blue_yellow(method: vectorcraft_color::GradientMethod, dither: bool) -> Paint {
+fn blue_yellow(method: pluma_color::GradientMethod, dither: bool) -> Paint {
     let mut g = Gradient::new(
         GradientKind::Linear,
         vec![GradientStop::new(0.0, Color::rgb(0.0, 0.0, 1.0)), GradientStop::new(1.0, Color::rgb(1.0, 1.0, 0.0))],
@@ -146,7 +146,7 @@ fn blue_yellow(method: vectorcraft_color::GradientMethod, dither: bool) -> Paint
 
 #[test]
 fn a_dithered_perceptual_gradient_is_the_perceptual_mix_with_noise() {
-    use vectorcraft_color::GradientMethod::{Classic, Perceptual};
+    use pluma_color::GradientMethod::{Classic, Perceptual};
     // Classic first: the two share stops and box, and must not share a dithered grid.
     let classic = render(&doc(blue_yellow(Classic, true), Paint::None), Affine::IDENTITY);
     let dithered = render(&doc(blue_yellow(Perceptual, true), Paint::None), Affine::IDENTITY);

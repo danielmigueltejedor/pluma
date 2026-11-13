@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
+use pluma_color::cms;
 use serde_json::{Value, json};
-use vectorcraft_color::cms;
 
 use crate::tests_links::{Folder, png};
 use crate::*;
@@ -24,27 +24,27 @@ fn three_boards() -> Session {
     s
 }
 
-fn objects(d: &vectorcraft_doc::Document) -> usize {
+fn objects(d: &pluma_doc::Document) -> usize {
     d.layers.iter().map(|l| l.count() - 1).sum()
 }
 
 fn bytes_of(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v.as_str().expect("base64")).unwrap()
+    pluma_format::base64_decode(v.as_str().expect("base64")).unwrap()
 }
 
 #[test]
 fn three_artboards_give_four_files() {
     let dir = Folder::new("separate");
     let mut s = three_boards();
-    let path = dir.file("Poster.vectorcraft");
+    let path = dir.file("Poster.pluma");
     let r = s.execute("document.save", &json!({"path": path, "separateArtboards": true})).unwrap();
     let files: Vec<&str> = r["files"].as_array().unwrap().iter().map(|f| f.as_str().unwrap()).collect();
-    assert_eq!(files, [path.clone(), dir.file("Poster-A.vectorcraft"), dir.file("Poster-B.vectorcraft"), dir.file("Poster-C.vectorcraft")]);
+    assert_eq!(files, [path.clone(), dir.file("Poster-A.pluma"), dir.file("Poster-B.pluma"), dir.file("Poster-C.pluma")]);
     // The master file has everything; each artboard's file that artboard and its art.
-    let master = vectorcraft_format::load(&std::fs::read(&path).unwrap()).unwrap();
+    let master = pluma_format::load(&std::fs::read(&path).unwrap()).unwrap();
     assert_eq!((master.artboards.len(), objects(&master)), (3, 3));
     for (f, name, x) in [(files[1], "A", 0.0), (files[2], "B", 200.0), (files[3], "C", 400.0)] {
-        let d = vectorcraft_format::load(&std::fs::read(f).unwrap()).unwrap();
+        let d = pluma_format::load(&std::fs::read(f).unwrap()).unwrap();
         assert_eq!((d.artboards.len(), d.artboards[0].name.as_str(), d.artboards[0].rect.x0), (1, name, x));
         assert_eq!(objects(&d), 1, "{name}");
     }
@@ -58,8 +58,8 @@ fn three_artboards_give_four_files() {
     // No path: the bytes of every file.
     let r = s.execute("file.saveCopy", &json!({"separateArtboards": true})).unwrap();
     let names: Vec<&str> = r["files"].as_array().unwrap().iter().map(|f| f["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["Poster copy.vectorcraft", "Poster copy-A.vectorcraft", "Poster copy-B.vectorcraft", "Poster copy-C.vectorcraft"]);
-    assert!(vectorcraft_format::sniff(&bytes_of(&r["files"][3]["dataBase64"])));
+    assert_eq!(names, ["Poster copy.pluma", "Poster copy-A.pluma", "Poster copy-B.pluma", "Poster copy-C.pluma"]);
+    assert!(pluma_format::sniff(&bytes_of(&r["files"][3]["dataBase64"])));
 }
 
 #[test]
@@ -97,10 +97,10 @@ fn a_linked_pngs_bytes_are_embedded() {
     let full = images(&r);
     let (_, image) = full.as_object().unwrap().iter().next().unwrap();
     assert!(image.get("proxy").is_none());
-    assert_eq!(vectorcraft_format::base64_decode(image["data"].as_str().unwrap()).unwrap(), bytes);
+    assert_eq!(pluma_format::base64_decode(image["data"].as_str().unwrap()).unwrap(), bytes);
     // With the file gone the document still shows the full pixels.
     std::fs::remove_file(&pic).unwrap();
-    let r = s.execute("document.open", &json!({"name": "copy.vectorcraft", "dataBase64": r["dataBase64"]})).unwrap();
+    let r = s.execute("document.open", &json!({"name": "copy.pluma", "dataBase64": r["dataBase64"]})).unwrap();
     assert_eq!(r["missingLinks"].as_array().unwrap().len(), 1);
     let d = &s.doc().unwrap().doc;
     let blob = d.images.values().next().unwrap();
@@ -121,7 +121,7 @@ fn an_embedded_profile_is_restored() {
     Arc::make_mut(&mut s.doc_mut().unwrap().doc).color_profiles.rgb = Some(name.clone());
     let file = bytes_of(&s.execute("file.saveCopy", &json!({"compress": false})).unwrap()["dataBase64"]);
     let v: Value = serde_json::from_slice(&file).unwrap();
-    assert_eq!(vectorcraft_format::base64_decode(v["profiles"][&name]["data"].as_str().unwrap()).unwrap(), icc.to_vec());
+    assert_eq!(pluma_format::base64_decode(v["profiles"][&name]["data"].as_str().unwrap()).unwrap(), icc.to_vec());
     // Not embedded when asked not to; built-in profiles never are (they are everywhere).
     let none: Value =
         serde_json::from_slice(&bytes_of(&s.execute("file.saveCopy", &json!({"compress": false, "embedProfiles": false})).unwrap()["dataBase64"]))
@@ -131,8 +131,7 @@ fn an_embedded_profile_is_restored() {
     let elsewhere = format!("Studio RGB elsewhere {}", std::process::id());
     let moved = String::from_utf8(file).unwrap().replace(&name, &elsewhere);
     assert!(cms::profile(&elsewhere).is_none());
-    let r =
-        s.execute("document.open", &json!({"name": "moved.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(moved.as_bytes())})).unwrap();
+    let r = s.execute("document.open", &json!({"name": "moved.pluma", "dataBase64": pluma_format::base64_encode(moved.as_bytes())})).unwrap();
     assert!(r["warnings"].as_array().unwrap().is_empty(), "{r}");
     assert_eq!(cms::profile(&elsewhere).map(|p| p.kind), Some(cms::ProfileKind::Rgb));
     assert_eq!(s.doc().unwrap().doc.color_profiles.rgb.as_deref(), Some(elsewhere.as_str()));
@@ -140,12 +139,8 @@ fn an_embedded_profile_is_restored() {
     let broken = format!("Studio RGB broken {}", std::process::id());
     let mut v: Value = serde_json::from_str(&moved.replace(&elsewhere, &broken)).unwrap();
     v["profiles"][&broken]["data"] = json!("AAAA");
-    let r = s
-        .execute(
-            "document.open",
-            &json!({"name": "b.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&serde_json::to_vec(&v).unwrap())}),
-        )
-        .unwrap();
+    let r =
+        s.execute("document.open", &json!({"name": "b.pluma", "dataBase64": pluma_format::base64_encode(&serde_json::to_vec(&v).unwrap())})).unwrap();
     assert!(r["warnings"][0].as_str().unwrap().contains(&broken), "{r}");
 }
 
@@ -153,13 +148,11 @@ fn an_embedded_profile_is_restored() {
 fn pdf_compatible_files_carry_a_pdf() {
     let mut s = three_boards();
     let file = bytes_of(&s.execute("file.saveCopy", &json!({"pdfCompatible": true})).unwrap()["dataBase64"]);
-    let pdf = vectorcraft_format::pdf_content(&file).unwrap();
+    let pdf = pluma_format::pdf_content(&file).unwrap();
     assert!(pdf.starts_with(b"%PDF"));
-    let info = s.execute("document.pdfInfo", &json!({"dataBase64": vectorcraft_format::base64_encode(&pdf)})).unwrap();
+    let info = s.execute("document.pdfInfo", &json!({"dataBase64": pluma_format::base64_encode(&pdf)})).unwrap();
     assert_eq!(info["pages"], 3);
-    assert!(
-        vectorcraft_format::pdf_content(&bytes_of(&s.execute("file.saveCopy", &json!({"pdfCompatible": false})).unwrap()["dataBase64"])).is_none()
-    );
+    assert!(pluma_format::pdf_content(&bytes_of(&s.execute("file.saveCopy", &json!({"pdfCompatible": false})).unwrap()["dataBase64"])).is_none());
 }
 
 /// A native save is portable to the other apps by default. The option is still an explicit
@@ -170,29 +163,29 @@ fn native_saves_carry_all_artboards_as_pdf_by_default() {
     for compress in [false, true] {
         let result = s.execute("file.saveCopy", &json!({"compress": compress})).unwrap();
         let file = bytes_of(&result["dataBase64"]);
-        let pdf = vectorcraft_format::pdf_content(&file).expect("the default native save carries a PDF");
-        let info = s.execute("document.pdfInfo", &json!({"dataBase64": vectorcraft_format::base64_encode(&pdf)})).unwrap();
+        let pdf = pluma_format::pdf_content(&file).expect("the default native save carries a PDF");
+        let info = s.execute("document.pdfInfo", &json!({"dataBase64": pluma_format::base64_encode(&pdf)})).unwrap();
         assert_eq!(info["pages"], 3);
-        assert_eq!(vectorcraft_format::load(&file).unwrap().artboards.len(), 3);
+        assert_eq!(pluma_format::load(&file).unwrap().artboards.len(), 3);
     }
     let dir = Folder::new("pdf-opt-out");
-    let path = dir.file("compact.vectorcraft");
+    let path = dir.file("compact.pluma");
     s.execute("file.saveAs", &json!({"path": path, "pdfCompatible": false})).unwrap();
     s.execute("shape.rectangle", &json!({"x": 60, "y": 10, "width": 10, "height": 10})).unwrap();
     s.execute("document.save", &json!({})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
+    assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
     let options = s.execute("file.formatOptions", &json!({"format":"vectorcraft"})).unwrap();
     assert_eq!(options["options"]["pdfCompatible"]["value"], false);
     s.execute("document.save", &json!({"compress": true})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
+    assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
     s.execute("document.open", &json!({"path": path})).unwrap();
     assert_eq!(s.doc().unwrap().save_options["pdfCompatible"], false);
     let options = s.execute("file.formatOptions", &json!({"format": "vectorcraft"})).unwrap();
     assert_eq!(options["options"]["pdfCompatible"]["value"], false);
     s.execute("document.save", &json!({})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
+    assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_none());
     s.execute("document.save", &json!({"pdfCompatible": true})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_some());
+    assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_some());
 }
 
 #[test]
@@ -201,34 +194,30 @@ fn native_saves_without_artboards_keep_the_editable_document() {
     std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).artboards.clear();
     let result = s.execute("file.saveCopy", &json!({})).unwrap();
     let file = bytes_of(&result["dataBase64"]);
-    let restored = vectorcraft_format::load(&file).unwrap();
+    let restored = pluma_format::load(&file).unwrap();
     assert!(restored.artboards.is_empty());
     assert_eq!(restored.node_count(), s.doc().unwrap().doc.node_count());
-    assert!(vectorcraft_format::pdf_content(&file).is_none());
-    s.execute("document.open", &json!({"name": "no-artboards.vectorcraft", "dataBase64": vectorcraft_format::base64_encode(&file)})).unwrap();
+    assert!(pluma_format::pdf_content(&file).is_none());
+    s.execute("document.open", &json!({"name": "no-artboards.pluma", "dataBase64": pluma_format::base64_encode(&file)})).unwrap();
     assert_eq!(s.doc().unwrap().save_options["pdfCompatible"], true);
     s.execute("artboard.new", &json!({"x": 0, "y": 0, "width": 100, "height": 80})).unwrap();
     let result = s.execute("file.saveCopy", &json!({})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&bytes_of(&result["dataBase64"])).is_some());
+    assert!(pluma_format::pdf_content(&bytes_of(&result["dataBase64"])).is_some());
 }
 
 #[test]
 fn native_template_saves_keep_the_document_pdf_preference() {
     let mut s = three_boards();
     let dir = Folder::new("template-pdf-preference");
-    s.execute("file.saveAs", &json!({"path": dir.file("compact.vectorcraft"), "pdfCompatible": false, "version": 3})).unwrap();
+    s.execute("file.saveAs", &json!({"path": dir.file("compact.pluma"), "pdfCompatible": false, "version": 3})).unwrap();
     let options = s.execute("file.formatOptions", &json!({"format": "template"})).unwrap();
     assert_eq!(options["options"]["pdfCompatible"]["value"], false, "the save dialog must offer the same retained choice");
     let r = s.execute("file.saveAsTemplate", &json!({"format": "template"})).unwrap();
     let bytes = bytes_of(&r["dataBase64"]);
-    assert!(vectorcraft_format::pdf_content(&bytes).is_none());
-    assert_eq!(
-        vectorcraft_format::load_file(&bytes).unwrap().info.version,
-        vectorcraft_format::VERSION,
-        "unrelated format options are not carried over"
-    );
+    assert!(pluma_format::pdf_content(&bytes).is_none());
+    assert_eq!(pluma_format::load_file(&bytes).unwrap().info.version, pluma_format::VERSION, "unrelated format options are not carried over");
     let r = s.execute("file.saveAsTemplate", &json!({"format": "template", "pdfCompatible": true})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&bytes_of(&r["dataBase64"])).is_some());
+    assert!(pluma_format::pdf_content(&bytes_of(&r["dataBase64"])).is_some());
 }
 
 #[test]
@@ -236,16 +225,16 @@ fn a_default_native_save_keeps_its_pdf_after_another_document_opts_out() {
     let dir = Folder::new("default-native-pdf-choice");
     for (index, options) in [json!({}), json!({"options":{"pdfCompatible":null}})].into_iter().enumerate() {
         let mut s = three_boards();
-        let path = dir.file(&format!("first-{index}.vectorcraft"));
+        let path = dir.file(&format!("first-{index}.pluma"));
         let mut params = options.as_object().unwrap().clone();
         params.insert("path".into(), json!(path));
         s.execute("file.saveAs", &Value::Object(params)).unwrap();
-        assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_some());
+        assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_some());
         s.execute("file.new", &json!({"width": 10, "height": 10})).unwrap();
-        s.execute("file.saveAs", &json!({"path":dir.file(&format!("other-{index}.vectorcraft")),"pdfCompatible":false})).unwrap();
+        s.execute("file.saveAs", &json!({"path":dir.file(&format!("other-{index}.pluma")),"pdfCompatible":false})).unwrap();
         s.execute("document.activate", &json!({"index":0})).unwrap();
         s.execute("document.save", &json!({})).unwrap();
-        assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_some(), "the first document keeps the PDF it was saved with");
+        assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_some(), "the first document keeps the PDF it was saved with");
         assert_eq!(s.doc().unwrap().save_options.get("pdfCompatible"), Some(&json!(true)));
     }
 }
@@ -254,10 +243,10 @@ fn a_default_native_save_keeps_its_pdf_after_another_document_opts_out() {
 fn a_null_nested_pdf_option_keeps_the_saved_opt_out() {
     let dir = Folder::new("null-nested-pdf-option");
     let mut s = three_boards();
-    let path = dir.file("compact.vectorcraft");
+    let path = dir.file("compact.pluma");
     s.execute("file.saveAs", &json!({"path": path, "pdfCompatible": false})).unwrap();
     s.execute("document.save", &json!({"options": {"pdfCompatible": null}})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_none(), "null leaves the saved choice");
+    assert!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_none(), "null leaves the saved choice");
     assert_eq!(s.doc().unwrap().save_options.get("pdfCompatible"), Some(&json!(false)));
 }
 
@@ -265,19 +254,19 @@ fn a_null_nested_pdf_option_keeps_the_saved_opt_out() {
 fn reopening_native_files_keeps_each_files_pdf_compatibility() {
     let dir = Folder::new("pdf-reopened-options");
     let mut s = three_boards();
-    let pdf = dir.file("portable.vectorcraft");
-    let compact = dir.file("compact.vectorcraft");
+    let pdf = dir.file("portable.pluma");
+    let compact = dir.file("compact.pluma");
     s.execute("file.saveAs", &json!({"path": pdf, "pdfCompatible": true})).unwrap();
     s.execute("file.saveAs", &json!({"path": compact, "pdfCompatible": false})).unwrap();
     s.execute("file.new", &json!({"width": 20, "height": 20})).unwrap();
     let copy = s.execute("file.saveCopy", &json!({})).unwrap();
-    assert!(vectorcraft_format::pdf_content(&bytes_of(&copy["dataBase64"])).is_none(), "new files use the last native preference");
+    assert!(pluma_format::pdf_content(&bytes_of(&copy["dataBase64"])).is_none(), "new files use the last native preference");
     for (path, expected) in [(&pdf, true), (&compact, false)] {
         s.execute("document.open", &json!({"path": path})).unwrap();
         let options = s.execute("file.formatOptions", &json!({"format": "vectorcraft"})).unwrap();
         assert_eq!(options["options"]["pdfCompatible"]["value"], expected);
         s.execute("document.save", &json!({})).unwrap();
-        assert_eq!(vectorcraft_format::pdf_content(&std::fs::read(path).unwrap()).is_some(), expected);
+        assert_eq!(pluma_format::pdf_content(&std::fs::read(path).unwrap()).is_some(), expected);
     }
 }
 
@@ -286,7 +275,7 @@ fn reverting_native_files_updates_their_pdf_compatibility() {
     let dir = Folder::new("pdf-revert-options");
     for saved in [false, true] {
         let mut s = three_boards();
-        let path = dir.file(if saved { "with-pdf.vectorcraft" } else { "compact.vectorcraft" });
+        let path = dir.file(if saved { "with-pdf.pluma" } else { "compact.pluma" });
         s.execute("file.saveAs", &json!({"path": path, "pdfCompatible": saved})).unwrap();
         let replacement = s.execute("file.saveCopy", &json!({"pdfCompatible": !saved})).unwrap();
         std::fs::write(&path, bytes_of(&replacement["dataBase64"])).unwrap();
@@ -295,7 +284,7 @@ fn reverting_native_files_updates_their_pdf_compatibility() {
         let options = s.execute("file.formatOptions", &json!({"format": "vectorcraft"})).unwrap();
         assert_eq!(options["options"]["pdfCompatible"]["value"], !saved);
         s.execute("document.save", &json!({})).unwrap();
-        assert_eq!(vectorcraft_format::pdf_content(&std::fs::read(&path).unwrap()).is_some(), !saved);
+        assert_eq!(pluma_format::pdf_content(&std::fs::read(&path).unwrap()).is_some(), !saved);
     }
 }
 
@@ -317,7 +306,7 @@ fn save_option_errors_name_the_save_command() {
     }
     // A native file written to a path.
     let dir = Folder::new("save-errors");
-    for (cmd, name) in [("document.save", "a.vectorcraft"), ("file.saveAs", "b.vectorcraft"), ("file.saveCopy", "c.vectorcraft")] {
+    for (cmd, name) in [("document.save", "a.pluma"), ("file.saveAs", "b.pluma"), ("file.saveCopy", "c.pluma")] {
         let p = json!({"path": dir.file(name), "compress": "yes"});
         let e = s.execute(cmd, &p).unwrap_err().to_string();
         assert!(e.contains(&format!("`{cmd}`")) && !e.contains("document.export"), "{p}: {e}");
@@ -339,15 +328,15 @@ fn ai_without_pdf_content_and_compression() {
     assert!(says(&warnings, "without PDF content") && says(&warnings, "apps that read its editing data open it"), "{warnings}");
     // Without the editing copy, other apps show empty pages.
     let (_, plain) = ai(&mut s, json!({"pdfCompatible": false, "editingData": false}));
-    assert!(says(&plain, "VectorCraft opens it as before") && !says(&plain, "editing data"), "{plain}");
+    assert!(says(&plain, "Pluma opens it as before") && !says(&plain, "editing data"), "{plain}");
     // The pages are empty (an import of a page finds no art), the document comes back whole.
     let page = |s: &mut Session, b: &[u8]| {
-        s.execute("document.open", &json!({"name": "x.ai", "dataBase64": vectorcraft_format::base64_encode(b), "pages": "1"})).unwrap();
+        s.execute("document.open", &json!({"name": "x.ai", "dataBase64": pluma_format::base64_encode(b), "pages": "1"})).unwrap();
         objects(&s.doc().unwrap().doc)
     };
     assert!(page(&mut s, &full) > 0);
     assert_eq!(page(&mut s, &blank), 0);
-    s.execute("document.open", &json!({"name": "x.ai", "dataBase64": vectorcraft_format::base64_encode(&blank)})).unwrap();
+    s.execute("document.open", &json!({"name": "x.ai", "dataBase64": pluma_format::base64_encode(&blank)})).unwrap();
     assert_eq!(objects(&s.doc().unwrap().doc), 3);
     // Use Compression off writes the content uncompressed: a larger file.
     let mut s = three_boards();
@@ -442,7 +431,7 @@ fn a_remembered_artboard_the_document_no_longer_has_is_dropped() {
     for (name, p) in [
         ("legacy.ai", json!({"aiVersion": "7", "range": "3"})),
         ("separate.ai", json!({"separateArtboards": true, "range": "3"})),
-        ("separate.vectorcraft", json!({"separateArtboards": true, "range": "1, 3"})),
+        ("separate.pluma", json!({"separateArtboards": true, "range": "1, 3"})),
         ("doc.pdf", json!({"range": "3"})),
         ("doc.svg", json!({"artboard": 2})),
     ] {
@@ -517,7 +506,7 @@ fn a_remembered_artboard_pick_follows_the_artboards_it_named() {
         ("unused.pdf", json!({"artboard": 0, "range": "3"}), 0, json!({"range": "2"})),
         ("doc.svg", json!({"artboard": 2}), 0, json!({"artboard": 1})),
         ("legacy.ai", json!({"aiVersion": "7", "range": "1, 3"}), 2, json!({"range": "1"})),
-        ("doc.vectorcraft", json!({"separateArtboards": true, "range": "1, 3"}), 0, json!({"range": "2"})),
+        ("doc.pluma", json!({"separateArtboards": true, "range": "1, 3"}), 0, json!({"range": "2"})),
     ] {
         let mut s = three_boards();
         let mut first = p.clone();
@@ -531,7 +520,7 @@ fn a_remembered_artboard_pick_follows_the_artboards_it_named() {
         s.execute("document.save", &json!({})).unwrap_or_else(|e| panic!("{name}: {e}"));
         if name.ends_with(".pdf") {
             let bytes = std::fs::read(dir.file(name)).unwrap();
-            let info = s.execute("document.pdfInfo", &json!({"dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+            let info = s.execute("document.pdfInfo", &json!({"dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
             assert_eq!(info["pages"], 1, "only the artboard that was 3");
         }
     }
@@ -554,7 +543,7 @@ fn a_remembered_artboard_pick_follows_the_artboards_it_named() {
     assert_eq!(s.doc().unwrap().doc.artboards.iter().map(|a| a.id).collect::<Vec<_>>(), [1, 2, 3]);
     assert_eq!(s.execute("file.formatOptions", &json!({})).unwrap()["options"]["range"]["value"], Value::Null);
     let mut s = three_boards();
-    s.execute("file.saveAs", &json!({"path": dir.file("revert.vectorcraft"), "separateArtboards": true, "range": "1, 3"})).unwrap();
+    s.execute("file.saveAs", &json!({"path": dir.file("revert.pluma"), "separateArtboards": true, "range": "1, 3"})).unwrap();
     s.execute("artboard.delete", &json!({"index": 0})).unwrap();
     s.execute("file.revert", &json!({})).unwrap();
     assert_eq!(s.execute("file.formatOptions", &json!({})).unwrap()["options"]["range"]["value"], json!("1, 3"));
@@ -571,15 +560,15 @@ fn format_options_list_the_save_options() {
     assert_eq!((v["options"]["pdfCompatible"]["value"].as_bool(), v["options"]["range"]["value"].is_null()), (Some(true), true));
     // Saved with them, a document remembers them for Save.
     let dir = Folder::new("remember");
-    let path = dir.file("r.vectorcraft");
+    let path = dir.file("r.pluma");
     s.execute("document.save", &json!({"path": path, "includeLinked": true})).unwrap();
     let v = s.execute("file.formatOptions", &json!({})).unwrap();
     assert_eq!(v["options"]["includeLinked"]["value"], true);
 }
 
 /// The anchors of the first object in the native file at `path`.
-fn saved_anchors(path: &str) -> Vec<vectorcraft_geom::Point> {
-    let d = vectorcraft_format::load(&std::fs::read(path).unwrap()).unwrap();
+fn saved_anchors(path: &str) -> Vec<pluma_geom::Point> {
+    let d = pluma_format::load(&std::fs::read(path).unwrap()).unwrap();
     let NodeKind::Path { path, .. } = &d.layers[0].children().unwrap()[0].kind else { panic!("not a path") };
     path.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p)).collect()
 }
@@ -597,7 +586,7 @@ fn precision_rounds_the_paths_of_that_save_only() {
     };
     let anchors: Vec<Value> = (0..1000).map(|_| json!({"x": next(), "y": next()})).collect();
     s.execute("path.create", &json!({"anchors": anchors})).unwrap();
-    let (exact, rounded) = (dir.file("exact.vectorcraft"), dir.file("rounded.vectorcraft"));
+    let (exact, rounded) = (dir.file("exact.pluma"), dir.file("rounded.pluma"));
     s.execute("document.save", &json!({"path": exact, "compress": false})).unwrap();
     s.execute("document.save", &json!({"path": rounded, "compress": false, "precision": 3})).unwrap();
     let (e, r) = (std::fs::metadata(&exact).unwrap().len(), std::fs::metadata(&rounded).unwrap().len());
@@ -631,7 +620,7 @@ fn precision_is_not_remembered_for_new_documents() {
     let dir = Folder::new("precision-preferences");
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
-    s.execute("document.save", &json!({"path": dir.file("rounded.vectorcraft"), "precision": 3})).unwrap();
+    s.execute("document.save", &json!({"path": dir.file("rounded.pluma"), "precision": 3})).unwrap();
     assert!(!s.prefs.native_save_options.contains_key("precision"));
 
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -661,7 +650,7 @@ fn a_ai_file_ignores_precision_as_save_does() {
 }
 
 /// The anchors of every path in `n` and the art it holds.
-fn all_anchors(n: &vectorcraft_doc::Node, out: &mut Vec<vectorcraft_geom::Point>) {
+fn all_anchors(n: &pluma_doc::Node, out: &mut Vec<pluma_geom::Point>) {
     if let NodeKind::Path { path, .. } = &n.kind {
         out.extend(path.subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|a| a.p)));
     }
@@ -678,9 +667,9 @@ fn the_preview_and_pdf_of_a_save_at_a_precision_show_the_rounded_art() {
     s.execute("path.create", &json!({"anchors": anchors, "closed": true})).unwrap();
     let file = bytes_of(&s.execute("file.saveCopy", &json!({"precision": 0, "pdfCompatible": true, "preview": true})).unwrap()["dataBase64"]);
     // The embedded PDF, opened, has the path on whole points.
-    let pdf = vectorcraft_format::pdf_content(&file).unwrap();
+    let pdf = pluma_format::pdf_content(&file).unwrap();
     let mut t = Session::new();
-    t.execute("document.open", &json!({"name": "x.pdf", "dataBase64": vectorcraft_format::base64_encode(&pdf)})).unwrap();
+    t.execute("document.open", &json!({"name": "x.pdf", "dataBase64": pluma_format::base64_encode(&pdf)})).unwrap();
     let mut got = vec![];
     for l in &t.doc().unwrap().doc.layers {
         all_anchors(l, &mut got);
@@ -690,8 +679,8 @@ fn the_preview_and_pdf_of_a_save_at_a_precision_show_the_rounded_art() {
     }
     assert!(got.iter().all(|p| (p.x - p.x.round()).abs() < 1e-3 && (p.y - p.y.round()).abs() < 1e-3), "{got:?}");
     // The preview is the one the saved document draws, not the exact art's.
-    let preview = vectorcraft_format::preview(&file);
+    let preview = pluma_format::preview(&file);
     assert!(preview.is_some());
-    assert_eq!(preview, crate::cmd::fileio::preview_png(&vectorcraft_format::load(&file).unwrap()).unwrap());
+    assert_eq!(preview, crate::cmd::fileio::preview_png(&pluma_format::load(&file).unwrap()).unwrap());
     assert_ne!(preview, crate::cmd::fileio::preview_png(&s.doc().unwrap().doc).unwrap());
 }

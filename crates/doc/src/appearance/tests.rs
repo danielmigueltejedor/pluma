@@ -21,8 +21,8 @@ fn basic_appearance() {
 
 #[test]
 fn rebase_moves_fills_by_the_box_and_strokes_by_their_inflated_box() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientPaint};
-    use vectorcraft_geom::{Point, Rect};
+    use pluma_color::{Gradient, GradientGeom, GradientPaint};
+    use pluma_geom::{Point, Rect};
     let placed = |x: f64| {
         let mut g = GradientPaint::new(Gradient::default());
         g.geom = Some(GradientGeom { start: Point::new(x, 0.0), end: Point::new(x + 10.0, 0.0), aspect: 1.0, focal: None });

@@ -1,6 +1,6 @@
+use pluma_doc::Effect;
+use pluma_geom::{Anchor, PathData, Point, Rect, SubPath};
 use serde_json::{Value, json};
-use vectorcraft_doc::Effect;
-use vectorcraft_geom::{Anchor, PathData, Point, Rect, SubPath};
 
 use super::*;
 use crate::{apply_geometry, effect_info, is_geometry, is_length, is_raster, length_range};

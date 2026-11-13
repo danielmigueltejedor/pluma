@@ -11,7 +11,7 @@ pub(super) struct Gen<'a> {
     pub(super) d: &'a mut Document,
     pub(super) out: Vec<Arc<Node>>,
     /// The labels' kept character styles.
-    pub(super) styles: &'a vectorcraft_doc::LabelStyles,
+    pub(super) styles: &'a pluma_doc::LabelStyles,
     /// What the column designs may still add.
     pub(super) columns: Allowance,
 }
@@ -25,7 +25,7 @@ pub(crate) enum Role {
 }
 
 /// The character style labels of `role` are set in: the kept one, else 9 pt black.
-pub(super) fn label_style(styles: &vectorcraft_doc::LabelStyles, role: Role) -> CharStyle {
+pub(super) fn label_style(styles: &pluma_doc::LabelStyles, role: Role) -> CharStyle {
     let kept = match role {
         Role::Value => &styles.values,
         Role::Category => &styles.categories,
@@ -46,7 +46,7 @@ pub(super) fn label_style(styles: &vectorcraft_doc::LabelStyles, role: Role) -> 
 }
 
 /// How big labels of `role` are set: a kept style's size, else 9 pt. The labels' spacing follows it.
-pub(super) fn label_size(styles: &vectorcraft_doc::LabelStyles, role: Role) -> f64 {
+pub(super) fn label_size(styles: &pluma_doc::LabelStyles, role: Role) -> f64 {
     label_style(styles, role).size
 }
 
@@ -84,7 +84,7 @@ impl Gen<'_> {
     /// Filled Lines a band FILLED_LINE_WIDTH wide filled with it and outlined in black.
     pub(super) fn data_line(&mut self, g: &GraphSpec, s: usize, pd: PathData, filled: bool) -> Arc<Node> {
         let band = if filled {
-            vectorcraft_pathops::outline_stroke(&pd, FILLED_LINE_WIDTH, vectorcraft_pathops::Cap::Butt, vectorcraft_pathops::Join::Miter, 4.0)
+            pluma_pathops::outline_stroke(&pd, FILLED_LINE_WIDTH, pluma_pathops::Cap::Butt, pluma_pathops::Join::Miter, 4.0)
         } else {
             PathData::default()
         };
@@ -163,7 +163,7 @@ pub(super) fn shadow_of(d: &mut Document, n: &Node) -> Arc<Node> {
 }
 
 /// How wide label `s` is set (its widest line), without adding it to a document.
-pub(super) fn label_width(styles: &vectorcraft_doc::LabelStyles, s: &str) -> f64 {
+pub(super) fn label_width(styles: &pluma_doc::LabelStyles, s: &str) -> f64 {
     let style = label_style(styles, Role::Legend);
     let mut t = TextObject::point(Point::ZERO, &s.replace('|', "\n"), style);
     refresh_bounds(&mut t);

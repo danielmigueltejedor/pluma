@@ -1,8 +1,8 @@
 //! #2143: a ruler guide selected with objects can be the key object Align lines them up on, and
 //! Distribute spaces ruler guides selected without objects.
 
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -16,7 +16,7 @@ fn rect(s: &mut Session, x: f64, y: f64) -> NodeId {
     NodeId(s.execute("shape.rectangle", &json!({"x": x, "y": y, "width": 40, "height": 20})).unwrap()["id"].as_u64().unwrap())
 }
 
-fn bounds(s: &Session, id: NodeId) -> vectorcraft_geom::Rect {
+fn bounds(s: &Session, id: NodeId) -> pluma_geom::Rect {
     s.doc().unwrap().doc.bounds_of(&[id], false).unwrap()
 }
 

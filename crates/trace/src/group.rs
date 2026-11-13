@@ -263,7 +263,7 @@ thread_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_geom::PathData;
+    use pluma_geom::PathData;
 
     fn disc(c: (f64, f64), r: f64, color: u8) -> TracedPath {
         let path = PathData::from_bezpath(&kurbo::Shape::to_path(&kurbo::Circle::new(c, r), 0.01));

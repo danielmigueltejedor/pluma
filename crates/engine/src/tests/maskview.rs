@@ -1,9 +1,9 @@
 //! View Opacity Mask (M3.86): the canvas shows only the mask, as greyscale coverage, while it is
 //! edited; toggling it off shows the artwork again, and leaving editing by any route ends it.
 
+use pluma_geom::Affine;
+use pluma_render::{RenderOptions, Renderer};
 use serde_json::json;
-use vectorcraft_geom::Affine;
-use vectorcraft_render::{RenderOptions, Renderer};
 
 use crate::*;
 

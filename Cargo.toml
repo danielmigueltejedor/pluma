@@ -1,14 +1,14 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
-default-members = ["crates/*", "apps/vectorcraft", "apps/vectorcraft-cli", "xtask"]
+default-members = ["crates/*", "apps/pluma", "apps/pluma-cli", "xtask"]
 
 [workspace.package]
 version = "0.21.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
-repository = "https://github.com/storytold/vectorcraft"
+repository = "https://github.com/getnodalia/pluma"
 
 [workspace.dependencies]
 craft-pdf = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", default-features = false, features = ["interpret", "write"] }
@@ -20,42 +20,43 @@ craft-proof = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63
 # Decides who draws the window frame (desktop vs. app) so the suite shares one native titlebar per
 # desktop. The `egui` feature adds `craft_window::decorate`. (craft-libs#217.)
 craft-window = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb", features = ["egui"] }
-# The `.vectorcraft` envelope: its members, version, embedded images and the data after the JSON.
+# The `.pluma` envelope: its members, version, embedded images and the data after the JSON.
 craft-vectorcraft-format = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # In-app updates from this app's GitHub releases, with the update windows for egui.
 nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "ed8c8829a3dad688e17ce00ca1e15416bc7ba16e", features = ["egui"] }
+nodalia-theme = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "ed8c8829a3dad688e17ce00ca1e15416bc7ba16e" }
 # internal
-vectorcraft-geom = { path = "crates/geom" }
-vectorcraft-color = { path = "crates/color" }
-vectorcraft-doc = { path = "crates/doc" }
-vectorcraft-pathops = { path = "crates/pathops" }
-vectorcraft-brush = { path = "crates/brush" }
-vectorcraft-trace = { path = "crates/trace" }
+pluma-geom = { path = "crates/geom" }
+pluma-color = { path = "crates/color" }
+pluma-doc = { path = "crates/doc" }
+pluma-pathops = { path = "crates/pathops" }
+pluma-brush = { path = "crates/brush" }
+pluma-trace = { path = "crates/trace" }
 # Without its default `bundled-fonts`: a crate that wants the fonts asks for them (the apps and
-# vectorcraft-testkit through the engine's `bundled-fonts`), so a library crate never forces them on
+# pluma-testkit through the engine's `bundled-fonts`), so a library crate never forces them on
 # an embedder that supplies its fonts at run time.
-vectorcraft-text = { path = "crates/text", default-features = false }
-vectorcraft-effects = { path = "crates/effects" }
-vectorcraft-three-d = { path = "crates/three-d" }
-vectorcraft-render = { path = "crates/render" }
-vectorcraft-svg = { path = "crates/svg" }
-vectorcraft-pdf = { path = "crates/pdf" }
-vectorcraft-format = { path = "crates/format" }
-vectorcraft-tools = { path = "crates/tools" }
-# Without its default `bundled-fonts`, as vectorcraft-text: each crate that wants the fonts asks for
+pluma-text = { path = "crates/text", default-features = false }
+pluma-effects = { path = "crates/effects" }
+pluma-three-d = { path = "crates/three-d" }
+pluma-render = { path = "crates/render" }
+pluma-svg = { path = "crates/svg" }
+pluma-pdf = { path = "crates/pdf" }
+pluma-format = { path = "crates/format" }
+pluma-tools = { path = "crates/tools" }
+# Without its default `bundled-fonts`, as pluma-text: each crate that wants the fonts asks for
 # them, so an embedder can build without them (docs/development.md › Leaving out the bundled fonts).
-vectorcraft-engine = { path = "crates/engine", default-features = false }
-vectorcraft-ui-egui = { path = "crates/ui-egui" }
-vectorcraft-mcp = { path = "crates/mcp" }
-vectorcraft-testkit = { path = "crates/testkit" }
-vectorcraft-cad = { path = "crates/cad" }
-vectorcraft-eps = { path = "crates/eps" }
-vectorcraft-metafile = { path = "crates/metafile" }
-vectorcraft-plugins = { path = "crates/plugins" }
-vectorcraft-affinity = { path = "crates/affinity" }
-vectorcraft-scriptcheck = { path = "crates/scriptcheck" }
-vectorcraft-js = { path = "crates/js" }
-vectorcraft-apischema = { path = "crates/apischema" }
+pluma-engine = { path = "crates/engine", default-features = false }
+pluma-ui-egui = { path = "crates/ui-egui" }
+pluma-mcp = { path = "crates/mcp" }
+pluma-testkit = { path = "crates/testkit" }
+pluma-cad = { path = "crates/cad" }
+pluma-eps = { path = "crates/eps" }
+pluma-metafile = { path = "crates/metafile" }
+pluma-plugins = { path = "crates/plugins" }
+pluma-affinity = { path = "crates/affinity" }
+pluma-scriptcheck = { path = "crates/scriptcheck" }
+pluma-js = { path = "crates/js" }
+pluma-apischema = { path = "crates/apischema" }
 
 # foundation
 kurbo = { version = "0.13", features = ["serde"] }
@@ -79,7 +80,7 @@ wat = "1.228"
 
 # rendering / formats
 # Without `text` (glyph runs, through glifo and a second skrifa): the renderer draws the outlines
-# vectorcraft-text gives it. The other default features stay.
+# pluma-text gives it. The other default features stay.
 vello_cpu = { version = "0.2", default-features = false, features = ["std", "png", "u8_pipeline", "f32_pipeline"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "tiff", "bmp", "tga"] }
 # Without `text` and the system fonts (fontdb, harfrust and skrifa, at other versions than ours):
@@ -106,7 +107,7 @@ memchr = "2"
 encoding_rs = "0.8.42"
 jpeg-encoder = { version = "0.6", default-features = false, features = ["std"] }
 gif = { version = "0.14", default-features = false, features = ["std", "raii_no_panic"] }
-# CMYK image samples (vectorcraft-doc's cmyk module): the image crate's own TIFF and JPEG
+# CMYK image samples (pluma-doc's cmyk module): the image crate's own TIFF and JPEG
 # decoders, read directly (the image crate converts CMYK to RGB).
 tiff = "0.11"
 zune-jpeg = "0.5"
@@ -139,7 +140,7 @@ cognitive_complexity = "deny"
 too_many_arguments = "deny"
 wildcard_imports = "deny"
 dbg_macro = "warn"
-# VectorCraft never crashes: shipped code returns `Result`/`Option` instead of panicking (see
+# Pluma never crashes: shipped code returns `Result`/`Option` instead of panicking (see
 # AGENTS.md › Robustness). Tests may unwrap (clippy.toml).
 unwrap_used = "deny"
 expect_used = "deny"

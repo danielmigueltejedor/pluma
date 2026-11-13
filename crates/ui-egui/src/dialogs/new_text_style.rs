@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, form};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 
 /// The dialog kind of New Character Style and New Paragraph Style.
@@ -27,13 +27,12 @@ fn heading(d: &Dialog) -> String {
 
 /// Open New Character Style (`para`: New Paragraph Style) with the name `charStyle.new` would give
 /// the style, to make it from the text `target` names.
-pub fn open(app: &mut VectorcraftApp, para: bool, target: Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, para: bool, target: Value) -> Result<Value, String> {
     let d = &app.session.active().ok_or("no document open")?.doc;
-    let name = vectorcraft_engine::cmd::textstyles::new_style_name(d, para);
+    let name = pluma_engine::cmd::textstyles::new_style_name(d, para);
     let mut target = target;
-    let selected_attrs = vectorcraft_engine::cmd::textstyles::target_style_attrs(&app.session, &target, para);
-    if let Some(attrs) = selected_attrs.or_else(|| (!para).then(|| vectorcraft_engine::cmd::textstyles::default_new_style_attrs(&app.session, false)))
-    {
+    let selected_attrs = pluma_engine::cmd::textstyles::target_style_attrs(&app.session, &target, para);
+    if let Some(attrs) = selected_attrs.or_else(|| (!para).then(|| pluma_engine::cmd::textstyles::default_new_style_attrs(&app.session, false))) {
         target["attrs"] = Value::Object(attrs);
     }
     let mut fields = Dialog::new(KIND, json!({ "name": name, "__para": para, "__target": target })).fields;
@@ -51,7 +50,7 @@ pub fn open(app: &mut VectorcraftApp, para: bool, target: Value) -> Result<Value
     Ok(json!({ "dialog": KIND }))
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if !para(d) {
         ui.horizontal(|ui| {
             super::char_style_options::section_list(ui, d);
@@ -95,7 +94,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// OK: make the style with the name. A name another style has, or an empty one, keeps the dialog
 /// open. The panel highlights the new style and scrolls it into view when it next draws.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut params = d.fields.get("__target").filter(|t| t.is_object()).cloned().unwrap_or_else(|| json!({}));
     params["name"] = json!(d.str("name"));
     if !para(d) {

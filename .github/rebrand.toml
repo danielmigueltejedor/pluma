@@ -13,20 +13,32 @@ keep = [
     "(https?://)?github\\.com/storytold/[\\w.-]+/(issues|pull|commit|discussions)/[^\\s)\\]\"'<>`]*",
     "https?://(github\\.com|raw\\.githubusercontent\\.com)/(?!storytold/vectorcraft\\b|getnodalia|danielmigueltejedor)[^\\s)\\]\"'<>`]*",
     # Upstream's issues named without a link (`storytold/vectorcraft#123`).
-    "storytold/vectorcraft#\\d+",
+    "storytold/[\\w.-]+#\\d+",
+    # Repositories named without a link: upstream's sibling app and the shared test corpus.
+    "storytold/photocraft\\b",
+    "photocraft-corpus",
     # Upstream's repository in the sync workflow and in the record of what came from it.
     "(?<=UPSTREAM_REPO: )storytold/vectorcraft",
     # The shared document-format library in getnodalia/foundation keeps its own crate name.
     "craft[-_]vectorcraft[-_]format",
-    # The document file signature and extension: files saved under them must keep opening, in
-    # Pluma and in the test corpus. A file signature is not a name anyone reads.
-    "(?<!storyteller)\\.vectorcraft\\b(?![\\w-])",
+    # Pluma's own extension is `.pluma`; upstream's `.vectorcraft` becomes it like any other name.
+    # Files saved under the old extension keep opening (`pluma_format::OLDER_EXTENSIONS`).
+    # Where the old extension is named as one Pluma still opens (file associations).
+    "(?<=pattern=\"\\*)\\.vectorcraft(?=\")",
+    "\\.vectorcraft(?= and \\.drawcraft)",
+    # The native file's signature, `"format": "vectorcraft"`, as tests write it out by hand.
+    '(?:(?<=format\\":\\")|(?<=format\\": \\"))vectorcraft(?=\\")',
+    # The editing file a PDF carries is found by this name, in files saved before the rename too.
+    'vectorcraft-editing\.vectorcraft',
     # The native format's id in the command API and save dialogs (`{"format": "vectorcraft"}`),
     # but not a crate, binary, settings folder or server name spelled the same way.
-    "(?<=[\"'`])(?<!name = \")(?<!InternalName\", \")(?<!VectorCraft\", \")(?<!&\")(?<!\\]\\[\"name\"\\], \")(?<!\\] == \")(?<!\\|\\| \")vectorcraft(?=[\"'`])",
+    "(?<=[\"'`])(?<!name = \")(?<!default-run = \")(?<!InternalName\", \")(?<!VectorCraft\", \")(?<!&\")(?<!\\]\\[\"name\"\\], \")(?<!\\] == \")(?<!\\|\\| \")(?<!\"name\": \")(?<!#target )vectorcraft(?=[\"'`])",
     "(?<=<string>)vectorcraft(?=</string>)",
     # Credit for work done upstream.
     "VectorCraft contributors",
+    "ArtCraft Team",
+    # Where Lienzo installs on Windows (its installer keeps this folder), for Edit Original.
+    "ArtCraft(?=\\\\?(PhotoCraft|Lienzo)|\"\\)\\.join\\(\"(PhotoCraft|Lienzo))",
 ]
 
 # Files left alone entirely.
@@ -85,8 +97,31 @@ from = "storytold/vectorcraft"
 to = "getnodalia/pluma"
 
 [[replace]]
+from = "https://discord.gg/artcraft"
+to = "https://github.com/getnodalia/pluma/issues"
+
+[[replace]]
 from = "getartcraft.com/apps/vectorcraft"
 to = "getnodalia.com/pluma"
+
+[[replace]]
+from = "getartcraft.com"
+to = "getnodalia.com"
+
+# Pluma's raster sibling, which Edit Original opens images in: Lienzo (upstream names it by its own
+# upstream's name).
+[[replace]]
+from = "PhotoCraft"
+to = "Lienzo"
+
+[[replace]]
+from = "photocraft"
+to = "lienzo"
+
+# The family the app belongs to: install folders, the About box.
+[[replace]]
+from = "ArtCraft"
+to = "Nodalia"
 
 # The name, in every casing upstream uses.
 [[replace]]

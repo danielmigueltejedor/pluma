@@ -24,16 +24,16 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use pluma_color::blend::{cmyk_planes, composite, planes_cmyk};
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::appearance::{AppearanceItem, FillLayer};
+use pluma_doc::cmyk::Inks;
+use pluma_doc::{Appearance, ColorMode, Document, Effect, ImageBlob, ImageObject, Knockout, Node, NodeId, NodeKind};
+use pluma_geom::{Affine, FillRule, PathData, Rect, shapes};
+use pluma_pathops as po;
+use pluma_render::effects;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_color::blend::{cmyk_planes, composite, planes_cmyk};
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::appearance::{AppearanceItem, FillLayer};
-use vectorcraft_doc::cmyk::Inks;
-use vectorcraft_doc::{Appearance, ColorMode, Document, Effect, ImageBlob, ImageObject, Knockout, Node, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, FillRule, PathData, Rect, shapes};
-use vectorcraft_pathops as po;
-use vectorcraft_render::effects;
 
 use super::edit::roots_of;
 use super::menucmds::{MAX_PIXELS, isolated_doc, unique_key};

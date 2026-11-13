@@ -78,7 +78,7 @@ pub const MAX_DATA: u64 = if cfg!(target_pointer_width = "64") { 2 << 30 } else 
 /// still stops early.
 pub fn max_data() -> u64 {
     static LIMIT: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *LIMIT.get_or_init(|| data_limit(vectorcraft_render::installed_memory()))
+    *LIMIT.get_or_init(|| data_limit(pluma_render::installed_memory()))
 }
 
 /// [`max_data`] on a machine with `memory` bytes installed (`None`: not known).

@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use std::io::Cursor;
 
 use kurbo::PathEl;
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{AppearanceItem, Dash, Document, ImageObject, Node, NodeKind, StrokeLayer, SymbolBoxes, TextKind, TextObject, Unit};
-use vectorcraft_effects::stroke;
-use vectorcraft_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
+use pluma_color::Paint;
+use pluma_doc::{AppearanceItem, Dash, Document, ImageObject, Node, NodeKind, StrokeLayer, SymbolBoxes, TextKind, TextObject, Unit};
+use pluma_effects::stroke;
+use pluma_geom::{Affine, BezPath, FillRule, PathData, Point, Rect, Vec2};
 
 use crate::aci::nearest_aci;
 use crate::writer::{Codes, Drawing, EntityStyle, Handle, ImageDef, Layer, LineType, fixed};
@@ -34,7 +34,7 @@ const STROKE_EXTRAS: &str = "stroke alignment, width profiles, arrowheads and br
 const CLIPPING: &str = "clipping masks are not applied: the art they clip is written whole";
 const TYPE_ITEMS: &str = "fills and strokes added to whole type objects are left out of text entities (outline the text to keep them)";
 /// The warning for an image left out because it can't be decoded: the note raster exports give
-/// (`vectorcraft-engine`'s `rasterfx::undecoded_warning`).
+/// (`pluma-engine`'s `rasterfx::undecoded_warning`).
 const UNDECODED: &str = "an image couldn't be decoded and is missing from the picture";
 
 /// One segment of a subpath, cubics for every curve.
@@ -59,7 +59,7 @@ struct Sub {
     closed: bool,
 }
 
-/// A subpath close enough to a circle to preserve as a native DXF CIRCLE/ARC. VectorCraft's
+/// A subpath close enough to a circle to preserve as a native DXF CIRCLE/ARC. Pluma's
 /// ellipse helper uses the standard four-cubic circle approximation, so recognition needs a small
 /// relative tolerance rather than exact control-point tests.
 struct CircularSub {
@@ -388,7 +388,7 @@ fn polygons(bp: &BezPath) -> Vec<Vec<Point>> {
     };
     let elements = bp.iter().take_while(|_| points.get() < MAX_POINTS && segments.get() < MAX_FLATTEN_SEGMENTS);
     // Each curve is flattened into a bounded number of segments, however large it is.
-    vectorcraft_geom::flatten(elements, FLATNESS, |el| match el {
+    pluma_geom::flatten(elements, FLATNESS, |el| match el {
         PathEl::MoveTo(p) => {
             out.push(std::mem::take(&mut cur));
             push(p, &mut cur);
@@ -491,14 +491,14 @@ pub(crate) struct Scene<'a> {
     /// Image keys → index into `images` (`None`: left out).
     by_key: HashMap<String, Option<usize>>,
     warnings: Vec<String>,
-    brushes: Option<Vec<vectorcraft_brush::Brush>>,
+    brushes: Option<Vec<pluma_brush::Brush>>,
     extents: Option<[f64; 4]>,
     /// The opacity of the containers around the current object.
     opacity: f32,
     /// Symbols and brush art being written inside one another.
     nest: u32,
     /// Objects the symbol instances written held, together
-    /// ([`vectorcraft_doc::MAX_SYMBOL_NODES`]).
+    /// ([`pluma_doc::MAX_SYMBOL_NODES`]).
     symbol_nodes: u64,
 }
 
@@ -530,7 +530,7 @@ impl<'a> Scene<'a> {
             opacity: 1.0,
             nest: 0,
             // Tests spend all but a million of it up front.
-            symbol_nodes: if cfg!(test) { vectorcraft_doc::MAX_SYMBOL_NODES - 1_000_000 } else { 0 },
+            symbol_nodes: if cfg!(test) { pluma_doc::MAX_SYMBOL_NODES - 1_000_000 } else { 0 },
         }
     }
 
@@ -633,7 +633,7 @@ impl<'a> Scene<'a> {
             NodeKind::Image(im) => self.image(im),
             NodeKind::SymbolInstance { symbol, xf } => {
                 let doc = self.doc;
-                if self.symbol_nodes >= vectorcraft_doc::MAX_SYMBOL_NODES {
+                if self.symbol_nodes >= pluma_doc::MAX_SYMBOL_NODES {
                     // Spent: no more instances are looked at, so what's left costs nothing.
                     self.warn(SYMBOLS_LEFT_OUT);
                 } else if let Some(sym) = doc.symbols.iter().find(|s| &s.name == symbol)
@@ -641,11 +641,11 @@ impl<'a> Scene<'a> {
                 {
                     // Symbols holding instances of symbols are written in full for each instance,
                     // empty or not: every instance's art counts against one budget for the export.
-                    let art = vectorcraft_doc::symbol_overrides::dynamic_art(&sym.art, n);
+                    let art = pluma_doc::symbol_overrides::dynamic_art(&sym.art, n);
                     let count = art.count_with_masks() as u64;
                     // Counted as `place_symbol_art_unclipped` places it: no clip groups.
                     let most = doc.symbol_slice_map(symbol, *xf).map_or(count, |m| m.most_placed_unclipped(&art, doc));
-                    let placed = vectorcraft_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
+                    let placed = pluma_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
                         let placed = doc.place_symbol_art_unclipped(symbol, &art, *xf);
                         let n = placed.as_ref().map_or(0, |a| a.count_with_masks() as u64);
                         (placed, n)
@@ -658,7 +658,7 @@ impl<'a> Scene<'a> {
                         }
                         Some(None) => {}
                         None => {
-                            self.symbol_nodes = vectorcraft_doc::MAX_SYMBOL_NODES;
+                            self.symbol_nodes = pluma_doc::MAX_SYMBOL_NODES;
                             self.warn(SYMBOLS_LEFT_OUT);
                         }
                     }
@@ -671,7 +671,7 @@ impl<'a> Scene<'a> {
             | NodeKind::Repeat(_)
             | NodeKind::PlacedDocument(_)
             | NodeKind::Intertwine { .. } => {
-                let g = vectorcraft_effects::expand_live_deep(Some(self.doc), n);
+                let g = pluma_effects::expand_live_deep(Some(self.doc), n);
                 for c in g.children().into_iter().flatten() {
                     self.node(c, false);
                 }
@@ -700,13 +700,13 @@ impl<'a> Scene<'a> {
 
     /// Warn about what DXF can't hold in `n`'s look.
     fn note_losses(&mut self, n: &Node) {
-        if n.blend != vectorcraft_color::BlendMode::Normal {
+        if n.blend != pluma_color::BlendMode::Normal {
             self.warn("blending modes are left out");
         }
         if n.extras().mask.as_ref().is_some_and(|m| !m.disabled) {
             self.warn("opacity masks are left out");
         }
-        let raster = |fx: &[vectorcraft_doc::Effect]| fx.iter().any(|e| e.visible && vectorcraft_effects::is_raster(&e.id));
+        let raster = |fx: &[pluma_doc::Effect]| fx.iter().any(|e| e.visible && pluma_effects::is_raster(&e.id));
         if raster(&n.appearance.effects) || n.appearance.items.iter().any(|i| raster(i.effects())) {
             self.warn("raster effects (shadows, glows, blurs, feathering) are left out");
         }
@@ -729,7 +729,7 @@ impl<'a> Scene<'a> {
     /// One colour for a paint: a solid colour, the average of a gradient's stops, or a pattern's
     /// first solid fill.
     fn paint_rgb(&mut self, p: &Paint) -> Option<[u8; 3]> {
-        let rgb = |c: &vectorcraft_color::Color| {
+        let rgb = |c: &pluma_color::Color| {
             let [r, g, b, _] = c.to_rgba8(1.0);
             [r, g, b]
         };
@@ -870,9 +870,9 @@ impl<'a> Scene<'a> {
 
     fn brush_art(&mut self, bp: &BezPath, st: &StrokeLayer) -> Option<Vec<Node>> {
         let doc = self.doc;
-        let brushes = self.brushes.get_or_insert_with(|| vectorcraft_brush::library(doc));
+        let brushes = self.brushes.get_or_insert_with(|| pluma_brush::library(doc));
         let b = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name))?;
-        Some(vectorcraft_brush::stroke_pieces(doc, b, bp, st))
+        Some(pluma_brush::stroke_pieces(doc, b, bp, st))
     }
 
     /// A filled area as its outlines followed by a solid hatch (R12: the outlines alone). Laser
@@ -886,7 +886,7 @@ impl<'a> Scene<'a> {
         }
         let several = bp.elements().iter().filter(|e| matches!(e, PathEl::MoveTo(_))).count() > 1;
         let normalized = (rule == FillRule::NonZero && several && !clean)
-            .then(|| vectorcraft_pathops::try_normalize(&PathData::from_bezpath(bp), rule).ok())
+            .then(|| pluma_pathops::try_normalize(&PathData::from_bezpath(bp), rule).ok())
             .flatten()
             .map(|p| p.to_bezpath());
         let outline = normalized.as_ref().unwrap_or(bp);
@@ -1190,11 +1190,11 @@ impl<'a> Scene<'a> {
 
     /// Type: glyph outlines (Preserve Appearance, Outline Text, type on a path), else one text
     /// entity per run of each line, whose height (group 40) is [`CAP_HEIGHT`] times the em size its
-    /// run is drawn at ([`vectorcraft_text::FontDb::font_heights_resolved`]).
+    /// run is drawn at ([`pluma_text::FontDb::font_heights_resolved`]).
     fn text(&mut self, n: &Node, t: &TextObject) {
         let outline = self.o.preserve == Preserve::Appearance || self.o.outline_text || matches!(t.kind, TextKind::OnPath { .. });
         if outline {
-            if let Some(o) = vectorcraft_effects::outline_text(n) {
+            if let Some(o) = pluma_effects::outline_text(n) {
                 self.node(&o, true);
             }
             return;
@@ -1202,9 +1202,9 @@ impl<'a> Scene<'a> {
         if !n.appearance.items.is_empty() {
             self.warn(TYPE_ITEMS);
         }
-        let resolved = vectorcraft_text::FontDb::global().font_heights_resolved(t);
+        let resolved = pluma_text::FontDb::global().font_heights_resolved(t);
         let t = &*resolved;
-        let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let layout = pluma_text::layout(pluma_text::FontDb::global(), t);
         let plain = t.plain_text();
         let xf = self.to_dxf * t.xf;
         let [a, b, c, d, _, _] = xf.as_coeffs();
@@ -1219,10 +1219,10 @@ impl<'a> Scene<'a> {
             let Some(glyphs) = layout.glyphs.get(line.glyph_start..line.glyph_end) else { continue };
             // A list marker is a TEXT entity of its own, holding the marker's characters where its
             // characters' glyphs are drawn (not its tab's).
-            let marked: Vec<(usize, &vectorcraft_text::PositionedGlyph, Option<&vectorcraft_text::ListMarker>)> =
+            let marked: Vec<(usize, &pluma_text::PositionedGlyph, Option<&pluma_text::ListMarker>)> =
                 glyphs.iter().enumerate().map(|(k, g)| (line.glyph_start + k, g, layout.marker_of(line.glyph_start + k))).collect();
             for chunk in marked.chunk_by(|x, y| x.1.run == y.1.run && x.2.is_some() == y.2.is_some()) {
-                let run: Vec<&vectorcraft_text::PositionedGlyph> =
+                let run: Vec<&pluma_text::PositionedGlyph> =
                     chunk.iter().filter(|(k, _, m)| m.is_none_or(|m| m.tab != *k)).map(|(_, g, _)| *g).collect();
                 let Some(&first) = run.first() else { continue };
                 let lo = run.iter().map(|g| g.byte).min().unwrap_or(first.byte);
@@ -1383,7 +1383,7 @@ impl<'a> Scene<'a> {
 }
 
 /// The first visible solid fill colour in `n` (pattern art).
-fn first_solid(n: &Node) -> Option<vectorcraft_color::Color> {
+fn first_solid(n: &Node) -> Option<pluma_color::Color> {
     let own = n.appearance.items.iter().find_map(|i| match i {
         AppearanceItem::Fill(f) if f.visible => f.paint.color(),
         _ => None,

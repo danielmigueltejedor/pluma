@@ -132,10 +132,10 @@ pub struct Services {
     /// Open a file (or a folder) in the system's default app for it (desktop: Edit Original, Show
     /// Package). Without it (the web) those answer with an error.
     pub open_file: Option<RevealFn>,
-    /// Open a file in PhotoCraft where it is installed (desktop: Edit Original of a raster image
+    /// Open a file in Lienzo where it is installed (desktop: Edit Original of a raster image
     /// with Preferences › File Handling › Use System Defaults for Edit Original off); `Ok(false)`
     /// when it isn't. Without it Edit Original uses `open_file`.
-    pub open_in_photocraft: Option<OpenInFn>,
+    pub open_in_lienzo: Option<OpenInFn>,
     /// Show a folder picker; returns its path (desktop: Relink to Folder, Package).
     pub pick_folder: Option<Box<dyn FnMut() -> Option<String>>>,
     /// Show the system's color sampler, which picks a color anywhere on the screen (macOS, and
@@ -143,8 +143,8 @@ pub struct Services {
     /// command answers with an error and the Color Picker's eyedropper button is gray.
     pub screen_color: Option<screen_color::StartSampler>,
     /// Where Data Recovery keeps its copies when not in a folder (the web's browser storage;
-    /// tests): installed into the session ([`vectorcraft_engine::cmd::recovery`]).
-    pub recovery_store: Option<std::sync::Arc<dyn vectorcraft_engine::cmd::recovery::RecoveryStore>>,
+    /// tests): installed into the session ([`pluma_engine::cmd::recovery`]).
+    pub recovery_store: Option<std::sync::Arc<dyn pluma_engine::cmd::recovery::RecoveryStore>>,
     /// File → Print: the system's printers and print queue (desktop), the browser's print dialog
     /// (web). Without it Print saves the job as a PDF.
     pub print: Option<Box<dyn print::PrintService>>,

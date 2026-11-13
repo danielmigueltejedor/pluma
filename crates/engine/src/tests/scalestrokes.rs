@@ -1,8 +1,8 @@
 //! Scale Strokes & Effects and Scale Corners: what scales with the art, from the `strokes` and
 //! `corners` params or the preferences, and what the journal records.
 
+use pluma_doc::{LiveShape, Node, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveShape, Node, NodeId, NodeKind};
 
 use crate::*;
 

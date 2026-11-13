@@ -20,12 +20,12 @@
 
 use std::sync::Arc;
 
+use pluma_engine::cmd::plugin::InstallApproval;
+use pluma_plugins::{Budget, Kind, Manifest, Plugin, permissions, registry};
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::plugin::InstallApproval;
-use vectorcraft_plugins::{Budget, Kind, Manifest, Plugin, permissions, registry};
 
 use super::{DialogAction, DialogSpec, form};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::state::Dialog;
 use crate::widgets;
@@ -59,7 +59,7 @@ fn with_commands(plugin: &Plugin, own: Item) -> Item {
     }
     let mut items = vec![own, Item::Sep];
     items.extend(m.commands.iter().map(|c| {
-        let id = registry::intern(&vectorcraft_engine::cmd::plugin::command_id(&m.id, &c.id));
+        let id = registry::intern(&pluma_engine::cmd::plugin::command_id(&m.id, &c.id));
         Item::Cmd(label(&c.shown_label(), !c.params.is_empty()), id, Value::Null)
     }));
     Item::Sub(registry::intern(&permissions::display_text(m.name.trim(), permissions::MAX_SHOWN_NAME)), items)
@@ -89,9 +89,9 @@ pub const NO_IMPORTERS: &str = "No importer plug-ins installed";
 
 /// File › Open With: the installed importers (`file.openWith {importer}`), each by its name.
 pub fn open_with_menu() -> Vec<Item> {
-    let items: Vec<Item> = vectorcraft_plugins::import::installed()
+    let items: Vec<Item> = pluma_plugins::import::installed()
         .iter()
-        .map(|p| Item::Cmd(label(&p.manifest().name, true), "file.openWith", json!({ "importer": vectorcraft_plugins::export::format_id(p.id()) })))
+        .map(|p| Item::Cmd(label(&p.manifest().name, true), "file.openWith", json!({ "importer": pluma_plugins::export::format_id(p.id()) })))
         .collect();
     if items.is_empty() { vec![Item::Header(NO_IMPORTERS)] } else { items }
 }
@@ -99,14 +99,14 @@ pub fn open_with_menu() -> Vec<Item> {
 /// Effect › Plug-ins: the live-effect plug-ins, each with its commands if it has any (`None`
 /// while none is installed). Effects without options apply at once, as built-in ones do.
 pub fn effect_menu() -> Option<Item> {
-    let items: Vec<Item> = vectorcraft_effects::plugin_effects()
+    let items: Vec<Item> = pluma_effects::plugin_effects()
         .into_iter()
         .map(|e| {
             let own = match e.defaults.as_object().is_some_and(|o| o.is_empty()) {
                 true => Item::Cmd(e.label, "effect.apply", json!({ "effect": e.id })),
                 false => Item::Cmd(e.label, "effect.dialog", json!({ "effect": e.id })),
             };
-            match vectorcraft_plugins::effect::plugin_id(e.id).and_then(registry::get) {
+            match pluma_plugins::effect::plugin_id(e.id).and_then(registry::get) {
                 Some(plugin) => with_commands(&plugin, own),
                 None => own,
             }
@@ -117,7 +117,7 @@ pub fn effect_menu() -> Option<Item> {
 
 /// `plugin.dialog {id, params?}`: run filter `id` at once when it takes no parameters or `params`
 /// are given, else open its dialog prefilled with its defaults.
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let id = p.get("id").and_then(Value::as_str).ok_or("missing `id` (see plugin.list)")?;
     let plugin = registry::get(id).ok_or_else(|| format!("no plug-in {id:?} is installed"))?;
     let m = plugin.manifest();
@@ -164,8 +164,8 @@ fn described(ui: &mut egui::Ui, d: &Dialog) -> Option<Arc<Plugin>> {
 /// when it has parameters and a document is open: its fields at their defaults (`__command` is the
 /// command id) with a live Preview, and OK keeps the run as one undo step. False for any other
 /// command, which then runs as it was given.
-pub fn open_command(app: &mut VectorcraftApp, id: &str) -> bool {
-    let Some((plugin, c)) = vectorcraft_engine::cmd::plugin::command_of(id) else { return false };
+pub fn open_command(app: &mut PlumaApp, id: &str) -> bool {
+    let Some((plugin, c)) = pluma_engine::cmd::plugin::command_of(id) else { return false };
     if c.params.is_empty() || app.session.active().is_none() {
         return false;
     }
@@ -180,7 +180,7 @@ pub fn open_command(app: &mut VectorcraftApp, id: &str) -> bool {
 /// The plug-in command dialog `d` is for (`__command`), and the manifest it runs with; `None` for
 /// a filter's own dialog.
 fn command_of(d: &Dialog) -> Option<Manifest> {
-    let (plugin, c) = vectorcraft_engine::cmd::plugin::command_of(&d.str("__command"))?;
+    let (plugin, c) = pluma_engine::cmd::plugin::command_of(&d.str("__command"))?;
     Some(plugin.manifest().for_command(&c))
 }
 
@@ -202,7 +202,7 @@ fn params(d: &Dialog) -> Value {
 
 /// Runs filter `plugin` with `plugin.run`'s params `p`: at once, or in the background when it is
 /// heavy.
-fn run(app: &mut VectorcraftApp, plugin: &Plugin, p: Value) -> Result<Value, String> {
+fn run(app: &mut PlumaApp, plugin: &Plugin, p: Value) -> Result<Value, String> {
     match plugin.manifest().budget {
         Budget::Light => app.run(CMD, p),
         Budget::Heavy => crate::plugin_runs::start(app, p),
@@ -212,7 +212,7 @@ fn run(app: &mut VectorcraftApp, plugin: &Plugin, p: Value) -> Result<Value, Str
 /// The plug-in's description and fields (a command's: its own parameters), then the live
 /// Preview; a heavy filter has a note instead that it runs in the background, since a run may take
 /// minutes. A command dialog closes once the plug-in no longer has the command.
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let Some(plugin) = described(ui, d) else { return true };
     let run_with = command_of(d);
     if run_with.is_none() && !d.str("__command").is_empty() {
@@ -236,7 +236,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// OK: a filter keeps its previewed run as one undo step; a heavy one, which has no preview, starts
 /// in the background ([`run`]) and the dialog closes.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     match registry::get(&d.str("__plugin")) {
         Some(plugin) if plugin.manifest().budget == Budget::Heavy => {
             let r = run(app, &plugin, params(d));
@@ -264,20 +264,20 @@ pub(super) const EXPORT_SPEC: DialogSpec = DialogSpec {
 
 /// Export As with exporter `plugin`, which has parameters: its fields at their defaults, and
 /// `export`, the export's own parameters (`format`, `path`, …), kept for Export.
-pub fn open_export(app: &mut VectorcraftApp, plugin: &Plugin, export: Value) {
+pub fn open_export(app: &mut PlumaApp, plugin: &Plugin, export: Value) {
     let mut fields = fields_for(plugin.manifest());
     fields.insert("__export".into(), export);
     app.ui.dialog = Some(Dialog { kind: EXPORT_KIND.into(), fields });
 }
 
-fn export_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn export_body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let Some(plugin) = described(ui, d) else { return true };
     form::schema_fields(app, ui, d, plugin.manifest());
     false
 }
 
 /// Writes the file with the export's parameters and the plug-in's, as `params`.
-fn export_confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn export_confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut p = d.fields.get("__export").cloned().filter(Value::is_object).ok_or("no format to export to")?;
     p["params"] = form::params(d);
     let format = p.get("format").and_then(Value::as_str).map(str::to_string);
@@ -302,14 +302,14 @@ pub(super) const IMPORT_SPEC: DialogSpec = DialogSpec {
 /// Open With with importer `plugin`, which has parameters: its fields at their defaults, and
 /// `open`, Open With's own parameters (`path`, `importer`, and `picked` for a file from the
 /// picker, which is read off the UI thread), kept for Open.
-pub fn open_import(app: &mut VectorcraftApp, plugin: &Plugin, open: Value) {
+pub fn open_import(app: &mut PlumaApp, plugin: &Plugin, open: Value) {
     let mut fields = fields_for(plugin.manifest());
     fields.insert("__open".into(), open);
     app.ui.dialog = Some(Dialog { kind: IMPORT_KIND.into(), fields });
 }
 
 /// Opens the file with Open With's parameters and the plug-in's, as `params`.
-fn import_confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn import_confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut p = d.fields.get("__open").cloned().filter(Value::is_object).ok_or("no file to open")?;
     p["params"] = form::params(d);
     app.ui.dialog = None;
@@ -343,13 +343,13 @@ pub(super) const INSTALL_SPEC: DialogSpec = DialogSpec {
 };
 
 /// Asks a person whether to install what `pending` describes. → `{pending}`.
-pub(crate) fn ask_install(app: &mut VectorcraftApp, pending: PendingInstall) -> Value {
+pub(crate) fn ask_install(app: &mut PlumaApp, pending: PendingInstall) -> Value {
     app.pending_plugin_install = Some(pending);
     app.ui.dialog = Some(Dialog::new(INSTALL_KIND, json!({})));
     json!({ "pending": INSTALL_KIND })
 }
 
-fn install_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, _: &mut Dialog) -> DialogAction {
+fn install_body(app: &mut PlumaApp, ui: &mut egui::Ui, _: &mut Dialog) -> DialogAction {
     let Some(pending) = app.pending_plugin_install.as_ref() else { return DialogAction::Cancel };
     ui.label(egui::RichText::new(&pending.message).strong());
     ui.add_space(8.0);
@@ -371,7 +371,7 @@ fn install_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, _: &mut Dialog) -> 
 
 /// OK: installs the module the dialog showed, if a person pressed it; automation is refused and the
 /// dialog stays open.
-fn install_confirm(app: &mut VectorcraftApp, _: &Dialog) -> Result<Value, String> {
+fn install_confirm(app: &mut PlumaApp, _: &Dialog) -> Result<Value, String> {
     if app.automation_is_acting() {
         return Err("Only the person at the keyboard can approve installing a plug-in".into());
     }

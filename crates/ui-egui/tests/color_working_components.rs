@@ -4,12 +4,12 @@
 
 use std::sync::{Mutex, MutexGuard};
 
+use pluma_color::Color;
+use pluma_color::cms::{self, ColorSettings, DISPLAY_P3, PROPHOTO_RGB, SRGB, WIDE_GAMUT_RGB};
+use pluma_engine::Session;
+use pluma_ui_egui::PlumaApp;
+use pluma_ui_egui::panels::color::{Mode, components, from_components, hex_digits, parse_hex, web_safe};
 use serde_json::json;
-use vectorcraft_color::Color;
-use vectorcraft_color::cms::{self, ColorSettings, DISPLAY_P3, PROPHOTO_RGB, SRGB, WIDE_GAMUT_RGB};
-use vectorcraft_engine::Session;
-use vectorcraft_ui_egui::VectorcraftApp;
-use vectorcraft_ui_egui::panels::color::{Mode, components, from_components, hex_digits, parse_hex, web_safe};
 
 // This integration binary contains only these tests; its app-wide CMS is independent of other
 // test binaries. Serialize its cases and restore settings even when an assertion fails.
@@ -99,7 +99,7 @@ fn numeric_roundtrips_preserve_out_of_display_gamut_colors() {
 fn picker_initialization_preserves_working_values() {
     for profile in [SRGB, DISPLAY_P3, WIDE_GAMUT_RGB, PROPHOTO_RGB] {
         let _space = WorkingSpace::new(profile);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("ui.colorPicker", json!({"color": [0.5, 0.3, 0.2]})).unwrap();
         let dialog = app.ui.dialog.as_ref().unwrap();
@@ -117,17 +117,17 @@ fn picker_rgb_fields_show_working_values() {
 
     for profile in [SRGB, DISPLAY_P3, WIDE_GAMUT_RGB, PROPHOTO_RGB] {
         let _space = WorkingSpace::new(profile);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("ui.colorPicker", json!({"color": [0.6, 0.4, 0.2]})).unwrap();
         let mut fonts = false;
         let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 900.0)).with_accessibility_check(false).build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !std::mem::replace(&mut fonts, true) {
-                    vectorcraft_ui_egui::theme::install_fonts(ui.ctx());
+                    pluma_ui_egui::theme::install_fonts(ui.ctx());
                     return;
                 }
-                vectorcraft_ui_egui::dialogs::show(app, ui.ctx());
+                pluma_ui_egui::dialogs::show(app, ui.ctx());
             },
             app,
         );
@@ -161,18 +161,18 @@ fn color_panel_slider_preserves_native_channels_and_undo() {
     use egui_kittest::kittest::Queryable;
 
     let _space = WorkingSpace::new(DISPLAY_P3);
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app.run("paint.setFill", json!({"color": [0.5, 0.3, 0.2]})).unwrap();
     let mut fonts = false;
     let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(320.0, 400.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
-                vectorcraft_ui_egui::theme::install_fonts(ui.ctx());
+                pluma_ui_egui::theme::install_fonts(ui.ctx());
                 return;
             }
-            vectorcraft_ui_egui::panels::color::show(app, ui);
+            pluma_ui_egui::panels::color::show(app, ui);
         },
         app,
     );

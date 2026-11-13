@@ -1,8 +1,8 @@
 //! Width tool depth (M3.64): discontinuous width points, copies, multi-point drags, Adjust
 //! Adjoining Width Points and the render of a step.
 
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -26,8 +26,8 @@ fn set(s: &mut Session, p: serde_json::Value) -> usize {
 
 fn dark(s: &Session, x: u32, y: u32) -> bool {
     let doc = s.doc().unwrap().doc.clone();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    vectorcraft_render::Renderer::new().render(&doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(x, y)[0] < 128
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    pluma_render::Renderer::new().render(&doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts).pixel(x, y)[0] < 128
 }
 
 /// Invalid entries in an explicit multi-point delete must not delete the valid entries.
@@ -93,7 +93,7 @@ fn a_point_moved_onto_another_makes_a_discontinuous_point_that_renders_a_step() 
     // The step renders: just before x = 140 (t = 0.75) the stroke is 2 pt thick, just after 15.
     assert!(!dark(&s, 137, 92) && dark(&s, 143, 92), "a step, not a ramp");
     // A new point at that place replaces both; a pair round-trips through the native format.
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let n = back.node(id).unwrap();
     assert_eq!(n.appearance.stroke().unwrap().profile.as_ref().unwrap().points, points(&s, id));
     set(&mut s, json!({"id": id.0, "t": 0.75, "left": 5, "right": 5}));
@@ -149,7 +149,7 @@ fn shift_selected_points_drag_together_in_one_step() {
     assert_eq!(ts, vec![0.0, 0.35, 0.6, 1.0]);
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step for the drag (clicks change nothing)");
     // Delete removes both selected points.
-    s.tool_key(vectorcraft_tools::ToolKey::Delete, none, v).unwrap();
+    s.tool_key(pluma_tools::ToolKey::Delete, none, v).unwrap();
     assert_eq!(points(&s, id).len(), 2);
 }
 
@@ -224,7 +224,7 @@ fn new_width_point_adjust_adjoining_uses_sampled_widths() {
         // At t=0.5 the old left side is where the profile's curve is there (#5714) and the right
         // side is 0pt. Indexed editing of that sampled point is the existing convention: scale the
         // nonzero side, add from zero.
-        let sampled = vectorcraft_doc::WidthProfile { points: original }.at(0.5).0;
+        let sampled = pluma_doc::WidthProfile { points: original }.at(0.5).0;
         let index = if indexed { Some(set(&mut s, json!({"id": id.0, "t": 0.5, "left": sampled * 5.0, "right": 0}))) } else { None };
         set(&mut s, json!({"id": id.0, "index": index, "t": 0.5, "left": 20, "right": 5, "adjustAdjoining": true}));
         let scale = 4.0 / sampled;
@@ -270,7 +270,7 @@ fn width_point_finite_extreme_adjoining_roundtrips_with_history() {
             assert_eq!(st.selection, selection);
             assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (undo + 1, 0, true));
             assert_eq!(st.history.undo.last().unwrap().label, "Width Point");
-            let back = vectorcraft_format::load(&vectorcraft_format::save(&after, false)).unwrap();
+            let back = pluma_format::load(&pluma_format::save(&after, false)).unwrap();
             assert_eq!(back, *after, "finite width edits must round-trip through the native format");
             s.execute("edit.undo", &json!({})).unwrap();
             let st = s.doc().unwrap();

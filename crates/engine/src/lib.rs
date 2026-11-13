@@ -1,4 +1,4 @@
-//! The VectorCraft engine façade.
+//! The Pluma engine façade.
 //!
 //! Every user-visible action is a command with a stable id (`object.group`, `select.same.fillColor`,
 //! `shape.rectangle`…) and JSON parameters. The egui UI, the CLI, the control channel and the MCP
@@ -20,11 +20,11 @@ pub mod units;
 
 use std::sync::Arc;
 
+use pluma_color::{Color, GradientPaint, Paint};
+use pluma_doc::{Document, NodeId, NodeKind, Selection};
+use pluma_geom::Affine;
+use pluma_tools::{PaintDefaults, Tool};
 use serde_json::Value;
-use vectorcraft_color::{Color, GradientPaint, Paint};
-use vectorcraft_doc::{Document, NodeId, NodeKind, Selection};
-use vectorcraft_geom::Affine;
-use vectorcraft_tools::{PaintDefaults, Tool};
 
 pub use cmd::clipboard::Clipboard;
 pub use cmd::create::constrain_click;
@@ -35,15 +35,15 @@ pub use cmd::rasterfx::{export_pdf, flatten_raster_effects};
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
 pub use cmd::{EyedropperOptions, PathfinderOptions};
 pub use journal::Journal;
+pub use pluma_doc as doc;
+pub use pluma_doc::cancel;
+pub use pluma_pathops::{SIMPLIFY_LEVEL, SMOOTH_AUTO_LEVEL, simplify_level_tolerance};
+pub use pluma_tools as tools;
 pub use tooling::{UiRequest, ViewInfo};
-pub use vectorcraft_doc as doc;
-pub use vectorcraft_doc::cancel;
-pub use vectorcraft_pathops::{SIMPLIFY_LEVEL, SMOOTH_AUTO_LEVEL, simplify_level_tolerance};
-pub use vectorcraft_tools as tools;
 
 /// Coordinates beyond this (points) are rejected: ~1,400 m, far past Illustrator's large canvas.
-pub use vectorcraft_doc::MAX_COORD;
-const _: () = assert!(vectorcraft_doc::MAX_DEPTH == 32, "TOO_DEEP (and its catalog rows) names the cap");
+pub use pluma_doc::MAX_COORD;
+const _: () = assert!(pluma_doc::MAX_DEPTH == 32, "TOO_DEEP (and its catalog rows) names the cap");
 
 pub struct Session {
     docs: Vec<DocState>,
@@ -78,23 +78,23 @@ pub struct Session {
     held_ui: Vec<UiRequest>,
     /// The active document (its uid) and its [`History::step`] when the tool last handled a pointer
     /// event or drew its overlays: when they differ at the next one, the tool is told first
-    /// ([`vectorcraft_tools::Tool::history_moved`]). None until the first.
+    /// ([`pluma_tools::Tool::history_moved`]). None until the first.
     pub(crate) tool_step: Option<(u64, (u64, u64))>,
     /// The selection of the active document (its uid) as Cmd lent `tool`: what the lent tool's
     /// gesture found, so that one that leaves it as it was picks nothing.
-    pub(crate) selection_at_lend: Option<(u64, vectorcraft_doc::Selection)>,
+    pub(crate) selection_at_lend: Option<(u64, pluma_doc::Selection)>,
     /// The selection a lent tool's gesture changed and left as it gave `lender` back, in the
     /// document (its uid) it was made in: while it is still that document's selection, the anchors
     /// in it are ones picked, not the Pen's last anchor, and Copy and Cut take them with the Pen or
     /// Curvature tool back too (#6123).
-    pub(crate) lent_selection: Option<(u64, vectorcraft_doc::Selection)>,
+    pub(crate) lent_selection: Option<(u64, pluma_doc::Selection)>,
     /// The selection tool chosen last (Selection, Direct Selection or Group Selection): the one Cmd
     /// lends the other tools. None until one is chosen.
     pub(crate) last_selection_tool: Option<&'static str>,
     pub(crate) last_view: ViewInfo,
     /// The selection tools' measurements for the active document as it is: a pointer move or a
     /// cursor asked for again over an unchanged document and selection measures nothing again.
-    pub(crate) preview_memo: vectorcraft_tools::select::PreviewMemo,
+    pub(crate) preview_memo: pluma_tools::select::PreviewMemo,
     depth: u32,
     /// Set while saved steps play ([`Session::replay`]): [`Session::execute`] then takes keys the
     /// command's params description doesn't name instead of refusing them.
@@ -123,7 +123,7 @@ pub struct Session {
     pub(crate) active_appearance_item: Option<cmd::appearance::ActiveItem>,
     /// What the Eyedropper picked up last (`appearance.copyFrom`): an Alt-click with nothing
     /// selected puts it on the object clicked (#4382). Not saved.
-    pub(crate) eyedropper_sample: Option<Arc<vectorcraft_doc::Node>>,
+    pub(crate) eyedropper_sample: Option<Arc<pluma_doc::Node>>,
     /// The last solid colour applied (the toolbar's Color button; `,` applies it again).
     pub last_solid: Color,
     /// The last gradient applied (the toolbar's Gradient button; `.` applies it again).
@@ -246,7 +246,7 @@ pub struct Session {
     /// The running script's job, while there is one: the mutation lease ([`script`]).
     pub(crate) script_key: Option<script::JobKey>,
     /// Stops the running script at its next instruction; the same flag for every run.
-    pub(crate) script_stop: vectorcraft_js::Interrupt,
+    pub(crate) script_stop: pluma_js::Interrupt,
     /// The report of the run that ended last.
     pub(crate) script_report: Option<Value>,
     /// `script.run` starts the job and returns, and the frontend advances it once per frame
@@ -265,7 +265,7 @@ pub struct Session {
     previewing: bool,
     /// Envelope Options with no envelope selected: the options and fidelity new envelopes get
     /// (`None`: the reference app's defaults, fidelity 50); not saved.
-    pub(crate) envelope_defaults: Option<(vectorcraft_doc::live::EnvelopeOptions, f64)>,
+    pub(crate) envelope_defaults: Option<(pluma_doc::live::EnvelopeOptions, f64)>,
     /// The Liquify stroke the last live preview applied, which the next sample of the drag goes on
     /// from ([`cmd::distortcmds::LiquifyStroke`]).
     pub(crate) liquify_stroke: Option<Box<cmd::distortcmds::LiquifyStroke>>,
@@ -283,9 +283,9 @@ pub struct Session {
     /// dropped press selects again ([`Session::drop_tool_press`]).
     pub(crate) press_point: Option<Option<(usize, cmd::gradient::StopOwner)>>,
     /// A guide being dragged out of a ruler ([`Session::ruler_guide`]).
-    pub(crate) ruler_guide: Option<vectorcraft_tools::rulerguide::NewGuide>,
+    pub(crate) ruler_guide: Option<pluma_tools::rulerguide::NewGuide>,
     /// Which selected type overflows its frame, for the ports every tool but the Type tools shows.
-    pub(crate) port_marks: vectorcraft_tools::text::PortMarks,
+    pub(crate) port_marks: pluma_tools::text::PortMarks,
     /// The last search for the files of missing fonts (`text.findFontFiles`), until another
     /// starts; dropping it stops it.
     pub(crate) font_search: Option<cmd::fontfiles::FontSearch>,
@@ -311,7 +311,7 @@ pub struct Session {
     /// saved.
     pub global_edit_options: cmd::globaledit::Options,
     /// Set while [`Session::tool_typed_text`] passes keyboard input to the active tool
-    /// ([`vectorcraft_tools::ToolContext::typed_from_keyboard`]).
+    /// ([`pluma_tools::ToolContext::typed_from_keyboard`]).
     keyboard_text: bool,
 }
 
@@ -321,7 +321,7 @@ impl Default for Session {
     }
 }
 
-/// Held by the tests that add fonts to the shared [`vectorcraft_text::FontDb::global`] for as long
+/// Held by the tests that add fonts to the shared [`pluma_text::FontDb::global`] for as long
 /// as they run: adding a font clears the database's caches, which would change how another such
 /// test's type resolves between its layout and its export.
 #[cfg(test)]

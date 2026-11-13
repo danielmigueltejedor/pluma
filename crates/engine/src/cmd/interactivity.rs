@@ -4,8 +4,8 @@
 //! event attributes (`onclick="…"`) and the files as `<script xlink:href>` elements; SVG import
 //! reads both back as text. The panel reads everything with `svgInteractivity.info`.
 
+use pluma_doc::{Document, MAX_SVG_SCRIPTS, NodeId, SVG_EVENTS};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, MAX_SVG_SCRIPTS, NodeId, SVG_EVENTS};
 
 use super::overprint::edit_counted;
 use super::{CommandSpec, Result, Session, bad, cmd, has_doc, str_param, targets};

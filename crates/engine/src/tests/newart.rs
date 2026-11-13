@@ -1,9 +1,9 @@
 //! The new-art template (M3.65): Stroke panel options and graphic styles chosen with nothing
 //! selected, New Art Has Basic Appearance and `paint.default`.
 
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::{Appearance, Dash, LineCap, Node};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::{Appearance, Dash, LineCap, Node};
 
 use crate::*;
 
@@ -58,7 +58,7 @@ fn stroke_options_set_with_nothing_selected_carry_to_the_next_object() {
     let st = node(&s, id).appearance.stroke().unwrap().clone();
     assert_eq!((st.cap, st.width, st.end_arrow.is_some()), (LineCap::Round, 3.0, true));
     assert_eq!(st.dash, Some(Dash { pattern: vec![4.0, 2.0], ..Default::default() }));
-    assert_eq!(node(&s, id).appearance.fill_paint(), Paint::solid(vectorcraft_color::Color::WHITE), "the fill stays the proxy's");
+    assert_eq!(node(&s, id).appearance.fill_paint(), Paint::solid(pluma_color::Color::WHITE), "the fill stays the proxy's");
     assert_eq!(node(&s, before).appearance.stroke().unwrap().cap, LineCap::Butt, "art drawn before keeps its stroke");
     // Editing a selected object's stroke leaves the template alone.
     run(&mut s, "stroke.set", json!({"cap": "square"}));
@@ -248,7 +248,7 @@ fn selecting_leaves_the_stroke_panels_options_for_new_art_alone() {
 fn a_sampled_paint_stays_until_the_selection_changes() {
     let mut s = session();
     let a = painted(&mut s, 20.0, "#ff0000", "#00ff00", 5.0);
-    let sampled = Paint::solid(vectorcraft_color::Color::WHITE);
+    let sampled = Paint::solid(pluma_color::Color::WHITE);
     s.paint.fill = sampled.clone();
     run(&mut s, "transparency.set", json!({"opacity": 50}));
     assert_eq!(s.paint.fill, sampled, "not a selection command");

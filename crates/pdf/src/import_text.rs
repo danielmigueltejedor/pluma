@@ -12,9 +12,9 @@
 use std::collections::{HashMap, HashSet};
 
 use kurbo::{Affine, BezPath, Point, Rect, Vec2};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{CharStyle, Node, ParaDirection, TextKind, TextObject, TextRun};
-use vectorcraft_text::TextLayout;
+use pluma_color::Paint;
+use pluma_doc::{CharStyle, Node, ParaDirection, TextKind, TextObject, TextRun};
+use pluma_text::TextLayout;
 
 /// One glyph's placement: its baseline origin, advance direction, size and horizontal scale.
 #[derive(Clone, Copy, Debug)]
@@ -566,7 +566,7 @@ impl TextLine {
         // space (one set at exactly a fifth still counts, whatever the rounding). Letter spacing is
         // read only in text left in the file's order.
         let space = |gap: &Gap, common: f64| gap.width / gap.em - common > 0.199;
-        let directed = vectorcraft_text::logical_order(&t.plain_text()).is_some();
+        let directed = pluma_text::logical_order(&t.plain_text()).is_some();
         let mut common = if directed { 0.0 } else { common_gap(&self.gaps) };
         // Evenly spaced glyphs alone could be letters set apart or words of one letter each: the
         // shared spacing is letter spacing only on a line that also shows where its words break,
@@ -612,7 +612,7 @@ impl TextLine {
         let angle = self.at.dir.atan2();
         // The glyphs' tops lean along the baseline (+x), up being -y in the type's own space.
         t.xf = Affine::translate(self.at.origin.to_vec2()) * Affine::rotate(angle) * Affine::skew(-self.at.slant, 0.0);
-        let db = vectorcraft_text::FontDb::global();
+        let db = pluma_text::FontDb::global();
         // Each glyph where the file put it (#722): the kerning (the font's, or none) and tracking
         // (one value for the line, or each character its own) that place them there.
         let placed = (self.upright.is_none() && t.para.direction.is_none())
@@ -628,7 +628,7 @@ impl TextLine {
             // the difference from the advances.
             if placed.is_none() {
                 let length: f64 = path.segments().take(self.baseline.len()).map(|seg| kurbo::ParamCurveArclen::arclen(&seg, 1e-3)).sum();
-                let laid = vectorcraft_text::layout(db, &t);
+                let laid = pluma_text::layout(db, &t);
                 let natural: f64 = laid.glyphs.iter().map(|g| g.advance).sum();
                 let chars: usize = t.runs.iter().map(|r| r.text.chars().count()).sum();
                 let size = self.at.size;
@@ -637,9 +637,9 @@ impl TextLine {
                     t.runs = tracked(std::mem::take(&mut t.runs), tracking, &spaces);
                 }
             }
-            t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
+            t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
             t.xf = Affine::IDENTITY;
-            t.cached_bounds = Some(vectorcraft_text::layout(db, &t).bounds);
+            t.cached_bounds = Some(pluma_text::layout(db, &t).bounds);
             return Some((t, self.opacity, facts));
         }
         let (start, along) = match self.upright {
@@ -665,7 +665,7 @@ impl TextLine {
             t.cached_bounds = Some(bounds);
             return Some((t, self.opacity, facts));
         }
-        let laid = vectorcraft_text::layout(db, &t);
+        let laid = pluma_text::layout(db, &t);
         let natural: f64 = laid.glyphs.iter().map(|g| g.advance).sum();
         let chars: usize = t.runs.iter().map(|r| r.text.chars().count()).sum();
         let size = self.at.size;
@@ -678,7 +678,7 @@ impl TextLine {
             let (tracking, spaces) = spacing(&laid, &gaps, length - natural, chars, size);
             t.runs = tracked(std::mem::take(&mut t.runs), tracking, &spaces);
             // Tracked: laid out again for its bounds.
-            bounds = vectorcraft_text::layout(db, &t).bounds;
+            bounds = pluma_text::layout(db, &t).bounds;
         }
         t.cached_bounds = Some(bounds);
         Some((t, self.opacity, facts))
@@ -785,7 +785,7 @@ fn place_each(
     if target.first().is_none_or(Option::is_none) || target.iter().flatten().any(|(d, _)| !d.is_finite()) {
         return None;
     }
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // The spacing each character takes after it, laid out with `pens`: whatever puts the next one
     // the file placed where it did. Characters between two the file placed (a space read from a
     // gap, the rest of a ligature) take the line's spacing, the last of them the rest.
@@ -816,11 +816,11 @@ fn place_each(
     };
     let changes = |own: &[f64]| own.windows(2).filter(|w| (w[1] - w[0]).abs() > size * 1e-4).count();
     // The type as it is: untracked, with the font's kerning.
-    let auto = vectorcraft_text::layout(db, t);
+    let auto = pluma_text::layout(db, t);
     // Each glyph's own advance (the font's, unkerned) tells whether the layout's font is the
     // file's, whether the font kerned any of the line's pairs, and where the glyphs go unkerned
     // (the same glyphs, each on its own advance: no layout needed to tell).
-    let mut faces: Vec<std::sync::Arc<vectorcraft_text::FontFace>> = vec![];
+    let mut faces: Vec<std::sync::Arc<pluma_text::FontFace>> = vec![];
     let mut unkerned_pens = vec![None; chars.len()];
     let mut pen = 0.0;
     let mut kerned_any = false;
@@ -893,7 +893,7 @@ fn place_each(
     // drew two glyphs moves those after it.)
     let mut probe = t.clone();
     probe.runs = runs;
-    let check = vectorcraft_text::layout(db, &probe);
+    let check = pluma_text::layout(db, &probe);
     let got = pens(&check, &chars);
     let ok = got.iter().zip(&target).all(|(g, t)| match t {
         Some((d, _)) => g.is_some_and(|(p, _)| (p - d).abs() <= size * 0.02),
@@ -1067,7 +1067,7 @@ pub(crate) struct Families(HashMap<String, String>);
 
 impl Families {
     pub fn available() -> Self {
-        Self(vectorcraft_text::FontDb::global().families().into_iter().map(|f| (norm(&f), f)).collect())
+        Self(pluma_text::FontDb::global().families().into_iter().map(|f| (norm(&f), f)).collect())
     }
 
     /// Just the families `names`, for tests that mustn't depend on the fonts installed.
@@ -1085,7 +1085,7 @@ impl Families {
             _ => name,
         };
         // An installed face of that exact PostScript name: its own family and style.
-        if let Some((family, style)) = vectorcraft_text::FontDb::global().by_postscript_name(name) {
+        if let Some((family, style)) = pluma_text::FontDb::global().by_postscript_name(name) {
             return (family, style, true);
         }
         // The longest part of the name before a hyphen (or the comma of `Arial,Bold`, ISO 32000-1
@@ -1161,7 +1161,7 @@ fn is_style(s: &str) -> bool {
 /// Hebrew or Arabic comes from a PDF in visual order (each glyph where it is drawn): put `t`'s text
 /// back in logical order, with the paragraph direction that shows it as drawn.
 fn to_logical(t: &mut TextObject, authored: &[bool]) {
-    let Some((mut order, rtl)) = vectorcraft_text::logical_order(&t.plain_text()) else { return };
+    let Some((mut order, rtl)) = pluma_text::logical_order(&t.plain_text()) else { return };
     let chars: Vec<(char, usize)> = t.runs.iter().enumerate().flat_map(|(i, r)| r.text.chars().map(move |c| (c, i))).collect();
     if authored.contains(&true) {
         // Explicit spans are logical-order islands. Reconstruct each ordinary stretch on
@@ -1172,7 +1172,7 @@ fn to_logical(t: &mut TextObject, authored: &[bool]) {
             let actual = authored.get(start).copied().unwrap_or(false);
             let end = (start + 1..chars.len()).find(|&i| authored.get(i).copied().unwrap_or(false) != actual).unwrap_or(chars.len());
             let text: String = chars.get(start..end).unwrap_or_default().iter().map(|(c, _)| c).collect();
-            if !actual && let Some((local, _)) = vectorcraft_text::logical_order(&text) {
+            if !actual && let Some((local, _)) = pluma_text::logical_order(&text) {
                 order.extend(local.into_iter().map(|i| start + i));
             } else {
                 order.extend(start..end);

@@ -13,7 +13,7 @@ pub(super) fn curvature(s: &mut Session, p: &Value) -> Result<Value> {
     if pts.is_empty() {
         return Err(bad(C, "need at least one point"));
     }
-    let sp = vectorcraft_tools::draw2::curvature_spline(&pts, switch_or(p, "closed", false, C)?);
+    let sp = pluma_tools::draw2::curvature_spline(&pts, switch_or(p, "closed", false, C)?);
     if let Some(id) = crate::cmd::object_param(p, "id", C)? {
         s.edit("Curvature", |d, sel| {
             *path_mut(d, id)? = PathData::single(sp);
@@ -39,7 +39,7 @@ enum CurvatureOp {
 }
 
 pub(super) fn curvature_edit(s: &mut Session, p: &Value) -> Result<Value> {
-    use vectorcraft_tools::draw2::{EndCurve, curvature_close, curvature_extend, curvature_insert, curvature_move};
+    use pluma_tools::draw2::{EndCurve, curvature_close, curvature_extend, curvature_insert, curvature_move};
     const C: &str = "path.curvatureEdit";
     let id = id_param(p, "id").ok_or_else(|| bad(C, "missing id"))?;
     let si = usize_opt(p, "subpath", C)?.unwrap_or(0);
@@ -182,7 +182,7 @@ fn following_anchors(shape: &[(usize, bool)], removed: &[(usize, usize)]) -> BTr
 
 /// Remove `anchors` (subpath, anchor) of path `id` without opening it, refitting the curve round
 /// each one, or with `curvature` re-curving it as the Curvature tool curves its points
-/// ([`vectorcraft_tools::draw2::curvature_remove`]). A subpath left with one anchor is removed,
+/// ([`pluma_tools::draw2::curvature_remove`]). A subpath left with one anchor is removed,
 /// and a path left with no subpath is removed through `emptied`. True when the path went.
 fn remove_anchors_of(
     d: &mut Document,
@@ -200,7 +200,7 @@ fn remove_anchors_of(
     for (si, ai) in anchors {
         if let Some(sp) = path.subpaths.get_mut(si) {
             if curvature {
-                vectorcraft_tools::draw2::curvature_remove(sp, ai);
+                pluma_tools::draw2::curvature_remove(sp, ai);
             } else {
                 po::remove_anchor(sp, ai);
             }
@@ -242,7 +242,7 @@ pub(super) fn convert_anchor(s: &mut Session, p: &Value) -> Result<Value> {
             }
             // Without a handle position the anchor curves as the Curvature tool curves a point; one
             // with no direction to take stays as it is.
-            vectorcraft_tools::draw2::curvature_smooth(sp, ai);
+            pluma_tools::draw2::curvature_smooth(sp, ai);
             return Ok(());
         }
         let a = sp.anchors.get_mut(ai).ok_or_else(|| EngineError::Other("no such anchor".into()))?;

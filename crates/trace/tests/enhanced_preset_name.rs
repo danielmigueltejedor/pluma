@@ -1,7 +1,7 @@
 //! `enhanced_preset` resolves a name the way `preset` does (trimmed, brackets stripped, any case),
 //! so Shapes is off for High Fidelity Photo however its name is written.
 
-use vectorcraft_trace::enhanced_preset;
+use pluma_trace::enhanced_preset;
 
 #[test]
 fn enhanced_high_fidelity_photo_ignores_name_decoration() {

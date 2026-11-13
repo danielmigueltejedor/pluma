@@ -19,12 +19,12 @@
 
 use std::collections::HashSet;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::hit::{HitKind, HitOptions, hit_test, hit_test_visible, hit_test_visible_skipping};
+use pluma_doc::{Document, Node, NodeId, NodeKind};
+use pluma_geom::hit::fill_contains;
+use pluma_geom::{Affine, Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::hit::{HitKind, HitOptions, hit_test, hit_test_visible, hit_test_visible_skipping};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::hit::fill_contains;
-use vectorcraft_geom::{Affine, Point, Rect};
 
 use super::paint_owner;
 use crate::params::color_json;
@@ -42,7 +42,7 @@ pub struct EyedropperTool {
 
 /// The colour of `paint` at `p` (gradients are sampled along their vector, radial ones honouring
 /// their aspect ratio).
-pub fn paint_color_at(paint: &Paint, bounds: Option<vectorcraft_geom::Rect>, p: Point) -> Option<Color> {
+pub fn paint_color_at(paint: &Paint, bounds: Option<pluma_geom::Rect>, p: Point) -> Option<Color> {
     match paint {
         Paint::Solid { color, .. } => Some(*color),
         Paint::Gradient(g) => {
@@ -115,7 +115,7 @@ fn sample_options(cx: &ToolContext) -> HitOptions {
 }
 
 /// The visible object under `p`, using the Eyedropper's source selection rules.
-pub(crate) fn sample_source(cx: &ToolContext, p: Point) -> Option<(vectorcraft_doc::NodeId, HitKind)> {
+pub(crate) fn sample_source(cx: &ToolContext, p: Point) -> Option<(pluma_doc::NodeId, HitKind)> {
     let h = hit_test_visible(cx.doc, p, sample_options(cx))?;
     Some((paint_owner(cx.doc, h.leaf), h.kind))
 }
@@ -124,7 +124,7 @@ pub(crate) fn sample_source(cx: &ToolContext, p: Point) -> Option<(vectorcraft_d
 /// gradient colors, the steps a blend draws and an envelope's distorted contents.
 pub(crate) fn sample_color_at(cx: &ToolContext, p: Point) -> Option<Color> {
     let (doc, opts, raster_sample) = (cx.doc, sample_options(cx), cx.raster_sample);
-    vectorcraft_doc::depth::with_deep_stack(|| {
+    pluma_doc::depth::with_deep_stack(|| {
         let symbol_nodes = doc.symbols.iter().map(|s| s.art.count()).sum();
         let mut s = Sampler { doc, opts, raster_sample, symbol_nodes, work: MAX_WORK, exhausted: false, patterns: 0 };
         let mut levels: Vec<Option<Document>> = (0..MAX_NESTING).map(|_| None).collect();
@@ -201,7 +201,7 @@ fn drawn_live<'d>(doc: &'d Document, ancestry: &[NodeId]) -> Option<&'d Node> {
 /// objects.
 fn live_color_at(s: &mut Sampler, levels: &mut [Option<Document>], n: &Node, p: Point) -> Option<Color> {
     s.spend(n.count())?;
-    let art = vectorcraft_effects::expand_live_deep(Some(s.doc), n);
+    let art = pluma_effects::expand_live_deep(Some(s.doc), n);
     s.spend(art.count())?;
     art_color_at(s, levels, [art], p)
 }
@@ -234,7 +234,7 @@ fn symbol_color_at(s: &mut Sampler, levels: &mut [Option<Document>], inst: &Node
     let doc = s.doc;
     let sym = doc.symbols.iter().find(|s| s.name == name)?;
     s.spend(sym.art.count())?;
-    let art = vectorcraft_brush::instance_art(&sym.art, inst);
+    let art = pluma_brush::instance_art(&sym.art, inst);
     let art = match doc.symbol_slice_map(name, xf) {
         Some(m) => {
             let most = usize::try_from(m.most_placed(&art, doc)).unwrap_or(usize::MAX).saturating_sub(sym.art.count());
@@ -256,7 +256,7 @@ fn symbol_color_at(s: &mut Sampler, levels: &mut [Option<Document>], inst: &Node
 }
 
 /// Whether the source has fill or stroke paint for an attribute sample.
-pub(crate) fn has_sampleable_paint(cx: &ToolContext, id: vectorcraft_doc::NodeId) -> bool {
+pub(crate) fn has_sampleable_paint(cx: &ToolContext, id: pluma_doc::NodeId) -> bool {
     cx.doc.node(id).is_some_and(|n| [false, true].into_iter().any(|stroke| n.proxy_paint_only(stroke, None).is_some_and(|paint| !paint.is_none())))
 }
 
@@ -281,8 +281,7 @@ fn paint_sample(s: &mut Sampler, levels: &mut [Option<Document>], n: &Node, on_s
         && visible.len() > 1
         && let (NodeKind::Path { rule, .. } | NodeKind::Compound { rule, .. }, Some(bp)) = (&n.kind, n.stroke_path())
     {
-        let reach =
-            |i: &usize| matches!(n.appearance.items.get(*i), Some(vectorcraft_doc::AppearanceItem::Stroke(st)) if st.hits(&bp, *rule, p, 0.0));
+        let reach = |i: &usize| matches!(n.appearance.items.get(*i), Some(pluma_doc::AppearanceItem::Stroke(st)) if st.hits(&bp, *rule, p, 0.0));
         if visible.iter().any(&reach) {
             visible.retain(&reach);
         }
@@ -344,7 +343,7 @@ fn pattern_color_at(s: &mut Sampler, levels: &mut [Option<Document>], name: &str
 }
 
 /// The color the front-most tile art of pattern `def`, placed in the document by `xf`, shows at `p`.
-fn tiles_color_at(s: &mut Sampler, levels: &mut [Option<Document>], def: &vectorcraft_doc::PatternDef, xf: Affine, p: Point) -> Option<Color> {
+fn tiles_color_at(s: &mut Sampler, levels: &mut [Option<Document>], def: &pluma_doc::PatternDef, xf: Affine, p: Point) -> Option<Color> {
     let doc = s.doc;
     // Sampled in pattern space, one tile at a time from the front, among the tiles whose art reaches
     // the point (or meets it at an edge). The art moves by whole tiles, and the patterns it is
@@ -363,7 +362,7 @@ fn tiles_color_at(s: &mut Sampler, levels: &mut [Option<Document>], def: &vector
     let symbols = doc.symbol_boxes();
     let bounds: Vec<Option<Rect>> = def.art.iter().map(|a| a.visual_bounds_with(&symbols)).collect();
     let reaches = |m: Affine| bounds.iter().any(|b| b.is_none_or(|b| m.transform_rect_bbox(b).inflate(1e-6, 1e-6).contains(q)));
-    let scaling = vectorcraft_doc::Scaling { patterns: true, ..Default::default() };
+    let scaling = pluma_doc::Scaling { patterns: true, ..Default::default() };
     // The tiles are listed as the canvas lists the ones it draws: by the art's bounds without its
     // symbols. Listing them looks at every tile position near the point widened by those bounds (at
     // most 250,000, past which it lists none): a hundred positions count as one unit, counted first.
@@ -386,7 +385,7 @@ fn tiles_color_at(s: &mut Sampler, levels: &mut [Option<Document>], def: &vector
         s.spend(1 + art_nodes)?;
         let art = def.art.iter().map(|a| {
             let mut n = (**a).clone();
-            vectorcraft_doc::pattern::place_art(&mut n, m, scaling);
+            pluma_doc::pattern::place_art(&mut n, m, scaling);
             n
         });
         if let Some(c) = art_color_at(s, levels, art, q) {
@@ -449,7 +448,7 @@ fn image_color_at(s: &Sampler, n: &Node, p: Point) -> Option<Color> {
         return Some(Color::cmyk(c, m, y, k));
     }
     let [r, g, b, _] = blob.sample_object(px.x, px.y, object, s.raster_sample)?;
-    let [r, g, b] = vectorcraft_color::cms::active().srgb_to_rgb([r, g, b].map(|v| f32::from(v) / 255.0));
+    let [r, g, b] = pluma_color::cms::active().srgb_to_rgb([r, g, b].map(|v| f32::from(v) / 255.0));
     Some(Color::rgb(r, g, b))
 }
 
@@ -536,7 +535,7 @@ impl Tool for EyedropperTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     /// Upstream brush-key sampling and highlighted-text transfer keep independent state.
     #[test]
@@ -670,7 +669,7 @@ mod tests {
 
     #[test]
     fn clicking_an_image_samples_its_pixels() {
-        use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+        use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let id = d.alloc_id();
@@ -683,7 +682,7 @@ mod tests {
             key: "px".into(),
             width: 3,
             height: 1,
-            xf: vectorcraft_geom::Affine::scale(10.0),
+            xf: pluma_geom::Affine::scale(10.0),
             link: None,
             placement: Default::default(),
             pixels: None,
@@ -708,8 +707,8 @@ mod tests {
     /// #2276: a CMYK image gives its ink amounts as they are, not the RGB its decoder shows.
     #[test]
     fn clicking_a_cmyk_image_samples_its_inks() {
-        use vectorcraft_doc::cmyk::Inks;
-        use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+        use pluma_doc::cmyk::Inks;
+        use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let id = d.alloc_id();
@@ -720,7 +719,7 @@ mod tests {
             key: "ink".into(),
             width: 2,
             height: 1,
-            xf: vectorcraft_geom::Affine::scale(10.0),
+            xf: pluma_geom::Affine::scale(10.0),
             link: None,
             placement: Default::default(),
             pixels: None,
@@ -743,19 +742,19 @@ mod tests {
     }
 
     /// An unstroked rectangle filled with `fill`, with id 0 (as pattern and symbol art is).
-    fn filled_rect(r: vectorcraft_geom::Rect, fill: Paint) -> std::sync::Arc<Node> {
-        let mut a = vectorcraft_doc::Appearance::default();
+    fn filled_rect(r: pluma_geom::Rect, fill: Paint) -> std::sync::Arc<Node> {
+        let mut a = pluma_doc::Appearance::default();
         a.set_fill(fill);
-        std::sync::Arc::new(Node::path(vectorcraft_doc::NodeId(0), vectorcraft_geom::shapes::rectangle(r), a))
+        std::sync::Arc::new(Node::path(pluma_doc::NodeId(0), pluma_geom::shapes::rectangle(r), a))
     }
 
     /// [`doc_with_rect`] plus the pattern "Halves": a 20 × 10 tile, red on its left half and blue
     /// on its right half.
-    fn doc_with_halves() -> (vectorcraft_doc::Document, vectorcraft_doc::NodeId) {
-        use vectorcraft_geom::Rect;
+    fn doc_with_halves() -> (pluma_doc::Document, pluma_doc::NodeId) {
+        use pluma_geom::Rect;
         let (mut d, id) = doc_with_rect();
         let (red, blue) = (Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::solid(Color::rgb(0.0, 0.0, 1.0)));
-        let mut def = vectorcraft_doc::PatternDef::new(
+        let mut def = pluma_doc::PatternDef::new(
             "Halves",
             vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), red), filled_rect(Rect::new(10.0, 0.0, 20.0, 10.0), blue)],
         );
@@ -768,12 +767,12 @@ mod tests {
     /// pattern's own transform puts it, however small the tiles are.
     #[test]
     fn shift_click_samples_the_pattern_tile_under_the_cursor() {
-        use vectorcraft_geom::Affine;
+        use pluma_geom::Affine;
         let (mut d, id) = doc_with_halves();
         d.node_mut(id).unwrap().appearance.set_fill(Paint::Pattern { pattern: "Halves".into(), xf: Affine::translate((5.0, 0.0)) });
         let (s, p) = (Selection::default(), paint());
         let shift = Mods { shift: true, ..Default::default() };
-        let at = |d: &vectorcraft_doc::Document, x: f64| {
+        let at = |d: &pluma_doc::Document, x: f64| {
             EyedropperTool::default().pointer(&cx(d, &s, &p), &PointerEvent::new(PointerKind::Down, x, 155.0).with_mods(shift))
         };
         // Pattern space x 128 (8 into a tile), then x 137 (17 into a tile).
@@ -781,14 +780,14 @@ mod tests {
         assert_eq!(sampled_hex(&at(&d, 142.0)), "#0000ff");
         assert_eq!(crate::xform::eyedropper::sample_color_at(&cx(&d, &s, &p), Point::new(142.0, 155.0)).map(|c| c.to_hex()), Some("#0000ff".into()));
         // Art 300 pt wide on a 1 pt tile: about 90,000 tiles reach every point.
-        let mut wide = vectorcraft_doc::PatternDef::new(
+        let mut wide = pluma_doc::PatternDef::new(
             "Wide",
-            vec![filled_rect(vectorcraft_geom::Rect::new(0.0, 0.0, 300.0, 300.0), Paint::solid(Color::rgb(0.0, 1.0, 0.0)))],
+            vec![filled_rect(pluma_geom::Rect::new(0.0, 0.0, 300.0, 300.0), Paint::solid(Color::rgb(0.0, 1.0, 0.0)))],
         );
-        wide.tile = vectorcraft_geom::Rect::new(0.0, 0.0, 1.0, 1.0);
+        wide.tile = pluma_geom::Rect::new(0.0, 0.0, 1.0, 1.0);
         let mut wide_doc = d.clone();
         wide_doc.patterns.push(wide);
-        wide_doc.node_mut(id).unwrap().appearance.set_fill(vectorcraft_doc::pattern::pattern_paint("Wide"));
+        wide_doc.node_mut(id).unwrap().appearance.set_fill(pluma_doc::pattern::pattern_paint("Wide"));
         assert_eq!(sampled_hex(&at(&wide_doc, 142.0)), "#00ff00");
         // Pattern space x 140, on the edge between two tiles.
         let edge = sampled_hex(&at(&d, 145.0));
@@ -805,23 +804,21 @@ mod tests {
     /// pattern moves with each tile. A symbol instance is sampled from its symbol's art.
     #[test]
     fn shift_click_samples_patterns_and_symbols_inside_art() {
-        use vectorcraft_geom::{Affine, Rect};
+        use pluma_geom::{Affine, Rect};
         let (mut d, id) = doc_with_halves();
         // A 30 pt tile filled with "Halves": every other tile starts halfway through a "Halves" tile.
-        let mut outer = vectorcraft_doc::PatternDef::new(
-            "Outer",
-            vec![filled_rect(Rect::new(0.0, 0.0, 30.0, 10.0), vectorcraft_doc::pattern::pattern_paint("Halves"))],
-        );
+        let mut outer =
+            pluma_doc::PatternDef::new("Outer", vec![filled_rect(Rect::new(0.0, 0.0, 30.0, 10.0), pluma_doc::pattern::pattern_paint("Halves"))]);
         outer.tile = Rect::new(0.0, 0.0, 30.0, 10.0);
         d.patterns.push(outer);
-        d.node_mut(id).unwrap().appearance.set_fill(vectorcraft_doc::pattern::pattern_paint("Outer"));
+        d.node_mut(id).unwrap().appearance.set_fill(pluma_doc::pattern::pattern_paint("Outer"));
         let (s, p) = (Selection::default(), paint());
         let shift = Mods { shift: true, ..Default::default() };
         // The tile at x 150 draws "Halves" from x 150: x 165 is 15 into it.
         let a = EyedropperTool::default().pointer(&cx(&d, &s, &p), &PointerEvent::new(PointerKind::Down, 165.0, 155.0).with_mods(shift));
         assert_eq!(sampled_hex(&a), "#0000ff");
         // A symbol of a green square, placed at (300, 300) and doubled.
-        d.symbols.push(vectorcraft_doc::Symbol {
+        d.symbols.push(pluma_doc::Symbol {
             dynamic: false,
             name: "Green".into(),
             art: filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(0.0, 1.0, 0.0))),
@@ -838,17 +835,17 @@ mod tests {
     /// pattern in its art left where the document puts it when the instance moves.
     #[test]
     fn symbol_samples_follow_the_instances_stain_and_placement() {
-        use vectorcraft_geom::{Affine, Rect};
+        use pluma_geom::{Affine, Rect};
         let (mut d, _) = doc_with_halves();
         let red = Paint::solid(Color::rgb(1.0, 0.0, 0.0));
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Red".into(), art: filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), red) });
-        d.symbols.push(vectorcraft_doc::Symbol {
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Red".into(), art: filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), red) });
+        d.symbols.push(pluma_doc::Symbol {
             dynamic: false,
             name: "Tiled".into(),
-            art: filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), vectorcraft_doc::pattern::pattern_paint("Halves")),
+            art: filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), pluma_doc::pattern::pattern_paint("Halves")),
         });
         let l = d.layers[0].id;
-        let place = |d: &mut vectorcraft_doc::Document, name: &str, at: (f64, f64), stain: Option<Color>| {
+        let place = |d: &mut pluma_doc::Document, name: &str, at: (f64, f64), stain: Option<Color>| {
             let id = d.alloc_id();
             let mut n = Node::new(id, NodeKind::SymbolInstance { symbol: name.into(), xf: Affine::translate(at) });
             if let Some(c) = stain {
@@ -872,33 +869,33 @@ mod tests {
     /// the stain; and a pattern tile is sampled wherever its symbol art reaches.
     #[test]
     fn symbol_art_decides_where_an_instance_paints() {
+        use pluma_doc::NodeId;
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::NodeId;
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, id) = doc_with_rect();
         let red = || Paint::solid(Color::rgb(1.0, 0.0, 0.0));
         let pair =
             Node::group(NodeId(0), vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), red()), filled_rect(Rect::new(20.0, 0.0, 30.0, 10.0), red())]);
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Pair".into(), art: Arc::new(pair) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Pair".into(), art: Arc::new(pair) });
         let (l, inst) = (d.layers[0].id, d.alloc_id());
         let mut n = Node::new(inst, NodeKind::SymbolInstance { symbol: "Pair".into(), xf: Affine::translate((100.0, 140.0)) });
         n.appearance.set_fill(Paint::solid(Color::rgb(0.0, 0.0, 1.0)));
         d.insert(Some(l), usize::MAX, n).unwrap();
         let (s, p) = (Selection::default(), paint());
         let shift = Mods { shift: true, ..Default::default() };
-        let at = |d: &vectorcraft_doc::Document, x: f64, y: f64| {
+        let at = |d: &pluma_doc::Document, x: f64, y: f64| {
             sampled_hex(&EyedropperTool::default().pointer(&cx(d, &s, &p), &PointerEvent::new(PointerKind::Down, x, y).with_mods(shift)))
         };
         assert_eq!((at(&d, 105.0, 145.0), at(&d, 115.0, 145.0)), ("#0000ff".to_string(), "#ffffff".to_string()));
         // A 200 pt tile holding an instance of a 180 pt green bar, which reaches far past the
         // square an instance is measured by without its symbol.
         let green = Paint::solid(Color::rgb(0.0, 1.0, 0.0));
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Bar".into(), art: filled_rect(Rect::new(0.0, 0.0, 180.0, 10.0), green) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Bar".into(), art: filled_rect(Rect::new(0.0, 0.0, 180.0, 10.0), green) });
         let bar = Arc::new(Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Bar".into(), xf: Affine::IDENTITY }));
-        let mut bars = vectorcraft_doc::PatternDef::new("Bars", vec![bar]);
+        let mut bars = pluma_doc::PatternDef::new("Bars", vec![bar]);
         bars.tile = Rect::new(0.0, 0.0, 200.0, 10.0);
         d.patterns.push(bars);
-        d.node_mut(id).unwrap().appearance.set_fill(vectorcraft_doc::pattern::pattern_paint("Bars"));
+        d.node_mut(id).unwrap().appearance.set_fill(pluma_doc::pattern::pattern_paint("Bars"));
         assert_eq!(at(&d, 150.0, 155.0), "#00ff00");
     }
 
@@ -906,19 +903,19 @@ mod tests {
     /// 10 pt red corner square stays 10 pt, so 15 pt in from the corner shows the green art behind it.
     #[test]
     fn a_scaled_nine_slice_instance_is_sampled_as_it_is_drawn() {
+        use pluma_doc::{NodeId, SymbolNineSlice};
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::{NodeId, SymbolNineSlice};
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, _) = doc_with_rect();
         let green = filled_rect(Rect::new(0.0, 0.0, 100.0, 100.0), Paint::solid(Color::rgb(0.0, 1.0, 0.0)));
         let red = filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)));
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(Node::group(NodeId(0), vec![green, red])) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(Node::group(NodeId(0), vec![green, red])) });
         let (l, inst) = (d.layers[0].id, d.alloc_id());
         let xf = Affine::translate((250.0, 250.0)) * Affine::scale(2.0);
         d.insert(Some(l), usize::MAX, Node::new(inst, NodeKind::SymbolInstance { symbol: "Panel".into(), xf })).unwrap();
         let (s, p) = (Selection::default(), paint());
         let shift = Mods { shift: true, ..Default::default() };
-        let at = |d: &vectorcraft_doc::Document, x: f64, y: f64| {
+        let at = |d: &pluma_doc::Document, x: f64, y: f64| {
             sampled_hex(&EyedropperTool::default().pointer(&cx(d, &s, &p), &PointerEvent::new(PointerKind::Down, x, y).with_mods(shift)))
         };
         assert_eq!(at(&d, 265.0, 265.0), "#ff0000", "without guides the corner scales");
@@ -931,13 +928,13 @@ mod tests {
     /// as if each were drawn in nine.
     #[test]
     fn a_large_nine_slice_instance_with_its_art_in_one_cell_is_sampled() {
+        use pluma_doc::{NodeId, SymbolNineSlice};
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::{NodeId, SymbolNineSlice};
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, _) = doc_with_rect();
         let mut art = vec![filled_rect(Rect::new(0.0, 0.0, 100.0, 100.0), Paint::solid(Color::rgb(0.0, 1.0, 0.0)))];
         art.extend((0..40_000).map(|_| filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)))));
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(Node::group(NodeId(0), art)) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Panel".into(), art: Arc::new(Node::group(NodeId(0), art)) });
         d.set_symbol_nine_slice("Panel", Some(SymbolNineSlice::default()));
         let (l, inst) = (d.layers[0].id, d.alloc_id());
         let xf = Affine::translate((250.0, 250.0)) * Affine::scale(2.0);
@@ -952,13 +949,13 @@ mod tests {
     /// the gray the canvas draws them with.
     #[test]
     fn deep_and_missing_patterns_sample_as_the_canvas_draws_them() {
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_geom::Rect;
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_geom::Rect;
         let (mut d, id) = doc_with_rect();
         // "P0" to "P2": a 10 pt tile filled with the next; "P3" a green tile.
         for i in 0..4 {
             let fill = if i == 3 { Paint::solid(Color::rgb(0.0, 1.0, 0.0)) } else { pattern_paint(&format!("P{}", i + 1)) };
-            let mut def = vectorcraft_doc::PatternDef::new(&format!("P{i}"), vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), fill)]);
+            let mut def = pluma_doc::PatternDef::new(&format!("P{i}"), vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), fill)]);
             def.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
             d.patterns.push(def);
         }
@@ -976,9 +973,9 @@ mod tests {
     /// below it.
     #[test]
     fn art_nested_past_the_limit_gives_no_color() {
+        use pluma_doc::{NodeId, Symbol};
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::{NodeId, Symbol};
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, _) = doc_with_rect();
         // "Deep0" to "Deep19": one instance of the next; "Deep20" a green square over the white
         // rectangle.
@@ -1001,8 +998,8 @@ mod tests {
     /// the color of what lies below it.
     #[test]
     fn too_many_tiles_over_the_point_give_no_color() {
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_geom::{PathData, Rect, SubPath};
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_geom::{PathData, Rect, SubPath};
         let (mut d, _) = doc_with_rect();
         // An L 0.1 pt thick along the top and left of (0, 0)–(200, 200) on 1 pt tiles: thousands of
         // tiles reach (150.5, 150.5), and none of them paints it.
@@ -1011,7 +1008,7 @@ mod tests {
         if let NodeKind::Path { path, .. } = &mut el.kind {
             *path = PathData::single(SubPath::polyline(&l, true));
         }
-        let mut def = vectorcraft_doc::PatternDef::new("Ls", vec![std::sync::Arc::new(el)]);
+        let mut def = pluma_doc::PatternDef::new("Ls", vec![std::sync::Arc::new(el)]);
         def.tile = Rect::new(0.0, 0.0, 1.0, 1.0);
         d.patterns.push(def);
         let (l, top) = (d.layers[0].id, d.alloc_id());
@@ -1026,20 +1023,20 @@ mod tests {
     /// art's bounds without its symbols.
     #[test]
     fn symbol_art_far_outside_its_tile_samples_as_the_canvas_draws_it() {
+        use pluma_doc::NodeId;
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::NodeId;
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, id) = doc_with_rect();
         // A 20 pt tile holding an instance of a 10 pt green square that sits 100 pt right of it.
         // The canvas lists only the tile over a point, whose square lies 100 pt away, so it draws
         // no green at x 165, where the square of the tile at x 60 would lie, or at x 175.
         let green = Paint::solid(Color::rgb(0.0, 1.0, 0.0));
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Away".into(), art: filled_rect(Rect::new(100.0, 0.0, 110.0, 10.0), green) });
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Away".into(), art: filled_rect(Rect::new(100.0, 0.0, 110.0, 10.0), green) });
         let away = Arc::new(Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Away".into(), xf: Affine::IDENTITY }));
-        let mut def = vectorcraft_doc::PatternDef::new("Away", vec![away]);
+        let mut def = pluma_doc::PatternDef::new("Away", vec![away]);
         def.tile = Rect::new(0.0, 0.0, 20.0, 10.0);
         d.patterns.push(def);
-        d.node_mut(id).unwrap().appearance.set_fill(vectorcraft_doc::pattern::pattern_paint("Away"));
+        d.node_mut(id).unwrap().appearance.set_fill(pluma_doc::pattern::pattern_paint("Away"));
         let (s, p) = (Selection::default(), paint());
         let at = |x: f64| sample_color_at(&cx(&d, &s, &p), Point::new(x, 155.0)).map(|c| c.to_hex());
         assert_eq!((at(165.0), at(175.0)), (None, None));
@@ -1051,27 +1048,26 @@ mod tests {
     /// trying every tile or instance at every level or running out of stack.
     #[test]
     fn nested_patterns_and_symbols_sample_within_the_work_limit() {
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_doc::{NodeId, Symbol};
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_doc::{NodeId, Symbol};
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, id) = doc_with_rect();
         // "Gap": an L 0.1 pt thick along the top and left of (0, 0)–(20, 20) on 1 pt tiles, which
         // reaches every point from hundreds of tiles and paints none at x.5, y.5.
         let l: Vec<Point> = [(0.0, 0.0), (20.0, 0.0), (20.0, 0.1), (0.1, 0.1), (0.1, 20.0), (0.0, 20.0)].map(|(x, y)| Point::new(x, y)).into();
         let mut el = (*filled_rect(Rect::new(0.0, 0.0, 1.0, 1.0), Paint::solid(Color::BLACK))).clone();
         if let NodeKind::Path { path, .. } = &mut el.kind {
-            *path = vectorcraft_geom::PathData::single(vectorcraft_geom::SubPath::polyline(&l, true));
+            *path = pluma_geom::PathData::single(pluma_geom::SubPath::polyline(&l, true));
         }
-        let mut gap = vectorcraft_doc::PatternDef::new("Gap", vec![Arc::new(el)]);
+        let mut gap = pluma_doc::PatternDef::new("Gap", vec![Arc::new(el)]);
         gap.tile = Rect::new(0.0, 0.0, 1.0, 1.0);
         d.patterns.push(gap);
         // "Nest0" and "Nest1": 300 pt art on 1 pt tiles, painted with the next ("Gap" after
         // "Nest1"), so no tile gives a color and every one is tried.
         for i in 0..2 {
             let next = if i == 1 { "Gap".to_string() } else { format!("Nest{}", i + 1) };
-            let mut def =
-                vectorcraft_doc::PatternDef::new(&format!("Nest{i}"), vec![filled_rect(Rect::new(0.0, 0.0, 300.0, 300.0), pattern_paint(&next))]);
+            let mut def = pluma_doc::PatternDef::new(&format!("Nest{i}"), vec![filled_rect(Rect::new(0.0, 0.0, 300.0, 300.0), pattern_paint(&next))]);
             def.tile = Rect::new(0.0, 0.0, 1.0, 1.0);
             d.patterns.push(def);
         }
@@ -1110,10 +1106,10 @@ mod tests {
     /// objects, also when it is the first one in that art and hits nothing.
     #[test]
     fn hit_tests_in_tile_art_count_the_symbols_they_may_measure() {
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_doc::{NodeId, Symbol};
+        use pluma_geom::{Affine, PathData, Rect, SubPath};
         use std::sync::Arc;
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_doc::{NodeId, Symbol};
-        use vectorcraft_geom::{Affine, PathData, Rect, SubPath};
         let (mut d, id) = doc_with_rect();
         // Tile art: an L 0.1 pt thick along the top and left of (0, 0)–(200, 200), which no 1 pt
         // tile places over (150.5, 150.5) though the art of a thousand tiles reaches it, and below
@@ -1129,7 +1125,7 @@ mod tests {
         d.symbols.push(Symbol { dynamic: false, name: "Dots".into(), art: Arc::new(Node::group(NodeId(0), dots)) });
         let far = Affine::translate((0.0, -250.0));
         let inst = Arc::new(Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: "Dots".into(), xf: far }));
-        let mut def = vectorcraft_doc::PatternDef::new("Dotted", vec![Arc::new(el), inst]);
+        let mut def = pluma_doc::PatternDef::new("Dotted", vec![Arc::new(el), inst]);
         def.tile = Rect::new(0.0, 0.0, 1.0, 1.0);
         d.patterns.push(def);
         d.node_mut(id).unwrap().appearance.set_fill(pattern_paint("Dotted"));
@@ -1147,13 +1143,13 @@ mod tests {
     /// A gap in an object's top pattern fill shows the object's own fill below it.
     #[test]
     fn a_gap_in_a_top_fill_samples_the_fill_below() {
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_doc::{AppearanceItem, FillLayer};
-        use vectorcraft_geom::Rect;
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_doc::{AppearanceItem, FillLayer};
+        use pluma_geom::Rect;
         // The rectangle (100, 100)–(200, 200) filled with red 10 pt squares 20 pt apart over blue.
         let (mut d, id) = doc_with_rect();
         let mut gappy =
-            vectorcraft_doc::PatternDef::new("Gappy", vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)))]);
+            pluma_doc::PatternDef::new("Gappy", vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)))]);
         gappy.tile = Rect::new(0.0, 0.0, 20.0, 10.0);
         d.patterns.push(gappy);
         let ap = &mut d.node_mut(id).unwrap().appearance;
@@ -1173,7 +1169,7 @@ mod tests {
     /// Of an object's strokes, the topmost one that reaches the point is sampled.
     #[test]
     fn the_topmost_stroke_that_reaches_the_point_is_sampled() {
-        use vectorcraft_doc::{AppearanceItem, StrokeLayer};
+        use pluma_doc::{AppearanceItem, StrokeLayer};
         // The rectangle (100, 100)–(200, 200) with a 20 pt blue stroke under a 2 pt red one.
         let (mut d, id) = doc_with_rect();
         let ap = &mut d.node_mut(id).unwrap().appearance;
@@ -1198,8 +1194,7 @@ mod tests {
         }
         let mut visible: Vec<usize> = items.into_iter().filter(|&i| n.appearance.items.get(i).is_some_and(|it| it.visible())).collect();
         if stroke && let (NodeKind::Path { rule, .. } | NodeKind::Compound { rule, .. }, Some(bp)) = (&n.kind, n.stroke_path()) {
-            let reach =
-                |i: &usize| matches!(n.appearance.items.get(*i), Some(vectorcraft_doc::AppearanceItem::Stroke(st)) if st.hits(&bp, *rule, p, 0.0));
+            let reach = |i: &usize| matches!(n.appearance.items.get(*i), Some(pluma_doc::AppearanceItem::Stroke(st)) if st.hits(&bp, *rule, p, 0.0));
             if visible.iter().any(&reach) {
                 visible.retain(&reach);
             }
@@ -1219,10 +1214,10 @@ mod tests {
     /// colorize paint.
     #[test]
     fn samples_give_the_measured_proxy_paints_colors() {
+        use pluma_doc::{AppearanceItem, CharStyle, FillLayer, StrokeLayer, TextObject};
+        use pluma_geom::Rect;
+        use pluma_geom::shapes::rectangle;
         use std::sync::Arc;
-        use vectorcraft_doc::{AppearanceItem, CharStyle, FillLayer, StrokeLayer, TextObject};
-        use vectorcraft_geom::Rect;
-        use vectorcraft_geom::shapes::rectangle;
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let square = |id| Node::path(id, rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)), Default::default());
@@ -1240,7 +1235,7 @@ mod tests {
         for (k, n) in objects.into_iter().enumerate() {
             d.insert(Some(l), k + 1, n).unwrap();
         }
-        let gradient = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default())));
+        let gradient = Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::default())));
         let paints = [Paint::None, Paint::solid(Color::rgb8(200, 40, 10)), gradient];
         let points = [Point::new(150.0, 150.0), Point::new(100.0, 150.0), Point::new(130.0, 110.0)];
         let (sel, pd) = (Selection::default(), paint());
@@ -1297,12 +1292,12 @@ mod tests {
     /// art of another pattern.
     #[test]
     fn a_gap_in_a_pattern_samples_what_lies_below() {
-        use vectorcraft_doc::pattern::pattern_paint;
-        use vectorcraft_geom::Rect;
+        use pluma_doc::pattern::pattern_paint;
+        use pluma_geom::Rect;
         // The white rectangle (100, 100)–(200, 200), under one filled with red 10 pt squares 20 pt apart.
         let (mut d, _) = doc_with_rect();
         let mut gappy =
-            vectorcraft_doc::PatternDef::new("Gappy", vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)))]);
+            pluma_doc::PatternDef::new("Gappy", vec![filled_rect(Rect::new(0.0, 0.0, 10.0, 10.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)))]);
         gappy.tile = Rect::new(0.0, 0.0, 20.0, 10.0);
         d.patterns.push(gappy);
         let (l, top) = (d.layers[0].id, d.alloc_id());
@@ -1311,14 +1306,14 @@ mod tests {
         d.insert(Some(l), usize::MAX, over).unwrap();
         let (s, p) = (Selection::default(), paint());
         let shift = Mods { shift: true, ..Default::default() };
-        let at = |d: &vectorcraft_doc::Document, x: f64| {
+        let at = |d: &pluma_doc::Document, x: f64| {
             sampled_hex(&EyedropperTool::default().pointer(&cx(d, &s, &p), &PointerEvent::new(PointerKind::Down, x, 155.0).with_mods(shift)))
         };
         // x 125 is 5 into a tile, on a red square; x 133 is 13 into one, between them.
         assert_eq!((at(&d, 125.0), at(&d, 133.0)), ("#ff0000".to_string(), "#ffffff".to_string()));
         // Tile art: a green rectangle behind one filled with "Gappy".
         let green = Paint::solid(Color::rgb(0.0, 1.0, 0.0));
-        let mut lined = vectorcraft_doc::PatternDef::new(
+        let mut lined = pluma_doc::PatternDef::new(
             "Lined",
             vec![filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), green), filled_rect(Rect::new(0.0, 0.0, 20.0, 10.0), pattern_paint("Gappy"))],
         );
@@ -1330,7 +1325,7 @@ mod tests {
         // of the stroke over the fill.
         let shape = &mut d.node_mut(top).unwrap().appearance;
         shape.set_fill(Paint::solid(Color::rgb(0.0, 0.0, 1.0)));
-        shape.set_stroke(Paint::Pattern { pattern: "Gappy".into(), xf: vectorcraft_geom::Affine::translate((-5.0, 0.0)) });
+        shape.set_stroke(Paint::Pattern { pattern: "Gappy".into(), xf: pluma_geom::Affine::translate((-5.0, 0.0)) });
         shape.stroke_mut().unwrap().width = 20.0;
         assert_eq!((at(&d, 103.0), at(&d, 107.0)), ("#ff0000".to_string(), "#0000ff".to_string()));
     }
@@ -1338,7 +1333,7 @@ mod tests {
     /// Shift-click on a gradient mesh samples the patch color interpolated at the cursor.
     #[test]
     fn shift_click_samples_the_mesh_color_under_the_cursor() {
-        use vectorcraft_doc::{Document, GradientMesh};
+        use pluma_doc::{Document, GradientMesh};
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let id = d.alloc_id();
@@ -1357,7 +1352,7 @@ mod tests {
     /// takes more than a thousand units of work.
     #[test]
     fn mesh_samples_count_the_work_of_finding_the_point() {
-        use vectorcraft_doc::{Document, GradientMesh};
+        use pluma_doc::{Document, GradientMesh};
         let mut d = Document::new(500.0, 500.0);
         let (l, id) = (d.layers[0].id, d.alloc_id());
         let mesh = GradientMesh::from_surface(20, 20, &|u, v| Point::new(100.0 + 100.0 * u, 100.0 + 100.0 * v), &|_, _| Color::rgb(0.0, 1.0, 0.0));
@@ -1373,23 +1368,23 @@ mod tests {
 
     #[test]
     fn gradient_sampled_along_vector() {
-        let g = vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default());
+        let g = pluma_color::GradientPaint::new(pluma_color::Gradient::default());
         let paint = Paint::Gradient(Box::new(g));
-        let r = vectorcraft_geom::Rect::new(0.0, 0.0, 100.0, 10.0);
+        let r = pluma_geom::Rect::new(0.0, 0.0, 100.0, 10.0);
         assert_eq!(paint_color_at(&paint, Some(r), Point::new(0.0, 5.0)).unwrap().to_hex(), "#ffffff");
         assert_eq!(paint_color_at(&paint, Some(r), Point::new(100.0, 5.0)).unwrap().to_hex(), "#000000");
     }
 
     #[test]
     fn type_gradients_are_sampled_in_text_space() {
-        use vectorcraft_color::{Gradient, GradientGeom, GradientPaint};
-        use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, TextObject};
+        use pluma_color::{Gradient, GradientGeom, GradientPaint};
+        use pluma_doc::{CharStyle, Document, Node, NodeKind, TextObject};
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let id = d.alloc_id();
         // Type turned 90°: its baseline runs down from (100, 100).
         let mut t = TextObject::point(Point::ZERO, "Gradient", CharStyle { size: 20.0, ..Default::default() });
-        t.xf = vectorcraft_geom::Affine::translate((100.0, 100.0)) * vectorcraft_geom::Affine::rotate(std::f64::consts::FRAC_PI_2);
+        t.xf = pluma_geom::Affine::translate((100.0, 100.0)) * pluma_geom::Affine::rotate(std::f64::consts::FRAC_PI_2);
         let mut g = GradientPaint::new(Gradient::default());
         g.geom = Some(GradientGeom { start: Point::ZERO, end: Point::new(100.0, 0.0), aspect: 1.0, focal: None });
         t.runs[0].style.fill = Paint::Gradient(Box::new(g));
@@ -1403,27 +1398,24 @@ mod tests {
 
     #[test]
     fn radial_sample_honours_aspect() {
-        let mut g = vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient {
-            kind: vectorcraft_color::GradientKind::Radial,
-            ..Default::default()
-        });
+        let mut g = pluma_color::GradientPaint::new(pluma_color::Gradient { kind: pluma_color::GradientKind::Radial, ..Default::default() });
         // Radius 100 along x, 50 across: 50 pt above the centre is already the outer (black) edge.
-        g.geom = Some(vectorcraft_color::GradientGeom { start: Point::ZERO, end: Point::new(100.0, 0.0), aspect: 0.5, focal: None });
+        g.geom = Some(pluma_color::GradientGeom { start: Point::ZERO, end: Point::new(100.0, 0.0), aspect: 0.5, focal: None });
         let paint = Paint::Gradient(Box::new(g));
         assert_eq!(paint_color_at(&paint, None, Point::new(0.0, -50.0)).unwrap().to_hex(), "#000000");
         assert_eq!(paint_color_at(&paint, None, Point::new(50.0, 0.0)).unwrap().to_hex(), "#808080");
     }
 
     /// An unstroked rectangle of `d` filled with `color`.
-    fn solid_rect(d: &mut vectorcraft_doc::Document, r: vectorcraft_geom::Rect, color: Color) -> Node {
-        let a = vectorcraft_doc::Appearance::basic(Paint::solid(color), Paint::None, 0.0);
-        Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(r), a)
+    fn solid_rect(d: &mut pluma_doc::Document, r: pluma_geom::Rect, color: Color) -> Node {
+        let a = pluma_doc::Appearance::basic(Paint::solid(color), Paint::None, 0.0);
+        Node::path(d.alloc_id(), pluma_geom::shapes::rectangle(r), a)
     }
 
     /// [`doc_with_rect`] plus a green rectangle (290, 290)–(430, 350) and, over it, `live` made by
     /// `make` from the document.
-    fn doc_with_live_over_green(make: impl FnOnce(&mut vectorcraft_doc::Document) -> Node) -> vectorcraft_doc::Document {
-        use vectorcraft_geom::Rect;
+    fn doc_with_live_over_green(make: impl FnOnce(&mut pluma_doc::Document) -> Node) -> pluma_doc::Document {
+        use pluma_geom::Rect;
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let green = solid_rect(&mut d, Rect::new(290.0, 290.0, 430.0, 350.0), Color::rgb(0.0, 1.0, 0.0));
@@ -1437,8 +1429,8 @@ mod tests {
     /// samples what lies below.
     #[test]
     fn shift_click_samples_the_blend_step_under_the_cursor() {
-        use vectorcraft_doc::live::{BlendSpacing, BlendSpec};
-        use vectorcraft_geom::Rect;
+        use pluma_doc::live::{BlendSpacing, BlendSpec};
+        use pluma_geom::Rect;
         // Red (300, 300)–(320, 320) and blue (400, 300)–(420, 320) with 1 step, half red and half
         // blue, at x 350 to 370.
         let d = doc_with_live_over_green(|d| {
@@ -1465,12 +1457,12 @@ mod tests {
     /// below.
     #[test]
     fn shift_click_samples_symbol_art_in_a_blends_steps() {
-        use vectorcraft_doc::live::{BlendSpacing, BlendSpec};
-        use vectorcraft_geom::{Affine, Rect};
+        use pluma_doc::live::{BlendSpacing, BlendSpec};
+        use pluma_geom::{Affine, Rect};
         // A red 20 pt square at the symbol's origin, placed at x 300 and 400, with 1 step at x 350.
         let d = doc_with_live_over_green(|d| {
             let art = solid_rect(d, Rect::new(0.0, 0.0, 20.0, 20.0), Color::rgb(1.0, 0.0, 0.0));
-            d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Dot".into(), art: std::sync::Arc::new(art) });
+            d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Dot".into(), art: std::sync::Arc::new(art) });
             let mut instance = |x: f64| {
                 let kind = NodeKind::SymbolInstance { symbol: "Dot".into(), xf: Affine::translate((x, 300.0)) };
                 std::sync::Arc::new(Node::new(d.alloc_id(), kind))
@@ -1490,8 +1482,8 @@ mod tests {
     /// there hits the blend and samples what it draws.
     #[test]
     fn shift_click_samples_blend_art_turned_past_its_bounds() {
-        use vectorcraft_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
-        use vectorcraft_geom::Rect;
+        use pluma_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
+        use pluma_geom::Rect;
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let green = solid_rect(&mut d, Rect::new(20.0, 20.0, 280.0, 280.0), Color::rgb(0.0, 1.0, 0.0));
@@ -1538,12 +1530,12 @@ mod tests {
     /// there hits the envelope and samples the stroke.
     #[test]
     fn shift_click_samples_an_envelopes_stroke_past_its_bounds() {
-        use vectorcraft_geom::{Affine, Rect};
+        use pluma_geom::{Affine, Rect};
         let mut id = None;
         let d = doc_with_live_over_green(|d| {
-            let a = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::solid(Color::rgb(0.0, 0.0, 1.0)), 10.0);
-            let red = Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(300.0, 300.0, 420.0, 320.0)), a);
-            let kind = vectorcraft_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 50.0, h: 0.0, v: 0.0, horizontal: true };
+            let a = pluma_doc::Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::solid(Color::rgb(0.0, 0.0, 1.0)), 10.0);
+            let red = Node::path(d.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(300.0, 300.0, 420.0, 320.0)), a);
+            let kind = pluma_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 50.0, h: 0.0, v: 0.0, horizontal: true };
             let content = vec![std::sync::Arc::new(red)];
             let n = Node::new(
                 d.alloc_id(),
@@ -1571,10 +1563,10 @@ mod tests {
     /// in its bounds that they leave empty samples what lies below.
     #[test]
     fn shift_click_samples_the_envelopes_distorted_contents() {
-        use vectorcraft_geom::{Affine, Rect};
+        use pluma_geom::{Affine, Rect};
         let d = doc_with_live_over_green(|d| {
             let red = solid_rect(d, Rect::new(300.0, 300.0, 420.0, 320.0), Color::rgb(1.0, 0.0, 0.0));
-            let kind = vectorcraft_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 50.0, h: 0.0, v: 0.0, horizontal: true };
+            let kind = pluma_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 50.0, h: 0.0, v: 0.0, horizontal: true };
             let content = vec![std::sync::Arc::new(red)];
             let options = Default::default();
             Node::new(
@@ -1584,7 +1576,7 @@ mod tests {
         });
         let (s, p) = (Selection::default(), paint());
         let sample = |x: f64, y: f64| crate::xform::eyedropper::sample_color_at(&cx(&d, &s, &p), Point::new(x, y)).map(|c| c.to_hex());
-        let art = vectorcraft_effects::expand_live_deep(Some(&d), d.layers[0].children().unwrap().last().unwrap());
+        let art = pluma_effects::expand_live_deep(Some(&d), d.layers[0].children().unwrap().last().unwrap());
         let b = art.geometric_bounds().unwrap();
         // The arc bends the ends of the band down, below the 20 pt it was, and keeps its middle.
         assert!(b.y1 > 330.0, "{b:?}");

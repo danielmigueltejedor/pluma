@@ -1,4 +1,4 @@
-//! Colour and gradient overlays. VectorCraft has no such effect, so an overlay is baked into what
+//! Colour and gradient overlays. Pluma has no such effect, so an overlay is baked into what
 //! its node paints: fill, stroke and text colours, and pixels. The overlay lies over the node's
 //! own paint in its blend mode at its opacity, inside the node's alpha (which it keeps).
 //!
@@ -99,7 +99,7 @@ fn bake_tree(node: &mut Node, work: &mut u64, depth: usize, warn: &mut dyn FnMut
     *work = left;
     for o in &overlays {
         if matches!(o.blend, Blend::Erase | Blend::PassThrough) {
-            warn("overlay effects in a blend mode VectorCraft doesn't have (imported as Normal)");
+            warn("overlay effects in a blend mode Pluma doesn't have (imported as Normal)");
         }
         bake_node(node, o, 0, warn);
     }

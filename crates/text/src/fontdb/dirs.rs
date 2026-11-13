@@ -95,12 +95,12 @@ pub fn user_font_dirs() -> Vec<PathBuf> {
     Vec::new()
 }
 
-/// VectorCraft's own Fonts folder, set by the app ([`set_app_font_dir`]).
+/// Pluma's own Fonts folder, set by the app ([`set_app_font_dir`]).
 #[cfg(not(target_arch = "wasm32"))]
 static APP_FONT_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
 
-/// Have [`system_font_dirs`] read `dir` with its subfolders: VectorCraft's own Fonts folder, which
-/// `text.addFontFiles` copies font files into. The desktop app and `vectorcraft-cli` set it before
+/// Have [`system_font_dirs`] read `dir` with its subfolders: Pluma's own Fonts folder, which
+/// `text.addFontFiles` copies font files into. The desktop app and `pluma-cli` set it before
 /// the first scan, as they install [`set_platform_font_files`]. A folder that doesn't exist yet is
 /// read once it does. Only the first call counts. Ignored on wasm.
 pub fn set_app_font_dir(dir: PathBuf) {
@@ -119,7 +119,7 @@ pub fn app_font_dir() -> Option<&'static Path> {
     None
 }
 
-/// The platform's font folders (the system's and the user's), VectorCraft's own Fonts folder
+/// The platform's font folders (the system's and the user's), Pluma's own Fonts folder
 /// ([`set_app_font_dir`]), the font files known to the platform outside them (on Windows those
 /// registered with it, and those [`set_platform_font_files`] lists) and the folders the user added
 /// ([`set_user_font_dirs`]), scanned by [`FontDb::global`].

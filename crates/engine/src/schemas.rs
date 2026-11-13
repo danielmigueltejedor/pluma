@@ -1,4 +1,4 @@
-//! The commands' parameter schemas ([`vectorcraft_apischema::ParamSchema`]) and the API level they
+//! The commands' parameter schemas ([`pluma_apischema::ParamSchema`]) and the API level they
 //! belong to.
 //!
 //! A command with a schema (`CommandSpec::schema`) has its params checked against it by
@@ -18,8 +18,8 @@
 
 use std::sync::OnceLock;
 
+use pluma_apischema::{ParamError, Problem};
 use serde_json::Value;
-use vectorcraft_apischema::{ParamError, Problem};
 
 use crate::cmd::params::unknown;
 use crate::cmd::{CommandSpec, bad, command_specs};
@@ -31,12 +31,12 @@ pub const API_VERSION: u32 = 2;
 /// [`schema_hash`] at each API level, oldest first; the last row is [`API_VERSION`]'s.
 pub const SCHEMA_HASHES: &[(u32, u64)] = &[(1, 0x9cdb_1087_7074_855c), (2, 0x0e31_5d96_7bc9_2653)];
 
-/// The hash of every built-in command's schema ([`vectorcraft_apischema::hash`]).
+/// The hash of every built-in command's schema ([`pluma_apischema::hash`]).
 pub fn schema_hash() -> u64 {
-    vectorcraft_apischema::hash(command_specs().iter().filter_map(|c| Some((c.id, c.schema?))))
+    pluma_apischema::hash(command_specs().iter().filter_map(|c| Some((c.id, c.schema?))))
 }
 
-/// Each built-in schema that is wrong in itself, with why ([`vectorcraft_apischema::ParamSchema::definition_problem`]).
+/// Each built-in schema that is wrong in itself, with why ([`pluma_apischema::ParamSchema::definition_problem`]).
 /// Worked out once, the first time a command with a schema runs.
 fn definition_problems() -> &'static [(&'static str, String)] {
     static PROBLEMS: OnceLock<Vec<(&'static str, String)>> = OnceLock::new();
@@ -79,9 +79,9 @@ mod conformance;
 
 #[cfg(test)]
 mod tests {
+    use pluma_apischema::{Bound, Omitted, Param, ParamSchema, Type};
     use proptest::prelude::*;
     use serde_json::{Map, Value, json};
-    use vectorcraft_apischema::{Bound, Omitted, Param, ParamSchema, Type};
 
     use super::conformance::{check_schema, instance_valid};
     use super::*;
@@ -319,7 +319,7 @@ mod tests {
         let s = Session::new();
         let all = s.commands();
         let grid = all.iter().find(|c| c.id == "view.transparencyGrid").and_then(|c| c.schema.clone()).unwrap();
-        assert_eq!(grid["$schema"], vectorcraft_apischema::DIALECT);
+        assert_eq!(grid["$schema"], pluma_apischema::DIALECT);
         assert_eq!(grid["properties"]["on"]["x-default"], "toggle");
         let listed = serde_json::to_value(all.iter().find(|c| c.id == "view.saved.new").unwrap()).unwrap();
         assert_eq!(listed["schema"]["required"], json!(["center", "zoom"]));
@@ -329,7 +329,7 @@ mod tests {
 
     /// The listing gives each command with a schema an `inputSchema`, the form an MCP tool's input
     /// schema takes: the same schema with the root `type` `"object"`, and every other keyword kept,
-    /// nested parameters, required names, defaults and VectorCraft's own fields included. A command
+    /// nested parameters, required names, defaults and Pluma's own fields included. A command
     /// with no schema lists neither.
     #[test]
     fn engine_commands_list_an_input_schema_with_an_object_root() {
@@ -345,7 +345,7 @@ mod tests {
             with_schema += 1;
             let input = c.get("inputSchema").unwrap_or_else(|| panic!("{id} has no inputSchema"));
             assert_eq!(input["type"], "object", "{id}");
-            assert_eq!(input["$schema"], vectorcraft_apischema::DIALECT, "{id}");
+            assert_eq!(input["$schema"], pluma_apischema::DIALECT, "{id}");
             check_schema(input, id).unwrap_or_else(|e| panic!("{e}\n{input:#}"));
             assert!(!instance_valid(input, &Value::Null), "{id}: the arguments are an object");
             let without_type = |v: &Value| {

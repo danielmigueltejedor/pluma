@@ -1,8 +1,8 @@
 //! Preferences: `prefs.get` / `prefs.set` / `prefs.reset` / `prefs.list`.
 
+use pluma_doc::NodeKind;
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use crate::cmd::prefscmds::{PREF_CATEGORIES, PREF_GROUPS, PREF_SPECS, validate};
 use crate::*;
@@ -131,21 +131,21 @@ fn grid_prefs_apply_to_opened_files_without_a_grid() {
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     s.execute("prefs.set", &json!({"values": {"gridlineEvery": 18, "gridSubdivisions": 3}})).unwrap();
-    let native = vectorcraft_format::save(&s.doc().unwrap().doc, false);
+    let native = pluma_format::save(&s.doc().unwrap().doc, false);
     let mut pdf = |editing: bool| {
         let v = s.execute("document.exportPdf", &json!({"preserveEditing": editing})).unwrap();
-        vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
+        pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()
     };
     let (editable, plain) = (pdf(true), pdf(false));
     s.execute("prefs.set", &json!({"values": {"gridlineEvery": 36, "gridSubdivisions": 4}})).unwrap();
     let mut open = |name: &str, bytes: &[u8]| {
-        let r = s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).unwrap();
+        let r = s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap();
         let g = &s.doc().unwrap().doc.grid;
         (g.spacing, g.subdivisions, r["restored"].as_bool().unwrap())
     };
     assert_eq!(open("drawing.svg", GRIDLESS_SVG.as_bytes()), (36.0, 4, false));
     assert_eq!(open("plain.pdf", &plain), (36.0, 4, false));
-    assert_eq!(open("saved.vectorcraft", &native), (18.0, 3, false));
+    assert_eq!(open("saved.pluma", &native), (18.0, 3, false));
     assert_eq!(open("editable.pdf", &editable), (18.0, 3, true));
 }
 
@@ -156,7 +156,7 @@ fn grid_prefs_apply_to_reverted_files_without_a_grid() {
     let dir = std::env::temp_dir().join(format!("vc-grid-revert-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = |name: &str| dir.join(name).to_string_lossy().to_string();
-    let (svg, native) = (path("drawing.svg"), path("saved.vectorcraft"));
+    let (svg, native) = (path("drawing.svg"), path("saved.pluma"));
     std::fs::write(&svg, GRIDLESS_SVG).unwrap();
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
@@ -225,7 +225,7 @@ fn lock_guides_by_default_is_off_and_older_preferences_leave_guides_unlocked() {
 /// › Lock Guides then unlocks them for the session and leaves the preference on.
 #[test]
 fn saved_lock_guides_by_default_locks_a_new_session_and_the_documents_it_opens() {
-    let file = std::env::temp_dir().join(format!("vc-lock-guides-{}.vectorcraft", std::process::id()));
+    let file = std::env::temp_dir().join(format!("vc-lock-guides-{}.pluma", std::process::id()));
     let file = file.to_string_lossy().to_string();
     let mut unlocked = new_doc();
     assert!(!unlocked.guides_locked(), "a session without the preference");
@@ -483,7 +483,7 @@ fn linux_display_server_has_a_choice_for_an_attached_pen() {
 /// (#394).
 #[test]
 fn selection_preferences_drive_the_selection_tool() {
-    use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Mods, PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let rect = |s: &mut Session, x: f64| {
@@ -542,7 +542,7 @@ fn selection_preferences_drive_the_selection_tool() {
 /// a double-click on it switches to the Type tool.
 #[test]
 fn double_clicking_a_single_object_isolates_it() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = |v: Value| NodeId(v["id"].as_u64().unwrap());
@@ -594,12 +594,12 @@ fn double_clicking_a_single_object_isolates_it() {
 /// tool's arrow stays.
 #[test]
 fn use_precise_cursors_makes_drawing_cursors_crosshairs() {
-    use vectorcraft_tools::{Cursor, Mods};
+    use pluma_tools::{Cursor, Mods};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let cursor = |s: &mut Session, tool: &str| {
         s.select_tool(tool, ViewInfo::default()).unwrap();
-        s.cursor(vectorcraft_geom::Point::new(300.0, 300.0), Mods::default(), ViewInfo::default())
+        s.cursor(pluma_geom::Point::new(300.0, 300.0), Mods::default(), ViewInfo::default())
     };
     assert_eq!(cursor(&mut s, "pen"), Cursor::Pen);
     assert_eq!(cursor(&mut s, "eyedropper"), Cursor::Eyedropper);
@@ -615,12 +615,12 @@ fn use_precise_cursors_makes_drawing_cursors_crosshairs() {
 /// Use Precise Cursors preference as it was.
 #[test]
 fn caps_lock_gives_drawing_tools_the_crosshair() {
-    use vectorcraft_tools::{Cursor, Mods};
+    use pluma_tools::{Cursor, Mods};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let cursor = |s: &mut Session, tool: &str| {
         s.select_tool(tool, ViewInfo::default()).unwrap();
-        s.cursor(vectorcraft_geom::Point::new(300.0, 300.0), Mods::default(), ViewInfo::default())
+        s.cursor(pluma_geom::Point::new(300.0, 300.0), Mods::default(), ViewInfo::default())
     };
     assert_eq!(s.execute("view.capsLock", &json!({})).unwrap(), json!({"on": false}));
     assert_eq!(s.execute("view.capsLock", &json!({"on": true})).unwrap(), json!({"on": true}));
@@ -641,10 +641,10 @@ fn caps_lock_gives_drawing_tools_the_crosshair() {
 /// Scissors over no path keep theirs.
 #[test]
 fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
-    use vectorcraft_tools::{Cursor, Mods};
+    use pluma_tools::{Cursor, Mods};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
-    let at = vectorcraft_geom::Point::new(300.0, 300.0);
+    let at = pluma_geom::Point::new(300.0, 300.0);
     let cursor = |s: &mut Session, tool: &str| {
         s.select_tool(tool, ViewInfo::default()).unwrap();
         s.cursor(at, Mods::default(), ViewInfo::default())
@@ -714,10 +714,10 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
 /// turns those into a crosshair too.
 #[test]
 fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
-    use vectorcraft_tools::{Cursor, Mods, PointerEvent, PointerKind};
+    use pluma_tools::{Cursor, Mods, PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
-    let at = vectorcraft_geom::Point::new(300.0, 300.0);
+    let at = pluma_geom::Point::new(300.0, 300.0);
     let alt = Mods { alt: true, ..Default::default() };
     for precise in [false, true] {
         s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": precise})).unwrap();
@@ -734,7 +734,7 @@ fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
 /// Every state of the Pen's pointer, and the other drawing pointers, turn into a crosshair; the rest stay.
 #[test]
 fn precise_cursors_replace_every_pen_state() {
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     for c in [
         Cursor::Pen,
         Cursor::PenDrawing,
@@ -854,13 +854,13 @@ fn a_saved_default_language_reads_as_its_tag() {
 fn default_language_offers_every_language() {
     let spec = PREF_SPECS.iter().find(|p| p.key == "hyphenationLanguage").unwrap();
     let crate::cmd::prefscmds::PrefKind::Choice(options) = spec.kind else { panic!("a choice") };
-    let languages: Vec<(&str, &str)> = vectorcraft_doc::setup::LANGUAGES.iter().map(|(name, tag, _)| (*tag, *name)).collect();
+    let languages: Vec<(&str, &str)> = pluma_doc::setup::LANGUAGES.iter().map(|(name, tag, _)| (*tag, *name)).collect();
     assert_eq!(options, languages.as_slice());
 }
 
-fn gesture(s: &mut Session, v: ViewInfo, events: &[(vectorcraft_tools::PointerKind, f64, f64)]) {
+fn gesture(s: &mut Session, v: ViewInfo, events: &[(pluma_tools::PointerKind, f64, f64)]) {
     for (k, x, y) in events {
-        s.pointer(&vectorcraft_tools::PointerEvent::new(*k, *x, *y), v).unwrap();
+        s.pointer(&pluma_tools::PointerEvent::new(*k, *x, *y), v).unwrap();
     }
 }
 
@@ -873,7 +873,7 @@ fn top_left(s: &Session, id: NodeId) -> (f64, f64) {
 /// Smart Guides off, the point a selection is dragged by lands on an anchor within 2 px.
 #[test]
 fn snap_to_point_lands_a_dragged_selection_on_anchors() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let a = square(&mut s, 100.0, 100.0);
     square(&mut s, 300.0, 100.0);
@@ -897,7 +897,7 @@ fn snap_to_point_lands_a_dragged_selection_on_anchors() {
 /// squares 20 pt apart lands 20 pt from it, with the gaps marked; off, it stays at 21.
 #[test]
 fn spacing_guides_space_a_dragged_square_like_its_row() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     square(&mut s, 20.0, 300.0);
     square(&mut s, 90.0, 300.0);
@@ -907,7 +907,7 @@ fn spacing_guides_space_a_dragged_square_like_its_row() {
     // `m` grabbed by its centre and dragged so its left edge is 21 pt from the second square.
     let drag = |s: &mut Session| {
         gesture(s, v, &[(Down, 225.0, 330.0), (Drag, 200.0, 330.0), (Drag, 186.0, 330.0)]);
-        let marks = s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Line { a, b, .. } if a.y == b.y)).count();
+        let marks = s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Line { a, b, .. } if a.y == b.y)).count();
         gesture(s, v, &[(Up, 186.0, 330.0)]);
         let at = top_left(s, m).0;
         s.execute("edit.undo", &json!({})).unwrap();
@@ -925,7 +925,7 @@ fn spacing_guides_space_a_dragged_square_like_its_row() {
 /// View › Smart Guides off, nothing.
 #[test]
 fn invoke_distance_guides_measures_the_selection_to_the_object_under_alt() {
-    use vectorcraft_tools::{Mods, Overlay, PointerKind::Move};
+    use pluma_tools::{Mods, Overlay, PointerKind::Move};
     let mut s = new_doc();
     let a = square(&mut s, 100.0, 100.0);
     square(&mut s, 250.0, 100.0);
@@ -950,7 +950,7 @@ fn invoke_distance_guides_measures_the_selection_to_the_object_under_alt() {
 /// is refused.
 #[test]
 fn snap_to_last_location_puts_a_dragged_square_back() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     // Its edges and center stay out of reach of the 400 pt artboard's.
     let m = square(&mut s, 100.0, 250.0);
@@ -981,8 +981,8 @@ fn snap_to_last_location_puts_a_dragged_square_back() {
 /// snaps.
 #[test]
 fn smart_guide_display_preferences_filter_the_overlays() {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::Overlay;
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     square(&mut s, 100.0, 100.0);
     let b = square(&mut s, 200.0, 100.0);
@@ -1005,7 +1005,7 @@ fn smart_guide_display_preferences_filter_the_overlays() {
     assert_eq!(drag_to(&mut s, 3.0), 150.0, "3 px off: into line");
     assert!(count(&mut s, &line) > 0 && count(&mut s, &measure) == 1);
     let magenta = s.overlays(v).iter().find_map(|o| if let Overlay::Line { color, .. } = o { Some(*color) } else { None });
-    assert_eq!(magenta, Some(vectorcraft_tools::guides::MAGENTA), "the default colour");
+    assert_eq!(magenta, Some(pluma_tools::guides::MAGENTA), "the default colour");
     release(&mut s);
     set_pref(&mut s, "smartGuideColor", json!("#00ff00"));
     drag_to(&mut s, 3.0);
@@ -1054,8 +1054,8 @@ fn smart_guide_display_preferences_filter_the_overlays() {
 /// Enable Rubber Band for Pen Tool / Curvature Tool (#394): off, no segment follows the pointer.
 #[test]
 fn rubber_band_preferences_hide_the_preview_to_the_pointer() {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::PointerKind::{Down, Move, Up};
+    use pluma_tools::Overlay;
+    use pluma_tools::PointerKind::{Down, Move, Up};
     let v = ViewInfo::default();
     for (tool, key) in [("pen", "penRubberBand"), ("curvature", "curvatureRubberBand")] {
         let mut s = new_doc();
@@ -1093,7 +1093,7 @@ fn move_locked_and_hidden_artwork_with_artboard() {
 /// `patterns` param says otherwise (the dialogs' Transform Patterns).
 #[test]
 fn transform_pattern_tiles_is_the_transforms_default() {
-    use vectorcraft_color::Paint;
+    use pluma_color::Paint;
     let mut s = new_doc();
     let tile = square(&mut s, 0.0, 0.0);
     s.execute("select.set", &json!({"ids": [tile.0]})).unwrap();
@@ -1133,7 +1133,7 @@ fn patterned_square(s: &mut Session) -> NodeId {
 /// The tile transform of the pattern fill of `id`.
 fn pattern_tiles(s: &Session, id: NodeId) -> [f64; 6] {
     match s.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint() {
-        vectorcraft_color::Paint::Pattern { xf, .. } => xf.as_coeffs(),
+        pluma_color::Paint::Pattern { xf, .. } => xf.as_coeffs(),
         p => panic!("not a pattern: {p:?}"),
     }
 }
@@ -1183,7 +1183,7 @@ fn a_recorded_transform_again_plays_back_with_its_transform_patterns() {
 /// on, they move with it, and `patterns: false` keeps them in place for one call.
 #[test]
 fn align_and_distribute_follow_transform_pattern_tiles() {
-    use vectorcraft_color::Paint;
+    use pluma_color::Paint;
     let mut s = new_doc();
     let plain = square(&mut s, 0.0, 0.0);
     s.execute("select.set", &json!({"ids": [plain.0]})).unwrap();
@@ -1227,7 +1227,7 @@ fn align_and_distribute_follow_transform_pattern_tiles() {
 /// move with the square or its copy, and `patterns: false` keeps them in place for one call.
 #[test]
 fn art_moved_with_its_artboard_follows_transform_pattern_tiles() {
-    use vectorcraft_color::Paint;
+    use pluma_color::Paint;
     let mut s = new_doc();
     let plain = square(&mut s, 500.0, 0.0);
     s.execute("select.set", &json!({"ids": [plain.0]})).unwrap();
@@ -1283,7 +1283,7 @@ fn art_moved_with_its_artboard_follows_transform_pattern_tiles() {
 /// `patterns: false` keeps them in place for one call.
 #[test]
 fn whole_objects_moved_with_selected_anchors_follow_transform_pattern_tiles() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let filled = patterned_square(&mut s);
     let other = square(&mut s, 300.0, 100.0);
@@ -1337,7 +1337,7 @@ fn whole_objects_moved_with_selected_anchors_follow_transform_pattern_tiles() {
 /// selected objects instead.
 #[test]
 fn a_drag_from_a_fill_moves_only_the_selected_anchors_of_partly_selected_paths() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let filled = patterned_square(&mut s);
     let other = square(&mut s, 300.0, 100.0);
@@ -1366,7 +1366,7 @@ fn a_drag_from_a_fill_moves_only_the_selected_anchors_of_partly_selected_paths()
         let objects = count(&s);
         s.execute("select.set", &json!({"ids": [filled.0]})).unwrap();
         s.execute("select.anchors", &json!({"id": other.0, "anchors": [[0, 0]], "mode": "add"})).unwrap();
-        let alt = vectorcraft_tools::Mods { alt: true, ..vectorcraft_tools::Mods::default() };
+        let alt = pluma_tools::Mods { alt: true, ..pluma_tools::Mods::default() };
         s.pointer(&PointerEvent::new(Down, 125.0, 125.0), v).unwrap();
         s.pointer(&PointerEvent::new(Drag, 130.0, 125.0), v).unwrap();
         s.pointer(&PointerEvent::new(Drag, 135.0, 125.0).with_mods(alt), v).unwrap();
@@ -1383,7 +1383,7 @@ fn a_drag_from_a_fill_moves_only_the_selected_anchors_of_partly_selected_paths()
 /// a drag and an arrow key move both by 10 pt. A leaf drag before that click keeps its sibling still.
 #[test]
 fn a_path_in_a_selected_group_moves_once_with_selected_anchors() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let (a, b) = (square(&mut s, 100.0, 100.0), square(&mut s, 160.0, 100.0));
     s.execute("select.set", &json!({"ids": [a.0, b.0]})).unwrap();
@@ -1417,7 +1417,7 @@ fn a_path_in_a_selected_group_moves_once_with_selected_anchors() {
 /// command is repeated too.
 #[test]
 fn transform_again_repeats_a_drag_from_a_fill_with_anchors_selected() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let filled = square(&mut s, 100.0, 100.0);
     let other = square(&mut s, 300.0, 100.0);
@@ -1471,8 +1471,8 @@ fn select_same_tint_percent() {
     assert_eq!(same(&mut s), 2, "only Ink 40%");
 }
 
-fn style_at(s: &Session, id: NodeId, byte: usize) -> vectorcraft_doc::CharStyle {
-    let Some(vectorcraft_doc::NodeKind::Text(t)) = s.doc().unwrap().doc.node(id).map(|n| &n.kind) else { panic!("not text") };
+fn style_at(s: &Session, id: NodeId, byte: usize) -> pluma_doc::CharStyle {
+    let Some(pluma_doc::NodeKind::Text(t)) = s.doc().unwrap().doc.node(id).map(|n| &n.kind) else { panic!("not text") };
     let mut at = 0;
     for r in &t.runs {
         if byte < at + r.text.len() {
@@ -1488,8 +1488,8 @@ fn style_at(s: &Session, id: NodeId, byte: usize) -> vectorcraft_doc::CharStyle 
 /// (Alt+arrows; Cmd/Ctrl too: five steps).
 #[test]
 fn type_increments_step_the_type() {
-    use vectorcraft_tools::PointerKind::{Down, Up};
-    use vectorcraft_tools::{Mods, ToolKey};
+    use pluma_tools::PointerKind::{Down, Up};
+    use pluma_tools::{Mods, ToolKey};
     let mut s = new_doc();
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Hello world", "size": 20})).unwrap()["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
@@ -1559,7 +1559,7 @@ fn auto_leading_steps_and_fills_from_the_paragraph_auto_leading() {
     s.execute("text.setFormat", &json!({"ids": [airy.0], "autoLeading": 240})).unwrap();
     s.execute("type.fillPlaceholder", &json!({"ids": [normal.0, airy.0]})).unwrap();
     let len = |s: &Session, id: NodeId| match s.doc().unwrap().doc.node(id).map(|n| &n.kind) {
-        Some(vectorcraft_doc::NodeKind::Text(t)) => t.plain_text().len(),
+        Some(pluma_doc::NodeKind::Text(t)) => t.plain_text().len(),
         _ => panic!("not text"),
     };
     let (n, a) = (len(&s, normal), len(&s, airy));
@@ -1570,7 +1570,7 @@ fn auto_leading_steps_and_fills_from_the_paragraph_auto_leading() {
 /// the selected type objects and on the Type tool's selected text.
 #[test]
 fn font_size_steps_by_five_increments() {
-    use vectorcraft_tools::PointerKind::{Down, Up};
+    use pluma_tools::PointerKind::{Down, Up};
     let mut s = new_doc();
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Hello world", "size": 12})).unwrap()["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
@@ -1599,7 +1599,7 @@ fn font_size_steps_by_five_increments() {
 /// in full while the Type tool edits, and the typing in progress ends first.
 #[test]
 fn reset_tracking_sets_tracking_and_kerning_to_zero() {
-    use vectorcraft_tools::PointerKind::{Down, Up};
+    use pluma_tools::PointerKind::{Down, Up};
     let mut s = new_doc();
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Hello world", "size": 20})).unwrap()["id"].as_u64().unwrap());
     let spaced = |s: &mut Session| s.execute("text.setRangeStyle", &json!({"id": id.0, "tracking": 200, "kerning": -40})).unwrap();
@@ -1645,7 +1645,7 @@ fn reset_tracking_sets_tracking_and_kerning_to_zero() {
 /// Type tool edits.
 #[test]
 fn reset_horizontal_scale_sets_it_to_100_percent() {
-    use vectorcraft_tools::PointerKind::{Down, Up};
+    use pluma_tools::PointerKind::{Down, Up};
     let mut s = new_doc();
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Hello world", "size": 20})).unwrap()["id"].as_u64().unwrap());
     let scales = |s: &Session, byte| {
@@ -1686,14 +1686,14 @@ fn reset_horizontal_scale_sets_it_to_100_percent() {
 /// places starts with placeholder text, selected, so typing replaces it; off, it starts empty.
 #[test]
 fn new_type_starts_with_placeholder_text() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let v = ViewInfo::default();
     let mut s = new_doc();
     s.select_tool("type", v).unwrap();
     let text = |s: &Session| {
         let st = s.doc().unwrap();
         match &st.doc.node(st.selection.objects[0]).unwrap().kind {
-            vectorcraft_doc::NodeKind::Text(t) => t.plain_text(),
+            pluma_doc::NodeKind::Text(t) => t.plain_text(),
             _ => panic!("not text"),
         }
     };
@@ -1719,7 +1719,7 @@ fn new_type_starts_with_placeholder_text() {
 #[test]
 fn missing_glyph_protection_keeps_glyphs_a_new_font_lacks() {
     let (from, to, c) = ("Source Sans 3", "JetBrains Mono", '\u{180}');
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let covers = |f: &str| db.face(f, "Regular").is_some_and(|face| face.covers(c));
     if !covers(from) || covers(to) {
         return; // Installed fonts of these names cover other characters.
@@ -1743,9 +1743,9 @@ fn missing_glyph_protection_keeps_glyphs_a_new_font_lacks() {
 /// Font settings too; the characters that take the new font lose them.
 #[test]
 fn missing_glyph_protection_keeps_the_variable_font_settings_of_the_font_kept() {
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY as FROM, two_axis_font};
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY as FROM, two_axis_font};
     let (to, c) = ("JetBrains Mono", '\u{180}');
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(two_axis_font().unwrap());
     if !db.face(FROM, "Regular").is_some_and(|f| f.covers(c)) || db.face(to, "Regular").is_some_and(|f| f.covers(c)) {
         return; // An installed font of that name covers the character.
@@ -1768,9 +1768,9 @@ fn missing_glyph_protection_keeps_the_variable_font_settings_of_the_font_kept() 
 /// type names.
 #[test]
 fn missing_glyph_protection_keeps_the_version_of_the_font_kept() {
-    use vectorcraft_text::test_fonts::{TWIN_FAMILY as FROM, TWIN_VERSIONS, twin_font};
+    use pluma_text::test_fonts::{TWIN_FAMILY as FROM, TWIN_VERSIONS, twin_font};
     let (to, c) = ("JetBrains Mono", '\u{180}');
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     db.add_font(twin_font(false).unwrap());
     let older = db.face_version(FROM, "Regular", Some(TWIN_VERSIONS[0]));
     if !older.is_some_and(|f| f.version == TWIN_VERSIONS[0] && f.covers(c)) || db.face(to, "Regular").is_some_and(|f| f.covers(c)) {
@@ -1793,9 +1793,9 @@ fn missing_glyph_protection_keeps_the_version_of_the_font_kept() {
 #[test]
 fn missing_glyph_protection_leaves_the_font_kept_out_of_the_warning() {
     let (from, to, c) = ("No Such Font Family", "JetBrains Mono", '\u{180}');
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // The unavailable family is drawn in the fallback font, which has the character; the new font is installed and lacks it.
-    let installed = db.resolve(to, "Regular").is_some_and(|(_, m)| m == vectorcraft_text::FontMatch::Exact);
+    let installed = db.resolve(to, "Regular").is_some_and(|(_, m)| m == pluma_text::FontMatch::Exact);
     if !installed || !db.face(from, "Regular").is_some_and(|f| f.covers(c)) || db.face(to, "Regular").is_some_and(|f| f.covers(c)) {
         return; // The fonts installed here cover other characters.
     }
@@ -1818,7 +1818,7 @@ fn missing_glyph_protection_leaves_the_font_kept_out_of_the_warning() {
 /// anywhere in its bounds selects it.
 #[test]
 fn type_selection_by_path_only_picks_type_on_its_baseline() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = new_doc();
     let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Hello world", "size": 20})).unwrap()["id"].as_u64().unwrap());
     s.execute("select.none", &json!({})).unwrap();
@@ -1848,7 +1848,7 @@ fn type_selection_by_path_only_picks_type_on_its_baseline() {
 /// characters, and the Eyedropper still samples it there.
 #[test]
 fn type_selection_by_path_only_takes_every_line_and_spares_the_type_tool_and_eyedropper() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let v = ViewInfo::default();
     let mut s = new_doc();
     let created = s
@@ -1967,7 +1967,7 @@ fn real_time_drawing_off_skips_tool_previews_until_commit() {
     s.pointer(&PointerEvent::new(PointerKind::Drag, 150.0, 150.0), v).unwrap();
     assert_eq!(s.doc().unwrap().revision, rev, "no preview steps");
     assert_eq!(paths(&s), 0, "the rectangle isn't in the document yet");
-    assert!(s.overlays(v).iter().any(|o| matches!(o, vectorcraft_tools::Overlay::Path { .. })), "the deferred rectangle shows as an outline");
+    assert!(s.overlays(v).iter().any(|o| matches!(o, pluma_tools::Overlay::Path { .. })), "the deferred rectangle shows as an outline");
     s.pointer(&PointerEvent::new(PointerKind::Up, 150.0, 150.0), v).unwrap();
     assert!(s.doc().unwrap().revision > rev, "commit applies the shape");
     assert_eq!(paths(&s), 1);
@@ -2055,7 +2055,7 @@ fn deferred_preview_overlays_are_cached_across_redraws() {
     s.pointer(&PointerEvent::new(PointerKind::Down, 50.0, 50.0), v).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Drag, 150.0, 150.0), v).unwrap();
     let rev = s.doc().unwrap().revision;
-    let count = |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Path { .. })).count();
+    let count = |s: &mut Session| s.overlays(v).iter().filter(|o| matches!(o, pluma_tools::Overlay::Path { .. })).count();
     let first = count(&mut s);
     assert!(first > 0);
     assert_eq!(s.doc().unwrap().revision, rev);
@@ -2068,8 +2068,8 @@ fn deferred_preview_overlays_are_cached_across_redraws() {
 /// outlines (100,000) shows its moved bounds instead (#525, #2460).
 #[test]
 fn real_time_drawing_off_draws_the_bounds_of_a_selection_too_big_to_outline() {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::draw2::FEEDBACK;
+    use pluma_tools::Overlay;
+    use pluma_tools::draw2::FEEDBACK;
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 600, "height": 600})).unwrap();
     let anchors: Vec<Value> = (0..120_000).map(|i| json!({"x": 100.0 + f64::from(i) * 0.003, "y": if i % 2 == 0 { 100 } else { 150 }})).collect();
@@ -2100,8 +2100,8 @@ fn real_time_drawing_off_draws_the_bounds_of_a_selection_too_big_to_outline() {
 /// The bounding boxes (left, top, width) of the Real-time Drawing off feedback after a drag by (30, 40)
 /// from (x, y), left to right.
 fn dragged_feedback_boxes(s: &mut Session, x: f64, y: f64) -> Vec<(f64, f64, f64)> {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::draw2::FEEDBACK;
+    use pluma_tools::Overlay;
+    use pluma_tools::draw2::FEEDBACK;
     let v = ViewInfo::default();
     s.select_tool("selection", v).unwrap();
     set_pref(s, "realTimeDrawing", json!(false));
@@ -2122,8 +2122,8 @@ fn dragged_feedback_boxes(s: &mut Session, x: f64, y: f64) -> Vec<(f64, f64, f64
 
 /// The number of subpaths in each path of the Real-time Drawing off feedback the session shows now.
 fn feedback_subpaths(s: &mut Session) -> Vec<usize> {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::draw2::FEEDBACK;
+    use pluma_tools::Overlay;
+    use pluma_tools::draw2::FEEDBACK;
     s.overlays(ViewInfo::default())
         .into_iter()
         .filter_map(|o| match o {
@@ -2338,7 +2338,7 @@ fn real_time_drawing_off_outlines_a_dragged_halftone_group_with_its_own_fill() {
     s.execute("paint.setFill", &json!({"color": "#000000", "ids": []})).unwrap();
     s.execute("select.set", &json!({"ids": [group]})).unwrap();
     s.execute("appearance.addFill", &json!({})).unwrap();
-    let fill = s.doc().unwrap().doc.node(vectorcraft_doc::NodeId(group.as_u64().unwrap())).unwrap().appearance.fill_paint().label();
+    let fill = s.doc().unwrap().doc.node(pluma_doc::NodeId(group.as_u64().unwrap())).unwrap().appearance.fill_paint().label();
     assert_eq!(fill, "#000000", "the group's own fill");
     s.execute("effect.apply", &json!({"effect": "addon.color.halftone", "item": null})).unwrap();
     // The Right handle: the unpainted member gives nothing to press on.
@@ -2414,7 +2414,7 @@ fn deferred_commit_preview_failure_cancels_interaction() {
     set_pref(&mut s, "realTimeDrawing", json!(false));
     s.begin_interaction("Bad").unwrap();
     s.doc_mut().unwrap().interaction.as_mut().unwrap().preview = Some(("no.such.command".into(), json!({})));
-    s.apply_actions(vec![vectorcraft_tools::Action::Commit]).unwrap();
+    s.apply_actions(vec![pluma_tools::Action::Commit]).unwrap();
     assert!(s.doc().unwrap().interaction.is_none());
 }
 
@@ -2430,7 +2430,7 @@ fn deferred_commit_forwards_preview_warnings() {
     s.begin_interaction("Bloat").unwrap();
     let p = json!({"tool": "bloat", "points": [[290.0, 200.0]], "width": 200.0, "height": 200.0});
     s.doc_mut().unwrap().interaction.as_mut().unwrap().preview = Some(("object.liquify".into(), p));
-    let ui = s.apply_actions(vec![vectorcraft_tools::Action::Commit]).unwrap();
+    let ui = s.apply_actions(vec![pluma_tools::Action::Commit]).unwrap();
     assert!(ui.iter().any(|r| matches!(r, UiRequest::Status(m) if m.contains("type"))), "{ui:?}");
 }
 
@@ -2446,7 +2446,7 @@ fn low_res_proxy_eps_preference_does_not_swap_full_resolution_pixels() {
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     assert!(!s.prefs.low_res_proxy_eps);
     let id = place(&mut s, &pic);
-    let doc_path = dir.file("doc.vectorcraft");
+    let doc_path = dir.file("doc.pluma");
     save(&mut s, &doc_path);
     s.execute("links.update", &json!({})).unwrap();
     let key = {
@@ -2462,27 +2462,27 @@ fn low_res_proxy_eps_preference_does_not_swap_full_resolution_pixels() {
 }
 
 /// Preferences › Hyphenation › Exceptions (#394): `prefs.set` pushes the list into the hyphenator
-/// and bumps open documents so type reflows. Parsing of the list is covered in `vectorcraft-text`.
+/// and bumps open documents so type reflows. Parsing of the list is covered in `pluma-text`.
 #[test]
 fn hyphenation_exceptions_preference_reaches_the_hyphenator() {
     struct Clear;
     impl Drop for Clear {
         fn drop(&mut self) {
-            vectorcraft_text::set_hyphenation_exceptions("");
+            pluma_text::set_hyphenation_exceptions("");
         }
     }
     let _clear = Clear;
     let mut s = Session::new();
     set_pref(&mut s, "hyphenationExceptions", json!(""));
-    assert!(vectorcraft_text::hyphenation_exceptions().is_empty());
+    assert!(pluma_text::hyphenation_exceptions().is_empty());
     s.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let before = s.doc().unwrap().revision;
     set_pref(&mut s, "hyphenationExceptions", json!("typography, hap-pen"));
     assert_eq!(s.prefs.hyphenation_exceptions, "typography, hap-pen");
-    assert_eq!(vectorcraft_text::hyphenation_exceptions(), "typography, hap-pen");
+    assert_eq!(pluma_text::hyphenation_exceptions(), "typography, hap-pen");
     assert!(s.doc().unwrap().revision > before, "type reflows");
     set_pref(&mut s, "hyphenationExceptions", json!(""));
-    assert!(vectorcraft_text::hyphenation_exceptions().is_empty());
+    assert!(pluma_text::hyphenation_exceptions().is_empty());
 }
 
 /// #1274: View › Snap to Point lands the anchor a selection is grabbed by (a press within a few
@@ -2490,7 +2490,7 @@ fn hyphenation_exceptions_preference_reaches_the_hyphenator() {
 /// beside it.
 #[test]
 fn snap_to_point_lands_the_grabbed_anchor_on_another_anchor() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let mut s = new_doc();
     let a = square(&mut s, 100.0, 100.0);
     square(&mut s, 300.0, 100.0);
@@ -2510,17 +2510,17 @@ fn snap_to_point_lands_the_grabbed_anchor_on_another_anchor() {
 /// anchor a press would grab, and lands a Pen click within 2 px of an anchor on it.
 #[test]
 fn snap_to_point_cues_anchors_and_lands_pen_clicks_on_them() {
-    use vectorcraft_tools::PointerKind::{Down, Up};
-    use vectorcraft_tools::{Cursor, Mods};
+    use pluma_tools::PointerKind::{Down, Up};
+    use pluma_tools::{Cursor, Mods};
     let mut s = new_doc();
     square(&mut s, 300.0, 100.0);
     s.execute("select.none", &json!({})).unwrap();
     let on = ViewInfo { smart_guides: false, ..ViewInfo::default() };
     let off = ViewInfo { snap_to_point: false, ..on };
     s.select_tool("selection", on).unwrap();
-    let near = vectorcraft_geom::Point::new(302.0, 102.0);
+    let near = pluma_geom::Point::new(302.0, 102.0);
     assert_eq!(s.cursor(near, Mods::default(), on), Cursor::ArrowHollow);
-    assert_eq!(s.cursor(vectorcraft_geom::Point::new(325.0, 125.0), Mods::default(), on), Cursor::Arrow, "away from the anchors");
+    assert_eq!(s.cursor(pluma_geom::Point::new(325.0, 125.0), Mods::default(), on), Cursor::Arrow, "away from the anchors");
     assert_eq!(s.cursor(near, Mods::default(), off), Cursor::Arrow, "Snap to Point off");
     for (v, first) in [(on, (300.0, 100.0)), (off, (301.0, 101.0))] {
         s.select_tool("pen", v).unwrap();
@@ -2552,8 +2552,8 @@ fn stroked_rect_and_guide() -> (Session, NodeId, f64) {
 /// stopped that far beside the guide however far one zoomed in.
 #[test]
 fn a_move_held_by_a_paths_stroke_lands_the_path_on_a_ruler_guide() {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::Overlay;
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let (mut s, id, g) = stroked_rect_and_guide();
     let v = ViewInfo { zoom: 38.91, ..ViewInfo::default() };
     s.select_tool("selection", v).unwrap();
@@ -2576,8 +2576,8 @@ fn a_move_held_by_a_paths_stroke_lands_the_path_on_a_ruler_guide() {
 /// Smart Guides line up with another object stays there, not on a ruler guide as near.
 #[test]
 fn a_moved_rectangle_lines_its_edges_up_with_two_ruler_guides() {
-    use vectorcraft_tools::Overlay;
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::Overlay;
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let v = ViewInfo::default();
     // (guides as (vertical, pos), where it is grabbed, the top left it lands on)
     type Case = (&'static [(bool, f64)], (f64, f64), (f64, f64));
@@ -2621,7 +2621,7 @@ fn a_moved_rectangle_lines_its_edges_up_with_two_ruler_guides() {
 /// the same press and drag on the rectangle selected whole, which moves it.
 #[test]
 fn a_straight_segment_dragged_by_direct_selection_lands_on_a_ruler_guide() {
-    use vectorcraft_tools::PointerKind::{Down, Drag, Up};
+    use pluma_tools::PointerKind::{Down, Drag, Up};
     let (mut s, id, g) = stroked_rect_and_guide();
     let v = ViewInfo { zoom: 287.57, ..ViewInfo::default() };
     s.select_tool("directSelection", v).unwrap();

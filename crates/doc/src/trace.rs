@@ -92,8 +92,8 @@ mod tests {
     #[test]
     fn live_trace_result_bounds_exclude_the_retained_bitmap_at_any_angle() {
         use crate::{Appearance, Document, ImageObject, NodeId, NodeKind};
+        use pluma_geom::{Affine, PathData, Point, Rect, SubPath};
         use std::sync::Arc;
-        use vectorcraft_geom::{Affine, PathData, Point, Rect, SubPath};
         let mut source = Node::new(
             NodeId(2),
             NodeKind::Image(Box::new(ImageObject {
@@ -113,7 +113,7 @@ mod tests {
                 &[Point::new(20.0, 30.0), Point::new(80.0, 30.0), Point::new(80.0, 90.0), Point::new(20.0, 90.0)],
                 true,
             )),
-            Appearance::basic(vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), vectorcraft_color::Paint::None, 0.0),
+            Appearance::basic(pluma_color::Paint::solid(pluma_color::Color::BLACK), pluma_color::Paint::None, 0.0),
         );
         let mut group = Node::group(NodeId(1), vec![Arc::new(source), Arc::new(art.clone())]);
         group.extras_mut().trace = Some(Box::new(serde_json::json!({})));

@@ -5,18 +5,18 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use egui::{Pos2, Rect, pos2, vec2};
+use pluma_doc::NodeId;
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
 
 use super::asset_export::{ID, menu, show};
 use crate::widgets::PanelDrag;
-use crate::{Services, VectorcraftApp};
+use crate::{PlumaApp, Services};
 
 type Log = Rc<RefCell<Vec<(String, Vec<u8>)>>>;
 
 /// An app with two unstroked squares; `web` gives it a download service (recorded in the log).
-fn app(web: bool) -> (VectorcraftApp, Log, [u64; 2]) {
+fn app(web: bool) -> (PlumaApp, Log, [u64; 2]) {
     let log = Log::default();
     let l = log.clone();
     let mut services = Services::default();
@@ -26,16 +26,16 @@ fn app(web: bool) -> (VectorcraftApp, Log, [u64; 2]) {
             Ok(())
         }));
     }
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
-    app.session.paint.stroke = vectorcraft_color::Paint::None;
+    app.session.paint.stroke = pluma_color::Paint::None;
     let mut rect = |x: f64| app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 30, "height": 20})).unwrap()["id"].as_u64().unwrap();
     let ids = [rect(10.0), rect(100.0)];
     (app, log, ids)
 }
 
 /// One frame of the panel, 236 pt wide as in the dock → its texts and where they are.
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, alt: bool) -> Vec<(String, Rect)> {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, alt: bool) -> Vec<(String, Rect)> {
     fn texts(s: &egui::Shape, out: &mut Vec<(String, Rect)>) {
         match s {
             egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect())),
@@ -54,7 +54,7 @@ fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>
 }
 
 /// One frame of the panel menu, including its item positions.
-fn menu_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+fn menu_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 700.0))), events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
     out.textures_delta.clear();
@@ -92,7 +92,7 @@ fn at(texts: &[(String, Rect)], label: &str) -> Pos2 {
         .center()
 }
 
-fn assets(app: &mut VectorcraftApp) -> Vec<Value> {
+fn assets(app: &mut PlumaApp) -> Vec<Value> {
     app.run("assets.list", json!({})).unwrap()["assets"].as_array().unwrap().clone()
 }
 
@@ -383,7 +383,7 @@ fn asset_export_replaces_applied_format_choice_when_saving() {
 
     app.run("assets.settings.set", json!({"exportPreset": "Named Rows"})).unwrap();
     app.run("file.exportForScreens", json!({})).unwrap();
-    assert_eq!(app.ui.dialog.as_ref().unwrap().fields["formats"], json!(vectorcraft_engine::cmd::fileio::screen_preset_rows("mobile").unwrap()));
+    assert_eq!(app.ui.dialog.as_ref().unwrap().fields["formats"], json!(pluma_engine::cmd::fileio::screen_preset_rows("mobile").unwrap()));
     crate::dialogs::cancel(&mut app);
 
     app.run("document.exportPresets.save", json!({"name": "Mobile First", "settings": {"preset": "mobile", "name": "<name>-###"}})).unwrap();

@@ -1,4 +1,4 @@
-//! VectorCraft Image Trace: raster → vector.
+//! Pluma Image Trace: raster → vector.
 //!
 //! A clean-room tracer built from the published ideas behind bitmap tracers (the potrace paper
 //! and classic colour quantisation), not from any existing implementation:
@@ -58,8 +58,8 @@ mod subpixel;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use pluma_geom::PathData;
 use serde::{Deserialize, Serialize};
-use vectorcraft_geom::PathData;
 
 pub use contour::{Component, Loop, trace_mask};
 pub use gradient::TracedGradient;

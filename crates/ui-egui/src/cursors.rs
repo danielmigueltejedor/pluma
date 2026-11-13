@@ -11,7 +11,7 @@ pub mod native_request;
 
 use egui::epaint::{Mesh, TessellationOptions, Tessellator, Vertex};
 use egui::{Color32, CustomCursorImage, Painter, Pos2, Shape, Stroke, Vec2, pos2, vec2};
-use vectorcraft_tools::Cursor;
+use pluma_tools::Cursor;
 
 const INK: Color32 = Color32::BLACK;
 const HALO: Color32 = Color32::WHITE;
@@ -701,7 +701,7 @@ pub const OS_CURSORS: bool = !cfg!(any(target_os = "macos", target_arch = "wasm3
 
 /// Does this window show the glyphs as OS cursors, on a build that can ([`OS_CURSORS`])? Not on
 /// Wayland, where the compositor decides how big a cursor bitmap shows: Hyprland shows each pixel
-/// as a point, twice too big on a 2× display (#1645). The window paints them there, as PhotoCraft
+/// as a point, twice too big on a 2× display (#1645). The window paints them there, as Lienzo
 /// and PdfCraft do.
 pub fn os_cursors(build: bool, wayland: bool) -> bool {
     build && !wayland

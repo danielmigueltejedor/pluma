@@ -1,6 +1,6 @@
-use super::VectorcraftApp;
+use super::PlumaApp;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Hand a queued text copy to egui. Called after `tick`, after the UI phase's input and at the
     /// end of the pass; the later calls are what an input- or menu-driven fallback Copy needs, and
     /// `take` keeps it single-shot.

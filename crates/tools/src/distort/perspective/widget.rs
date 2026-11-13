@@ -4,9 +4,9 @@
 //! artboard's corner. Perspective Grid Options (double-click the tool) hide it or move it to
 //! another corner ([`WidgetOptions`], kept with the preferences).
 
+use pluma_doc::Document;
+use pluma_geom::{Point, Vec2};
 use serde::{Deserialize, Serialize};
-use vectorcraft_doc::Document;
-use vectorcraft_geom::{Point, Vec2};
 
 use super::{PerspectiveGrid, Plane, WidgetGeom, in_quad};
 use crate::{ScreenFrame, ToolContext};
@@ -120,7 +120,7 @@ impl PerspectiveGrid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_geom::Rect;
+    use pluma_geom::Rect;
 
     fn frame(origin: Point, zoom: f64) -> ScreenFrame {
         ScreenFrame { origin, right: Vec2::new(1.0 / zoom, 0.0), down: Vec2::new(0.0, 1.0 / zoom), size: (600.0, 400.0) }

@@ -1,8 +1,8 @@
 //! Fill and stroke given to a path of a compound path paint the compound path (#3692): the
 //! compound holds the paint, so a member's own appearance is never drawn.
 
+use pluma_color::Paint;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
 
 use crate::*;
 

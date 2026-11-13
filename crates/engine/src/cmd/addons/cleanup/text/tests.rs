@@ -1,9 +1,9 @@
 //! Artwork Cleanup's text tools: pieces stay where their glyphs were drawn and keep their styles,
 //! each command is one undo step and refuses cleanly when there is nothing to do.
 
+use pluma_doc::{Justify, NodeId, NodeKind, TextKind, TextObject};
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Justify, NodeId, NodeKind, TextKind, TextObject};
-use vectorcraft_geom::Point;
 
 use crate::{EngineError, Session};
 
@@ -39,7 +39,7 @@ fn glyphs(s: &Session, ids: &[NodeId]) -> Vec<(char, Point)> {
     for id in ids {
         let t = obj(s, *id);
         let text = t.plain_text();
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
         let mut gs: Vec<_> = lay.glyphs.iter().filter(|g| g.len > 0).collect();
         gs.sort_by_key(|g| g.byte);
         gs.dedup_by_key(|g| g.byte);
@@ -109,7 +109,7 @@ fn break_area_type_into_lines_paragraphs_and_glyphs() {
             json!({"x": 40, "y": 40, "text": "A paragraph long enough to wrap in its frame\nSecond one", "size": 14, "area": {"width": 140, "height": 200}}),
         );
         let t = obj(&s, id);
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), &t);
         assert!(lay.lines.len() >= 3, "the first paragraph wraps");
         let was = glyphs(&s, &[id]);
         select(&mut s, &[id]);
@@ -307,7 +307,7 @@ fn reset_text_transform_takes_off_rotation_and_with_scale_the_horizontal_scale()
     s.execute("text.setRangeStyle", &json!({"id": id.0, "hScale": 150})).unwrap();
     let centre = |s: &Session| {
         let t = obj(s, id);
-        t.xf * vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds.center()
+        t.xf * pluma_text::layout(pluma_text::FontDb::global(), &t).bounds.center()
     };
     let was = centre(&s);
     let size = obj(&s, id).effective_char_style(&obj(&s, id).runs[0].style).unwrap().size;

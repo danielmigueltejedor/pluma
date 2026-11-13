@@ -19,7 +19,7 @@ fn session() -> Session {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 fn with(mut p: Value, more: &Value) -> Value {
@@ -43,7 +43,7 @@ fn file(s: &mut Session, p: Value) -> Vec<u8> {
 /// The file `bytes` named `name`, opened in a new session.
 fn opened(name: &str, bytes: &[u8]) -> Session {
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).unwrap();
+    s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap();
     s
 }
 
@@ -75,7 +75,7 @@ fn the_color_fills_its_artboard_alone_behind_the_art() {
     let doc = &s.doc().unwrap().doc;
     let board = doc.artboards[0].rect;
     let filled = doc.with_artboard_fills([0, 1]).unwrap();
-    let img = vectorcraft_render::Renderer::new().render_region(&filled, board.inflate(10.0, 10.0), 1.0, false);
+    let img = pluma_render::Renderer::new().render_region(&filled, board.inflate(10.0, 10.0), 1.0, false);
     let rgba = img.to_straight();
     let px = |x: usize, y: usize| rgba[(y * img.width as usize + x) * 4..][..4].to_vec();
     assert_eq!(px(5, 5)[3], 0, "outside the artboard");
@@ -152,7 +152,7 @@ fn export_for_screens_includes_the_fill_unless_unchecked() {
     assert!(s.execute("document.exportForScreens", &json!({"includeArtboardFill": "no", "formats": [{"format": "png"}]})).is_err());
     // A document row's artboard keeps its color, as a color.
     let r = screens(&mut s, json!({"formats": [{"format": "vectorcraft"}]}));
-    let back = vectorcraft_format::load(&b64(&r["files"][0])).unwrap();
+    let back = pluma_format::load(&b64(&r["files"][0])).unwrap();
     assert_eq!(back.artboards[0].color, s.doc().unwrap().doc.artboards[0].color);
     assert_eq!(back.layers.len(), 1, "not as art");
 }

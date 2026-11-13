@@ -14,7 +14,7 @@
 //! - A PDF/.ai/.ait page or a native document's artboard becomes one group, clipped to the page
 //!   (`crop: "crop"`; a PDF page's `art`, `trim`, `bleed` or `media` box too) or bounded by its art
 //!   (`crop: "bounding"`). With Link, a PDF/.ai/.ait page placed from a file becomes a placed
-//!   document instead, as a VectorCraft document does (below).
+//!   document instead, as a Pluma document does (below).
 //! - A text file becomes area type, decoded and cleaned up with the Text Import Options (`text`,
 //!   [`text`]).
 //! - An RTF file becomes area type with its character and paragraph formatting ([`rtf`]).
@@ -22,7 +22,7 @@
 //!   styles and direct formatting give ([`docx`]).
 //! - A Word 97-2003 document (`.doc`) becomes area type the same way, its main text read from its
 //!   compound file, with a warning for each kind of content left out ([`doc`]).
-//! - A VectorCraft document placed from a file with Link (the default) becomes a placed document:
+//! - A Pluma document placed from a file with Link (the default) becomes a placed document:
 //!   one locked object showing the artboard `page`, linked to the file and read again when it
 //!   changes ([`document`]); without Link, an editable copy of its art.
 //!
@@ -40,11 +40,11 @@ pub(super) mod text;
 
 use std::sync::Arc;
 
+use pluma_color::Paint;
+use pluma_doc::{Appearance, Document, ImageObject, LinkInfo, Node, NodeId, NodeKind, PageBox, Scaling, SymbolBoxes};
+use pluma_geom::{Affine, Point, Rect, shapes};
+use pluma_pdf::CropTo;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Appearance, Document, ImageObject, LinkInfo, Node, NodeId, NodeKind, PageBox, Scaling, SymbolBoxes};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
-use vectorcraft_pdf::CropTo;
 
 use super::fileio::{self, Format, RasterImage};
 use super::{CommandSpec, Result, Session, always, bad, bool_or, cmd, finite_numbers, has_doc, object_param, str_param, unique_name};
@@ -66,7 +66,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Place…",
             ["File"],
             Some("Cmd+Shift+P"),
-            "{path | name | dataBase64 (a file's path, or its name with its bytes), link?: true (a raster image keeps its file's path; a VectorCraft document at path becomes one locked placed document showing artboard `page`, linked to the file and read again when it changes (links.update; saving it in this app updates it at once), drawn as vectors in every output; so does a PDF/.ai page at path, showing its `crop` box, unless password or textAs: \"outlines\" is given; false: an editable copy of its art, as from dataBase64; other files are embedded), text?: {characterSet?: \"unicode\" (UTF-8, or UTF-16 with a byte-order mark; other bytes as the platform's 8-bit set) | \"ansi\" (the platform's 8-bit set), platform?: \"windows\" (Windows-1252) | \"mac\" (Mac Roman), removeLineReturns?: false (each block of lines becomes one paragraph; blank lines end paragraphs), removeParagraphReturns?: false (drop blank lines), replaceSpaces?: n (runs of n ≥ 2 spaces become a tab)} (a .txt file, placed as area type filling rect, the replaced object's bounds, or else the artboard less a 36 pt margin), template?: false (onto a new locked template layer below the current layer), replace?: false (swap the one selected object, keeping its stacking place and transform; no at/rect; refused while an object of a symbol instance's art is selected), at?: [x, y] centre (default: the first artboard's centre), rect?: [x, y, width, height] fit inside; aspect kept (wins over at), page?: 1 (PDF/.ai page, or a native document's artboard), crop?: \"crop\" (clipped to that page or artboard, default; an SVG, only when given: framed and clipped by its viewBox, else by its art's bounds) | \"bounding\" (the bounds of the art that shows, with its strokes and effects, as an export measures them: hidden objects and guides left out) | \"art\" | \"trim\" | \"bleed\" | \"media\" (a PDF page's boxes), password? (an encrypted PDF), dxf?: {…the DXF options of document.open} (a .dxf drawing: fit fills the artboard under at, else the first; fitted or uncentred art lands with its drawing's artboard on that artboard, else it is centred on at)} → {ids, name, format, linked, width, height, warnings}. Raster images come in at 100% of their physical size (the file's ppi, else 72); SVG, DXF, PDF/.ai, EMF/WMF (clipped to the picture's frame), EPS (clipped to its bounding box; as document.open reads it), a .ai saved without PDF compatibility (from its editing data, as document.open reads it: the art of the layers that show on artboard `page`, clipped to that artboard unless crop is \"bounding\") and native documents as one group, with the images, symbols, patterns, swatches and brushes they use. One undo step; selects what it placed (unless on a template layer); never touches the clipboard. A PNG, JPEG, GIF or WebP image whose pixels can't be read (a file cut short) is an error, and nothing is placed",
+            "{path | name | dataBase64 (a file's path, or its name with its bytes), link?: true (a raster image keeps its file's path; a Pluma document at path becomes one locked placed document showing artboard `page`, linked to the file and read again when it changes (links.update; saving it in this app updates it at once), drawn as vectors in every output; so does a PDF/.ai page at path, showing its `crop` box, unless password or textAs: \"outlines\" is given; false: an editable copy of its art, as from dataBase64; other files are embedded), text?: {characterSet?: \"unicode\" (UTF-8, or UTF-16 with a byte-order mark; other bytes as the platform's 8-bit set) | \"ansi\" (the platform's 8-bit set), platform?: \"windows\" (Windows-1252) | \"mac\" (Mac Roman), removeLineReturns?: false (each block of lines becomes one paragraph; blank lines end paragraphs), removeParagraphReturns?: false (drop blank lines), replaceSpaces?: n (runs of n ≥ 2 spaces become a tab)} (a .txt file, placed as area type filling rect, the replaced object's bounds, or else the artboard less a 36 pt margin), template?: false (onto a new locked template layer below the current layer), replace?: false (swap the one selected object, keeping its stacking place and transform; no at/rect; refused while an object of a symbol instance's art is selected), at?: [x, y] centre (default: the first artboard's centre), rect?: [x, y, width, height] fit inside; aspect kept (wins over at), page?: 1 (PDF/.ai page, or a native document's artboard), crop?: \"crop\" (clipped to that page or artboard, default; an SVG, only when given: framed and clipped by its viewBox, else by its art's bounds) | \"bounding\" (the bounds of the art that shows, with its strokes and effects, as an export measures them: hidden objects and guides left out) | \"art\" | \"trim\" | \"bleed\" | \"media\" (a PDF page's boxes), password? (an encrypted PDF), dxf?: {…the DXF options of document.open} (a .dxf drawing: fit fills the artboard under at, else the first; fitted or uncentred art lands with its drawing's artboard on that artboard, else it is centred on at)} → {ids, name, format, linked, width, height, warnings}. Raster images come in at 100% of their physical size (the file's ppi, else 72); SVG, DXF, PDF/.ai, EMF/WMF (clipped to the picture's frame), EPS (clipped to its bounding box; as document.open reads it), a .ai saved without PDF compatibility (from its editing data, as document.open reads it: the art of the layers that show on artboard `page`, clipped to that artboard unless crop is \"bounding\") and native documents as one group, with the images, symbols, patterns, swatches and brushes they use. One undo step; selects what it placed (unless on a template layer); never touches the clipboard. A PNG, JPEG, GIF or WebP image whose pixels can't be read (a file cut short) is an error, and nothing is placed",
             has_doc,
             place
         ),
@@ -108,7 +108,7 @@ enum Art {
     /// A text file's, an RTF file's or a Word document's text, placed as area type filling the
     /// natural box.
     Text(text::Story),
-    /// A VectorCraft document or a PDF/.ai page placed linked: the file read, the link, and
+    /// A Pluma document or a PDF/.ai page placed linked: the file read, the link, and
     /// whether the art's bounds (not the artboard or page) are shown.
     Document(document::Source, LinkInfo, bool),
     Vector {
@@ -148,7 +148,7 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
     let src = fileio::source(p, cmd)?;
     let name = fileio::file_name(src.name);
     // An Affinity file is recognised by its signature, whatever its name says.
-    if fileio::TEXT_EXTS.contains(&fileio::extension(src.name).as_str()) && !vectorcraft_affinity::is_affinity(&src.bytes) {
+    if fileio::TEXT_EXTS.contains(&fileio::extension(src.name).as_str()) && !pluma_affinity::is_affinity(&src.bytes) {
         let text = text::import(&src.bytes, text::TextOptions::parse(p, cmd)?, cmd)?;
         if text.trim().is_empty() {
             return Err(bad(cmd, format!("`{name}` has no text to place")));
@@ -182,7 +182,7 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
         return Ok(Loaded { name, format: &doc::FORMAT, art: Art::Text(story), natural: TEXT_FRAME, warnings, link: None, board: None });
     }
     let format = fileio::detect(src.name, &src.bytes)
-        .ok_or_else(|| bad(cmd, format!("can't place `{name}`: not a format VectorCraft reads (see document.formats)")))?;
+        .ok_or_else(|| bad(cmd, format!("can't place `{name}`: not a format Pluma reads (see document.formats)")))?;
     let page = match p.get("page") {
         None => 1,
         Some(v) => v.as_u64().filter(|n| (1..=100_000).contains(n)).ok_or_else(|| bad(cmd, "page must be a whole number from 1"))? as usize,
@@ -194,7 +194,7 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
         opts.dxf.fit_to = (b.width(), b.height());
     }
     // PostScript .ai files are read like EPS.
-    let pdf = matches!(format.id, "pdf" | "ai" | "ait") && !vectorcraft_pdf::is_postscript(&src.bytes);
+    let pdf = matches!(format.id, "pdf" | "ai" | "ait") && !pluma_pdf::is_postscript(&src.bytes);
     if !pdf && !matches!(opts.crop, CropTo::Crop | CropTo::Bounding) {
         return Err(bad(
             cmd,
@@ -202,7 +202,7 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
         ));
     }
     let crop = opts.crop != CropTo::Bounding;
-    // A VectorCraft document: placed linked from its file, else as an editable copy.
+    // A Pluma document: placed linked from its file, else as an editable copy.
     if matches!(format.id, "vectorcraft" | "template") {
         let page = page as u32;
         if let Some(path) = src.path.filter(|_| bool_or(p, "link", true)) {
@@ -224,9 +224,9 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
         return Ok(Loaded { name, format, art: Art::Image(img), natural, warnings, link, board: None });
     }
     if pdf {
-        // Linked: placed like a VectorCraft document, read again with the page's box only. A page
+        // Linked: placed like a Pluma document, read again with the page's box only. A page
         // asked for with a password or with its text as outlines is embedded.
-        let linked = link_pdf && bool_or(p, "link", true) && opts.password.is_none() && opts.text_as == vectorcraft_pdf::TextAs::Text;
+        let linked = link_pdf && bool_or(p, "link", true) && opts.password.is_none() && opts.text_as == pluma_pdf::TextAs::Text;
         if let Some(path) = src.path.filter(|_| linked) {
             let page = page as u32;
             let s = document::source(src.name, &src.bytes, Some(path), page, !crop, document::page_box(opts.crop), cmd)?;
@@ -310,7 +310,7 @@ pub(crate) fn pdf_art(
     let (mut doc, warnings, alone) = fileio::page_or_editing_data(src, bytes, &o, index, read).map_err(|e| bad(cmd, format!("{name}: {e}")))?;
     // Linked images show their files, found from its folder. Its placed documents can place this
     // file again: one already being read further up, or past the most nested reads, keeps its links
-    // as stored, as a VectorCraft document's do.
+    // as stored, as a Pluma document's do.
     if alone && let Some(_reading) = document::Reading::enter(bytes) {
         super::links::resolve(&mut doc, super::links::LinkBase::file(path), false, false);
     }
@@ -332,18 +332,18 @@ pub(crate) fn pdf_art(
 }
 
 /// The bounds of what `nodes` draw, as an export measures art
-/// ([`vectorcraft_render::encode::drawn_bounds`]): hidden objects, guides and template layers
+/// ([`pluma_render::encode::drawn_bounds`]): hidden objects, guides and template layers
 /// left out, symbol instances measured by their art in `symbols`.
 pub(crate) fn shown_bounds(symbols: &SymbolBoxes, nodes: &[Node]) -> Option<Rect> {
-    nodes.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, vectorcraft_render::encode::drawn_bounds(symbols, n)))
+    nodes.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, pluma_render::encode::drawn_bounds(symbols, n)))
 }
 
 /// The placeable art of `layers` that lies on `board`: each object whose drawn bounds
-/// ([`vectorcraft_render::encode::drawn_bounds`]) lie on it, or, for an object that draws nothing,
+/// ([`pluma_render::encode::drawn_bounds`]) lie on it, or, for an object that draws nothing,
 /// each object whose visual bounds lie on it.
 fn on_artboard(symbols: &SymbolBoxes, layers: &[Arc<Node>], board: Rect) -> Vec<Node> {
     let on_board = |c: &&Arc<Node>| {
-        let b = vectorcraft_render::encode::drawn_bounds(symbols, c).or_else(|| c.visual_bounds_with(symbols));
+        let b = pluma_render::encode::drawn_bounds(symbols, c).or_else(|| c.visual_bounds_with(symbols));
         b.is_some_and(|b| b.intersect(board).area() > 0.0 || board.contains(b.origin()))
     };
     art_of(layer_art(layers).filter(on_board))
@@ -422,8 +422,8 @@ fn build(d: &mut Document, l: Loaded, link: Option<LinkInfo>) -> Node {
 
 /// `node` moved and scaled by `m` as a whole: strokes, effects and pattern tiles go along.
 pub(crate) fn transformed(mut node: Node, m: Affine) -> Node {
-    node.transform(m, Scaling { strokes: true, effects: Some(vectorcraft_render::effects::scale_effect), ..Default::default() });
-    adopt::each_mut(&mut node, &mut |n| vectorcraft_doc::pattern::transform_pattern_paints(n, m));
+    node.transform(m, Scaling { strokes: true, effects: Some(pluma_render::effects::scale_effect), ..Default::default() });
+    adopt::each_mut(&mut node, &mut |n| pluma_doc::pattern::transform_pattern_paints(n, m));
     node
 }
 
@@ -835,8 +835,8 @@ fn thumbnail_png(l: Loaded, px: f64) -> Result<String> {
     let node = build(&mut d, l, None);
     d.insert(layer, 0, node)?;
     let k = px.clamp(1.0, MAX_THUMBNAIL) / natural.width().max(natural.height()).max(1e-9);
-    let png = vectorcraft_render::Renderer::new().render_region(&d, natural, k, false).to_png().map_err(EngineError::Other)?;
-    Ok(vectorcraft_format::base64_encode(&png))
+    let png = pluma_render::Renderer::new().render_region(&d, natural, k, false).to_png().map_err(EngineError::Other)?;
+    Ok(pluma_format::base64_encode(&png))
 }
 
 fn info(_: &mut Session, p: &Value) -> Result<Value> {

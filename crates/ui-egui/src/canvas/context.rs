@@ -1,25 +1,25 @@
 use super::outline::{hit_at, hit_with, selection_hit_at};
-use super::{Ui, VectorcraftApp, Xf, json, widgets};
+use super::{PlumaApp, Ui, Xf, json, widgets};
 
 /// Right-click: the object under the pointer is selected first unless it already is, then the
 /// context menu lists what applies to the selection ([`crate::menus::context_items`]). The locked
-/// objects under the pointer ([`vectorcraft_doc::hit::locked_objects_at`]) are kept in
+/// objects under the pointer ([`pluma_doc::hit::locked_objects_at`]) are kept in
 /// `ui.context_locked` while the menu is open, for its Unlock submenu. With the Intertwine tool, a
 /// right-click where three or more objects of the group overlap keeps the selection and puts what
-/// it arranges in `ui.context_intertwine` ([`vectorcraft_tools::intertwine::menu_target`]). With the
+/// it arranges in `ui.context_intertwine` ([`pluma_tools::intertwine::menu_target`]). With the
 /// Artboard tool, an artboard takes the place of the object ([`crate::panels::artboards::right_click`]).
-pub(super) fn context_menu(app: &mut VectorcraftApp, resp: &egui::Response, xf: &Xf) {
+pub(super) fn context_menu(app: &mut PlumaApp, resp: &egui::Response, xf: &Xf) {
     if resp.secondary_clicked()
         && let Some(p) = resp.interact_pointer_pos()
     {
         let p = xf.to_doc(p);
-        let locked = hit_with(app, p, xf.zoom, |doc, p, opt| Some(vectorcraft_doc::hit::locked_objects_at(doc, p, opt)));
+        let locked = hit_with(app, p, xf.zoom, |doc, p, opt| Some(pluma_doc::hit::locked_objects_at(doc, p, opt)));
         app.ui.context_locked = app.session.active().map(|st| st.uid).zip(locked);
         app.ui.context_intertwine = app
             .session
             .active()
             .filter(|_| app.session.tool_id() == "intertwine")
-            .and_then(|st| vectorcraft_tools::intertwine::menu_target(&st.doc, &st.selection.objects, p).map(|(g, m)| (st.uid, g, p, m)));
+            .and_then(|st| pluma_tools::intertwine::menu_target(&st.doc, &st.selection.objects, p).map(|(g, m)| (st.uid, g, p, m)));
         // Auto Spell Check: the underlined word right-clicked, for its suggestions.
         app.ui.context_spelling = if app.ui.view.auto_spell_check { super::tool_overlays::misspelled_word_at(app, p) } else { None };
         let on_artboards = app.session.tool_id() == "artboard";
@@ -54,7 +54,7 @@ pub(super) fn context_menu(app: &mut VectorcraftApp, resp: &egui::Response, xf: 
 /// Appearance panel's thumbnail gives the object (the topmost one hit) the appearance it carries
 /// (`appearance.copyFrom`), a graphic style is applied to it (`graphicStyle.apply`; with Alt, on
 /// top of its appearance). A chip follows the pointer meanwhile.
-pub(super) fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, xf: &Xf) {
+pub(super) fn panel_drop(app: &mut PlumaApp, ui: &Ui, resp: &egui::Response, xf: &Xf) {
     crate::panels::swatches::drag_preview(app, ui.ctx());
     let Some(pos) = ui.input(|i| i.pointer.interact_pos()) else { return };
     // Not through a floating panel over the canvas.
@@ -95,7 +95,7 @@ pub(super) fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Respons
                 return;
             }
             let mut params = params.clone();
-            params["ids"] = json!([vectorcraft_tools::xform::paint_owner(&st.doc, hit.leaf).0]);
+            params["ids"] = json!([pluma_tools::xform::paint_owner(&st.doc, hit.leaf).0]);
             params["focus"] = json!(false);
             (crate::panels::proxy_cmd(app, false), params)
         }
@@ -112,13 +112,13 @@ pub(super) fn panel_drop(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Respons
         }
         // A brush from the Brushes panel: the path it lands on takes it (a compound path as a whole).
         widgets::PanelDrag::Brush { name, .. } => {
-            ("brush.apply", json!({"name": name, "ids": [vectorcraft_tools::xform::paint_owner(&st.doc, hit.leaf).0]}))
+            ("brush.apply", json!({"name": name, "ids": [pluma_tools::xform::paint_owner(&st.doc, hit.leaf).0]}))
         }
         // A brush from a brush library panel: added to the document's Brushes and applied to the
         // path it lands on, in one step.
         widgets::PanelDrag::LibraryBrush { library, name } => (
             "brush.addFromLibrary",
-            json!({"library": library, "name": name, "apply": true, "ids": [vectorcraft_tools::xform::paint_owner(&st.doc, hit.leaf).0]}),
+            json!({"library": library, "name": name, "apply": true, "ids": [pluma_tools::xform::paint_owner(&st.doc, hit.leaf).0]}),
         ),
         // Art dragged back onto the canvas: its move was already dropped. (A symbol was placed
         // above.)

@@ -1,8 +1,8 @@
 //! `vector-effect="non-scaling-stroke"` on import: the stroke keeps its screen width and dashes
 //! whatever the transforms above it, on shapes and type; a warning where it can't be kept.
 
-use vectorcraft_doc::{Document, Node, NodeKind, TextObject};
-use vectorcraft_svg::import_with_report;
+use pluma_doc::{Document, Node, NodeKind, TextObject};
+use pluma_svg::import_with_report;
 
 /// The stroke width and dash pattern of the object named `name`.
 fn stroke(d: &Document, name: &str) -> (f64, Option<Vec<f64>>) {

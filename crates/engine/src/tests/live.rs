@@ -1,10 +1,10 @@
 //! Live blends, envelopes and gradient meshes, driven through `Session::execute`.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::live::{self, BlendOrientation, BlendSpacing, EnvelopeKind, PreserveShape};
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::live::{self, BlendOrientation, BlendSpacing, EnvelopeKind, PreserveShape};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::{Point, Rect};
 
 use crate::*;
 
@@ -57,8 +57,8 @@ fn steps_of(s: &Session, id: NodeId) -> Vec<Node> {
     live::expand_live(&node(s, id))
 }
 
-fn render(s: &Session, region: Rect) -> vectorcraft_render::Rendered {
-    vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 1.0, true)
+fn render(s: &Session, region: Rect) -> pluma_render::Rendered {
+    pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 1.0, true)
 }
 
 fn all_anchors(nodes: &[Node]) -> Vec<Point> {
@@ -860,7 +860,7 @@ fn envelope_transform_moves_mesh_points() {
     sel(&mut s, &[a]);
     let e = id_of(&s.execute("object.envelope.makeWithMesh", &json!({"rows": 1, "cols": 1})).unwrap());
     s.edit("move", |d, _| {
-        d.node_mut(e).unwrap().transform(vectorcraft_geom::Affine::translate((10.0, 20.0)), false);
+        d.node_mut(e).unwrap().transform(pluma_geom::Affine::translate((10.0, 20.0)), false);
         Ok(())
     })
     .unwrap();
@@ -872,7 +872,7 @@ fn envelope_transform_moves_mesh_points() {
 
 // ---------- Gradient mesh ----------
 
-fn mesh_of(s: &Session, id: NodeId) -> vectorcraft_doc::GradientMesh {
+fn mesh_of(s: &Session, id: NodeId) -> pluma_doc::GradientMesh {
     match &node(s, id).kind {
         NodeKind::Mesh(m) => m.clone(),
         k => panic!("{k:?}"),
@@ -938,7 +938,7 @@ fn mesh_point_colour_move_and_undo() {
     s.execute("object.mesh.movePoint", &json!({"id": a.0, "index": 3, "x": 120, "y": 130})).unwrap();
     assert_eq!(mesh_of(&s, a).points[3].p, Point::new(120.0, 130.0));
     s.execute("object.mesh.movePoint", &json!({"id": a.0, "index": 3, "x": 125, "y": 130, "handle": 1})).unwrap();
-    assert_eq!(mesh_of(&s, a).points[3].handles[1], vectorcraft_geom::Vec2::new(5.0, 0.0));
+    assert_eq!(mesh_of(&s, a).points[3].handles[1], pluma_geom::Vec2::new(5.0, 0.0));
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(mesh_of(&s, a).points[3].p, Point::new(100.0, 100.0));
@@ -1048,7 +1048,7 @@ fn mesh_add_line_and_delete_point() {
 #[test]
 fn mesh_add_line_on_the_edge_from_just_outside() {
     use crate::tooling::ViewInfo;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     let a = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
     sel(&mut s, &[a]);
@@ -1217,7 +1217,7 @@ fn mesh_hit_test_inside() {
     sel(&mut s, &[a]);
     s.execute("object.mesh.create", &json!({"rows": 2, "cols": 2})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let h = vectorcraft_doc::hit::hit_test(d, Point::new(50.0, 30.0), vectorcraft_doc::hit::HitOptions { tol: 1.0, ..Default::default() });
+    let h = pluma_doc::hit::hit_test(d, Point::new(50.0, 30.0), pluma_doc::hit::HitOptions { tol: 1.0, ..Default::default() });
     assert_eq!(h.map(|h| h.leaf), Some(a));
 }
 
@@ -1262,8 +1262,8 @@ fn live_doc() -> Session {
 fn live_objects_round_trip_through_native_format() {
     let s = live_doc();
     let d = &s.doc().unwrap().doc;
-    let bytes = vectorcraft_format::save(d, false);
-    let back = vectorcraft_format::load(&bytes).unwrap();
+    let bytes = pluma_format::save(d, false);
+    let back = pluma_format::load(&bytes).unwrap();
     assert_eq!(&back.layers, &d.layers);
     let mut kinds = vec![];
     back.walk(|n| kinds.push(n.kind_label()));
@@ -1275,18 +1275,18 @@ fn live_objects_round_trip_through_native_format() {
 #[test]
 fn svg_export_expands_live_objects() {
     let s = live_doc();
-    let svg = vectorcraft_svg::export(&s.doc().unwrap().doc, &Default::default());
+    let svg = pluma_svg::export(&s.doc().unwrap().doc, &Default::default());
     // 4 blend objects + envelope content + a piece for each of the 4 mesh patches (the mesh is
     // white, which its highlight leaves white, so a patch is one piece rather than 64 alike).
-    let paths = vectorcraft_testkit::svg_shapes(&svg);
+    let paths = pluma_testkit::svg_shapes(&svg);
     assert!(paths >= 4 + 1 + 4, "{paths}");
-    assert!(vectorcraft_svg::import(&svg).is_ok());
+    assert!(pluma_svg::import(&svg).is_ok());
 }
 
 #[test]
 fn pdf_export_expands_live_objects() {
     let s = live_doc();
-    let pdf = vectorcraft_pdf::export(&s.doc().unwrap().doc, &Default::default()).unwrap();
+    let pdf = pluma_pdf::export(&s.doc().unwrap().doc, &Default::default()).unwrap();
     assert!(pdf.starts_with(b"%PDF"));
 }
 
@@ -1294,7 +1294,7 @@ fn pdf_export_expands_live_objects() {
 fn old_documents_still_load() {
     let s = session();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, true)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, true)).unwrap();
     assert_eq!(back.layers.len(), d.layers.len());
 }
 
@@ -1340,11 +1340,11 @@ fn two_colour_image(s: &mut Session, clear_right: bool, linked: bool) -> NodeId 
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     s.edit("Place", |d, sel| {
-        d.images.insert("pic".into(), vectorcraft_doc::ImageBlob::png(png));
+        d.images.insert("pic".into(), pluma_doc::ImageBlob::png(png));
         let id = d.alloc_id();
-        let xf = vectorcraft_geom::Affine::translate((100.0, 50.0)) * vectorcraft_geom::Affine::scale(2.0);
-        let link = linked.then(|| vectorcraft_doc::LinkInfo { path: "/tmp/pic.png".into(), ..Default::default() });
-        let im = vectorcraft_doc::ImageObject { key: "pic".into(), width: 8, height: 4, xf, link, placement: Default::default(), pixels: None };
+        let xf = pluma_geom::Affine::translate((100.0, 50.0)) * pluma_geom::Affine::scale(2.0);
+        let link = linked.then(|| pluma_doc::LinkInfo { path: "/tmp/pic.png".into(), ..Default::default() });
+        let im = pluma_doc::ImageObject { key: "pic".into(), width: 8, height: 4, xf, link, placement: Default::default(), pixels: None };
         d.insert(d.default_layer(), 0, Node::new(id, NodeKind::Image(Box::new(im))))?;
         sel.set([id]);
         Ok(id)
@@ -1413,7 +1413,7 @@ fn cmyk_mesh(create: Value) -> (Session, NodeId) {
 /// back), and its warnings.
 fn pdf_fill_colours(s: &mut Session) -> (Vec<Vec<f32>>, Vec<String>) {
     let v = s.execute("document.exportPdf", &json!({"standard": "pdfX4", "compression": {"compressText": false}})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap();
     let text = String::from_utf8_lossy(&bytes).into_owned();
     let mut out = vec![];
     for line in text.lines() {
@@ -1428,7 +1428,7 @@ fn pdf_fill_colours(s: &mut Session) -> (Vec<Vec<f32>>, Vec<String>) {
             }
         }
     }
-    vectorcraft_pdf::import(&bytes).unwrap().walk(|n| {
+    pluma_pdf::import(&bytes).unwrap().walk(|n| {
         if let NodeKind::Mesh(m) = &n.kind {
             out.extend(m.points.iter().map(|p| match p.color {
                 Color::Cmyk { c, m, y, k } => vec![c, m, y, k],

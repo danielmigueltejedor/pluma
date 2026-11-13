@@ -1,5 +1,5 @@
 use egui::{Event, Modifiers, PointerButton};
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::super::tests_long_popups::{PopupWindow, assert_last_row_scrolls_into_view, assert_short_list_does_not_scroll};
 use super::*;
@@ -94,8 +94,8 @@ fn dragged_stops_move_copy_or_swap() {
 // ---------- headless frames ----------
 
 /// A selected rectangle filled with `fill` (`paint.setFill` params).
-fn app(fill: Value) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app(fill: Value) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
     app.run("paint.setFill", fill).unwrap();
@@ -117,18 +117,12 @@ impl Panel {
     }
 
     /// One frame with `events` (and `modifiers` held); returns the texts drawn and where.
-    fn frame(&mut self, app: &mut VectorcraftApp, events: Vec<Event>, modifiers: Modifiers) -> Vec<(String, Pos2)> {
+    fn frame(&mut self, app: &mut PlumaApp, events: Vec<Event>, modifiers: Modifiers) -> Vec<(String, Pos2)> {
         self.frame_of(app, events, modifiers, show)
     }
 
     /// [`Self::frame`] drawing `draw` (the panel, or its menu) instead of the panel.
-    fn frame_of(
-        &mut self,
-        app: &mut VectorcraftApp,
-        events: Vec<Event>,
-        modifiers: Modifiers,
-        draw: fn(&mut VectorcraftApp, &mut Ui),
-    ) -> Vec<(String, Pos2)> {
+    fn frame_of(&mut self, app: &mut PlumaApp, events: Vec<Event>, modifiers: Modifiers, draw: fn(&mut PlumaApp, &mut Ui)) -> Vec<(String, Pos2)> {
         fn texts(s: &egui::Shape, out: &mut Vec<(String, Pos2)>) {
             match s {
                 egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.pos + t.galley.rect.center().to_vec2())),
@@ -168,12 +162,12 @@ impl Panel {
         matches[0]
     }
 
-    fn click(&mut self, app: &mut VectorcraftApp, at: Pos2) -> Vec<(String, Pos2)> {
+    fn click(&mut self, app: &mut PlumaApp, at: Pos2) -> Vec<(String, Pos2)> {
         self.click_with(app, at, Modifiers::NONE)
     }
 
     /// A click at `at` with `m` held.
-    fn click_with(&mut self, app: &mut VectorcraftApp, at: Pos2, m: Modifiers) -> Vec<(String, Pos2)> {
+    fn click_with(&mut self, app: &mut PlumaApp, at: Pos2, m: Modifiers) -> Vec<(String, Pos2)> {
         let b = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: m };
         self.frame(app, vec![Event::PointerMoved(at), b(true)], m);
         self.frame(app, vec![b(false)], m);
@@ -181,7 +175,7 @@ impl Panel {
     }
 
     /// A click at `at` on the panel menu (drawn alone); returns the menu's texts after it.
-    fn menu_click(&mut self, app: &mut VectorcraftApp, at: Pos2) -> Vec<(String, Pos2)> {
+    fn menu_click(&mut self, app: &mut PlumaApp, at: Pos2) -> Vec<(String, Pos2)> {
         let b = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
         self.frame_of(app, vec![Event::PointerMoved(at), b(true)], Modifiers::NONE, menu);
         self.frame_of(app, vec![b(false)], Modifiers::NONE, menu);
@@ -220,7 +214,7 @@ impl Panel {
     }
 
     /// Press at `from`, move to `to` in steps and release there, with `m` held.
-    fn drag(&mut self, app: &mut VectorcraftApp, from: Pos2, to: Pos2, m: Modifiers) {
+    fn drag(&mut self, app: &mut PlumaApp, from: Pos2, to: Pos2, m: Modifiers) {
         let b = |at, pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: m };
         self.frame(app, vec![Event::PointerMoved(from), b(from, true)], m);
         for k in 1..=4 {
@@ -231,14 +225,14 @@ impl Panel {
     }
 }
 
-fn fill(app: &VectorcraftApp) -> GradientPaint {
+fn fill(app: &PlumaApp) -> GradientPaint {
     match crate::panels::current_paints(app).0 {
         Paint::Gradient(g) => *g,
         p => panic!("expected a gradient fill, got {p:?}"),
     }
 }
 
-fn hexes(app: &VectorcraftApp) -> Vec<String> {
+fn hexes(app: &PlumaApp) -> Vec<String> {
     fill(app).gradient.stops.iter().map(|s| s.color.to_hex()).collect()
 }
 
@@ -265,7 +259,7 @@ fn the_stroke_buttons_lay_the_gradient_within_along_or_across_the_stroke() {
     let mut app = app(json!({"gradient": {}}));
     app.run("paint.setStroke", json!({"gradient": {}, "focus": false})).unwrap();
     assert!(app.session.fill_active);
-    let mode = |app: &VectorcraftApp| app.session.shown_stroke().unwrap().gradient_mode;
+    let mode = |app: &PlumaApp| app.session.shown_stroke().unwrap().gradient_mode;
     let mut p = Panel::new();
     let texts = p.frame(&mut app, vec![], Modifiers::NONE);
     let label = texts.iter().find(|(t, _)| t == "Stroke:").expect("the Stroke buttons").1;
@@ -426,7 +420,7 @@ fn cmd_click_on_the_gradient_fill_box_with_the_options_hidden() {
 fn cmd_click_on_the_gradient_fill_box_gives_an_unpainted_stroke_its_weight() {
     let mut app = app(json!({"color": "#336699"}));
     app.run("paint.setStroke", json!({"none": true})).unwrap();
-    let stroke = |app: &VectorcraftApp| {
+    let stroke = |app: &PlumaApp| {
         let st = app.session.doc().unwrap();
         let n = st.doc.node(st.selection.objects[0]).unwrap();
         n.appearance.stroke().map(|s| (s.paint.clone(), s.width)).unwrap()
@@ -447,15 +441,15 @@ fn cmd_click_on_the_gradient_fill_box_gives_an_unpainted_stroke_its_weight() {
 /// only those characters the White, Black gradient, as one undo step.
 #[test]
 fn cmd_click_on_the_gradient_fill_box_resets_only_the_selected_characters() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app.session.select_tool("type", Default::default()).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Sample Text", "size": 24})).unwrap()["id"].clone();
     let id = NodeId(id.as_u64().unwrap());
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 0, "end": 6}));
-    let runs = |app: &VectorcraftApp| match app.session.doc().unwrap().doc.node(id).map(|n| &n.kind) {
-        Some(vectorcraft_doc::NodeKind::Text(t)) => t.runs.iter().map(|r| (r.text.clone(), r.style.fill.clone())).collect::<Vec<_>>(),
+    let runs = |app: &PlumaApp| match app.session.doc().unwrap().doc.node(id).map(|n| &n.kind) {
+        Some(pluma_doc::NodeKind::Text(t)) => t.runs.iter().map(|r| (r.text.clone(), r.style.fill.clone())).collect::<Vec<_>>(),
         k => panic!("expected type, got {k:?}"),
     };
     let before = runs(&app)[0].1.clone();
@@ -481,7 +475,7 @@ fn alt_drag_copies_a_stop_and_alt_dropping_on_a_stop_swaps_colours() {
     p.frame(&mut app, vec![], Modifiers::NONE);
     let (a, b) = (p.widget(("grad-stop", 0_usize)).center(), p.widget(("grad-stop", 1_usize)).center());
     let mid = pos2((a.x + b.x) / 2.0, a.y);
-    let offsets = |app: &VectorcraftApp| fill(app).gradient.stops.iter().map(|s| (s.offset * 10.0).round() / 10.0).collect::<Vec<_>>();
+    let offsets = |app: &PlumaApp| fill(app).gradient.stops.iter().map(|s| (s.offset * 10.0).round() / 10.0).collect::<Vec<_>>();
     // A plain drag moves the stop.
     p.drag(&mut app, a, mid, Modifiers::NONE);
     assert_eq!(offsets(&app), [0.5, 1.0]);
@@ -505,7 +499,7 @@ fn a_dropped_swatch_adds_or_recolours_a_stop() {
     let mut p = Panel::new();
     p.frame(&mut app, vec![], Modifiers::NONE);
     let (a, b) = (p.widget(("grad-stop", 0_usize)).center(), p.widget(("grad-stop", 1_usize)).center());
-    let drop = |p: &mut Panel, app: &mut VectorcraftApp, at: Pos2| {
+    let drop = |p: &mut Panel, app: &mut PlumaApp, at: Pos2| {
         egui::DragAndDrop::set_payload(&p.ctx, PanelDrag::paint(Paint::solid(Color::rgb(1.0, 0.0, 0.0))));
         p.frame(app, vec![Event::PointerMoved(at)], Modifiers::NONE);
         let up = Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE };
@@ -583,7 +577,7 @@ fn the_freeform_color_swatch_opens_the_points_popover() {
         (d.kind.as_str(), &d.fields["index"], &d.fields["screen"]),
         ("gradientStop", &json!(1), &json!([swatch.left(), swatch.bottom() + 4.0]))
     );
-    let points = |app: &VectorcraftApp| shown_points(&fill(app)).points.iter().map(|p| p.color.to_hex()).collect::<Vec<_>>();
+    let points = |app: &PlumaApp| shown_points(&fill(app)).points.iter().map(|p| p.color.to_hex()).collect::<Vec<_>>();
     let before = points(&app);
     app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!("#ff0000"));
     crate::dialogs::confirm(&mut app).unwrap();
@@ -610,7 +604,7 @@ fn angle_and_aspect_fields_are_named() {
     let app = app(json!({"gradient": {}}));
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(280.0, 640.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -630,10 +624,10 @@ fn angle_and_aspect_fields_are_named() {
 fn the_stop_popover_has_an_eyedropper_for_a_stop() {
     use egui_kittest::kittest::Queryable;
     const TIP: &str = "Eyedropper: click the art to sample the stop's colour";
-    let harness = |app: VectorcraftApp| {
+    let harness = |app: PlumaApp| {
         let mut fonts = false;
         egui_kittest::Harness::builder().with_size(egui::vec2(800.0, 700.0)).with_accessibility_check(false).build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !std::mem::replace(&mut fonts, true) {
                     crate::theme::install_fonts(ui.ctx());
                     return;

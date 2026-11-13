@@ -4,7 +4,7 @@
 //! ([helpx: maintain proportions while scaling symbols](https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/maintain-proportions-while-scaling-symbols.html)).
 //! New guides sit a quarter of the symbol's width and height in from each edge.
 //!
-//! VectorCraft's own rules: the corners keep their size, the top and bottom edges stretch only in
+//! Pluma's own rules: the corners keep their size, the top and bottom edges stretch only in
 //! width, the left and right edges only in height, and the center in both. When the instance is
 //! smaller than its two outer cells on an axis, both shrink in proportion and the center is empty.
 //! The cells are sized along the symbol's own axes, and the instance's rotation, shear, reflection
@@ -19,9 +19,9 @@
 
 use std::sync::Arc;
 
+use pluma_color::Paint;
+use pluma_geom::{Affine, Anchor, CubicBez, FillRule, ParamCurve, PathData, Point, Rect, SubPath, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_geom::{Affine, Anchor, CubicBez, FillRule, ParamCurve, PathData, Point, Rect, SubPath, shapes};
 
 use crate::{Appearance, Document, MAX_SYMBOL_NODES, Node, NodeId, NodeKind, SymbolBoxes};
 
@@ -85,7 +85,7 @@ impl NineSliceGuide {
 }
 
 /// The narrowest center band a guide dragged toward the opposite guide leaves, as a fraction of
-/// the art's width or height (VectorCraft's own rule).
+/// the art's width or height (Pluma's own rule).
 pub const MIN_CENTER_BAND: f64 = 0.001;
 
 /// The 9-slice guides of the symbol edited in symbol editing mode, over its art on the editing
@@ -264,7 +264,7 @@ impl AxisMap {
 /// How an instance of a symbol with 9-slice guides places its art: a map from symbol space to
 /// document space that is affine within each of the nine cells and continuous across the guides.
 /// The guides cut the art along the symbol's own axes; the instance's rotation, shear, reflection
-/// and position apply after the cells are sized (VectorCraft's own rule).
+/// and position apply after the cells are sized (Pluma's own rule).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NineSliceMap {
     /// Symbol space → the art at its natural size (an axis-aligned scale).
@@ -411,7 +411,7 @@ impl NineSliceMap {
     }
 
     /// Symbol art `art` (in symbol space) placed in document space, its instances measured with
-    /// the symbols of `doc`. VectorCraft's own rules:
+    /// the symbols of `doc`. Pluma's own rules:
     ///
     /// - An object whose geometric box lies in one cell is placed by that cell's map, so an
     ///   object in a corner keeps its size and stays as it is (live shapes, type and images
@@ -596,7 +596,7 @@ impl NineSliceMap {
         let effects = own.split_off(keep);
         let (opacity, blend, isolate) = (piece.opacity, piece.blend, piece.isolate);
         if !effects.is_empty() {
-            (piece.opacity, piece.blend, piece.isolate) = (1.0, vectorcraft_color::BlendMode::Normal, false);
+            (piece.opacity, piece.blend, piece.isolate) = (1.0, pluma_color::BlendMode::Normal, false);
         }
         let n = &piece;
         let ((cols, rows), v) = self.clip_cells(n, boxes, b);
@@ -692,7 +692,7 @@ fn crossings(c: CubicBez, xs: &[f64; 2], ys: &[f64; 2]) -> Vec<f64> {
     let mut ts = vec![];
     for (k, cuts) in [(cx, xs), (cy, ys)] {
         for v in cuts {
-            for t in vectorcraft_geom::kurbo::common::solve_cubic(k[0] - v, k[1], k[2], k[3]) {
+            for t in pluma_geom::kurbo::common::solve_cubic(k[0] - v, k[1], k[2], k[3]) {
                 if t.is_finite() && t > 1e-9 && t < 1.0 - 1e-9 {
                     ts.push(t);
                 }
@@ -779,8 +779,8 @@ impl Document {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-    use vectorcraft_geom::{Vec2, shapes};
+    use pluma_color::{Color, Gradient, GradientPaint, Paint};
+    use pluma_geom::{Vec2, shapes};
 
     use super::*;
     use crate::{Appearance, ImageObject, OpacityMask, PatternDef, PlacedDocument, SYMBOL_SIZES, Symbol};
@@ -1094,11 +1094,11 @@ mod tests {
         let round = crate::Effect { id: "stylize.roundCorners".into(), params: json!({"radius": 4}), visible: true };
         let feather = crate::Effect { id: "stylize.feather".into(), params: json!({"radius": 3}), visible: true };
         bar.appearance.effects = vec![round.clone(), feather.clone(), shadow.clone()];
-        (bar.opacity, bar.blend, bar.isolate) = (0.5, vectorcraft_color::BlendMode::Multiply, true);
+        (bar.opacity, bar.blend, bar.isolate) = (0.5, pluma_color::BlendMode::Multiply, true);
         let m = d.symbol_slice_map("S", Affine::scale_non_uniform(2.0, 1.5)).unwrap();
         let p = m.place(&bar, &d);
         assert_eq!(p.appearance.effects, vec![shadow.clone()]);
-        assert_eq!((p.opacity, p.blend, p.isolate), (0.5, vectorcraft_color::BlendMode::Multiply, true));
+        assert_eq!((p.opacity, p.blend, p.isolate), (0.5, pluma_color::BlendMode::Multiply, true));
         let cells = p.children().unwrap();
         assert_eq!(cells.len(), 3, "{p:?}");
         // The copies keep the effects that reshape them or follow their outline.
@@ -1297,7 +1297,7 @@ mod tests {
         one_piece(&d, &inline);
         // A placed document.
         let doc = PlacedDocument {
-            link: crate::LinkInfo::new("/art/logo.vectorcraft"),
+            link: crate::LinkInfo::new("/art/logo.pluma"),
             key: "k".into(),
             bounding: false,
             page_box: crate::PageBox::Crop,

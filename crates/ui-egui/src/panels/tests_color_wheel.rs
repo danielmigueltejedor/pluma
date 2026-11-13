@@ -6,17 +6,17 @@ use egui::accesskit::{Action, ActionData, ActionRequest};
 use egui::{Event, Modifiers, PointerButton, Pos2, Rect, vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
+use pluma_color::cms::{self, Cms, ColorSettings, delta_e2000};
+use pluma_color::{Color, Paint};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_color::cms::{self, Cms, ColorSettings, delta_e2000};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_engine::Session;
 
 use super::color_wheel::{ID, display_hsb, remembered_hsb, show, stored};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// An app with a selected rectangle filled with `fill`.
-fn app(fill: serde_json::Value) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app(fill: serde_json::Value) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app.run("paint.setFill", json!({"color": fill})).unwrap();
@@ -24,9 +24,9 @@ fn app(fill: serde_json::Value) -> VectorcraftApp {
 }
 
 /// The panel in a 260-point-wide flyout, with the app's shortcuts after it as in a frame of the app.
-fn harness(app: VectorcraftApp) -> Harness<'static, VectorcraftApp> {
+fn harness(app: PlumaApp) -> Harness<'static, PlumaApp> {
     let mut h = Harness::builder().with_size(vec2(260.0, 320.0)).build_ui_state(
-        |ui, app: &mut VectorcraftApp| {
+        |ui, app: &mut PlumaApp| {
             show(app, ui);
             crate::shortcuts::handle(app, ui.ctx());
         },
@@ -36,7 +36,7 @@ fn harness(app: VectorcraftApp) -> Harness<'static, VectorcraftApp> {
     h
 }
 
-fn rect_of(h: &Harness<'static, VectorcraftApp>, label: &str) -> Rect {
+fn rect_of(h: &Harness<'static, PlumaApp>, label: &str) -> Rect {
     h.get_by_label(label).rect()
 }
 
@@ -52,14 +52,14 @@ fn in_square(sq: Rect, x: f32, y: f32) -> Pos2 {
     Pos2::new(sq.left() + x * sq.width(), sq.bottom() - y * sq.height())
 }
 
-fn press(h: &mut Harness<'static, VectorcraftApp>, pos: Pos2, pressed: bool, modifiers: Modifiers) {
+fn press(h: &mut Harness<'static, PlumaApp>, pos: Pos2, pressed: bool, modifiers: Modifiers) {
     h.event(Event::ModifiersChanged(modifiers));
     h.event(Event::PointerMoved(pos));
     h.event(Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers });
     h.run_steps(1);
 }
 
-fn click(h: &mut Harness<'static, VectorcraftApp>, pos: Pos2, modifiers: Modifiers) {
+fn click(h: &mut Harness<'static, PlumaApp>, pos: Pos2, modifiers: Modifiers) {
     press(h, pos, true, modifiers);
     press(h, pos, false, modifiers);
     h.event(Event::ModifiersChanged(Modifiers::NONE));
@@ -68,7 +68,7 @@ fn click(h: &mut Harness<'static, VectorcraftApp>, pos: Pos2, modifiers: Modifie
 
 /// A click whose press and release come in one frame (`Harness::event` gives each event a frame of
 /// its own).
-fn quick_click(h: &mut Harness<'static, VectorcraftApp>, pos: Pos2) {
+fn quick_click(h: &mut Harness<'static, PlumaApp>, pos: Pos2) {
     h.event(Event::PointerMoved(pos));
     h.run_steps(1);
     let button = |pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
@@ -77,7 +77,7 @@ fn quick_click(h: &mut Harness<'static, VectorcraftApp>, pos: Pos2) {
 }
 
 /// A drag through `points`, pressed at the first and released at the last.
-fn drag(h: &mut Harness<'static, VectorcraftApp>, points: &[Pos2], modifiers: Modifiers) {
+fn drag(h: &mut Harness<'static, PlumaApp>, points: &[Pos2], modifiers: Modifiers) {
     let (Some(first), Some(last)) = (points.first(), points.last()) else { return };
     press(h, *first, true, modifiers);
     for p in points {
@@ -91,12 +91,12 @@ fn drag(h: &mut Harness<'static, VectorcraftApp>, points: &[Pos2], modifiers: Mo
     h.run_steps(1);
 }
 
-fn key(h: &mut Harness<'static, VectorcraftApp>, key: egui::Key, modifiers: Modifiers) {
+fn key(h: &mut Harness<'static, PlumaApp>, key: egui::Key, modifiers: Modifiers) {
     h.key_press_modifiers(modifiers, key);
     h.run_steps(1);
 }
 
-fn fill(app: &VectorcraftApp) -> Color {
+fn fill(app: &PlumaApp) -> Color {
     crate::panels::current_paints(app).0.color().expect("a solid fill")
 }
 
@@ -108,7 +108,7 @@ fn near(a: [f32; 3], b: [f32; 3], tol: [f32; 3]) -> bool {
     (0..3).all(|i| (a[i] - b[i]).abs() <= tol[i])
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
@@ -320,9 +320,8 @@ fn the_remembered_hue_stays_with_its_appearance_item() {
     let mut h = harness(app);
     let sq = rect_of(&h, "Saturation and brightness");
     drag(&mut h, &[in_square(sq, 0.995, 0.995), Pos2::new(sq.left() - 5.0, sq.top() - 3.0)], Modifiers::NONE);
-    let item_fill = |app: &VectorcraftApp, index| {
-        app.session.doc().unwrap().doc.node(id).unwrap().appearance.fill_at(Some(index)).unwrap().paint.color().unwrap()
-    };
+    let item_fill =
+        |app: &PlumaApp, index| app.session.doc().unwrap().doc.node(id).unwrap().appearance.fill_at(Some(index)).unwrap().paint.color().unwrap();
     assert_eq!(item_fill(h.state(), 0), Color::WHITE);
     assert_eq!(item_fill(h.state(), 2), Color::WHITE);
     h.state_mut().run("appearance.setActiveItem", json!({"index": 2})).unwrap();
@@ -337,7 +336,7 @@ fn the_remembered_hue_stays_with_its_appearance_item() {
 /// The next range of the same color starts with its own hue.
 #[test]
 fn the_remembered_hue_stays_with_its_text_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 10, "y": 100, "text": "AB", "color": "#00ff00"})).unwrap()["id"].as_u64().unwrap();
     app.run("text.setRangeStyle", json!({"id": id, "start": 1, "end": 2, "fill": "#ffffff"})).unwrap();
@@ -349,8 +348,8 @@ fn the_remembered_hue_stays_with_its_text_selection() {
     h.state_mut().session.set_tool_option("textSelection", &json!({"id": id, "start": 1, "end": 2}));
     h.run_steps(1);
     click(&mut h, in_square(sq, 0.995, 0.995), Modifiers::NONE);
-    let node = h.state().session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!("still text") };
+    let node = h.state().session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap();
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!("still text") };
     assert_eq!(t.runs.first().unwrap().style.fill.color(), Some(Color::WHITE));
     let hue = hsb(&t.runs.last().unwrap().style.fill.color().unwrap())[0];
     assert!(!(1.0..359.0).contains(&hue), "the second character's own hue is 0°, not 120°: {hue}");
@@ -465,7 +464,7 @@ fn the_arrow_keys_step_the_focused_ring_or_square() {
     assert!(near(after, [before[0], before[1] + 0.01, before[2] + 0.01], [1e-3, 1e-4, 1e-4]), "{before:?} → {after:?}");
     // The tool keys wait while a control has the focus.
     let tool = h.state().session.tool_id().to_string();
-    let p = |h: &mut Harness<'static, VectorcraftApp>| {
+    let p = |h: &mut Harness<'static, PlumaApp>| {
         h.event(Event::Key { key: egui::Key::P, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
         h.event(Event::Text("p".into()));
         h.run_steps(1);
@@ -551,7 +550,7 @@ fn the_color_pickers_field_takes_the_arrow_keys() {
     app.run("ui.colorPicker", json!({})).unwrap();
     let mut fonts = false;
     let mut h = Harness::builder().with_size(vec2(1000.0, 800.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             // The fonts take effect from the next frame.
             if !fonts {
                 crate::theme::install_fonts(ui.ctx());
@@ -566,7 +565,7 @@ fn the_color_pickers_field_takes_the_arrow_keys() {
     let field = rect_of(&h, "Color field");
     assert_eq!(h.get_by_label("Color field").value().as_deref(), Some("Saturation 50%, Brightness 60%"));
     click(&mut h, field.center(), Modifiers::NONE);
-    let picked = |h: &Harness<'static, VectorcraftApp>| -> [f32; 3] {
+    let picked = |h: &Harness<'static, PlumaApp>| -> [f32; 3] {
         serde_json::from_value(h.state().ui.dialog.as_ref().unwrap().fields["__hsb"].clone()).unwrap()
     };
     let before = picked(&h);

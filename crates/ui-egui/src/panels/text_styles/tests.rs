@@ -1,5 +1,5 @@
 use super::*;
-use vectorcraft_doc::{NodeId, NodeKind};
+use pluma_doc::{NodeId, NodeKind};
 
 use super::super::tests_appearance::{click, frame_events, frame_raw, text_rect};
 
@@ -15,7 +15,7 @@ fn current_style_highlight_has_a_separate_indicator() {
 
 #[test]
 fn panels_draw_and_apply_headless() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi"})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -35,7 +35,7 @@ fn panels_draw_and_apply_headless() {
 
 #[test]
 fn auto_leading_style_marks_only_real_overrides() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("text.create", json!({"x": 10, "y": 40, "text": "Hi"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -55,7 +55,7 @@ fn auto_leading_style_marks_only_real_overrides() {
 /// the type they were made from shows no override until one of those attributes changes.
 #[test]
 fn styles_made_from_type_mark_only_real_overrides() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("text.create", json!({"x": 10, "y": 40, "text": "Hi"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -75,8 +75,8 @@ fn styles_made_from_type_mark_only_real_overrides() {
 }
 
 /// A document with type that both kinds' style `Body` is applied to, the type selected.
-fn drag_app() -> (VectorcraftApp, NodeId) {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn drag_app() -> (PlumaApp, NodeId) {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = NodeId(app.run("text.create", json!({"x": 20, "y": 50, "text": "Hi", "size": 18})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [id.0]})).unwrap();
@@ -91,9 +91,9 @@ fn drag_app() -> (VectorcraftApp, NodeId) {
 /// `from_right` points left of the panel's right edge (Create New Style: 40, Delete: 12), and
 /// release it there. `other`: once the drag has started, a row of the other panel is dragged in its
 /// place. → whether the button was outlined while the row was held over it.
-fn drag_row_onto_footer(ctx: &egui::Context, app: &mut VectorcraftApp, kind: Kind, label: &str, from_right: f32, other: bool) -> bool {
+fn drag_row_onto_footer(ctx: &egui::Context, app: &mut PlumaApp, kind: Kind, label: &str, from_right: f32, other: bool) -> bool {
     let button = std::cell::Cell::new(egui::Pos2::ZERO);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| {
         ui.set_width(280.0);
         let right = ui.max_rect().right();
         show(app, ui, kind);
@@ -184,8 +184,8 @@ fn dragging_a_style_onto_delete_deletes_it() {
     }
 }
 
-fn capture_app() -> (VectorcraftApp, NodeId, egui::Context) {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn capture_app() -> (PlumaApp, NodeId, egui::Context) {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     app.run("charStyle.new", json!({"name": "Untouched", "attrs": {"size": 22}})).unwrap();
     let other = app.run("text.create", json!({"x": 20, "y": 100, "text": "Other", "size": 22})).unwrap()["id"].clone();
@@ -198,10 +198,10 @@ fn capture_app() -> (VectorcraftApp, NodeId, egui::Context) {
     (app, id, ctx)
 }
 
-fn select_type_range(app: &mut VectorcraftApp, id: NodeId, start: usize, end: usize) {
+fn select_type_range(app: &mut PlumaApp, id: NodeId, start: usize, end: usize) {
     // The same editing handshake and selection API as character::tests::scaled_range_fields_follow_the_type_tool_selection.
     app.session.select_tool("type", Default::default()).unwrap();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": start, "end": end}));
     super::super::character::end_typing(app);
     assert_eq!(app.session.tool_options()["typing"], json!(false));
@@ -211,7 +211,7 @@ fn select_type_range(app: &mut VectorcraftApp, id: NodeId, start: usize, end: us
 
 /// Click production panel/menu content with the existing hover/press/release helper.
 /// A live range guard and command counter distinguish a dispatch failure from a missed click or lost Type selection.
-fn click_style_ui(ctx: &egui::Context, app: &mut VectorcraftApp, id: NodeId, range: Option<(usize, usize)>, is_menu: bool, label: &str) {
+fn click_style_ui(ctx: &egui::Context, app: &mut PlumaApp, id: NodeId, range: Option<(usize, usize)>, is_menu: bool, label: &str) {
     let expected = range.map(|(start, end)| (id, start, end));
     let mut expected_target = json!({});
     if let Some((start, end)) = range {
@@ -223,7 +223,7 @@ fn click_style_ui(ctx: &egui::Context, app: &mut VectorcraftApp, id: NodeId, ran
     }
     let commands = app.run_count;
     let mut dispatched = false;
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| {
         // On the release frame this is immediately before the production menu/row handles the click and builds its target.
         assert_eq!(text_editing(app), expected, "Type selection before {label}");
         assert_eq!(target(app, Kind::Char, json!({})), expected_target, "actual panel target before {label}");
@@ -252,7 +252,7 @@ fn click_style_ui(ctx: &egui::Context, app: &mut VectorcraftApp, id: NodeId, ran
 
 /// Click `label` where `draw` paints it (a style row of the panel, or a panel menu item with
 /// its three-space prefix). → how many commands the click ran.
-fn click_label(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, mut draw: impl FnMut(&mut VectorcraftApp, &mut egui::Ui)) -> u64 {
+fn click_label(ctx: &egui::Context, app: &mut PlumaApp, label: &str, mut draw: impl FnMut(&mut PlumaApp, &mut egui::Ui)) -> u64 {
     frame_events(ctx, app, vec![], &mut draw);
     let texts = frame_events(ctx, app, vec![], &mut draw);
     let pos = text_rect(&texts, label).center();
@@ -267,14 +267,14 @@ fn click_label(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, mut d
 #[test]
 fn double_clicking_a_character_style_row_opens_its_options() {
     for kind in [Kind::Char, Kind::Para] {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 150})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 40, "text": "Hi"})).unwrap()["id"].clone();
         app.run("select.set", json!({"ids": [id]})).unwrap();
         app.run(&format!("{}.new", kind.prefix()), json!({"name": "Body"})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| show(app, ui, kind);
+        let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| show(app, ui, kind);
         frame_events(&ctx, &mut app, vec![], &mut draw);
         let texts = frame_events(&ctx, &mut app, vec![], &mut draw);
         let pos = text_rect(&texts, "Body").center();
@@ -303,13 +303,13 @@ fn double_clicking_a_character_style_row_opens_its_options() {
 /// only once, as a user style's does.
 #[test]
 fn double_clicking_the_normal_style_opens_no_options() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 150})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 40, "text": "Hi"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| show(app, ui, Kind::Char);
+    let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| show(app, ui, Kind::Char);
     frame_events(&ctx, &mut app, vec![], &mut draw);
     let texts = frame_events(&ctx, &mut app, vec![], &mut draw);
     let normal = texts.iter().find(|(text, _)| text.contains("Normal")).map(|(_, r)| r.center());
@@ -326,13 +326,13 @@ fn double_clicking_the_normal_style_opens_no_options() {
 #[test]
 fn panel_menu_duplicate_and_delete_update_the_highlighted_style() {
     for kind in [Kind::Char, Kind::Para] {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app.run(&format!("{}.new", kind.prefix()), json!({"name": "Body"})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let what = kind.what();
-        let has = |app: &mut VectorcraftApp, name: &str| styles(app, kind).iter().any(|s| s.0 == name);
+        let has = |app: &mut PlumaApp, name: &str| styles(app, kind).iter().any(|s| s.0 == name);
         let highlighted = |ctx: &egui::Context| pstate::<Option<String>>(ctx, kind.key());
         click_label(&ctx, &mut app, "Body", |app, ui| show(app, ui, kind));
         assert_eq!(highlighted(&ctx).as_deref(), Some("Body"), "{what}: clicking the row highlights it");
@@ -353,7 +353,7 @@ fn panel_menu_duplicate_and_delete_update_the_highlighted_style() {
 
 #[test]
 fn character_style_options_menu_opens_format_sections() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("charStyle.new", json!({"name": "Body", "attrs": {"size": 24.0}})).unwrap();
     let ctx = egui::Context::default();
@@ -374,7 +374,7 @@ fn a_style_made_from_the_panel_is_scrolled_into_view() {
     for kind in [Kind::Char, Kind::Para] {
         let what = kind.what();
         for from_menu in [true, false] {
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
             app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
             app.run(&format!("{}.new", kind.prefix()), json!({"name": "Body"})).unwrap();
             for i in 1..=12 {
@@ -382,7 +382,7 @@ fn a_style_made_from_the_panel_is_scrolled_into_view() {
             }
             let ctx = egui::Context::default();
             crate::theme::install_fonts(&ctx);
-            let panel = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+            let panel = |app: &mut PlumaApp, ui: &mut egui::Ui| {
                 egui::ScrollArea::vertical().id_salt("styles").max_height(80.0).show(ui, |ui| show(app, ui, kind));
             };
             let before = frame_events(&ctx, &mut app, vec![], panel);
@@ -417,7 +417,7 @@ fn a_style_made_from_the_panel_is_scrolled_into_view() {
 fn a_highlighted_style_that_is_no_longer_listed_is_not_highlighted() {
     for kind in [Kind::Char, Kind::Para] {
         for (change, p) in [("rename", json!({"name": "Body", "to": "Heading"})), ("delete", json!({"name": "Body"}))] {
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
             app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
             app.run(&format!("{}.new", kind.prefix()), json!({"name": "Body"})).unwrap();
             let ctx = egui::Context::default();
@@ -434,7 +434,7 @@ fn a_highlighted_style_that_is_no_longer_listed_is_not_highlighted() {
     }
 }
 
-fn text_runs(app: &VectorcraftApp, id: NodeId) -> Vec<(String, f64, Option<String>)> {
+fn text_runs(app: &PlumaApp, id: NodeId) -> Vec<(String, f64, Option<String>)> {
     let st = app.session.doc().unwrap();
     let NodeKind::Text(text) = &st.doc.node(id).unwrap().kind else { panic!("expected text") };
     text.runs.iter().map(|r| (r.text.clone(), r.style.size, r.style.style_name.clone())).collect()
@@ -590,8 +590,8 @@ fn character_style_range_apply_from_panel_control() {
 }
 
 /// A document with selected type and both kinds' styles A, B, C and D, the type using B.
-fn several_app() -> (VectorcraftApp, NodeId) {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn several_app() -> (PlumaApp, NodeId) {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = NodeId(app.run("text.create", json!({"x": 20, "y": 50, "text": "Hi", "size": 18})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [id.0]})).unwrap();
@@ -605,13 +605,7 @@ fn several_app() -> (VectorcraftApp, NodeId) {
 }
 
 /// Click the text `label` that `draw` paints, with `modifiers` held.
-fn click_text_held(
-    ctx: &egui::Context,
-    app: &mut VectorcraftApp,
-    label: &str,
-    modifiers: egui::Modifiers,
-    draw: impl FnMut(&mut VectorcraftApp, &mut egui::Ui),
-) {
+fn click_text_held(ctx: &egui::Context, app: &mut PlumaApp, label: &str, modifiers: egui::Modifiers, draw: impl FnMut(&mut PlumaApp, &mut egui::Ui)) {
     click_where(ctx, app, |texts| text_rect(texts, label).center(), modifiers, draw);
 }
 
@@ -619,10 +613,10 @@ fn click_text_held(
 /// (hover, press, release) after two frames that lay them out.
 fn click_where(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     at: impl FnOnce(&[(String, egui::Rect)]) -> egui::Pos2,
     modifiers: egui::Modifiers,
-    mut draw: impl FnMut(&mut VectorcraftApp, &mut egui::Ui),
+    mut draw: impl FnMut(&mut PlumaApp, &mut egui::Ui),
 ) {
     let held = egui::Event::ModifiersChanged(modifiers);
     frame_events(ctx, app, vec![held.clone()], &mut draw);
@@ -635,7 +629,7 @@ fn click_where(
 }
 
 /// The styles `kind`'s panel highlights.
-fn highlighted_now(app: &mut VectorcraftApp, ctx: &egui::Context, kind: Kind) -> Vec<String> {
+fn highlighted_now(app: &mut PlumaApp, ctx: &egui::Context, kind: Kind) -> Vec<String> {
     let all = styles(app, kind);
     highlighted(app, ctx, kind, &all.iter().map(|s| s.0.as_str()).collect::<Vec<_>>())
 }
@@ -645,7 +639,7 @@ fn switching_documents_clears_highlighted_styles_with_matching_names() {
     for kind in [Kind::Char, Kind::Para] {
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let rows = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let rows = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             ui.set_width(280.0);
             show(app, ui, kind);
         };
@@ -674,7 +668,7 @@ fn shift_and_cmd_clicks_highlight_several_styles_that_delete_deletes_at_once() {
     for kind in [Kind::Char, Kind::Para] {
         let (mut app, id) = several_app();
         let ctx = egui::Context::default();
-        let rows = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let rows = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             ui.set_width(280.0);
             show(app, ui, kind);
         };
@@ -690,7 +684,7 @@ fn shift_and_cmd_clicks_highlight_several_styles_that_delete_deletes_at_once() {
         let undo = app.session.doc().unwrap().history.undo.len();
         // The footer's Delete button is centered 12 points left of the panel's right edge.
         let button = std::cell::Cell::new(egui::Pos2::ZERO);
-        let footer = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let footer = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             ui.set_width(280.0);
             let right = ui.max_rect().right();
             show(app, ui, kind);
@@ -714,7 +708,7 @@ fn select_all_unused_highlights_the_unused_styles_for_delete() {
     for kind in [Kind::Char, Kind::Para] {
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let items = |app: &mut VectorcraftApp, ui: &mut egui::Ui| menu(app, ui, kind);
+        let items = |app: &mut PlumaApp, ui: &mut egui::Ui| menu(app, ui, kind);
         click_text_held(&ctx, &mut app, "   Select All Unused", egui::Modifiers::NONE, items);
         assert_eq!(highlighted_now(&mut app, &ctx, kind), ["A", "C", "D"], "{} Styles", kind.what());
         let undo = app.session.doc().unwrap().history.undo.len();
@@ -738,7 +732,7 @@ fn panel_menu_duplicate_copies_every_highlighted_style() {
         let what = kind.what();
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let items = |app: &mut VectorcraftApp, ui: &mut egui::Ui| menu(app, ui, kind);
+        let items = |app: &mut PlumaApp, ui: &mut egui::Ui| menu(app, ui, kind);
         click_text_held(&ctx, &mut app, "   Select All Unused", egui::Modifiers::NONE, items);
         assert_eq!(highlighted_now(&mut app, &ctx, kind), ["A", "C", "D"], "{what} Styles");
         let before = styles(&mut app, kind);
@@ -762,7 +756,7 @@ fn the_styles_are_listed_once_per_document_version() {
         let what = kind.what();
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let draw = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             show(app, ui, kind);
             menu(app, ui, kind);
         };
@@ -791,12 +785,12 @@ fn dragging_a_highlighted_style_carries_every_highlighted_style() {
         let what = kind.what();
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let rows = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let rows = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             ui.set_width(280.0);
             show(app, ui, kind);
         };
-        let names = |app: &mut VectorcraftApp| styles(app, kind).into_iter().skip(1).map(|s| s.0).collect::<Vec<_>>();
-        let undo_len = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+        let names = |app: &mut PlumaApp| styles(app, kind).into_iter().skip(1).map(|s| s.0).collect::<Vec<_>>();
+        let undo_len = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
         click_text_held(&ctx, &mut app, "A", Modifiers::NONE, rows);
         click_text_held(&ctx, &mut app, "C", Modifiers::COMMAND, rows);
         assert_eq!(highlighted_now(&mut app, &ctx, kind), ["A", "C"], "{what} Styles");
@@ -831,19 +825,19 @@ fn dragging_a_highlighted_style_carries_every_highlighted_style() {
 /// step. Without an open dialog the items are off.
 #[test]
 fn panel_menus_load_the_styles_of_a_picked_document() {
-    let mut src = vectorcraft_engine::Session::new();
+    let mut src = pluma_engine::Session::new();
     src.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     src.execute("charStyle.new", &json!({"name": "Lead", "attrs": {"size": 30.0}})).unwrap();
     src.execute("paraStyle.new", &json!({"name": "Centered", "attrs": {"justify": "Center"}})).unwrap();
     let dir = std::env::temp_dir().join(format!("vc-panel-load-styles-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("Styles.vectorcraft");
-    std::fs::write(&path, vectorcraft_format::save(&src.doc().unwrap().doc, false)).unwrap();
-    let names = |app: &mut VectorcraftApp, kind| styles(app, kind).into_iter().skip(1).map(|s| s.0).collect::<Vec<_>>();
+    let path = dir.join("Styles.pluma");
+    std::fs::write(&path, pluma_format::save(&src.doc().unwrap().doc, false)).unwrap();
+    let names = |app: &mut PlumaApp, kind| styles(app, kind).into_iter().skip(1).map(|s| s.0).collect::<Vec<_>>();
     for kind in [Kind::Char, Kind::Para] {
         let (mut app, _) = several_app();
         let ctx = egui::Context::default();
-        let items = |app: &mut VectorcraftApp, ui: &mut egui::Ui| menu(app, ui, kind);
+        let items = |app: &mut PlumaApp, ui: &mut egui::Ui| menu(app, ui, kind);
         let one = format!("   Load {} Styles…", kind.what());
         let doc = app.session.doc().unwrap().doc.clone();
         click_text_held(&ctx, &mut app, &one, egui::Modifiers::NONE, items);
@@ -866,23 +860,23 @@ fn panel_menus_load_the_styles_of_a_picked_document() {
 
 /// Feed real text/shortcut events through the canvas Type routing. No focus reset or typing
 /// settlement here: the capture dispatch itself must close the live typing interaction.
-fn capture_input(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) {
+fn capture_input(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) {
     frame_events(ctx, app, events, |app, ui| {
         crate::shortcuts::handle(app, ui.ctx());
         menu(app, ui, Kind::Char);
     });
 }
 
-fn click_new_style_footer(ctx: &egui::Context, app: &mut VectorcraftApp, id: NodeId) {
+fn click_new_style_footer(ctx: &egui::Context, app: &mut PlumaApp, id: NodeId) {
     click_new_style_footer_range(ctx, app, id, (0, 5));
 }
 
-fn click_new_style_footer_range(ctx: &egui::Context, app: &mut VectorcraftApp, id: NodeId, range: (usize, usize)) {
+fn click_new_style_footer_range(ctx: &egui::Context, app: &mut PlumaApp, id: NodeId, range: (usize, usize)) {
     let (start, end) = range;
     let pos = std::cell::Cell::new(egui::Pos2::ZERO);
     let commands = app.run_count;
     let mut dispatched = false;
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| {
         assert_eq!(text_editing(app), Some((id, start, end)));
         assert_eq!(target(app, Kind::Char, json!({})), json!({"id": id.0, "start": start, "end": end}));
         ui.set_width(280.0);
@@ -910,17 +904,17 @@ fn click_new_style_footer_range(ctx: &egui::Context, app: &mut VectorcraftApp, i
 
 /// Alt-click the production bottom bar's New button of the `kind` panel, then draw the dialog
 /// it opened: every text the last frame drew.
-fn alt_click_new(ctx: &egui::Context, app: &mut VectorcraftApp, kind: Kind) -> Vec<String> {
+fn alt_click_new(ctx: &egui::Context, app: &mut PlumaApp, kind: Kind) -> Vec<String> {
     click_new_with(ctx, app, kind, egui::Modifiers::ALT)
 }
 
-fn click_new(ctx: &egui::Context, app: &mut VectorcraftApp, kind: Kind) {
+fn click_new(ctx: &egui::Context, app: &mut PlumaApp, kind: Kind) {
     click_new_with(ctx, app, kind, egui::Modifiers::NONE);
 }
 
-fn click_new_with(ctx: &egui::Context, app: &mut VectorcraftApp, kind: Kind, modifiers: egui::Modifiers) -> Vec<String> {
+fn click_new_with(ctx: &egui::Context, app: &mut PlumaApp, kind: Kind, modifiers: egui::Modifiers) -> Vec<String> {
     let pos = std::cell::Cell::new(egui::Pos2::ZERO);
-    let mut draw = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+    let mut draw = |app: &mut PlumaApp, ui: &mut egui::Ui| {
         ui.set_width(280.0);
         let right = ui.max_rect().right();
         show(app, ui, kind);
@@ -938,7 +932,7 @@ fn click_new_with(ctx: &egui::Context, app: &mut VectorcraftApp, kind: Kind, mod
     frame_events(ctx, app, vec![], |app, ui| crate::dialogs::show(app, ui.ctx())).into_iter().map(|(s, _)| s).collect()
 }
 
-fn set_name(app: &mut VectorcraftApp, name: &str) {
+fn set_name(app: &mut PlumaApp, name: &str) {
     app.ui.dialog.as_mut().expect("the dialog is open").fields.insert("name".into(), json!(name));
 }
 
@@ -950,7 +944,7 @@ fn set_name(app: &mut VectorcraftApp, name: &str) {
 fn alt_clicking_new_character_style_asks_for_its_name() {
     let (mut app, id, ctx) = capture_app();
     select_type_range(&mut app, id, 3, 5);
-    let names = |app: &VectorcraftApp| app.session.doc().unwrap().doc.char_styles.iter().map(|s| s.name.clone()).collect::<Vec<_>>();
+    let names = |app: &PlumaApp| app.session.doc().unwrap().doc.char_styles.iter().map(|s| s.name.clone()).collect::<Vec<_>>();
     let before = names(&app);
     let shown = alt_click_new(&ctx, &mut app, Kind::Char);
     let d = app.ui.dialog.as_ref().expect("Alt-click on New opens a dialog");
@@ -982,7 +976,7 @@ fn alt_clicking_new_character_style_asks_for_its_name() {
 
 #[test]
 fn new_character_style_without_selection_uses_japanese_defaults() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.prefs.interface_language = "ja".into();
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     assert!(app.session.japanese_interface());
@@ -1026,7 +1020,7 @@ fn a_style_made_in_the_new_style_dialog_is_highlighted() {
             app.run(&format!("{}.new", kind.prefix()), json!({"name": format!("Item {i:02}")})).unwrap();
         }
         select_type_range(&mut app, id, 3, 5);
-        let panel = |app: &mut VectorcraftApp, ui: &mut egui::Ui| {
+        let panel = |app: &mut PlumaApp, ui: &mut egui::Ui| {
             egui::ScrollArea::vertical().id_salt("styles").max_height(80.0).show(ui, |ui| show(app, ui, kind));
         };
         let before = frame_events(&ctx, &mut app, vec![], panel);
@@ -1145,7 +1139,7 @@ fn new_style_dialog_keeps_the_attributes_from_when_it_opened() {
 /// a plain click still makes the style at once.
 #[test]
 fn alt_clicking_new_paragraph_style_asks_for_its_name() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
     let id = app.run("text.create", json!({"x": 20, "y": 50, "text": "Body"})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -1170,7 +1164,7 @@ fn alt_clicking_new_paragraph_style_asks_for_its_name() {
     assert_eq!(names, ["Body Copy", "Paragraph Style 1"]);
 }
 
-fn create_redefined_texts(app: &mut VectorcraftApp, ctx: &egui::Context, id: NodeId) -> (Option<NodeId>, Option<NodeId>) {
+fn create_redefined_texts(app: &mut PlumaApp, ctx: &egui::Context, id: NodeId) -> (Option<NodeId>, Option<NodeId>) {
     let mut follower = None;
     let mut local_override = None;
 
@@ -1191,22 +1185,17 @@ fn create_redefined_texts(app: &mut VectorcraftApp, ctx: &egui::Context, id: Nod
 
 /// Undo and Redo each commit one distinct typing or style-capture history entry.
 fn assert_typing_undo_redo(
-    app: &mut VectorcraftApp,
-    undo_states: [&std::sync::Arc<vectorcraft_doc::Document>; 3],
-    redo_states: [&std::sync::Arc<vectorcraft_doc::Document>; 3],
-    selection: &vectorcraft_doc::Selection,
+    app: &mut PlumaApp,
+    undo_states: [&std::sync::Arc<pluma_doc::Document>; 3],
+    redo_states: [&std::sync::Arc<pluma_doc::Document>; 3],
+    selection: &pluma_doc::Selection,
     undo: usize,
 ) {
     assert_typing_undo(app, undo_states, selection, undo);
     assert_typing_redo(app, redo_states, selection, undo);
 }
 
-fn assert_typing_undo(
-    app: &mut VectorcraftApp,
-    states: [&std::sync::Arc<vectorcraft_doc::Document>; 3],
-    selection: &vectorcraft_doc::Selection,
-    undo: usize,
-) {
+fn assert_typing_undo(app: &mut PlumaApp, states: [&std::sync::Arc<pluma_doc::Document>; 3], selection: &pluma_doc::Selection, undo: usize) {
     for (step, expected) in states.into_iter().enumerate() {
         let result = app.run("edit.undo", json!({})).unwrap();
         if step != 1 {
@@ -1222,12 +1211,7 @@ fn assert_typing_undo(
     }
 }
 
-fn assert_typing_redo(
-    app: &mut VectorcraftApp,
-    states: [&std::sync::Arc<vectorcraft_doc::Document>; 3],
-    selection: &vectorcraft_doc::Selection,
-    undo: usize,
-) {
+fn assert_typing_redo(app: &mut PlumaApp, states: [&std::sync::Arc<pluma_doc::Document>; 3], selection: &pluma_doc::Selection, undo: usize) {
     for (step, expected) in states.into_iter().enumerate() {
         let result = app.run("edit.redo", json!({})).unwrap();
         if step != 1 {
@@ -1249,7 +1233,7 @@ fn capture_during_live_typing(redefine: bool, footer: bool) {
     let selection = app.session.doc().unwrap().selection.clone();
     let undo = app.session.doc().unwrap().history.undo.len();
     app.session.select_tool("type", Default::default()).unwrap();
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert_eq!(text_editing(&app), Some((id, 0, 6)));
     capture_input(&ctx, &mut app, vec![egui::Event::Text("Typed".into())]);
     assert_eq!(text_runs(&app, id), vec![("Typed".into(), 18.0, link.clone())]);
@@ -1313,7 +1297,7 @@ fn capture_during_live_typing(redefine: bool, footer: bool) {
     assert_typing_undo_redo(&mut app, [&captured, &typed, &before], [&typed, &captured, &after], &selection, undo);
 }
 
-fn capture_style_from_typing(app: &mut VectorcraftApp, ctx: &egui::Context, id: NodeId, redefine: bool, footer: bool) {
+fn capture_style_from_typing(app: &mut PlumaApp, ctx: &egui::Context, id: NodeId, redefine: bool, footer: bool) {
     let label = if redefine { "Redefine Character Style" } else { "New Character Style…" };
     if footer {
         click_new_style_footer(ctx, app, id);
@@ -1322,7 +1306,7 @@ fn capture_style_from_typing(app: &mut VectorcraftApp, ctx: &egui::Context, id: 
     }
 }
 
-fn assert_related_text_styles(app: &VectorcraftApp, follower: Option<NodeId>, local_override: Option<NodeId>) {
+fn assert_related_text_styles(app: &PlumaApp, follower: Option<NodeId>, local_override: Option<NodeId>) {
     if let Some(user) = follower {
         assert_eq!(text_runs(app, user), vec![("Follower".into(), 18.0, Some("Body".into()))]);
     }

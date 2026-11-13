@@ -16,7 +16,7 @@ fn session() -> (Session, u64) {
 /// `file.print {p}` → (PDF bytes, its answer).
 fn print(s: &mut Session, p: Value) -> (Vec<u8>, Value) {
     let v = s.execute("file.print", &p).unwrap_or_else(|e| panic!("{p}: {e}"));
-    (vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap(), v)
+    (pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap(), v)
 }
 
 #[test]
@@ -35,16 +35,16 @@ fn setup_is_saved_with_the_document_as_one_undo_step() {
     assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1);
     // Saved in the native file, and gone again after undoing both steps.
     let doc = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(doc, false)).unwrap();
     assert_eq!(back.print_setup, doc.print_setup);
     assert!(back.print_setup.as_ref().is_some_and(|p| p["copies"] == 3));
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(s.doc().unwrap().doc.print_setup.is_none());
     // Files from before print settings load without them.
-    let mut v: Value = serde_json::from_slice(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let mut v: Value = serde_json::from_slice(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     v.as_object_mut().unwrap().remove("print_setup");
-    assert!(vectorcraft_format::load(v.to_string().as_bytes()).unwrap().print_setup.is_none());
+    assert!(pluma_format::load(v.to_string().as_bytes()).unwrap().print_setup.is_none());
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn print_writes_the_saved_setup_with_overrides() {
     s.execute("print.setup", &json!({"settings": {"media": "a4", "scaling": "fit"}})).unwrap();
     let (bytes, v) = print(&mut s, json!({"settings": {"copies": 2}}));
     assert_eq!(v["pages"], 2);
-    let info = vectorcraft_pdf::info(&bytes, None).unwrap();
+    let info = pluma_pdf::info(&bytes, None).unwrap();
     assert_eq!(info.pages.len(), 2);
     // A4 turned landscape for the wide artboard.
     assert_eq!((info.pages[0].width.round(), info.pages[0].height.round()), (842.0, 595.0));
@@ -81,7 +81,7 @@ fn print_takes_a_print_preset_by_name() {
     let mut s = four_artboards_and_a_preset();
     // The preset's settings stand in for the document's: one copy of artboard 4.
     let (bytes, v) = print(&mut s, json!({"preset": "sheet"}));
-    assert_eq!((v["pages"].clone(), vectorcraft_pdf::info(&bytes, None).unwrap().pages.len()), (json!(1), 1));
+    assert_eq!((v["pages"].clone(), pluma_pdf::info(&bytes, None).unwrap().pages.len()), (json!(1), 1));
     let (_, v) = print(&mut s, json!({"preset": "Sheet", "settings": {"copies": 3}}));
     assert_eq!(v["pages"], 3, "settings apply over the preset's");
     let (_, v) = print(&mut s, json!({"preset": "[Default]"}));
@@ -160,7 +160,7 @@ fn copies_per_sheet_print_a_grid_of_the_artboard() {
     // The PDF draws the card's paths nine times.
     let cards = |bytes: &[u8]| {
         let mut n = 0;
-        vectorcraft_pdf::import(bytes).unwrap().walk(|node| {
+        pluma_pdf::import(bytes).unwrap().walk(|node| {
             n += usize::from(node.path_data().and_then(|p| p.bounds()).is_some_and(|b| (b.width().round(), b.height().round()) == (144.0, 252.0)))
         });
         n
@@ -172,7 +172,7 @@ fn copies_per_sheet_print_a_grid_of_the_artboard() {
     // PostScript places the art once per copy.
     let mut ps = |p: Value| {
         let v = s.execute("file.print", &p).unwrap();
-        String::from_utf8(vectorcraft_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()).unwrap()
+        String::from_utf8(pluma_format::base64_decode(v["dataBase64"].as_str().unwrap()).unwrap()).unwrap()
     };
     let one = ps(json!({"format": "postscript"})).matches(" cm\n").count();
     let grid = ps(json!({"format": "postscript", "settings": {"copiesPerSheet": true, "gutter": 18}})).matches(" cm\n").count();
@@ -279,7 +279,7 @@ fn type_that_does_not_fit_its_frame_is_named() {
 #[test]
 fn for_a_printer_a_landscape_page_is_written_upright() {
     let (mut s, _) = session();
-    let size = |pdf: &[u8]| vectorcraft_pdf::info(pdf, None).unwrap().pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>();
+    let size = |pdf: &[u8]| pluma_pdf::info(pdf, None).unwrap().pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>();
     let settings = json!({"autoRotate": false, "orientation": "landscape"});
     let (saved, _) = print(&mut s, json!({"settings": settings}));
     assert_eq!(size(&saved), [(792.0, 612.0)]);

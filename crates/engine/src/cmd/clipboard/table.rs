@@ -6,9 +6,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Node, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect};
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::{Appearance, CharStyle, Node, NodeId, NodeKind, TextObject};
+use pluma_geom::{Affine, BezPath, PathData, Point, Rect};
 
 /// Most rows a pasted table takes; more pastes as plain text.
 pub(crate) const MAX_ROWS: usize = 1000;

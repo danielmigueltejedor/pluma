@@ -6,12 +6,12 @@
 //! polygons, stars, spirals and 3D boxes are stored in the object's `vc-shape-tools` attribute
 //! entry (left out of SVG export) while keeping standard `LiveShape` variants synced.
 
+use pluma_doc::{LiveShape, Node, NodeKind};
+use pluma_geom::corners::cut_corners;
+use pluma_geom::shapes::{self, CornerKind, EllipseMode};
+use pluma_geom::{Affine, PathData, Point, Rect, Vec2};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveShape, Node, NodeKind};
-use vectorcraft_geom::corners::cut_corners;
-use vectorcraft_geom::shapes::{self, CornerKind, EllipseMode};
-use vectorcraft_geom::{Affine, PathData, Point, Rect, Vec2};
 
 use crate::guides::{DrawSnap, Leave};
 use crate::shape::{box_params, space_moves, turned_box};
@@ -132,7 +132,7 @@ impl CustomShape {
         match self {
             CustomShape::Rectangle { w, h, radii, kinds, radii_relative, xf, pie, arc_mode } => {
                 let base = shapes::rectangle(Rect::new(0.0, 0.0, *w, *h));
-                let resolved = vectorcraft_doc::corners::resolve_stored_radii(&base, radii, *radii_relative);
+                let resolved = pluma_doc::corners::resolve_stored_radii(&base, radii, *radii_relative);
                 let r = std::array::from_fn(|i| resolved.get(i).copied().unwrap_or(0.0));
                 let rect_path = shapes::rectangle_with_corners(Rect::new(0.0, 0.0, *w, *h), r, *kinds);
                 let cut = shapes::apply_shape_arc(rect_path, Point::new(*w / 2.0, *h / 2.0), pie.0, pie.1, *arc_mode);
@@ -151,7 +151,7 @@ impl CustomShape {
                 };
                 let outline = raw.transformed(*xf);
                 let cornered = if rounded.abs() < 1e-9 && !radii.is_empty() {
-                    let resolved = vectorcraft_doc::corners::resolve_stored_radii(&outline, radii, *radii_relative);
+                    let resolved = pluma_doc::corners::resolve_stored_radii(&outline, radii, *radii_relative);
                     cut_corners(&outline, &resolved, kinds).0
                 } else {
                     outline
@@ -431,7 +431,7 @@ impl Box3dTool {
             "polygon" | "star" => {
                 let d = p - start;
                 let r = d.hypot().max(0.01);
-                let rot = if m.shift { vectorcraft_geom::constrain_rotation(base).unwrap_or(0.0) } else { (d.atan2().to_degrees() + 90.0) % 360.0 };
+                let rot = if m.shift { pluma_geom::constrain_rotation(base).unwrap_or(0.0) } else { (d.atan2().to_degrees() + 90.0) % 360.0 };
                 let is_star = self.shape == "star" || self.poly_is_star;
                 let count = if is_star { self.points } else { self.sides };
                 let mut v = if is_star {
@@ -534,7 +534,7 @@ impl Tool for Box3dTool {
             PointerKind::Drag => {
                 let Some(mut s) = self.start else { return vec![] };
                 let radial = matches!(self.shape, "polygon" | "star" | "spiral");
-                let leave = (!radial).then(|| Leave::diagonal(s, ev.mods.shift && vectorcraft_geom::constrain_axes(cx.constrain_angle).is_none()));
+                let leave = (!radial).then(|| Leave::diagonal(s, ev.mods.shift && pluma_geom::constrain_axes(cx.constrain_angle).is_none()));
                 let pos = self.snap.drag(cx, ev.pos, leave.as_ref());
                 let ev = &PointerEvent { pos, ..*ev };
                 space_moves(&mut s, &mut self.last, ev, self.began);

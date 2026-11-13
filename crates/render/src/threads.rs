@@ -39,8 +39,8 @@ pub fn default_threads() -> u16 {
         if o >= 0 {
             return o.min(64) as u16;
         }
-        if std::env::var_os("VECTORCRAFT_RENDER_THREADS").is_some() {
-            return std::env::var("VECTORCRAFT_RENDER_THREADS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        if std::env::var_os("PLUMA_RENDER_THREADS").is_some() {
+            return std::env::var("PLUMA_RENDER_THREADS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         }
         let usable = USABLE_CORES.load(std::sync::atomic::Ordering::Relaxed);
         std::thread::available_parallelism().map(|n| automatic_threads(n.get(), usable)).unwrap_or(0)

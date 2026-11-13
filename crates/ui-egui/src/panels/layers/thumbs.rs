@@ -1,8 +1,8 @@
+use pluma_doc::{NodeKind, TextKind};
+use pluma_geom::PathData;
 use std::collections::HashSet;
-use vectorcraft_doc::{NodeKind, TextKind};
-use vectorcraft_geom::PathData;
 
-use super::{Arc, Color32, Document, HashMap, Node, NodeId, Settle, ThumbWorker, Ui, VectorcraftApp, Weak, vec2};
+use super::{Arc, Color32, Document, HashMap, Node, NodeId, PlumaApp, Settle, ThumbWorker, Ui, Weak, vec2};
 use crate::thumb_worker::Done;
 
 /// Where row thumbnails come from: document `uid` at `revision`, and whether a drag is in
@@ -16,7 +16,7 @@ pub(crate) struct ThumbSource<'a> {
 
 impl<'a> ThumbSource<'a> {
     /// The thumbnails of the document `st` holds (`doc`, its document).
-    pub(crate) fn of(app: &VectorcraftApp, st: &vectorcraft_engine::DocState, doc: &'a Arc<Document>) -> Self {
+    pub(crate) fn of(app: &PlumaApp, st: &pluma_engine::DocState, doc: &'a Arc<Document>) -> Self {
         Self { uid: st.uid, revision: st.revision, doc, busy: st.interaction.is_some() || app.session.tool_busy() }
     }
 }
@@ -113,8 +113,8 @@ const THUMB_BUDGET_MS: f64 = 8.0;
 const THUMB_BUDGET_COUNT: u32 = 16;
 
 /// How row thumbnails render: images far smaller than they are sample their mip levels.
-pub(crate) fn thumb_options() -> vectorcraft_render::RenderOptions {
-    vectorcraft_render::RenderOptions { image_mips: true, ..Default::default() }
+pub(crate) fn thumb_options() -> pluma_render::RenderOptions {
+    pluma_render::RenderOptions { image_mips: true, ..Default::default() }
 }
 
 /// Has `n` at most `nodes` objects inside it, and at most `anchors` anchors in its paths and the
@@ -220,7 +220,7 @@ fn weigh(n: &Node, nodes: usize, anchors: usize, masks: bool, doc: Option<&Docum
             NodeKind::Mesh(m) => left.take(m.points.len().saturating_mul(MESH_POINT_ANCHORS)),
             NodeKind::Image(im) => left.take((im.width as usize).saturating_mul(im.height as usize) / IMAGE_PIXELS_PER_ANCHOR),
             NodeKind::PlacedDocument(p) => {
-                left.look_up(&p.key) && vectorcraft_doc::placed_document::read_cached(p).is_some_and(|e| inside(&e.art, &e.doc, left, depth))
+                left.look_up(&p.key) && pluma_doc::placed_document::read_cached(p).is_some_and(|e| inside(&e.art, &e.doc, left, depth))
             }
             _ => true,
         }
@@ -247,7 +247,7 @@ fn light_row(n: &Node, quick: Option<bool>, doc: &Document) -> bool {
 }
 
 /// The thumbnail of `n` (`px` pixels square) as `r` renders it, on the UI thread or the worker.
-fn render_thumb(r: &mut vectorcraft_render::Renderer, doc: &Document, n: &Node, px: u32) -> Option<vectorcraft_render::Rendered> {
+fn render_thumb(r: &mut pluma_render::Renderer, doc: &Document, n: &Node, px: u32) -> Option<pluma_render::Rendered> {
     r.render_node_thumbnail_with(doc, n, px, None, &thumb_options())
 }
 
@@ -296,7 +296,7 @@ impl Thumbs {
     }
 
     /// Keep `img` (None: nothing drawn) as the thumbnail of row `key` showing `node`.
-    fn upload(&mut self, ctx: &egui::Context, key: (u64, NodeId), node: Weak<Node>, px: u32, img: Option<&vectorcraft_render::Rendered>, ms: f64) {
+    fn upload(&mut self, ctx: &egui::Context, key: (u64, NodeId), node: Weak<Node>, px: u32, img: Option<&pluma_render::Rendered>, ms: f64) {
         let color = img.map(crate::canvas::color_image);
         let used = ctx.cumulative_pass_nr();
         let name = format!("layer-thumb-{}", key.1.0);
@@ -413,7 +413,7 @@ impl Thumbs {
             return shown;
         }
         thread_local! {
-            static RENDERER: std::cell::RefCell<vectorcraft_render::Renderer> = std::cell::RefCell::new(vectorcraft_render::Renderer::new());
+            static RENDERER: std::cell::RefCell<pluma_render::Renderer> = std::cell::RefCell::new(pluma_render::Renderer::new());
         }
         let t0 = crate::now_ms();
         let img = RENDERER.with(|r| render_thumb(&mut r.borrow_mut(), src.doc, n, px));
@@ -488,9 +488,9 @@ pub(super) fn thumb(ui: &Ui, n: &Node, r: egui::Rect) {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_color::{Color, Paint};
-    use vectorcraft_doc::{Appearance, CharStyle, LayerColor, NodeKind, OpacityMask, TextKind, TextObject};
-    use vectorcraft_geom::{Affine, Point, SubPath};
+    use pluma_color::{Color, Paint};
+    use pluma_doc::{Appearance, CharStyle, LayerColor, NodeKind, OpacityMask, TextKind, TextObject};
+    use pluma_geom::{Affine, Point, SubPath};
 
     use super::*;
 
@@ -594,8 +594,8 @@ mod tests {
     }
 
     fn rect(id: u64) -> Node {
-        let r = vectorcraft_geom::rect_from_points(Point::new(0.0, 0.0), Point::new(10.0, 10.0));
-        Node::path(NodeId(id), vectorcraft_geom::shapes::rectangle(r), Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 1.0))
+        let r = pluma_geom::rect_from_points(Point::new(0.0, 0.0), Point::new(10.0, 10.0));
+        Node::path(NodeId(id), pluma_geom::shapes::rectangle(r), Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 1.0))
     }
 
     fn small(n: &Node) -> bool {
@@ -655,13 +655,13 @@ mod tests {
 
     /// A gradient mesh `id` of `rows` x `rows` patches.
     fn mesh(id: u64, rows: u32) -> Node {
-        let m = vectorcraft_doc::GradientMesh::from_surface(rows, rows, &|u, v| Point::new(u * 100.0, v * 100.0), &|_, _| Color::BLACK);
+        let m = pluma_doc::GradientMesh::from_surface(rows, rows, &|u, v| Point::new(u * 100.0, v * 100.0), &|_, _| Color::BLACK);
         Node::new(NodeId(id), NodeKind::Mesh(m))
     }
 
     /// An image `id` of `w` x `h` pixels.
     fn image(id: u64, w: u32, h: u32) -> Node {
-        let im = vectorcraft_doc::ImageObject {
+        let im = pluma_doc::ImageObject {
             key: "im".into(),
             width: w,
             height: h,
@@ -681,14 +681,14 @@ mod tests {
     /// A document whose symbol `name` is `art`.
     fn with_symbol(name: &str, art: Node) -> Document {
         let mut doc = Document::new(200.0, 200.0);
-        doc.symbols.push(vectorcraft_doc::Symbol { name: name.into(), art: Arc::new(art), dynamic: false });
+        doc.symbols.push(pluma_doc::Symbol { name: name.into(), art: Arc::new(art), dynamic: false });
         doc
     }
 
     /// A placed document `id` showing file `key`, read already when `art` is given.
     fn placed(id: u64, key: &str, art: Option<Node>) -> Node {
-        let p = vectorcraft_doc::PlacedDocument {
-            link: vectorcraft_doc::LinkInfo::new("/art/placed.vectorcraft"),
+        let p = pluma_doc::PlacedDocument {
+            link: pluma_doc::LinkInfo::new("/art/placed.pluma"),
             key: key.into(),
             bounding: false,
             page_box: Default::default(),
@@ -698,8 +698,8 @@ mod tests {
             placement: Default::default(),
         };
         if let Some(art) = art {
-            let frame = vectorcraft_geom::Rect::new(0.0, 0.0, 100.0, 100.0);
-            vectorcraft_doc::placed_document::prime(&p, Arc::new(key.as_bytes().to_vec()), (Document::new(100.0, 100.0), art, frame));
+            let frame = pluma_geom::Rect::new(0.0, 0.0, 100.0, 100.0);
+            pluma_doc::placed_document::prime(&p, Arc::new(key.as_bytes().to_vec()), (Document::new(100.0, 100.0), art, frame));
         }
         Node::new(NodeId(id), NodeKind::PlacedDocument(Box::new(p)))
     }
@@ -738,7 +738,7 @@ mod tests {
         assert!(!small_in(&many, &instance(1, "Group")), "a symbol of more objects than the limit");
         // Inline graphics in type draw their symbol too.
         let mut t = TextObject::point(Point::ZERO, "a", CharStyle::default());
-        t.runs[0].inline = Some(vectorcraft_doc::InlineArt { symbol: "Long".into(), scale: 1.0, baseline_shift: 0.0, bounds: None });
+        t.runs[0].inline = Some(pluma_doc::InlineArt { symbol: "Long".into(), scale: 1.0, baseline_shift: 0.0, bounds: None });
         let long = with_symbol("Long", path(10, LIGHT_THUMB_ANCHORS + 1));
         assert!(!small_in(&long, &Node::new(NodeId(1), NodeKind::Text(Box::new(t)))), "type showing a long symbol inline");
 
@@ -757,11 +757,11 @@ mod tests {
         let mut doc = with_symbol("S0", rect(10));
         for i in 1..MAX_THUMB_NESTING {
             let art = Node::group(NodeId(10 + i as u64), vec![Arc::new(instance(100 + i as u64, &format!("S{}", i - 1)))]);
-            doc.symbols.push(vectorcraft_doc::Symbol { name: format!("S{i}"), art: Arc::new(art), dynamic: false });
+            doc.symbols.push(pluma_doc::Symbol { name: format!("S{i}"), art: Arc::new(art), dynamic: false });
         }
         assert!(small_in(&doc, &instance(1, &format!("S{}", MAX_THUMB_NESTING - 1))), "symbols as deep as counted");
         let art = Node::group(NodeId(9), vec![Arc::new(instance(99, &format!("S{}", MAX_THUMB_NESTING - 1)))]);
-        doc.symbols.push(vectorcraft_doc::Symbol { name: "Deeper".into(), art: Arc::new(art), dynamic: false });
+        doc.symbols.push(pluma_doc::Symbol { name: "Deeper".into(), art: Arc::new(art), dynamic: false });
         assert!(!small_in(&doc, &instance(1, "Deeper")), "one level deeper");
     }
 
@@ -779,7 +779,7 @@ mod tests {
                 })
                 .collect();
             id += 1;
-            doc.symbols.push(vectorcraft_doc::Symbol { name: format!("L{level}"), art: Arc::new(Node::group(NodeId(id), kids)), dynamic: false });
+            doc.symbols.push(pluma_doc::Symbol { name: format!("L{level}"), art: Arc::new(Node::group(NodeId(id), kids)), dynamic: false });
         }
         doc
     }
@@ -810,11 +810,11 @@ mod tests {
         let fewer = Node::path(NodeId(1), PathData::new(vec![SubPath::default(); 100]), style);
         assert!(small_in(&doc, &fewer), "a path of a few");
         let mut t = TextObject::point(Point::ZERO, "", CharStyle::default());
-        t.runs = vec![vectorcraft_doc::TextRun::new("", CharStyle::default()); THUMB_COUNT_STEPS];
+        t.runs = vec![pluma_doc::TextRun::new("", CharStyle::default()); THUMB_COUNT_STEPS];
         assert!(!small_in(&doc, &Node::new(NodeId(2), NodeKind::Text(Box::new(t)))), "type of many empty runs");
         let mut doc = with_symbol("S", rect(10));
         for i in 0..THUMB_COUNT_STEPS {
-            doc.symbols.push(vectorcraft_doc::Symbol { name: format!("Other {i}"), art: Arc::new(rect(11)), dynamic: false });
+            doc.symbols.push(pluma_doc::Symbol { name: format!("Other {i}"), art: Arc::new(rect(11)), dynamic: false });
         }
         assert!(small_in(&doc, &instance(1, "S")), "the first of many symbols");
         assert!(!small_in(&doc, &instance(1, &format!("Other {}", THUMB_COUNT_STEPS - 1))), "the last of many symbols");
@@ -866,7 +866,7 @@ mod tests {
         assert!(thumbs.pending.contains_key(&(1, n.id)), "sent to the worker");
         let done = thumbs.worker.as_ref().and_then(ThumbWorker::wait).expect("the worker finishes it");
         let there = done.img.as_ref().expect("the worker draws the path");
-        let here = render_thumb(&mut vectorcraft_render::Renderer::new(), &doc, &n, 24).expect("this thread draws the path");
+        let here = render_thumb(&mut pluma_render::Renderer::new(), &doc, &n, 24).expect("this thread draws the path");
         assert!(here.pixels.chunks(4).any(|p| p[3] > 0), "the thumbnail shows the path");
         assert_eq!((there.width, there.height, &there.pixels), (here.width, here.height, &here.pixels), "the same pixels");
         thumbs.receive(&ctx, done);
@@ -922,7 +922,7 @@ mod tests {
         assert_eq!(done.key.0.0, uid, "a job of document {uid} is done next");
         let n = rows.iter().find(|n| n.id == done.key.0.1).expect("one of its rows");
         let there = done.img.as_ref().expect("the worker draws the path");
-        let here = render_thumb(&mut vectorcraft_render::Renderer::new(), doc, n, 24).expect("this thread draws the path");
+        let here = render_thumb(&mut pluma_render::Renderer::new(), doc, n, 24).expect("this thread draws the path");
         assert!(here.pixels.chunks(4).any(|p| p[3] > 0), "the thumbnail shows the path");
         assert_eq!((there.width, there.height, &there.pixels), (here.width, here.height, &here.pixels), "the same pixels");
         thumbs.receive(ctx, done);
@@ -1024,7 +1024,7 @@ mod tests {
         assert!(thumbs.pending.contains_key(&(1, n.id)), "sent to the worker");
         let done = thumbs.worker.as_ref().and_then(ThumbWorker::wait).expect("the worker finishes it");
         let there = done.img.as_ref().expect("the worker draws the symbol");
-        let here = render_thumb(&mut vectorcraft_render::Renderer::new(), &doc, &n, 24).expect("this thread draws the symbol");
+        let here = render_thumb(&mut pluma_render::Renderer::new(), &doc, &n, 24).expect("this thread draws the symbol");
         assert!(here.pixels.chunks(4).any(|p| p[3] > 0), "the thumbnail shows the symbol's art");
         assert_eq!((there.width, there.height, &there.pixels), (here.width, here.height, &here.pixels), "the same pixels");
     }

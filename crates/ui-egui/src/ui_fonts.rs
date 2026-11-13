@@ -15,7 +15,7 @@ use std::sync::Arc;
 use egui::epaint::Shape;
 use egui::epaint::text::{FontInsert, FontPriority, InsertFontFamily};
 use egui::{FontData, FontDefinitions, FontFamily, FontId, FontTweak, LayerId};
-use vectorcraft_text::{FontDb, FontFace};
+use pluma_text::{FontDb, FontFace};
 
 #[derive(Default)]
 pub(crate) struct UiFonts {
@@ -173,7 +173,7 @@ fn row_metrics(data: &FontData) -> Option<(f32, f32, f32)> {
 
 /// The ascent and row height (ascent, descent and line gap) of the face at `index` of `data`, in ems.
 fn em_metrics(data: &[u8], index: u32) -> Option<(f32, f32)> {
-    let (upem, ascent, descent, gap) = vectorcraft_text::line_metrics(data, index)?;
+    let (upem, ascent, descent, gap) = pluma_text::line_metrics(data, index)?;
     Some((ascent / upem, (ascent - descent + gap) / upem))
 }
 
@@ -250,7 +250,7 @@ mod tests {
 
     #[test]
     fn japanese_renders_with_the_craft_fonts_without_installed_fonts() {
-        if !vectorcraft_text::CRAFT_FONTS.iter().any(|f| f.is_japanese()) {
+        if !pluma_text::CRAFT_FONTS.iter().any(|f| f.is_japanese()) {
             eprintln!("skipped: built without craft-fonts (set CRAFT_FONTS_DIR to a craft-fonts checkout to run it)");
             return;
         }
@@ -285,7 +285,7 @@ mod tests {
         frame(&ctx, &mut fonts, "日本語の文字 Layer 1");
         fonts.finish(&ctx);
         frame(&ctx, &mut fonts, "日本語の文字 Layer 1");
-        if vectorcraft_text::CRAFT_FONTS.is_empty() {
+        if pluma_text::CRAFT_FONTS.is_empty() {
             let names: Vec<String> = ctx.fonts(|f| f.definitions().font_data.keys().cloned().collect());
             assert!(names.iter().all(|n| !n.starts_with("craft-fonts")), "{names:?}");
         }
@@ -298,7 +298,7 @@ mod tests {
     /// at the same height.
     #[test]
     fn fallback_faces_sit_on_the_ui_baseline() {
-        use vectorcraft_text::test_fonts::{TALL_IDEOGRAPH_FAMILY, tall_ideograph_font};
+        use pluma_text::test_fonts::{TALL_IDEOGRAPH_FAMILY, tall_ideograph_font};
         let db = FontDb::with_font_dirs(vec![]);
         db.add_font(tall_ideograph_font().expect("the test face builds"));
         let face = db.face(TALL_IDEOGRAPH_FAMILY, "Regular").expect("the test face loads");
@@ -330,12 +330,12 @@ mod tests {
     /// heads a family.
     #[test]
     fn craft_fonts_sit_on_the_baseline_of_each_family() {
-        use vectorcraft_text::CraftFont;
-        use vectorcraft_text::craft_fonts::{georgian_ui_fonts, japanese_ui_fonts};
+        use pluma_text::CraftFont;
+        use pluma_text::craft_fonts::{georgian_ui_fonts, japanese_ui_fonts};
         // The face each family draws a script in, with a character of it: (regular face, semibold
         // family's face, character).
         let first = |faces: Vec<&'static CraftFont>| faces.first().copied();
-        let deva = vectorcraft_text::CRAFT_FONTS.iter().find(|f| f.scripts.contains(&"Deva"));
+        let deva = pluma_text::CRAFT_FONTS.iter().find(|f| f.scripts.contains(&"Deva"));
         let probes: Vec<(&CraftFont, &CraftFont, char)> = [
             first(japanese_ui_fonts(false)).zip(first(japanese_ui_fonts(true))).map(|(regular, bold)| (regular, bold, '編')),
             first(georgian_ui_fonts()).map(|f| (f, f, 'ა')),

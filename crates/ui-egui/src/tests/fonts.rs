@@ -1,22 +1,21 @@
 //! The font menus list the installed fonts without asking for them (#36).
 
+use pluma_engine::Session;
+use pluma_text::{FontDb, system_font_dirs};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_text::{FontDb, system_font_dirs};
 
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 #[test]
 fn type_font_menu_lists_every_available_family() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     // The app starts the installed fonts' scan, and until it ends Type › Font lists only the
     // loaded fonts (#5483). The scan changes the generation a moment before it counts as done, so
     // a read in between sees the old list under the new generation: wait for it to end first.
     FontDb::global().family_list();
     app.run("file.new", json!({})).unwrap();
-    let fonts = |app: &VectorcraftApp| -> Vec<String> {
-        menus::menu_entries(app).into_iter().filter(|e| e.path == ["Type", "Font"]).map(|e| e.label).collect()
-    };
+    let fonts =
+        |app: &PlumaApp| -> Vec<String> { menus::menu_entries(app).into_iter().filter(|e| e.path == ["Type", "Font"]).map(|e| e.label).collect() };
     let installed = FontDb::with_font_dirs(system_font_dirs());
     installed.load_system_fonts();
     // A test running alongside can add a font (and the installed fonts' scan can end), and the menu
@@ -41,7 +40,7 @@ fn type_font_menu_lists_every_available_family() {
 
 #[test]
 fn the_character_panel_menu_refreshes_the_font_list() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({})).unwrap();
     // The installed fonts are always listed: the menu offers to look for new ones instead.
     let text = crate::tests_labels::painted_text(&mut app, crate::panels::character::menu);

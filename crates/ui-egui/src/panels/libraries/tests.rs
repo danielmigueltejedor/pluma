@@ -1,9 +1,9 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::*;
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
@@ -16,7 +16,7 @@ fn frame(app: &mut VectorcraftApp) {
 /// The panel draws with no library, an empty one and one holding every kind of item (#745).
 #[test]
 fn the_panel_draws_its_libraries() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     frame(&mut app);
     app.run("library.create", json!({"name": "Brand"})).unwrap();
@@ -42,7 +42,7 @@ fn the_panel_draws_its_libraries() {
 }
 
 /// The panel's text: every label it shows in one frame (`query` typed in the search field).
-fn texts(app: &mut VectorcraftApp, query: &str) -> Vec<String> {
+fn texts(app: &mut PlumaApp, query: &str) -> Vec<String> {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     ctx.data_mut(|d| d.insert_temp(egui::Id::unique("library-search"), query.to_string()));
@@ -63,7 +63,7 @@ fn texts(app: &mut VectorcraftApp, query: &str) -> Vec<String> {
 /// items, and a search nothing matches says so (#926).
 #[test]
 fn the_panel_searches_and_shows_groups() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
     for (name, color) in [("Ocean Blue", "#0044aa"), ("Sun Yellow", "#ffcc00")] {
@@ -88,7 +88,7 @@ fn the_panel_searches_and_shows_groups() {
 
 /// A library imported from `styles` (character style names) and `groups` ([(name, its styles)])
 /// → its id.
-fn styled(app: &mut VectorcraftApp, styles: &[&str], groups: &[(&str, &[&str])]) -> String {
+fn styled(app: &mut PlumaApp, styles: &[&str], groups: &[(&str, &[&str])]) -> String {
     let styles: Vec<Value> = styles.iter().enumerate().map(|(i, n)| json!({"name": n, "attrs": {"size": 8 + i}})).collect();
     let groups: Vec<Value> = groups
         .iter()
@@ -100,7 +100,7 @@ fn styled(app: &mut VectorcraftApp, styles: &[&str], groups: &[(&str, &[&str])])
 
 /// One frame of the panel in a 260 × `tall` window with `events` → where each text it shows is
 /// (its rect), and the panel's height.
-fn frame_at(app: &mut VectorcraftApp, ctx: &egui::Context, tall: f32, events: Vec<egui::Event>) -> (Vec<(String, Rect)>, f32) {
+fn frame_at(app: &mut PlumaApp, ctx: &egui::Context, tall: f32, events: Vec<egui::Event>) -> (Vec<(String, Rect)>, f32) {
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(egui::pos2(0.0, 0.0), vec2(260.0, tall))), events, ..Default::default() };
     let mut height = 0.0;
     let mut out = ctx.run_ui(raw, |ui| {
@@ -123,19 +123,19 @@ fn at(texts: &[(String, Rect)], name: &str) -> Rect {
 }
 
 /// `drag` released at `pos`.
-fn drop_at(app: &mut VectorcraftApp, ctx: &egui::Context, drag: PanelDrag, pos: egui::Pos2) {
+fn drop_at(app: &mut PlumaApp, ctx: &egui::Context, drag: PanelDrag, pos: egui::Pos2) {
     egui::DragAndDrop::set_payload(ctx, drag);
     let up = egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() };
     frame_at(app, ctx, 600.0, vec![egui::Event::PointerMoved(pos), up]);
     frame_at(app, ctx, 600.0, vec![]);
 }
 
-fn style_order(app: &mut VectorcraftApp) -> Vec<String> {
+fn style_order(app: &mut PlumaApp) -> Vec<String> {
     let got = app.run("library.get", json!({})).unwrap();
     got["charStyles"].as_array().unwrap().iter().map(|s| s["name"].as_str().unwrap().to_string()).collect()
 }
 
-fn group_names(app: &mut VectorcraftApp) -> Vec<(String, Vec<String>)> {
+fn group_names(app: &mut PlumaApp) -> Vec<(String, Vec<String>)> {
     let got = app.run("library.get", json!({})).unwrap();
     let items = |g: &Value| g["items"].as_array().unwrap().iter().map(|i| i["item"].as_str().unwrap().to_string()).collect();
     got["groups"].as_array().unwrap().iter().map(|g| (g["name"].as_str().unwrap().to_string(), items(g))).collect()
@@ -147,7 +147,7 @@ fn group_names(app: &mut VectorcraftApp) -> Vec<(String, Vec<String>)> {
 /// takes an item out of its group.
 #[test]
 fn items_and_groups_move_by_dragging() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let lib = styled(&mut app, &["A", "B", "C", "D"], &[("Warm", &["D"]), ("Cool", &[])]);
     let ctx = egui::Context::default();
@@ -191,7 +191,7 @@ fn items_and_groups_move_by_dragging() {
 /// dropped on another's top half lands before it.
 #[test]
 fn the_list_view_shows_names_and_takes_drops_by_row() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
     for (name, color) in [("Ocean Blue", "#0044aa"), ("Sun Yellow", "#ffcc00")] {
@@ -220,7 +220,7 @@ fn the_list_view_shows_names_and_takes_drops_by_row() {
     // Sun Yellow onto Ocean Blue's top half: first.
     let ocean = at(&texts, "Ocean Blue");
     let drag = PanelDrag::Paint {
-        paint: Paint::solid(vectorcraft_color::Color::from_hex("#ffcc00").unwrap()),
+        paint: Paint::solid(pluma_color::Color::from_hex("#ffcc00").unwrap()),
         params: json!({}),
         rows: None,
         library: Some(("Brand".into(), "Sun Yellow".into())),
@@ -240,15 +240,15 @@ fn the_list_view_shows_names_and_takes_drops_by_row() {
 /// header, into that group; away from the items, ungrouped at the end, as into an empty library.
 #[test]
 fn art_and_colours_dropped_from_elsewhere_go_where_they_are_dropped() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
-    let art = |app: &mut VectorcraftApp, x: f64, name: Option<&str>| {
+    let art = |app: &mut PlumaApp, x: f64, name: Option<&str>| {
         let id = app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 10.0 + x, "height": 20})).unwrap()["id"].as_u64().unwrap();
         if let Some(name) = name {
             app.run("library.add", json!({"kind": "graphic", "ids": [id], "name": name})).unwrap();
         }
-        PanelDrag::Art(vec![vectorcraft_doc::NodeId(id)])
+        PanelDrag::Art(vec![pluma_doc::NodeId(id)])
     };
     // An empty library takes a drop anywhere on the list.
     let ctx = egui::Context::default();
@@ -256,7 +256,7 @@ fn art_and_colours_dropped_from_elsewhere_go_where_they_are_dropped() {
     frame_at(&mut app, &ctx, 600.0, vec![]);
     let drag = art(&mut app, 0.0, None);
     drop_at(&mut app, &ctx, drag, egui::pos2(130.0, 200.0));
-    let graphics = |app: &mut VectorcraftApp| {
+    let graphics = |app: &mut PlumaApp| {
         let got = app.run("library.get", json!({})).unwrap();
         got["graphics"].as_array().unwrap().iter().map(|g| g["name"].as_str().unwrap().to_string()).collect::<Vec<_>>()
     };
@@ -284,7 +284,7 @@ fn art_and_colours_dropped_from_elsewhere_go_where_they_are_dropped() {
     assert_eq!(group_names(&mut app)[0].1.len(), 2, "the new graphic is in Logos: {:?}", group_names(&mut app));
     // A swatch onto Logos's header: a colour in Logos.
     let (texts, _) = frame_at(&mut app, &ctx, 600.0, vec![]);
-    drop_at(&mut app, &ctx, PanelDrag::paint(Paint::solid(vectorcraft_color::Color::from_hex("#0044aa").unwrap())), at(&texts, "Logos").center());
+    drop_at(&mut app, &ctx, PanelDrag::paint(Paint::solid(pluma_color::Color::from_hex("#0044aa").unwrap())), at(&texts, "Logos").center());
     let got = app.run("library.get", json!({})).unwrap();
     let color = got["colors"][0]["name"].as_str().unwrap().to_string();
     assert!(group_names(&mut app)[0].1.contains(&color), "{:?}", group_names(&mut app));
@@ -304,7 +304,7 @@ fn art_and_colours_dropped_from_elsewhere_go_where_they_are_dropped() {
 /// near the list's bottom edge scrolls it.
 #[test]
 fn a_long_list_scrolls_also_while_dragging() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let names: Vec<String> = (0..60).map(|i| format!("Style {i}")).collect();
     let lib = styled(&mut app, &names.iter().map(String::as_str).collect::<Vec<_>>(), &[]);
@@ -329,7 +329,7 @@ fn a_long_list_scrolls_also_while_dragging() {
 /// their headings; a click on one paints the selection through the active Fill/Stroke proxy.
 #[test]
 fn gradients_and_patterns_come_from_swatches_and_paint_the_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
     let sunset = json!({"stops": [{"offset": 0, "color": "#ffcc00"}, {"offset": 1, "color": "#cc3300"}]});
@@ -360,9 +360,9 @@ fn gradients_and_patterns_come_from_swatches_and_paint_the_selection() {
         let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         [vec![egui::Event::PointerMoved(pos), button(true)], vec![button(false)]]
     };
-    let fill = |app: &VectorcraftApp| {
+    let fill = |app: &PlumaApp| {
         let d = &app.session.active().unwrap().doc;
-        d.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().appearance.fill_paint()
+        d.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().appearance.fill_paint()
     };
     for events in click(at(&texts, "Sunset").center()) {
         frame_at(&mut app, &ctx, 600.0, events);
@@ -379,7 +379,7 @@ fn gradients_and_patterns_come_from_swatches_and_paint_the_selection() {
 /// a spot colour of that ink, at its tint (#5812).
 #[test]
 fn a_spot_swatch_dropped_on_the_list_stays_spot() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
     app.run("swatch.new", json!({"name": "Kiss-cut", "color": "#ff00ff", "spot": true})).unwrap();
@@ -402,7 +402,7 @@ fn a_spot_swatch_dropped_on_the_list_stays_spot() {
 /// from; the dialog shows only the name.
 #[test]
 fn group_dialogs_run_with_their_library_and_group() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let lib = app.run("library.create", json!({"name": "Brand"})).unwrap()["id"].as_str().unwrap().to_string();
     app.run("library.add", json!({"kind": "fillColor", "color": "#0044aa", "name": "Blue"})).unwrap();
@@ -420,9 +420,9 @@ fn group_dialogs_run_with_their_library_and_group() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn libraries_are_exported_and_imported_from_the_panel_menu() {
-    let dir = vectorcraft_testkit::temp_dir("libraries-panel");
+    let dir = pluma_testkit::temp_dir("libraries-panel");
     let path = dir.join("Brand.vclibrary").to_string_lossy().to_string();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("library.create", json!({"name": "Brand"})).unwrap();
     app.run("library.add", json!({"kind": "fillColor", "color": "#0044aa", "name": "Blue"})).unwrap();

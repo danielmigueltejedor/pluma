@@ -2,9 +2,9 @@
 //! transparent; and how Separations Preview shows images.
 
 use crate::*;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::shapes;
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::shapes;
 
 /// An uncompressed 1-bit TIFF, BlackIsZero, of 2 × 1 pixels: black, white.
 fn bilevel_tiff() -> Vec<u8> {
@@ -116,7 +116,7 @@ fn kept_images_only_draw_the_colorized_pixels() {
 #[test]
 fn ink_planes_keep_the_colors_own_inks() {
     for (color, want) in [(Color::cmyk(0.0, 0.0, 0.0, 1.0), [0u8, 0, 0, 255]), (Color::cmyk(1.0, 0.0, 0.0, 0.0), [255, 0, 0, 0])] {
-        let mut d = Document::new_with_mode(40.0, 20.0, vectorcraft_doc::ColorMode::Cmyk);
+        let mut d = Document::new_with_mode(40.0, 20.0, pluma_doc::ColorMode::Cmyk);
         d.images.insert("pic".into(), ImageBlob::new("image/png", gray_png()));
         let im =
             ImageObject { key: "pic".into(), width: 2, height: 1, xf: Affine::scale(20.0), link: None, placement: Default::default(), pixels: None };
@@ -152,7 +152,7 @@ fn a_colorized_missing_link_placeholder_draws_in_its_own_colors() {
     };
     let blue = Paint::solid(Color::rgb(0.0, 0.0, 1.0));
     let sharp = RenderOptions { smooth_images: false, ..Default::default() };
-    let placeholder = proxy(vectorcraft_doc::links::missing_placeholder().unwrap());
+    let placeholder = proxy(pluma_doc::links::missing_placeholder().unwrap());
     // 64 pixels at 0.5 pt: (16, 5) is the light tile, (5, 5) the cross.
     let d = doc_of(placeholder, Some(blue.clone()), (64, 64), 0.5);
     let out = Renderer::new().render(&d, 40, 20, Affine::IDENTITY, &sharp);
@@ -166,9 +166,9 @@ fn a_colorized_missing_link_placeholder_draws_in_its_own_colors() {
 /// Separations Preview shows a spot-colorized image on its ink's plate only.
 #[test]
 fn separations_preview_shows_the_image_on_its_spot_plate() {
-    let mut d = Document::new_with_mode(40.0, 20.0, vectorcraft_doc::ColorMode::Cmyk);
+    let mut d = Document::new_with_mode(40.0, 20.0, pluma_doc::ColorMode::Cmyk);
     let ink = Color::cmyk(0.0, 1.0, 1.0, 0.0);
-    d.swatches.push(vectorcraft_color::Swatch { name: "Ink".into(), paint: Paint::solid(ink), global: true, spot: true });
+    d.swatches.push(pluma_color::Swatch { name: "Ink".into(), paint: Paint::solid(ink), global: true, spot: true });
     d.images.insert("pic".into(), ImageBlob::new("image/png", gray_png()));
     let im = ImageObject { key: "pic".into(), width: 2, height: 1, xf: Affine::scale(20.0), link: None, placement: Default::default(), pixels: None };
     let mut n = Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)));
@@ -190,7 +190,7 @@ fn separations(plates: &[&str]) -> RenderOptions {
 
 /// A 10 pt tall page of `mode`: the image of `blob` (`size` pixels, `scale` pt a pixel) at the
 /// origin, then from `x0` a 10 pt square of each of `fills`.
-fn image_and_fills(mode: vectorcraft_doc::ColorMode, blob: ImageBlob, (width, height): (u32, u32), scale: f64, x0: f64, fills: &[Color]) -> Document {
+fn image_and_fills(mode: pluma_doc::ColorMode, blob: ImageBlob, (width, height): (u32, u32), scale: f64, x0: f64, fills: &[Color]) -> Document {
     let mut d = Document::new_with_mode(x0 + 10.0 * fills.len() as f64, 10.0, mode);
     let layer = Some(d.layers[0].id);
     d.images.insert("pic".into(), blob);
@@ -227,7 +227,7 @@ fn near(a: [u8; 4], b: [u8; 4], tolerance: u8) -> bool {
 fn separations_preview_shows_an_rgb_images_process_inks() {
     let (cyan, red) = (Color::rgb(0.0, 1.0, 1.0), Color::rgb(1.0, 0.0, 0.0));
     let blob = ImageBlob::new("image/png", rgb_png(2, 1, &[[0, 255, 255], [255, 0, 0]]));
-    let d = image_and_fills(vectorcraft_doc::ColorMode::Rgb, blob, (2, 1), 10.0, 20.0, &[cyan, red]);
+    let d = image_and_fills(pluma_doc::ColorMode::Rgb, blob, (2, 1), 10.0, 20.0, &[cyan, red]);
     let render = |opts: &RenderOptions| Renderer::new().render(&d, 40, 10, Affine::IDENTITY, opts);
     let off = render(&RenderOptions { smooth_images: false, ..Default::default() });
     assert_eq!((off.pixel(5, 5), off.pixel(15, 5)), ([0, 255, 255, 255], [255, 0, 0, 255]), "the preview off: the image's own pixels");
@@ -249,9 +249,9 @@ fn separations_preview_shows_an_rgb_images_process_inks() {
 #[test]
 fn separations_preview_shows_a_cmyk_images_own_inks() {
     let ink = [0u8, 102, 255, 25];
-    let blob = ImageBlob::cmyk_tiff(&vectorcraft_doc::cmyk::Inks::new(2, 2, ink.repeat(4)).unwrap()).unwrap();
+    let blob = ImageBlob::cmyk_tiff(&pluma_doc::cmyk::Inks::new(2, 2, ink.repeat(4)).unwrap()).unwrap();
     let fill = Color::cmyk(0.0, 0.4, 1.0, 25.0 / 255.0);
-    let d = image_and_fills(vectorcraft_doc::ColorMode::Cmyk, blob, (2, 2), 5.0, 10.0, &[fill]);
+    let d = image_and_fills(pluma_doc::ColorMode::Cmyk, blob, (2, 2), 5.0, 10.0, &[fill]);
     for (plates, grey) in [
         (&["Cyan"][..], Some(255)),
         (&["Magenta"], Some(153)),
@@ -274,7 +274,7 @@ fn separations_preview_shows_a_cmyk_images_own_inks() {
 fn separations_preview_keeps_an_images_pixels_per_plate_set() {
     let cyan = Color::rgb(0.0, 1.0, 1.0);
     let blob = ImageBlob::new("image/png", rgb_png(40, 40, &[[0, 255, 255]; 1600]));
-    let d = image_and_fills(vectorcraft_doc::ColorMode::Rgb, blob, (40, 40), 0.25, 10.0, &[cyan]);
+    let d = image_and_fills(pluma_doc::ColorMode::Rgb, blob, (40, 40), 0.25, 10.0, &[cyan]);
     let mips = |o: RenderOptions| RenderOptions { image_mips: true, ..o };
     let off = mips(RenderOptions { smooth_images: false, ..Default::default() });
     let mut r = Renderer::new();

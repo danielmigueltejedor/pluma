@@ -204,21 +204,21 @@ fn is_dark(fill: &Paint) -> bool {
     })
 }
 
-fn dir(a: f64) -> vectorcraft_geom::Vec2 {
-    vectorcraft_geom::Vec2::new(a.cos(), a.sin())
+fn dir(a: f64) -> pluma_geom::Vec2 {
+    pluma_geom::Vec2::new(a.cos(), a.sin())
 }
 
 /// A wedge of `ring` from angle `a0` over `sweep`; a ring segment when the ring has a hole.
 fn wedge_path(ring: Ring, a0: f64, sweep: f64) -> BezPath {
     let Ring { centre, rad, hole } = ring;
     let mut bp = BezPath::new();
-    let arc = vectorcraft_geom::kurbo::Arc::new(centre, (rad, rad), a0, sweep, 0.0);
+    let arc = pluma_geom::kurbo::Arc::new(centre, (rad, rad), a0, sweep, 0.0);
     if hole > 0.0 {
         // A ring segment: out along the outer arc, back along the inner one.
         bp.move_to(centre + dir(a0) * rad);
         arc.to_cubic_beziers(0.1, |p1, p2, p| bp.curve_to(p1, p2, p));
         bp.line_to(centre + dir(a0 + sweep) * hole);
-        let back = vectorcraft_geom::kurbo::Arc::new(centre, (hole, hole), a0 + sweep, -sweep, 0.0);
+        let back = pluma_geom::kurbo::Arc::new(centre, (hole, hole), a0 + sweep, -sweep, 0.0);
         back.to_cubic_beziers(0.1, |p1, p2, p| bp.curve_to(p1, p2, p));
     } else {
         bp.move_to(centre);
@@ -232,7 +232,7 @@ fn wedge_path(ring: Ring, a0: f64, sweep: f64) -> BezPath {
 /// The radius of the pie with `total`: one size (Even) or sized by the totals (Ratio, by area).
 fn pie_radius(g: &GraphSpec, full: f64, biggest: f64, total: f64) -> f64 {
     match g.pie_position {
-        vectorcraft_doc::PiePosition::Even => full,
+        pluma_doc::PiePosition::Even => full,
         _ if biggest > 0.0 && biggest.is_finite() => (full * (total / biggest).sqrt()).max(1.0),
         _ => full,
     }
@@ -245,7 +245,7 @@ impl<'a> Plot<'a> {
             designs.clear();
         }
         // The same dimensions `GraphSpec::cells` reads: raw rows can be longer than the grid they are read through.
-        let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, vectorcraft_doc::MAX_GRAPH_SERIES);
+        let nser = g.rows.iter().map(Vec::len).max().unwrap_or(0).clamp(1, pluma_doc::MAX_GRAPH_SERIES);
         let kinds: Vec<GraphKind> = (0..nser).map(|s| g.series_kind(s)).collect();
         Plot {
             g,
@@ -254,7 +254,7 @@ impl<'a> Plot<'a> {
             designs,
             r: g.rect,
             nser,
-            ncat: g.rows.len().clamp(1, vectorcraft_doc::MAX_GRAPH_CATEGORIES),
+            ncat: g.rows.len().clamp(1, pluma_doc::MAX_GRAPH_CATEGORIES),
             vs: label_size(&g.label_styles, Role::Value),
             cs: label_size(&g.label_styles, Role::Category),
             ls: label_size(&g.label_styles, Role::Legend),
@@ -325,7 +325,7 @@ impl<'a> Plot<'a> {
         let (g, r, ncat, nser) = (self.g, self.r, self.ncat, self.nser);
         let totals: Vec<f64> = (0..ncat).map(|c| (0..nser).map(|s| self.val(c, s).max(0.0)).sum()).collect();
         let biggest = totals.iter().copied().fold(0.0, f64::max);
-        let stacked = g.pie_position == vectorcraft_doc::PiePosition::Stacked;
+        let stacked = g.pie_position == pluma_doc::PiePosition::Stacked;
         let w = if stacked { r.width() } else { r.width() / ncat as f64 };
         let full = (w.min(r.height()) / 2.0 * 0.9).max(1.0);
         let radius = |total: f64| pie_radius(g, full, biggest, total);
@@ -358,9 +358,9 @@ impl<'a> Plot<'a> {
     fn pie_order(&self, c: usize) -> Vec<usize> {
         let mut o: Vec<usize> = (0..self.nser).collect();
         let by = match self.g.pie_sort {
-            vectorcraft_doc::PieSort::None => return o,
-            vectorcraft_doc::PieSort::All => c,
-            vectorcraft_doc::PieSort::First => 0,
+            pluma_doc::PieSort::None => return o,
+            pluma_doc::PieSort::All => c,
+            pluma_doc::PieSort::First => 0,
         };
         o.sort_by(|a, b| self.val(by, *b).max(0.0).total_cmp(&self.val(by, *a).max(0.0)));
         o
@@ -425,7 +425,7 @@ impl<'a> Plot<'a> {
         let (lo, hi, step) = radar_axis(g);
         let at = |c: usize, v: f64| {
             let a = -std::f64::consts::FRAC_PI_2 + std::f64::consts::TAU * c as f64 / ncat as f64;
-            centre + vectorcraft_geom::Vec2::new(a.cos(), a.sin()) * (rad * ((v - lo) / (hi - lo)).clamp(0.0, 1.0))
+            centre + pluma_geom::Vec2::new(a.cos(), a.sin()) * (rad * ((v - lo) / (hi - lo)).clamp(0.0, 1.0))
         };
         let mut axes = vec![];
         for c in 0..ncat {

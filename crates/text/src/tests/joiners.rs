@@ -9,8 +9,8 @@
 //! the check of the half-form test's face filter, which builds its faces in code.
 use crate::*;
 use kurbo::Point;
+use pluma_doc::CharStyle;
 use std::sync::Arc;
-use vectorcraft_doc::CharStyle;
 
 const ZWNJ: char = '\u{200C}';
 const ZWJ: char = '\u{200D}';

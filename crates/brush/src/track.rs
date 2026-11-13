@@ -4,7 +4,7 @@
 //! `s`; tangents are blended across the gentle vertices of flattened curves (so warped art bends
 //! smoothly) but stay discontinuous at real corners (so art folds there, like Illustrator).
 
-use vectorcraft_geom::{BezPath, PathEl, Point, Vec2};
+use pluma_geom::{BezPath, PathEl, Point, Vec2};
 
 /// Turn angle (degrees) above which a vertex is a corner.
 pub const CORNER_DEG: f64 = 30.0;
@@ -237,7 +237,7 @@ pub fn tracks(bp: &BezPath, tol: f64) -> Vec<Track> {
     }
     let mut els = vec![];
     // Guarded: kurbo works out every subdivision of a curve even when the callback drops them.
-    vectorcraft_geom::flatten(bp.iter(), tol.max(1e-4), |el| {
+    pluma_geom::flatten(bp.iter(), tol.max(1e-4), |el| {
         if els.len() < MAX_FLATTENED {
             els.push(el);
         }

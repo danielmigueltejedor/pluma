@@ -1,26 +1,26 @@
-//! `vectorcraft --control <port> --automation-read-root <dir> --automation-write-root <dir>` (#832):
+//! `pluma --control <port> --automation-read-root <dir> --automation-write-root <dir>` (#832):
 //! control requests read and write only inside the roots; the person at the keyboard is not
 //! confined.
 
 use std::path::{Path, PathBuf};
 
+use pluma_engine::Session;
+use pluma_engine::file_access::AutomationRoots;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::file_access::AutomationRoots;
 
 use crate::background::SharedWriteFn;
 use crate::control::ControlRequest;
-use crate::{Services, VectorcraftApp};
+use crate::{PlumaApp, Services};
 
 /// A folder holding `in` (the read root, with `a.svg`), `out` (the write root) and `outside`
 /// (with `b.svg`), and an app with the desktop's file services confined to `in` and `out`.
-fn confined(tag: &str) -> (VectorcraftApp, std::sync::mpsc::Sender<ControlRequest>, PathBuf) {
+fn confined(tag: &str) -> (PlumaApp, std::sync::mpsc::Sender<ControlRequest>, PathBuf) {
     confined_with(tag, None)
 }
 
 /// [`confined`], with `write_shared` as the thread-safe writer that Background Save and Background
 /// Export use.
-fn confined_with(tag: &str, write_shared: Option<SharedWriteFn>) -> (VectorcraftApp, std::sync::mpsc::Sender<ControlRequest>, PathBuf) {
+fn confined_with(tag: &str, write_shared: Option<SharedWriteFn>) -> (PlumaApp, std::sync::mpsc::Sender<ControlRequest>, PathBuf) {
     let base = std::env::temp_dir().join(format!("vc-ui-roots-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     for d in ["in", "out", "outside"] {
@@ -31,13 +31,13 @@ fn confined_with(tag: &str, write_shared: Option<SharedWriteFn>) -> (Vectorcraft
     std::fs::write(base.join("outside/b.svg"), svg).unwrap();
     let services = Services {
         read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
-        write: Some(Box::new(|p: &str, b: &[u8]| vectorcraft_format::write_atomic(Path::new(p), b).map_err(|e| e.to_string()))),
+        write: Some(Box::new(|p: &str, b: &[u8]| pluma_format::write_atomic(Path::new(p), b).map_err(|e| e.to_string()))),
         write_shared,
         ..Default::default()
     };
     let roots = AutomationRoots::new(&[&base.join("in")], &[&base.join("out")]).unwrap();
     let (tx, rx) = std::sync::mpsc::channel();
-    let app = VectorcraftApp::new(Session::new(), services).with_control(rx).with_automation_roots(roots);
+    let app = PlumaApp::new(Session::new(), services).with_control(rx).with_automation_roots(roots);
     (app, tx, base)
 }
 
@@ -46,7 +46,7 @@ fn s(p: PathBuf) -> String {
 }
 
 /// One request through the control channel, as the app's frame drains it.
-fn request(app: &mut VectorcraftApp, tx: &std::sync::mpsc::Sender<ControlRequest>, method: &str, params: Value) -> Value {
+fn request(app: &mut PlumaApp, tx: &std::sync::mpsc::Sender<ControlRequest>, method: &str, params: Value) -> Value {
     let (req, reply) = ControlRequest::new(method, params);
     tx.send(req).unwrap();
     app.drain_control(&egui::Context::default());
@@ -68,7 +68,7 @@ fn control_requests_stay_inside_the_roots() {
     assert!(base.join("out/a.png").is_file());
     for (method, params) in [
         ("app.export", json!({"path": s(base.join("outside/a.png")), "format": "png"})),
-        ("app.save", json!({"path": s(base.join("outside/a.vectorcraft"))})),
+        ("app.save", json!({"path": s(base.join("outside/a.pluma"))})),
         ("ui.render", json!({"path": s(base.join("outside/r.png"))})),
         // Refused at once, not when the frame comes.
         ("ui.screenshot", json!({"path": s(base.join("outside/w.png"))})),
@@ -92,7 +92,7 @@ fn control_saves_take_the_native_save_options() {
     let (mut app, tx, base) = confined("saveopts");
     app.run("file.new", json!({"width": 100, "height": 50})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
-    let saved = |app: &mut VectorcraftApp, name: &str, mut params: Value| {
+    let saved = |app: &mut PlumaApp, name: &str, mut params: Value| {
         let path = base.join("out").join(name);
         params["path"] = json!(s(path.clone()));
         let r = request(app, &tx, "app.save", params);
@@ -100,10 +100,10 @@ fn control_saves_take_the_native_save_options() {
         assert!(r["result"].get("pending").is_none() && app.ui.dialog.is_none(), "no dialog opens: {r}");
         std::fs::read(path).unwrap()
     };
-    assert_eq!(saved(&mut app, "gz.vectorcraft", json!({"compress": true}))[..2], [0x1f, 0x8b]);
-    let v3: Value = serde_json::from_slice(&saved(&mut app, "v3.vectorcraft", json!({"version": 3}))).unwrap();
+    assert_eq!(saved(&mut app, "gz.pluma", json!({"compress": true}))[..2], [0x1f, 0x8b]);
+    let v3: Value = serde_json::from_slice(&saved(&mut app, "v3.pluma", json!({"version": 3}))).unwrap();
     assert_eq!(v3["version"], 3);
-    assert!(vectorcraft_format::preview(&saved(&mut app, "p.vectorcraft", json!({"preview": true}))).is_some());
+    assert!(pluma_format::preview(&saved(&mut app, "p.pluma", json!({"preview": true}))).is_some());
     let _ = std::fs::remove_dir_all(base);
 }
 
@@ -112,10 +112,10 @@ fn control_saves_take_the_native_save_options() {
 /// before they reply. Without `wait` the refusal reaches only the status bar.
 #[test]
 fn control_saves_with_wait_reply_with_the_write_roots_refusal() {
-    let shared: SharedWriteFn = std::sync::Arc::new(|p: &str, b: &[u8]| vectorcraft_format::write_atomic(Path::new(p), b).map_err(|e| e.to_string()));
+    let shared: SharedWriteFn = std::sync::Arc::new(|p: &str, b: &[u8]| pluma_format::write_atomic(Path::new(p), b).map_err(|e| e.to_string()));
     let (mut app, tx, base) = confined_with("wait", Some(shared));
     app.run("file.new", json!({"width": 100, "height": 50})).unwrap();
-    for (method, name) in [("app.save", "a.vectorcraft"), ("app.export", "a.svg")] {
+    for (method, name) in [("app.save", "a.pluma"), ("app.export", "a.svg")] {
         let r = request(&mut app, &tx, method, json!({"path": s(base.join("outside").join(name)), "wait": true}));
         assert!(r["error"].as_str().is_some_and(|e| e.contains("outside the write root")), "{method}: {r}");
         let path = base.join("out").join(name);
@@ -123,7 +123,7 @@ fn control_saves_with_wait_reply_with_the_write_roots_refusal() {
         assert_eq!(r["ok"], true, "{method}: {r}");
         assert!(r["result"].get("background").is_none() && path.is_file(), "{method}: written before the reply: {r}");
     }
-    let r = request(&mut app, &tx, "app.save", json!({"path": s(base.join("outside/b.vectorcraft"))}));
+    let r = request(&mut app, &tx, "app.save", json!({"path": s(base.join("outside/b.pluma"))}));
     assert_eq!(r["result"]["background"], true, "{r}");
     crate::background::wait_all(&mut app);
     assert!(app.ui.status.contains("outside the write root"), "{}", app.ui.status);
@@ -247,7 +247,7 @@ fn control_render_matches_a_png_export_on_white() {
     std::fs::write(base.join("in/edges.svg"), svg).unwrap();
     let r = request(&mut app, &tx, "app.open", json!({"path": s(base.join("in/edges.svg"))}));
     assert_eq!(r["ok"], true, "{r}");
-    let pixels = |v: &Value| image::load_from_memory(&vectorcraft_format::base64_decode(v.as_str().unwrap()).unwrap()).unwrap().to_rgba8();
+    let pixels = |v: &Value| image::load_from_memory(&pluma_format::base64_decode(v.as_str().unwrap()).unwrap()).unwrap().to_rgba8();
     let r = request(&mut app, &tx, "app.export", json!({"format": "png", "background": "white"}));
     let export = pixels(&r["result"]["dataBase64"]);
     let r = request(&mut app, &tx, "ui.render", json!({}));
@@ -276,7 +276,7 @@ fn control_render_draws_the_trace_view_with_trace_views() {
     app.run("select.all", json!({})).unwrap();
     app.run("imageTrace.make", json!({"params": {"ignoreWhite": true}})).unwrap();
     app.run("imageTrace.setView", json!({"view": "sourceImage"})).unwrap();
-    let pixels = |v: &Value| image::load_from_memory(&vectorcraft_format::base64_decode(v.as_str().unwrap()).unwrap()).unwrap().to_rgba8();
+    let pixels = |v: &Value| image::load_from_memory(&pluma_format::base64_decode(v.as_str().unwrap()).unwrap()).unwrap().to_rgba8();
     let view = pixels(&request(&mut app, &tx, "ui.render", json!({"traceViews": true}))["result"]["pngBase64"]);
     let result = pixels(&request(&mut app, &tx, "ui.render", json!({}))["result"]["pngBase64"]);
     let (beside, middle) = (view.get_pixel(10, 10).0, view.get_pixel(50, 50).0);
@@ -378,12 +378,12 @@ fn an_unidentifiable_stale_injected_batch_fails_closed() {
 #[test]
 fn automation_cannot_approve_a_plugin_install() {
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default()).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), Default::default()).with_control(rx);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = "test.ui.approval.automation";
     let manifest = format!(r#"{{"id":"{id}","name":"Approval","version":"1","kind":"filter","permissions":["doc.read"]}}"#);
-    let bytes = wat::parse_str(vectorcraft_plugins::wat::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
-    let data = vectorcraft_format::base64_encode(&bytes);
+    let bytes = wat::parse_str(pluma_plugins::wat::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
+    let data = pluma_format::base64_encode(&bytes);
     let refused = |r: &Value, says: &str| assert!(r["error"].as_str().is_some_and(|e| e.contains(says)), "{r}");
 
     let r = request(&mut app, &tx, "engine.execute", json!({"command": "plugin.install", "params": {"dataBase64": data, "grant": ["doc.read"]}}));
@@ -395,7 +395,7 @@ fn automation_cannot_approve_a_plugin_install() {
     let r = request(&mut app, &tx, "ui.dialog.confirm", json!({}));
     refused(&r, "Only the person at the keyboard");
     assert!(app.ui.dialog.is_some(), "the refused answer leaves it open");
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
 
     // What the dialog installs isn't in its fields.
     let r = request(&mut app, &tx, "ui.dialog.set", json!({"field": "__params", "value": {"dataBase64": "AAAA"}}));
@@ -405,18 +405,18 @@ fn automation_cannot_approve_a_plugin_install() {
     assert!(r.get("error").is_none(), "{r}");
     let r = request(&mut app, &tx, "ui.dialog.confirm", json!({}));
     refused(&r, "Only the person at the keyboard");
-    assert!(app.ui.dialog.is_some() && vectorcraft_plugins::registry::get(id).is_none());
+    assert!(app.ui.dialog.is_some() && pluma_plugins::registry::get(id).is_none());
     app.synthetic_frame = true;
     assert!(crate::dialogs::confirm(&mut app).unwrap_err().contains("Only the person at the keyboard"));
-    assert!(vectorcraft_plugins::registry::get(id).is_none());
+    assert!(pluma_plugins::registry::get(id).is_none());
     app.synthetic_frame = false;
 
     crate::dialogs::confirm(&mut app).unwrap();
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(vectorcraft_plugins::permissions::sha256_hex(&bytes)));
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(pluma_plugins::permissions::sha256_hex(&bytes)));
     app.run("plugin.remove", json!({"id": id})).unwrap();
 }
 
-type DialogHarness = egui_kittest::Harness<'static, VectorcraftApp>;
+type DialogHarness = egui_kittest::Harness<'static, PlumaApp>;
 
 /// Runs one UI pass of `h` for each batch of synthetic input the control path queued, each taken
 /// through the host's raw-input hook, until none is left and the last batch is acknowledged.
@@ -436,8 +436,8 @@ fn take_injected(h: &mut DialogHarness) {
 /// The open install approval, with nothing installed or granted for `id`.
 fn still_waiting(h: &DialogHarness, id: &str) -> bool {
     h.state().ui.dialog.as_ref().is_some_and(|d| d.kind == crate::dialogs::plugin::INSTALL_KIND)
-        && vectorcraft_plugins::registry::get(id).is_none()
-        && vectorcraft_plugins::registry::granted(id).is_none()
+        && pluma_plugins::registry::get(id).is_none()
+        && pluma_plugins::registry::granted(id).is_none()
 }
 
 /// Keys and pointer input sent through the control path approve nothing at the open install
@@ -449,17 +449,17 @@ fn injected_keys_and_pointer_input_cannot_approve_a_plugin_install() {
     use egui_kittest::kittest::{NodeT, Queryable};
     let refusal = "Only the person at the keyboard";
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default()).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), Default::default()).with_control(rx);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = "test.ui.approval.injected";
     let manifest = format!(r#"{{"id":"{id}","name":"Approval","version":"1","kind":"filter","permissions":["doc.read"]}}"#);
-    let bytes = wat::parse_str(vectorcraft_plugins::wat::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
-    let data = vectorcraft_format::base64_encode(&bytes);
+    let bytes = wat::parse_str(pluma_plugins::wat::returning(&manifest, r#"{"objects":[]}"#)).unwrap();
+    let data = pluma_format::base64_encode(&bytes);
     let r = request(&mut app, &tx, "ui.menu.invoke", json!({"command": "ui.installPlugin", "params": {"dataBase64": data}}));
     assert_eq!(r["result"]["pending"], crate::dialogs::plugin::INSTALL_KIND, "{r}");
     let mut fonts = false;
     let mut h: DialogHarness = egui_kittest::Harness::builder().with_size(egui::vec2(900.0, 800.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -509,7 +509,7 @@ fn injected_keys_and_pointer_input_cannot_approve_a_plugin_install() {
     h.get_by_label("OK").click();
     h.run_steps(2);
     assert!(h.state().ui.dialog.is_none(), "{:?}", h.state().ui.status);
-    assert_eq!(vectorcraft_plugins::registry::granted(id).map(|g| g.hash), Some(vectorcraft_plugins::permissions::sha256_hex(&bytes)));
+    assert_eq!(pluma_plugins::registry::granted(id).map(|g| g.hash), Some(pluma_plugins::permissions::sha256_hex(&bytes)));
     h.state_mut().run("plugin.remove", json!({"id": id})).unwrap();
 }
 
@@ -532,7 +532,7 @@ fn automation_cannot_hand_files_or_urls_to_other_apps() {
         ..Default::default()
     };
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), services).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), services).with_control(rx);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let image = app.run("file.place", json!({"path": s(png.clone())})).unwrap()["ids"][0].as_u64().unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap();

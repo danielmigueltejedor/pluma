@@ -4,25 +4,25 @@
 
 This checkout, at documentation-only follow-up `12fee85c9cbf9f7f1609a53bc67327b12e4f4dd1` (`M14: distinguish qualification from publication`), is locally reconciling upstream `main` `714434527e1a3e03c4b49096e30dd92b258aab50` (PR #4135: panels on craft-ui's shared docking, floating panels in OS windows). The four conflicted files were resolved by taking upstream's `dock.rs`, `panel_docking.rs` and `panel_docking/tests.rs` and deleting `floating.rs`; `git diff` against `714434527…` is empty for those three files, and no `crate::floating` or `mod floating` path remains. Managed CI job 1422 passed all 12 mandatory stages on the pre-merge tree (`12fee85c9…`); managed job `egui037-vector-combined-ci1443` subsequently passed all 12 mandatory CI stages on the combined working tree, including WASM. Independent integration reviews accepted the conflict resolutions and shared-library pins. This qualification covers the executable source and lockfile; the qualification prose was updated afterward to record that result. Native/platform GUI and IME workflows, final packages and paired app performance remain open.
 
-**Historical status (superseded, not current acceptance):** the earlier reconciliation against `main` `8bf090b25389b48aa6f9d7415de57c9ce7ccf8cb` and managed job `egui037-vectorcraft-artboard-green-ci-20261025-0589` recorded 10,197 passing test executions, zero failures and 14 ignored, including the artboard-name geometry regression, input/IME fixtures, no-bundled-font checks and the web app build. The 0.36.2 lock table and the plan-time local craft-libs/CL-2F statements below are historical planning state. Current dependency pins (read from this checkout's `Cargo.toml` and `Cargo.lock` on 2026-10-25): `egui`, `eframe`, `egui-winit`, `egui-wgpu`, `egui_glow`, `egui_extras`, `egui_kittest`, `epaint`, `emath`, `ecolor`, `epaint_default_fonts` are `0.37.0` from `storytold/egui` rev `6d518fc799681571963842f95b55a6b68431b15a`; `egui_system_font_provider` has an unused patch at that same revision and is not in the resolved dependency graph; `winit` is `0.30.13` from `storytold/winit` rev `a517b3846ee8457d84ee4975110bfda6797c44dc`; `wgpu` is `30.0.1`; `kittest` is `0.5.0`; `accesskit`/`accesskit_winit` are `0.25.1`/`0.34.1`; `craft-ui`, `craft-window`, `craft-keymap`, `craft-print`, `craft-pdf` and `craft-docpath` use published `storytold/craft-libs` rev `a0916808f7d78bed8c7b90cdf937176015454a7f`, as do the `hayro-*` and `krilla` patches.
+**Historical status (superseded, not current acceptance):** the earlier reconciliation against `main` `8bf090b25389b48aa6f9d7415de57c9ce7ccf8cb` and managed job `egui037-pluma-artboard-green-ci-20261025-0589` recorded 10,197 passing test executions, zero failures and 14 ignored, including the artboard-name geometry regression, input/IME fixtures, no-bundled-font checks and the web app build. The 0.36.2 lock table and the plan-time local craft-libs/CL-2F statements below are historical planning state. Current dependency pins (read from this checkout's `Cargo.toml` and `Cargo.lock` on 2026-10-25): `egui`, `eframe`, `egui-winit`, `egui-wgpu`, `egui_glow`, `egui_extras`, `egui_kittest`, `epaint`, `emath`, `ecolor`, `epaint_default_fonts` are `0.37.0` from `storytold/egui` rev `6d518fc799681571963842f95b55a6b68431b15a`; `egui_system_font_provider` has an unused patch at that same revision and is not in the resolved dependency graph; `winit` is `0.30.13` from `storytold/winit` rev `a517b3846ee8457d84ee4975110bfda6797c44dc`; `wgpu` is `30.0.1`; `kittest` is `0.5.0`; `accesskit`/`accesskit_winit` are `0.25.1`/`0.34.1`; `craft-ui`, `craft-window`, `craft-keymap`, `craft-print`, `craft-pdf` and `craft-docpath` use published `storytold/craft-libs` rev `a0916808f7d78bed8c7b90cdf937176015454a7f`, as do the `hayro-*` and `krilla` patches.
 
 **Earlier status (historical):** implementation revision 4, 2026-10-24. The Pluma migration is implemented in the
-`vectorcraft-implementation` worktree; this revision incorporates the final upstream-review repairs. At revision 4
+`pluma-implementation` worktree; this revision incorporates the final upstream-review repairs. At revision 4
 the exact tree still needed a fresh managed build/test/lint run before publication; earlier managed evidence
 (`tests-12`, `lints-13`) is not claimed for those later edits. Every claim below remains source-grounded in the
 checkouts named here; historical compiler diagnostics and reviewer findings are clues, not acceptance evidence.
 
-**Assigned source:** `/home/codex/work/CraftApps/egui037-migration-20261022/vectorcraft-implementation` — the
+**Assigned source:** `/home/codex/work/CraftApps/egui037-migration-20261022/pluma-implementation` — the
 implementation worktree. The earlier pinned review checkout was `vectorcraft` at
 `8906073438a2f7f0d3634d460b900956134f65e6` (2026-10-23 11:50:04 +0700).
 **Worktree:** implementation worktree in place; earlier plan worktree `codex/egui-037-plan-20261022`.
 **Pinned review baselines:** revision 2 was
 `d8c6a7594015919751d2b83bbe0e44ee9fdb4696b4e5c90fb1f8ecbdf7335f83` (107,991 bytes), reviewed in
-`plan-reviews/vectorcraft-v2.md`; revision 1 was
+`plan-reviews/pluma-v2.md`; revision 1 was
 `70938f132709da9073910631e90364738e8df3dfc0d7b354920ba7910fc01fbe`, reviewed in
-`plan-reviews/vectorcraft-v1.md`. Both reviews are under
+`plan-reviews/pluma-v1.md`. Both reviews are under
 `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/`.
-**Remote drift snapshot:** `storytold/vectorcraft` main advanced from `8906073…` to
+**Remote drift snapshot:** `getnodalia/pluma` main advanced from `8906073…` to
 `4a7cba0dd32e4ac249e4dc50af486b89531481aa` in two commits touching only
 `crates/cad/src/import/curve.rs` (DXF spline); see
 `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/remote-plan-bases-20261023-0632.json`.
@@ -32,7 +32,7 @@ implementation worktree. The earlier pinned review checkout was `vectorcraft` at
 
 This subsection records the current code after PR #4135; §§2–5 below remain the original planning record and are marked historical where the merged code replaced them.
 
-- **Desktop versus web/Wayland:** on the desktop, floating panels open in OS windows of their own through craft-ui's target-gated `native-windows` feature (`crates/ui-egui/Cargo.toml`, `crates/ui-egui/src/panel_docking.rs` module docs, `apps/vectorcraft/src/main.rs::native_input_hook`). On the web and on Wayland they float inside the app window (`panel_docking.rs`; `docs/control-protocol.md`).
+- **Desktop versus web/Wayland:** on the desktop, floating panels open in OS windows of their own through craft-ui's target-gated `native-windows` feature (`crates/ui-egui/Cargo.toml`, `crates/ui-egui/src/panel_docking.rs` module docs, `apps/pluma/src/main.rs::native_input_hook`). On the web and on Wayland they float inside the app window (`panel_docking.rs`; `docs/control-protocol.md`).
 - **Removed app-side floating:** `crates/ui-egui/src/floating.rs` is deleted. `dock.rs` is now 137 lines and holds `panel_body` plus two scroll-bar tests; `panel_docking.rs` draws the canvas and panels through `craft_ui::docking::DockArea`, with the session-only `Runtime`, `inspect`, `hit_rects`, `known` and `valid`. The old `apply_pending_dock_width`, `cancel_legacy_drag`, `seed_dock_panel_width`, `note_dock_width`, `legacy_dock_default_width`, `shared_dock_default_width` and `dock_width_pending` symbols are gone. `tools_float.rs` keeps the Tools panel's own move state.
 - **Dock-width persistence:** `UiState::dock_width` is the app-owned preference. `panel_docking::main_width` clamps it into the default layout, `default_flags`/`Transaction::commit` writes a resized width back, `workspaces::Workspace` captures and applies it (test `saved_workspaces_restore_dock_width`), and `layout_migration` carries it across older preference files. No `PanelState` seeding is used for dock width.
 - **Tests:** `panel_docking/tests.rs` covers pointer/keyboard docking; `panel_docking/native_tests.rs` covers desktop OS windows (keyboard, drops, modal focus and `ui.docking` hit-rect filtering); `layout_migration/tests.rs` covers conversion of layouts saved before the canvas joined the shared dock; `dock.rs` retains two scroll-bar accessibility tests; `workspaces.rs` covers saved-width restore. These test surfaces are included in the combined-tree CI qualification recorded above; native GUI workflows remain a separate open gate.
@@ -62,7 +62,7 @@ The migration is not a version-string bump:
 2. 0.37's `WidgetType` → `accesskit::Role` deprecation/alias and variant renames, `Id`/`IdSalt` split, `Ui::scope_id`, screenshot callback, `FontsView` privacy,
    `ScrollArea::State::offset` privacy, `WidgetInfo.role`, `MouseWheelSource` and `accesskit::Role` changes are
    concrete compile/API changes. The historical diagnostics in
-   `/home/codex/work/ssd2/task-evidence/egui037-audit-20261022/{fork,stock}/vectorcraft.errors` already list many
+   `/home/codex/work/ssd2/task-evidence/egui037-audit-20261022/{fork,stock}/pluma.errors` already list many
    of them (35 entries; the fork and stock lists are identical). They are line-drifted clues, not a current
    acceptance baseline.
 3. The app has three behaviours that need explicit redesign, not mechanical renames:
@@ -112,8 +112,8 @@ publishing a mixed or reduced graph.
 | craft-libs PR 199 API commit | `8614e4a04fae516fba16c22b31ff1008cb6be10b` | Historical source of the egui API-port hunks already contained in the `3832c47…` base |
 | craft-libs PR 199 README commit | `1764bca` | README/`scope_id` example hunk to review and apply separately |
 | craft-libs audit merge | `audit/main-plus-199` (`ec8840af…` locally) | **Evidence of conflict resolution risk, not a source.** It drops security checks and lacks `craft-platform`; see §3.7 |
-| Adversarial plan review, revision 1 | `plan-reviews/vectorcraft-v1.md` | Reviewed document `70938f132709da9073910631e90364738e8df3dfc0d7b354920ba7910fc01fbe`; findings resolved in §8.1 |
-| Adversarial plan review, revision 2 | `plan-reviews/vectorcraft-v2.md` | Reviewed document `d8c6a7594015919751d2b83bbe0e44ee9fdb4696b4e5c90fb1f8ecbdf7335f83`; findings resolved in §8.2 |
+| Adversarial plan review, revision 1 | `plan-reviews/pluma-v1.md` | Reviewed document `70938f132709da9073910631e90364738e8df3dfc0d7b354920ba7910fc01fbe`; findings resolved in §8.1 |
+| Adversarial plan review, revision 2 | `plan-reviews/pluma-v2.md` | Reviewed document `d8c6a7594015919751d2b83bbe0e44ee9fdb4696b4e5c90fb1f8ecbdf7335f83`; findings resolved in §8.2 |
 | Remote bases snapshot | `remote-plan-bases-20261023-0632.json` | Records all suite heads and the two-commit Pluma drift above |
 
 Historical pre-migration Pluma lock identities (from `Cargo.lock` at the pinned `890607…` baseline; the 0.36 comparison arm, not the current lock):
@@ -155,8 +155,8 @@ is unrelated DXF work; it is a rebase gate, not a reason to change the pinned re
 
 Root workspace (`Cargo.toml`):
 
-- `resolver = "3"`, members `crates/*`, `apps/*`, `xtask`; default members include `apps/vectorcraft`,
-  `apps/vectorcraft-cli` and `xtask`.
+- `resolver = "3"`, members `crates/*`, `apps/*`, `xtask`; default members include `apps/pluma`,
+  `apps/pluma-cli` and `xtask`.
 - Current workspace UI dependencies: `egui = "0.37"`, `egui_extras = { version = "0.37",
   default-features = false, features = ["svg"] }`, `eframe = { version = "0.37", default-features = false }`,
   `egui_kittest = "0.37"`.
@@ -176,8 +176,8 @@ Manifests that participate in the egui graph (the table records the plan-time de
 | Manifest | Plan-time UI declaration | Required change |
 |---|---|---|
 | `crates/ui-egui/Cargo.toml` | `egui` workspace + `bytemuck`; `egui_extras`; dev `egui_kittest` `wgpu`,`snapshot` | `egui` must also enable `default_fonts` for library tests/embedders and for downstream kittest tests, which do not inherit kittest's own dev-dependency fonts; `egui_extras`/`egui_kittest` to 0.37; no feature rename assumed |
-| `apps/vectorcraft/Cargo.toml` | `eframe` features `default_fonts`, `wayland`, `x11`; default features `wgpu`, `accessibility`; direct `winit 0.30` | add **`eframe/clipboard`**; keep `links` off (existing native `open_url` service); keep `system_fonts` off; retain winit feature set |
-| `apps/vectorcraft-web/Cargo.toml` | wasm `eframe` features `default_fonts`, `wgpu`, `accesskit` | keep; add `clipboard` only if the chosen eframe 0.37 web path needs the feature (the web clipboard code is not gated by it, but test it); web `open_url` is handled by the web runner |
+| `apps/pluma/Cargo.toml` | `eframe` features `default_fonts`, `wayland`, `x11`; default features `wgpu`, `accessibility`; direct `winit 0.30` | add **`eframe/clipboard`**; keep `links` off (existing native `open_url` service); keep `system_fonts` off; retain winit feature set |
+| `apps/pluma-web/Cargo.toml` | wasm `eframe` features `default_fonts`, `wgpu`, `accesskit` | keep; add `clipboard` only if the chosen eframe 0.37 web path needs the feature (the web clipboard code is not gated by it, but test it); web `open_url` is handled by the web runner |
 | `craft-ui` / `craft-window` pins | 0.36-era craft-libs revisions | final L2 craft-libs revision on `3832c47…` with workspace `egui = "0.37"` and the CL-2F capture helper |
 | `Cargo.lock` | one coherent 0.36 graph | one coherent 0.37 graph; no second `egui`, `eframe`, `egui-winit`, `egui-wgpu`, `epaint`/`emath`/`ecolor`, or `winit`; external `kittest`/`accesskit*` are separate audited registry identities |
 
@@ -191,29 +191,29 @@ never against a candidate, an intermediate fork stage or a provisional craft-lib
 
 | Target | Path | Current role |
 |---|---|---|
-| `vectorcraft` binary | `apps/vectorcraft/src/main.rs` | Native eframe/wgpu app, control server, macOS menu, Linux stylus/XWayland, Windows stylus, printing |
-| `vectorcraft-web` binary | `apps/vectorcraft-web/src/main.rs`, `web.rs` | wasm eframe web runner, WebGPU/WebGL2, DOM paste/drop, `window.vectorcraft` control API |
-| `vectorcraft-cli` binary | `apps/vectorcraft-cli/src/main.rs`, `perf.rs` | Headless run/convert/bench/perf and MCP stdio |
-| `vectorcraft-ui-egui` library | `crates/ui-egui/src/lib.rs` | All frontend state, panels, dialogs, canvas, control methods, i18n, clipboard, fonts, workers |
-| `vectorcraft-mcp` library | `crates/mcp` | MCP protocol over the engine/control semantics; no direct egui dependency |
-| `vectorcraft-testkit` | `crates/testkit` | Test fixtures; dev-only |
+| `pluma` binary | `apps/pluma/src/main.rs` | Native eframe/wgpu app, control server, macOS menu, Linux stylus/XWayland, Windows stylus, printing |
+| `pluma-web` binary | `apps/pluma-web/src/main.rs`, `web.rs` | wasm eframe web runner, WebGPU/WebGL2, DOM paste/drop, `window.pluma` control API |
+| `pluma-cli` binary | `apps/pluma-cli/src/main.rs`, `perf.rs` | Headless run/convert/bench/perf and MCP stdio |
+| `pluma-ui-egui` library | `crates/ui-egui/src/lib.rs` | All frontend state, panels, dialogs, canvas, control methods, i18n, clipboard, fonts, workers |
+| `pluma-mcp` library | `crates/mcp` | MCP protocol over the engine/control semantics; no direct egui dependency |
+| `pluma-testkit` | `crates/testkit` | Test fixtures; dev-only |
 | `xtask` | `xtask/src/*` | `ci`, `wasm`, `layers`, `assets`, `brands`, `cursors`, `pdf-deps`, corpus and packaging checks |
 
 Entry-point details that must remain true:
 
-- `apps/vectorcraft/src/main.rs::App` implements `eframe::App::logic`, `ui`, `raw_input_hook`, `on_exit`; `logic_frame`
-  calls `VectorcraftApp::logic`, tracks window geometry/maximize, closes the window, and handles graphics loss.
-- `apps/vectorcraft-web/src/web.rs::WebShell` implements the same trait; `logic` also handles pasted/dropped files and
+- `apps/pluma/src/main.rs::App` implements `eframe::App::logic`, `ui`, `raw_input_hook`, `on_exit`; `logic_frame`
+  calls `PlumaApp::logic`, tracks window geometry/maximize, closes the window, and handles graphics loss.
+- `apps/pluma-web/src/web.rs::WebShell` implements the same trait; `logic` also handles pasted/dropped files and
   `api::poll_replies`; `ui` calls `app.ui` and polls replies.
-- `crates/ui-egui/src/lib.rs::VectorcraftApp::logic` currently does **both** background polling and input-dependent
+- `crates/ui-egui/src/lib.rs::PlumaApp::logic` currently does **both** background polling and input-dependent
   work (`shortcuts::handle` at the end, `take_dropped_files`, native-menu key processing). This is the central
   lifecycle defect to fix.
-- `crates/ui-egui/src/lib.rs::VectorcraftApp::ui` guards a panic and calls `ui_frame`, which draws app bar, control
+- `crates/ui-egui/src/lib.rs::PlumaApp::ui` guards a panic and calls `ui_frame`, which draws app bar, control
   bar, status/hint bars, toolbar, dock, `CentralPanel` + canvas, floating panels, dialogs, progress, palette,
   titlebar resize zones, fonts, scrub end, native-menu sync and clipboard format cleanup.
-- `crates/ui-egui/src/control.rs` owns the JSON control methods; `apps/vectorcraft/src/control_server.rs` owns the
-  loopback JSON-lines transport; `apps/vectorcraft-web/src/api.rs` exposes the same methods as page promises.
-- The canvas is CPU-rasterized by `vectorcraft_render` and composited by wgpu; egui only uploads the raster texture.
+- `crates/ui-egui/src/control.rs` owns the JSON control methods; `apps/pluma/src/control_server.rs` owns the
+  loopback JSON-lines transport; `apps/pluma-web/src/api.rs` exposes the same methods as page promises.
+- The canvas is CPU-rasterized by `pluma_render` and composited by wgpu; egui only uploads the raster texture.
   UI-frame work and document rendering are separate measurements.
 
 ### 2.4 Historical 0.36.2 lifecycle (planning snapshot, not current acceptance)
@@ -221,8 +221,8 @@ Entry-point details that must remain true:
 The 0.36.2 baseline already had:
 
 - `App::logic(&mut self, ctx, frame)` and `App::ui(&mut self, ui, frame)` in both hosts.
-- `VectorcraftApp::logic(ctx)` called from the host logic, guarded by `vectorcraft_engine::guard::catch_panic`.
-- `VectorcraftApp::ui(ui)` called from the host UI, also guarded.
+- `PlumaApp::logic(ctx)` called from the host logic, guarded by `pluma_engine::guard::catch_panic`.
+- `PlumaApp::ui(ui)` called from the host UI, also guarded.
 - A root `Ui` in `App::ui`; panels are already shown with `egui::Panel::…::show(ui, …)`.
 - Custom `Area`/`Window` dialogs and floating panels in the 0.36.2 baseline; at planning time the app had no `show_viewport_deferred`/child native viewports. The shared-docking integration now opens desktop floating panels as craft-ui OS windows, while the web and Wayland keep them in-page (see “Shared-docking integration (current)” above).
 - `ctx.run_ui` in many tests; `ctx.run_ui` in test helpers draws either the whole app or one panel/dialog.
@@ -295,7 +295,7 @@ names.
 
 ### 3.3 Id migration
 
-- 294 `Id::new(...)` occurrences across `crates/ui-egui`, `apps/vectorcraft` and `apps/vectorcraft-web`
+- 294 `Id::new(...)` occurrences across `crates/ui-egui`, `apps/pluma` and `apps/pluma-web`
   (`rg -o 'Id::new' … | wc -l`; 283 source lines contain one or more). `Id::new` is deprecated in 0.37;
   `Id::unique` hashes the same source with the same seeds, so persisted temp-memory keys keep their identity.
   Replace mechanically, then prove UI state/panel/selection tests.
@@ -501,7 +501,7 @@ historical audit tree `ec8840a` is likewise unsafe. Never merge either tree:
 - `eframe` 0.37 `default_fonts` is still a feature; the app/web already request it.
 - eframe 0.37 `system_fonts` (fontique/egui_system_font_provider) is a new default in eframe's default feature
   set. Pluma disables eframe defaults, so it stays off. Keep it off initially: the app owns font discovery
-  (`vectorcraft_text::FontDb`, `apps/vectorcraft/src/system_fonts.rs`, `mac_fonts.rs`, web `fonts.rs`) and must
+  (`pluma_text::FontDb`, `apps/pluma/src/system_fonts.rs`, `mac_fonts.rs`, web `fonts.rs`) and must
   build/test with `CRAFT_FONTS` empty. Evaluate #8512 startup cost only if a measured case justifies enabling it.
 - `eframe` 0.37 `links` is a feature; Pluma's native app installs its own `open_url` service
   (`webbrowser`), and the web runner handles `OutputCommand::OpenUrl`. Keep `links` off as before; add it only if a
@@ -525,7 +525,7 @@ historical audit tree `ec8840a` is likewise unsafe. Never merge either tree:
   `415dc6290378574135b64c808dc640c1df7531973290c4970c51fdeb849cb0c5`; use the same bytes for paired
   measurements and preserve the adjacent licence files. Fetch these as test resources into the task evidence
   directory; do not copy font binaries into this repository, and do not replace them with system fonts. Keep
-  Pluma's own central-font policy (`vectorcraft_text::FontDb`, `CRAFT_FONTS_DIR`, interface-fonts /
+  Pluma's own central-font policy (`pluma_text::FontDb`, `CRAFT_FONTS_DIR`, interface-fonts /
   bundled-fonts) and the `CRAFT_FONTS` empty build/test requirement. A missing glyph fails the strict test unless a
   deliberate `allow_missing_glyphs` case is documented.
 
@@ -535,7 +535,7 @@ historical audit tree `ec8840a` is likewise unsafe. Never merge either tree:
   `ImeEvent::DeleteSurroundingBytes { before_bytes, after_bytes }` (E21) and the winit fork supplies it for
   macOS press-and-hold/dictation and Wayland text-input-v3.
 - `crates/ui-egui/src/shortcuts.rs::type_text` matches `Preedit`/`Commit` and deliberately leaves everything else
-  in the event list. `crates/ui-egui/src/canvas.rs` and `vectorcraft_engine`'s `tool_text`/`tool_preedit`/`tool_key`
+  in the event list. `crates/ui-egui/src/canvas.rs` and `pluma_engine`'s `tool_text`/`tool_preedit`/`tool_key`
   have no “delete surrounding characters/bytes” operation. A system IME that replaces text around the cursor will
   therefore not edit the document as intended.
 - Design a single canvas insertion/deletion API in the engine/tool layer: delete `before_chars`/`after_chars`
@@ -569,7 +569,7 @@ historical audit tree `ec8840a` is likewise unsafe. Never merge either tree:
   preedit → replacement → commit, preedit → cancel, deletion-only batches, and focus/serial changes.
 - `ImeEvent::Enabled`/`Disabled` are deprecated; do not add matches that depend on them.
 - `Event::PasteImage`/`MiddleClickPaste` are not IME; keep them out of the IME sequence.
-- Pluma's UI languages are LTR; document text can be RTL and uses `vectorcraft_text`'s own bidi/shaping, not
+- Pluma's UI languages are LTR; document text can be RTL and uses `pluma_text`'s own bidi/shaping, not
   egui's `LayoutJob`. UI text containing RTL layer names must still lay out and hit-test correctly through the
   fork's E5/E12 changes. Add RTL-name UI tests; do not claim a full RTL UI.
 
@@ -709,7 +709,7 @@ craft-window (final craft-libs rev) ── egui 0.37
   `cargo xtask ci`.
 - `cargo tree -d`/`cargo tree -i egui` must show one egui, one epaint family and one winit, plus one compatible
   external test/accessibility identity. Duplicate `skrifa`/`harfrust`/`glifo` versions are expected from epaint
-  0.37 vs `vectorcraft-text`; record them and measure binary size. Do not force a text-engine downgrade without
+  0.37 vs `pluma-text`; record them and measure binary size. Do not force a text-engine downgrade without
   evidence.
 - Pluma keeps ownership of its document model, engine commands, undo stack, units, themes, font database,
   workspace format and persistence. `craft-ui`/`craft-window` remain shared widget/window helpers; this migration
@@ -725,17 +725,17 @@ Split the current `logic` into an explicit, testable boundary. Proposed surface 
 `crates/ui-egui/src/lib.rs`:
 
 ```text
-VectorcraftApp::begin_host_iteration()  // called from both hosts' raw_input_hook; root viewport only
-VectorcraftApp::tick(ctx)               // once per host iteration, full or logic-only; no raw input
-VectorcraftApp::ui(ui)                  // first UI pass in an iteration consumes input; later passes draw only
+PlumaApp::begin_host_iteration()  // called from both hosts' raw_input_hook; root viewport only
+PlumaApp::tick(ctx)               // once per host iteration, full or logic-only; no raw input
+PlumaApp::ui(ui)                  // first UI pass in an iteration consumes input; later passes draw only
 ```
 
 Hosts:
 
-- `apps/vectorcraft/src/main.rs::App::raw_input_hook` calls `self.app.begin_host_iteration()` before injecting host
+- `apps/pluma/src/main.rs::App::raw_input_hook` calls `self.app.begin_host_iteration()` before injecting host
   input and synthetic events; `App::logic` calls `self.app.tick(ctx)`.
-- `apps/vectorcraft/src/main.rs::App::ui` calls `self.app.ui(ui)`.
-- `apps/vectorcraft-web/src/web.rs::WebShell::raw_input_hook` calls `app.begin_host_iteration()` before taking its
+- `apps/pluma/src/main.rs::App::ui` calls `self.app.ui(ui)`.
+- `apps/pluma-web/src/web.rs::WebShell::raw_input_hook` calls `app.begin_host_iteration()` before taking its
   pointer events; `WebShell::logic` calls `app.tick(ctx)` and keeps graphics-loss/restart and `api::poll_replies`.
 - `WebShell::ui` keeps its DOM paste/drop handling and calls `app.ui`.
 - **This matches the actual host order:** eframe calls `raw_input_hook` from `prepare_raw_input` in both
@@ -747,7 +747,7 @@ Hosts:
   `tick` + `ui` inside the closure; logic-only runs `run_logic` with `tick` only. Do not call `tick` outside the
   host-ordered closure in realistic tests.
 
-Both `tick` and `ui` keep the existing `vectorcraft_engine::guard::catch_panic` entry guard: a bug costs one
+Both `tick` and `ui` keep the existing `pluma_engine::guard::catch_panic` entry guard: a bug costs one
 frame, rolls the document back and shows the existing status error; it must not close the app with unsaved work.
 
 **Counters (keep them distinct):**
@@ -987,9 +987,9 @@ cargo xtask ci
 cargo xtask wasm
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo test -p vectorcraft-ui-egui --no-default-features --test install_fonts
-cargo clippy -p vectorcraft-ui-egui --no-default-features --all-targets -- -D warnings
-cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts
+cargo test -p pluma-ui-egui --no-default-features --test install_fonts
+cargo clippy -p pluma-ui-egui --no-default-features --all-targets -- -D warnings
+cargo test -p pluma-text --no-default-features --test without_bundled_fonts
 cargo xtask ui-deps
 cargo xtask pdf-deps
 CRAFT_FONTS_DIR=/absolute/craft-fonts cargo xtask ci
@@ -1060,7 +1060,7 @@ Add accessibility tests in the existing `role_and_state` style and via kittest:
 - No new committed raster goldens for the whole app. Cross-renderer pixel goldens are noisy and would require
   asset/provenance review. Use geometry, clip rectangles, AccessKit trees and texture counts as committed
   assertions; keep paired screenshots as migration evidence under
-  `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/vectorcraft/`.
+  `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/pluma/`.
 - The shared component suite is separate: run `cargo test -p craft-ui --test visual_regression` on the L1 and L2
   revisions and require its 414 exact positive pairs (icon buttons, toolbar fitting, widget palette, SVG
   preparation) plus 36 negative controls, comparing pixels and meshes with no tolerance or automatic baseline
@@ -1077,8 +1077,8 @@ Add accessibility tests in the existing `role_and_state` style and via kittest:
 ### 5.4 Commands, undo, save and reopen
 
 - Preserve command ids, labels, menu paths, shortcuts, params and `enabled`; `UI_COMMANDS` unchanged.
-- Add an end-to-end test: open `examples/feature-sheet.vectorcraft` (synthetic, committed), edit via command,
-  undo/redo, save as a temp `.vectorcraft`, close, reopen, assert document meaning, selection/view expectations,
+- Add an end-to-end test: open `examples/feature-sheet.pluma` (synthetic, committed), edit via command,
+  undo/redo, save as a temp `.pluma`, close, reopen, assert document meaning, selection/view expectations,
   undo semantics and no format change. Also do this through the control channel.
 - Test the Type tool's IME replacement as one undo step and a save/reopen of the result.
 - Test workspace/preferences persistence after `Id`/panel changes; old `UiState` JSON must load.
@@ -1100,7 +1100,7 @@ Add accessibility tests in the existing `role_and_state` style and via kittest:
   compile/package and the smoke they actually run. Do not treat a cross/QEMU build as GUI, IME, clipboard or GPU
   evidence; record those rows as unavailable unless a real machine is used.
 - **Web:** `trunk build --release`, serve, use headless Chrome with `--remote-debugging-port`; exercise
-  `window.vectorcraft.openFile/execute/screenshot`, file drop, DOM paste, WebGPU and `?webgl`, save/download, and
+  `window.pluma.openFile/execute/screenshot`, file drop, DOM paste, WebGPU and `?webgl`, save/download, and
   screenshot. A compile-only wasm check is not a browser workflow.
 
 ### 5.6 Fonts, IDs, IME and accessibility matrices
@@ -1149,11 +1149,11 @@ Record the exact test name, command, expected/actual and the reverted diff in ev
 
 Add a UI-frame harness before touching production code. Proposed:
 
-- `apps/vectorcraft-cli` gains an optional `ui-perf` feature/dependency on `vectorcraft-ui-egui` and
-  `apps/vectorcraft-cli/src/perf_ui.rs`, invoked as `vectorcraft-cli perf --ui --frames 1200 --json PATH`.
+- `apps/pluma-cli` gains an optional `ui-perf` feature/dependency on `pluma-ui-egui` and
+  `apps/pluma-cli/src/perf_ui.rs`, invoked as `pluma-cli perf --ui --frames 1200 --json PATH`.
 - It builds a deterministic `Session` with `perf::synthetic(50_000)`, installs `theme::install_fonts` and the same
   `craft-fonts`/interface fonts as production, and runs a **version-neutral** frame driver on a fixed
-  `egui::Context`: baseline 0.36.2 calls `VectorcraftApp::logic` then `ui` inside `run_ui` and `logic` inside
+  `egui::Context`: baseline 0.36.2 calls `PlumaApp::logic` then `ui` inside `run_ui` and `logic` inside
   `run_logic`; the candidate calls `tick` then `ui` inside `run_ui` and `tick` inside `run_logic`. Both invoke the
   host `raw_input_hook`/iteration boundary once per frame, in the real host order. The baseline must not use a
   nonexistent `tick` API or a shim that changes its lifecycle.
@@ -1169,8 +1169,8 @@ Add a UI-frame harness before touching production code. Proposed:
 - Report p50/p95/p99 over ≥1,000 accepted frames; 10 warmups + 30 timed iterations for discrete operations; ≥20
   fresh processes for startup. Do not call a p99 from 20/30 samples a tail estimate.
 
-Also run the existing `vectorcraft-cli perf --paths 50000 --deep` (engine/render budgets) on the same fixture and
-`vectorcraft-cli bench FILE` for a representative example. These measure different things; do not compare compile
+Also run the existing `pluma-cli perf --paths 50000 --deep` (engine/render budgets) on the same fixture and
+`pluma-cli bench FILE` for a representative example. These measure different things; do not compare compile
 time or CLI throughput to UI latency.
 
 ### 6.2 Paired comparison
@@ -1247,7 +1247,7 @@ a blanket `with_accessibility_check(false)` as a staging shortcut. V3–V5 may l
 includes V2 and they do not touch the same lifecycle files; prefer sequential for review. V2 waits for the complete
 D1a winit and D1b egui P8 revisions and for L2; no intermediate fork or craft-libs stage is a production pin.
 
-**Rebase gate before V2:** fetch current `storytold/vectorcraft` main, record its full SHA and diff against the
+**Rebase gate before V2:** fetch current `getnodalia/pluma` main, record its full SHA and diff against the
 pinned review baseline. The recorded drift is exactly two commits from `8906073…` to `4a7cba0…`, both changing only
 `crates/cad/src/import/curve.rs` (DXF spline). Rebase the migration branch onto that (or a later) main, preserve the
 DXF fix, run the DXF import tests, and use the same `4a7cba0…` source as the performance control in §6.2. If more
@@ -1284,7 +1284,7 @@ fix.
 - `ROADMAP.md` progress log and the touched docs' status/revision history: record the dependency migration. Do not
   move `docs/target-app-parity.md` scores, `docs/gaps.md` entries or parity checklists unless a measured behavior
   actually changes; this migration is infrastructure, not a feature claim.
-- Keep all evidence under `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/vectorcraft/`: exact
+- Keep all evidence under `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/pluma/`: exact
   source/lock identity, build/test logs with counts, screenshots, perf raw samples, dependency metadata, review
   findings and commands. Do not put source or deliverables in disposable build targets.
 
@@ -1353,7 +1353,7 @@ browser workflows are recorded; performance is paired against the same-engine co
 attribution arm and within gates; macOS is either evidenced or explicitly unresolved; and the final adversarial
 review has no open correctness finding.
 
-### 8.1 Dispositions of the adversarial review (`vectorcraft-v1`)
+### 8.1 Dispositions of the adversarial review (`pluma-v1`)
 
 This table records how every finding was resolved in this revision. It is a static documentation reconciliation;
 no reviewer finding is treated as an executed test result or an implementation claim.
@@ -1371,9 +1371,9 @@ no reviewer finding is treated as an executed test result or an implementation c
 | Minor | `Id::new` count stale | **Verified and corrected** to 294 occurrences across the three paths. §3.3. |
 | Minor | Baseline date stale | **Verified and corrected** to 2026-10-23 11:50:04 +0700. Header/§2.1. |
 
-### 8.2 Dispositions of the adversarial review (`vectorcraft-v2`)
+### 8.2 Dispositions of the adversarial review (`pluma-v2`)
 
-Every finding in `plan-reviews/vectorcraft-v2.md` is closed below by source-grounded plan text, not a footnote.
+Every finding in `plan-reviews/pluma-v2.md` is closed below by source-grounded plan text, not a footnote.
 
 | # | Finding | Disposition |
 |---|---|---|
@@ -1397,7 +1397,7 @@ Every finding in `plan-reviews/vectorcraft-v2.md` is closed below by source-grou
 Primary sources inspected (read-only):
 
 - `/home/codex/work/CraftApps/egui037-migration-20261022/PLANNING-CONTRACT.md`
-- `/home/codex/work/CraftApps/egui037-migration-20261022/vectorcraft` (assigned checkout)
+- `/home/codex/work/CraftApps/egui037-migration-20261022/pluma` (assigned checkout)
 - `/home/codex/work/CraftApps/egui037-migration-20261022/egui` at `0.37.0` and `aiongg/craft/0.37`
 - `/home/codex/work/CraftApps/egui037-migration-20261022/winit` at `8b35388…`/`ffae519…`
 - `/home/codex/work/CraftApps/egui037-migration-20261022/craft-libs-implementation` at `3832c47…` (the historical
@@ -1410,10 +1410,10 @@ Primary sources inspected (read-only):
 - `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/lifecycle-source-audit.md`
 - `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/ime-surrounding-gap.md`
 - `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/remote-plan-bases-20261023-0632.json`
-- `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/plan-reviews/vectorcraft-v1.md`
-- `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/plan-reviews/vectorcraft-v2.md`
+- `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/plan-reviews/pluma-v1.md`
+- `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/plan-reviews/pluma-v2.md`
 - `/home/codex/work/ssd2/task-evidence/egui037-migration-20261022/craft-fonts-manifest-2481a8a.txt`
-- `/home/codex/work/ssd2/task-evidence/egui037-audit-20261022/{fork,stock}/vectorcraft.errors`
+- `/home/codex/work/ssd2/task-evidence/egui037-audit-20261022/{fork,stock}/pluma.errors`
 
 Public upstream references (immutable where possible):
 
@@ -1478,8 +1478,8 @@ These are decisions this plan recommends but does not silently make:
 | Date | Change |
 |---|---|
 | 2026-10-23 | Initial source-grounded planning draft. No implementation, build, test or GUI run. |
-| 2026-10-23 | Revision 2: resolved every `vectorcraft-v1` finding (§8.1); corrected the lifecycle model (`raw_input_hook` in both hosts, separate host/accepted-frame counters, host-ordered test driver); added E21b and W15P/E4 prerequisites; moved the weak capture slot to the shared craft-ui contract; fixed final-fork → final craft-libs/CL-2F → app ordering; enumerated family and external registry identities; corrected `row_label` and the `Id::new` inventory; recorded the pinned review baseline, `4a7cba0…` drift/rebase gate and same-engine performance control. Static documentation only; no build/test run. |
-| 2026-10-23 | Revision 3: resolved every `vectorcraft-v2` finding (§8.2) by replacing contradictory prose: stock-0.37 third arm in visual/performance; shared 4/128/256 MiB capture admission with epoch-bound geometry and hidden paint request; W27 old-epoch invalidation and complete E21b contract; P7c owns #8763/#8748; corrected production `Tofu` vs kittest `Panic` and non-propagating kittest dev-dependency fonts; craft-ui exact-pixel visual regressions; split `ui-deps` ledger; split D1a winit / D1b egui P8; per-stage rollback; removed the dead provisional capture slot and app-local adapter; corrected clipboard scope; added W15P synchronous claims and bounded transfers; set 5% median/10% p95/5% RSS gates with no tolerance widening. Static documentation only; no build/test run. |
+| 2026-10-23 | Revision 2: resolved every `pluma-v1` finding (§8.1); corrected the lifecycle model (`raw_input_hook` in both hosts, separate host/accepted-frame counters, host-ordered test driver); added E21b and W15P/E4 prerequisites; moved the weak capture slot to the shared craft-ui contract; fixed final-fork → final craft-libs/CL-2F → app ordering; enumerated family and external registry identities; corrected `row_label` and the `Id::new` inventory; recorded the pinned review baseline, `4a7cba0…` drift/rebase gate and same-engine performance control. Static documentation only; no build/test run. |
+| 2026-10-23 | Revision 3: resolved every `pluma-v2` finding (§8.2) by replacing contradictory prose: stock-0.37 third arm in visual/performance; shared 4/128/256 MiB capture admission with epoch-bound geometry and hidden paint request; W27 old-epoch invalidation and complete E21b contract; P7c owns #8763/#8748; corrected production `Tofu` vs kittest `Panic` and non-propagating kittest dev-dependency fonts; craft-ui exact-pixel visual regressions; split `ui-deps` ledger; split D1a winit / D1b egui P8; per-stage rollback; removed the dead provisional capture slot and app-local adapter; corrected clipboard scope; added W15P synchronous claims and bounded transfers; set 5% median/10% p95/5% RSS gates with no tolerance widening. Static documentation only; no build/test run. |
 | 2026-10-24 | Revision 4: implementation status; repaired the final upstream-review defects (path+data capture downgrade, image-paste repaint and paste-time chord, monotonic hidden tick, IME context invalidation and unavailable revisions, per-viewport exact-once input, Artboard and Split Grid accessible names, fail-closed stale synthetic input); moved the shared-library base reference to the local `3832c47…` implementation base. At that revision the exact tree still needed fresh managed verification before publication. |
 | 2026-10-25 | Documentation reconciliation after PR 4113 and managed job `egui037-vector-postmerge-ci-20261025-1381`: recorded the current merge tree and pass result, marked the `8bf090b…`/`0589` status and 0.36.2 lock table historical, listed current pins from `Cargo.toml`/`Cargo.lock`, and corrected the plan-time local CL-2F base description to the published craft-libs `25da131…`. Documentation only; no build/test run. |
 | 2026-10-25 | Shared-docking reconciliation: recorded the local merge of upstream `main` `714434527…` (PR #4135), the upstream/delete resolution of the four conflicts, the reviewed recolor code already in `main`, and CI 1422's pre-merge pass; corrected current docking claims (desktop OS windows, web/Wayland in-page, deleted `floating.rs` and width helpers, `UiState::dock_width` persistence, new native and layout-migration tests) while retaining the earlier planning sections as historical. The combined executable source and lockfile were subsequently qualified by managed job `egui037-vector-combined-ci1443` (all 12 stages passed); the status text was updated after that run. |
@@ -1489,7 +1489,7 @@ These are decisions this plan recommends but does not silently make:
 
 The user clarified that reviewed plans remain local and implementation proceeds before publication. The earlier requirement to publish/land this plan first is superseded; pushes and PR publication still require explicit approval.
 
-Canonical `storytold/vectorcraft` `main` now resolves to `125df6d8ecfae01d01ce369ac02e4aa03e0deed5`. The owned checkout was fast-forwarded to this revision. Earlier baseline SHAs and line anchors above are retained as historical review evidence; use this new revision and its exact lockfile for current-main integration and paired measurements. The original refs remain reachable.
+Canonical `getnodalia/pluma` `main` now resolves to `125df6d8ecfae01d01ce369ac02e4aa03e0deed5`. The owned checkout was fast-forwarded to this revision. Earlier baseline SHAs and line anchors above are retained as historical review evidence; use this new revision and its exact lockfile for current-main integration and paired measurements. The original refs remain reachable.
 
 Preserve supplied PDF passwords on confirmation at125df6d8, in addition to the previously recorded DXF fixes. Add dialog regression coverage without recording password contents.
 

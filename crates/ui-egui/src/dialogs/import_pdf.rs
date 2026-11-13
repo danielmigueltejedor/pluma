@@ -10,14 +10,14 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use pluma_engine::cmd::fileio;
+use pluma_pdf::{Choice, CropTo, PdfError};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_pdf::{Choice, CropTo, PdfError};
 
 use super::DialogSpec;
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(super) const KIND: &str = "importPdf";
 
@@ -45,14 +45,14 @@ impl DialogFile {
 
 /// The file `file.place` params `p` name when it is one `wanted` takes by its extension (a path,
 /// read through the app's services) or given as `dataBase64` → (name, bytes, path).
-pub(super) fn place_source(app: &VectorcraftApp, p: &Value, wanted: impl Fn(&str) -> bool) -> Option<(String, Vec<u8>, Option<String>)> {
+pub(super) fn place_source(app: &PlumaApp, p: &Value, wanted: impl Fn(&str) -> bool) -> Option<(String, Vec<u8>, Option<String>)> {
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     match (s("path"), s("dataBase64")) {
         (Some(path), _) if wanted(&fileio::extension(path)) => {
             let bytes = app.services.read.as_ref().and_then(|r| r(path).ok())?;
             Some((path.to_string(), bytes, Some(path.to_string())))
         }
-        (None, Some(b64)) => Some((s("name").unwrap_or("Untitled").to_string(), vectorcraft_format::base64_decode(b64)?, None)),
+        (None, Some(b64)) => Some((s("name").unwrap_or("Untitled").to_string(), pluma_format::base64_decode(b64)?, None)),
         _ => None,
     }
 }
@@ -71,7 +71,7 @@ pub(super) fn with_file(p: Option<&Value>, d: &Dialog, file: &DialogFile) -> Val
         Some(path) => p["path"] = json!(path),
         None => {
             p["name"] = json!(d.str("name"));
-            p["dataBase64"] = json!(vectorcraft_format::base64_encode(&file.bytes));
+            p["dataBase64"] = json!(pluma_format::base64_encode(&file.bytes));
         }
     }
     p
@@ -80,12 +80,12 @@ pub(super) fn with_file(p: Option<&Value>, d: &Dialog, file: &DialogFile) -> Val
 /// A preview of `doc`'s first artboard, at most `size` points on its longer side, rendered once
 /// per `key` (`None`: there is nothing to show).
 pub(super) fn preview_texture(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ctx: &egui::Context,
     key: egui::Id,
     name: &str,
     size: f32,
-    doc: impl FnOnce() -> Option<vectorcraft_engine::doc::Document>,
+    doc: impl FnOnce() -> Option<pluma_engine::doc::Document>,
 ) -> Option<egui::TextureHandle> {
     if let Some(t) = ctx.data(|m| m.get_temp::<Option<egui::TextureHandle>>(key)) {
         return t;
@@ -114,18 +114,18 @@ pub(super) fn show_preview(ui: &mut egui::Ui, tex: Option<&egui::TextureHandle>,
 
 /// Open `bytes` (or place them with the `file.place` params `place`) through the dialog when the
 /// file is a PDF (or `.ai`/`.ait`) with several pages or a password; false when there's nothing to
-/// ask (the caller goes on), including, when opening, a file that carries its VectorCraft document
+/// ask (the caller goes on), including, when opening, a file that carries its Pluma document
 /// and a `.ai`/`.ait` with its editing data.
-pub fn offer(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: Option<String>, place: Option<&Value>) -> bool {
+pub fn offer(app: &mut PlumaApp, name: &str, bytes: &[u8], path: Option<String>, place: Option<&Value>) -> bool {
     let Some(format) = fileio::detect(name, bytes).map(|f| f.id).filter(|id| matches!(*id, "pdf" | "ai" | "ait")) else {
         return false;
     };
-    // A file carrying its VectorCraft document (a saved .ai, or a PDF saved with Preserve Editing)
+    // A file carrying its Pluma document (a saved .ai, or a PDF saved with Preserve Editing)
     // opens as that document, every artboard and layer: there are no pages to pick. So does a .ai
     // or .ait with its editing data, which holds them all (#6135); a PDF with editing data still
     // asks, as its pages are what it is. Placing still asks, since a place takes one page.
     // The file is read once for both checks.
-    let opened = vectorcraft_pdf::open_pdf(bytes, None);
+    let opened = pluma_pdf::open_pdf(bytes, None);
     if place.is_none() && opened.as_ref().is_ok_and(|o| o.editing().is_some() || (format != "pdf" && o.has_illustrator_data())) {
         return false;
     }
@@ -158,7 +158,7 @@ pub fn offer(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: Option<St
 
 /// `file.place` with params `p` asks first (true) when they name a PDF (`.pdf`, `.ai`, `.ait`)
 /// with several pages or a password and no `page`.
-pub fn offer_place(app: &mut VectorcraftApp, p: &Value) -> bool {
+pub fn offer_place(app: &mut PlumaApp, p: &Value) -> bool {
     if p.get("page").is_some() {
         return false;
     }
@@ -184,11 +184,11 @@ fn password(d: &Dialog) -> Option<String> {
 }
 
 /// OK: unlock the file with the password, else open the pages or place the page.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let file = app.ui.dialog_file.clone().ok_or("the PDF is no longer loaded")?;
     let mut d = d.clone();
     if d.bool("__locked") {
-        let info = vectorcraft_pdf::info(&file.bytes, password(&d).as_deref()).map_err(|e| e.to_string())?;
+        let info = pluma_pdf::info(&file.bytes, password(&d).as_deref()).map_err(|e| e.to_string())?;
         d.fields.insert("__locked".into(), json!(false));
         d.fields.insert("pageCount".into(), json!(info.pages.len()));
         if info.pages.len() > 1 {
@@ -228,7 +228,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     if d.bool("__locked") {
         let name = d.str("name");
@@ -312,7 +312,7 @@ fn password_row(ui: &mut egui::Ui, d: &mut Dialog) {
 }
 
 /// Page `page` (1-based) cropped as the dialog says, rendered once per file, page and box.
-fn preview(app: &mut VectorcraftApp, ctx: &egui::Context, d: &Dialog, page: usize) -> Option<egui::TextureHandle> {
+fn preview(app: &mut PlumaApp, ctx: &egui::Context, d: &Dialog, page: usize) -> Option<egui::TextureHandle> {
     let file = app.ui.dialog_file.clone()?;
     let crop = crop(d);
     let key = egui::Id::unique(("pdf-preview", file.token, page, crop.id()));

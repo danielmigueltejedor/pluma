@@ -4,11 +4,11 @@
 use std::sync::Arc;
 
 use craft_pdf::syntax::Pdf;
+use pluma_color::cms::{self, Cms, ColorSettings, DEVICE_CMYK, GENERIC_CMYK, Intent};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node};
+use pluma_geom::{Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, Cms, ColorSettings, DEVICE_CMYK, GENERIC_CMYK, Intent};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node};
-use vectorcraft_geom::{Rect, shapes};
 
 use crate::*;
 

@@ -4,9 +4,9 @@
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Knockout, Node, NodeKind, SymbolExportType};
-use vectorcraft_geom::Affine;
+use pluma_color::Paint;
+use pluma_doc::{Knockout, Node, NodeKind, SymbolExportType};
+use pluma_geom::Affine;
 
 use super::{MAX_NEST, Writer, Xy};
 use crate::import::MAX_SYMBOLS;
@@ -26,10 +26,10 @@ pub(in crate::ai_editing) const SYMBOL_COUNT: &str = "symbols past 4,096 are lef
 /// type, live objects and shapes with rounded live corners, whose strokes, steps and corners depend
 /// on where the instance puts them.
 pub(super) fn redrawn(n: &Node) -> bool {
-    let rounded = |l: &vectorcraft_doc::LiveShape| match l {
-        vectorcraft_doc::LiveShape::Rectangle { radii, .. } => radii.iter().any(|r| *r > 0.0),
-        vectorcraft_doc::LiveShape::Polygon { radii, .. } | vectorcraft_doc::LiveShape::Path { radii, .. } => radii.iter().any(|r| *r > 0.0),
-        vectorcraft_doc::LiveShape::Ellipse { .. } | vectorcraft_doc::LiveShape::Line { .. } => false,
+    let rounded = |l: &pluma_doc::LiveShape| match l {
+        pluma_doc::LiveShape::Rectangle { radii, .. } => radii.iter().any(|r| *r > 0.0),
+        pluma_doc::LiveShape::Polygon { radii, .. } | pluma_doc::LiveShape::Path { radii, .. } => radii.iter().any(|r| *r > 0.0),
+        pluma_doc::LiveShape::Ellipse { .. } | pluma_doc::LiveShape::Line { .. } => false,
     };
     match &n.kind {
         NodeKind::Path { live: Some(l), .. } => rounded(l),
@@ -55,7 +55,7 @@ impl Writer<'_> {
     /// that keeps the art's area as it is written and scales it as the definition allows
     /// ([`Self::keeps_scale`]).
     pub(super) fn live_instance(&mut self, n: &Node, symbol: &str, xf: Affine) -> bool {
-        let own = vectorcraft_brush::stain(n).is_some() || !n.extras().symbol_overrides.is_empty();
+        let own = pluma_brush::stain(n).is_some() || !n.extras().symbol_overrides.is_empty();
         let group_state = n.isolate || n.knockout != Knockout::Neutral || n.knockout_shape;
         // The matrix as written (to ten decimals) must still keep the art's area.
         let m = Affine::new((self.instance_space * xf).as_coeffs().map(|v| (v * 1e10).round() / 1e10));
@@ -131,8 +131,8 @@ impl Writer<'_> {
         let mut used = vec![];
         if let Some(sym) = doc.symbols.iter().find(|s| s.name == name) {
             let pattern = |p: &Paint| matches!(p, Paint::Pattern { .. });
-            vectorcraft_doc::swatches::walk_with_masks(&sym.art, &mut |m| {
-                own |= vectorcraft_doc::pattern::uses_pattern(m, None);
+            pluma_doc::swatches::walk_with_masks(&sym.art, &mut |m| {
+                own |= pluma_doc::pattern::uses_pattern(m, None);
                 match &m.kind {
                     NodeKind::Text(t) => {
                         own |= t.runs.iter().any(|r| pattern(&r.style.fill) || pattern(&r.style.stroke));
@@ -210,7 +210,7 @@ impl Writer<'_> {
         // The objects of this definition and of those it defines first.
         let before = self.charges();
         let mut used = vec![];
-        vectorcraft_doc::swatches::walk_with_masks(&sym.art, &mut |m| {
+        pluma_doc::swatches::walk_with_masks(&sym.art, &mut |m| {
             if let NodeKind::SymbolInstance { symbol, .. } = &m.kind {
                 used.push(symbol.as_str());
             }
@@ -284,7 +284,7 @@ impl Writer<'_> {
         self.nest = nest;
         // Objects the writing doesn't pass through one by one (clipping paths, a clipping group's
         // own path) count as well.
-        vectorcraft_doc::swatches::walk_with_masks(&sym.art, &mut |m| self.wrote_fixed |= redrawn(m));
+        pluma_doc::swatches::walk_with_masks(&sym.art, &mut |m| self.wrote_fixed |= redrawn(m));
         if self.wrote_pattern {
             self.pattern_written.insert(name.to_string());
         }

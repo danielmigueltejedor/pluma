@@ -254,7 +254,7 @@ fn objects_on_a_live_rectangle_follow_its_regenerated_path() {
     use crate::objects_on_path::{CENTER, ObjectsOnPath, stops};
     let path = live_rect(100.0, 100.0, 20.0, Affine::IDENTITY);
     let objects: Vec<Node> =
-        (2..5).map(|i| Node::path(NodeId(i), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Default::default())).collect();
+        (2..5).map(|i| Node::path(NodeId(i), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Default::default())).collect();
     let members: Vec<&Node> = objects.iter().collect();
     let rec = ObjectsOnPath { spacing: Some(20.0), start: 10.0, ..ObjectsOnPath::new(NodeId(1), &members, CENTER, 0.0) };
     let mut children = vec![Arc::new(path)];
@@ -377,7 +377,7 @@ fn transform_group_recurses() {
 /// projection when no invertible map of finite numbers draws the moved picture.
 #[test]
 fn a_projection_follows_the_transform_or_is_removed() {
-    use vectorcraft_geom::{Homography, Point};
+    use pluma_geom::{Homography, Point};
     let instance = |h: Homography| {
         let mut n = Node::new(NodeId(1), NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::IDENTITY });
         n.extras_mut().perspective =
@@ -413,7 +413,7 @@ fn a_projection_follows_the_transform_or_is_removed() {
 
 #[test]
 fn unplaced_gradients_pin_only_when_a_refit_would_differ() {
-    use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
+    use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
     let grad = || Paint::Gradient(Box::new(GradientPaint::new(Gradient::default())));
     let fresh = || Node::path(NodeId(2), shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 50.0)), Appearance::basic(grad(), grad(), 2.0));
     let geoms = |n: &Node| match (n.appearance.fill_paint(), n.appearance.stroke_paint()) {
@@ -469,8 +469,8 @@ fn visual_of_members_unions_the_members_and_grows_by_the_group_stroke() {
 fn type_visual_bounds_grow_with_the_character_stroke() {
     use crate::appearance::StrokeAlign;
     use crate::text::{CharStyle, TextObject};
-    let style = CharStyle { stroke: vectorcraft_color::Paint::solid(vectorcraft_color::Color::BLACK), stroke_width: 4.0, ..Default::default() };
-    let mut t = TextObject::point(vectorcraft_geom::Point::new(0.0, 0.0), "Ab", style);
+    let style = CharStyle { stroke: pluma_color::Paint::solid(pluma_color::Color::BLACK), stroke_width: 4.0, ..Default::default() };
+    let mut t = TextObject::point(pluma_geom::Point::new(0.0, 0.0), "Ab", style);
     t.xf = Affine::scale(2.0) * t.xf;
     let node = |t: &TextObject| Node::new(NodeId(1), NodeKind::Text(Box::new(t.clone())));
     let g = node(&t).geometric_bounds().unwrap();
@@ -478,7 +478,7 @@ fn type_visual_bounds_grow_with_the_character_stroke() {
         t.runs[0].style.stroke_align = align;
         assert_eq!(node(&t).visual_bounds(), Some(g.inflate(grow, grow)), "{align:?}");
     }
-    t.runs[0].style.stroke = vectorcraft_color::Paint::None;
+    t.runs[0].style.stroke = pluma_color::Paint::None;
     assert_eq!(node(&t).visual_bounds(), Some(g), "no stroke, no growth");
 }
 
@@ -546,7 +546,7 @@ fn objects_are_read_within_the_node_budget() {
 #[test]
 fn intertwine_tiers_are_read_within_the_node_budget() {
     let mut n = Node::group(NodeId(1), vec![]);
-    let area = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
+    let area = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
     n.extras_mut().intertwine_tiers = vec![PathData::default(), area];
     let json = serde_json::to_string(&n).unwrap();
     assert!(json.contains("\"intertwine_tiers\""), "{json}");
@@ -560,7 +560,7 @@ fn intertwine_tiers_are_read_within_the_node_budget() {
 
 /// #3587: fields read before an object's `type` are buffered value by value within
 /// [`with_buffered_value_budget`], each counted once: a group read back from the buffer buffers
-/// its own fields again without counting them twice. VectorCraft writes `type` first, which
+/// its own fields again without counting them twice. Pluma writes `type` first, which
 /// buffers nothing.
 #[test]
 fn fields_before_the_type_are_buffered_within_the_value_budget() {
@@ -580,17 +580,17 @@ fn fields_before_the_type_are_buffered_within_the_value_budget() {
 /// members and single anchors included.
 #[test]
 fn compound_stroke_path_is_its_members_in_order() {
-    use vectorcraft_geom::{Anchor, PathData, SubPath};
+    use pluma_geom::{Anchor, PathData, SubPath};
     let open = PathData::single(SubPath::new([(0.0, 0.0), (5.0, 1.0), (9.0, 7.0)].map(|(x, y)| Anchor::corner(Point::new(x, y))).to_vec(), false));
     let lone = PathData::single(SubPath::new(vec![Anchor::corner(Point::new(3.0, 3.0))], false));
     let members =
         [shapes::rectangle(Rect::new(0.0, 0.0, 4.0, 2.0)), open, PathData::default(), lone, shapes::ellipse(Rect::new(10.0, 10.0, 20.0, 16.0))];
-    let mut expected = vectorcraft_geom::BezPath::new();
+    let mut expected = pluma_geom::BezPath::new();
     for pd in &members {
         expected.extend(pd.to_bezpath());
     }
     let children = members.iter().enumerate().map(|(i, pd)| Arc::new(Node::path(NodeId(i as u64 + 1), pd.clone(), Appearance::default()))).collect();
-    let n = Node::new(NodeId(99), NodeKind::Compound { children, rule: vectorcraft_geom::FillRule::EvenOdd });
+    let n = Node::new(NodeId(99), NodeKind::Compound { children, rule: pluma_geom::FillRule::EvenOdd });
     let bp = n.stroke_path().unwrap();
     assert_eq!(bp.elements(), expected.elements());
     assert!(!bp.elements().is_empty());

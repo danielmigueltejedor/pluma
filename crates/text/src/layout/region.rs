@@ -121,7 +121,7 @@ fn intersect_intervals(a: &[(f64, f64)], b: &[(f64, f64)]) -> Vec<(f64, f64)> {
 }
 
 impl Region {
-    pub(super) fn cells(path: &BezPath, opts: &LayoutOptions, wrap: &[vectorcraft_doc::WrapShape]) -> Vec<Region> {
+    pub(super) fn cells(path: &BezPath, opts: &LayoutOptions, wrap: &[pluma_doc::WrapShape]) -> Vec<Region> {
         // A frame out of range has no cells, and a wrap shape out of range is left out.
         let Some(polys) = polygons(path) else { return vec![] };
         // Every cell shares one copy of the frame's polygons and one copy of the text wrap shapes.
@@ -136,7 +136,7 @@ impl Region {
             let area: f64 = polys[0].iter().zip(polys[0].iter().cycle().skip(1)).map(|(a, b)| a.x * b.y - b.x * a.y).sum::<f64>().abs() * 0.5;
             (area - bbox.area()).abs() <= bbox.area() * 1e-6 + 1e-9
         };
-        let max = vectorcraft_doc::AreaOptions::MAX_ROWS_COLUMNS;
+        let max = pluma_doc::AreaOptions::MAX_ROWS_COLUMNS;
         let (rows, cols) = (opts.rows.clamp(1, max), opts.columns.clamp(1, max));
         let gutter = opts.gutter.max(0.0);
         let row_gutter = opts.row_gutter.unwrap_or(opts.gutter).max(0.0);
@@ -145,7 +145,7 @@ impl Region {
         let mut out = Vec::with_capacity(rows * cols);
         // Text Flow: down each column, then across (by columns, the default), or across each row,
         // then down (by rows).
-        let by_rows = opts.flow == vectorcraft_doc::TextFlow::Rows;
+        let by_rows = opts.flow == pluma_doc::TextFlow::Rows;
         let (outer, inner) = if by_rows { (rows, cols) } else { (cols, rows) };
         for o in 0..outer {
             for i in 0..inner {
@@ -231,7 +231,7 @@ impl Region {
 fn the_cells_of_a_frame_share_its_polygons_and_the_wrap_shapes() {
     let frame = kurbo::Circle::new((0.0, 0.0), 1000.0).to_path(0.1);
     let square = PathData::from_bezpath(&Rect::new(-10.0, -10.0, 10.0, 10.0).to_path(0.1));
-    let wrap = vectorcraft_doc::WrapShape { path: square, wrap: Default::default() };
+    let wrap = pluma_doc::WrapShape { path: square, wrap: Default::default() };
     let cells = Region::cells(&frame, &LayoutOptions { rows: 100, columns: 100, ..LayoutOptions::default() }, &[wrap]);
     assert_eq!(cells.len(), 10_000);
     let first = &cells[0];

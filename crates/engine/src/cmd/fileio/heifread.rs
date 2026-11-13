@@ -130,7 +130,7 @@ mod decoder {
             for pixel in img.pixels_mut() {
                 let [r, g, b, a] = pixel.0;
                 let device = [r, g, b].map(|v| f32::from(v) / 255.0);
-                if let Some(rgb) = profile.to_srgb_into(&device, vectorcraft_color::cms::Intent::RelativeColorimetric) {
+                if let Some(rgb) = profile.to_srgb_into(&device, pluma_color::cms::Intent::RelativeColorimetric) {
                     let [r, g, b] = rgb.map(|v| (v * 255.0).round() as u8);
                     pixel.0 = [r, g, b, a];
                 }
@@ -607,8 +607,8 @@ mod decoder {
     /// without its own `colr` takes its first tile's, as cameras write it on the tiles. A profile
     /// that can't be read, or isn't RGB, is left out and the values are read as sRGB. Without any
     /// `colr`, the HEVC stream's color description ([`stream_nclx`]) is read the same way.
-    fn source_profile(ctx: &Context<'_>) -> Option<vectorcraft_color::cms::IccProfile> {
-        use vectorcraft_color::cms::{self, IccProfile, ProfileKind};
+    fn source_profile(ctx: &Context<'_>) -> Option<pluma_color::cms::IccProfile> {
+        use pluma_color::cms::{self, IccProfile, ProfileKind};
 
         let id = ctx.meta.primary;
         let own = ctx.props(id).ok()?;

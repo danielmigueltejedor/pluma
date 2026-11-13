@@ -12,13 +12,13 @@
 use std::sync::Arc;
 
 use egui::Ui;
+use pluma_doc::{Node, NodeId, NodeKind, TraceView};
+use pluma_engine::cmd::TracePresetChange;
+use pluma_engine::cmd::swatchlib::DOCUMENT_SWATCHES;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeId, NodeKind, TraceView};
-use vectorcraft_engine::cmd::TracePresetChange;
-use vectorcraft_engine::cmd::swatchlib::DOCUMENT_SWATCHES;
 
 use super::{first_selected, pstate, set_pstate, swatches};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::{self, menu_item};
 
 const MODES: [(&str, &str); 4] = [("blackAndWhite", "Black and White"), ("grayscale", "Grayscale"), ("color", "Color"), ("logo", "Flat Logo")];
@@ -48,7 +48,7 @@ fn palette_label(id: &str) -> &'static str {
 
 /// Document Library's Colors choices with the document's swatches: All, then the document's color
 /// groups (`current` checked; `None` is All) → the choice, `Some(None)` for All.
-fn color_group_list(app: &VectorcraftApp, ui: &mut Ui, current: Option<&str>) -> Option<Option<String>> {
+fn color_group_list(app: &PlumaApp, ui: &mut Ui, current: Option<&str>) -> Option<Option<String>> {
     let mut chosen = menu_item(ui, "All", true, current.is_none()).then_some(None);
     let groups: Vec<String> = app.session.active().map(|d| d.doc.swatch_groups.iter().map(|g| g.name.clone()).collect()).unwrap_or_default();
     if !groups.is_empty() {
@@ -65,7 +65,7 @@ fn color_group_list(app: &VectorcraftApp, ui: &mut Ui, current: Option<&str>) ->
 /// `params`' color group when the active document has it, found as `imageTrace.make` finds it (so
 /// named exactly, else ignoring case); `None` is All. A group of another document, or a deleted
 /// one, is All.
-fn color_group<'a>(app: &VectorcraftApp, params: &'a Value) -> Option<&'a str> {
+fn color_group<'a>(app: &PlumaApp, params: &'a Value) -> Option<&'a str> {
     let name = params["colorGroup"].as_str().filter(|g| !g.is_empty())?;
     let lower = name.to_lowercase();
     app.session.active()?.doc.swatch_groups.iter().any(|g| g.name.to_lowercase() == lower).then_some(name)
@@ -79,7 +79,7 @@ struct TraceUi {
     view: TraceView,
     info: Option<(u64, u64, u64)>,
     /// The revision of the saved presets at the panel's last frame
-    /// ([`vectorcraft_engine::Session::trace_presets_revision`]).
+    /// ([`pluma_engine::Session::trace_presets_revision`]).
     revision: Option<u64>,
     /// The selected Image Trace object's stored settings last adopted (so edits in progress
     /// aren't overwritten until the object changes).
@@ -111,9 +111,9 @@ thread_local! {
 }
 
 /// Every preset, built-in then saved. `imageTrace.presets` runs once for each revision of the saved
-/// presets ([`vectorcraft_engine::Session::trace_presets_revision`]); the list is kept in `ctx`'s
+/// presets ([`pluma_engine::Session::trace_presets_revision`]); the list is kept in `ctx`'s
 /// memory, which the panel, the Control bar and Properties share.
-fn presets(app: &mut VectorcraftApp, ctx: &egui::Context) -> Arc<Vec<Preset>> {
+fn presets(app: &mut PlumaApp, ctx: &egui::Context) -> Arc<Vec<Preset>> {
     let id = egui::Id::unique("trace-presets");
     let revision = app.session.trace_presets_revision();
     if let Some(list) = ctx.data(|d| d.get_temp::<PresetList>(id)).filter(|l| l.revision == revision) {
@@ -152,30 +152,30 @@ pub(crate) fn is_trace(n: &Node) -> bool {
 
 /// The object Trace acts on: the first selected image or Image Trace object in paint order, as
 /// `imageTrace.make` takes it, else the first selected object.
-fn target_node(app: &VectorcraftApp) -> Option<Node> {
+fn target_node(app: &PlumaApp) -> Option<Node> {
     let st = app.session.active()?;
     let traceable = |n: &&Node| is_trace(n) || matches!(n.kind, NodeKind::Image(_));
     st.selection.in_paint_order(&st.doc).into_iter().find_map(|id| st.doc.node(id).filter(traceable).cloned()).or_else(|| first_selected(app))
 }
 
 /// The active document and the object Trace acts on.
-fn target_key(app: &VectorcraftApp) -> Option<(u64, NodeId)> {
+fn target_key(app: &PlumaApp) -> Option<(u64, NodeId)> {
     Some((app.session.active()?.uid, target_node(app)?.id))
 }
 
 /// What Trace acts on: an Image Trace object (with its stored settings), a plain image, or neither.
-fn target(app: &VectorcraftApp) -> (bool, bool, Option<Value>) {
+fn target(app: &PlumaApp) -> (bool, bool, Option<Value>) {
     let Some(n) = target_node(app) else { return (false, false, None) };
     (is_trace(&n), matches!(n.kind, NodeKind::Image(_)), n.extras().trace.as_deref().cloned())
 }
 
 /// Whether any selected object is an Image Trace object, wherever it is in the selection.
-fn any_trace(app: &VectorcraftApp) -> bool {
+fn any_trace(app: &PlumaApp) -> bool {
     app.session.active().is_some_and(|st| st.selection.objects.iter().any(|id| st.doc.node(*id).is_some_and(is_trace)))
 }
 
 /// The one selected Image Trace object's preset ("Custom" once its settings were changed) and view.
-pub(crate) fn selected_trace(app: &VectorcraftApp) -> Option<(String, TraceView)> {
+pub(crate) fn selected_trace(app: &PlumaApp) -> Option<(String, TraceView)> {
     let st = app.session.active()?;
     let [id] = st.selection.objects[..] else { return None };
     let n = st.doc.node(id).filter(|n| is_trace(n))?;
@@ -183,7 +183,7 @@ pub(crate) fn selected_trace(app: &VectorcraftApp) -> Option<(String, TraceView)
 }
 
 /// The trace parameters the one selected Image Trace object records (null without one).
-fn selected_trace_params(app: &VectorcraftApp) -> Value {
+fn selected_trace_params(app: &PlumaApp) -> Value {
     let Some(st) = app.session.active() else { return Value::Null };
     let [id] = st.selection.objects[..] else { return Value::Null };
     st.doc.node(id).filter(|n| is_trace(n)).and_then(|n| n.extras().trace.as_ref()).map_or(Value::Null, |t| t["params"].clone())
@@ -207,7 +207,7 @@ fn view_dropdown(ui: &mut Ui, current: TraceView, width: f32) -> Option<TraceVie
 }
 
 /// Show the selected Image Trace objects with `view` (no new trace).
-fn set_view(app: &mut VectorcraftApp, view: TraceView) {
+fn set_view(app: &mut PlumaApp, view: TraceView) {
     if let Err(e) = app.run("imageTrace.setView", json!({ "view": view.id() })) {
         app.ui.status = e;
     }
@@ -218,7 +218,7 @@ fn set_view(app: &mut VectorcraftApp, view: TraceView) {
 /// View calls it; per the public documentation of the panel, that control is pressed and held to
 /// view the source image
 /// (<https://web.archive.org/web/20250831090623/https://helpx.adobe.com/illustrator/using/image-trace.html>).
-fn hold_source(app: &mut VectorcraftApp, ctx: &egui::Context, down: bool) {
+fn hold_source(app: &mut PlumaApp, ctx: &egui::Context, down: bool) {
     let ids = app
         .session
         .active()
@@ -233,7 +233,7 @@ fn hold_source(app: &mut VectorcraftApp, ctx: &egui::Context, down: bool) {
 }
 
 /// The selected Image Trace object's View row (Control bar, Properties).
-pub(crate) fn view_row(app: &mut VectorcraftApp, ui: &mut Ui, current: TraceView, width: f32) {
+pub(crate) fn view_row(app: &mut PlumaApp, ui: &mut Ui, current: TraceView, width: f32) {
     widgets::dim_label(ui, tl!("View:"));
     // No wider than what the label leaves of the row (#1358).
     if let Some(v) = view_dropdown(ui, current, width.min(ui.available_width())) {
@@ -242,7 +242,7 @@ pub(crate) fn view_row(app: &mut VectorcraftApp, ui: &mut Ui, current: TraceView
 }
 
 /// Trace the selected image, or trace the selected Image Trace object again, with `preset`.
-fn trace_with(app: &mut VectorcraftApp, preset: &str) {
+fn trace_with(app: &mut PlumaApp, preset: &str) {
     // A failure is reported in the status bar. The panel stays as it was: the Image Trace
     // button (Properties, Control bar) opens it.
     if let Err(e) = crate::trace_runs::start(app, "imageTrace.make", json!({ "preset": preset }), false) {
@@ -251,7 +251,7 @@ fn trace_with(app: &mut VectorcraftApp, preset: &str) {
 }
 
 /// Reveal the editable tracing controls, including fidelity, in the panel's current location.
-pub(crate) fn open_settings(app: &mut VectorcraftApp) {
+pub(crate) fn open_settings(app: &mut PlumaApp) {
     // Icon panels toggle when activated, so an already open flyout must stay open.
     if app.ui.open_panel.as_deref() != Some("imageTrace")
         && let Err(e) = app.run("window.panel.activate", json!({ "panel": "imageTrace" }))
@@ -273,7 +273,7 @@ fn preset_label(name: &str) -> &str {
 /// The buttons above the Image Trace panel's Preset dropdown, in panel order: each one's name and the
 /// built-in preset a click chooses. The help page lists these options before Preset
 /// (<https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/image-trace-panel-options.html>);
-/// which preset each one chooses is VectorCraft's own.
+/// which preset each one chooses is Pluma's own.
 fn preset_buttons() -> [(&'static str, &'static str); 6] {
     [
         (preset_label("Auto Color"), "Auto Color"),
@@ -285,7 +285,7 @@ fn preset_buttons() -> [(&'static str, &'static str); 6] {
     ]
 }
 
-fn preset_list(app: &mut VectorcraftApp, ui: &mut Ui, current: &str) -> Option<String> {
+fn preset_list(app: &mut PlumaApp, ui: &mut Ui, current: &str) -> Option<String> {
     let mut chosen = None;
     let list = presets(app, ui.ctx());
     for (name, _, _, built_in) in list.iter() {
@@ -302,7 +302,7 @@ fn preset_list(app: &mut VectorcraftApp, ui: &mut Ui, current: &str) -> Option<S
 /// panel's settings; Rename… and Delete act on the saved preset the dropdown shows (`saved`).
 /// Built-in presets don't change. From the public documentation of saving tracing presets
 /// (<https://web.archive.org/web/20260902004121/https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/save-image-trace-presets.html>).
-fn manage_presets(app: &mut VectorcraftApp, ui: &mut Ui, st: &TraceUi, saved: bool) {
+fn manage_presets(app: &mut PlumaApp, ui: &mut Ui, st: &TraceUi, saved: bool) {
     let run = if menu_item(ui, tl!("Save as New Preset…"), true, false) {
         Some(("ui.imageTracePresetDialog", json!({ "params": st.params })))
     } else if menu_item(ui, tl!("Rename…"), saved, false) {
@@ -324,7 +324,7 @@ pub(crate) const TRACE_BUTTON_W: f32 = 104.0;
 
 /// The Image Trace button for a selected image (Control bar, Properties): a click traces it with
 /// the Default preset, its arrow lists the presets to trace it with.
-pub(crate) fn trace_button(app: &mut VectorcraftApp, ui: &mut Ui, width: f32) {
+pub(crate) fn trace_button(app: &mut PlumaApp, ui: &mut Ui, width: f32) {
     let (main, arrow) = widgets::split_button_named(ui, tl!("Image Trace"), tl!("Tracing Presets"), width);
     if main.on_hover_text(tl!("Trace the image with the Default preset")).clicked() {
         trace_with(app, "Default");
@@ -336,7 +336,7 @@ pub(crate) fn trace_button(app: &mut VectorcraftApp, ui: &mut Ui, width: f32) {
 
 /// The selected Image Trace object's preset (Control bar, Properties), traced with the preset
 /// `traced_with`, shown as the panel shows it: choosing another traces it again with that preset.
-pub(crate) fn preset_dropdown(app: &mut VectorcraftApp, ui: &mut Ui, traced_with: &str, width: f32) {
+pub(crate) fn preset_dropdown(app: &mut PlumaApp, ui: &mut Ui, traced_with: &str, width: f32) {
     let all = presets(app, ui.ctx());
     let params = selected_trace_params(app);
     let changes: Vec<&TracePresetChange> = app.session.trace_preset_changes_since(0).collect();
@@ -350,7 +350,7 @@ pub(crate) fn preset_dropdown(app: &mut VectorcraftApp, ui: &mut Ui, traced_with
 
 /// The Control bar for one selected Image Trace object: its preset, view, the Image Trace panel
 /// and Expand. Whether it is one.
-pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
+pub fn control_bar(app: &mut PlumaApp, ui: &mut Ui) -> bool {
     let Some((preset, view)) = selected_trace(app) else { return false };
     widgets::dim_label(ui, tl!("Preset:"));
     preset_dropdown(app, ui, &preset, 150.0);
@@ -365,7 +365,7 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
     true
 }
 
-fn trace(app: &mut VectorcraftApp, ctx: &egui::Context, st: &mut TraceUi) {
+fn trace(app: &mut PlumaApp, ctx: &egui::Context, st: &mut TraceUi) {
     // A group the active document does not have traces with All, as the panel shows.
     if color_group(app, &st.params).is_none() && !st.params["colorGroup"].is_null() {
         st.params["colorGroup"] = Value::Null;
@@ -387,7 +387,7 @@ fn trace(app: &mut VectorcraftApp, ctx: &egui::Context, st: &mut TraceUi) {
 /// The panel takes trace `r`'s counts and the traced object's stored settings at once: Undo before
 /// the next panel frame must still be recognized as a change, even when it returns to the previous
 /// settings.
-fn adopt(app: &VectorcraftApp, st: &mut TraceUi, r: &Value) {
+fn adopt(app: &PlumaApp, st: &mut TraceUi, r: &Value) {
     st.info = Some((r["paths"].as_u64().unwrap_or(0), r["anchors"].as_u64().unwrap_or(0), r["colors"].as_u64().unwrap_or(0)));
     if let Some(stored) = target(app).2 {
         st.synced = stored;
@@ -396,7 +396,7 @@ fn adopt(app: &VectorcraftApp, st: &mut TraceUi, r: &Value) {
 }
 
 /// A trace the panel started off the UI thread was applied with result `r` ([`crate::trace_runs`]).
-pub(crate) fn traced(app: &VectorcraftApp, r: &Value) {
+pub(crate) fn traced(app: &PlumaApp, r: &Value) {
     let Some(ctx) = app.ui_ctx.clone() else { return };
     let mut st: TraceUi = pstate(&ctx, "image-trace");
     adopt(app, &mut st, r);
@@ -512,7 +512,7 @@ fn sync_with_object(st: &mut TraceUi, stored: Option<Value>, object: Option<(u64
 /// Bring the panel's preset in `st`, and the preset of each setting that waits for an object no longer selected, in
 /// line with the saved presets made, changed, renamed or deleted since the last frame (Manage Presets, or
 /// imageTrace.presets.save and .delete), as the commands recorded them, with the presets `all`.
-fn follow_preset_changes(app: &VectorcraftApp, st: &mut TraceUi, all: &[Preset]) {
+fn follow_preset_changes(app: &PlumaApp, st: &mut TraceUi, all: &[Preset]) {
     let revision = app.session.trace_presets_revision();
     if let Some(seen) = st.revision.filter(|seen| *seen != revision) {
         let changes: Vec<&TracePresetChange> = app.session.trace_preset_changes_since(seen).collect();
@@ -557,7 +557,7 @@ fn follow_preset(preset: &mut String, params: &Value, changes: &[&TracePresetCha
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let all = presets(app, ui.ctx());
     let mut st: TraceUi = pstate(ui.ctx(), "image-trace");
     if st.params.is_null() {
@@ -855,7 +855,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     set_pstate(ui.ctx(), "image-trace", st);
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let any_trace = any_trace(app);
     if menu_item(ui, tl!("Release"), any_trace, false) {
         app.run("imageTrace.release", json!({})).ok();

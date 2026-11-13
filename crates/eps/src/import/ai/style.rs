@@ -53,10 +53,10 @@
 
 use std::collections::HashMap;
 
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::{Dash, Effect, Knockout, LineCap, LineJoin, StrokeAlign, WidthProfile};
+use pluma_effects::is_pathfinder;
 use serde_json::json;
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::{Dash, Effect, Knockout, LineCap, LineJoin, StrokeAlign, WidthProfile};
-use vectorcraft_effects::is_pathfinder;
 
 use super::brush::PathBrush;
 use super::lex::{Lexer, Tok};
@@ -131,7 +131,7 @@ pub(crate) fn warp_number(style: &str) -> Option<i64> {
 
 /// The Effect › Pathfinder effects by the `Command` number of their filter. `Command` 0 is Add
 /// (https://community.adobe.com/questions-652/liveeffect-xml-effect-is-added-under-the-object-795137);
-/// the numbers 1 to 11 are VectorCraft's own reader rules, learned from saved files. Trap (12) isn't
+/// the numbers 1 to 11 are Pluma's own reader rules, learned from saved files. Trap (12) isn't
 /// read.
 const PATHFINDER_COMMANDS: [&str; 12] = [
     "pathfinder.add",
@@ -151,7 +151,7 @@ const PATHFINDER_COMMANDS: [&str; 12] = [
 /// The keys of an Effect › Pathfinder filter's dictionary besides `Command` and `DisplayString`,
 /// each with the kind and the one value read: its Pathfinder Options, Soft Mix's mix and the Trap
 /// settings. Every operation needs each of them at this value, even where the operation doesn't use
-/// it, except that Soft Mix reads a `Mix` from 0.01 to 1 as its Mixing Rate (VectorCraft's own
+/// it, except that Soft Mix reads a `Mix` from 0.01 to 1 as its Mixing Rate (Pluma's own
 /// reader rule, learned from saved files: the rate is `Mix` times 100, within the effect's 1 to 100;
 /// a saved `Mix` outside that range keeps the drawn look).
 const PATHFINDER_OPTIONS: [(&str, Kind, f64); 12] = [
@@ -796,7 +796,7 @@ fn transform(f: &Filter, under: Under) -> Option<serde_json::Value> {
     for key in ["scaleH_Percent", "scaleV_Percent", "rotate_Degrees"] {
         entry(f, key, Kind::Real).ok()?;
     }
-    // The renderer's limits on scales and moves (`vectorcraft_effects`' `MAX_SCALE` and `MAX_MOVE`).
+    // The renderer's limits on scales and moves (`pluma_effects`' `MAX_SCALE` and `MAX_MOVE`).
     let scale = |key: &str| real(f, key, 1.0, -1000.0..=1000.0).map(|v| v * 100.0);
     let (h, v) = (scale("scaleH_Factor")?, scale("scaleV_Factor")?);
     let (move_h, move_v) = (real(f, "moveH_Pts", 0.0, -1e7..=1e7)?, real(f, "moveV_Pts", 0.0, -1e7..=1e7)?);
@@ -959,7 +959,7 @@ impl Settings<'_> {
     }
 
     /// The color of the fill style written as `key`: a solid color, in Normal at full opacity.
-    fn color(&self, key: &str) -> Option<vectorcraft_color::Color> {
+    fn color(&self, key: &str) -> Option<pluma_color::Color> {
         let f = self.0;
         let normal = f.xy.is_none_or(|(mode, opacity)| mode == 0 && opacity >= 1.0);
         (f.kinds.get(key) == Some(&Kind::Fill) && !f.gradient && f.pattern.is_none() && normal).then_some(())?;
@@ -1085,7 +1085,7 @@ fn shape_effect(f: &Filter) -> Option<Effect> {
     let id = match shape {
         0.0 => "convertToShape.rectangle",
         1.0 => "convertToShape.roundedRectangle",
-        // A relative Ellipse in the file is drawn round the enlarged box, and VectorCraft's inside
+        // A relative Ellipse in the file is drawn round the enlarged box, and Pluma's inside
         // it: it keeps its drawn look.
         2.0 if absolute => "convertToShape.ellipse",
         _ => return None,
@@ -1346,7 +1346,7 @@ const ART_ENTRIES: [&str; 18] = [
 /// An Art brush's filter `f` as the stroke it paints: `None` when it isn't a stroke in a color, names
 /// no Art brush, holds an entry that isn't read, or its settings aren't those of art that stretches
 /// along the path, unflipped, at the brush's own width (`Scaling` 1), in Tints (`Colorization` 1),
-/// with `FoldAdjustment` 1, which is [`vectorcraft_brush::ArtBrush`]'s `overlap: false`: its drawn
+/// with `FoldAdjustment` 1, which is [`pluma_brush::ArtBrush`]'s `overlap: false`: its drawn
 /// look stays.
 fn art_stroke(f: &Filter) -> Option<StyleItem> {
     if !f.paints.0
@@ -1630,7 +1630,7 @@ fn style(filters: &[Filter]) -> ArtStyle {
 
 /// Whether `f` is a painted Stroke Style filter with a variable width written as one centered array,
 /// `BSCenteredWidthsArray`. A Stroke Offset filter's profile and one written as each side's widths
-/// (`BSLeftWidthsArray` and `BSRightWidthsArray`, as VectorCraft saves it) are not.
+/// (`BSLeftWidthsArray` and `BSRightWidthsArray`, as Pluma saves it) are not.
 fn centered_widths(f: &Filter) -> bool {
     let each_side = f
         .arrays

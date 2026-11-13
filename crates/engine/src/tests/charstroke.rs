@@ -2,9 +2,9 @@
 //! through `text.setRangeStyle`), and the character stroke kept by the Eyedropper, outlines and
 //! the native format.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{CharStyle, Dash, LineCap, LineJoin, NodeId, NodeKind, StrokeAlign, TextObject};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{CharStyle, Dash, LineCap, LineJoin, NodeId, NodeKind, StrokeAlign, TextObject};
 
 use crate::*;
 
@@ -136,7 +136,7 @@ fn character_stroke_options_round_trip_natively_and_old_files_load() {
     let id = stroked_text(&mut s);
     run(&mut s, "stroke.set", json!({"cap": "round", "join": "bevel", "miterLimit": 3, "dash": [5, 1]}));
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     let NodeKind::Text(t) = &back.node(id).unwrap().kind else { panic!("not type") };
     assert_eq!(t.runs, text(&s, id).runs);
     // A character style written before stroke options existed takes the defaults.
@@ -176,7 +176,7 @@ fn align_stroke_reaches_the_characters_stroke() {
     assert_eq!(doc["layers"][0]["children"][0]["strokeOptions"]["align"], "inside", "{doc}");
     // Saved and reopened.
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     let NodeKind::Text(b) = &back.node(id).unwrap().kind else { panic!("not type") };
     assert_eq!(b.runs, text(&s, id).runs);
     // Create Outlines keeps it on the glyphs.
@@ -184,7 +184,7 @@ fn align_stroke_reaches_the_characters_stroke() {
     let g = run(&mut s, "type.createOutlines", json!({}))["ids"][0].as_u64().unwrap();
     let d = &s.doc().unwrap().doc;
     let mut aligns = vec![];
-    d.node(NodeId(g)).unwrap().walk(&mut |n: &vectorcraft_doc::Node| aligns.extend(n.appearance.stroke().map(|st| st.align)));
+    d.node(NodeId(g)).unwrap().walk(&mut |n: &pluma_doc::Node| aligns.extend(n.appearance.stroke().map(|st| st.align)));
     assert!(aligns.contains(&StrokeAlign::Inside) && aligns.contains(&StrokeAlign::Outside), "{aligns:?}");
 }
 

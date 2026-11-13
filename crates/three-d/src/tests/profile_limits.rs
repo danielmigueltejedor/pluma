@@ -1,5 +1,5 @@
 use crate::*;
-use vectorcraft_geom::{Anchor, SubPath};
+use pluma_geom::{Anchor, SubPath};
 
 /// A closed star of `points` tips: twice as many straight edges.
 fn star(points: usize) -> PathData {

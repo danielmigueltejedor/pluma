@@ -20,9 +20,9 @@ pub(crate) struct TextGeom {
     /// shows them.
     alternate_glyphs: std::sync::OnceLock<BezPath>,
     /// Inline graphics placed by the layout.
-    pub(crate) inlines: Vec<vectorcraft_text::InlineGlyph>,
+    pub(crate) inlines: Vec<pluma_text::InlineGlyph>,
     /// Colour bitmap glyphs: (run, image, its pixels → text space), in text order.
-    pub(crate) images: Vec<(usize, Arc<vectorcraft_text::GlyphImage>, Affine)>,
+    pub(crate) images: Vec<(usize, Arc<pluma_text::GlyphImage>, Affine)>,
     /// COLR colour glyphs: (run, their layers placed in text space), in text order.
     pub(crate) colours: Vec<(usize, Arc<Node>)>,
 }
@@ -84,8 +84,8 @@ impl TextGeom {
             + self.alternate_candidates.iter().map(|c| size_of::<AlternateCandidate>() + lru::path_bytes(&c.cell)).sum::<usize>()
             + self.alternate_glyphs.get().map_or(0, lru::path_bytes)
             + self.spans.len() * size_of::<(usize, usize, usize)>()
-            + self.inlines.len() * size_of::<vectorcraft_text::InlineGlyph>()
-            + self.images.len() * size_of::<(usize, Arc<vectorcraft_text::GlyphImage>, Affine)>()
+            + self.inlines.len() * size_of::<pluma_text::InlineGlyph>()
+            + self.images.len() * size_of::<(usize, Arc<pluma_text::GlyphImage>, Affine)>()
             + self.colours.iter().map(|(_, art)| lru::node_bytes(art)).sum::<usize>()
     }
 }
@@ -132,7 +132,7 @@ fn required_shaping(t: &TextObject, features: &[&str]) -> std::collections::Hash
     for run in &mut plain.runs {
         run.style.features = features.iter().map(|f| (*f).into()).collect();
     }
-    let layout = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &plain);
+    let layout = pluma_text::layout(pluma_text::FontDb::global(), &plain);
     let mut glyphs: std::collections::HashMap<(usize, usize), Vec<(u32, u32)>> = std::collections::HashMap::new();
     for g in &layout.glyphs {
         glyphs.entry((g.byte, g.len)).or_default().push((g.font_id, g.gid));
@@ -146,8 +146,8 @@ pub(crate) fn text_geom(t: &TextObject) -> TextGeom {
 
 /// Glyph geometry of `t`; `snap` (text space → device pixels) puts the glyphs on whole pixels.
 pub(crate) fn text_geom_snapped(t: &TextObject, snap: Option<Affine>) -> TextGeom {
-    let db = vectorcraft_text::FontDb::global();
-    let mut layout = vectorcraft_text::take_kept_layout(t).unwrap_or_else(|| vectorcraft_text::layout(db, t));
+    let db = pluma_text::FontDb::global();
+    let mut layout = pluma_text::take_kept_layout(t).unwrap_or_else(|| pluma_text::layout(db, t));
     if let Some(xf) = snap {
         layout.snap_to_pixels(xf);
     }
@@ -175,7 +175,7 @@ pub(crate) fn text_geom_snapped(t: &TextObject, snap: Option<Affine>) -> TextGeo
             // Variable Font settings (see `FontDb::style_face`).
             Some((f, m)) => {
                 let face = db.style_face(&r.style).unwrap_or(f);
-                (m == vectorcraft_text::FontMatch::Missing, Some(face.id()))
+                (m == pluma_text::FontMatch::Missing, Some(face.id()))
             }
             None => (true, None),
         })
@@ -224,7 +224,7 @@ pub(crate) fn text_geom_snapped(t: &TextObject, snap: Option<Affine>) -> TextGeo
         push(&mut all, g.run, &g.outline);
     }
     // Underline and strikethrough bars, painted as their run's type is (#847).
-    for (run, bar) in vectorcraft_text::decorations(&layout, db, t) {
+    for (run, bar) in pluma_text::decorations(&layout, db, t) {
         push(&mut all, run, &bar);
     }
     TextGeom {

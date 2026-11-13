@@ -4,13 +4,13 @@
 
 use std::sync::{Arc, Mutex};
 
+use pluma_doc::NodeKind;
+use pluma_engine::cmd::fileio;
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_geom::Point;
 
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 /// The loaded place cursor's thumbnail size (px on the longer side).
 const THUMB: u32 = 64;
@@ -27,7 +27,7 @@ pub struct PlaceArrival {
 
 pub type PlaceInbox = Arc<Mutex<Vec<PlaceArrival>>>;
 
-/// Where files dropped on a canvas land: document `doc` ([`vectorcraft_engine::DocState::uid`]) at
+/// Where files dropped on a canvas land: document `doc` ([`pluma_engine::DocState::uid`]) at
 /// `at` (document coordinates), embedded when Shift was held. The document is kept because the web
 /// reads dropped files asynchronously: another document may have become active when they arrive.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -92,7 +92,7 @@ impl PlaceState {
 
 /// Run engine command `id` itself (past the UI's handling of the same id); an error shows in the
 /// status bar.
-fn engine(app: &mut VectorcraftApp, id: &str, p: &Value) -> Result<Value, String> {
+fn engine(app: &mut PlumaApp, id: &str, p: &Value) -> Result<Value, String> {
     let r = app.session.execute(id, p).map_err(|e| e.to_string());
     app.sync_views();
     if let Err(e) = &r {
@@ -107,14 +107,14 @@ fn engine(app: &mut VectorcraftApp, id: &str, p: &Value) -> Result<Value, String
 /// in the view unless `at`, `rect` or `replace` say otherwise (a text file without `text` options
 /// asks for them first); with `paths`, the Place dialog for them; with neither, pick the files
 /// first. The file is read and placed at once (MCP, scripts).
-pub fn run(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn run(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     place_file(app, p, Read::AtOnce)
 }
 
 /// [`run`] for a file the user places (the Place dialog's OK, [`io::place_bytes`], the OK of the
 /// import options Place asks for): on the desktop the file is read off the UI thread
 /// ([`crate::placing::start`]), and the result is then `{background: true, status}`.
-pub fn run_for_user(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn run_for_user(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     place_file(app, p, Read::ForUser { dropped: false })
 }
 
@@ -126,7 +126,7 @@ enum Read {
     ForUser { dropped: bool },
 }
 
-fn place_file(app: &mut VectorcraftApp, p: &Value, read: Read) -> Result<Value, String> {
+fn place_file(app: &mut PlumaApp, p: &Value, read: Read) -> Result<Value, String> {
     if p.get("text").is_none() && crate::dialogs::text_import::is_text(p) {
         return Ok(crate::dialogs::text_import::open(app, p));
     }
@@ -168,7 +168,7 @@ fn place_file(app: &mut VectorcraftApp, p: &Value, read: Read) -> Result<Value, 
 }
 
 /// Pick files to place: the Place dialog opens with them (on the web once they arrive).
-fn pick(app: &mut VectorcraftApp) -> Result<(), String> {
+fn pick(app: &mut PlumaApp) -> Result<(), String> {
     if let Some(f) = app.services.place_async.as_mut() {
         f();
         return Ok(());
@@ -188,11 +188,11 @@ fn pick(app: &mut VectorcraftApp) -> Result<(), String> {
 }
 
 /// The Place dialog for `files` (`{path}`, or `{name}` with the bytes in [`PlaceState`]).
-fn open_dialog(app: &mut VectorcraftApp, files: Vec<Value>) {
+fn open_dialog(app: &mut PlumaApp, files: Vec<Value>) {
     let units = app.session.active().map(|d| d.doc.units).unwrap_or_default();
     let info = lines(app, &files, units);
     let one_object = app.session.active().is_some_and(|d| d.selection.objects.len() == 1);
-    let linked: Vec<bool> = files.iter().map(|f| is_vectorcraft_file(app, f)).collect();
+    let linked: Vec<bool> = files.iter().map(|f| is_pluma_file(app, f)).collect();
     app.ui.dialog = Some(crate::state::Dialog::new(
         crate::dialogs::place::KIND,
         json!({
@@ -208,46 +208,46 @@ fn open_dialog(app: &mut VectorcraftApp, files: Vec<Value>) {
     ));
 }
 
-/// Is dialog file entry `file` a VectorCraft document on disk (what Link places as one locked
+/// Is dialog file entry `file` a Pluma document on disk (what Link places as one locked
 /// object), or a PDF or `.ai` file on disk? A `.ai` saved without PDF compatibility is PostScript,
 /// which `file.place` embeds whether Link is on or not.
-fn is_vectorcraft_file(app: &VectorcraftApp, file: &Value) -> bool {
+fn is_pluma_file(app: &PlumaApp, file: &Value) -> bool {
     let Some(path) = file.get("path").and_then(Value::as_str) else { return false };
-    let native = ["vectorcraft", vectorcraft_format::LEGACY_EXTENSION, "vctemplate"];
+    let native = [pluma_format::EXTENSION, pluma_format::FORMAT_ID, pluma_format::LEGACY_EXTENSION, "vctemplate"];
     match fileio::extension(path).as_str() {
         e if native.contains(&e) => true,
-        "pdf" | "ai" | "ait" => app.services.read.as_ref().and_then(|r| r(path).ok()).is_none_or(|b| !vectorcraft_pdf::is_postscript(&b)),
+        "pdf" | "ai" | "ait" => app.services.read.as_ref().and_then(|r| r(path).ok()).is_none_or(|b| !pluma_pdf::is_postscript(&b)),
         _ => false,
     }
 }
 
 /// The engine params naming `file` (a dialog file entry).
-fn source(app: &VectorcraftApp, file: &Value) -> Option<Value> {
+fn source(app: &PlumaApp, file: &Value) -> Option<Value> {
     if let Some(path) = file.get("path").and_then(Value::as_str) {
         return Some(json!({ "path": path }));
     }
     let name = file.get("name").and_then(Value::as_str)?;
     let bytes = app.place.picked.iter().find(|(n, _)| n == name).map(|(_, b)| b)?;
-    Some(json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) }))
+    Some(json!({ "name": name, "dataBase64": pluma_format::base64_encode(bytes) }))
 }
 
 /// The Place dialog's line about each of `files`, read at once, or where the files the user places
 /// are read off the UI thread ([`crate::placing::available`]) on a thread of its own: the lines are
 /// then empty until [`fill_lines`] shows them.
-fn lines(app: &mut VectorcraftApp, files: &[Value], units: vectorcraft_doc::Unit) -> Vec<String> {
+fn lines(app: &mut PlumaApp, files: &[Value], units: pluma_doc::Unit) -> Vec<String> {
     if crate::placing::available(app) {
         let sources: Vec<Option<Value>> = files.iter().map(|f| source(app, f)).collect();
         let (tx, read) = std::sync::mpsc::channel();
         // The automation roots in force here are in force there.
-        let scope = vectorcraft_engine::file_access::ScopeHandle::capture();
-        let spawned = std::thread::Builder::new().name("vectorcraft-place-info".into()).spawn(move || {
+        let scope = pluma_engine::file_access::ScopeHandle::capture();
+        let spawned = std::thread::Builder::new().name("pluma-place-info".into()).spawn(move || {
             let lines: Vec<String> = scope.run(|| {
                 sources
                     .iter()
                     .map(|p| match p {
                         None => "not found".to_string(),
                         Some(p) => line(
-                            vectorcraft_engine::guard::catch_panic(|| vectorcraft_engine::cmd::place::read_info(p).map_err(|e| e.to_string()))
+                            pluma_engine::guard::catch_panic(|| pluma_engine::cmd::place::read_info(p).map_err(|e| e.to_string()))
                                 .unwrap_or_else(|msg| Err(format!("internal error: {msg} (please report this bug)"))),
                             units,
                         ),
@@ -267,7 +267,7 @@ fn lines(app: &mut VectorcraftApp, files: &[Value], units: vectorcraft_doc::Unit
 
 /// The open Place dialog `d`'s lines about its files once they have been read off the UI thread
 /// ([`lines`]) → whether they are still being read.
-pub(crate) fn fill_lines(app: &mut VectorcraftApp, d: &mut crate::state::Dialog) -> bool {
+pub(crate) fn fill_lines(app: &mut PlumaApp, d: &mut crate::state::Dialog) -> bool {
     let Some((files, read)) = &app.place.reading_lines else { return false };
     if d.fields.get("files") != Some(files) {
         return false;
@@ -287,14 +287,14 @@ pub(crate) fn fill_lines(app: &mut VectorcraftApp, d: &mut crate::state::Dialog)
 }
 
 /// One line about `file` for the Place dialog, read at once ([`line`]).
-fn summary(app: &mut VectorcraftApp, file: &Value, units: vectorcraft_doc::Unit) -> String {
+fn summary(app: &mut PlumaApp, file: &Value, units: pluma_doc::Unit) -> String {
     let Some(p) = source(app, file) else { return "not found".into() };
     line(app.session.execute("file.place.info", &p).map_err(|e| e.to_string()), units)
 }
 
 /// One line for the Place dialog from `file.place.info`'s reply `i` ("300 × 150 px, 300 ppi, RGB
 /// (1 in × 0.5 in)"), or why the file can't be placed.
-fn line(i: Result<Value, String>, units: vectorcraft_doc::Unit) -> String {
+fn line(i: Result<Value, String>, units: pluma_doc::Unit) -> String {
     let i = match i {
         Ok(i) => i,
         Err(e) => return e,
@@ -317,7 +317,7 @@ fn fmt_ppi(v: f64) -> String {
 
 /// Place (the dialog's OK): one file is placed centred in the view (or replaces the selection);
 /// several load the place cursor.
-pub fn confirm(app: &mut VectorcraftApp, d: &crate::state::Dialog) -> Result<Value, String> {
+pub fn confirm(app: &mut PlumaApp, d: &crate::state::Dialog) -> Result<Value, String> {
     let files: Vec<Value> = d.fields.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
     let sources: Vec<Value> = files.iter().filter_map(|f| source(app, f)).collect();
     if sources.is_empty() {
@@ -351,11 +351,11 @@ pub fn confirm(app: &mut VectorcraftApp, d: &crate::state::Dialog) -> Result<Val
 
 /// `file.place.queue` with thumbnails for the cursor (unless `thumbnail` is given), the files read
 /// at once (MCP, scripts).
-pub fn queue(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn queue(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     queue_files(app, p, Read::AtOnce)
 }
 
-fn queue_files(app: &mut VectorcraftApp, p: &Value, read: Read) -> Result<Value, String> {
+fn queue_files(app: &mut PlumaApp, p: &Value, read: Read) -> Result<Value, String> {
     let mut p = p.clone();
     if p.get("thumbnail").is_none() {
         p["thumbnail"] = json!(THUMB);
@@ -375,11 +375,11 @@ fn queue_files(app: &mut VectorcraftApp, p: &Value, read: Read) -> Result<Value,
 /// The file a click or drag of the place cursor places (`file.place` with `p`, its `rect` set):
 /// read off the UI thread where the files the user places are ([`crate::placing::start`]), else at
 /// once. An error shows in the status bar.
-pub(crate) fn place_from_cursor(app: &mut VectorcraftApp, p: &Value) {
+pub(crate) fn place_from_cursor(app: &mut PlumaApp, p: &Value) {
     // Read within the automation roots of whoever loaded the cursor, even on a click of the person
     // at the keyboard: an agent's queue reaches no file it wasn't given.
     let roots = app.session.place_queue_roots();
-    vectorcraft_engine::file_access::confine(roots.as_ref(), || {
+    pluma_engine::file_access::confine(roots.as_ref(), || {
         if crate::placing::available(app) {
             if let Err(e) = crate::placing::start(app, p, false) {
                 app.status(e);
@@ -391,13 +391,13 @@ pub(crate) fn place_from_cursor(app: &mut VectorcraftApp, p: &Value) {
 }
 
 /// The cursor's thumbnails from `file.place.queue`'s reply `r`.
-pub(crate) fn show_thumbnails(app: &mut VectorcraftApp, r: &Value) {
+pub(crate) fn show_thumbnails(app: &mut PlumaApp, r: &Value) {
     app.place.thumbs = r["files"]
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|f| {
-            let png = vectorcraft_format::base64_decode(f["thumbnailBase64"].as_str()?)?;
+            let png = pluma_format::base64_decode(f["thumbnailBase64"].as_str()?)?;
             let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).ok()?.to_rgba8();
             let color = egui::ColorImage::from_rgba_unmultiplied([img.width() as usize, img.height() as usize], img.as_raw());
             Some((f["name"].as_str()?.to_string(), Thumb { image: std::sync::Arc::new(color), tex: None }))
@@ -406,7 +406,7 @@ pub(crate) fn show_thumbnails(app: &mut VectorcraftApp, r: &Value) {
 }
 
 /// The loaded place cursor at `pos`: the current file's thumbnail with the number of files loaded.
-pub fn paint_cursor(app: &mut VectorcraftApp, ctx: &egui::Context, painter: &egui::Painter, pos: egui::Pos2) {
+pub fn paint_cursor(app: &mut PlumaApp, ctx: &egui::Context, painter: &egui::Painter, pos: egui::Pos2) {
     let opts = app.session.tool_options();
     let count = opts["count"].as_u64().unwrap_or(0);
     let name = opts["name"].as_str().unwrap_or_default();
@@ -439,7 +439,7 @@ pub fn paint_cursor(app: &mut VectorcraftApp, ctx: &egui::Context, painter: &egu
 
 // ---------- drops ----------
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Where file `name` dropped with the pointer at `pos` (screen points) goes: as in Illustrator,
     /// onto the canvas of the open document (Shift embeds it), else opened. Where the platform
     /// doesn't say (`None`: desktop drags carry no position), a document opens as a tab of its
@@ -461,7 +461,7 @@ impl VectorcraftApp {
 
 /// Where the pointer is during a file drag over the window, as far as egui knows: nowhere on the
 /// desktop, whose drags carry no position (the one egui had before is stale; files dropped there
-/// go by their kind, see [`VectorcraftApp::drop_target`]). On the web, egui's own position (for
+/// go by their kind, see [`PlumaApp::drop_target`]). On the web, egui's own position (for
 /// the highlight: the web host follows its drags itself for drops).
 pub fn drag_pos(ctx: &egui::Context) -> Option<egui::Pos2> {
     if cfg!(target_arch = "wasm32") { ctx.input(|i| i.pointer.latest_pos()) } else { None }
@@ -474,7 +474,7 @@ pub type DropFile = (String, Option<String>, Vec<u8>);
 /// Files) as its target says: the placed ones first, so the last document opened is the one
 /// shown. A file for a canvas goes to the document it was dropped on, which becomes active again;
 /// it isn't placed when that document has closed since.
-pub fn drop_files(app: &mut VectorcraftApp, mut files: Vec<(DropTarget, DropFile)>) {
+pub fn drop_files(app: &mut PlumaApp, mut files: Vec<(DropTarget, DropFile)>) {
     files.sort_by_key(|(target, _)| *target == DropTarget::Open);
     for (target, (name, path, bytes)) in files {
         if let DropTarget::Place(d) = target {
@@ -488,7 +488,7 @@ pub fn drop_files(app: &mut VectorcraftApp, mut files: Vec<(DropTarget, DropFile
             DropTarget::Place(DropAt { at, embed, .. }) => {
                 let mut p = match &path {
                     Some(path) => json!({ "path": path }),
-                    None => json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes) }),
+                    None => json!({ "name": name, "dataBase64": pluma_format::base64_encode(&bytes) }),
                 };
                 p["at"] = json!([at.x, at.y]);
                 p["link"] = json!(!embed);
@@ -513,7 +513,7 @@ pub fn drop_files(app: &mut VectorcraftApp, mut files: Vec<(DropTarget, DropFile
 
 /// Files that arrived to be placed (web): drops go where they were dropped, picked files to the
 /// Place dialog.
-pub fn drain(app: &mut VectorcraftApp) {
+pub fn drain(app: &mut PlumaApp) {
     let arrived: Vec<PlaceArrival> =
         app.services.place_inbox.as_ref().map(|q| std::mem::take(&mut *q.lock().unwrap_or_else(|e| e.into_inner()))).unwrap_or_default();
     let mut picked = vec![];
@@ -536,7 +536,7 @@ pub fn drain(app: &mut VectorcraftApp) {
 /// the browser gives a dragged file's type but not its name, so the canvas is outlined for any
 /// file dragged over it, including libraries, presets, plug-ins and shortcut sets, which open when
 /// dropped.
-pub fn paint_drop_highlight(app: &VectorcraftApp, ctx: &egui::Context, painter: &egui::Painter, rect: egui::Rect) {
+pub fn paint_drop_highlight(app: &PlumaApp, ctx: &egui::Context, painter: &egui::Painter, rect: egui::Rect) {
     let pos = drag_pos(ctx);
     let placed = ctx.input(|i| {
         i.raw.hovered_files.iter().any(|f| {
@@ -556,7 +556,7 @@ pub fn paint_drop_highlight(app: &VectorcraftApp, ctx: &egui::Context, painter: 
 
 /// `image.info` of the one selected image, fetched again only when it changes (the Control bar's
 /// and the Properties panel's image details).
-pub fn selected_image_info(app: &mut VectorcraftApp) -> Option<&Value> {
+pub fn selected_image_info(app: &mut PlumaApp) -> Option<&Value> {
     let st = app.session.active()?;
     let key = match &st.selection.objects[..] {
         [id] if st.doc.node(*id).is_some_and(|n| matches!(n.kind, NodeKind::Image(_))) => (st.uid, st.revision, id.0),
@@ -579,7 +579,7 @@ pub fn image_summary(i: &Value) -> (String, String) {
 /// The Control bar for the one selected image: Linked File or Embedded, its file name, colour mode
 /// and effective resolution, Embed or Unembed, Edit Original (a linked file), Image Trace, Mask and
 /// Crop Image. Whether one image is selected.
-pub fn control_bar_details(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool {
+pub fn control_bar_details(app: &mut PlumaApp, ui: &mut egui::Ui) -> bool {
     let Some(i) = selected_image_info(app) else { return false };
     let (name, details) = image_summary(i);
     let (Some(id), linked) = (i["id"].as_u64(), i["linked"] == true) else { return false };
@@ -607,7 +607,7 @@ pub fn control_bar_details(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> bool 
 /// The menu of the Control bar's file name for image `id`: Replace… (another file takes the
 /// image's place with its own aspect ratio; an embedded image becomes linked), Go To Link, Edit
 /// Original, Update Link and Placement Options….
-fn link_menu(app: &mut VectorcraftApp, ui: &mut egui::Ui, id: u64, linked: bool) {
+fn link_menu(app: &mut PlumaApp, ui: &mut egui::Ui, id: u64, linked: bool) {
     ui.set_min_width(200.0);
     if widgets::menu_item(ui, tl!("Replace…"), app.services.pick_open.is_some(), false) {
         crate::panels::links::replace(app, vec![id]);
@@ -632,7 +632,7 @@ fn link_menu(app: &mut VectorcraftApp, ui: &mut egui::Ui, id: u64, linked: bool)
 
 /// Embed (and Edit Original) for linked image `id`, Unembed… for an embedded one named `name`
 /// (Control bar, Properties). The buttons are `width` wide, or fit their labels.
-pub fn link_buttons(app: &mut VectorcraftApp, ui: &mut egui::Ui, id: u64, linked: bool, name: &str, width: Option<f32>) {
+pub fn link_buttons(app: &mut PlumaApp, ui: &mut egui::Ui, id: u64, linked: bool, name: &str, width: Option<f32>) {
     let w = |fit: f32| width.unwrap_or(fit);
     if linked {
         if widgets::flat_button(ui, tl!("Embed"), w(60.0)).clicked() {

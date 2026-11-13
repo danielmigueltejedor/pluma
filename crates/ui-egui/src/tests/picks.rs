@@ -8,15 +8,15 @@ use std::rc::Rc;
 use std::sync::mpsc::{Sender, channel};
 
 use egui::{Pos2, Rect, vec2};
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
 use crate::panels::graphic_styles::GraphicStyleLibraries;
 use crate::panels::library_panel::{self, library_menu};
 use crate::panels::swatches::SwatchLibraries;
 use crate::picks::{self, PickRequest};
 use crate::state::Dialog;
-use crate::{FilePick, Services, VectorcraftApp};
+use crate::{FilePick, PlumaApp, Services};
 
 const SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="10" height="10"/></svg>"#;
 
@@ -69,22 +69,22 @@ pub(crate) fn off_the_ui_thread(services: &mut Services) -> (Shown, Written) {
 
 /// A desktop app whose dialogs show off the UI thread, as sheets on the window when `sheets`
 /// (macOS) or as windows of their own (Linux).
-fn with_dialogs(sheets: bool) -> (VectorcraftApp, Shown, Written) {
+fn with_dialogs(sheets: bool) -> (PlumaApp, Shown, Written) {
     let mut services = Services { dialogs_are_sheets: sheets, ..Default::default() };
     let (shown, written) = off_the_ui_thread(&mut services);
-    (VectorcraftApp::new(Session::new(), services), shown, written)
+    (PlumaApp::new(Session::new(), services), shown, written)
 }
 
 /// The macOS app: its dialogs are sheets.
-fn app() -> (VectorcraftApp, Shown, Written) {
+fn app() -> (PlumaApp, Shown, Written) {
     with_dialogs(true)
 }
 
-fn poll(app: &mut VectorcraftApp) {
+fn poll(app: &mut PlumaApp) {
     picks::poll(app, &egui::Context::default());
 }
 
-fn dialog_kind(app: &VectorcraftApp) -> Option<&str> {
+fn dialog_kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
@@ -94,12 +94,7 @@ fn dialog_kind(app: &VectorcraftApp) -> Option<&str> {
 const SCREEN: (f32, f32) = (1600.0, 6000.0);
 
 /// One frame of `draw` with `events` → its texts and where they were drawn.
-fn frame(
-    ctx: &egui::Context,
-    app: &mut VectorcraftApp,
-    events: Vec<egui::Event>,
-    draw: &impl Fn(&mut VectorcraftApp, &mut egui::Ui),
-) -> Vec<(String, Rect)> {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, draw: &impl Fn(&mut PlumaApp, &mut egui::Ui)) -> Vec<(String, Rect)> {
     fn texts(s: &egui::Shape, out: &mut Vec<(String, Rect)>) {
         match s {
             egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect())),
@@ -126,7 +121,7 @@ fn at(texts: &[(String, Rect)], label: &str) -> Pos2 {
 }
 
 /// Draw `draw` until it settles, then click its text `label`.
-fn click(app: &mut VectorcraftApp, label: &str, draw: impl Fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn click(app: &mut PlumaApp, label: &str, draw: impl Fn(&mut PlumaApp, &mut egui::Ui)) {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     frame(&ctx, app, vec![], &draw);
@@ -137,18 +132,18 @@ fn click(app: &mut VectorcraftApp, label: &str, draw: impl Fn(&mut VectorcraftAp
 }
 
 /// The open dialog, drawn as the app draws it.
-fn dialogs(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn dialogs(app: &mut PlumaApp, ui: &mut egui::Ui) {
     crate::dialogs::show(app, ui.ctx());
 }
 
-/// The active document written to `Poster.vectorcraft` in a folder of its own named after `tag`
+/// The active document written to `Poster.pluma` in a folder of its own named after `tag`
 /// → (the folder, the file).
-fn saved_document(app: &mut VectorcraftApp, tag: &str) -> (std::path::PathBuf, String) {
+fn saved_document(app: &mut PlumaApp, tag: &str) -> (std::path::PathBuf, String) {
     let b64 = app.run("document.serialize", json!({})).unwrap()["dataBase64"].as_str().unwrap().to_string();
     let dir = std::env::temp_dir().join(format!("vc-picks-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let file = dir.join("Poster.vectorcraft");
-    std::fs::write(&file, vectorcraft_format::base64_decode(&b64).unwrap()).unwrap();
+    let file = dir.join("Poster.pluma");
+    std::fs::write(&file, pluma_format::base64_decode(&b64).unwrap()).unwrap();
     (dir, file.to_string_lossy().into_owned())
 }
 
@@ -244,14 +239,14 @@ fn load_profile_asks_off_the_ui_thread() {
 fn variables_panel_data_sets_ask_off_the_ui_thread() {
     let (mut app, shown, _) = app();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
-    let dir = vectorcraft_testkit::temp_dir("picks-data-sets");
+    let dir = pluma_testkit::temp_dir("picks-data-sets");
     if let Err(e) = std::fs::remove_dir_all(&dir) {
         assert_eq!(e.kind(), std::io::ErrorKind::NotFound, "cannot empty {}: {e}", dir.display());
     }
     std::fs::create_dir_all(&dir).unwrap();
     let (csv, out) = (dir.join("sets.csv"), dir.join("out.csv"));
     std::fs::write(&csv, "Name\ny\n").unwrap();
-    let sets = |app: &VectorcraftApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+    let sets = |app: &PlumaApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
 
     click(&mut app, "Import Data Sets…", crate::panels::variables::menu);
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
@@ -286,7 +281,7 @@ fn other_swatch_library_asks_off_the_ui_thread() {
     poll(&mut app);
     let open = library_panel::last_open(&app.ui).cloned().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
     assert_eq!(open.kind, "swatches");
-    let (_, lib) = vectorcraft_engine::cmd::swatchlib::library(&app.session, &open.id).unwrap();
+    let (_, lib) = pluma_engine::cmd::swatchlib::library(&app.session, &open.id).unwrap();
     assert!(lib.swatch("Signal").is_some(), "{}", open.id);
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -306,7 +301,7 @@ fn other_graphic_style_library_asks_off_the_ui_thread() {
     poll(&mut app);
     let open = library_panel::last_open(&app.ui).cloned().unwrap_or_else(|| panic!("no library open: {}", app.ui.status));
     assert_eq!(open.kind, "graphicStyles");
-    let (_, lib) = vectorcraft_engine::cmd::stylelib::library(&app.session, &open.id).unwrap();
+    let (_, lib) = pluma_engine::cmd::stylelib::library(&app.session, &open.id).unwrap();
     assert!(lib.style("Poster Look").is_some(), "{}", open.id);
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -323,7 +318,7 @@ fn load_variable_library_asks_off_the_ui_thread() {
     let xml = r#"<variableSets><variableSet><variables><variable varName="Name" trait="textcontent"/></variables>
         <sampleDataSets><sampleDataSet dataSetName="A"><Name><p>x</p></Name></sampleDataSet></sampleDataSets></variableSet></variableSets>"#;
     std::fs::write(&library, xml).unwrap();
-    let sets = |app: &VectorcraftApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+    let sets = |app: &PlumaApp| app.session.doc().unwrap().doc.variables.datasets.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
 
     click(&mut app, "Load Variable Library…", crate::panels::variables::menu);
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]));
@@ -348,7 +343,7 @@ fn save_variable_library_asks_off_the_ui_thread() {
     assert!(shown.requests().is_empty(), "{:?}", shown.requests());
     app.run("variable.define", json!({"name": "Name", "kind": "text"})).unwrap();
     app.run("dataset.new", json!({"name": "A", "values": {"Name": "x", "Shown": true}})).unwrap();
-    let dir = vectorcraft_testkit::temp_dir("picks-save-variable-library");
+    let dir = pluma_testkit::temp_dir("picks-save-variable-library");
     if let Err(e) = std::fs::remove_dir_all(&dir) {
         assert_eq!(e.kind(), std::io::ErrorKind::NotFound, "cannot empty {}: {e}", dir.display());
     }
@@ -510,7 +505,7 @@ fn a_folder_for_a_closed_dialog_is_dropped() {
 /// the UI thread and writes the selected preset where the dialog answers; the dialog stays open.
 #[test]
 fn preset_dialogs_export_asks_off_the_ui_thread() {
-    use vectorcraft_engine::cmd::{flatten, pdfcmds, perspgrid, printpresets};
+    use pluma_engine::cmd::{flatten, pdfcmds, perspgrid, printpresets};
     let cases = [
         ("pdf.preset.save", json!({"name": "Mine"}), "ui.pdfPresetsDialog", pdfcmds::PRESET_FORMAT),
         ("print.presets.save", json!({"name": "Mine", "settings": {"copies": 2}}), "ui.printPresetsDialog", printpresets::PRESET_FORMAT),
@@ -539,7 +534,7 @@ fn preset_dialogs_export_asks_off_the_ui_thread() {
 #[test]
 fn a_sheets_answer_given_its_extension_asks_before_replacing() {
     let (mut app, shown, written) = app();
-    app.services.exists = Some(Box::new(|p: &str| p == "/art/card.vectorcraft"));
+    app.services.exists = Some(Box::new(|p: &str| p == "/art/card.pluma"));
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     assert!(app.run("file.save", json!({})).is_err());
     shown.answer(&["/art/card"]);
@@ -549,7 +544,7 @@ fn a_sheets_answer_given_its_extension_asks_before_replacing() {
     poll(&mut app);
     assert_eq!(app.ui.status, "");
     crate::dialogs::confirm(&mut app).unwrap();
-    assert_eq!(*written.borrow(), ["/art/card.vectorcraft"]);
+    assert_eq!(*written.borrow(), ["/art/card.pluma"]);
     assert!(shown.requests().is_empty(), "{:?}", shown.requests());
 }
 
@@ -569,7 +564,7 @@ fn a_preset_dialogs_export_asks_before_replacing_over_it() {
         exists: Some(Box::new(|_: &str| true)),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     app.run("pdf.preset.save", json!({"name": "Mine"})).unwrap();
     app.run("ui.pdfPresetsDialog", json!({"selected": "Mine"})).unwrap();
@@ -581,7 +576,7 @@ fn a_preset_dialogs_export_asks_before_replacing_over_it() {
     assert!(written.borrow().is_empty());
     click(&mut app, "Export…", dialogs);
     crate::dialogs::confirm(&mut app).unwrap();
-    let path = format!("/presets/mine.{}", vectorcraft_engine::cmd::pdfcmds::PRESET_FORMAT);
+    let path = format!("/presets/mine.{}", pluma_engine::cmd::pdfcmds::PRESET_FORMAT);
     assert_eq!(*written.borrow(), [path], "{}", app.ui.status);
     assert_eq!(dialog_kind(&app), Some(kind.as_str()));
 }
@@ -668,7 +663,7 @@ fn nothing_closes_or_quits_while_a_sheet_is_open() {
     assert!(!app.file_dialog_open() && !app.file_sheet_open());
     assert!(app.run("file.open", json!({})).is_err());
     assert!(app.file_dialog_open() && app.file_sheet_open());
-    let refused = |app: &mut VectorcraftApp| {
+    let refused = |app: &mut PlumaApp| {
         for (id, p) in [("app.quit", json!({})), ("file.close", json!({})), ("file.close", json!({"index": 0})), ("file.closeAll", json!({}))] {
             assert_eq!(app.run(id, p.clone()), Err(picks::busy().to_string()), "{id} {p}");
         }
@@ -807,14 +802,14 @@ fn a_locate_library_answer_goes_on_after_the_active_document_closes() {
 #[test]
 fn save_changes_answers_for_its_own_document() {
     let (mut app, shown, written) = with_dialogs(false);
-    let modified = |app: &mut VectorcraftApp| app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
+    let modified = |app: &mut PlumaApp| app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     // X clean, A modified and untitled, C modified with a file.
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     modified(&mut app);
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     modified(&mut app);
-    app.session.active_mut().unwrap().path = Some("/art/c.vectorcraft".into());
+    app.session.active_mut().unwrap().path = Some("/art/c.pluma".into());
     let uids: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
     app.run("file.closeAll", json!({})).unwrap();
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.fields["uid"].clone()), Some(json!(uids[1])), "asks about A");
@@ -822,9 +817,9 @@ fn save_changes_answers_for_its_own_document() {
     assert!(crate::dialogs::confirm(&mut app).is_err());
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Save(_)]));
     app.run("file.close", json!({"index": 0})).unwrap();
-    shown.answer(&["/art/a.vectorcraft"]);
+    shown.answer(&["/art/a.pluma"]);
     poll(&mut app);
-    assert_eq!(*written.borrow(), ["/art/a.vectorcraft"], "{}", app.ui.status);
+    assert_eq!(*written.borrow(), ["/art/a.pluma"], "{}", app.ui.status);
     assert_eq!(app.session.documents().iter().map(|d| d.uid).collect::<Vec<_>>(), [uids[2]], "A closed, C untouched");
     let d = app.ui.dialog.as_ref().expect("Save Changes asks about C next");
     assert_eq!((d.kind.as_str(), &d.fields["uid"]), (crate::unsaved::KIND, &json!(uids[2])));
@@ -856,7 +851,7 @@ fn a_refused_dialog_says_why() {
 fn a_panic_inside_an_entry_leaves_none_behind() {
     let (mut app, shown, written) = app();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
-    let r = vectorcraft_engine::guard::catch_panic(|| picks::button(&mut app, |_| panic!("a bug")));
+    let r = pluma_engine::guard::catch_panic(|| picks::button(&mut app, |_| panic!("a bug")));
     assert!(r.is_err());
     app.picks.recover();
     assert!(app.picks.is_entry_free());
@@ -869,7 +864,7 @@ fn a_panic_inside_an_entry_leaves_none_behind() {
 
 /// One whole frame of the app (its logic and its window); `close` presses the window's close
 /// button.
-fn app_frame(ctx: &egui::Context, app: &mut VectorcraftApp, close: bool) -> Vec<egui::ViewportCommand> {
+fn app_frame(ctx: &egui::Context, app: &mut PlumaApp, close: bool) -> Vec<egui::ViewportCommand> {
     let mut raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1600.0, 900.0))), ..Default::default() };
     if close {
         raw.viewports.entry(egui::ViewportId::ROOT).or_default().events.push(egui::ViewportEvent::Close);
@@ -908,11 +903,11 @@ fn the_window_stays_open_while_a_sheet_is_on_it() {
 fn inspect_tells_the_file_dialog_open() {
     let (mut app, shown, _) = app();
     let ctx = egui::Context::default();
-    let shows = |app: &VectorcraftApp| crate::control::inspect(app, &ctx)["fileDialog"].clone();
+    let shows = |app: &PlumaApp| crate::control::inspect(app, &ctx)["fileDialog"].clone();
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     assert_eq!(shows(&app), Value::Null);
     /// What asks for a kind of dialog.
-    type Ask = fn(&mut VectorcraftApp);
+    type Ask = fn(&mut PlumaApp);
     let asks: [(&str, Ask); 4] = [
         ("open", |app| assert!(app.run("file.open", json!({})).is_err())),
         ("save", |app| assert!(app.run("file.saveAs", json!({})).is_err())),
@@ -1133,19 +1128,19 @@ fn missing_fonts_says_why_the_folder_picked_wasnt_searched() {
     let (mut app, shown, _) = app();
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
     app.services.write = None;
-    let root = std::fs::canonicalize(vectorcraft_testkit::temp_dir("missing-fonts-refused")).unwrap();
+    let root = std::fs::canonicalize(pluma_testkit::temp_dir("missing-fonts-refused")).unwrap();
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("text.create", json!({"x": 10, "y": 40, "text": "Type", "font": "Findme Sans 3"})).unwrap();
-    let doc = root.join("doc.vectorcraft");
+    let doc = root.join("doc.pluma");
     app.run("document.save", json!({"path": doc.to_string_lossy()})).unwrap();
     app.session.execute("file.close", &json!({})).unwrap();
     crate::io::open_path(&mut app, &doc.to_string_lossy()).unwrap();
     assert_eq!(dialog_kind(&app), Some("missingFonts"));
     // The test's folder is the home folder: its Library holds other apps' folders.
-    app.session.search_rules = Some(vectorcraft_engine::cmd::findfiles::Rules { home: Some(root.clone()), ..Default::default() });
+    app.session.search_rules = Some(pluma_engine::cmd::findfiles::Rules { home: Some(root.clone()), ..Default::default() });
     let fonts = root.join("Library").join("Application Support").join("Font Tool").join("Export");
     std::fs::create_dir_all(&fonts).unwrap();
-    std::fs::write(fonts.join("Findme.otf"), vectorcraft_testkit::fonts::renamed("Findme Sans 3")).unwrap();
+    std::fs::write(fonts.join("Findme.otf"), pluma_testkit::fonts::renamed("Findme Sans 3")).unwrap();
     click(&mut app, "Find in Folder…", dialogs);
     assert_eq!(shown.requests(), [PickRequest::Folder]);
     shown.answer(&[&fonts.to_string_lossy()]);
@@ -1161,6 +1156,6 @@ fn missing_fonts_says_why_the_folder_picked_wasnt_searched() {
     }
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.str("state")).as_deref(), Some("failed"));
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| crate::dialogs::show(app, ui.ctx()));
-    assert!(text.contains("VectorCraft doesn't search other apps' or the system's folders"), "{text}");
+    assert!(text.contains("Pluma doesn't search other apps' or the system's folders"), "{text}");
     assert!(!text.contains("Not found"), "the folder wasn't searched: {text}");
 }

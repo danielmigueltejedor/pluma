@@ -152,7 +152,7 @@ impl FlattenOptions {
     /// Whether colorized image `n`, art of `d`, counts as transparency by itself. With
     /// [`Self::keeps_colorize`], an image colorized with a solid paint whose pixels are grayscale
     /// or 1-bit doesn't: the EPS writer draws it in that paint. An image whose pixels don't take
-    /// the paint ([`vectorcraft_doc::ImageBlob::takes_colorize`]) never counts: it draws uncolorized.
+    /// the paint ([`pluma_doc::ImageBlob::takes_colorize`]) never counts: it draws uncolorized.
     pub(crate) fn counts_colorize(&self, d: &Document, n: &Node) -> bool {
         let NodeKind::Image(im) = &n.kind else { return true };
         let blob = d.image_blob(im);
@@ -189,7 +189,7 @@ pub(super) fn flatten(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(EngineError::Other("Flatten Transparency: select objects to flatten".into()));
     }
     let src = s.doc()?.doc.clone();
-    let failed = vectorcraft_render::decode_failures();
+    let failed = pluma_render::decode_failures();
     let plan = plan(&src, &roots, &o, true)?;
     let warning = crate::cmd::rasterfx::undecoded_warning(failed);
     let options = serde_json::to_value(&o).unwrap_or_default();

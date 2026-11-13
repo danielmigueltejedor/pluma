@@ -141,9 +141,8 @@ impl<'a> Device<'a> for Builder<'_> {
         // Clips that contain the whole page do nothing visible; don't create groups for them. Only
         // a polygon that really covers it counts: a diamond touching the page edges has the page
         // as its bounding box but cuts its corners away (#1542).
-        let redundant = clip_path.path.elements().len() <= 6
-            && self.page.area() > 0.0
-            && vectorcraft_geom::hit::polygon_covers_rect(&clip_path.path, self.page, 0.01);
+        let redundant =
+            clip_path.path.elements().len() <= 6 && self.page.area() > 0.0 && pluma_geom::hit::polygon_covers_rect(&clip_path.path, self.page, 0.01);
         let kind = if redundant { FrameKind::Skip } else { FrameKind::Clip(Box::new(self.clip_node(&clip_path.path, fill_rule(clip_path.fill)))) };
         self.stack.push(Frame::new(kind));
     }

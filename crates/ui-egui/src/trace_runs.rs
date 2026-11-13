@@ -10,20 +10,20 @@
 //! ([`Traced::hand_in`]), so the edit is one undo step like any trace, unless the image or the
 //! settings changed meanwhile: then nothing changes and the status bar says to trace it again. The
 //! control channel, MCP and scripts run the commands at once, and so does every trace on the web,
-//! in unit tests that don't set `off_the_ui_thread`, and with `VECTORCRAFT_SYNC_OPEN` set
+//! in unit tests that don't set `off_the_ui_thread`, and with `PLUMA_SYNC_OPEN` set
 //! ([`available`]).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError, channel};
 
+use pluma_doc::NodeId;
+use pluma_doc::cancel::CancelToken;
+use pluma_engine::EngineError;
+use pluma_engine::cmd::{TraceRun, Traced};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_doc::cancel::CancelToken;
-use vectorcraft_engine::EngineError;
-use vectorcraft_engine::cmd::{TraceRun, Traced};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::export_progress::{self, Pressed};
 
 pub use crate::export_progress::DELAY;
@@ -37,7 +37,7 @@ type Done = (TraceRun, Result<Traced, String>);
 /// A trace running.
 pub struct Running {
     id: u64,
-    /// The document it traces in ([`vectorcraft_engine::DocState::uid`]) and the object.
+    /// The document it traces in ([`pluma_engine::DocState::uid`]) and the object.
     doc: u64,
     target: NodeId,
     /// Its Cancel.
@@ -78,14 +78,14 @@ pub struct TraceRuns {
 
 /// Does `app` trace off the UI thread? Where documents open off it ([`crate::opening::available`]),
 /// and in the unit tests that set `off_the_ui_thread`.
-pub fn available(app: &VectorcraftApp) -> bool {
+pub fn available(app: &PlumaApp) -> bool {
     app.trace_runs.off_the_ui_thread || crate::opening::available()
 }
 
 /// Traces with `command` (`imageTrace.make` or `imageTrace.makeAndExpand`) and its params `p` on a
 /// thread of its own → `{background: true, status}`; `from_panel` when the Image Trace panel asks.
 /// Where no thread can run it, at once (the command's result).
-pub fn start(app: &mut VectorcraftApp, command: &str, p: Value, from_panel: bool) -> Result<Value, String> {
+pub fn start(app: &mut PlumaApp, command: &str, p: Value, from_panel: bool) -> Result<Value, String> {
     if !available(app) {
         return app.run(command, p);
     }
@@ -103,7 +103,7 @@ pub fn start(app: &mut VectorcraftApp, command: &str, p: Value, from_panel: bool
     let steps = Arc::new([AtomicU64::new(0), AtomicU64::new(0)]);
     let counts = Arc::clone(&steps);
     std::thread::Builder::new()
-        .name("vectorcraft-trace".into())
+        .name("pluma-trace".into())
         .spawn(move || {
             let [done_now, total_now] = &*counts;
             let report = |done: u64, total: u64| {
@@ -111,7 +111,7 @@ pub fn start(app: &mut VectorcraftApp, command: &str, p: Value, from_panel: bool
                 total_now.store(total, Ordering::Relaxed);
                 !stop.is_cancelled()
             };
-            let traced = vectorcraft_engine::guard::catch_panic(|| run.run(&report))
+            let traced = pluma_engine::guard::catch_panic(|| run.run(&report))
                 .map_err(|msg| format!("internal error: {msg} (please report this bug)"))
                 .and_then(|r| r.map_err(|e| e.to_string()));
             // The app may have quit meanwhile: nothing to hand it to.
@@ -133,7 +133,7 @@ pub fn start(app: &mut VectorcraftApp, command: &str, p: Value, from_panel: bool
 /// Applies the traces that are done (each frame), in the order they were started. Not while a
 /// dialog is open (its OK acts on the active document, which a trace's result changes), nor while
 /// an interaction is open or a tool drags with the pointer button held, as [`crate::placing::poll`].
-pub fn poll(app: &mut VectorcraftApp) {
+pub fn poll(app: &mut PlumaApp) {
     if app.ui.dialog.is_some() || app.session.in_interaction() || (app.session.tool_busy() && app.session.pointer_held()) {
         return;
     }
@@ -159,7 +159,7 @@ pub fn poll(app: &mut VectorcraftApp) {
 /// Applies trace `r`'s result in its document, which becomes the active one again, as its command
 /// would while the object, its image and the settings are as they were; else why it has none, in
 /// the status bar.
-fn finish(app: &mut VectorcraftApp, r: Running, done: Option<Done>) {
+fn finish(app: &mut PlumaApp, r: Running, done: Option<Done>) {
     // Cancel changes nothing, even when the trace ended just before it.
     if r.token.is_cancelled() {
         if !r.superseded {
@@ -197,7 +197,7 @@ fn finish(app: &mut VectorcraftApp, r: Running, done: Option<Done>) {
 
 /// The progress window's Cancel (also Esc): every trace running stops at its next colour and
 /// changes nothing → `{cancelled: n}`.
-pub fn cancel_all(app: &mut VectorcraftApp) -> Value {
+pub fn cancel_all(app: &mut PlumaApp) -> Value {
     let mut n = 0;
     for r in app.trace_runs.running.iter().filter(|r| !r.token.is_cancelled()) {
         r.token.cancel();
@@ -208,7 +208,7 @@ pub fn cancel_all(app: &mut VectorcraftApp) -> Value {
 
 /// The progress window's Continue in Background: the traces go on, shown in the status bar only
 /// → `{hidden: n}`.
-pub fn hide_all(app: &mut VectorcraftApp) -> Value {
+pub fn hide_all(app: &mut PlumaApp) -> Value {
     let mut n = 0;
     for r in app.trace_runs.running.iter_mut().filter(|r| r.shown()) {
         r.hidden = true;
@@ -218,18 +218,18 @@ pub fn hide_all(app: &mut VectorcraftApp) -> Value {
 }
 
 /// Is a trace running that hasn't been cancelled?
-pub fn any_running(app: &VectorcraftApp) -> bool {
+pub fn any_running(app: &PlumaApp) -> bool {
     app.trace_runs.running.iter().any(|r| !r.token.is_cancelled())
 }
 
 /// Is a trace running that the progress window shows?
-pub fn any_shown(app: &VectorcraftApp) -> bool {
+pub fn any_shown(app: &PlumaApp) -> bool {
     app.trace_runs.running.iter().any(Running::shown)
 }
 
 /// The progress window of the first trace it shows, once that has run for [`DELAY`]. Not while a
 /// dialog, the export progress window or a plug-in's is open: never two modals at once.
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(first) = app.trace_runs.running.iter().find(|r| r.shown()) else { return };
     let now = ctx.input(|i| i.time);
     let since = ctx.data_mut(|m| {

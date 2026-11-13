@@ -2,7 +2,7 @@
 //! measures the result (see `docs/image-trace-quality.md`, which this writes).
 //!
 //! ```text
-//! TRACE_QUALITY_REPORT=report.md cargo test --release -p vectorcraft-trace --test quality -- --ignored --nocapture
+//! TRACE_QUALITY_REPORT=report.md cargo test --release -p pluma-trace --test quality -- --ignored --nocapture
 //! ```
 //!
 //! `TRACE_QUALITY_MP` (default `1,4,16`) sets the megapixel sizes of the cost table.
@@ -30,7 +30,7 @@ use std::time::Instant;
 
 use inputs::{CLASSES, Class, Input, VARIANTS, Variant, inputs};
 use measure::{Metrics, measure};
-use vectorcraft_trace::{Raster, TraceParams, TraceResult, TracedPath, presets, trace_within};
+use pluma_trace::{Raster, TraceParams, TraceResult, TracedPath, presets, trace_within};
 
 /// The engine's limit (`MAX_TRACE_ANCHORS`): a trace past it is refused.
 const MAX_ANCHORS: usize = 8_000_000;
@@ -146,7 +146,7 @@ fn svg_trace(svg: &str) -> TraceResult {
             });
         }
         Some(TracedPath {
-            path: vectorcraft_geom::PathData::from_bezpath(&path),
+            path: pluma_geom::PathData::from_bezpath(&path),
             color: [0; 3],
             pixels: 0,
             stroke: None,
@@ -253,14 +253,14 @@ fn report() -> String {
     // The built-in presets, and some of them with the Shapes or the Auto Grouping option on.
     let mut presets = presets();
     for (name, base) in [("Default with Shapes", "Default"), ("6 Colors with Shapes", "6 Colors")] {
-        presets.push((name, TraceParams { shapes: true, ..vectorcraft_trace::preset(base).unwrap() }));
+        presets.push((name, TraceParams { shapes: true, ..pluma_trace::preset(base).unwrap() }));
     }
     for (name, base) in [
         ("6 Colors with Auto Grouping", "6 Colors"),
         ("Shades of Gray with Auto Grouping", "Shades of Gray"),
         ("High Fidelity Photo with Auto Grouping", "High Fidelity Photo"),
     ] {
-        presets.push((name, TraceParams { auto_grouping: true, ..vectorcraft_trace::preset(base).unwrap() }));
+        presets.push((name, TraceParams { auto_grouping: true, ..pluma_trace::preset(base).unwrap() }));
     }
     // Gradients: on the inputs that are linear gradients, with the option and without it.
     for (name, base, gradients) in [
@@ -269,12 +269,12 @@ fn report() -> String {
         ("High Fidelity Photo, no Gradients", "High Fidelity Photo", false),
         ("High Fidelity Photo with Gradients", "High Fidelity Photo", true),
     ] {
-        presets.push((name, TraceParams { gradients, ..vectorcraft_trace::preset(base).unwrap() }));
+        presets.push((name, TraceParams { gradients, ..pluma_trace::preset(base).unwrap() }));
     }
     // Each preset's enhanced version, on that preset's own inputs.
-    for name in vectorcraft_trace::PRESET_NAMES {
+    for name in pluma_trace::PRESET_NAMES {
         let enhanced: &'static str = Box::leak(format!("{name}, enhanced").into_boxed_str());
-        presets.extend(vectorcraft_trace::enhanced_preset(name).map(|p| (enhanced, p)));
+        presets.extend(pluma_trace::enhanced_preset(name).map(|p| (enhanced, p)));
     }
     let inputs = inputs();
     let drawn = draw_all(&inputs);
@@ -313,7 +313,7 @@ fn report() -> String {
 
     if let Ok(dir) = std::env::var("TRACE_QUALITY_YARDSTICK") {
         // Measured as a black-and-white trace without a white background.
-        let params = vectorcraft_trace::preset("Black and White Logo").unwrap();
+        let params = pluma_trace::preset("Black and White Logo").unwrap();
         let theirs: Vec<Run> = drawn
             .iter()
             .filter(one_colour)
@@ -372,8 +372,8 @@ fn quality_report() {
     println!("{md}");
     // Gradients finds none in art that is flat colour, however it is degraded.
     let inputs = inputs();
-    for (name, _) in presets().iter().filter(|(_, p)| p.mode != vectorcraft_trace::Mode::BlackAndWhite && p.mode != vectorcraft_trace::Mode::Logo) {
-        let params = TraceParams { gradients: true, ..vectorcraft_trace::preset(name).unwrap() };
+    for (name, _) in presets().iter().filter(|(_, p)| p.mode != pluma_trace::Mode::BlackAndWhite && p.mode != pluma_trace::Mode::Logo) {
+        let params = TraceParams { gradients: true, ..pluma_trace::preset(name).unwrap() };
         for (input, size, variant, img) in draw_all(&inputs).iter().filter(|d| !matches!(d.0.class, Class::Tone | Class::Ramp)) {
             let found = trace_within(img, &params, MAX_ANCHORS).map_or(0, |res| res.paths.iter().filter(|p| p.gradient.is_some()).count());
             assert_eq!(found, 0, "{name} with Gradients on {} at {size} px, {variant:?}", input.name);
@@ -396,7 +396,7 @@ fn harness_measures_a_disc() {
     let circle = &inputs[0];
     let src = circle.draw(128, Variant::Clean);
     assert_eq!(measure::fidelity(&src, &src), (0.0, 0.0));
-    let params = vectorcraft_trace::preset("Black and White Logo").unwrap();
+    let params = pluma_trace::preset("Black and White Logo").unwrap();
     let res = trace_within(&src, &params, MAX_ANCHORS).unwrap();
     let m = measure(circle, Variant::Clean, 128, &src, &params, &res);
     assert_eq!(m.paths, 1.0);

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use vectorcraft_geom::{PathData, shapes};
+use pluma_geom::{PathData, shapes};
 
 use super::{TextKind, WrapShape};
 use crate::{Document, Node, NodeId, NodeKind};

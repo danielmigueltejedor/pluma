@@ -16,7 +16,7 @@ use super::DialogSpec;
 use super::form;
 use crate::state::Dialog;
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub(super) const KIND: &str = "relink";
 const CMD: &str = "links.relink";
@@ -40,7 +40,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Open the dialog on the images and placed documents `ids` (default: the selected ones).
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let ids = match p.get("ids").filter(|v| !v.is_null()) {
         Some(v) => v.as_array().cloned().ok_or_else(|| format!("`ids` must be an array of object ids, not {v}"))?,
         None => crate::panels::links::selected_ids(app).into_iter().map(Value::from).collect(),
@@ -84,11 +84,11 @@ fn rows(d: &Dialog, key: &str) -> Vec<Value> {
 }
 
 /// The file the next OK uses: `path`, else one picked (none: cancelled).
-fn file(app: &mut VectorcraftApp, d: &Dialog) -> Result<String, String> {
+fn file(app: &mut PlumaApp, d: &Dialog) -> Result<String, String> {
     match d.str("path") {
         p if !p.is_empty() => Ok(p),
         _ => {
-            let pick = crate::FilePick { filters: crate::FilePick::filters(vectorcraft_engine::cmd::fileio::place_filters()), ..Default::default() };
+            let pick = crate::FilePick { filters: crate::FilePick::filters(pluma_engine::cmd::fileio::place_filters()), ..Default::default() };
             crate::picks::open(app, &pick).ok_or_else(|| "cancelled".to_string())
         }
     }
@@ -96,7 +96,7 @@ fn file(app: &mut VectorcraftApp, d: &Dialog) -> Result<String, String> {
 
 /// OK: relink with the chosen scope. With each, a file for the next link: the dialog stays open
 /// until every link has one, then relinks them all.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let scope = d.str("scope");
     let r = if scope == "each" {
         let links = rows(d, "links");
@@ -123,7 +123,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     Ok(r)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let links = rows(d, "links");
     let paths = rows(d, "paths");
@@ -151,9 +151,9 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn frame(app: &mut VectorcraftApp) -> String {
+    fn frame(app: &mut PlumaApp) -> String {
         crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
     }
 
@@ -167,27 +167,27 @@ mod tests {
     }
 
     /// A fresh folder with the PNG files `names` → (app with a document, folder).
-    fn setup(name: &str, names: &[&str]) -> (VectorcraftApp, std::path::PathBuf) {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-relink-{name}-{}", std::process::id()));
+    fn setup(name: &str, names: &[&str]) -> (PlumaApp, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("pluma-relink-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("new")).unwrap();
         for n in names {
             std::fs::write(dir.join(n), png([200, 0, 0])).unwrap();
         }
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         (app, dir)
     }
 
-    fn place(app: &mut VectorcraftApp, path: &std::path::Path) -> u64 {
+    fn place(app: &mut PlumaApp, path: &std::path::Path) -> u64 {
         app.run("file.place", json!({"path": path.to_string_lossy()})).unwrap()["ids"][0].as_u64().unwrap()
     }
 
-    fn link_path(app: &VectorcraftApp, id: u64) -> String {
+    fn link_path(app: &PlumaApp, id: u64) -> String {
         let st = app.session.active().unwrap();
-        match st.doc.node(vectorcraft_doc::NodeId(id)).map(|n| &n.kind) {
-            Some(vectorcraft_doc::NodeKind::Image(im)) => im.link.as_ref().map(|l| l.path.clone()).unwrap_or_default(),
+        match st.doc.node(pluma_doc::NodeId(id)).map(|n| &n.kind) {
+            Some(pluma_doc::NodeKind::Image(im)) => im.link.as_ref().map(|l| l.path.clone()).unwrap_or_default(),
             _ => String::new(),
         }
     }
@@ -293,7 +293,7 @@ mod tests {
     fn missing_links_from_this_folder_relinks_the_others_found_there() {
         let (mut app, dir) = setup("missing", &["a.png", "b.png"]);
         let (a, b) = (place(&mut app, &dir.join("a.png")), place(&mut app, &dir.join("b.png")));
-        let doc = dir.join("doc.vectorcraft").to_string_lossy().into_owned();
+        let doc = dir.join("doc.pluma").to_string_lossy().into_owned();
         app.run("document.save", json!({"path": doc})).unwrap();
         for n in ["a.png", "b.png"] {
             std::fs::remove_file(dir.join(n)).unwrap();

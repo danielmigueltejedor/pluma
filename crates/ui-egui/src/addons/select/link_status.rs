@@ -7,7 +7,7 @@
 use egui::{Ui, vec2};
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::menus::Item;
 use crate::state::Dialog;
@@ -70,7 +70,7 @@ fn command_status(row: &Value) -> &str {
 /// [`SETTLE`] seconds while its revision changes (a drag changes it every frame, and each look
 /// asks the file system about every linked file), and every [`RECHECK`] seconds while it has
 /// linked files.
-pub fn refresh(app: &mut VectorcraftApp, now: f64) {
+pub fn refresh(app: &mut PlumaApp, now: f64) {
     let key = app.session.active().map(|st| (st.uid, st.revision));
     let p = &app.ui.link_statuses;
     let linked = p.has.iter().zip(STATUSES).any(|(on, (status, ..))| *on && status != "embedded");
@@ -84,7 +84,7 @@ pub fn refresh(app: &mut VectorcraftApp, now: f64) {
 }
 
 /// Is menu item `status` (a [`STATUSES`] value) on: does an image or placed document have it?
-pub(crate) fn enabled(app: &VectorcraftApp, p: &Value) -> bool {
+pub(crate) fn enabled(app: &PlumaApp, p: &Value) -> bool {
     let Some(status) = p.get("status").and_then(Value::as_str) else { return true };
     STATUSES.iter().position(|(s, ..)| *s == status).and_then(|i| app.ui.link_statuses.has.get(i).copied()).unwrap_or(false)
 }
@@ -102,7 +102,7 @@ pub(crate) fn with_shift(mut p: Value) -> Value {
 /// Run the command; with `zoom` and something selected, Zoom to Selection; the status bar says
 /// what was selected and what was left out. Without params (the menu's "Select by Link Status…")
 /// it opens the dialog instead.
-pub(crate) fn run(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn run(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if p.as_object().is_none_or(serde_json::Map::is_empty) {
         if app.session.active().is_none() {
             return Err("no document".into());
@@ -156,7 +156,7 @@ pub(crate) fn message(statuses: &[&str], count: u64, reasons: &[&str]) -> String
 
 /// The dialog's fields to start with: every image and placed document (`__rows`, as `links.list`
 /// lists them, read once), those selected chosen, All shown, Zoom to Selection on.
-pub(crate) fn fields(app: &mut VectorcraftApp) -> Value {
+pub(crate) fn fields(app: &mut PlumaApp) -> Value {
     let list = app.session.execute("links.list", &json!({})).unwrap_or_default();
     let rows: Vec<Value> = list["links"].as_array().cloned().unwrap_or_default();
     let selected: Vec<u64> = app.session.active().map(|st| st.selection.objects.iter().map(|id| id.0).collect()).unwrap_or_default();
@@ -220,7 +220,7 @@ fn status_label(status: &str) -> &'static str {
 
 /// The dialog: the search, the Show filter, a checkbox row per image shown (name, status, format),
 /// All / None with the count chosen, and Zoom to Selection. Returns false: nothing to preview.
-fn body(_app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(_app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let rows: Vec<Value> = d.fields.get("__rows").and_then(Value::as_array).cloned().unwrap_or_default();
     let query = widgets::search_field(ui, ui.scope_id().with("select-by-link-status-search"), tl!("Search images"));
@@ -280,7 +280,7 @@ pub(crate) fn params(d: &Dialog) -> Value {
 }
 
 /// Select: select the rows chosen (and zoom to them) and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     app.run(COMMAND, params(d))
 }

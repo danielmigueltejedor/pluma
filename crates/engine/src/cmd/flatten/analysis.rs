@@ -6,7 +6,7 @@ use super::{Arc, BTreeSet, Document, Effect, ImageBlob, Knockout, Node, NodeKind
 pub(super) struct Scratch {
     /// A copy of the document the art comes from (outlining allocates ids in it).
     pub(super) doc: Document,
-    pub(super) brushes: Vec<vectorcraft_brush::Brush>,
+    pub(super) brushes: Vec<pluma_brush::Brush>,
 }
 
 impl Scratch {
@@ -20,15 +20,15 @@ impl Scratch {
         let made = match &n.kind {
             NodeKind::Text(_) => outlined_text(n),
             NodeKind::SymbolInstance { symbol, .. } => {
-                let art = self.doc.symbols.iter().find(|s| &s.name == symbol).map(|s| vectorcraft_render::instance_art(&s.art, n));
+                let art = self.doc.symbols.iter().find(|s| &s.name == symbol).map(|s| pluma_render::instance_art(&s.art, n));
                 art.and_then(|a| effects::outline_art(Some(&self.doc), n, Some(&a))).map(|g| carry(n, g))
             }
             // A placed document stays one: its art's resources aren't the document's.
             NodeKind::PlacedDocument(_) => None,
             NodeKind::Blend { .. } | NodeKind::Envelope { .. } | NodeKind::Repeat(_) => {
                 let hook: &dyn Fn(&Node) -> Option<Node> = &effects::outline_text;
-                let hooks = vectorcraft_doc::live::Hooks { outline: Some(hook), symbols: Some(&self.doc), ..Default::default() };
-                Some(carry(n, vectorcraft_doc::live::expanded_group_hooks(n, hooks)))
+                let hooks = pluma_doc::live::Hooks { outline: Some(hook), symbols: Some(&self.doc), ..Default::default() };
+                Some(carry(n, pluma_doc::live::expanded_group_hooks(n, hooks)))
             }
             NodeKind::Path { guide: false, .. } | NodeKind::Compound { .. } => outline_strokes(&mut self.doc, &self.brushes, n),
             _ => None,
@@ -120,8 +120,8 @@ pub(super) fn reach(n: &Node) -> Option<Rect> {
 /// boxes it overlaps, not every open one (many objects stacked in a column, sharing their
 /// horizontal extent, would otherwise compare every pair). An open box inside a later box of
 /// its group, ending no further right, is closed early: whatever overlaps it overlaps that box.
-/// Fails only when cancelled ([`vectorcraft_doc::cancel`]).
-pub(super) fn overlapping(bounds: &[Option<Rect>]) -> Result<Vec<Vec<usize>>, vectorcraft_doc::cancel::Cancelled> {
+/// Fails only when cancelled ([`pluma_doc::cancel`]).
+pub(super) fn overlapping(bounds: &[Option<Rect>]) -> Result<Vec<Vec<usize>>, pluma_doc::cancel::Cancelled> {
     fn find(p: &mut [usize], mut i: usize) -> usize {
         while p[i] != i {
             p[i] = p[p[i]];
@@ -177,7 +177,7 @@ pub(super) fn overlapping(bounds: &[Option<Rect>]) -> Result<Vec<Vec<usize>>, ve
         while let Some((node, lo, hi)) = stack.pop() {
             work += 1;
             if work.is_multiple_of(4096) {
-                vectorcraft_doc::cancel::check()?;
+                pluma_doc::cancel::check()?;
             }
             if lo >= below || low[node] < b.y0 {
                 continue;

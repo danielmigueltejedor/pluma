@@ -1,5 +1,5 @@
 use super::rows::key;
-use super::{Arc, Color32, Document, LiveShape, Node, NodeKind, OpenRows, PanelOptions, Ui, Value, VectorcraftApp};
+use super::{Arc, Color32, Document, LiveShape, Node, NodeKind, OpenRows, PanelOptions, PlumaApp, Ui, Value};
 
 /// Where a dragged row goes relative to the row it is dropped on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub(super) fn painted_name(n: &Node, name: &str, lang: crate::i18n::Lang) -> Str
 
 /// The name the panel shows for `n` in `lang`: its XML ID while Identify Objects By is XML ID,
 /// otherwise [`painted_name`].
-pub(crate) fn shown_name(app: &VectorcraftApp, n: &Node, lang: crate::i18n::Lang) -> String {
+pub(crate) fn shown_name(app: &PlumaApp, n: &Node, lang: crate::i18n::Lang) -> String {
     let xml_id = app.session.prefs.identify_objects_by == "xmlId";
     let label = n.identify_label(xml_id);
     if xml_id { label } else { painted_name(n, &label, lang) }
@@ -309,7 +309,7 @@ pub(super) fn push_rows(
 
 /// The rows of the active document as [`list_rows`] lists them, listed again only when the
 /// document, its open rows, the search, the filter or Show Layers Only changed.
-pub(super) fn rows_of_doc(ui: &Ui, st: &vectorcraft_engine::DocState, opts: &PanelOptions, query: &str, filter: &Filter) -> Arc<Vec<Row>> {
+pub(super) fn rows_of_doc(ui: &Ui, st: &pluma_engine::DocState, opts: &PanelOptions, query: &str, filter: &Filter) -> Arc<Vec<Row>> {
     let now = RowsKey {
         uid: st.uid,
         revision: st.revision,

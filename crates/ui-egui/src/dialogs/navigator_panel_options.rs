@@ -4,14 +4,14 @@
 //! Fields: `color` (`#rrggbb`, or a preset's name such as "Light Red") and `solidDashes`. OK runs
 //! `ui.navigatorPanelOptions` with them (kept with the UI state).
 
+use pluma_color::Color;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, run_and_close};
 use crate::panels::navigator::{VIEW_BOX_RED, resolve, view_box_colors};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the Navigator Panel Options.
 pub const KIND: &str = "navigatorPanelOptions";
@@ -20,13 +20,13 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Navigator Panel Options").into(), body, confirm, min_width: 300.0, ..DialogSpec::FORM };
 
 /// `ui.navigatorPanelOptions` without options: open the dialog on the panel's options.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let o = &app.ui.navigator_panel;
     app.ui.dialog = Some(Dialog::new(KIND, json!({ "color": o.color, "solidDashes": o.solid_dashes })));
     Ok(Value::Null)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let [r, g, b] = resolve(&d.str("color")).unwrap_or(VIEW_BOX_RED);
     let presets: Vec<(&str, [u8; 3])> = view_box_colors().collect();
     let preset = presets.iter().position(|(_, c)| *c == [r, g, b]);
@@ -55,7 +55,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let params = json!({ "color": d.fields.get("color").cloned().unwrap_or(Value::Null), "solidDashes": d.bool("solidDashes") });
     run_and_close(app, "ui.navigatorPanelOptions", params)
 }
@@ -63,14 +63,14 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     /// The dialog opens on the panel's options (Light Red and solid dashes off by default), and OK
     /// sets a preset's or a custom color and Draw Dashed Lines as Solid Lines, kept with the UI
     /// state; a value that is not a color is refused and leaves the options as they were.
     #[test]
     fn panel_options_set_the_view_box_color_and_solid_dashes() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("ui.navigatorPanelOptions", json!({})).unwrap();
         let d = app.ui.dialog.as_ref().unwrap();
         assert_eq!((d.kind.as_str(), d.str("color"), d.bool("solidDashes")), (KIND, "#ff3030".to_string(), false));
@@ -79,7 +79,7 @@ mod tests {
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(Default::default(), |ui| super::super::show(&mut app, ui.ctx()));
         out.textures_delta.clear();
-        let set = |app: &mut VectorcraftApp, color: &str, solid: bool| {
+        let set = |app: &mut PlumaApp, color: &str, solid: bool| {
             let d = app.ui.dialog.as_mut().unwrap();
             d.fields.insert("color".into(), json!(color));
             d.fields.insert("solidDashes".into(), json!(solid));

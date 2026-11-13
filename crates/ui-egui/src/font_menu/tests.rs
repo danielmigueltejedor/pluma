@@ -2,7 +2,7 @@
 /// Japanese.
 #[test]
 fn the_thai_filter_lists_fonts_with_thai() {
-    use vectorcraft_text::FontTraits;
+    use pluma_text::FontTraits;
     let (thai, japanese, latin) =
         (FontTraits { thai: true, ..Default::default() }, FontTraits { japanese: true, ..Default::default() }, FontTraits::default());
     let passing = |t: FontTraits| (0..super::SCRIPTS).filter(|s| super::script_matches(*s, t)).collect::<Vec<_>>();
@@ -22,7 +22,7 @@ fn the_thai_filter_lists_fonts_with_thai() {
 #[test]
 fn the_scroll_bar_leaves_the_stars_clear() {
     // Every family starred, so each row draws its star.
-    let all = vectorcraft_text::FontDb::global().families();
+    let all = pluma_text::FontDb::global().families();
     let families = all.len();
     let ctx = egui::Context::default();
     let area = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(300.0, 160.0));
@@ -86,7 +86,7 @@ fn recent_fonts_are_first_available_unique_and_expandable() {
 
 #[test]
 fn recent_section_rebuilds_and_arrows_skip_its_headings() {
-    let names = vectorcraft_text::FontDb::global().menu_family_list();
+    let names = pluma_text::FontDb::global().menu_family_list();
     if names.len() < 3 {
         return;
     }
@@ -135,7 +135,7 @@ fn recent_section_rebuilds_and_arrows_skip_its_headings() {
 
 #[test]
 fn recent_fonts_obey_search_and_favorite_filters() {
-    let names = vectorcraft_text::FontDb::global().menu_family_list();
+    let names = pluma_text::FontDb::global().menu_family_list();
     if names.len() < 3 {
         return;
     }
@@ -176,7 +176,7 @@ fn recent_fonts_obey_search_and_favorite_filters() {
 
 #[test]
 fn opening_on_another_font_keeps_the_recent_section_visible() {
-    let names = vectorcraft_text::FontDb::global().menu_family_list();
+    let names = pluma_text::FontDb::global().menu_family_list();
     let Some(current) = names.last() else { return };
     let recent = vec![names[0].clone()];
     let ctx = egui::Context::default();
@@ -244,7 +244,7 @@ fn the_wheel_steps_one_family_per_notch_and_stops_at_the_ends() {
 /// others in the database's order, under the favourites (and other) filters.
 #[test]
 fn the_wheel_follows_the_menus_order_and_filters() {
-    let names = vectorcraft_text::FontDb::global().menu_family_list();
+    let names = pluma_text::FontDb::global().menu_family_list();
     if names.len() < 3 {
         return;
     }
@@ -699,9 +699,9 @@ fn the_variable_filter_is_named_as_fonts_are() {
 /// filters; clicked again, every family is back.
 #[test]
 fn the_variable_filter_lists_only_variable_families() {
-    use vectorcraft_text::FontClass;
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
-    let db = vectorcraft_text::FontDb::global();
+    use pluma_text::FontClass;
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
+    let db = pluma_text::FontDb::global();
     db.add_font(two_axis_font().unwrap());
     let ctx = egui::Context::default();
     let mut st = super::MenuState::default();

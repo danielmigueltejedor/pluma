@@ -49,7 +49,7 @@ const CUT_EDGE_MIX_FROM: f64 = 0.45;
 /// The palette is otherwise median cut (Heckbert 1982) refined by k-means (Lloyd 1982); keeping
 /// salient colours that are rare by area follows the idea of salient-colour preservation in
 /// palette reduction (Fukuda et al. 2019, doi:10.1117/12.2521607). The rule and its numbers are
-/// VectorCraft's own.
+/// Pluma's own.
 type ChosenRare = (usize, f64, [f64; 3], usize);
 
 struct RareGroups {

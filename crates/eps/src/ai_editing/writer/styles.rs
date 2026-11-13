@@ -10,10 +10,10 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::sync::Arc;
 
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, GraphicStyle, Knockout, Node, NodeId, NodeKind, StrokeLayer};
+use pluma_geom::{BezPath, FillRule, Rect, Shape};
 use serde_json::Value;
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, GraphicStyle, Knockout, Node, NodeId, NodeKind, StrokeLayer};
-use vectorcraft_geom::{BezPath, FillRule, Rect, Shape};
 
 use super::{Writer, Xy, blend_code, compound_path, hide};
 use crate::ai_ops;
@@ -67,7 +67,7 @@ fn bakes_members(n: &Node) -> bool {
     if let Some(children) = own.children_mut() {
         children.clear();
     }
-    vectorcraft_effects::needs_bake(&own)
+    pluma_effects::needs_bake(&own)
 }
 
 /// Whether `n` may be written with an art style ([`styled_objects`]).
@@ -85,13 +85,13 @@ fn candidate(n: &Node) -> bool {
 }
 
 /// Does `path` write anything ([`Writer::plain_object`] skips subpaths without points)?
-fn has_points(path: &vectorcraft_geom::PathData) -> bool {
+fn has_points(path: &pluma_geom::PathData) -> bool {
     path.subpaths.iter().any(|sp| !sp.anchors.is_empty())
 }
 
 /// A member of a group written with an art style: written as it is, and read back as it is.
 fn plain_member(n: &Node) -> bool {
-    let quiet = n.appearance.effects.is_empty() && n.appearance.items.iter().all(|i| i.effects().is_empty()) && !vectorcraft_effects::needs_bake(n);
+    let quiet = n.appearance.effects.is_empty() && n.appearance.items.iter().all(|i| i.effects().is_empty()) && !pluma_effects::needs_bake(n);
     quiet
         && match &n.kind {
             NodeKind::Path { guide: false, .. } | NodeKind::Compound { .. } => true,
@@ -231,7 +231,7 @@ impl Writer<'_> {
     }
 
     /// A fill style holding a color, as an effect's entry `key` or a fill's own.
-    fn fill_style(&mut self, s: &mut String, color: vectorcraft_color::Color, key: &str) {
+    fn fill_style(&mut self, s: &mut String, color: pluma_color::Color, key: &str) {
         let ops = self.color_ops(&Paint::solid(color), false);
         let _ = write!(s, "/FillStyle : 0 O\n{ops}0 1 0 0 0 Xy\n{NO_LINE}0 XR\n0 1 Xd\n/Def ; \n {} ,\n", ps::bytes(key.as_bytes()));
     }
@@ -297,7 +297,7 @@ impl Writer<'_> {
     /// A gradient instance's focal point (`Bh`, radial gradients only) and its `flag (name) x y
     /// angle length a b c d tx ty 1 Bg` line for placed gradient `g` on `path`, as a fill's style
     /// holds them ([`Self::instance_head`]).
-    fn gradient_bg(&mut self, g: &vectorcraft_color::GradientPaint, path: &BezPath) -> Option<String> {
+    fn gradient_bg(&mut self, g: &pluma_color::GradientPaint, path: &BezPath) -> Option<String> {
         let saved = std::mem::take(&mut self.body);
         self.instance_head(g, false, path);
         let line = std::mem::replace(&mut self.body, saved);
@@ -366,7 +366,7 @@ impl Writer<'_> {
     /// ([`crate::import`]'s `.ai` reader, `style.rs`), in the units it reads them in. `None` for an
     /// effect, or a setting, that isn't written here.
     fn effect_filter(&mut self, e: &Effect) -> Option<String> {
-        let p = vectorcraft_effects::merged_params(&e.id, &e.params);
+        let p = pluma_effects::merged_params(&e.id, &e.params);
         let mut d = Entries::default();
         let id = e.id.as_str();
         let name = if id.starts_with("stylize.") {
@@ -397,7 +397,7 @@ impl Writer<'_> {
                 d.real("vert", num(p, "y")?);
                 d.real("horz", num(p, "x")?);
                 d.real("blur", num(p, "blur")? / 2.0);
-                let color = vectorcraft_effects::color_param(p, vectorcraft_color::Color::BLACK);
+                let color = pluma_effects::color_param(p, pluma_color::Color::BLACK);
                 self.fill_style(&mut d.0, color, "sclr");
                 d.int("csrc", i64::from(darkness));
                 "Adobe Drop Shadow" // brand-ok: the filter's name in the files
@@ -406,7 +406,7 @@ impl Writer<'_> {
                 d.int("blnd", i64::from(mode_code(p.get("mode")?.as_str()?)?));
                 d.real("opac", num(p, "opacity")? / 100.0);
                 d.real("blur", num(p, "blur")?);
-                let color = vectorcraft_effects::color_param(p, vectorcraft_color::Color::WHITE);
+                let color = pluma_effects::color_param(p, pluma_color::Color::WHITE);
                 self.fill_style(&mut d.0, color, "gclr");
                 d.int("gtyp", i64::from(word(p, "source").as_deref() == Some("edge")));
                 "Adobe Inner Glow" // brand-ok: the filter's name in the files
@@ -415,7 +415,7 @@ impl Writer<'_> {
                 d.int("blnd", i64::from(mode_code(p.get("mode")?.as_str()?)?));
                 d.real("opac", num(p, "opacity")? / 100.0);
                 d.real("blur", num(p, "blur")? / 2.0);
-                let color = vectorcraft_effects::color_param(p, vectorcraft_color::Color::BLACK);
+                let color = pluma_effects::color_param(p, pluma_color::Color::BLACK);
                 self.fill_style(&mut d.0, color, "sclr");
                 "Adobe Outer Glow" // brand-ok: the filter's name in the files
             }
@@ -754,7 +754,7 @@ impl Writer<'_> {
 
     /// A styled path's or compound path's points: painted with nothing, or with its gradient fill
     /// (which its style's gradient fill is), placed on `fit` (the outline's bounds when `None`).
-    fn styled_outline(&mut self, orig: &Node, path: &vectorcraft_geom::PathData, rule: vectorcraft_geom::FillRule, fit: Option<Rect>, xy: Xy) {
+    fn styled_outline(&mut self, orig: &Node, path: &pluma_geom::PathData, rule: pluma_geom::FillRule, fit: Option<Rect>, xy: Xy) {
         let bounds = fit.unwrap_or_else(|| path.to_bezpath().bounding_box());
         let gradient = orig.appearance.items.iter().find_map(|i| match i {
             AppearanceItem::Fill(f) if matches!(f.paint, Paint::Gradient(_)) => Some(f),
@@ -887,12 +887,12 @@ pub(in crate::ai_editing) fn same_appearance(a: &Appearance, b: &Appearance) -> 
 /// Effect `e`'s settings with its defaults filled in, its blending mode in lower case and its color as
 /// `#rrggbb`.
 fn normalized_params(e: &Effect) -> Value {
-    let mut p = vectorcraft_effects::merged_params(&e.id, &e.params);
+    let mut p = pluma_effects::merged_params(&e.id, &e.params);
     if let Some(m) = word(&p, "mode") {
         p["mode"] = Value::String(m);
     }
     if p.get("color").is_some() {
-        p["color"] = Value::String(vectorcraft_effects::color_param(&p, vectorcraft_color::Color::BLACK).to_hex());
+        p["color"] = Value::String(pluma_effects::color_param(&p, pluma_color::Color::BLACK).to_hex());
     }
     for key in ["shade", "source", "joins", "points", "orientation"] {
         if let Some(w) = word(&p, key) {

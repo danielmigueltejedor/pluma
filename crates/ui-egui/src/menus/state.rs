@@ -1,9 +1,9 @@
 use super::run::normalize_panel;
 use super::slots::{perspective_grid, recent_slot, saved_selection_name, saved_selection_slot, saved_view, saved_view_slot};
-use super::{Brightness, Value, VectorcraftApp};
+use super::{Brightness, PlumaApp, Value};
 
 /// Checked state for toggle items.
-pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
+pub fn checked(app: &PlumaApp, id: &str, p: &Value) -> Option<bool> {
     if id == "app.language" {
         let lang = p.get("lang").and_then(Value::as_str).unwrap_or("");
         let pref = app.session.prefs.interface_language.as_str();
@@ -24,8 +24,8 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
         for n in st.selection.objects.iter().filter_map(|id| st.doc.node(*id)) {
             n.walk(&mut |c| {
                 if found.is_none()
-                    && let vectorcraft_engine::doc::NodeKind::Text(t) = &c.kind
-                    && (!onpath || matches!(t.kind, vectorcraft_engine::doc::TextKind::OnPath { .. }))
+                    && let pluma_engine::doc::NodeKind::Text(t) = &c.kind
+                    && (!onpath || matches!(t.kind, pluma_engine::doc::TextKind::OnPath { .. }))
                 {
                     found = Some(t);
                 }
@@ -96,19 +96,17 @@ pub fn checked(app: &VectorcraftApp, id: &str, p: &Value) -> Option<bool> {
         "window.brightness" => p.get("brightness").and_then(Value::as_str).and_then(Brightness::parse) == Some(app.ui.brightness),
         "view.slices.lock" => app.session.slices_locked(),
         "object.slice.clipToArtboard" => app.session.active().is_some_and(|d| d.doc.slices_clip_to_artboard),
-        "view.proofColors" => vectorcraft_render::proof::view().proof_colors,
-        "view.overprintPreview" => vectorcraft_render::proof::view().overprint,
-        "view.proofSetup" => p.get("target").and_then(Value::as_str) == Some(vectorcraft_render::proof::view().setup.target.id().as_str()),
+        "view.proofColors" => pluma_render::proof::view().proof_colors,
+        "view.overprintPreview" => pluma_render::proof::view().overprint,
+        "view.proofSetup" => p.get("target").and_then(Value::as_str) == Some(pluma_render::proof::view().setup.target.id().as_str()),
         "perspective.grid.snap" => perspective_grid(app).is_some_and(|g| g.snap),
         "perspective.grid.lockStation" => perspective_grid(app).is_some_and(|g| g.lock_station),
         "file.documentColorMode" | "object.convertDocumentColorMode" => {
-            let cmyk = app.session.active().is_some_and(|d| d.doc.color_mode == vectorcraft_engine::doc::ColorMode::Cmyk);
+            let cmyk = app.session.active().is_some_and(|d| d.doc.color_mode == pluma_engine::doc::ColorMode::Cmyk);
             p.get("mode").and_then(Value::as_str) == Some(if cmyk { "cmyk" } else { "rgb" })
         }
         // The ruler context menu lists the document units, the current one checked.
-        "document.setUnits" => {
-            p.get("units").and_then(Value::as_str).and_then(vectorcraft_engine::doc::Unit::named) == Some(app.session.general_unit())
-        }
+        "document.setUnits" => p.get("units").and_then(Value::as_str).and_then(pluma_engine::doc::Unit::named) == Some(app.session.general_unit()),
         _ => return None,
     })
 }
@@ -128,7 +126,7 @@ pub(super) fn hidden_when_disabled(id: &str) -> bool {
 
 /// Menu items another item stands in for right now: Envelope Distort's Reset with Warp and Reset
 /// with Mesh take the place of Make with Warp and Make with Mesh while an envelope is selected.
-fn swapped_out(app: &VectorcraftApp, id: &str) -> bool {
+fn swapped_out(app: &PlumaApp, id: &str) -> bool {
     let reset = match id {
         "object.envelope.makeWithWarp" | "object.envelope.makeWithMesh" => false,
         "object.envelope.resetWithWarp" | "object.envelope.resetWithMesh" => true,
@@ -139,7 +137,7 @@ fn swapped_out(app: &VectorcraftApp, id: &str) -> bool {
 
 /// Menu items shown only with Preferences › Type › Show East Asian Options on: Type › Composite
 /// Fonts….
-fn east_asian_hidden(app: &VectorcraftApp, id: &str) -> bool {
+fn east_asian_hidden(app: &PlumaApp, id: &str) -> bool {
     id == crate::dialogs::composite_fonts::COMMAND && !app.session.prefs.show_east_asian_options
 }
 
@@ -147,7 +145,7 @@ fn east_asian_hidden(app: &VectorcraftApp, id: &str) -> bool {
 /// or off), or `None` while they leave it out: an empty slot ([`hidden_when_disabled`]), an item
 /// another stands in for ([`swapped_out`]) or an East Asian item with those options hidden
 /// ([`east_asian_hidden`]).
-pub fn shown_state(app: &VectorcraftApp, id: &str, p: &Value) -> Option<(bool, Option<bool>)> {
+pub fn shown_state(app: &PlumaApp, id: &str, p: &Value) -> Option<(bool, Option<bool>)> {
     let en = enabled(app, id) && (id != crate::addons::select::link_status::COMMAND || crate::addons::select::link_status::enabled(app, p));
     if (!en && hidden_when_disabled(id)) || swapped_out(app, id) || east_asian_hidden(app, id) {
         return None;
@@ -158,7 +156,7 @@ pub fn shown_state(app: &VectorcraftApp, id: &str, p: &Value) -> Option<(bool, O
 /// Changes whenever a plug-in is installed or removed: Object › Plug-ins and Effect › Plug-ins
 /// list them (the command palette's cache follows it).
 pub fn plugin_revision() -> u64 {
-    vectorcraft_plugins::registry::revision()
+    pluma_plugins::registry::revision()
 }
 
 /// Effective shortcut of a command: the user's override (Edit → Keyboard Shortcuts) or the default.
@@ -171,7 +169,7 @@ pub fn shortcut_of(id: &str) -> Option<&'static str> {
 /// tool (its marked text isn't committed yet): Undo/Redo — the native menu takes ⌘Z ahead of the
 /// IME —, the clipboard and the selection.
 /// Clear History and New Document from State also wait: they end the typing session as Undo does.
-pub(crate) fn waits_for_ime(app: &VectorcraftApp, id: &str) -> bool {
+pub(crate) fn waits_for_ime(app: &PlumaApp, id: &str) -> bool {
     app.session.tool_composing()
         && (matches!(
             id,
@@ -187,13 +185,13 @@ pub(crate) fn waits_for_ime(app: &VectorcraftApp, id: &str) -> bool {
 pub(super) const SUBJECT_COMMANDS: [&str; 3] = ["appearance.addFill", "appearance.addStroke", "svgFilter.apply"];
 
 /// Is there an Appearance panel subject: a targeted layer, group or object, or a selected one?
-pub(super) fn has_subject(app: &VectorcraftApp) -> bool {
+pub(super) fn has_subject(app: &PlumaApp) -> bool {
     app.session.active().is_some_and(|st| !st.selection.subjects().is_empty())
 }
 
 /// Can command `id` run now? An engine command asks the engine, a UI command the app's state;
 /// none that would act on text an input method is still composing.
-pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
+pub fn enabled(app: &PlumaApp, id: &str) -> bool {
     if waits_for_ime(app, id) {
         return false;
     }
@@ -206,7 +204,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
     {
         return facts.any_empty;
     }
-    if let Some(c) = vectorcraft_engine::find_command(id) {
+    if let Some(c) = pluma_engine::find_command(id) {
         // The system clipboard's contents can be pasted with an empty internal clipboard.
         return (c.enabled)(&app.session).is_ok() || app.system_paste && id.starts_with("edit.paste");
     }
@@ -286,7 +284,7 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
         id if id.starts_with(crate::panels::brushes::USER_SLOT) => crate::panels::brushes::user_library(app, id).is_some(),
         // Dimmed for appearance attributes, which Expand Appearance expands first (#3089).
         "ui.expandDialog" => {
-            app.session.active().is_some_and(|d| !d.selection.is_empty()) && !vectorcraft_engine::cmd::expand::has_appearance(&app.session)
+            app.session.active().is_some_and(|d| !d.selection.is_empty()) && !pluma_engine::cmd::expand::has_appearance(&app.session)
         }
         "ui.spotColors" => app.session.active().is_some(),
         "ui.menuDialog" => app.session.active().is_some_and(|d| !d.selection.is_empty()),
@@ -328,15 +326,15 @@ pub fn enabled(app: &VectorcraftApp, id: &str) -> bool {
 }
 
 /// Is a placed document selected?
-fn selected_placed(app: &VectorcraftApp) -> bool {
+fn selected_placed(app: &PlumaApp) -> bool {
     app.session.active().is_some_and(|st| {
-        st.selection.objects.iter().any(|id| st.doc.node(*id).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::PlacedDocument(_))))
+        st.selection.objects.iter().any(|id| st.doc.node(*id).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::PlacedDocument(_))))
     })
 }
 
 /// Is an image `keep` accepts selected?
-pub(super) fn selected_image(app: &VectorcraftApp, keep: impl Fn(&vectorcraft_doc::ImageObject) -> bool) -> bool {
+pub(super) fn selected_image(app: &PlumaApp, keep: impl Fn(&pluma_doc::ImageObject) -> bool) -> bool {
     app.session.active().is_some_and(|st| {
-        st.selection.objects.iter().any(|id| st.doc.node(*id).is_some_and(|n| matches!(&n.kind, vectorcraft_doc::NodeKind::Image(im) if keep(im))))
+        st.selection.objects.iter().any(|id| st.doc.node(*id).is_some_and(|n| matches!(&n.kind, pluma_doc::NodeKind::Image(im) if keep(im))))
     })
 }

@@ -1,20 +1,20 @@
 //! The system clipboard's formats: Copy and Cut publish every flavour the engine makes
-//! ([`Session::clipboard_flavours`](vectorcraft_engine::Session::clipboard_flavours): text, SVG,
+//! ([`Session::clipboard_flavours`](pluma_engine::Session::clipboard_flavours): text, SVG,
 //! PDF, PNG), and a Paste first turns what another app copied (SVG, PDF, EPS, an EMF, text, a bitmap,
 //! or a copied file that is one of them) into the internal clipboard with the `clipboard.import*`
 //! commands. The host installs the platform side as
 //! [`Services::system_clipboard`](crate::Services::system_clipboard); without it (the web) Copy
 //! publishes SVG text through egui and Paste takes SVG text, and the pictures and files the host
-//! reads from a paste itself ([`VectorcraftApp::paste_from_host`]).
+//! reads from a paste itself ([`PlumaApp::paste_from_host`]).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::channel;
 
+use pluma_engine::cmd::clipboard::{AI, BITMAP, EMF, EPS, Flavour, ImageRead, PASTE_ORDER, PDF, SVG, TEXT, looks_like_svg, names_a_picture};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::clipboard::{AI, BITMAP, EMF, EPS, Flavour, ImageRead, PASTE_ORDER, PDF, SVG, TEXT, looks_like_svg, names_a_picture};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::background::{self, Writer};
 
 /// The platform clipboard, with every format it carries.
@@ -85,7 +85,7 @@ impl ClipboardRead {
 /// thread and the handle lives and dies there, so the handle needn't be `Send`.
 pub type ClipboardProbeFactory = Box<dyn FnOnce() -> Box<dyn SystemClipboard> + Send>;
 
-/// The Copy or Cut whose formats go to the system clipboard ([`VectorcraftApp::publish_clipboard`]).
+/// The Copy or Cut whose formats go to the system clipboard ([`PlumaApp::publish_clipboard`]).
 #[derive(Default)]
 pub(crate) struct Publishing {
     /// The number of the latest Copy or Cut, raised by one when a copy through egui drops the
@@ -119,7 +119,7 @@ pub(crate) fn imports_as_image(mime: &str) -> bool {
 
 /// The command (and its params) that loads `f` into the internal clipboard, centred on `center`.
 pub(crate) fn import_command(f: &Flavour, center: Option<[f64; 2]>) -> (&'static str, Value) {
-    let b64 = || vectorcraft_format::base64_encode(&f.data);
+    let b64 = || pluma_format::base64_encode(&f.data);
     match f.mime {
         TEXT => {
             let text = String::from_utf8_lossy(&f.data);
@@ -138,7 +138,7 @@ pub(crate) fn import_command(f: &Flavour, center: Option<[f64; 2]>) -> (&'static
     }
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// A Type paste may reuse its saved styled runs only while our desktop copy still owns the
     /// clipboard. Pending formats also belong to that copy; web hosts have no ownership service.
     pub(crate) fn type_paste_has_our_clipboard(&mut self) -> bool {
@@ -169,7 +169,7 @@ impl VectorcraftApp {
     /// ([`Self::write_formats_before_text_input`]). Once they are written, the status bar shows
     /// the first of the PNG's and PDF's warnings.
     pub(crate) fn publish_clipboard(&mut self) {
-        // Ruler guides copied alone stay in VectorCraft, but the Copy still replaces what the
+        // Ruler guides copied alone stay in Pluma, but the Copy still replaces what the
         // system clipboard held: it is emptied, so the next Paste takes the guides rather than
         // what another app copied before, and what another app copies after still wins (#3226).
         if !self.session.clipboard.has_art() {
@@ -199,7 +199,7 @@ impl VectorcraftApp {
             }
             Ok(Value::Null)
         };
-        let then = move |app: &mut VectorcraftApp, r: Result<Value, String>| {
+        let then = move |app: &mut PlumaApp, r: Result<Value, String>| {
             let publishing = &mut app.clipboard_publishing;
             if publishing.latest.load(Ordering::SeqCst) != n {
                 return Ok(Value::Null);

@@ -1,5 +1,5 @@
 //! The Twist effect's angle in saved documents. A positive angle turns clockwise on the page in
-//! VectorCraft 0.21.0 and later; earlier releases turned it counterclockwise. Documents of version
+//! Pluma 0.21.0 and later; earlier releases turned it counterclockwise. Documents of version
 //! 2 ([`TWIST_CLOCKWISE_SINCE`]) turn clockwise. Version 1 documents written before 0.21.0 have
 //! their Twist angles negated when they open, so they draw as they were saved
 //! ([`Document::migrate_twist_angles`], [`written_clockwise`]), and a save for an earlier app
@@ -23,11 +23,11 @@ pub const TWIST_CLOCKWISE_SINCE: u32 = 2;
 /// The first release (major, minor) whose Twist turned clockwise for a positive angle.
 const CLOCKWISE_RELEASE: (u64, u64) = (0, 21);
 
-/// Did the app named by a native file's `generator` (`"VectorCraft 0.21.0"`) turn Twist effects
+/// Did the app named by a native file's `generator` (`"Pluma 0.21.0"`) turn Twist effects
 /// clockwise for a positive angle? It did from 0.21.0. Any other value, or none, is an earlier
 /// app (DrawCraft included).
 pub fn written_clockwise(generator: Option<&str>) -> bool {
-    let Some(version) = generator.and_then(|g| g.strip_prefix("VectorCraft ")) else { return false };
+    let Some(version) = generator.and_then(|g| g.strip_prefix("Pluma ")) else { return false };
     let mut parts = version.split('.').map(|p| p.parse::<u64>().ok());
     match (parts.next().flatten(), parts.next().flatten()) {
         (Some(major), Some(minor)) => (major, minor) >= CLOCKWISE_RELEASE,
@@ -35,15 +35,15 @@ pub fn written_clockwise(generator: Option<&str>) -> bool {
     }
 }
 
-/// The angle a Twist effect without a readable one draws with (`vectorcraft-effects` reads a
+/// The angle a Twist effect without a readable one draws with (`pluma-effects` reads a
 /// missing or unreadable `angle` as this).
 const DEFAULT_ANGLE: f64 = 10.0;
 
-/// The key of `Document::unknown` that holds the brush definitions (`vectorcraft-brush`'s
+/// The key of `Document::unknown` that holds the brush definitions (`pluma-brush`'s
 /// `DOC_KEY`), whose art can carry effects.
 const BRUSHES_KEY: &str = "brushes";
 
-/// The angle a Twist effect with `params` draws with, read as `vectorcraft-effects` reads it: a
+/// The angle a Twist effect with `params` draws with, read as `pluma-effects` reads it: a
 /// number, the number a string starts with, or a boolean as 1 or 0; anything else (or a value
 /// that is not finite) is [`DEFAULT_ANGLE`].
 fn angle(params: &Value) -> f64 {

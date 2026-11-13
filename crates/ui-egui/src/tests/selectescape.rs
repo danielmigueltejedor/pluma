@@ -1,14 +1,14 @@
 //! Escape through shortcut routing during a Selection tool move, Alt-drag copy, scale or rotation.
 
 use egui::{Key, Modifiers};
+use pluma_engine::Session;
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// One frame pressing `key` through the shortcut handler.
-fn press(app: &mut VectorcraftApp, key: Key) {
+fn press(app: &mut PlumaApp, key: Key) {
     let ctx = egui::Context::default();
     let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
     let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
@@ -24,7 +24,7 @@ fn escape_cancels_a_selection_tool_move_copy_scale_or_rotation() {
         ("scale", false, (200.0, 200.0), (260.0, 240.0)),
         ("rotate", false, (210.0, 210.0), (150.0, 240.0)),
     ] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let a = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
         app.run("select.set", json!({"ids": [a]})).unwrap();

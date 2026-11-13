@@ -1,8 +1,8 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::super::overlays::{anchor_square, curve_point, mark_options};
-use super::super::{VectorcraftApp, show};
+use super::super::{PlumaApp, show};
 use super::*;
 
 const SIZE: (f32, f32) = (400.0, 300.0);
@@ -12,8 +12,8 @@ fn id_of(made: &serde_json::Value) -> NodeId {
 }
 
 /// A curve with handles, a live rectangle, a group, point type and a symbol instance, all selected.
-fn scene() -> (VectorcraftApp, NodeId) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn scene() -> (PlumaApp, NodeId) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let curve = id_of(&app.run("path.create", json!({"d": "M40 40 C60 10 90 10 110 40 S160 70 180 40 L180 90"})).unwrap());
     app.run("shape.rectangle", json!({"x": 200.5, "y": 30.25, "width": 60, "height": 40})).unwrap();
@@ -40,7 +40,7 @@ fn xf(zoom: f64, center: (f64, f64), rot_degrees: f64) -> Xf {
 const VIEW: (f64, f64) = (200.0, 150.0);
 
 /// The marks drawn one shape at a time, as a frame draws them with nothing kept.
-fn plain(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
+fn plain(app: &PlumaApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
     let st = app.session.active().unwrap();
     let MarkOptions { direct, curvature, look, all_handles, .. } = mark_options(app, curve_points_from_tool);
     let symbols = st.doc.symbol_boxes();
@@ -60,11 +60,11 @@ fn plain(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_too
                 p.add(Shape::line(line, Stroke::new(width, color)));
             }
         };
-        if !matches!(n.kind, NodeKind::Text(ref tx) if matches!(tx.kind, vectorcraft_doc::TextKind::Point)) {
+        if !matches!(n.kind, NodeKind::Text(ref tx) if matches!(tx.kind, pluma_doc::TextKind::Point)) {
             stroke(&node_outline(n, &symbols), 1.0);
         }
         walk_drawn(n, &mut |c| {
-            let envelope = vectorcraft_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid);
+            let envelope = pluma_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid);
             let grid = match &c.kind {
                 NodeKind::Mesh(m) => Some(m),
                 _ => envelope.as_ref(),
@@ -84,7 +84,7 @@ fn plain(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_too
                 for &(si, seg) in segments {
                     let Some(sp) = path.subpaths.get(si).filter(|sp| seg < sp.segment_count()) else { continue };
                     let curve = sp.segment(seg);
-                    let mut outline = vectorcraft_geom::BezPath::new();
+                    let mut outline = pluma_geom::BezPath::new();
                     outline.move_to(curve.p0);
                     if sp.segment_is_line(seg) {
                         outline.line_to(curve.p3);
@@ -128,7 +128,7 @@ fn plain(app: &VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_too
             anchor_square(p, xf.to_screen(b.center()), color, true, anchor(false));
         }
         if let NodeKind::Text(tx) = &n.kind
-            && matches!(tx.kind, vectorcraft_doc::TextKind::Point)
+            && matches!(tx.kind, pluma_doc::TextKind::Point)
         {
             for (a, b) in tx.baselines() {
                 p.line_segment([xf.to_screen(tx.xf * a), xf.to_screen(tx.xf * b)], Stroke::new(1.0, color));
@@ -261,7 +261,7 @@ fn assert_same(a: &Picture, b: &Picture, what: &str, allowed_per_mille: usize) {
     );
 }
 
-fn paint(marks: &mut SelectionMarks, app: &VectorcraftApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
+fn paint(marks: &mut SelectionMarks, app: &PlumaApp, p: &egui::Painter, xf: &Xf, curve_points_from_tool: bool) {
     let st = app.session.active().unwrap();
     let key = st.selection.key;
     marks.paint(st, p, xf, &mark_options(app, curve_points_from_tool), key, &st.selection.objects);
@@ -273,7 +273,7 @@ fn paint(marks: &mut SelectionMarks, app: &VectorcraftApp, p: &egui::Painter, xf
 /// changes, and moved triangles keep the corner they were built with. An anchor square left stale
 /// covers more than this limit.
 #[track_caller]
-fn assert_matches_plain(ctx: &egui::Context, marks: &mut SelectionMarks, app: &VectorcraftApp, xf: &Xf, pixels_per_point: f32, what: &str) {
+fn assert_matches_plain(ctx: &egui::Context, marks: &mut SelectionMarks, app: &PlumaApp, xf: &Xf, pixels_per_point: f32, what: &str) {
     let want = picture(ctx, pixels_per_point, |p| plain(app, p, xf, false));
     for frame in ["this frame", "the next frame"] {
         let kept = picture(ctx, pixels_per_point, |p| paint(marks, app, p, xf, false));
@@ -341,7 +341,7 @@ fn a_long_pan_at_high_zoom_builds_the_marks_again_and_stays_exact() {
 /// the highest zoom.
 #[test]
 fn marks_are_placed_exactly_where_the_view_puts_a_point() {
-    let far = vectorcraft_doc::MAX_COORD - 1.0;
+    let far = pluma_doc::MAX_COORD - 1.0;
     for (center, zoom, rot) in [(VIEW, 1.0, 0.0), (VIEW, 2.37, 30.0), ((far, far), 640.0, 0.0), ((far, -far), 640.0, 30.0)] {
         let view = xf(zoom, center, rot);
         let map = ViewMap::new(&view);
@@ -405,7 +405,7 @@ fn all_near_the_picture(marks: &SelectionMarks) -> bool {
 #[test]
 fn a_frame_holds_no_triangles_of_a_groups_subpaths_out_of_view() {
     for tool in ["selection", "directSelection"] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         for i in 0..12 {
             app.run("shape.rectangle", json!({"x": 40 + i * 1000, "y": 40, "width": 60, "height": 40})).unwrap();
@@ -437,7 +437,7 @@ fn a_frame_holds_no_triangles_of_a_groups_subpaths_out_of_view() {
 
 /// How many triangles the direction handles add to a frame of a direct-selected path with `anchors`
 /// anchors 1,000 points apart.
-fn handle_triangles(anchors: usize, view: &Xf) -> (usize, VectorcraftApp, SelectionMarks, egui::Context) {
+fn handle_triangles(anchors: usize, view: &Xf) -> (usize, PlumaApp, SelectionMarks, egui::Context) {
     let mut d = String::from("M40 150");
     for i in 0..anchors - 1 {
         let (from, to) = (40 + i * 1000, 40 + (i + 1) * 1000);
@@ -445,14 +445,14 @@ fn handle_triangles(anchors: usize, view: &Xf) -> (usize, VectorcraftApp, Select
         let y = if i % 2 == 0 { 150 } else { 110 };
         d += &format!(" C{} {y} {} 190 {to} 150", from + 30, to - 30);
     }
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("path.create", json!({"d": d})).unwrap();
     app.run("select.all", json!({})).unwrap();
     app.select_tool("directSelection");
     let ctx = egui::Context::default();
     let mut marks = SelectionMarks::default();
-    let mut triangles = |app: &mut VectorcraftApp, all_handles: bool| {
+    let mut triangles = |app: &mut PlumaApp, all_handles: bool| {
         app.session.prefs.show_handles_multiple_anchors = all_handles;
         for _ in 0..2 {
             picture(&ctx, 1.0, |p| paint(&mut marks, app, p, view, false));
@@ -589,7 +589,7 @@ fn an_edit_of_a_symbol_outlines_its_instance_again() {
 fn the_canvas_drops_entries_it_does_not_draw() {
     let (mut app, curve) = scene();
     let ctx = egui::Context::default();
-    let frame = |app: &mut VectorcraftApp| {
+    let frame = |app: &mut PlumaApp| {
         let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| show(app, ui));
         out.textures_delta.clear();

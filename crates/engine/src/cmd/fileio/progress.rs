@@ -1,10 +1,10 @@
 //! Progress and Cancel of an export running off the UI thread (Background Export), on the shared
-//! [`vectorcraft_doc::cancel`] mechanism.
+//! [`pluma_doc::cancel`] mechanism.
 //!
 //! The frontend makes a [`Progress`], runs the export inside [`scope`] on its worker and reads the
 //! counts from the UI thread to draw them; its Cancel button calls [`Progress::cancel`]. Inside the
 //! scope the encoders that work in steps (raster formats: one artboard at a time) report each step
-//! through [`vectorcraft_doc::cancel::progress`] and stop at the next check once cancelled; the
+//! through [`pluma_doc::cancel::progress`] and stop at the next check once cancelled; the
 //! renderer stops drawing and keeps no half-drawn pattern tile or effect raster. Encoders that
 //! make one file in one go report nothing: the frontend shows them as busy and checks
 //! [`Progress::cancelled`] itself before writing, so a cancelled export never writes a file.
@@ -16,7 +16,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use vectorcraft_doc::cancel::{self, CancelToken, ProgressSink};
+use pluma_doc::cancel::{self, CancelToken, ProgressSink};
 
 /// How far an export has got, shared between the worker and the UI thread.
 #[derive(Debug, Default)]
@@ -26,7 +26,7 @@ pub struct Progress {
     total: AtomicU64,
     /// The steps are files (Export for Screens), not artboards.
     files: bool,
-    /// The last report came from a plug-in ([`vectorcraft_plugins::host::PROGRESS_STEP`]): its
+    /// The last report came from a plug-in ([`pluma_plugins::host::PROGRESS_STEP`]): its
     /// steps are its own, shown as a share of the work.
     share: AtomicBool,
 }
@@ -77,7 +77,7 @@ impl Progress {
 pub fn scope<R>(progress: &Arc<Progress>, f: impl FnOnce() -> R) -> R {
     let to = Arc::clone(progress);
     let sink: ProgressSink = Rc::new(move |done, total, what| {
-        to.share.store(what == vectorcraft_plugins::host::PROGRESS_STEP, Ordering::Relaxed);
+        to.share.store(what == pluma_plugins::host::PROGRESS_STEP, Ordering::Relaxed);
         to.total.store(total, Ordering::Relaxed);
         to.done.store(done, Ordering::Relaxed);
     });
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn a_raster_export_counts_its_artboards_and_stops_once_cancelled() {
-        let mut doc = vectorcraft_doc::Document::new(100.0, 100.0);
+        let mut doc = pluma_doc::Document::new(100.0, 100.0);
         let second = doc.artboards[0].clone();
         doc.artboards.push(second);
         let p = Progress::new();
@@ -110,7 +110,7 @@ mod tests {
         let p = Progress::new();
         scope(&p, || cancel::progress(1, 4, "artboard"));
         assert_eq!((p.counts(), p.counts_share()), ((1, 4), false));
-        scope(&p, || cancel::progress(3, 8, vectorcraft_plugins::host::PROGRESS_STEP));
+        scope(&p, || cancel::progress(3, 8, pluma_plugins::host::PROGRESS_STEP));
         assert_eq!((p.counts(), p.counts_share()), ((3, 8), true));
     }
 }

@@ -2,9 +2,9 @@
 //! enters isolation mode on it; there a double-click on its type edits the text, and the repeat
 //! keeps its settings and draws the new text in every copy.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -128,10 +128,10 @@ fn an_isolated_repeat_is_not_dimmed() {
     s.execute("paint.setFill", &json!({"ids": [other], "color": "#000000"})).unwrap();
     let doc = s.doc().unwrap().doc.clone();
     let render = |iso: Option<u64>| {
-        let opts = vectorcraft_render::RenderOptions { isolated: iso.map(NodeId), ..Default::default() };
-        vectorcraft_render::Renderer::new().render(&doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts)
+        let opts = pluma_render::RenderOptions { isolated: iso.map(NodeId), ..Default::default() };
+        pluma_render::Renderer::new().render(&doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts)
     };
-    let alpha = |img: &vectorcraft_render::Rendered, x: usize, y: usize| img.pixels[(y * 200 + x) * 4 + 3];
+    let alpha = |img: &pluma_render::Rendered, x: usize, y: usize| img.pixels[(y * 200 + x) * 4 + 3];
     let plain = render(None);
     let iso = render(Some(repeat));
     assert_eq!(alpha(&plain, 20, 20), 255, "the source");

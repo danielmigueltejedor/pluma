@@ -10,8 +10,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use fax::{BitWriter, Bits};
-use vectorcraft_doc::cmyk::Inks;
-use vectorcraft_doc::{ImageBlob, Node, NodeKind};
+use pluma_doc::cmyk::Inks;
+use pluma_doc::{ImageBlob, Node, NodeKind};
 
 use super::import;
 use super::tests::{all, eps, read};
@@ -193,7 +193,7 @@ fn masked_cmyk_images_keep_their_inks_and_carry_the_mask_as_an_opacity_mask() {
 /// samples with `[1 0 1 0 1 0 1 0]`, the ink amounts themselves with `[0 1 0 1 0 1 0 1]`.
 #[test]
 fn cmyk_jpegs_keep_their_ink_amounts() {
-    use vectorcraft_render::encode::jpeg::{ColorModel, JpegOptions, encode};
+    use pluma_render::encode::jpeg::{ColorModel, JpegOptions, encode};
     let want: Vec<u8> = [[0, 0, 0, 0], [255, 0, 0, 0], [10, 20, 30, 40], [0, 102, 255, 0]].concat();
     // The encoder stores Adobe's inverted samples of the ink amounts it is given.
     let jpeg = |inks: &[u8]| {
@@ -545,6 +545,6 @@ fn the_data_of_an_image_too_large_to_read_is_skipped() {
         assert!(r.warnings.iter().any(|w| w.contains("too large to read")), "{program}: {:?}", r.warnings);
         let o = super::tests::objects(&r.document);
         assert_eq!(o.len(), 1, "{program}: {:?}", r.warnings);
-        assert_eq!(super::tests::fill(&o[0]), Some(&vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.0, 0.0, 1.0))), "{program}");
+        assert_eq!(super::tests::fill(&o[0]), Some(&pluma_color::Paint::solid(pluma_color::Color::rgb(0.0, 0.0, 1.0))), "{program}");
     }
 }

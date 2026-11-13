@@ -4,10 +4,10 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::tests_labels::painted_text;
 
 /// A fresh folder for one test (removed when dropped).
@@ -15,7 +15,7 @@ struct Folder(std::path::PathBuf);
 
 impl Folder {
     fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-ui-links-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-ui-links-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Self(dir)
@@ -42,8 +42,8 @@ fn png(w: u32, h: u32) -> Vec<u8> {
 }
 
 /// A document with a linked `linked.png` and an embedded `embedded.png` (the selection).
-fn app(dir: &Folder) -> (VectorcraftApp, u64, u64) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app(dir: &Folder) -> (PlumaApp, u64, u64) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let a = dir.file("linked.png", &png(300, 200));
     let b = dir.file("embedded.png", &png(40, 20));
@@ -52,14 +52,14 @@ fn app(dir: &Folder) -> (VectorcraftApp, u64, u64) {
     (app, linked, embedded)
 }
 
-fn panel(app: &mut VectorcraftApp) -> String {
+fn panel(app: &mut PlumaApp) -> String {
     painted_text(app, super::links::show)
 }
 
 /// Click the row named `name` in the panel with `mods` held (frames at `time` and just after: a
 /// second apart, two clicks are not a double-click).
-fn click_row(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, mods: egui::Modifiers, time: f64) {
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>, time: f64| {
+fn click_row(app: &mut PlumaApp, ctx: &egui::Context, name: &str, mods: egui::Modifiers, time: f64) {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>, time: f64| {
         let events = std::iter::once(egui::Event::ModifiersChanged(mods)).chain(events).collect();
         super::tests_appearance::frame_raw(ctx, app, egui::RawInput { events, time: Some(time), ..Default::default() }, super::links::show)
     };
@@ -71,7 +71,7 @@ fn click_row(app: &mut VectorcraftApp, ctx: &egui::Context, name: &str, mods: eg
 }
 
 /// The selected objects' ids, in ascending order.
-fn selected(app: &VectorcraftApp) -> Vec<u64> {
+fn selected(app: &PlumaApp) -> Vec<u64> {
     let mut ids: Vec<u64> = app.session.active().unwrap().selection.objects.iter().map(|id| id.0).collect();
     ids.sort_unstable();
     ids
@@ -101,7 +101,7 @@ fn the_panel_lists_the_images_with_link_info_for_the_selected_one() {
 #[test]
 fn shift_click_selects_a_range_of_links_and_ctrl_click_toggles_one() {
     let dir = Folder::new("range");
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     for (i, name) in ["a.png", "b.png", "c.png", "d.png"].into_iter().enumerate() {
         let path = dir.file(name, &png(20, 20));
@@ -134,7 +134,7 @@ fn shift_click_selects_a_range_of_links_and_ctrl_click_toggles_one() {
 
 #[test]
 fn an_empty_document_shows_how_to_add_images() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     assert!(panel(&mut app).contains("No images"));
 }
@@ -169,11 +169,11 @@ fn edit_original_and_show_in_folder_hand_the_file_to_the_system() {
 }
 
 /// #5236: with Preferences › File Handling › Use System Defaults for Edit Original off, Edit
-/// Original opens a raster image in the app that made it, PhotoCraft, and falls back to the
-/// system's default app when PhotoCraft isn't installed or the file isn't a raster image.
+/// Original opens a raster image in the app that made it, Lienzo, and falls back to the
+/// system's default app when Lienzo isn't installed or the file isn't a raster image.
 #[test]
-fn edit_original_opens_raster_images_in_photocraft_without_system_defaults() {
-    /// What each open asked for: (`true` for PhotoCraft, the path).
+fn edit_original_opens_raster_images_in_lienzo_without_system_defaults() {
+    /// What each open asked for: (`true` for Lienzo, the path).
     type Opened = Rc<RefCell<Vec<(bool, String)>>>;
     let dir = Folder::new("with");
     let (mut app, linked, _) = app(&dir);
@@ -184,7 +184,7 @@ fn edit_original_opens_raster_images_in_photocraft_without_system_defaults() {
         o.borrow_mut().push((false, p.to_string()));
         Ok(())
     }));
-    app.services.open_in_photocraft = Some(Box::new(move |p: &str| {
+    app.services.open_in_lienzo = Some(Box::new(move |p: &str| {
         if i.get() {
             w.borrow_mut().push((true, p.to_string()));
         }
@@ -200,8 +200,8 @@ fn edit_original_opens_raster_images_in_photocraft_without_system_defaults() {
     // A file that isn't a raster image goes to the system's app.
     crate::io::open_original(&mut app, "/Art/plan.emf").unwrap();
     assert_eq!(*opened.borrow(), [(false, path.clone()), (true, path.clone()), (false, path), (false, "/Art/plan.emf".to_string())]);
-    // PhotoCraft failing to open it is said, not hidden behind the system's app.
-    app.services.open_in_photocraft = Some(Box::new(|_: &str| Err("PhotoCraft didn't start".to_string())));
+    // Lienzo failing to open it is said, not hidden behind the system's app.
+    app.services.open_in_lienzo = Some(Box::new(|_: &str| Err("Lienzo didn't start".to_string())));
     assert!(app.run("links.editOriginal", json!({"id": linked})).is_err());
     assert_eq!(opened.borrow().len(), 4);
 }

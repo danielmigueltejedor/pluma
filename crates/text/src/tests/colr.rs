@@ -1,5 +1,5 @@
 //! COLR colour glyphs (v0 layers, v1 paints): read as trees of document nodes in font units, or
-//! as an image for paints VectorCraft lacks, and laid out with the type.
+//! as an image for paints Pluma lacks, and laid out with the type.
 
 use skrifa::MetadataProvider;
 use skrifa::color::ColorGlyphFormat;
@@ -20,9 +20,9 @@ fn colr_fonts_build_and_read() {
 
 use std::sync::Arc;
 
+use pluma_doc::color::{BlendMode, Color, GradientKind, Paint};
+use pluma_doc::{Node, NodeKind};
 use skrifa::instance::LocationRef;
-use vectorcraft_doc::color::{BlendMode, Color, GradientKind, Paint};
-use vectorcraft_doc::{Node, NodeKind};
 
 use crate::colr::{ColourContent, colour_glyph};
 use crate::test_fonts::{COLR_GREEN, COLR_RED};
@@ -143,7 +143,7 @@ fn a_colr_graph_nested_past_the_cap_is_no_colour_glyph() {
 // Layout: colour glyphs are laid out with their layers, which move with the type.
 
 use kurbo::Point as KPoint;
-use vectorcraft_doc::{CharStyle, TextObject};
+use pluma_doc::{CharStyle, TextObject};
 
 use crate::test_fonts::colr_family;
 use crate::{FontDb, layout};
@@ -185,7 +185,7 @@ fn the_foreground_layer_takes_the_runs_fill_and_black_for_a_gradient_fill() {
     let blue = Color::rgb8(0, 0, 200);
     assert_eq!(foreground(Paint::solid(blue)), Paint::solid(blue));
     assert_eq!(foreground(Paint::solid(FOREGROUND)), Paint::solid(FOREGROUND), "a new fill colour, a new glyph");
-    let gradient = Paint::Gradient(Box::new(vectorcraft_doc::color::GradientPaint::new(Default::default())));
+    let gradient = Paint::Gradient(Box::new(pluma_doc::color::GradientPaint::new(Default::default())));
     assert_eq!(foreground(gradient), Paint::solid(Color::BLACK));
 }
 
@@ -398,14 +398,14 @@ fn a_variable_fonts_colr_layers_follow_its_instance() {
 #[test]
 fn a_colour_glyph_on_a_path_turns_with_it() {
     use crate::test_fonts::{COLR_VARIABLE_FAMILY, colr_variable_font};
-    use vectorcraft_doc::text::TextKind;
+    use pluma_doc::text::TextKind;
     let db = FontDb::with_font_dirs(vec![]);
     db.add_font(colr_variable_font().expect("the test font builds"));
     let st = CharStyle { font_family: COLR_VARIABLE_FAMILY.into(), size: 100.0, ..CharStyle::default() };
     let mut t = TextObject::point(KPoint::ZERO, &COLOUR_CHAR.to_string(), st);
     let upright = layout(&db, &t).glyphs[0].placed_colour(kurbo::Affine::IDENTITY).unwrap().geometric_bounds().unwrap();
     let down = kurbo::Shape::to_path(&kurbo::Line::new((0.0, 0.0), (0.0, 400.0)), 0.1);
-    t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&down), start: 0.0, end: None };
+    t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&down), start: 0.0, end: None };
     let b = layout(&db, &t).glyphs[0].placed_colour(kurbo::Affine::IDENTITY).unwrap().geometric_bounds().unwrap();
     assert!(upright.height() > 2.0 * upright.width(), "upright, the `l` is tall: {upright:?}");
     assert!((b.width() - upright.height()).abs() < 1.0 && (b.height() - upright.width()).abs() < 1.0, "on its side: {b:?}");

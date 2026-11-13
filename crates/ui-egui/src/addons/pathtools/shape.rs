@@ -4,11 +4,11 @@
 //! Tool's next shape (`tool.setOption`). Convert turns selected plain shapes into parametric ones.
 
 use egui::Ui;
+use pluma_geom::Point;
+use pluma_tools::addons::parametric_shape::{self as tool, MAX_COUNT, MAX_SIZE, MIN_COUNT, ParametricShape, ShapeKind, apply, read};
 use serde_json::{Value, json};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::addons::parametric_shape::{self as tool, MAX_COUNT, MAX_SIZE, MIN_COUNT, ParametricShape, ShapeKind, apply, read};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::panels::empty_state;
 use crate::widgets::{self, dim_label};
 
@@ -46,13 +46,13 @@ fn value_labels(kind: ShapeKind) -> [&'static str; 2] {
     }
 }
 
-fn run(app: &mut VectorcraftApp, id: &str, p: Value) {
+fn run(app: &mut PlumaApp, id: &str, p: Value) {
     if let Err(e) = app.run(id, p) {
         app.status(e);
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else {
         empty_state(ui, "hexagon", tl!("No document"), tl!("Open a document to draw parametric shapes."));
         return;

@@ -89,10 +89,7 @@ fn doc_with_type() -> (Session, [u64; 4], u64) {
 
 /// What `cmd` gives in a fresh [`doc_with_type`] (nothing selected) with `params`: its result or
 /// error, and the document after it.
-fn run_fresh(
-    cmd: &str,
-    params: &serde_json::Value,
-) -> (std::result::Result<serde_json::Value, String>, Option<std::sync::Arc<vectorcraft_doc::Document>>) {
+fn run_fresh(cmd: &str, params: &serde_json::Value) -> (std::result::Result<serde_json::Value, String>, Option<std::sync::Arc<pluma_doc::Document>>) {
     let (mut s, ..) = doc_with_type();
     let r = s.execute(cmd, params).map_err(|e| e.to_string());
     (r, s.doc().ok().map(|d| d.doc.clone()))
@@ -371,7 +368,7 @@ fn outcome(
     p: &serde_json::Value,
     selected: &[u64],
     slice: bool,
-) -> (std::result::Result<serde_json::Value, String>, vectorcraft_doc::Document, vectorcraft_doc::Selection, usize) {
+) -> (std::result::Result<serde_json::Value, String>, pluma_doc::Document, pluma_doc::Selection, usize) {
     let (mut s, ..) = doc_with_type();
     if slice {
         s.execute("object.slice.make", &json!({ "ids": selected })).unwrap();

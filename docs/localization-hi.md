@@ -68,7 +68,7 @@ A separate scan of the release's `tl!` literals checks strings beyond its catalo
 main added paragraph labels, spine-index validation and two error messages: six rows in total.
 Main's workspace version is still 0.21.0; this PR does not change release versioning.
 
-`cargo test -p vectorcraft-ui-egui --lib i18n::tests` passes all 55 tests in Ubuntu 24.04 (WSL).
+`cargo test -p pluma-ui-egui --lib i18n::tests` passes all 55 tests in Ubuntu 24.04 (WSL).
 The untranslated report has no Hindi section, meaning it found no missing Hindi rows among the
 categories it checks. This does not check dynamically assembled strings that the scanners miss.
 Additional checks compare placeholders, backtick-delimited identifiers and numeric values.

@@ -30,7 +30,7 @@ pub(super) struct Found {
     pub(super) scripts: Vec<String>,
     /// Ids of the `<g>` elements marked as layers ([`marked_layer`]).
     pub(super) sublayers: HashSet<String>,
-    /// Ids of the `<circle>` and `<ellipse>` elements, which come back as the ellipse VectorCraft
+    /// Ids of the `<circle>` and `<ellipse>` elements, which come back as the ellipse Pluma
     /// draws ([`drawn_ellipse`](super::convert::drawn_ellipse)).
     pub(super) ellipses: HashSet<String>,
     /// The text importer reads styles from this SVG before tracking IDs are added.
@@ -161,7 +161,7 @@ fn named_made_up_ids(xml: &roxmltree::Document) -> HashSet<usize> {
 ///   ([`user_events`]), and the `<script>` links are recorded ([`linked_scripts`]);
 /// * so do objects with attributes in other applications' namespaces ([`foreign`]);
 /// * so do `<circle>` and `<ellipse>` elements, recorded: usvg makes their arcs into a varying
-///   number of curves, and they come back as the ellipse VectorCraft draws (not in a file whose
+///   number of curves, and they come back as the ellipse Pluma draws (not in a file whose
 ///   style sheet has an attribute selector);
 /// * linked files are read ([`files`]);
 /// * percentage lengths in a `<symbol>` with a `viewBox` become numbers ([`symbol_units`]);
@@ -360,7 +360,7 @@ fn user_data(e: XNode) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The namespaces whose attributes VectorCraft reads, writes or makes again itself: their
+/// The namespaces whose attributes Pluma reads, writes or makes again itself: their
 /// attributes aren't kept as another application's ([`foreign`]).
 const OWN_NAMESPACES: &[&str] = &[
     "http://www.w3.org/2000/svg",
@@ -384,7 +384,7 @@ fn foreign_ns<'a>(a: &roxmltree::Attribute<'a, '_>) -> Option<&'a str> {
 }
 
 /// Does any element of `xml` have an attribute in another application's namespace? Most files
-/// declare only namespaces VectorCraft reads itself (XLink), and skip the scan for them.
+/// declare only namespaces Pluma reads itself (XLink), and skip the scan for them.
 fn has_foreign_attributes(xml: &roxmltree::Document) -> bool {
     xml.descendants().filter(XNode::is_element).any(|e| e.attributes().any(|a| foreign_ns(&a).is_some()))
 }

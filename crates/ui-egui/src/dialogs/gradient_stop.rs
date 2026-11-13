@@ -12,14 +12,14 @@
 //! and confirm.
 
 use egui::{Sense, vec2};
+use pluma_color::gradient::move_stop;
+use pluma_color::{Color, FreeformPoint, GradientKind, GradientStop, Paint};
+use pluma_geom::Point;
+use pluma_tools::params::color_json;
 use serde_json::{Value, json};
-use vectorcraft_color::gradient::move_stop;
-use vectorcraft_color::{Color, FreeformPoint, GradientKind, GradientStop, Paint};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::params::color_json;
 
 use super::{DialogResult, DialogSpec};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::canvas::Xf;
 use crate::panels::active_paint;
 use crate::panels::gradient::{edit_point, set_stops, shown_points};
@@ -54,7 +54,7 @@ impl Target {
     }
 }
 
-fn selected(app: &VectorcraftApp) -> Option<Target> {
+fn selected(app: &PlumaApp) -> Option<Target> {
     let Paint::Gradient(g) = active_paint(app) else { return None };
     if g.gradient.kind == GradientKind::Freeform {
         let f = shown_points(&g);
@@ -72,13 +72,13 @@ fn recolor(mut stops: Vec<GradientStop>, i: usize, color: Color, link: Option<(S
 }
 
 /// Solid colours of the document's swatches (groups included), with their names.
-fn swatch_colors(app: &VectorcraftApp) -> Vec<(String, Color)> {
+fn swatch_colors(app: &PlumaApp) -> Vec<(String, Color)> {
     let Some(st) = app.session.active() else { return vec![] };
     let d = &st.doc;
     d.swatches.iter().chain(d.swatch_groups.iter().flat_map(|g| g.swatches.iter())).filter_map(|s| Some((s.name.clone(), s.paint.color()?))).collect()
 }
 
-fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(d) = app.ui.dialog.clone() else { return };
     // The stop or point went away (undo, another object selected): nothing left to edit.
     let Some(target) = selected(app) else {
@@ -173,7 +173,7 @@ fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
 const POPOVER_SIZE: egui::Vec2 = vec2(272.0, 360.0);
 
 /// The selected art's box on the screen.
-fn selection_on_screen(app: &VectorcraftApp, xf: &Xf) -> Option<egui::Rect> {
+fn selection_on_screen(app: &PlumaApp, xf: &Xf) -> Option<egui::Rect> {
     let st = app.session.active()?;
     let b = st.doc.bounds_of(&st.selection.objects, false)?;
     Some(egui::Rect::from_points(&xf.quad(b)))
@@ -198,7 +198,7 @@ fn beside_art(chip: egui::Pos2, art: egui::Rect, size: egui::Vec2, room: egui::R
 }
 
 /// Document swatches as tiles: a click gives the stop (or point) that colour.
-fn swatch_grid(app: &mut VectorcraftApp, ui: &mut egui::Ui, target: &Target) {
+fn swatch_grid(app: &mut PlumaApp, ui: &mut egui::Ui, target: &Target) {
     let colors = swatch_colors(app);
     if colors.is_empty() {
         widgets::dim_label(ui, tl!("The document has no colour swatches."));
@@ -230,7 +230,7 @@ fn swatch_grid(app: &mut VectorcraftApp, ui: &mut egui::Ui, target: &Target) {
 
 /// Apply the `color` (hex), `opacity` and `location` or `spread` (percentages) set in `f` to the
 /// target as one edit; returns the stop's (or point's) index after it.
-fn apply(app: &mut VectorcraftApp, target: &Target, f: &Value) -> usize {
+fn apply(app: &mut PlumaApp, target: &Target, f: &Value) -> usize {
     let pct = |k: &str| f.get(k).and_then(Value::as_f64).map(|v| (v / 100.0).clamp(0.0, 1.0));
     let color = f.get("color").and_then(Value::as_str).and_then(crate::panels::color::parse_hex);
     match target {
@@ -266,7 +266,7 @@ fn apply(app: &mut VectorcraftApp, target: &Target, f: &Value) -> usize {
 
 /// OK (agents): apply the `color`, `opacity` and `location` (a point: `spread`) fields that are
 /// set, then close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> DialogResult {
     let target = selected(app).ok_or("no gradient stop or freeform point is selected")?;
     if let Some(hex) = d.fields.get("color").and_then(Value::as_str) {
         crate::panels::color::parse_hex(hex).ok_or_else(|| format!("bad colour `{hex}` (#rrggbb)"))?;
@@ -278,15 +278,15 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> DialogResult {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_engine::Session;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_engine::Session;
+    use pluma_tools::{PointerEvent, PointerKind};
 
     use super::*;
 
     /// A rectangle with a three-stop gradient from (100, 150) to (200, 150), the Gradient tool
     /// and stop 1 selected.
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap();
         let stops = json!([{"offset": 0, "color": "#ffffff"}, {"offset": 0.5, "color": "#00ff00"}, {"offset": 1, "color": "#000000"}]);
@@ -318,7 +318,7 @@ mod tests {
         assert_eq!(beside_art(art.center(), art, size, room), art.center() + egui::vec2(14.0, 14.0));
     }
 
-    fn stops(app: &VectorcraftApp) -> Vec<GradientStop> {
+    fn stops(app: &PlumaApp) -> Vec<GradientStop> {
         match selected(app) {
             Some(Target::Stop(stops, _)) => stops,
             _ => panic!("no stop selected"),
@@ -335,7 +335,7 @@ mod tests {
     }
 
     /// One headless frame of the dialog layer and the shortcuts.
-    fn frame(app: &mut VectorcraftApp, events: Vec<egui::Event>) {
+    fn frame(app: &mut PlumaApp, events: Vec<egui::Event>) {
         let ctx = CTX.with(Clone::clone);
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
             crate::shortcuts::handle(app, ui.ctx());
@@ -450,7 +450,7 @@ mod tests {
         let mut app = app();
         app.run("paint.editGradient", json!({"kind": "freeform"})).unwrap();
         app.run("paint.freeform.addPoint", json!({"at": [150, 150], "color": "#0000ff"})).unwrap();
-        let point = |app: &VectorcraftApp| match selected(app) {
+        let point = |app: &PlumaApp| match selected(app) {
             Some(Target::Point(p, i)) => (p, i),
             _ => panic!("no point selected"),
         };

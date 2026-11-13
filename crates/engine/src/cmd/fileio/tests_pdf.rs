@@ -13,7 +13,7 @@ fn session(artboards: usize) -> Session {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 fn export(s: &mut Session, p: Value) -> Value {
@@ -25,7 +25,7 @@ fn warnings(v: &Value) -> Vec<String> {
 }
 
 fn pages(bytes: &[u8]) -> usize {
-    vectorcraft_pdf::import(bytes).unwrap().artboards.len()
+    pluma_pdf::import(bytes).unwrap().artboards.len()
 }
 
 /// `p` plus `format: pdf` (the same options through `document.export`).
@@ -139,7 +139,7 @@ fn a_16_bit_png_is_written_at_8_bits_before_pdf_1_5() {
     let deep = image::ImageBuffer::from_fn(8, 8, |x, y| image::Rgb([x as u16 * 8000, y as u16 * 8000, 40000]));
     let mut png = vec![];
     image::DynamicImage::ImageRgb16(deep).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    s.execute("file.place", &json!({"name": "deep.png", "dataBase64": vectorcraft_format::base64_encode(&png), "at": [50, 40]})).unwrap();
+    s.execute("file.place", &json!({"name": "deep.png", "dataBase64": pluma_format::base64_encode(&png), "at": [50, 40]})).unwrap();
     let readable = json!({"compressText": false});
     for (cmd, p, depth) in [
         ("document.exportPdf", json!({"compatibility": "1.3", "compression": readable}), 8),
@@ -169,9 +169,9 @@ fn every_pdf_leaves_out_an_image_that_cant_be_decoded() {
     // no image.
     let drawn = |bytes: &[u8]| {
         let mut images = vec![];
-        vectorcraft_pdf::import(bytes).unwrap().walk(|n| {
-            if !n.is_container() && !matches!(n.kind, vectorcraft_doc::NodeKind::Path { clipping: true, .. }) {
-                images.push(matches!(n.kind, vectorcraft_doc::NodeKind::Image(_)));
+        pluma_pdf::import(bytes).unwrap().walk(|n| {
+            if !n.is_container() && !matches!(n.kind, pluma_doc::NodeKind::Path { clipping: true, .. }) {
+                images.push(matches!(n.kind, pluma_doc::NodeKind::Image(_)));
             }
         });
         images
@@ -192,9 +192,9 @@ fn every_pdf_leaves_out_an_image_that_cant_be_decoded() {
     // The .ai file reopens with the image as it was placed, from the image bytes in its editing data.
     let ai = b64(&s.execute("file.saveCopy", &json!({"format": "ai"})).unwrap());
     let placed = s.doc().unwrap().doc.images.clone();
-    s.execute("document.open", &json!({"name": "cut.ai", "dataBase64": vectorcraft_format::base64_encode(&ai)})).unwrap();
+    s.execute("document.open", &json!({"name": "cut.ai", "dataBase64": pluma_format::base64_encode(&ai)})).unwrap();
     let reopened = &s.doc().unwrap().doc;
-    assert!(reopened.node(cut).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_))));
+    assert!(reopened.node(cut).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_))));
     assert_eq!(reopened.images, placed);
     // Export for Screens, a native file carrying a PDF, and the PDF that Copy offers are written.
     let r = s.execute("document.exportForScreens", &json!({"formats": [{"format": "pdf"}]})).unwrap();

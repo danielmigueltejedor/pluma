@@ -4,10 +4,10 @@
 //! acts through `addon.pen.*` and the `addon.pathtools.*` anchor edits.
 
 use egui::Ui;
+use pluma_tools::addons::smart_pen;
 use serde_json::{Value, json};
-use vectorcraft_tools::addons::smart_pen;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::panels::empty_state;
 use crate::widgets::{self, dim_label};
@@ -35,7 +35,7 @@ fn edits() -> [(&'static str, &'static str, Value); 5] {
     ]
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(st) = app.session.active() else {
         empty_state(ui, "spline-pointer", tl!("No document"), tl!("Open a document to draw with the Smart Pen."));
         return;

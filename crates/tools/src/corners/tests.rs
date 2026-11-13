@@ -1,7 +1,7 @@
 use super::*;
 use crate::testutil::*;
 use crate::{Mods, PointerKind};
-use vectorcraft_doc::{Appearance, Node};
+use pluma_doc::{Appearance, Node};
 
 /// A live 100 × 100 rectangle at (100, 100) with corner radius `r`.
 fn live_rect(r: f64, xf: Affine) -> (Document, NodeId) {
@@ -29,7 +29,7 @@ fn doc_with(path: PathData, live: Option<LiveShape>) -> (Document, NodeId) {
 
 /// A five-pointed star at (200, 200) of radii 60 and 30 (#511): a plain path.
 fn star() -> (Document, NodeId) {
-    doc_with(vectorcraft_geom::shapes::star(Point::new(200.0, 200.0), 60.0, 30.0, 5, 0.0), None)
+    doc_with(pluma_geom::shapes::star(Point::new(200.0, 200.0), 60.0, 30.0, 5, 0.0), None)
 }
 
 fn selected(id: NodeId) -> Selection {
@@ -150,7 +150,7 @@ fn widgets_of_a_non_square_rectangle_follow_the_drawn_corners() {
     assert_eq!(radius(&a[1]), 40.0);
     // The four arcs, each a quarter circle of radius 40 starting on a side.
     let arcs = red(t.as_ref()).expect("the limit shows");
-    let starts: Vec<_> = arcs.elements().iter().filter_map(|e| if let vectorcraft_geom::PathEl::MoveTo(p) = e { Some(*p) } else { None }).collect();
+    let starts: Vec<_> = arcs.elements().iter().filter_map(|e| if let pluma_geom::PathEl::MoveTo(p) = e { Some(*p) } else { None }).collect();
     assert_eq!(starts, [Point::new(260.0, 100.0), Point::new(300.0, 140.0), Point::new(140.0, 180.0), Point::new(100.0, 140.0)]);
     // Back below the limit, the outline goes.
     assert_eq!(radius(&t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 130.0, 130.0))[0]), 30.0);
@@ -269,7 +269,7 @@ fn a_shift_click_on_a_widget_of_a_whole_path_picks_its_corner() {
 #[test]
 fn a_shift_click_on_a_widget_adds_to_anchors_that_are_no_corner() {
     let corners = [(100.0, 100.0), (150.0, 100.0), (200.0, 100.0), (200.0, 200.0), (100.0, 200.0)].map(|(x, y)| Point::new(x, y));
-    let (d, id) = doc_with(PathData::single(vectorcraft_geom::SubPath::polyline(&corners, true)), None);
+    let (d, id) = doc_with(PathData::single(pluma_geom::SubPath::polyline(&corners, true)), None);
     let p = paint();
     let mut s = selected(id);
     s.anchors.insert(id, [(0, 1)].into());
@@ -425,7 +425,7 @@ fn a_star_shows_widgets_in_every_corner_with_direct_selection() {
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, tip.x, tip.y + 10.0));
     assert_eq!(a[0], Action::Begin("Corner Radius".into()));
     // The widget follows the arc's centre: r / sin(angle / 2) along the bisector.
-    let c = vectorcraft_geom::corners::path_corners(&star_path(&d, id))[0];
+    let c = pluma_geom::corners::path_corners(&star_path(&d, id))[0];
     let want = 10.0 * (c.angle_deg() / 2.0).to_radians().sin();
     assert!((radius(&a[1]) - want).abs() < 1e-9, "{a:?} want {want}");
     assert!(matches!(&a[1], Action::Preview(_, v) if v["id"] == id.0 && v.get("corners").is_none()), "every corner: {a:?}");
@@ -493,7 +493,7 @@ fn a_live_polygon_rounds_with_either_tool() {
 /// A pen path's corners show widgets, curved ones too (#1144); its ends don't.
 #[test]
 fn a_pen_path_shows_widgets_on_its_corners_only() {
-    let mut sp = vectorcraft_geom::SubPath::polyline(
+    let mut sp = pluma_geom::SubPath::polyline(
         &[Point::new(100.0, 100.0), Point::new(300.0, 100.0), Point::new(300.0, 300.0), Point::new(100.0, 300.0)],
         false,
     );

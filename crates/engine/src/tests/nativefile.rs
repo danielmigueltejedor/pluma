@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 
+use pluma_format::{is_compressed, sniff};
 use serde_json::{Value, json};
-use vectorcraft_format::{is_compressed, sniff};
 
 use crate::*;
 
@@ -23,7 +23,7 @@ fn tmp_dir(tag: &str) -> PathBuf {
 }
 
 fn bytes_of(r: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(r["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(r["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 /// The file `document.save` (no path) gives back with `p`.
@@ -32,7 +32,7 @@ fn saved(s: &mut Session, p: Value) -> Vec<u8> {
 }
 
 fn open(s: &mut Session, name: &str, bytes: &[u8]) -> Value {
-    s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).unwrap()
+    s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap()
 }
 
 /// The file's JSON (unpacked when compressed).
@@ -54,7 +54,7 @@ fn compressed_saves_open_by_their_content() {
     let plain = saved(&mut s, json!({}));
     assert!(!is_compressed(&plain) && packed.len() < plain.len());
     // Recognised by its content, whatever the name says.
-    for name in ["a.vectorcraft", "a.drawcraft", "a.svgz", "a.bin"] {
+    for name in ["a.pluma", "a.drawcraft", "a.svgz", "a.bin"] {
         let r = open(&mut s, name, &packed);
         assert_eq!(r["format"], "vectorcraft", "{name}");
         assert_eq!(s.doc().unwrap().doc.node_count(), 2);
@@ -90,7 +90,7 @@ fn saves_for_older_versions() {
         assert!(s.execute("document.save", &bad).is_err(), "{bad}");
     }
     let formats = s.execute("document.formats", &json!({})).unwrap();
-    let native = formats["formats"].as_array().unwrap().iter().find(|f| f["id"] == "vectorcraft").unwrap();
+    let native = formats["formats"].as_array().unwrap().iter().find(|f| f["id"] == pluma_format::FORMAT_ID).unwrap();
     for o in ["compress", "version", "preview"] {
         assert!(native["options"].get(o).is_some(), "{o} documented");
     }
@@ -100,19 +100,19 @@ fn saves_for_older_versions() {
 fn an_older_version_is_pretty_only_when_its_own_json_fits() {
     // One path whose anchors fit the pretty size limit in the current version but not as
     // version 1 writes them (both handles of every anchor as `{x, y}` maps).
-    use vectorcraft_geom::Point;
-    use vectorcraft_geom::path::{PathData, SubPath};
+    use pluma_geom::Point;
+    use pluma_geom::path::{PathData, SubPath};
     let path_doc = |anchors: usize| {
-        let mut b = vectorcraft_testkit::fixtures::DocBuilder::new(1000.0, 1000.0);
+        let mut b = pluma_testkit::fixtures::DocBuilder::new(1000.0, 1000.0);
         let points: Vec<Point> = (0..anchors).map(|j| Point::new(j as f64, (j % 2) as f64)).collect();
         let node = b.path_node(PathData::single(SubPath::polyline(&points, false)), Default::default());
         b.add(node);
         b.doc
     };
     let per_anchor = serde_json::to_vec_pretty(&path_doc(1000)).unwrap().len() / 1000;
-    let d = path_doc(vectorcraft_format::PRETTY_MAX_BYTES / 2 / per_anchor);
+    let d = path_doc(pluma_format::PRETTY_MAX_BYTES / 2 / per_anchor);
     let mut s = Session::new();
-    open(&mut s, "traced.vectorcraft", &vectorcraft_format::save_file(&d));
+    open(&mut s, "traced.pluma", &pluma_format::save_file(&d));
     let is_pretty = |bytes: &[u8]| bytes.windows(3).any(|w| w == b"\n  ");
     assert!(is_pretty(&saved(&mut s, json!({"compress": false}))));
     let old = saved(&mut s, json!({"version": 1}));
@@ -125,26 +125,26 @@ fn an_older_version_is_pretty_only_when_its_own_json_fits() {
 fn preview_is_at_most_256_pixels() {
     let mut s = session();
     let bytes = saved(&mut s, json!({"preview": true, "compress": true}));
-    let png = vectorcraft_format::preview(&bytes).expect("a preview");
+    let png = pluma_format::preview(&bytes).expect("a preview");
     let img = image::load_from_memory(&png).unwrap();
     assert_eq!((img.width(), img.height()), (256, 128), "the 400×200 artboard fitted into 256 px");
-    assert!(vectorcraft_format::preview(&saved(&mut s, json!({}))).is_none(), "off by default");
+    assert!(pluma_format::preview(&saved(&mut s, json!({}))).is_none(), "off by default");
 }
 
 #[test]
 fn saving_writes_through_a_temporary_file() {
     let d = tmp_dir("atomic");
-    let path = d.join("doc.vectorcraft");
+    let path = d.join("doc.pluma");
     std::fs::write(&path, b"an older version of the file").unwrap();
     let mut s = session();
     s.execute("document.save", &json!({"path": path.to_string_lossy()})).unwrap();
     assert!(sniff(&std::fs::read(&path).unwrap()));
     let names: Vec<String> = std::fs::read_dir(&d).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
-    assert_eq!(names, ["doc.vectorcraft"], "no temporary file left behind");
+    assert_eq!(names, ["doc.pluma"], "no temporary file left behind");
     assert!(!s.doc().unwrap().is_dirty());
     // A save that can't be written fails, and the document stays modified.
     s.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 5, "height": 5})).unwrap();
-    let missing = d.join("missing").join("doc.vectorcraft");
+    let missing = d.join("missing").join("doc.pluma");
     assert!(s.execute("document.save", &json!({"path": missing.to_string_lossy()})).is_err());
     assert!(s.doc().unwrap().is_dirty());
     let _ = std::fs::remove_dir_all(&d);
@@ -155,7 +155,7 @@ fn unused_images_are_left_out_of_saves() {
     let mut s = session();
     let mut png = vec![];
     image::RgbaImage::from_pixel(4, 4, image::Rgba([1, 2, 3, 255])).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let r = s.execute("file.place", &json!({"name": "a.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "a.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
     let id = r["ids"][0].as_u64().unwrap();
     assert_eq!(json_of(&saved(&mut s, json!({})))["images"].as_object().unwrap().len(), 1);
     s.execute("edit.clear", &json!({"ids": [id]})).unwrap();
@@ -163,7 +163,7 @@ fn unused_images_are_left_out_of_saves() {
     assert!(json_of(&saved(&mut s, json!({})))["images"].as_object().unwrap().is_empty());
     s.execute("edit.undo", &json!({})).unwrap();
     let bytes = saved(&mut s, json!({}));
-    open(&mut s, "back.vectorcraft", &bytes);
+    open(&mut s, "back.pluma", &bytes);
     assert_eq!(s.doc().unwrap().doc.images.len(), 1);
 }
 
@@ -173,7 +173,7 @@ fn newer_keys_and_legacy_profiles_survive_open_and_save() {
     let mut j = json_of(&saved(&mut s, json!({"version": 2})));
     j["document"]["fromTheFuture"] = json!({"x": 1});
     j["document"]["unknown"] = json!({"colorProfiles": {"rgb": "sRGB IEC61966-2.1", "cmyk": null}});
-    open(&mut s, "old.vectorcraft", &serde_json::to_vec(&j).unwrap());
+    open(&mut s, "old.pluma", &serde_json::to_vec(&j).unwrap());
     let d = &s.doc().unwrap().doc;
     assert_eq!(d.color_profiles.rgb.as_deref(), Some("sRGB IEC61966-2.1"), "profiles migrate");
     assert!(d.unknown.is_empty());
@@ -186,13 +186,13 @@ fn newer_keys_and_legacy_profiles_survive_open_and_save() {
     assert_eq!(v2["document"]["unknown"]["colorProfiles"]["rgb"], "sRGB IEC61966-2.1");
 }
 
-/// A version 1 document saved before VectorCraft 0.21.0 turned its Twist effects counterclockwise
+/// A version 1 document saved before Pluma 0.21.0 turned its Twist effects counterclockwise
 /// for a positive angle. It opens with the angles negated, so its art turns as it did; saved
 /// again it is a document of the current version, and saved for an older file version it is version 1 again.
 #[test]
 fn a_version_1_documents_twist_turns_as_it_was_saved() {
-    use vectorcraft_doc::{Appearance, Document, Effect, Node};
-    use vectorcraft_geom::{PathData, Point, Rect, SubPath};
+    use pluma_doc::{Appearance, Document, Effect, Node};
+    use pluma_geom::{PathData, Point, Rect, SubPath};
     let mut d = Document::new(100.0, 100.0);
     let l = d.layers[0].id;
     let id = d.alloc_id();
@@ -200,19 +200,19 @@ fn a_version_1_documents_twist_turns_as_it_was_saved() {
     let mut a = Appearance::default_art();
     a.effects.push(Effect { id: "distort.twist".into(), params: json!({"angle": 45}), visible: true });
     d.insert(Some(l), 0, Node::path(id, right.clone(), a)).unwrap();
-    let mut j = json_of(&vectorcraft_format::save(&d, false));
+    let mut j = json_of(&pluma_format::save(&d, false));
     j["document"]["version"] = json!(1);
-    j["generator"] = json!("VectorCraft 0.20.0");
+    j["generator"] = json!("Pluma 0.20.0");
     let mut s = Session::new();
-    open(&mut s, "old.vectorcraft", &serde_json::to_vec(&j).unwrap());
+    open(&mut s, "old.pluma", &serde_json::to_vec(&j).unwrap());
     let doc = &s.doc().unwrap().doc;
     let n = doc.layers[0].children().and_then(|c| c.first()).cloned().unwrap();
-    let turned = vectorcraft_render::effects::apply_geometry(&n.appearance.effects, &right, Rect::new(0.0, 0.0, 100.0, 100.0));
+    let turned = pluma_render::effects::apply_geometry(&n.appearance.effects, &right, Rect::new(0.0, 0.0, 100.0, 100.0));
     // Counterclockwise on the page takes a point right of the center up (y runs down).
     let p = turned.subpaths[0].anchors[0].p;
     assert!(p.y < 49.5, "{p:?}");
     let again = json_of(&saved(&mut s, json!({})));
-    assert_eq!(again["document"]["version"], vectorcraft_doc::FORMAT_VERSION);
+    assert_eq!(again["document"]["version"], pluma_doc::FORMAT_VERSION);
     assert!(again.to_string().contains(r#""angle":-45.0"#), "{again}");
     // Saved for an older file version, it is version 1 with its angle as 0.20.0 saved it.
     let older = json_of(&saved(&mut s, json!({"version": 3})));
@@ -233,8 +233,8 @@ fn a_pinned_date_makes_saves_byte_identical() {
         saved(&mut s, json!({}))
     };
     let at = 1_791_208_980;
-    let pdf = vectorcraft_format::pdf_content(&once(at)).expect("a native save carries a PDF by default");
-    let info = vectorcraft_pdf::file_info(&pdf, None).unwrap();
+    let pdf = pluma_format::pdf_content(&once(at)).expect("a native save carries a PDF by default");
+    let info = pluma_pdf::file_info(&pdf, None).unwrap();
     assert_eq!((info.created, info.modified), (Some(at), Some(at)), "the PDF has the document's dates");
     assert_eq!(once(at), once(at), "the same document and date give the same bytes");
     // The date really is in the bytes, so the comparison above is not vacuous.

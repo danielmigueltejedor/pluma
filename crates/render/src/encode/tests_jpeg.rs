@@ -1,7 +1,7 @@
-use vectorcraft_color::cms::{self, IccProfile, ProfileKind};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Node};
-use vectorcraft_geom::shapes;
+use pluma_color::cms::{self, IccProfile, ProfileKind};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Node};
+use pluma_geom::shapes;
 
 use super::jpeg::{self, ColorModel, JpegOptions, Method};
 use super::*;

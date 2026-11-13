@@ -4,13 +4,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
 use super::print::{KIND, SECTIONS};
 use crate::print::{PrintJob, PrintService, Printer};
 use crate::state::Dialog;
-use crate::{Services, VectorcraftApp, theme};
+use crate::{PlumaApp, Services, theme};
 
 /// What the mock service was sent: (printer, title, PDF).
 type Jobs = Rc<RefCell<Vec<(Option<String>, String, Vec<u8>)>>>;
@@ -32,32 +32,32 @@ impl PrintService for MockPrint {
 }
 
 /// An app with three 120 × 90 artboards and a rectangle, printing through the mock.
-fn app() -> (VectorcraftApp, Jobs) {
+fn app() -> (PlumaApp, Jobs) {
     let jobs = Jobs::default();
     let services = Services { print: Some(Box::new(MockPrint(jobs.clone()))), ..Default::default() };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 120, "height": 90, "artboards": 3})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
     (app, jobs)
 }
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-fn dialog(app: &mut VectorcraftApp) -> &mut Dialog {
+fn dialog(app: &mut PlumaApp) -> &mut Dialog {
     app.ui.dialog.as_mut().expect("a dialog is open")
 }
 
-fn set(app: &mut VectorcraftApp, field: &str, value: Value) {
+fn set(app: &mut PlumaApp, field: &str, value: Value) {
     dialog(app).fields.insert(field.into(), value);
 }
 
 fn pages(pdf: &[u8]) -> usize {
-    vectorcraft_pdf::info(pdf, None).unwrap().pages.len()
+    pluma_pdf::info(pdf, None).unwrap().pages.len()
 }
 
 #[test]
@@ -167,12 +167,12 @@ impl PrintService for UprightQueue {
 
 #[test]
 fn a_landscape_job_goes_upright_to_a_queue_that_does_not_turn_it() {
-    let sizes = |pdf: &[u8]| vectorcraft_pdf::info(pdf, None).unwrap().pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>();
+    let sizes = |pdf: &[u8]| pluma_pdf::info(pdf, None).unwrap().pages.iter().map(|p| (p.width, p.height)).collect::<Vec<_>>();
     let landscape = json!({"settings": {"autoRotate": false, "orientation": "landscape", "artboards": "range", "range": "1"}});
     // The desktop's queue: Letter upright, the art turned on it.
     let jobs = Jobs::default();
     let services = Services { print: Some(Box::new(UprightQueue(jobs.clone()))), ..Default::default() };
-    let mut desktop = VectorcraftApp::new(Session::new(), services);
+    let mut desktop = PlumaApp::new(Session::new(), services);
     desktop.run("file.new", json!({"width": 120, "height": 90})).unwrap();
     desktop.run("file.print", landscape.clone()).unwrap();
     assert_eq!(sizes(&jobs.borrow()[0].2), [(612.0, 792.0)]);
@@ -194,7 +194,7 @@ fn without_a_print_service_print_saves_a_pdf() {
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
     app.run("file.print", json!({})).unwrap();
     let d = dialog(&mut app);
@@ -262,7 +262,7 @@ fn dragging_the_preview_moves_the_placement_on_the_paper() {
 fn the_control_channel_fills_and_confirms_the_dialog() {
     let (mut app, jobs) = app();
     let ctx = egui::Context::default();
-    let call = |app: &mut VectorcraftApp, method: &str, params: Value| {
+    let call = |app: &mut PlumaApp, method: &str, params: Value| {
         let (req, _) = crate::control::ControlRequest::new(method, params);
         let crate::control::Outcome::Done(r) = crate::control::handle(app, &ctx, &req) else { panic!("not done") };
         assert_eq!(r["ok"], true, "{method}: {r}");

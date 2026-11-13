@@ -14,18 +14,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use egui::{Color32, Rect, Response, Sense, Stroke, StrokeKind, TextureHandle, Ui, pos2, vec2};
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::style_libs::STYLE_LIBRARIES;
+use pluma_doc::text::{CharStyle, TextObject};
+use pluma_doc::{Appearance, AppearanceItem, Document, GraphicStyle, Node, NodeId, NodeKind, PatternDef, StyleLibrary};
+use pluma_engine::cmd::stylelib;
+use pluma_engine::cmd::swatchlib::LibraryInfo;
+use pluma_geom::{Affine, Point, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::style_libs::STYLE_LIBRARIES;
-use vectorcraft_doc::text::{CharStyle, TextObject};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, GraphicStyle, Node, NodeId, NodeKind, PatternDef, StyleLibrary};
-use vectorcraft_engine::cmd::stylelib;
-use vectorcraft_engine::cmd::swatchlib::LibraryInfo;
-use vectorcraft_geom::{Affine, Point, shapes};
 
 use super::library_panel::{self, LibraryKind, LibraryRef, Row};
 use super::{alt_held, pstate, selection_len, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::theme::Tokens;
 use crate::widgets::{self, PanelDrag, menu_item};
@@ -67,7 +67,7 @@ const LARGE: f32 = 132.0;
 const UV: Rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
 
 thread_local! {
-    static RENDERER: RefCell<vectorcraft_render::Renderer> = RefCell::new(vectorcraft_render::Renderer::new());
+    static RENDERER: RefCell<pluma_render::Renderer> = RefCell::new(pluma_render::Renderer::new());
     /// Thumbnails by (look hash, pixels, preview shape, Override Character Color on type).
     static THUMBS: crate::graphics::TexCache<HashMap<(u64, u32, Preview, bool), TextureHandle>> = crate::graphics::TexCache::default();
 }
@@ -126,13 +126,13 @@ impl Shown<'_> {
         self.looks.get(i).copied().unwrap_or_else(|| look_hash(Paints::of(self.d), &self.d.graphic_styles[i]))
     }
     /// Draw the thumbnail of style `i` into `r`.
-    fn paint(&self, app: &VectorcraftApp, ui: &Ui, r: Rect, i: usize) {
+    fn paint(&self, app: &PlumaApp, ui: &Ui, r: Rect, i: usize) {
         paint_thumb(app, ui, r, Paints::of(self.d), &self.d.graphic_styles[i], self.look(i), self.preview);
     }
 }
 
 /// [`look_hash`] of every style of the active document, computed once per document revision.
-fn look_hashes(ctx: &egui::Context, app: &VectorcraftApp) -> Arc<Vec<u64>> {
+fn look_hashes(ctx: &egui::Context, app: &PlumaApp) -> Arc<Vec<u64>> {
     let Some(st) = app.session.active() else { return Arc::default() };
     let key = (st.uid, st.revision);
     match pstate::<Option<((u64, u64), Arc<Vec<u64>>)>>(ctx, "gs-looks") {
@@ -147,7 +147,7 @@ fn look_hashes(ctx: &egui::Context, app: &VectorcraftApp) -> Arc<Vec<u64>> {
 
 /// Style `g` applied (as `graphicStyle.apply` applies it) to the preview shape, rendered `px`
 /// pixels square on white, with `paints`.
-fn render(app: &VectorcraftApp, paints: Paints, g: &GraphicStyle, preview: Preview, px: u32) -> Option<egui::ColorImage> {
+fn render(app: &PlumaApp, paints: Paints, g: &GraphicStyle, preview: Preview, px: u32) -> Option<egui::ColorImage> {
     const SIDE: f64 = 100.0;
     let mut doc = Document::new(SIDE, SIDE);
     doc.patterns = paints.patterns.to_vec();
@@ -158,7 +158,7 @@ fn render(app: &VectorcraftApp, paints: Paints, g: &GraphicStyle, preview: Previ
     }
     let id = doc.alloc_id();
     let shape = match preview {
-        Preview::Square => Node::path(id, shapes::rectangle(vectorcraft_geom::Rect::new(22.0, 22.0, 78.0, 78.0)), Appearance::default()),
+        Preview::Square => Node::path(id, shapes::rectangle(pluma_geom::Rect::new(22.0, 22.0, 78.0, 78.0)), Appearance::default()),
         Preview::Text => {
             let style = CharStyle { size: 54.0, ..Default::default() };
             let mut n = Node::new(id, NodeKind::Text(Box::new(TextObject::point(Point::ZERO, "Aa", style))));
@@ -170,20 +170,12 @@ fn render(app: &VectorcraftApp, paints: Paints, g: &GraphicStyle, preview: Previ
     };
     let layer = doc.layers[0].id;
     doc.insert(Some(layer), 0, app.session.styled(&shape, g)).ok()?;
-    let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, vectorcraft_geom::Rect::new(0.0, 0.0, SIDE, SIDE), px as f64 / SIDE, true));
+    let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, pluma_geom::Rect::new(0.0, 0.0, SIDE, SIDE), px as f64 / SIDE, true));
     Some(crate::canvas::color_image(&img))
 }
 
 /// The thumbnail of style `g` (`look`: its [`look_hash`]) at `size` points.
-fn thumb(
-    app: &VectorcraftApp,
-    ctx: &egui::Context,
-    paints: Paints,
-    g: &GraphicStyle,
-    look: u64,
-    preview: Preview,
-    size: f32,
-) -> Option<TextureHandle> {
+fn thumb(app: &PlumaApp, ctx: &egui::Context, paints: Paints, g: &GraphicStyle, look: u64, preview: Preview, size: f32) -> Option<TextureHandle> {
     let px = (size * ctx.pixels_per_point()).round().max(8.0) as u32;
     // Override Character Color changes only how type takes a style.
     let key = (look, px, preview, preview == Preview::Text && app.session.prefs.override_char_color);
@@ -202,7 +194,7 @@ fn thumb(
 }
 
 /// Draw the thumbnail of style `g` (`look`: its [`look_hash`]) into `r`.
-fn paint_thumb(app: &VectorcraftApp, ui: &Ui, r: Rect, paints: Paints, g: &GraphicStyle, look: u64, preview: Preview) {
+fn paint_thumb(app: &PlumaApp, ui: &Ui, r: Rect, paints: Paints, g: &GraphicStyle, look: u64, preview: Preview) {
     if !ui.is_rect_visible(r) {
         return;
     }
@@ -227,7 +219,7 @@ pub(super) fn outline(ui: &Ui, r: Rect, on: bool, hovered: bool) {
 
 /// Style `g` on a copy of the first selected object, `px` pixels square on white. One texture,
 /// re-rendered only when the document, the style's look or the size changes.
-fn object_preview(app: &VectorcraftApp, ctx: &egui::Context, g: &GraphicStyle, look: u64, px: u32) -> Option<TextureHandle> {
+fn object_preview(app: &PlumaApp, ctx: &egui::Context, g: &GraphicStyle, look: u64, px: u32) -> Option<TextureHandle> {
     let st = app.session.active()?;
     let n = st.doc.node(*st.selection.objects.first()?)?;
     let slot = egui::Id::unique("gs-large-object");
@@ -247,7 +239,7 @@ fn object_preview(app: &VectorcraftApp, ctx: &egui::Context, g: &GraphicStyle, l
 
 /// The large preview of style `i` next to the pointer while the right button is held on it: on
 /// the selected object when there is one, else on the preview shape.
-fn large_preview(app: &VectorcraftApp, ctx: &egui::Context, s: &Shown, i: usize) {
+fn large_preview(app: &PlumaApp, ctx: &egui::Context, s: &Shown, i: usize) {
     let Some(at) = ctx.pointer_hover_pos() else { return };
     let (g, look) = (&s.d.graphic_styles[i], s.look(i));
     let px = (LARGE * ctx.pixels_per_point()).round() as u32;
@@ -375,7 +367,7 @@ fn zone_input(ui: &Ui, zone: &Response, d: &Document, ev: &mut Events) {
 }
 
 /// The thumbnail grid (Thumbnail View and the Control bar's picker), `sel` outlined.
-fn tiles(app: &VectorcraftApp, ui: &mut Ui, s: &Shown, sel: &[String], ev: &mut Events) {
+fn tiles(app: &PlumaApp, ui: &mut Ui, s: &Shown, sel: &[String], ev: &mut Events) {
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
         for (i, g) in s.d.graphic_styles.iter().enumerate() {
@@ -388,7 +380,7 @@ fn tiles(app: &VectorcraftApp, ui: &mut Ui, s: &Shown, sel: &[String], ev: &mut 
 }
 
 /// The list views' rows (`row`: height and thumbnail side), `sel` highlighted.
-fn rows(app: &VectorcraftApp, ui: &mut Ui, s: &Shown, sel: &[String], row: (f32, f32), ev: &mut Events) {
+fn rows(app: &PlumaApp, ui: &mut Ui, s: &Shown, sel: &[String], row: (f32, f32), ev: &mut Events) {
     let t = Tokens::get(ui.ctx());
     let (h, side) = row;
     for (i, g) in s.d.graphic_styles.iter().enumerate() {
@@ -407,7 +399,7 @@ fn rows(app: &VectorcraftApp, ui: &mut Ui, s: &Shown, sel: &[String], row: (f32,
 }
 
 /// Run `cmd`, reporting a failure in the status bar.
-fn run(app: &mut VectorcraftApp, cmd: &str, params: Value) {
+fn run(app: &mut PlumaApp, cmd: &str, params: Value) {
     if let Err(e) = app.run(cmd, params) {
         app.status(e);
     }
@@ -415,7 +407,7 @@ fn run(app: &mut VectorcraftApp, cmd: &str, params: Value) {
 
 /// Act on what the tiles or rows saw. In the Control bar's `picker` every click applies the style
 /// and closes the menu.
-fn act(app: &mut VectorcraftApp, ui: &Ui, s: &Shown, ev: Events, picker: bool) {
+fn act(app: &mut PlumaApp, ui: &Ui, s: &Shown, ev: Events, picker: bool) {
     if let Some(i) = ev.large {
         large_preview(app, ui.ctx(), s, i);
     }
@@ -454,7 +446,7 @@ fn selected(ctx: &egui::Context, d: &Document) -> Vec<String> {
     sel
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     // The document is shared (an `Arc`): holding it while drawing copies nothing.
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else {
         super::empty_state(ui, "dc-graphic-styles", tl!("No document"), tl!("Open a document to see its graphic styles."));
@@ -509,7 +501,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// The thumbnail of style `name` in `r` (white when there is no such style): a dragged style's
 /// chip and the Control bar's Style chip.
-pub(crate) fn paint_style(app: &VectorcraftApp, ui: &Ui, r: Rect, name: &str) {
+pub(crate) fn paint_style(app: &PlumaApp, ui: &Ui, r: Rect, name: &str) {
     match app.session.active().and_then(|st| Some((&st.doc, st.doc.graphic_style_index(name)?))) {
         Some((d, i)) => Shown { d, looks: &look_hashes(ui.ctx(), app), preview: pstate(ui.ctx(), "gs-preview") }.paint(app, ui, r, i),
         None => {
@@ -519,13 +511,13 @@ pub(crate) fn paint_style(app: &VectorcraftApp, ui: &Ui, r: Rect, name: &str) {
 }
 
 /// The Control bar's Style chip: the style the selection is linked to (blank when it is not).
-pub(crate) fn paint_linked(app: &VectorcraftApp, ui: &Ui, r: Rect) {
+pub(crate) fn paint_linked(app: &PlumaApp, ui: &Ui, r: Rect) {
     let linked = app.session.selection_graphic_style().filter(|(_, linked)| *linked).map(|(g, _)| g.name.as_str());
     paint_style(app, ui, r, linked.unwrap_or_default());
 }
 
 /// The Control bar's Style picker menu: the style tiles; clicking one applies it to the selection.
-pub(crate) fn picker(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn picker(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     let looks = look_hashes(ui.ctx(), app);
     let shown = Shown { d: &doc, looks: &looks, preview: pstate(ui.ctx(), "gs-preview") };
@@ -536,7 +528,7 @@ pub(crate) fn picker(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// A new style from the selection, first asking for its name (`ask`) in Graphic Style Options.
-fn new_style(app: &mut VectorcraftApp, ask: bool) {
+fn new_style(app: &mut PlumaApp, ask: bool) {
     if ask {
         app.run("ui.graphicStyleOptions", json!({})).ok();
     } else {
@@ -545,7 +537,7 @@ fn new_style(app: &mut VectorcraftApp, ask: bool) {
 }
 
 /// Delete `names` after asking, or at once with `now` (Alt-click).
-fn delete(app: &mut VectorcraftApp, names: &[String], now: bool) {
+fn delete(app: &mut PlumaApp, names: &[String], now: bool) {
     let params = json!({ "names": names });
     if now {
         app.run("graphicStyle.delete", params).ok();
@@ -558,7 +550,7 @@ fn delete(app: &mut VectorcraftApp, names: &[String], now: bool) {
     crate::dialogs::confirm::ask(app, &message, tl!("Objects using them keep their look but are no longer linked."), "graphicStyle.delete", params);
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let doc = app.session.active().map(|d| d.doc.clone());
     let sel = doc.as_ref().map(|d| selected(ui.ctx(), d)).unwrap_or_default();
     let one = (sel.len() == 1).then(|| sel[0].clone());
@@ -677,7 +669,7 @@ fn describe(g: &GraphicStyle) -> String {
         n => Some(crate::i18n::tn(n as u64, "{n} stroke", "{n} strokes")),
     };
     let mut parts: Vec<String> = [count(true), count(false)].into_iter().flatten().collect();
-    let effects = ap.effects.iter().filter_map(|e| vectorcraft_render::effects::effect_info(&e.id));
+    let effects = ap.effects.iter().filter_map(|e| pluma_render::effects::effect_info(&e.id));
     parts.extend(effects.map(|e| e.label.trim_end_matches('…').to_string()));
     if g.opacity < 1.0 {
         parts.push(crate::i18n::fmt(tl!("{percent}% opacity"), &[("percent", &format!("{}", (g.opacity * 100.0).round()))]));
@@ -704,17 +696,17 @@ impl LibraryKind for GraphicStyleLibraries {
     type Lib = LibStyles;
     type Item = LibStyle;
 
-    fn list(app: &VectorcraftApp) -> Vec<LibraryRef> {
+    fn list(app: &PlumaApp) -> Vec<LibraryRef> {
         let libs = stylelib::libraries(&app.session).into_iter();
         libs.map(|l| LibraryRef { submenu: library_panel::submenu(l.category), id: l.id, name: l.name }).collect()
     }
-    fn get(app: &VectorcraftApp, id: &str) -> Option<(String, Self::Lib)> {
+    fn get(app: &PlumaApp, id: &str) -> Option<(String, Self::Lib)> {
         stylelib::library(&app.session, id).map(|(info, lib)| (info.name, shown_library(lib)))
     }
-    fn find(app: &VectorcraftApp, key: &str) -> Option<(String, String, usize)> {
+    fn find(app: &PlumaApp, key: &str) -> Option<(String, String, usize)> {
         stylelib::library(&app.session, key).map(|(info, lib)| (info.id, info.name, lib.len()))
     }
-    fn path(app: &VectorcraftApp, id: &str) -> Option<String> {
+    fn path(app: &PlumaApp, id: &str) -> Option<String> {
         app.session.style_libraries.path(id).map(str::to_string)
     }
     fn rows<'a>(lib: &'a Self::Lib, query: &str) -> Vec<Row<'a, LibStyle>> {
@@ -722,7 +714,7 @@ impl LibraryKind for GraphicStyleLibraries {
         lib.iter().filter(|s| found(&s.style().name)).map(|s| Row { name: &s.style().name, item: Some(s) }).collect()
     }
     /// The style on the Graphic Styles panel's preview shape.
-    fn draw(app: &VectorcraftApp, ui: &Ui, r: Rect, s: &LibStyle, selected: bool, hovered: bool) {
+    fn draw(app: &PlumaApp, ui: &Ui, r: Rect, s: &LibStyle, selected: bool, hovered: bool) {
         let paints = Paints { patterns: &s.lib.patterns, brushes: None };
         paint_thumb(app, ui, r, paints, s.style(), s.look, pstate(ui.ctx(), "gs-preview"));
         outline(ui, r, selected, hovered);
@@ -732,13 +724,13 @@ impl LibraryKind for GraphicStyleLibraries {
         describe(s.style())
     }
     /// Adds the style and applies it to the selection (Alt: on top of its appearance), as one step.
-    fn click(app: &mut VectorcraftApp, ui: &Ui, id: &str, name: &str) {
+    fn click(app: &mut PlumaApp, ui: &Ui, id: &str, name: &str) {
         run(app, "graphicStyle.addFromLibrary", json!({"library": id, "name": name, "apply": true, "add": alt_held(ui)}));
     }
-    fn add(app: &mut VectorcraftApp, id: &str, names: Vec<String>) {
+    fn add(app: &mut PlumaApp, id: &str, names: Vec<String>) {
         run(app, "graphicStyle.addFromLibrary", json!({"library": id, "names": names}));
     }
-    fn menu_tail(app: &mut VectorcraftApp, ui: &mut Ui) {
+    fn menu_tail(app: &mut PlumaApp, ui: &mut Ui) {
         ui.separator();
         // As a command, so its file dialog, shown off the UI thread, loads the library when it
         // answers.
@@ -757,18 +749,18 @@ impl LibraryKind for GraphicStyleLibraries {
 
 /// `window.graphicStyleLibrary {library}`: open a graphic style library in its own panel
 /// (`library` null closes every graphic style library panel).
-pub(crate) fn open_library(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn open_library(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     library_panel::open_command::<GraphicStyleLibraries>(app, p)
 }
 
 /// `graphicStyle.loadLibrary` params, then open the library in its panel.
-pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub(crate) fn load_library(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let r = app.run("graphicStyle.loadLibrary", params)?;
     open_library(app, &json!({ "library": r["library"] }))
 }
 
 /// Other Library…: load the library (or document) at `path`, else one picked in an open dialog.
-pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
+pub(crate) fn other_library(app: &mut PlumaApp, path: Option<String>) -> Result<Value, String> {
     match library_panel::pick_library_file(app, path, library_panel::library_pick_filters(GraphicStyleLibraries::KIND))? {
         Some(path) => load_library(app, json!({ "path": path })),
         None => Ok(Value::Null),
@@ -779,7 +771,7 @@ pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> R
 pub(crate) const USER_SLOT: &str = "window.userGraphicStyleLibrary";
 
 /// The User Defined library slot `id` (`window.userGraphicStyleLibrary3`) stands for.
-pub(crate) fn user_library(app: &VectorcraftApp, id: &str) -> Option<LibraryInfo> {
+pub(crate) fn user_library(app: &PlumaApp, id: &str) -> Option<LibraryInfo> {
     library_panel::user_slot(id, USER_SLOT, stylelib::libraries(&app.session))
 }
 
@@ -797,8 +789,7 @@ pub(crate) fn window_menu() -> Vec<Item> {
         "window.userGraphicStyleLibrary9",
         "window.userGraphicStyleLibrary10",
     ];
-    let open =
-        |b: &'static vectorcraft_doc::style_libs::BuiltinStyleLibrary| Item::Cmd(b.name, GraphicStyleLibraries::OPEN, json!({ "library": b.id }));
+    let open = |b: &'static pluma_doc::style_libs::BuiltinStyleLibrary| Item::Cmd(b.name, GraphicStyleLibraries::OPEN, json!({ "library": b.id }));
     let mut items: Vec<Item> = STYLE_LIBRARIES.iter().map(open).collect();
     items.extend([
         Item::Sep,
@@ -813,7 +804,7 @@ pub(crate) fn window_menu() -> Vec<Item> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     /// The texts `draw` paints in one headless frame with `events`.
     fn frame_with(ctx: &egui::Context, events: Vec<egui::Event>, draw: impl FnMut(&mut Ui)) -> Vec<String> {
@@ -836,14 +827,14 @@ mod tests {
         frame_with(ctx, vec![], draw)
     }
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap();
         app
     }
 
-    fn names(app: &VectorcraftApp) -> Vec<String> {
+    fn names(app: &PlumaApp) -> Vec<String> {
         app.session.active().unwrap().doc.graphic_styles.iter().map(|g| g.name.clone()).collect()
     }
 
@@ -885,7 +876,7 @@ mod tests {
     fn thumbnails_are_cached_by_look_and_rerendered_when_a_style_changes() {
         let mut app = app();
         let ctx = egui::Context::default();
-        let tex = |app: &VectorcraftApp, i: usize, preview: Preview| {
+        let tex = |app: &PlumaApp, i: usize, preview: Preview| {
             let d = app.session.active().unwrap().doc.clone();
             let looks = look_hashes(&ctx, app);
             thumb(app, &ctx, Paints::of(&d), &d.graphic_styles[i], looks[i], preview, TILE).unwrap().id()
@@ -958,7 +949,7 @@ mod tests {
         // A click on row `i` (Small List View: rows of 18 points, 3 apart) with `modifiers` held,
         // a second after the last one so that two clicks on a row are not a double-click.
         let mut time = 0.0;
-        let mut click = |app: &mut VectorcraftApp, i: usize, modifiers: egui::Modifiers| {
+        let mut click = |app: &mut PlumaApp, i: usize, modifiers: egui::Modifiers| {
             let at = pos2(60.0, 10.0 + 21.0 * i as f32);
             time += 1.0;
             for pressed in [true, false] {
@@ -973,7 +964,7 @@ mod tests {
             }
             selected(&ctx, &app.session.active().unwrap().doc.clone())
         };
-        let linked = |app: &VectorcraftApp| app.session.selection_graphic_style().map(|(g, _)| g.name.clone());
+        let linked = |app: &PlumaApp| app.session.selection_graphic_style().map(|(g, _)| g.name.clone());
         // A plain click applies the style and selects it alone.
         assert_eq!(click(&mut app, 0, egui::Modifiers::NONE), [n[0].clone()]);
         assert_eq!(linked(&app).as_ref(), Some(&n[0]));

@@ -138,7 +138,7 @@ fn every_depth_and_plane_layout_reads() {
 #[test]
 fn pcx_files_open_place_and_paste_at_their_resolution() {
     use crate::cmd::clipboard::{PASTE_ORDER, file_flavour};
-    let b64 = vectorcraft_format::base64_encode;
+    let b64 = pluma_format::base64_encode;
     let f = pcx(5, 8, 3, 0, (2, 1), 2, 144, &[], &rle(&[10, 20, 30, 40, 50, 60]));
     assert_eq!(ppi::resolution(&f), Some((144.0, 144.0)));
     assert_eq!(ppi::resolution(&pcx(5, 8, 3, 0, (2, 1), 2, 0, &[], &[])), None, "no resolution");
@@ -146,7 +146,7 @@ fn pcx_files_open_place_and_paste_at_their_resolution() {
     let mut s = Session::new();
     let r = s.execute("document.open", &json!({"name": "art.pcx", "dataBase64": b64(&f)})).unwrap();
     assert_eq!((&r["format"], &r["warnings"]), (&json!("pcx"), &json!([])), "{r}");
-    assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), vectorcraft_geom::Size::new(1.0, 0.5), "2 × 1 px at 144 ppi");
+    assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), pluma_geom::Size::new(1.0, 0.5), "2 × 1 px at 144 ppi");
     s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let r = s.execute("file.place", &json!({"name": "ART.PCX", "dataBase64": b64(&f)})).unwrap();
     assert_eq!((&r["format"], r["ids"].as_array().map(Vec::len)), (&json!("pcx"), Some(1)), "{r}");
@@ -189,7 +189,7 @@ fn damaged_and_unsupported_files_are_refused_with_a_message() {
     assert_eq!(message(&cut_palette), "the PCX file is cut short", "a palette cut short");
     assert_eq!(message(&[&gray[..], &[0x0c]].concat()), "the PCX file is cut short", "a marker alone");
     let mut s = Session::new();
-    let e = s.execute("document.open", &json!({"name": "a.pcx", "dataBase64": vectorcraft_format::base64_encode(&gray[..131])}));
+    let e = s.execute("document.open", &json!({"name": "a.pcx", "dataBase64": pluma_format::base64_encode(&gray[..131])}));
     assert!(e.expect_err("refused").to_string().contains("the PCX file is cut short"));
 
     // Planes and depths the manual doesn't define.

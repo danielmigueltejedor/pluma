@@ -1,10 +1,10 @@
 //! Flatten Transparency in CMYK documents composites inks, as the canvas shows them (M3.90).
 
+use pluma_color::{BlendMode, Color};
+use pluma_doc::{AppearanceItem, Node, NodeKind};
+use pluma_geom::{Point, Rect, Shape};
+use pluma_render::Renderer;
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color};
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind};
-use vectorcraft_geom::{Point, Rect, Shape};
-use vectorcraft_render::Renderer;
 
 use crate::*;
 
@@ -37,7 +37,7 @@ fn region_color(s: &Session, group: u64, p: Point) -> Color {
     f.paint.color().unwrap()
 }
 
-fn picture(s: &Session) -> vectorcraft_render::Rendered {
+fn picture(s: &Session) -> pluma_render::Rendered {
     Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 200.0), 1.0, true)
 }
 

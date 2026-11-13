@@ -131,26 +131,26 @@ pub(super) fn comparison_samples(doc: &Document) -> u32 {
 /// Render for the page check. The comparison scale bounds the long side to 400 px, so the
 /// extra samples stay bounded to 1600 px. Filter premultiplied channels, including alpha.
 pub(super) fn comparison_render(
-    renderer: &mut vectorcraft_render::Renderer,
+    renderer: &mut pluma_render::Renderer,
     doc: &Document,
     rect: Rect,
     scale: f64,
     samples: u32,
-) -> vectorcraft_render::Rendered {
+) -> pluma_render::Rendered {
     let rendered = renderer.render_region(doc, rect, scale * f64::from(samples), false);
     if samples == 1 {
         return rendered;
     }
-    let (width, height) = match vectorcraft_render::raster_size(rect, scale) {
+    let (width, height) = match pluma_render::raster_size(rect, scale) {
         Ok(size) => size,
         // A malformed region cannot provide a comparable raster.
         Err(_) => return rendered,
     };
     let Some(src) = image::RgbaImage::from_raw(rendered.width, rendered.height, rendered.pixels) else {
-        return vectorcraft_render::Rendered { width: 0, height: 0, pixels: Vec::new() };
+        return pluma_render::Rendered { width: 0, height: 0, pixels: Vec::new() };
     };
     let pixels = image::imageops::resize(&src, width, height, image::imageops::FilterType::Triangle).into_raw();
-    vectorcraft_render::Rendered { width, height, pixels }
+    pluma_render::Rendered { width, height, pixels }
 }
 
 /// The most pixels the pages of a frame are drawn in for a comparison, all of them together
@@ -166,7 +166,7 @@ pub(super) const MAX_PAGES_COMPARED: usize = 128;
 /// can't be drawn.
 pub(super) fn pixels_compared(page: Rect, samples: u32) -> u64 {
     let samples = u64::from(samples) * u64::from(samples);
-    vectorcraft_render::raster_size(page, compare_scale(page)).map_or(u64::MAX, |(w, h)| (u64::from(w) * u64::from(h)).saturating_mul(samples))
+    pluma_render::raster_size(page, compare_scale(page)).map_or(u64::MAX, |(w, h)| (u64::from(w) * u64::from(h)).saturating_mul(samples))
 }
 
 /// The longest side (pixels) of a sheet ([`Sheet`]).
@@ -177,11 +177,11 @@ const SHEET_SPREAD: f64 = 2.0;
 
 /// One page of the PDF part, drawn once.
 struct Page {
-    drawn: vectorcraft_render::Rendered,
+    drawn: pluma_render::Rendered,
     /// Where the page's own type is, in its pixels.
     page_type: Vec<Rect>,
     /// Where objects read with their art style lie, in its pixels: the page has Illustrator's
-    /// rendering of the style there, the layers VectorCraft's live effects, and the two aren't
+    /// rendering of the style there, the layers Pluma's live effects, and the two aren't
     /// held to look alike.
     restyled: Vec<Rect>,
     /// The column and row of its pixels that its move ([`Self::region`]) took partly off its area,
@@ -202,7 +202,7 @@ struct Page {
 impl Page {
     /// The area `ra` of `page`, `drawn` at `scale` ([`compare_scale`]), to be compared with the layers
     /// on `region`, both moved by (`dx`, `dy`) pixels from where the artboard and page lie.
-    fn on(page: &Document, drawn: vectorcraft_render::Rendered, ra: Rect, region: Rect, scale: f64, (dx, dy): (f64, f64)) -> Self {
+    fn on(page: &Document, drawn: pluma_render::Rendered, ra: Rect, region: Rect, scale: f64, (dx, dy): (f64, f64)) -> Self {
         let mut page_type = vec![];
         type_areas(&page.layers, ra, scale, &mut page_type);
         let (w, h) = (drawn.width as usize, drawn.height as usize);
@@ -316,7 +316,7 @@ impl Drawn {
 
 /// The layers drawn on one page's area, with how they differ from the page once weighed.
 struct Layered {
-    pixels: vectorcraft_render::Rendered,
+    pixels: pluma_render::Rendered,
     /// [`compared`] as [`PageView::difference_on_every_page`] weighs it, without and with `reflow`.
     laid: Option<Difference>,
     reflowed: Option<Difference>,
@@ -335,12 +335,12 @@ pub(super) struct PageView {
     boards: Vec<Rect>,
     sheets: Vec<Sheet>,
     samples: u32,
-    layers: vectorcraft_render::Renderer,
+    layers: pluma_render::Renderer,
     /// The drawings of the last [`KEPT_DOCUMENTS`] documents weighed, the last one weighed last (the
     /// import weighs two readings of a file back and forth).
     drawn: Vec<Drawn>,
     /// The drawings of the last document [`Self::weigh_without`] weighed, with their shares.
-    without: Vec<(usize, vectorcraft_render::Rendered, f64)>,
+    without: Vec<(usize, pluma_render::Rendered, f64)>,
     /// How many times the layers were drawn.
     draws: usize,
 }
@@ -375,14 +375,14 @@ impl PageView {
         }
         // Drawn on nothing and then seen on white: blending modes have no page to blend with, as in
         // the app that wrote the file.
-        let mut renderer = vectorcraft_render::Renderer::new();
+        let mut renderer = pluma_render::Renderer::new();
         let pages = planned
             .into_iter()
             .map(|(ra, region, scale, moved)| {
                 Page::on(frame.page, comparison_render(&mut renderer, frame.page, ra, scale, samples), ra, region, scale, moved)
             })
             .collect();
-        Self { pages, boards, sheets, samples, layers: vectorcraft_render::Renderer::new(), drawn: vec![], without: vec![], draws: 0 }
+        Self { pages, boards, sheets, samples, layers: pluma_render::Renderer::new(), drawn: vec![], without: vec![], draws: 0 }
     }
 
     /// The areas in the layers' document that the pages are compared on: `rb` for the first page,
@@ -408,7 +408,7 @@ impl PageView {
 
     /// `b`, as printed, drawn on the areas of the pages `wanted`: on their sheet when they are more
     /// than one and take at least half its pixels, else each on its own.
-    fn draw(&mut self, b: &Document, wanted: &[usize]) -> Vec<(usize, vectorcraft_render::Rendered)> {
+    fn draw(&mut self, b: &Document, wanted: &[usize]) -> Vec<(usize, pluma_render::Rendered)> {
         let mut out = vec![];
         for sheet in &self.sheets {
             let on: Vec<usize> = sheet.pages.iter().copied().filter(|i| wanted.contains(i)).collect();
@@ -425,7 +425,7 @@ impl PageView {
                 let r = page.region;
                 let part = whole
                     .as_ref()
-                    .zip(vectorcraft_render::raster_size(r, s).ok())
+                    .zip(pluma_render::raster_size(r, s).ok())
                     .and_then(|(whole, (w, h))| cut(whole, (r.x0 - sheet.rect.x0) * s, (r.y0 - sheet.rect.y0) * s, w, h));
                 let drawn = match part {
                     Some(part) => part,
@@ -573,7 +573,7 @@ impl PageView {
 }
 
 /// The `w` × `h` pixels of `from` from pixel (`x`, `y`): `None` unless they lie in it, from a pixel.
-fn cut(from: &vectorcraft_render::Rendered, x: f64, y: f64, w: u32, h: u32) -> Option<vectorcraft_render::Rendered> {
+fn cut(from: &pluma_render::Rendered, x: f64, y: f64, w: u32, h: u32) -> Option<pluma_render::Rendered> {
     let (rx, ry) = (x.round(), y.round());
     if !((x - rx).abs() < 0.01 && (y - ry).abs() < 0.01 && rx >= 0.0 && ry >= 0.0) {
         return None;
@@ -587,7 +587,7 @@ fn cut(from: &vectorcraft_render::Rendered, x: f64, y: f64, w: u32, h: u32) -> O
     for row in y..y + hu {
         pixels.extend_from_slice(from.pixels.get(row * stride + x * 4..row * stride + (x + wu) * 4)?);
     }
-    Some(vectorcraft_render::Rendered { width: w, height: h, pixels })
+    Some(pluma_render::Rendered { width: w, height: h, pixels })
 }
 
 /// The boxes (in the terms of the document drawn on `rb` at `scale` with `samples` × `samples`
@@ -601,7 +601,7 @@ fn patches(mut solid: Vec<bool>, w: usize, h: usize, rb: Rect, scale: f64, sampl
     // A pixel's size in points: [`comparison_render`] draws at `scale * samples`, rounds that
     // raster to whole pixels and resizes it to `w` × `h`, so the two sizes can round differently.
     let k = f64::from(samples);
-    let drawn = vectorcraft_render::raster_size(rb, scale * k).map_or((w as f64, h as f64), |(dw, dh)| (f64::from(dw), f64::from(dh)));
+    let drawn = pluma_render::raster_size(rb, scale * k).map_or((w as f64, h as f64), |(dw, dh)| (f64::from(dw), f64::from(dh)));
     let pitch = (drawn.0 / (w as f64 * k * scale), drawn.1 / (h as f64 * k * scale));
     let mut regions = vec![];
     let mut stack = vec![];
@@ -638,7 +638,7 @@ fn patches(mut solid: Vec<bool>, w: usize, h: usize, rb: Rect, scale: f64, sampl
 /// ([`differ_in_colour`]), type included and pixels in `skip` counting as alike: what taking an
 /// object out of the layers changes there, when it is covered by one of about the same lightness
 /// (#1102).
-fn colour_share(x: &vectorcraft_render::Rendered, y: &vectorcraft_render::Rendered, skip: &[Rect]) -> f64 {
+fn colour_share(x: &pluma_render::Rendered, y: &pluma_render::Rendered, skip: &[Rect]) -> f64 {
     if (y.width, y.height) != (x.width, x.height) {
         return 1.0;
     }
@@ -663,8 +663,8 @@ pub(super) fn difference(a: &Document, ra: Rect, b: &Document, rb: Rect) -> Diff
     let scale = compare_scale(ra);
     // A renderer each: the two documents' images can share their keys and not their pixels.
     let samples = comparison_samples(a);
-    let x = comparison_render(&mut vectorcraft_render::Renderer::new(), a, ra, scale, samples);
-    let y = comparison_render(&mut vectorcraft_render::Renderer::new(), b, rb, scale, samples);
+    let x = comparison_render(&mut pluma_render::Renderer::new(), a, ra, scale, samples);
+    let y = comparison_render(&mut pluma_render::Renderer::new(), b, rb, scale, samples);
     let mut areas = vec![];
     type_areas(&a.layers, ra, scale, &mut areas);
     type_areas(&b.layers, rb, scale, &mut areas);
@@ -675,13 +675,13 @@ pub(super) fn difference(a: &Document, ra: Rect, b: &Document, rb: Rect) -> Diff
 /// the type in `areas` (pixels), pixels in `skip` counting as alike. Pixels are compared by lightness, and by whether they are inked
 /// at all ([`differ`]): the page of an RGB document is written in the colours' CMYK equivalents,
 /// and what the comparison looks for is art that is missing or out of place.
-pub(super) fn compared(x: &vectorcraft_render::Rendered, y: &vectorcraft_render::Rendered, areas: &[Rect], skip: &[Rect]) -> Difference {
+pub(super) fn compared(x: &pluma_render::Rendered, y: &pluma_render::Rendered, areas: &[Rect], skip: &[Rect]) -> Difference {
     compared_with_solid(x, y, areas, skip).0
 }
 
 /// [`compared`], and which of the pixels (row by row) are counted in its `solid` share: none when
 /// the drawings can't be compared.
-fn compared_with_solid(x: &vectorcraft_render::Rendered, y: &vectorcraft_render::Rendered, areas: &[Rect], skip: &[Rect]) -> (Difference, Vec<bool>) {
+fn compared_with_solid(x: &pluma_render::Rendered, y: &pluma_render::Rendered, areas: &[Rect], skip: &[Rect]) -> (Difference, Vec<bool>) {
     if x.width == 0 || x.height == 0 || x.width != y.width || x.height != y.height {
         return (Difference { any: 1.0, art: 1.0, solid: 1.0, typed: 0.0 }, vec![]);
     }
@@ -888,7 +888,7 @@ const PAST_THE_PAGE: f64 = 1.0;
 pub(super) fn compare(frame: &Frame<'_>, view: &mut PageView, layered: &Document, type_reflow: bool) -> Result<Vec<String>, String> {
     let mut diff = view.difference_on_every_page(layered, frame.rect, type_reflow);
     if frame.whole
-        && let Some(art) = vectorcraft_render::encode::art_bounds(as_printed(layered).as_ref().unwrap_or(layered))
+        && let Some(art) = pluma_render::encode::art_bounds(as_printed(layered).as_ref().unwrap_or(layered))
             .filter(|a| !frame.rect.inflate(PAST_THE_PAGE, PAST_THE_PAGE).contains_rect(*a))
     {
         // The page and the art the layers print beyond it, each in its own document's place.
@@ -954,7 +954,7 @@ mod tests {
 
     /// A document with a 40-point gray square in each of `n` 100-point areas side by side, `gap`
     /// apart (the one in area `nudged` 20 points to the right), the areas, and the squares' ids.
-    fn squares(n: usize, gap: f64, nudged: Option<usize>) -> (Document, Vec<Rect>, Vec<vectorcraft_doc::NodeId>) {
+    fn squares(n: usize, gap: f64, nudged: Option<usize>) -> (Document, Vec<Rect>, Vec<pluma_doc::NodeId>) {
         let mut doc = Document::new(100.0, 100.0);
         let layer = doc.layers[0].id;
         let (mut areas, mut ids) = (vec![], vec![]);
@@ -968,18 +968,16 @@ mod tests {
     }
 
     /// A gray square on `rect` added to `layer` of `doc`: its id.
-    fn square(doc: &mut Document, layer: vectorcraft_doc::NodeId, rect: Rect) -> vectorcraft_doc::NodeId {
+    fn square(doc: &mut Document, layer: pluma_doc::NodeId, rect: Rect) -> pluma_doc::NodeId {
         filled(doc, layer, rect, 0.5)
     }
 
     /// A rectangle on `rect` filled with `k` black added to `layer` of `doc`: its id.
-    fn filled(doc: &mut Document, layer: vectorcraft_doc::NodeId, rect: Rect, k: f32) -> vectorcraft_doc::NodeId {
-        let paint = vectorcraft_color::Paint::solid(vectorcraft_color::Color::cmyk(0.0, 0.0, 0.0, k));
-        let appearance = vectorcraft_doc::Appearance {
-            items: vec![vectorcraft_doc::AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(paint))],
-            ..Default::default()
-        };
-        let node = Node::path(doc.alloc_id(), vectorcraft_geom::shapes::rectangle(rect), appearance);
+    fn filled(doc: &mut Document, layer: pluma_doc::NodeId, rect: Rect, k: f32) -> pluma_doc::NodeId {
+        let paint = pluma_color::Paint::solid(pluma_color::Color::cmyk(0.0, 0.0, 0.0, k));
+        let appearance =
+            pluma_doc::Appearance { items: vec![pluma_doc::AppearanceItem::Fill(pluma_doc::FillLayer::new(paint))], ..Default::default() };
+        let node = Node::path(doc.alloc_id(), pluma_geom::shapes::rectangle(rect), appearance);
         let id = node.id;
         doc.insert(Some(layer), 0, node).unwrap();
         id

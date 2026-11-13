@@ -1,6 +1,6 @@
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, Point, Rect, Vec2, shapes};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Node, NodeId, NodeKind, StrokeLayer};
+use pluma_geom::{Affine, BezPath, Point, Rect, Vec2, shapes};
 
 use super::*;
 
@@ -20,7 +20,7 @@ fn calli(angle: f64, roundness: f64, size: f64) -> Brush {
 }
 
 fn bounds(nodes: &[Node]) -> Rect {
-    nodes.iter().fold(None, |a, n| vectorcraft_geom::union_opt(a, n.geometric_bounds())).unwrap()
+    nodes.iter().fold(None, |a, n| pluma_geom::union_opt(a, n.geometric_bounds())).unwrap()
 }
 
 fn near(a: f64, b: f64, tol: f64) -> bool {
@@ -87,7 +87,7 @@ fn closed_calligraphic_makes_a_ring() {
     let out = stroke_pieces(&Document::new(1.0, 1.0), &calli(0.0, 100.0, 6.0), &bp, &stroke(1.0));
     let pd = out[0].path_data().unwrap();
     assert_eq!(pd.subpaths.len(), 2);
-    let poly_area = |sp: &vectorcraft_geom::SubPath| {
+    let poly_area = |sp: &pluma_geom::SubPath| {
         let a = &sp.anchors;
         (0..a.len()).map(|i| a[i].p.x * a[(i + 1) % a.len()].p.y - a[(i + 1) % a.len()].p.x * a[i].p.y).sum::<f64>() / 2.0
     };
@@ -847,7 +847,7 @@ fn tints_and_shades_of_black_ink_go_by_its_amount() {
 
 /// Point type at (0, 0) whose characters are painted `fill` and `stroke` (1 pt wide).
 fn type_art(fill: Paint, stroke: Paint) -> Node {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let style = CharStyle { fill, stroke, stroke_width: 1.0, ..CharStyle::default() };
     Node::new(NodeId(0), NodeKind::Text(Box::new(TextObject::point(Point::new(0.0, 0.0), "Ag", style))))
 }
@@ -1006,7 +1006,7 @@ fn half_width(nodes: &[Node], x0: f64, x1: f64) -> f64 {
 }
 
 fn pressed(points: Vec<(f64, f64)>) -> StrokeLayer {
-    StrokeLayer { pressure: Some(vectorcraft_doc::PressureProfile { points }), ..stroke(1.0) }
+    StrokeLayer { pressure: Some(pluma_doc::PressureProfile { points }), ..stroke(1.0) }
 }
 
 /// #852: with Size on Pressure the nib goes from size − variation at the lightest pressure to
@@ -1065,9 +1065,9 @@ fn pressure_varies_angle_and_roundness() {
 fn posed(tilt: Option<f64>, bearing: Option<f64>, rotation: Option<f64>) -> StrokeLayer {
     let flat = |v: f64| vec![(0.0, v), (1.0, v)];
     StrokeLayer {
-        tilt: tilt.map(|t| vectorcraft_doc::PressureProfile { points: flat(t) }),
-        bearing: bearing.map(|b| vectorcraft_doc::AngleProfile { points: flat(b) }),
-        rotation: rotation.map(|r| vectorcraft_doc::AngleProfile { points: flat(r) }),
+        tilt: tilt.map(|t| pluma_doc::PressureProfile { points: flat(t) }),
+        bearing: bearing.map(|b| pluma_doc::AngleProfile { points: flat(b) }),
+        rotation: rotation.map(|r| pluma_doc::AngleProfile { points: flat(r) }),
         ..stroke(1.0)
     }
 }
@@ -1084,7 +1084,7 @@ fn tilt_maps_to_roundness_along_the_stroke() {
         ..Default::default()
     };
     let b = Brush { name: "t".into(), kind: BrushKind::Calligraphic(c) };
-    let upright_to_flat = StrokeLayer { tilt: Some(vectorcraft_doc::PressureProfile { points: vec![(0.0, 0.0), (1.0, 1.0)] }), ..stroke(1.0) };
+    let upright_to_flat = StrokeLayer { tilt: Some(pluma_doc::PressureProfile { points: vec![(0.0, 0.0), (1.0, 1.0)] }), ..stroke(1.0) };
     let out = stroke_pieces(&Document::new(1.0, 1.0), &b, &line(0.0, 0.0, 100.0, 0.0), &upright_to_flat);
     // Upright: round (half 5); half way: roundness 50 (half 2.5); flat: a hairline.
     assert!(near(half_width(&out, 0.5, 1.5), 5.0, 0.1), "{}", half_width(&out, 0.5, 1.5));
@@ -1194,7 +1194,7 @@ fn scatter_values_follow_tilt_and_bearing() {
         stroke_pieces(&Document::new(1.0, 1.0), b, &bp, st).iter().map(|n| n.geometric_bounds().unwrap()).collect()
     };
     // Size on Tilt, 50 % to 300 %: upright at the start (12 pt tall), flat at the end (2 pt).
-    let upright_to_flat = StrokeLayer { tilt: Some(vectorcraft_doc::PressureProfile { points: vec![(0.0, 0.0), (1.0, 1.0)] }), ..stroke(1.0) };
+    let upright_to_flat = StrokeLayer { tilt: Some(pluma_doc::PressureProfile { points: vec![(0.0, 0.0), (1.0, 1.0)] }), ..stroke(1.0) };
     let h: Vec<f64> = boxes(&sized_scatter(50.0, 300.0, Variation::Tilt), &upright_to_flat).iter().map(Rect::height).collect();
     assert!(near(h[0], 12.0, 0.2) && h[h.len() - 1] < 3.0, "{h:?}");
     assert!(h.windows(2).all(|w| w[1] <= w[0] + 1e-9), "shrinks as the pen tips over: {h:?}");
@@ -1335,7 +1335,7 @@ fn art_brush_width_follows_the_pressure() {
         let mut bp = BezPath::new();
         bp.move_to((0.0, 0.0));
         bp.line_to((10.0, 0.0));
-        a.art = Node::path(NodeId(0), vectorcraft_geom::PathData::from_bezpath(&bp), Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 2.0));
+        a.art = Node::path(NodeId(0), pluma_geom::PathData::from_bezpath(&bp), Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 2.0));
     }
     for (st, want) in [(pressed(vec![(0.0, 0.0), (1.0, 0.0)]), 1.0), (pressed(vec![(0.0, 1.0), (1.0, 1.0)]), 6.0), (stroke(1.0), 3.5)] {
         let out = draw(&stroked, &st);
@@ -1450,17 +1450,17 @@ fn hue_shift_without_a_key_takes_the_most_used_art_color() {
 /// is left out, a pattern paint whose tile is brushed becomes no paint, and plain ones stay.
 #[test]
 fn pieces_leave_out_what_draws_a_brushed_stroke_by_name() {
-    use vectorcraft_doc::{PatternDef, Symbol};
+    use pluma_doc::{PatternDef, Symbol};
     let mut doc = Document::new(100.0, 100.0);
     let mut brushed = rect_art(10.0, 4.0);
-    brushed.appearance.items.push(vectorcraft_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("s".into()), ..stroke(1.0) }));
+    brushed.appearance.items.push(pluma_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("s".into()), ..stroke(1.0) }));
     for (name, art) in [("plain", rect_art(10.0, 4.0)), ("brushed", brushed)] {
         doc.symbols.push(Symbol { dynamic: false, name: name.into(), art: std::sync::Arc::new(art.clone()) });
         doc.patterns.push(PatternDef::new(name, vec![std::sync::Arc::new(art)]));
     }
-    let instance = |symbol: &str| Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: symbol.into(), xf: vectorcraft_geom::Affine::IDENTITY });
+    let instance = |symbol: &str| Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: symbol.into(), xf: pluma_geom::Affine::IDENTITY });
     let painted = |pattern: &str| {
-        let fill = Paint::Pattern { pattern: pattern.into(), xf: vectorcraft_geom::Affine::IDENTITY };
+        let fill = Paint::Pattern { pattern: pattern.into(), xf: pluma_geom::Affine::IDENTITY };
         Node::path(NodeId(0), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 4.0)), Appearance::basic(fill, Paint::None, 0.0))
     };
     let art = Node::group(NodeId(0), [instance("plain"), instance("brushed"), painted("plain"), painted("brushed")].map(std::sync::Arc::new).into());
@@ -1477,7 +1477,7 @@ fn pieces_leave_out_what_draws_a_brushed_stroke_by_name() {
         assert_eq!(symbols, ["plain"]);
         let fills: Vec<Paint> =
             children.iter().filter(|c| c.path_data().is_some()).filter_map(|c| c.appearance.fill().map(|f| f.paint.clone())).collect();
-        assert_eq!(fills, [Paint::Pattern { pattern: "plain".into(), xf: vectorcraft_geom::Affine::IDENTITY }, Paint::None]);
+        assert_eq!(fills, [Paint::Pattern { pattern: "plain".into(), xf: pluma_geom::Affine::IDENTITY }, Paint::None]);
     }
 }
 
@@ -1486,17 +1486,17 @@ fn pieces_leave_out_what_draws_a_brushed_stroke_by_name() {
 /// mask, without end), and a mask whose root symbol is plain stays.
 #[test]
 fn pieces_leave_out_a_mask_whose_root_draws_a_brushed_stroke() {
-    use vectorcraft_doc::{OpacityMask, Symbol};
+    use pluma_doc::{OpacityMask, Symbol};
     let mut doc = Document::new(100.0, 100.0);
     let mut brushed = rect_art(10.0, 4.0);
-    brushed.appearance.items.push(vectorcraft_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("s".into()), ..stroke(1.0) }));
+    brushed.appearance.items.push(pluma_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("s".into()), ..stroke(1.0) }));
     // A brush the library lacks draws a plain stroke: its mask stays.
     let mut unresolved = rect_art(10.0, 4.0);
-    unresolved.appearance.items.push(vectorcraft_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("missing".into()), ..stroke(1.0) }));
+    unresolved.appearance.items.push(pluma_doc::AppearanceItem::Stroke(StrokeLayer { brush: Some("missing".into()), ..stroke(1.0) }));
     for (name, art) in [("plain", rect_art(10.0, 4.0)), ("brushed", brushed), ("unresolved", unresolved)] {
         doc.symbols.push(Symbol { dynamic: false, name: name.into(), art: std::sync::Arc::new(art) });
     }
-    let instance = |symbol: &str| Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: symbol.into(), xf: vectorcraft_geom::Affine::IDENTITY });
+    let instance = |symbol: &str| Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: symbol.into(), xf: pluma_geom::Affine::IDENTITY });
     let masked = |symbol: &str| {
         let mut n = rect_art(10.0, 4.0);
         n.extras_mut().mask = Some(Box::new(OpacityMask::new(instance(symbol), true)));

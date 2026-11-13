@@ -1,7 +1,7 @@
 //! Composite fonts: each class of character set in its part's font.
 
 use crate::*;
-use vectorcraft_doc::{CharStyle, CompositeFont, TextRun};
+use pluma_doc::{CharStyle, CompositeFont, TextRun};
 
 /// Base (Kanji) Source Sans 3; Roman in JetBrains Mono at half size, raised by a tenth of the size;
 /// Numerals in Inter, scaled to 80% across; Kana scaled to 50% up from the center.
@@ -77,7 +77,7 @@ fn ruby_over_composite_type_is_set_in_its_own_parts() {
     let db = FontDb::with_font_dirs(vec![]);
     db.set_composite_font(&mixed("Ruby Parts"));
     let mut t = TextObject::point(Point::ZERO, "\u{56FD}", style("Ruby Parts", 20.0));
-    t.ruby = vec![vectorcraft_doc::text::RubySpan::new(0, 3, "A")];
+    t.ruby = vec![pluma_doc::text::RubySpan::new(0, 3, "A")];
     let l = layout(&db, &t);
     let fonts: Vec<u32> = l.ruby.iter().map(|g| g.font_id).collect();
     assert_eq!(fonts, [face_id(&db, "JetBrains Mono")]);
@@ -85,7 +85,7 @@ fn ruby_over_composite_type_is_set_in_its_own_parts() {
     // Over a Roman base (a 50% part), the reading is half the 20 pt type, scaled once by its part:
     // 5 pt, not the base's 10 pt halved twice.
     let mut t = TextObject::point(Point::ZERO, "A", style("Ruby Parts", 20.0));
-    t.ruby = vec![vectorcraft_doc::text::RubySpan::new(0, 1, "a")];
+    t.ruby = vec![pluma_doc::text::RubySpan::new(0, 1, "a")];
     let l = layout(&db, &t);
     let alone = layout(&db, &TextObject::point(Point::ZERO, "a", style("JetBrains Mono", 5.0)));
     assert_eq!(l.ruby.len(), 1);

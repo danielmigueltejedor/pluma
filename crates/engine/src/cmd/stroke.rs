@@ -1,11 +1,11 @@
 //! The Stroke panel: weight, cap, join, alignment, dashes, arrowheads, width profiles and brushes.
 //! With type selected it edits the characters' stroke (weight, cap, join, miter limit, dashes).
 
-use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{
+use pluma_color::{Color, Paint};
+use pluma_doc::{
     ArrowAlign, Arrowhead, CharStyle, Dash, LineCap, LineJoin, Node, NodeKind, SavedProfile, Scaling, StrokeAlign, StrokeLayer, Unit, WidthProfile,
 };
+use serde_json::{Value, json};
 
 use super::appearance::{ItemTarget, edit_items, item_target};
 use super::paint::painted;
@@ -202,7 +202,7 @@ impl StrokeChange {
 }
 
 /// Does a Stroke panel edit find nothing selected (and no `ids`)? It then sets up new art.
-fn no_targets(ids: &[vectorcraft_doc::NodeId], p: &Value) -> bool {
+fn no_targets(ids: &[pluma_doc::NodeId], p: &Value) -> bool {
     ids.is_empty() && p.get("ids").is_none() && p.get("id").is_none()
 }
 

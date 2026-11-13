@@ -13,8 +13,8 @@ mod measure;
 mod transform;
 mod wand;
 
-use vectorcraft_doc::{Document, NodeId, NodeKind};
-use vectorcraft_geom::{BezPath, Point, Rect, Shape};
+use pluma_doc::{Document, NodeId, NodeKind};
+use pluma_geom::{BezPath, Point, Rect, Shape};
 
 use crate::{Overlay, Tool};
 
@@ -52,7 +52,7 @@ pub const BLUE: [u8; 3] = [0x4a, 0x7c, 0xff];
 
 /// The reference-point target (circle + crosshair) drawn at `p`, `r` in document units.
 pub(crate) fn target_overlays(p: Point, r: f64) -> Vec<Overlay> {
-    let circle = vectorcraft_geom::kurbo::Circle::new(p, r * 0.6).to_path(0.05);
+    let circle = pluma_geom::kurbo::Circle::new(p, r * 0.6).to_path(0.05);
     vec![
         Overlay::Path { path: circle, color: CYAN, width: 1.0, dashed: false },
         Overlay::Line { a: Point::new(p.x - r, p.y), b: Point::new(p.x + r, p.y), color: CYAN, dashed: false },

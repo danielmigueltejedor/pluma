@@ -3,11 +3,11 @@
 //! color.
 use std::sync::Arc;
 
+use pluma_doc::color::{BlendMode, Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, FillLayer, Node, StrokeLayer};
+use pluma_geom::Rect;
+use pluma_three_d::{Bevel, BevelShape, ClassicShading, ClassicSurface, Extrude, Facet, Light};
 use serde_json::Value;
-use vectorcraft_doc::color::{BlendMode, Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, FillLayer, Node, StrokeLayer};
-use vectorcraft_geom::Rect;
-use vectorcraft_three_d::{Bevel, BevelShape, ClassicShading, ClassicSurface, Extrude, Facet, Light};
 
 use crate::util::{flag, num, text};
 
@@ -73,8 +73,8 @@ fn lights(p: &Value) -> Vec<([f64; 3], f64)> {
         return list.iter().map(|l| (l.direction(), l.intensity)).collect();
     }
     let light = Light {
-        rotation: num(p, "lightRotation", vectorcraft_three_d::DEFAULT_LIGHT.0),
-        height: num(p, "lightHeight", vectorcraft_three_d::DEFAULT_LIGHT.1),
+        rotation: num(p, "lightRotation", pluma_three_d::DEFAULT_LIGHT.0),
+        height: num(p, "lightHeight", pluma_three_d::DEFAULT_LIGHT.1),
         behind: flag(p, "lightBehind", false),
         ..Light::default()
     };
@@ -173,7 +173,7 @@ pub(super) fn surface(n: &Node, facets: Vec<Facet>, source: &Paint, opacity: f32
         .map(|face| {
             if wire {
                 let mut edge = StrokeLayer::new(paint.clone(), WIRE);
-                edge.join = vectorcraft_doc::LineJoin::Round;
+                edge.join = pluma_doc::LineJoin::Round;
                 return Arc::new(Node::path(n.id, face.path(), Appearance { items: vec![AppearanceItem::Stroke(edge)], ..Default::default() }));
             }
             let (tone, spec) = shading.tone(face.normal, &lights);
@@ -213,8 +213,8 @@ pub(super) fn surface(n: &Node, facets: Vec<Facet>, source: &Paint, opacity: f32
     group.blend = blend;
     if let Some(mask) = mask {
         let bounds = group.visual_bounds().unwrap_or(Rect::ZERO).inflate(1.0, 1.0);
-        let coverage = Node::path(n.id, vectorcraft_geom::shapes::rectangle(bounds), Appearance::basic(mask, Paint::None, 0.0));
-        group.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(coverage, true)));
+        let coverage = Node::path(n.id, pluma_geom::shapes::rectangle(bounds), Appearance::basic(mask, Paint::None, 0.0));
+        group.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(coverage, true)));
     }
     group
 }

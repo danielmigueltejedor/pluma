@@ -1,26 +1,26 @@
 [package]
-name = "vectorcraft-cad"
+name = "pluma-cad"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft CAD interchange: a hand-written ASCII DXF writer (R12 to 2018)"
+description = "Pluma CAD interchange: a hand-written ASCII DXF writer (R12 to 2018)"
 
 [lints]
 workspace = true
 
 [dependencies]
-vectorcraft-geom = { workspace = true }
-vectorcraft-color = { workspace = true }
-vectorcraft-doc = { workspace = true }
-vectorcraft-effects = { workspace = true }
-vectorcraft-brush = { workspace = true }
-vectorcraft-pathops = { workspace = true }
-vectorcraft-text = { workspace = true }
+pluma-geom = { workspace = true }
+pluma-color = { workspace = true }
+pluma-doc = { workspace = true }
+pluma-effects = { workspace = true }
+pluma-brush = { workspace = true }
+pluma-pathops = { workspace = true }
+pluma-text = { workspace = true }
 kurbo = { workspace = true }
 image = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 # The tests lay type out in the bundled fonts (the workspace leaves turning them on to the engine)
-# and in fonts built in code (`vectorcraft_text::test_fonts`).
-vectorcraft-text = { workspace = true, features = ["bundled-fonts", "test-fonts"] }
+# and in fonts built in code (`pluma_text::test_fonts`).
+pluma-text = { workspace = true, features = ["bundled-fonts", "test-fonts"] }

@@ -3,10 +3,10 @@
 //! zigzag below opened as a closed box. The file is written here from ISO 32000; it has no
 //! Illustrator editing data, so it opens from its PDF content as such an `.ai` does.
 
+use pluma_doc::NodeKind;
+use pluma_geom::SubPath;
+use pluma_testkit::pdf::{PdfPage, pdf};
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_geom::SubPath;
-use vectorcraft_testkit::pdf::{PdfPage, pdf};
 
 use crate::*;
 
@@ -17,7 +17,7 @@ const ZIGZAG: &str = "0 0 0 RG 2 w 80 38 m 80 21.75 l 60.571 29.875 l 40 21.75 l
 fn subpaths(name: &str, content: &str) -> Vec<SubPath> {
     let bytes = pdf(&[PdfPage::new(120.0, 60.0, content)], None);
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
     let mut out = vec![];
     s.doc().unwrap().doc.walk(|n| {
         if let NodeKind::Path { path, .. } = &n.kind {
