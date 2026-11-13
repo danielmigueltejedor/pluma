@@ -1,0 +1,106 @@
+# What `scripts/rebrand.py` renames: upstream's VectorCraft becomes Pluma, in file contents and in
+# paths. The weekly upstream sync applies the same rules to upstream's tree before merging it, so
+# a rule added here applies to everything upstream sends from then on.
+#
+# Replacements are literal and case-sensitive, applied in order: put the longer, more specific
+# ones first. Keep spans are found before any replacement, so a replacement never reaches inside
+# one.
+
+# Left as they are wherever they appear (in file contents and in paths).
+keep = [
+    # Links to upstream's issues, pull requests and commits, and to other people's repositories:
+    # history, not branding. Links to upstream's tree and repository page are renamed below.
+    "(https?://)?github\\.com/storytold/[\\w.-]+/(issues|pull|commit|discussions)/[^\\s)\\]\"'<>`]*",
+    "https?://(github\\.com|raw\\.githubusercontent\\.com)/(?!storytold/vectorcraft\\b|getnodalia|danielmigueltejedor)[^\\s)\\]\"'<>`]*",
+    # Upstream's issues named without a link (`storytold/vectorcraft#123`).
+    "storytold/vectorcraft#\\d+",
+    # Upstream's repository in the sync workflow and in the record of what came from it.
+    "(?<=UPSTREAM_REPO: )storytold/vectorcraft",
+    # The shared document-format library in getnodalia/foundation keeps its own crate name.
+    "craft[-_]vectorcraft[-_]format",
+    # The document file signature and extension: files saved under them must keep opening, in
+    # Pluma and in the test corpus. A file signature is not a name anyone reads.
+    "(?<!storyteller)\\.vectorcraft\\b(?![\\w-])",
+    # The native format's id in the command API and save dialogs (`{"format": "vectorcraft"}`),
+    # but not a crate, binary, settings folder or server name spelled the same way.
+    "(?<=[\"'`])(?<!name = \")(?<!InternalName\", \")(?<!VectorCraft\", \")(?<!&\")(?<!\\]\\[\"name\"\\], \")(?<!\\] == \")(?<!\\|\\| \")vectorcraft(?=[\"'`])",
+    "(?<=<string>)vectorcraft(?=</string>)",
+    # Credit for work done upstream.
+    "VectorCraft contributors",
+]
+
+# Files left alone entirely.
+skip = [
+    ".github/rebrand.toml",
+    "scripts/rebrand.py",
+    # Licence notices keep upstream's copyright line, which the licences require.
+    "NOTICE",
+    "LICENSE-*",
+    "licenses/*",
+    # The record of what came from upstream, and upstream's own README kept for reference.
+    "docs/upstream.md",
+    "docs/upstream-readme.md",
+]
+
+# Run after renaming: shorter names change how rustfmt wraps lines and sorts imports.
+after = [["cargo", "fmt", "--all"]]
+
+# Lines that keep this app's value when upstream's tree is rebranded (the sync passes --pin-from).
+[[pin]]
+file = "Cargo.toml"
+pattern = '^version = "[^"]*"'
+
+# Identity: app id, publisher, installer identities (a product of its own, never VectorCraft's).
+[[replace]]
+from = "ai.storyteller.vectorcraft"
+to = "dev.danielmiguelt.Pluma"
+
+[[replace]]
+from = "VectorCraft maintainers <vectorcraft@storyteller.ai>"
+to = "Nodalia <https://github.com/getnodalia/pluma/issues>"
+
+[[replace]]
+from = "Learning Machines LLC"
+to = "Nodalia"
+
+[[replace]]
+from = "601C6437-08AE-4645-ADCC-27F036C2EA2F"
+to = "0E78361F-E7B5-49CA-83E5-DC8FB914E33F"
+
+[[replace]]
+from = "0E8C6C5E-DE4A-4E1D-9DB0-44E8E38C2103"
+to = "F68B29BD-6EC8-4C3B-905B-0E0AA3499424"
+
+[[replace]]
+from = "498F2D4C-E655-47F6-B406-2D4C449B8D26"
+to = "DDF1CA1B-C3F5-46BC-B89D-77362CB6CE6A"
+
+# Where the app lives: its repository, releases, container images and web page.
+[[replace]]
+from = "ghcr.io/storytold/vectorcraft"
+to = "ghcr.io/getnodalia/pluma"
+
+[[replace]]
+from = "storytold/vectorcraft"
+to = "getnodalia/pluma"
+
+[[replace]]
+from = "getartcraft.com/apps/vectorcraft"
+to = "getnodalia.com/pluma"
+
+# The name, in every casing upstream uses.
+[[replace]]
+from = "VectorCraft"
+to = "Pluma"
+
+[[replace]]
+from = "Vectorcraft"
+to = "Pluma"
+
+[[replace]]
+from = "vectorcraft"
+to = "pluma"
+
+[[replace]]
+from = "VECTORCRAFT"
+to = "PLUMA"
