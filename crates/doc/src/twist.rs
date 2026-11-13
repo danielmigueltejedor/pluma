@@ -1,6 +1,7 @@
 //! The Twist effect's angle in saved documents. A positive angle turns clockwise on the page in
-//! Pluma 0.21.0 and later; earlier releases turned it counterclockwise. Documents of version
-//! 2 ([`TWIST_CLOCKWISE_SINCE`]) turn clockwise. Version 1 documents written before 0.21.0 have
+//! every Pluma release and in the releases of the app it grew from since 0.21.0; earlier ones turned
+//! it counterclockwise. Documents of version 2 ([`TWIST_CLOCKWISE_SINCE`]) turn clockwise. Version
+//! 1 documents written before those have
 //! their Twist angles negated when they open, so they draw as they were saved
 //! ([`Document::migrate_twist_angles`], [`written_clockwise`]), and a save for an earlier app
 //! negates them back ([`Document::store_legacy_twist_angles`]). Graphic style library files
@@ -20,20 +21,29 @@ pub const TWIST: &str = "distort.twist";
 /// The first document version whose Twist angles turn clockwise for a positive value.
 pub const TWIST_CLOCKWISE_SINCE: u32 = 2;
 
-/// The first release (major, minor) whose Twist turned clockwise for a positive angle.
+/// The first release (major, minor) of the app Pluma grew from whose Twist turned clockwise for a
+/// positive angle.
 const CLOCKWISE_RELEASE: (u64, u64) = (0, 21);
 
-/// Did the app named by a native file's `generator` (`"Pluma 0.21.0"`) turn Twist effects
-/// clockwise for a positive angle? It did from 0.21.0. Any other value, or none, is an earlier
-/// app (DrawCraft included).
+/// Did the app named by a native file's `generator` turn Twist effects clockwise for a positive
+/// angle? Every Pluma release did (`"Pluma 0.1.0"`). The app this one grew from did from 0.21.0
+/// (its files name it with [`LEGACY_GENERATOR`]). Any other value, or none, is an earlier app
+/// (DrawCraft included).
 pub fn written_clockwise(generator: Option<&str>) -> bool {
-    let Some(version) = generator.and_then(|g| g.strip_prefix("Pluma ")) else { return false };
+    let Some(generator) = generator else { return false };
+    if generator.strip_prefix("Pluma ").is_some_and(|v| v.split('.').next().is_some_and(|m| m.parse::<u64>().is_ok())) {
+        return true;
+    }
+    let Some(version) = generator.strip_prefix(LEGACY_GENERATOR) else { return false };
     let mut parts = version.split('.').map(|p| p.parse::<u64>().ok());
     match (parts.next().flatten(), parts.next().flatten()) {
         (Some(major), Some(minor)) => (major, minor) >= CLOCKWISE_RELEASE,
         _ => false,
     }
 }
+
+/// The `generator` prefix of files written before the app was called Pluma.
+const LEGACY_GENERATOR: &str = "VectorCraft "; // rebrand: keep
 
 /// The angle a Twist effect without a readable one draws with (`pluma-effects` reads a
 /// missing or unreadable `angle` as this).
