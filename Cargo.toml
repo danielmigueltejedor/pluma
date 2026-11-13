@@ -23,8 +23,8 @@ craft-window = { git = "https://github.com/getnodalia/foundation", rev = "9be9a6
 # The `.pluma` envelope: its members, version, embedded images and the data after the JSON.
 craft-vectorcraft-format = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # In-app updates from this app's GitHub releases, with the update windows for egui.
-nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "b4347ee4dcb549a8e759ef5b6cff8bc5f19e09bc", features = ["egui"] }
-nodalia-theme = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "b4347ee4dcb549a8e759ef5b6cff8bc5f19e09bc" }
+nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "d087bb41507aa5cb6af84b14060d63087ee21614", features = ["egui"] }
+nodalia-theme = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "d087bb41507aa5cb6af84b14060d63087ee21614" }
 # internal
 pluma-geom = { path = "crates/geom" }
 pluma-color = { path = "crates/color" }
