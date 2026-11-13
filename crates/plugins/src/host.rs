@@ -257,10 +257,13 @@ impl Deadline {
 
     pub(crate) fn passed(&self) -> bool {
         #[cfg(not(target_arch = "wasm32"))]
-        if std::time::Instant::now() >= self.at {
-            return true;
+        {
+            std::time::Instant::now() >= self.at
         }
-        false
+        #[cfg(target_arch = "wasm32")]
+        {
+            false
+        }
     }
 
     pub(crate) fn check(&self) -> Result<()> {
