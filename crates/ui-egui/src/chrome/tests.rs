@@ -2117,6 +2117,8 @@ fn the_control_bar_dock_command_takes_top_or_bottom() {
 #[test]
 fn menus_stop_above_a_control_bar_docked_at_the_bottom() {
     let mut app = crate::PlumaApp::new(Session::new(), Default::default());
+    // The bars show over a document: with none, Home fills the window instead.
+    app.run("file.new", serde_json::json!({"width": 400, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
     let floor = |app: &mut crate::PlumaApp, status: bool, bottom: bool, screen_mode: u8| {

@@ -50,6 +50,45 @@ pub(crate) fn heading(ui: &mut egui::Ui, text: &str) {
     // Not selectable: a drag on it moves the window instead of selecting its text.
     let r = ui.add(egui::Label::new(egui::RichText::new(text).font(theme::semibold(16.0)).color(t.text)).selectable(false));
     drag_band(ui, r.rect.bottom());
+    // Nodalia: the round close disc of the window controls, at the band's right end, added after
+    // the band so that it stays clickable. Placed against last frame's window, not laid out, so the
+    // dialog is as wide as its content. A click cancels the dialog (`dialogs::show` reads it on the
+    // next pass, as Escape would).
+    if t.nodalia {
+        let Some(outer) = ui.ctx().memory(|m| m.area_rect(ui.layer_id().id)) else { return };
+        // The label starts at the window's inner margin; the disc ends as far from the right edge.
+        let right = outer.right() - (r.rect.left() - outer.left()).max(0.0);
+        let rect = Rect::from_center_size(egui::pos2(right - CLOSE_SIZE / 2.0, r.rect.center().y), egui::vec2(CLOSE_SIZE, CLOSE_SIZE));
+        if crate::titlebar::ndl_close_button(ui, rect, ui.layer_id().id.with("heading-close")) {
+            ui.ctx().data_mut(|d| d.insert_temp(close_clicked_id(), true));
+        }
+    }
+}
+
+/// [`heading`] without the close disc, for a window that cannot be dismissed (a running export).
+pub(crate) fn plain_heading(ui: &mut egui::Ui, text: &str) {
+    let t = Tokens::get(ui.ctx());
+    let r = ui.add(egui::Label::new(egui::RichText::new(text).font(theme::semibold(16.0)).color(t.text)).selectable(false));
+    drag_band(ui, r.rect.bottom());
+}
+
+/// The side of a dialog's close disc.
+const CLOSE_SIZE: f32 = 24.0;
+
+/// A dialog's Nodalia close disc, laid out where `ui` puts it. Says whether it was clicked.
+pub(crate) fn close_button(ui: &mut egui::Ui) -> bool {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(CLOSE_SIZE, CLOSE_SIZE), egui::Sense::hover());
+    crate::titlebar::ndl_close_button(ui, rect, resp.id.with("close"))
+}
+
+/// Set for a pass when a dialog's close disc was clicked.
+pub(crate) fn close_clicked_id() -> Id {
+    Id::unique("dialog-close-clicked")
+}
+
+/// Whether a dialog's close disc was clicked since this was last asked.
+pub(crate) fn take_close_clicked(ctx: &egui::Context) -> bool {
+    ctx.data_mut(|d| d.remove_temp::<bool>(close_clicked_id())).unwrap_or(false)
 }
 
 /// Make the band of the dialog window [`show`] draws `ui` in, from its top edge down to `bottom`, a

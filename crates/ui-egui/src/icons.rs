@@ -1,14 +1,319 @@
-//! Icon lookup and drawing (SVGs rasterized by egui_extras, tinted with theme colours).
+//! Icon lookup and drawing. Every icon is Nodalia Design's ([`nodalia_theme::icons`]), drawn in
+//! NDL's bold style: SVGs built once from NDL's shapes, rasterized by egui_extras and tinted with
+//! theme colours. Pluma's code names an icon by its own name ([`NAMES`] maps it to NDL's).
 
 use std::sync::OnceLock;
 
 use craft_ui::icons::{SvgIconSet, SvgStyle};
 use egui::{Color32, ImageSource, Rect, Ui, Vec2};
+use nodalia_theme::icons as ndl;
+
+/// Every icon name Pluma uses, sorted, and the NDL icon that draws it.
+pub(crate) static NAMES: &[(&str, &str)] = &[
+    ("align-center-horizontal", "align-objects-middle"),
+    ("align-center-vertical", "align-objects-center"),
+    ("align-end-horizontal", "align-objects-bottom"),
+    ("align-end-vertical", "align-objects-right"),
+    ("align-horizontal-justify-start", "columns"),
+    ("align-start-horizontal", "align-objects-top"),
+    ("align-start-vertical", "align-objects-left"),
+    ("arrow-left-right", "arrows-horizontal"),
+    ("arrow-up-down", "arrows-vertical"),
+    ("blend", "blend"),
+    ("brush", "blob-brush"),
+    ("chart-column", "chart"),
+    ("chevron-down", "chevron-down"),
+    ("chevron-left", "chevron-left"),
+    ("chevron-right", "chevron-right"),
+    ("chevrons-left", "chevrons-left"),
+    ("chevrons-right", "chevrons-right"),
+    ("circle", "color-wheel"),
+    ("clipboard-paste", "paste"),
+    ("cloud", "cloud"),
+    ("combine", "merge-cells"),
+    ("copy", "copy"),
+    ("dc-actions", "actions"),
+    ("dc-al-bottom", "align-objects-bottom"),
+    ("dc-al-center", "align-objects-both"),
+    ("dc-al-hcenter", "align-objects-center"),
+    ("dc-al-left", "align-objects-left"),
+    ("dc-al-right", "align-objects-right"),
+    ("dc-al-top", "align-objects-top"),
+    ("dc-al-vcenter", "align-objects-middle"),
+    ("dc-align", "align-objects-left"),
+    ("dc-alignto-artboard", "align-to-artboard"),
+    ("dc-alignto-key", "align-to-key"),
+    ("dc-alignto-selection", "align-to-selection"),
+    ("dc-anchor", "anchor-point"),
+    ("dc-anchor-smooth", "anchor-smooth"),
+    ("dc-appearance", "appearance"),
+    ("dc-arc", "arc"),
+    ("dc-arrow-down", "arrow-down"),
+    ("dc-arrow-extend", "arrowhead-extend"),
+    ("dc-arrow-tip", "arrowhead-tip"),
+    ("dc-arrow-up", "arrow-up"),
+    ("dc-artboard-options", "artboard"),
+    ("dc-artboards", "artboards"),
+    ("dc-blend", "blend"),
+    ("dc-bloat", "bloat"),
+    ("dc-cap-butt", "cap-butt"),
+    ("dc-cap-round", "cap-round"),
+    ("dc-cap-square", "cap-square"),
+    ("dc-center-hide", "center-hide"),
+    ("dc-center-show", "center-show"),
+    ("dc-clear", "none"),
+    ("dc-color-guide", "color-guide"),
+    ("dc-contour", "contour"),
+    ("dc-crystallize", "crystallize"),
+    ("dc-cube", "wireframe"),
+    ("dc-dash-align", "dash-align"),
+    ("dc-dash-exact", "dash-exact"),
+    ("dc-dimension", "dimension"),
+    ("dc-dir-off", "rotate"),
+    ("dc-dir-on", "rotate-ccw"),
+    ("dc-direct", "select"),
+    ("dc-dist-bottom", "distribute-bottom"),
+    ("dc-dist-hcenter", "distribute-hcenter"),
+    ("dc-dist-hspace", "distribute"),
+    ("dc-dist-left", "distribute-left"),
+    ("dc-dist-right", "distribute-right"),
+    ("dc-dist-top", "distribute-top"),
+    ("dc-dist-vcenter", "distribute-vcenter"),
+    ("dc-dist-vspace", "distribute-vertical"),
+    ("dc-draw-behind", "draw-behind"),
+    ("dc-draw-inside", "draw-inside"),
+    ("dc-draw-normal", "draw-normal"),
+    ("dc-ellipse", "shape-ellipse"),
+    ("dc-filter", "filter"),
+    ("dc-flare", "flare"),
+    ("dc-folder", "folder"),
+    ("dc-free-transform", "transform"),
+    ("dc-fx", "effects"),
+    ("dc-gamut", "warning"),
+    ("dc-grad-freeform", "gradient-freeform"),
+    ("dc-grad-linear", "gradient"),
+    ("dc-grad-radial", "gradient-radial"),
+    ("dc-grad-stroke-across", "gradient-stroke-across"),
+    ("dc-grad-stroke-along", "gradient-stroke-along"),
+    ("dc-grad-stroke-within", "gradient-stroke-within"),
+    ("dc-gradient", "gradient"),
+    ("dc-graphic-styles", "graphic-styles"),
+    ("dc-grid-view", "grid-view"),
+    ("dc-group-select", "group-select"),
+    ("dc-join", "join"),
+    ("dc-join-bevel", "join-bevel"),
+    ("dc-join-miter", "join-miter"),
+    ("dc-join-round", "join-round"),
+    ("dc-knife", "knife"),
+    ("dc-line", "line"),
+    ("dc-line-cut", "cut-line"),
+    ("dc-list-view", "list-view"),
+    ("dc-live-bucket", "fill"),
+    ("dc-live-select", "live-select"),
+    ("dc-mask-none", "none"),
+    ("dc-measure", "measure"),
+    ("dc-mesh", "mesh-gradient"),
+    ("dc-mirror-cut", "cut-mirror"),
+    ("dc-new-fill", "fill-add"),
+    ("dc-new-item", "new-item"),
+    ("dc-new-stroke", "stroke-add"),
+    ("dc-objects-on-path", "objects-on-path"),
+    ("dc-options", "properties"),
+    ("dc-para-bullets", "list"),
+    ("dc-para-center", "align-center"),
+    ("dc-para-justify-all", "align-justify"),
+    ("dc-para-justify-center", "justify-center"),
+    ("dc-para-justify-left", "justify-left"),
+    ("dc-para-justify-right", "justify-right"),
+    ("dc-para-left", "align-left"),
+    ("dc-para-ltr", "text-ltr"),
+    ("dc-para-numbers", "list-numbers"),
+    ("dc-para-right", "align-right"),
+    ("dc-para-rtl", "text-rtl"),
+    ("dc-path-eraser", "path-eraser"),
+    ("dc-pathfinder", "pathfinder"),
+    ("dc-perspective", "perspective"),
+    ("dc-pf-crop", "pathfinder-crop"),
+    ("dc-pf-divide", "pathfinder-divide"),
+    ("dc-pf-exclude", "pathfinder-exclude"),
+    ("dc-pf-intersect", "pathfinder-intersect"),
+    ("dc-pf-merge", "pathfinder-merge"),
+    ("dc-pf-minus-back", "pathfinder-minus-back"),
+    ("dc-pf-minus-front", "pathfinder-minus-front"),
+    ("dc-pf-outline", "pathfinder-outline"),
+    ("dc-pf-trim", "pathfinder-trim"),
+    ("dc-pf-unite", "pathfinder-unite"),
+    ("dc-place-symbol", "symbol"),
+    ("dc-polar-grid", "polar-grid"),
+    ("dc-polygon", "polygon"),
+    ("dc-pucker", "pucker"),
+    ("dc-puppet", "puppet-warp"),
+    ("dc-rearrange", "rearrange"),
+    ("dc-rect-cut", "cut-rect"),
+    ("dc-rect-grid", "grid"),
+    ("dc-remove-brush", "brush-remove"),
+    ("dc-reshape", "reshape"),
+    ("dc-reverse", "reverse"),
+    ("dc-rotate-view", "rotate-view"),
+    ("dc-rounded-rect", "shape-rounded-rectangle"),
+    ("dc-rule-evenodd", "fill-rule-evenodd"),
+    ("dc-rule-nonzero", "fill-rule-nonzero"),
+    ("dc-scallop", "scallop"),
+    ("dc-screen-mode", "screen-mode"),
+    ("dc-selection", "select"),
+    ("dc-shape-builder", "shape-builder"),
+    ("dc-shear", "shear"),
+    ("dc-smooth", "smooth-path"),
+    ("dc-stroke", "stroke-weight"),
+    ("dc-stroke-center", "stroke-center"),
+    ("dc-stroke-inside", "stroke-inside"),
+    ("dc-stroke-outside", "stroke-outside"),
+    ("dc-swap", "swap"),
+    ("dc-swatch-kinds", "swatches"),
+    ("dc-symbol-sprayer", "symbol-sprayer"),
+    ("dc-touch-type", "touch-type"),
+    ("dc-transform-panel", "transform"),
+    ("dc-transparency", "opacity"),
+    ("dc-twirl", "twirl"),
+    ("dc-type", "text"),
+    ("dc-type-area", "text-box"),
+    ("dc-type-path", "type-path"),
+    ("dc-type-vertical", "type-vertical"),
+    ("dc-type-vertical-area", "type-vertical-area"),
+    ("dc-type-vertical-path", "type-vertical-path"),
+    ("dc-width", "width"),
+    ("dc-wrinkle", "wrinkle"),
+    ("dc-zoom-large", "mountain"),
+    ("dc-zoom-small", "mountain-small"),
+    ("ellipsis", "more-horizontal"),
+    ("eraser", "eraser"),
+    ("external-link", "undock"),
+    ("eye", "view"),
+    ("eye-off", "eye-off"),
+    ("file-plus", "new"),
+    ("flip-horizontal-2", "flip-vertical"),
+    ("flip-vertical-2", "flip"),
+    ("folder-open", "open"),
+    ("frame", "clip-mask"),
+    ("git-branch", "branch"),
+    ("globe", "globe"),
+    ("grid-3x3", "grid"),
+    ("group", "group"),
+    ("hand", "pan"),
+    ("hexagon", "polygon"),
+    ("history", "history"),
+    ("house", "home"),
+    ("image", "image"),
+    ("info", "info"),
+    ("keyboard", "keyboard"),
+    ("lasso", "lasso"),
+    ("layers", "layers"),
+    ("layout-grid", "guides"),
+    ("library", "library"),
+    ("link", "link"),
+    ("link-2-off", "link-off"),
+    ("lock", "lock"),
+    ("lock-open", "unlock"),
+    ("log-out", "log-out"),
+    ("map", "navigator"),
+    ("maximize-2", "fullscreen"),
+    ("menu", "menu"),
+    ("minus", "minus"),
+    ("monitor", "monitor"),
+    ("move", "move"),
+    ("move-diagonal-2", "resize"),
+    ("paint-bucket", "fill"),
+    ("paintbrush", "brush"),
+    ("palette", "palette"),
+    ("pen-tool", "pen"),
+    ("pen-tool-add", "pen-add"),
+    ("pen-tool-delete", "pen-remove"),
+    ("pencil", "pencil"),
+    ("pilcrow", "paragraph"),
+    ("pin", "pin"),
+    ("pipette", "eyedropper"),
+    ("plus", "plus"),
+    ("printer", "print"),
+    ("redo-2", "redo"),
+    ("rotate-ccw", "rotate"),
+    ("rotate-cw", "refresh"),
+    ("ruler", "ruler"),
+    ("save", "save"),
+    ("scaling", "scale"),
+    ("scissors", "cut"),
+    ("search", "search"),
+    ("settings", "settings"),
+    ("shapes", "shapes"),
+    ("share-2", "share"),
+    ("slice", "web-slice"),
+    ("sparkles", "sparkle"),
+    ("spline", "curvature"),
+    ("spline-pointer", "code"),
+    ("spray-can", "symbol-sprayer"),
+    ("square", "shape-rectangle"),
+    ("square-dashed", "marquee"),
+    ("squares-exclude", "pathfinder-exclude"),
+    ("squares-intersect", "pathfinder-intersect"),
+    ("squares-subtract", "pathfinder-minus-front"),
+    ("squares-unite", "pathfinder-unite"),
+    ("star", "star"),
+    ("sun", "sun"),
+    ("swatch-book", "swatches"),
+    ("text-cursor-input", "glyphs"),
+    ("tornado", "spiral"),
+    ("trash-2", "delete"),
+    ("triangle", "triangle"),
+    ("type", "text"),
+    ("undo-2", "undo"),
+    ("ungroup", "ungroup"),
+    ("wand-sparkles", "magic-wand"),
+    ("waves", "warp"),
+    ("x", "close"),
+    ("zoom-in", "zoom"),
+];
+
+/// The Selection tool's arrow is solid and Direct Selection's hollow, as users know them.
+const SOLID: &[&str] = &["dc-selection"];
+
+/// The NDL icon behind Pluma's `name`.
+pub fn ndl_name(name: &str) -> Option<&'static str> {
+    NAMES.binary_search_by(|(n, _)| (*n).cmp(name)).ok().and_then(|i| NAMES.get(i)).map(|(_, ndl)| *ndl)
+}
+
+/// A standalone SVG of `icon` in NDL's bold style. `solid` fills its outline.
+fn svg(icon: &ndl::Icon, solid: bool) -> String {
+    let mut body = String::new();
+    for part in icon.bold_body() {
+        if solid && !part.contains("fill=") {
+            body.push_str(&part.replacen("<path ", "<path fill=\"currentColor\" ", 1));
+        } else {
+            body.push_str(part);
+        }
+    }
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"{}\" stroke-linecap=\"round\" stroke-linejoin=\"round\">{body}</svg>",
+        ndl::BOLD_STROKE
+    )
+}
 
 fn table() -> &'static SvgIconSet {
     static T: OnceLock<SvgIconSet> = OnceLock::new();
     T.get_or_init(|| {
-        SvgIconSet::new(crate::icon_data::ICONS, SvgStyle { current_color: "white", stroke_width: Some("1.6") }, "bytes://icon/", "square-dashed")
+        // Built once for the life of the app; the set keeps borrowed bytes, so they are leaked.
+        let icons: Vec<(&'static str, &'static [u8])> = NAMES
+            .iter()
+            .filter_map(|(name, ndl_name)| {
+                let icon = ndl::get(ndl_name)?;
+                let bytes: &'static [u8] = Box::leak(svg(icon, SOLID.contains(name)).into_bytes().into_boxed_slice());
+                Some((*name, bytes))
+            })
+            .collect();
+        SvgIconSet::new(
+            Box::leak(icons.into_boxed_slice()),
+            SvgStyle { current_color: "white", stroke_width: None },
+            "bytes://ndl-icon/",
+            "square-dashed",
+        )
     })
 }
 
@@ -16,7 +321,7 @@ pub fn exists(name: &str) -> bool {
     table().contains(name)
 }
 
-/// Map tool-catalogue icon names to SVG files.
+/// Map tool-catalogue icon names to icon names.
 pub fn tool_icon(name: &str) -> &'static str {
     match name {
         "tool-selection" => "dc-selection",
@@ -61,7 +366,7 @@ pub fn tool_icon(name: &str) -> &'static str {
         "tool-line-cut" => "dc-line-cut",
         "tool-rect-cut" => "dc-rect-cut",
         "tool-rotate" => "rotate-ccw",
-        "tool-reflect" => "flip-horizontal-2",
+        "tool-reflect" => "flip-vertical-2",
         "tool-scale" => "scaling",
         "tool-shear" => "dc-shear",
         "tool-reshape" => "dc-reshape",
@@ -90,7 +395,7 @@ pub fn tool_icon(name: &str) -> &'static str {
         "tool-objects-on-path" => "dc-objects-on-path",
         "tool-symbol" => "dc-symbol-sprayer",
         "tool-graph" => "chart-column",
-        "tool-artboard" => "frame",
+        "tool-artboard" => "dc-artboard-options",
         "tool-slice" => "slice",
         "tool-hand" => "hand",
         "tool-rotate-view" => "dc-rotate-view",
@@ -110,19 +415,8 @@ pub fn source(name: &str) -> ImageSource<'static> {
     table().source(name)
 }
 
-/// Paint icon `name` into `rect` tinted with `tint`. The Selection and Direct Selection arrows are
-/// black and white whatever the theme, as users know them (a light theme colour would make the
-/// Selection arrow look like Direct Selection's): their fill is painted first, then their outline
-/// in `tint`.
+/// Paint icon `name` into `rect` tinted with `tint`.
 pub fn paint(ui: &Ui, name: &str, rect: Rect, tint: Color32) {
-    let fill = match name {
-        "dc-selection" => Some(Color32::BLACK),
-        "dc-direct" => Some(Color32::WHITE),
-        _ => None,
-    };
-    if let Some(fill) = fill {
-        egui::Image::new(source("dc-arrow-fill")).tint(fill).fit_to_exact_size(rect.size()).paint_at(ui, rect);
-    }
     egui::Image::new(source(name)).tint(tint).fit_to_exact_size(rect.size()).paint_at(ui, rect);
 }
 
@@ -137,103 +431,68 @@ pub fn icon(ui: &mut Ui, name: &str, size: f32, tint: Color32) -> egui::Response
 mod tests {
     use super::*;
 
-    /// The tints of the images `name` paints, bottom first.
-    fn tints(name: &str, tint: Color32) -> Vec<Color32> {
-        let ctx = egui::Context::default();
-        egui_extras::install_image_loaders(&ctx);
-        let draw = |ui: &mut Ui| paint(ui, name, Rect::from_min_size(egui::Pos2::ZERO, Vec2::splat(24.0)), tint);
-        // The first frame loads the images; the second draws them.
-        ctx.run_ui(egui::RawInput::default(), draw).textures_delta.clear();
-        let mut out = ctx.run_ui(egui::RawInput::default(), draw);
-        out.textures_delta.clear();
-        out.shapes
-            .iter()
-            .filter_map(|s| match &s.shape {
-                egui::Shape::Mesh(m) => m.vertices.first().map(|v| v.color),
-                egui::Shape::Rect(r) if r.brush.is_some() => Some(r.fill),
-                _ => None,
-            })
-            .collect()
+    fn svg_of(name: &str) -> String {
+        let ImageSource::Bytes { bytes, .. } = source(name) else { panic!("expected SVG bytes") };
+        String::from_utf8_lossy(bytes.as_ref()).into_owned()
     }
 
-    /// The Selection arrow is black and Direct Selection's white in every theme (a reported swap
-    /// in the dark themes), under an outline in the theme's colour; other icons are one layer.
+    /// Every icon Pluma names is drawn by NDL, in its bold style, tinted at draw time.
     #[test]
-    fn the_selection_arrows_are_black_and_white_under_the_theme_outline() {
-        let light = Color32::from_gray(220);
-        assert_eq!(tints("dc-selection", light), [Color32::BLACK, light]);
-        assert_eq!(tints("dc-direct", light), [Color32::WHITE, light]);
-        assert_eq!(tints("dc-group-select", light), [light]);
-    }
-
-    /// Characterize the pre-extraction loader against every embedded asset, including custom
-    /// icons. A shared-crate update must not silently change our stroke weight or cache keys.
-    #[test]
-    fn shared_catalog_preserves_existing_icons() {
-        for (name, original) in crate::icon_data::ICONS {
-            let expected = String::from_utf8_lossy(original).replace("currentColor", "white").replace("stroke-width=\"2\"", "stroke-width=\"1.6\"");
-            let ImageSource::Bytes { uri, bytes } = source(name) else { panic!("expected SVG bytes") };
-            assert_eq!(uri.as_ref(), format!("bytes://icon/{name}.svg"));
-            assert_eq!(bytes.as_ref(), expected.as_bytes(), "{name}");
-            assert!(exists(name));
+    fn every_icon_is_an_ndl_icon_in_the_bold_style() {
+        assert!(NAMES.windows(2).all(|w| w[0].0 < w[1].0), "NAMES is sorted and unique");
+        for (name, ndl_name) in NAMES {
+            assert!(ndl::get(ndl_name).is_some(), "{name} maps to {ndl_name}, which NDL does not draw");
+            assert!(exists(name), "{name}");
+            let ImageSource::Bytes { uri, .. } = source(name) else { panic!("expected SVG bytes") };
+            assert_eq!(uri.as_ref(), format!("bytes://ndl-icon/{name}.svg"));
+            let svg = svg_of(name);
+            assert!(svg.contains(&format!("stroke-width=\"{}\"", ndl::BOLD_STROKE)) && !svg.contains("currentColor"), "{name}");
             assert_eq!(tool_icon(name), *name);
         }
     }
 
-    /// Appearance (effects) and Pathfinder both lived in the icon column; they used the same
-    /// overlapping-squares motif (storytold/vectorcraft#2681).
+    /// Selection's arrow is solid and Direct Selection's hollow: the same NDL arrow, so the two
+    /// read as one family and differ only by the fill.
     #[test]
-    fn appearance_panel_icon_is_not_the_pathfinder_icon() {
-        let appearance = String::from_utf8_lossy(include_bytes!("../../../assets/icons/dc-appearance.svg"));
-        let pathfinder = String::from_utf8_lossy(include_bytes!("../../../assets/icons/dc-pathfinder.svg"));
-        assert_ne!(appearance.as_bytes(), pathfinder.as_bytes());
-        assert!(appearance.contains("<circle") && !pathfinder.contains("<circle"), "appearance should read as a list, not overlapping squares");
+    fn the_selection_arrow_is_solid_and_direct_selection_hollow() {
+        assert_eq!(ndl_name("dc-selection"), ndl_name("dc-direct"));
+        assert!(svg_of("dc-selection").contains("<path fill=\"white\""));
+        assert!(!svg_of("dc-direct").contains("fill=\"white\""));
     }
 
-    // Regression test for #479: the Add and Delete Anchor Point tools' icons were drawn apart from
-    // the Pen tool's, so the three tools didn't read as one family. They are the Pen's pen with a
-    // plus or a minus beside it.
+    /// Appearance (effects) and Pathfinder both lived in the icon column with the same motif
+    /// (storytold/vectorcraft#2681): they stay different icons.
     #[test]
-    fn the_add_and_delete_anchor_tool_icons_are_the_pen_icon_with_a_badge() {
-        let svg = |tool: &str| {
-            let name = tool_icon(tool);
-            let (_, bytes) =
-                crate::icon_data::ICONS.iter().find(|(n, _)| *n == name).unwrap_or_else(|| panic!("{tool} maps to {name}, which isn't an icon"));
-            String::from_utf8_lossy(bytes).into_owned()
-        };
-        let shapes =
-            |svg: &str| svg.lines().map(|l| l.trim().to_string()).filter(|l| l.starts_with("<path") || l.starts_with("<circle")).collect::<Vec<_>>();
-        let pen = shapes(&svg("tool-pen"));
-        assert!(!pen.is_empty(), "the Pen's icon has shapes");
-        let (add, delete) = (shapes(&svg("tool-pen-add")), shapes(&svg("tool-pen-delete")));
-        for (tool, icon) in [("tool-pen-add", &add), ("tool-pen-delete", &delete)] {
-            for shape in &pen {
-                assert!(icon.contains(shape), "{tool}'s icon lacks the Pen's {shape}");
-            }
-            assert!(icon.len() > pen.len(), "{tool}'s icon has a badge of its own");
-        }
+    fn appearance_panel_icon_is_not_the_pathfinder_icon() {
+        assert_ne!(ndl_name("dc-appearance"), ndl_name("dc-pathfinder"));
+    }
+
+    // Regression test for #479: the Add and Delete Anchor Point tools' icons read as one family:
+    // the same pen, with a plus or a minus beside it.
+    #[test]
+    fn the_add_and_delete_anchor_tool_icons_are_one_pen_with_a_badge() {
+        let body = |tool: &str| ndl::get(ndl_name(tool_icon(tool)).unwrap_or_default()).map(|i| i.body).unwrap_or_default();
+        let (add, delete) = (body("tool-pen-add"), body("tool-pen-delete"));
+        assert!(!delete.is_empty());
+        assert_eq!(add[..delete.len() - 1], delete[..delete.len() - 1], "the same pen");
         assert_ne!(add, delete, "plus and minus differ");
     }
 
-    /// The seven type tools each have an icon of their own, drawn for Pluma (the vertical
-    /// Area and Path tools used to borrow the horizontal ones' icons).
+    /// The seven type tools each have an icon of their own.
     #[test]
-    fn every_type_tool_has_its_own_icon_with_the_same_t() {
+    fn every_type_tool_has_its_own_icon() {
         let tools = ["type", "areaType", "typeOnPath", "verticalType", "verticalAreaType", "verticalTypeOnPath", "touchType"];
-        let names: Vec<&str> = tools.iter().map(|id| tool_icon(pluma_tools::catalog::tool_info(id).unwrap().icon)).collect();
+        let names: Vec<_> = tools.iter().map(|id| ndl_name(tool_icon(pluma_tools::catalog::tool_info(id).unwrap().icon))).collect();
         let unique: std::collections::BTreeSet<_> = names.iter().collect();
         assert_eq!(unique.len(), tools.len(), "{names:?}");
-        for name in &names {
-            assert!(name.starts_with("dc-"), "{name} is drawn for Pluma");
-            assert!(exists(name), "{name}");
-        }
+        assert!(names.iter().all(Option::is_some), "{names:?}");
     }
 
     #[test]
-    fn shared_catalog_preserves_fallback_and_tool_aliases() {
+    fn missing_icons_fall_back_and_tool_aliases_resolve() {
         let ImageSource::Bytes { uri, bytes } = source("missing-icon") else { panic!("expected SVG bytes") };
         let ImageSource::Bytes { bytes: fallback, .. } = source("square-dashed") else { panic!("expected SVG bytes") };
-        assert_eq!(uri.as_ref(), "bytes://icon/missing-icon.svg");
+        assert_eq!(uri.as_ref(), "bytes://ndl-icon/missing-icon.svg");
         assert_eq!(bytes.as_ref(), fallback.as_ref());
         assert!(!exists("missing-icon"));
         assert_eq!(tool_icon("missing-icon"), "square-dashed");

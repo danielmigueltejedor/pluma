@@ -1,25 +1,20 @@
 //! Project links (About, Home): Pluma's page on the Nodalia website and its source code.
-//! Icons are Lucide's (ISC).
+//! Icons are Nodalia Design's.
 
 use egui::Ui;
 
 use crate::theme::Tokens;
 use crate::{PlumaApp, icons};
 
-/// One link row: icon, label, opens the command's URL. `centered` drops the icon so the label
-/// alone sits in the middle of the column.
-fn link(app: &mut PlumaApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str, centered: bool) {
+/// One link row: icon, label, opens the command's URL.
+fn link(app: &mut PlumaApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str) {
     let t = Tokens::get(ui.ctx());
-    let button = |ui: &mut Ui| ui.add(egui::Button::new(egui::RichText::new(label).color(t.accent).size(13.0)).frame(false)).on_hover_text(url);
-    let r = if centered {
-        button(ui)
-    } else {
-        ui.horizontal(|ui| {
+    let r = ui
+        .horizontal(|ui| {
             icons::icon(ui, icon, 16.0, t.icon);
-            button(ui)
+            ui.add(egui::Button::new(egui::RichText::new(label).color(t.accent).size(13.0)).frame(false)).on_hover_text(url)
         })
-        .inner
-    };
+        .inner;
     if r.clicked() {
         app.open_link(cmd);
     }
@@ -27,19 +22,10 @@ fn link(app: &mut PlumaApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url
 
 /// The website and GitHub links.
 pub fn links(app: &mut PlumaApp, ui: &mut Ui) {
-    links_in(app, ui, false);
-}
-
-/// [`links`] for a centred column (the Home screen's): each link in the middle.
-pub fn links_centered(app: &mut PlumaApp, ui: &mut Ui) {
-    links_in(app, ui, true);
-}
-
-fn links_in(app: &mut PlumaApp, ui: &mut Ui, centered: bool) {
     let l = app.session.execute("help.links", &serde_json::json!({})).unwrap_or_default();
     let s = |k: &str| l[k].as_str().unwrap_or("").to_string();
-    link(app, ui, "globe", tl!("Pluma Website"), "help.website", &s("website"), centered);
-    link(app, ui, "git-branch", tl!("Source code on GitHub"), "help.github", &s("github"), centered);
+    link(app, ui, "globe", tl!("Pluma Website"), "help.website", &s("website"));
+    link(app, ui, "git-branch", tl!("Source code on GitHub"), "help.github", &s("github"));
 }
 
 #[cfg(test)]

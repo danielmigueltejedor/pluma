@@ -584,16 +584,22 @@ impl PlumaApp {
         } else {
             ui
         };
-        if self.ui.screen_mode < 2 && self.ui.control_bar {
+        // A document that opened, closed or became active since Home was chosen replaces it.
+        if self.ui.home.is_some_and(|k| k != menus::home_key(self)) {
+            self.ui.home = None;
+        }
+        // Home hides the tools, the bars and the panels: it fills the window under the app bar.
+        let home = menus::home_showing(self);
+        if self.ui.screen_mode < 2 && self.ui.control_bar && !home {
             chrome::control_bar(self, ui);
         }
-        if self.ui.status_bar && self.ui.screen_mode < 3 {
+        if self.ui.status_bar && self.ui.screen_mode < 3 && !home {
             chrome::status_bar(self, ui);
         }
-        if self.ui.help_bar && self.ui.screen_mode < 3 {
+        if self.ui.help_bar && self.ui.screen_mode < 3 && !home {
             chrome::hint_bar(self, ui);
         }
-        if (self.ui.screen_mode >= 3 || (!self.ui.status_bar && !self.ui.help_bar))
+        if (self.ui.screen_mode >= 3 || home || (!self.ui.status_bar && !self.ui.help_bar))
             && !(self.ui.control_bar && self.ui.control_bar_bottom && self.ui.screen_mode < 2)
         {
             // Keeps the previous frame's value valid for menus drawn above, before the bars. A
@@ -609,7 +615,12 @@ impl PlumaApp {
         }
         // Beside the canvas, docked Tools draws inside the canvas panel (`toolbar::show_beside_canvas`).
         // So does Tools docked on the right, left of the panels.
-        if self.ui.toolbar && self.ui.screen_mode < 3 && ((!self.ui.tools_beside_canvas && !self.ui.toolbar_right) || self.ui.toolbar_pos.is_some()) {
+        if home {
+            // Nothing: Home is up.
+        } else if self.ui.toolbar
+            && self.ui.screen_mode < 3
+            && ((!self.ui.tools_beside_canvas && !self.ui.toolbar_right) || self.ui.toolbar_pos.is_some())
+        {
             toolbar::show(self, ui);
         } else if !self.ui.toolbar && self.ui.screen_mode < 3 && self.ui.tab_hid.is_none() {
             // Window › Tools hides the Tools panel alone; Tab hides the toolbars made with New
@@ -619,7 +630,16 @@ impl PlumaApp {
         panels::library_panel::tidy(self);
         // The canvas and the panels: one docking layout. Tab hides the panels but not the canvas.
         let backdrop = if islands { t.app_bar } else { t.pasteboard };
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(backdrop)).show(ui, |ui| panel_docking::show(self, ui));
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(backdrop)).show(ui, |ui| {
+            if home {
+                if islands {
+                    ui.add_space(theme::ISLAND_GAP);
+                }
+                canvas::home_screen(self, ui);
+            } else {
+                panel_docking::show(self, ui);
+            }
+        });
         crate::doc_windows::show(self, &ctx);
         dialogs::show(self, &ctx);
         updates_ui::show(self, &ctx);

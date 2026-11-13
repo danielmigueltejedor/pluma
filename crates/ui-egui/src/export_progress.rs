@@ -122,7 +122,7 @@ pub fn window(ctx: &egui::Context, id: &str, heading: &str, body: impl FnOnce(&m
     let mut pressed = None;
     modal::show(ctx, heading, egui::Id::unique(id), -40.0, 20, |ui| {
         ui.set_width(360.0);
-        modal::heading(ui, heading);
+        modal::plain_heading(ui, heading);
         ui.add_space(12.0);
         body(ui);
         ui.add_space(16.0);
