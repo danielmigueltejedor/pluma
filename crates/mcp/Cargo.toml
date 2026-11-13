@@ -1,33 +1,33 @@
 [package]
-name = "vectorcraft-mcp"
+name = "pluma-mcp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft MCP server: JSON-RPC 2.0 over stdio, driving a running app or a headless session"
+description = "Pluma MCP server: JSON-RPC 2.0 over stdio, driving a running app or a headless session"
 
 [lints]
 workspace = true
 
 [features]
 default = ["bundled-fonts"]
-# The fonts vectorcraft-text bundles for documents, through the engine's `bundled-fonts`, as
-# vectorcraft-ui-egui's. Off, for an embedder that supplies every document font at run time.
-bundled-fonts = ["vectorcraft-engine/bundled-fonts"]
+# The fonts pluma-text bundles for documents, through the engine's `bundled-fonts`, as
+# pluma-ui-egui's. Off, for an embedder that supplies every document font at run time.
+bundled-fonts = ["pluma-engine/bundled-fonts"]
 
 [dependencies]
-vectorcraft-engine = { workspace = true }
-vectorcraft-render = { workspace = true }
-vectorcraft-svg = { workspace = true }
-vectorcraft-format = { workspace = true }
-vectorcraft-tools = { workspace = true }
-vectorcraft-geom = { workspace = true }
-vectorcraft-doc = { workspace = true }
+pluma-engine = { workspace = true }
+pluma-render = { workspace = true }
+pluma-svg = { workspace = true }
+pluma-format = { workspace = true }
+pluma-tools = { workspace = true }
+pluma-geom = { workspace = true }
+pluma-doc = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
 
 image = { workspace = true }
 
 [dev-dependencies]
-vectorcraft-testkit = { workspace = true }
+pluma-testkit = { workspace = true }
 proptest = { workspace = true }
 socket2 = { workspace = true }

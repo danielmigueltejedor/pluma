@@ -19,7 +19,7 @@ use super::document_setup::check;
 use super::{DialogSpec, form, run_and_close};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of the freehand tools' Tool Options.
 pub const KIND: &str = "freehandOptions";
@@ -112,12 +112,12 @@ fn fidelity_from(x: f32, (min, max): (f64, f64)) -> f64 {
 }
 
 fn heading(d: &Dialog) -> String {
-    let label = vectorcraft_tools::tool_info(&d.str("tool")).map_or("", |t| t.label);
+    let label = pluma_tools::tool_info(&d.str("tool")).map_or("", |t| t.label);
     crate::i18n::fmt(tl!("{tool} Options"), &[("tool", tl!(label))])
 }
 
 /// Open the options of freehand tool `tool` with their current values.
-pub fn open(app: &mut VectorcraftApp, tool: &str) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, tool: &str) -> Result<Value, String> {
     if !TOOLS.contains(&tool) {
         return Err(format!("`{tool}` isn't a freehand tool"));
     }
@@ -168,7 +168,7 @@ fn fidelity(ui: &mut egui::Ui, d: &mut Dialog) {
     let t = Tokens::get(ui.ctx());
     let v = d.f64("fidelity", 1.5);
     let tool = d.str("tool");
-    let rail = (vectorcraft_tools::draw2::min_fidelity(&tool), FIDELITY_MAX);
+    let rail = (pluma_tools::draw2::min_fidelity(&tool), FIDELITY_MAX);
     // The Pencil's and the Paintbrush's Fidelity is on screen, the same at any zoom (#5729).
     let unit = if matches!(tool.as_str(), "pencil" | "paintbrush") { "px" } else { "pt" };
     let rail_w = label_w(ui);
@@ -201,7 +201,7 @@ fn fidelity(ui: &mut egui::Ui, d: &mut Dialog) {
     });
 }
 
-fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if d.fields.contains_key("fidelity") {
         fidelity(ui, d);
         ui.add_space(10.0);
@@ -311,7 +311,7 @@ fn blob_tip_short_ratio(roundness: f64) -> f32 {
 }
 
 /// OK: set the tool's options.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let values: Map<String, Value> = KEYS.iter().filter_map(|k| Some((k.to_string(), d.fields.get(*k)?.clone()))).collect();
     run_and_close(app, "tool.setOption", json!({ "tool": d.str("tool"), "values": values }))
 }

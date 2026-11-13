@@ -8,7 +8,7 @@
 use serde_json::{Value, json};
 
 use super::{DialogAction, DialogSpec};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::widgets;
 
@@ -19,7 +19,7 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading: |d| d.str("message"), body_with_actions: Some(body), confirm, ok: None, max_width: Some(540.0), ..DialogSpec::FORM };
 
 /// Ask whether to delete the brushes `params` names (`used`: one of them is in use).
-pub fn ask(app: &mut VectorcraftApp, params: Value, used: bool) {
+pub fn ask(app: &mut PlumaApp, params: Value, used: bool) {
     let message = if used {
         tl!("Strokes use one or more of these brushes. Take the brushes off those strokes and delete the brushes?")
     } else {
@@ -33,7 +33,7 @@ pub fn ask(app: &mut VectorcraftApp, params: Value, used: bool) {
 const DOC: &str = "__doc";
 
 /// Whether a stroke uses one of `names` (`brush.unused`), or `None` when the query fails.
-pub fn used(app: &mut VectorcraftApp, names: &[String]) -> Option<bool> {
+pub fn used(app: &mut PlumaApp, names: &[String]) -> Option<bool> {
     let unused = app.run("brush.unused", json!({})).ok()?;
     let unused = unused.get("names").and_then(Value::as_array).cloned().unwrap_or_default();
     Some(names.iter().any(|name| !unused.iter().any(|n| n.as_str() == Some(name))))
@@ -47,7 +47,7 @@ fn names(params: &Value) -> Vec<String> {
     }
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> DialogAction {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> DialogAction {
     let mut action = DialogAction::None;
     ui.horizontal(|ui| {
         if d.bool("used") {
@@ -72,7 +72,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> DialogActi
 /// Closes before running, so a dialog the command opens stays open. Yes on brushes that a stroke
 /// has started to use since the question opened asks again with Remove Strokes and Cancel. When
 /// another document has become the active one, it closes as Cancel does and deletes nothing.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let params = d.fields.get("params").cloned().unwrap_or_else(|| json!({}));
     if d.fields.get(DOC).and_then(Value::as_u64) != app.session.active().map(|doc| doc.uid) {
         app.ui.dialog = None;

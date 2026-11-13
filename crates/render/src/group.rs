@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::BlendMode as Blend;
-use vectorcraft_doc::Node;
-use vectorcraft_geom::{Affine, BezPath, FillRule, Rect};
+use pluma_color::BlendMode as Blend;
+use pluma_doc::Node;
+use pluma_geom::{Affine, BezPath, FillRule, Rect};
 use vello_cpu::peniko::{self, BlendMode, Compose, Mix};
 use vello_cpu::{Pixmap, RenderContext};
 

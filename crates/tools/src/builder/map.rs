@@ -109,7 +109,7 @@ impl BuilderMap {
             return self.region_at(from).into_iter().collect();
         }
         let c = r.center();
-        let touches = |(reg, bp, b): &Face| (b.contains(c) && bp.winding(c) != 0) || vectorcraft_geom::hit::intersects_rect(&reg.path, r);
+        let touches = |(reg, bp, b): &Face| (b.contains(c) && bp.winding(c) != 0) || pluma_geom::hit::intersects_rect(&reg.path, r);
         let mut out: Vec<usize> = self.regions.iter().enumerate().filter(|(_, f)| touches(f)).map(|(i, _)| i).collect();
         for p in [to, from] {
             if let Some(k) = self.region_at(p).and_then(|i| out.iter().position(|&j| j == i)) {

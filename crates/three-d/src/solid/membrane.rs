@@ -384,8 +384,8 @@ pub(super) const MAX_MATERIAL_SEGMENTS: usize = 4_000_000;
 
 /// The part of `outline` (its rings, each with its bounds) inside `cell`, as rings (holes running
 /// the other way). Only the rings whose bounds meet the cell's go into the boolean.
-pub(super) fn material(outline: &[(Rect, vectorcraft_geom::SubPath)], cell: Rect) -> Option<Vec<Vec<Point>>> {
-    let r = PathData::single(vectorcraft_geom::SubPath::polyline(
+pub(super) fn material(outline: &[(Rect, pluma_geom::SubPath)], cell: Rect) -> Option<Vec<Vec<Point>>> {
+    let r = PathData::single(pluma_geom::SubPath::polyline(
         &[Point::new(cell.x0, cell.y0), Point::new(cell.x1, cell.y0), Point::new(cell.x1, cell.y1), Point::new(cell.x0, cell.y1)],
         true,
     ));
@@ -393,8 +393,6 @@ pub(super) fn material(outline: &[(Rect, vectorcraft_geom::SubPath)], cell: Rect
         outline.iter().filter(|(b, _)| b.x0 <= cell.x1 && cell.x0 <= b.x1 && b.y0 <= cell.y1 && cell.y0 <= b.y1).map(|(_, s)| s.clone()).collect(),
     );
     let rule = FillRule::NonZero;
-    let part =
-        vectorcraft_pathops::try_boolean(&r, rule, &near, rule, vectorcraft_pathops::BoolOp::Intersect, vectorcraft_pathops::DEFAULT_PRECISION)
-            .ok()?;
+    let part = pluma_pathops::try_boolean(&r, rule, &near, rule, pluma_pathops::BoolOp::Intersect, pluma_pathops::DEFAULT_PRECISION).ok()?;
     rings(&part, rule, cell.width(), MAX_PLANE_POINTS).ok()
 }

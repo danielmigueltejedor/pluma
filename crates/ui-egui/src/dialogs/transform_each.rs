@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 use super::transform::{add_object_options, add_scale_options, object_options, scale_options_ordered, with_scale_options};
 use super::{DialogSpec, form};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::widgets;
@@ -52,7 +52,7 @@ const REMEMBERED: [&str; 13] =
 
 /// The fields the menu item opens with: [`fields`], with the values it was last confirmed with.
 /// A kept value of the wrong kind (a hand-edited file) is left out.
-pub fn open_fields(app: &VectorcraftApp) -> Value {
+pub fn open_fields(app: &PlumaApp) -> Value {
     let mut out = fields();
     for k in REMEMBERED {
         match app.ui.transform_each.get(k) {
@@ -122,7 +122,7 @@ fn link_ratio(fields: &serde_json::Map<String, Value>, relative: bool) -> Option
 fn field_number(fields: &serde_json::Map<String, Value>, key: &str) -> Option<f64> {
     match fields.get(key)? {
         Value::Number(n) => n.as_f64(),
-        Value::String(s) => vectorcraft_doc::Unit::Points.parse(s),
+        Value::String(s) => pluma_doc::Unit::Points.parse(s),
         _ => None,
     }
 }
@@ -160,7 +160,7 @@ const RATIO: &str = "__ratio";
 /// The Scale section: a slider and a field for `scaleH` and for `scaleV`, percentages of each
 /// object's size, or with `absolute` the width and height it becomes, in `units` (Transform Each
 /// alone: the Transform effect scales in percentages), and the link that keeps them in proportion.
-fn scale_section(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Unit, absolute: bool) {
+fn scale_section(ui: &mut egui::Ui, d: &mut Dialog, units: pluma_doc::Unit, absolute: bool) {
     widgets::subheader(ui, tl!("Scale"));
     link_changed(d);
     if let Some(rows) = scale_rows(ui, d, units, false, absolute, true) {
@@ -170,7 +170,7 @@ fn scale_section(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Unit
 
 /// The two Scale rows, and with `link` the column at their right that [`scale_link`] fills. Returns
 /// the two rows' bounds. While the link is on, a scale that changes sets the other.
-fn scale_rows(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Unit, live: bool, absolute: bool, link: bool) -> Option<egui::Rect> {
+fn scale_rows(ui: &mut egui::Ui, d: &mut Dialog, units: pluma_doc::Unit, live: bool, absolute: bool, link: bool) -> Option<egui::Rect> {
     let rail = Tokens::get(ui.ctx()).input_border;
     let track = move |_| rail;
     let axes = |h, v| [(h, tl!("Horizontal:")), (v, tl!("Vertical:"))];
@@ -269,7 +269,7 @@ fn follow_link(d: &mut Dialog, typed: &str) {
 
 /// The Scale section's Relative and Absolute radio buttons, under its sliders (field `relative`).
 /// Absolute shows the size the selected objects share, set again each time it is chosen.
-fn scale_mode_radios(ui: &mut egui::Ui, d: &mut Dialog, app: &VectorcraftApp, units: vectorcraft_doc::Unit) {
+fn scale_mode_radios(ui: &mut egui::Ui, d: &mut Dialog, app: &PlumaApp, units: pluma_doc::Unit) {
     let relative = relative(d);
     ui.horizontal(|ui| {
         ui.add_space(LABEL_W + ui.spacing().item_spacing.x);
@@ -290,7 +290,7 @@ fn scale_mode_radios(ui: &mut egui::Ui, d: &mut Dialog, app: &VectorcraftApp, un
 /// `ui.dialog.set` changed a field the Scale section reads: a switch to Absolute shows the size the
 /// objects share, and the link (`__constrain`) and its two scales follow as a click or a typed
 /// value does.
-pub(super) fn field_set(app: &mut VectorcraftApp, field: &str, old: Option<&Value>) {
+pub(super) fn field_set(app: &mut PlumaApp, field: &str, old: Option<&Value>) {
     match field {
         "relative" => {
             let size = shared_size(app, app.session.general_unit());
@@ -337,21 +337,21 @@ fn set_absolute_targets(d: &mut Dialog, (w, h): (Option<f64>, Option<f64>)) {
 /// The objects a transform of `ids` acts on, as the command's own selection roots: a compound
 /// path's member stands for its compound, and layers and objects a listed object holds are left
 /// out.
-fn transform_roots(doc: &vectorcraft_doc::Document, ids: &[vectorcraft_doc::NodeId]) -> Vec<vectorcraft_doc::NodeId> {
-    let roots: Vec<vectorcraft_doc::NodeId> = ids
+fn transform_roots(doc: &pluma_doc::Document, ids: &[pluma_doc::NodeId]) -> Vec<pluma_doc::NodeId> {
+    let roots: Vec<pluma_doc::NodeId> = ids
         .iter()
         .map(|id| match doc.parent_of(*id).and_then(|p| doc.node(p)) {
-            Some(parent) if matches!(parent.kind, vectorcraft_doc::NodeKind::Compound { .. }) => parent.id,
+            Some(parent) if matches!(parent.kind, pluma_doc::NodeKind::Compound { .. }) => parent.id,
             _ => *id,
         })
         .collect();
-    let listed: std::collections::HashSet<vectorcraft_doc::NodeId> = roots.iter().copied().collect();
+    let listed: std::collections::HashSet<pluma_doc::NodeId> = roots.iter().copied().collect();
     roots.iter().copied().filter(|id| doc.node(*id).is_some_and(|n| !n.is_layer()) && !held_by_listed(doc, *id, &listed)).collect()
 }
 
 /// Whether an object `listed` holds is above `id` (one walk up, not one per pair of objects: a
 /// selection can be tens of thousands of objects).
-fn held_by_listed(doc: &vectorcraft_doc::Document, id: vectorcraft_doc::NodeId, listed: &std::collections::HashSet<vectorcraft_doc::NodeId>) -> bool {
+fn held_by_listed(doc: &pluma_doc::Document, id: pluma_doc::NodeId, listed: &std::collections::HashSet<pluma_doc::NodeId>) -> bool {
     let mut cur = id;
     while let Some(parent) = doc.parent_of(cur) {
         if listed.contains(&parent) {
@@ -367,7 +367,7 @@ fn held_by_listed(doc: &vectorcraft_doc::Document, id: vectorcraft_doc::NodeId, 
 /// the one shown, so the fields read the same number the Transform panel and the Control bar give
 /// each object. A side of 0 (a line's height) is none too: the command refuses a scale of 0, and
 /// the objects keep that side anyway.
-fn shared_side(unit: vectorcraft_doc::Unit, sizes: impl Iterator<Item = f64>) -> Option<f64> {
+fn shared_side(unit: pluma_doc::Unit, sizes: impl Iterator<Item = f64>) -> Option<f64> {
     let mut sizes = sizes;
     let first = sizes.next()?;
     if first.abs() <= 1.0e-9 {
@@ -380,11 +380,11 @@ fn shared_side(unit: vectorcraft_doc::Unit, sizes: impl Iterator<Item = f64>) ->
 /// The width and height the selected objects share (each `None` when they differ), measured on
 /// their own geometric bounds and without a preview: with Preview on, the document holds the
 /// transform the dialog has shown so far.
-fn shared_size(app: &VectorcraftApp, unit: vectorcraft_doc::Unit) -> (Option<f64>, Option<f64>) {
+fn shared_size(app: &PlumaApp, unit: pluma_doc::Unit) -> (Option<f64>, Option<f64>) {
     // The objects the command transforms (a compound path's member stands for its compound), each
     // measured by its own box, rotated with it, as the Transform panel and the Control bar show it:
     // a rotated circle's axis-aligned bounds run a hair larger than the circle.
-    let measure = |doc: &vectorcraft_doc::Document, ids: &[vectorcraft_doc::NodeId]| -> Vec<(f64, f64)> {
+    let measure = |doc: &pluma_doc::Document, ids: &[pluma_doc::NodeId]| -> Vec<(f64, f64)> {
         // One symbol cache for all of them: many instances of one symbol measure its art once.
         let symbols = doc.symbol_boxes();
         transform_roots(doc, ids)
@@ -404,7 +404,7 @@ fn shared_size(app: &VectorcraftApp, unit: vectorcraft_doc::Unit) -> (Option<f64
 /// The Move and Rotate sections of Transform Each and the Transform effect: sliders for `moveH`
 /// and `moveV` (rails ±1000 pt, fields in `units`), and an angle dial for `rotate`
 /// (counter-clockwise). The fields take values past the rails.
-fn move_and_rotate(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Unit, live: bool) {
+fn move_and_rotate(ui: &mut egui::Ui, d: &mut Dialog, units: pluma_doc::Unit, live: bool) {
     let rail = Tokens::get(ui.ctx()).input_border;
     let track = move |_| rail;
     let axes = |h, v| [(h, tl!("Horizontal:")), (v, tl!("Vertical:"))];
@@ -441,7 +441,7 @@ fn move_and_rotate(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Un
 /// `scaleH` and `scaleV` (rails 0–200 %), sliders for `moveH` and `moveV` (rails ±1000 pt, fields
 /// in `units`), and an angle dial for `rotate` (counter-clockwise). The Transform effect has no
 /// link between its two scales.
-pub(super) fn sections(ui: &mut egui::Ui, d: &mut Dialog, units: vectorcraft_doc::Unit, live: bool) {
+pub(super) fn sections(ui: &mut egui::Ui, d: &mut Dialog, units: pluma_doc::Unit, live: bool) {
     widgets::subheader(ui, tl!("Scale"));
     scale_rows(ui, d, units, live, false, false);
     move_and_rotate(ui, d, units, live);
@@ -473,7 +473,7 @@ pub(super) fn reflect_options(ui: &mut egui::Ui, d: &mut Dialog) {
     form::check(ui, d, "random", tl!("Random"));
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let units = app.session.general_unit();
     // The rows scroll when the window is shorter than they are, so the heading, Preview and the
     // buttons stay in view.
@@ -504,7 +504,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut p = params(d);
     add_object_options(app, d, &mut p);
     let p = with_scale_options(app, d, p)?;
@@ -526,12 +526,12 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_doc::NodeId;
-    use vectorcraft_engine::Session;
+    use pluma_doc::NodeId;
+    use pluma_engine::Session;
 
     #[test]
     fn ok_transforms_each_and_keeps_the_scale_options() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         app.run("select.all", json!({})).unwrap();
@@ -559,14 +559,14 @@ mod tests {
     }
 
     /// An app with a selected 50 × 50 square at (20, 20).
-    fn square_app() -> (VectorcraftApp, NodeId) {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn square_app() -> (PlumaApp, NodeId) {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
         (app, NodeId(id))
     }
 
-    fn open(app: &mut VectorcraftApp) -> &mut Dialog {
+    fn open(app: &mut PlumaApp) -> &mut Dialog {
         crate::menus::invoke(app, CMD, json!({}));
         let d = app.ui.dialog.as_mut().expect("Transform Each is open");
         assert_eq!(d.kind, KIND);
@@ -654,7 +654,7 @@ mod tests {
         let undo = app.session.doc().unwrap().history.undo.len();
         let mut fonts = false;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(900.0, 700.0)).build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !std::mem::replace(&mut fonts, true) {
                     crate::theme::install_fonts(ui.ctx());
                     return;
@@ -669,7 +669,7 @@ mod tests {
         h.run_steps(3);
         let app = h.state_mut();
         assert!(app.ui.dialog.is_none(), "Copy closes the dialog");
-        let xs = |app: &VectorcraftApp| {
+        let xs = |app: &PlumaApp| {
             let st = app.session.doc().unwrap();
             let mut xs: Vec<f64> = st.doc.layers[0].children().unwrap().iter().map(|n| n.geometric_bounds().unwrap().x0.round()).collect();
             xs.sort_by(f64::total_cmp);

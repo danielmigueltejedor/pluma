@@ -19,7 +19,7 @@ another.
 
 Each solid follows its shape as it is filled. Separate and nested contours are built as drawn. Contours that cross,
 touch or run along each other or themselves, as type often draws a glyph, are first merged into one outline by
-[`vectorcraft-pathops`](../crates/pathops/README.md), keeping every contour but the numerical debris a boolean leaves.
+[`pluma-pathops`](../crates/pathops/README.md), keeping every contour but the numerical debris a boolean leaves.
 Whether contours meet is judged on the outline as it is followed (see the curve tolerance below), so curves that
 overlap by less than that are built as drawn. All three effects share pathops'
 [limits](../crates/pathops/README.md#limits): a shape it refuses is built from its contours as drawn, where it can be.
@@ -165,7 +165,7 @@ remain available; the list shows **Custom** whenever the effective lighting matc
 presets, including when there is more than one light. An equivalent explicit single light is
 recognized too. Reset all returns to Standard. Preview, Cancel and Undo work as for other options.
 
-These are original VectorCraft settings based on the public preset names and directions. Adobe's
+These are original Pluma settings based on the public preset names and directions. Adobe's
 documentation does not publish numeric rigs; the values are not copied from its software or files
 and are not claimed to reproduce its presets exactly. Standard retains the existing default.
 
@@ -248,7 +248,7 @@ Release measurements and a repeatable CLI scene are in [3D lighting performance]
 
 | Date | Change |
 |---|---|
-| 2026-11-08 | Contours that cross, touch or overlap are merged by vectorcraft-pathops before Extrude & Bevel, Inflate and Rotate build a solid, sharing its limits; others are built as drawn. |
+| 2026-11-08 | Contours that cross, touch or overlap are merged by pluma-pathops before Extrude & Bevel, Inflate and Rotate build a solid, sharing its limits; others are built as drawn. |
 | 2026-11-06 | Extrude & Bevel, Inflate and Rotate apply to groups and layers: every path, compound path and type in them turns about one shared axis (#4506). |
 | 2026-10-21 | Four original lighting presets, shared by all four 3D effects and commands, with effective-setting recognition and existing preview/history behavior. |
 | 2026-10-17 | Smooth colored Inflate lighting and surface batching; legacy white-light appearance and the 0.05 seam minimum preserved; shared light Color and multiple lights remain vector output. |

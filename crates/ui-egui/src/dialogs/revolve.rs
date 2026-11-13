@@ -4,20 +4,20 @@
 //! dialog's existing preview/commit commands.
 
 use egui::{Align2, FontId, Id, Pos2, Sense, Stroke, vec2};
+use pluma_doc::Unit;
+use pluma_effects::{CLASSIC_EXTRUDE, EXTRUDE, INFLATE, REVOLVE, ROTATION_PRESETS};
 use serde_json::{Value, json};
-use vectorcraft_doc::Unit;
-use vectorcraft_effects::{CLASSIC_EXTRUDE, EXTRUDE, INFLATE, REVOLVE, ROTATION_PRESETS};
 
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, scrub, widgets};
+use crate::{PlumaApp, scrub, widgets};
 
 const LABEL_W: f32 = 102.0;
 const VALUE_W: f32 = 74.0;
 const SIDE_W: f32 = 354.0;
 
 /// Sized to the screen, with scrolling inside the body so OK and Cancel stay reachable.
-pub(super) fn body(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(super) fn body(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     // Values start in drag mode; clicking or Tab enters their text editor.
     ui.data_mut(|m| m.remove::<bool>(widgets::dialog_focus_flag()));
     let screen = ui.ctx().content_rect();
@@ -36,7 +36,7 @@ pub(super) fn body(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let id = d.str("__effect");
-            let defaults = vectorcraft_effects::default_params(&id).unwrap_or(json!({}));
+            let defaults = pluma_effects::default_params(&id).unwrap_or(json!({}));
             let changed = defaults.as_object().is_some_and(|m| {
                 m.iter().any(|(k, v)| v.as_f64().map_or_else(|| d.fields.get(k) != Some(v), |default| (d.f64(k, default) - default).abs() > 1e-6))
             });
@@ -64,7 +64,7 @@ pub(super) fn body(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
 /// The tabs and controls of the 3D effect in `d.fields["__effect"]`, editing `d.fields`; the
 /// dialog's body and the 3D and Materials panel draw them. With `__panel` set (the panel), the
 /// controls that only the dialog's artboard gizmos use are left out.
-pub(crate) fn controls(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+pub(crate) fn controls(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     ui.spacing_mut().item_spacing.y = 4.0;
     let id = d.str("__effect");
     if id != REVOLVE {
@@ -148,7 +148,7 @@ pub(super) fn c3(s: &'static str) -> &'static str {
 /// Extrude & Bevel, Inflate and Extrude & Bevel (Classic): Object, Rotation and Lighting tabs
 /// (Rotate has no Object tab). The rotation gizmo shows on the first two, the light gizmo on
 /// Lighting.
-fn solid_controls(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, id: &str) {
+fn solid_controls(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, id: &str) {
     let object = id == EXTRUDE || id == INFLATE || id == CLASSIC_EXTRUDE;
     let mut tabs = vec![];
     if object {
@@ -259,7 +259,7 @@ fn view_controls(ui: &mut egui::Ui, d: &mut Dialog) {
 /// A dropdown of `options` (value, label) for `key`, with its reset dot.
 pub(super) fn choice(ui: &mut egui::Ui, d: &mut Dialog, key: &str, name: &str, options: &[(Value, &str)]) {
     let id = d.str("__effect");
-    let default = vectorcraft_effects::default_params(&id).and_then(|p| p.get(key).cloned()).unwrap_or(Value::Null);
+    let default = pluma_effects::default_params(&id).and_then(|p| p.get(key).cloned()).unwrap_or(Value::Null);
     // A mixed setting (null) shows its default, with its reset dot filled.
     let mixed = d.fields.get(key).is_some_and(Value::is_null);
     let value = d.fields.get(key).filter(|v| !v.is_null()).cloned().unwrap_or_else(|| default.clone());
@@ -337,13 +337,13 @@ fn lighting_controls(ui: &mut egui::Ui, d: &mut Dialog) {
 
 fn lighting_presets(ui: &mut egui::Ui, d: &mut Dialog) {
     let names = [tl!("Standard"), tl!("Diffuse"), tl!("Top Left"), tl!("Right")];
-    let current = vectorcraft_effects::matching_lighting_preset(&super::form::params(d));
+    let current = pluma_effects::matching_lighting_preset(&super::form::params(d));
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         label(ui, tl!("Presets"));
         let shown = current.and_then(|i| names.get(i).copied()).unwrap_or(tl!("Custom"));
         if let Some(preset) = widgets::dropdown(ui, "three-d-lighting-presets", shown, &names, VALUE_W + rail_width(ui) + 6.0)
-            .and_then(|i| vectorcraft_effects::LIGHTING_PRESETS.get(i))
+            .and_then(|i| pluma_effects::LIGHTING_PRESETS.get(i))
             && let Some(patch) = preset.params().as_object()
         {
             d.fields.extend(patch.clone());
@@ -365,7 +365,7 @@ const LIGHT_KEYS: [(&str, &str); 6] = [
 ];
 
 fn explicit_lights(d: &Dialog) -> Option<&Vec<Value>> {
-    d.fields.get("lights").and_then(Value::as_array).filter(|v| !v.is_empty() && v.len() <= vectorcraft_three_d::MAX_LIGHTS)
+    d.fields.get("lights").and_then(Value::as_array).filter(|v| !v.is_empty() && v.len() <= pluma_three_d::MAX_LIGHTS)
 }
 
 fn light_index(d: &Dialog, count: usize) -> usize {
@@ -380,7 +380,7 @@ pub(super) fn selected_light(d: &Dialog) -> Dialog {
     if let Some(list) = explicit_lights(d)
         && let Some(light) = list.get(light_index(d, list.len()))
     {
-        let defaults = vectorcraft_effects::default_params(&d.str("__effect")).unwrap_or(json!({}));
+        let defaults = pluma_effects::default_params(&d.str("__effect")).unwrap_or(json!({}));
         for (key, field) in LIGHT_KEYS {
             if let Some(value) = light.get(key).or_else(|| defaults.get(field)) {
                 selected.fields.insert(field.into(), value.clone());
@@ -390,8 +390,8 @@ pub(super) fn selected_light(d: &Dialog) -> Dialog {
     selected
 }
 
-pub(super) fn light_options(d: &Dialog) -> vectorcraft_three_d::Revolve {
-    vectorcraft_effects::revolve_options(&super::form::params(&selected_light(d)))
+pub(super) fn light_options(d: &Dialog) -> pluma_three_d::Revolve {
+    pluma_effects::revolve_options(&super::form::params(&selected_light(d)))
 }
 
 pub(super) fn light_record(d: &Dialog) -> Value {
@@ -440,9 +440,9 @@ pub(super) fn light_list(ui: &mut egui::Ui, d: &mut Dialog) {
     // Add Light is off while a setting of the single light is mixed (null).
     let mixed = explicit_lights(d).is_none() && LIGHT_KEYS.iter().any(|(_, key)| d.fields.get(*key).is_some_and(Value::is_null));
     ui.horizontal(|ui| {
-        if ui.add_enabled(list.len() < vectorcraft_three_d::MAX_LIGHTS && !mixed, egui::Button::new(tl!("Add Light"))).clicked() {
+        if ui.add_enabled(list.len() < pluma_three_d::MAX_LIGHTS && !mixed, egui::Button::new(tl!("Add Light"))).clicked() {
             let mut added = selected_light(d);
-            let defaults = vectorcraft_effects::default_params(&d.str("__effect")).unwrap_or(json!({}));
+            let defaults = pluma_effects::default_params(&d.str("__effect")).unwrap_or(json!({}));
             for (_, key) in LIGHT_KEYS {
                 if let Some(value) = defaults.get(key) {
                     added.fields.insert(key.into(), value.clone());
@@ -475,8 +475,8 @@ fn light_color(ui: &mut egui::Ui, d: &mut Dialog) {
             .get("lightColor")
             .and_then(Value::as_str)
             .filter(|s| s.len() == 7 && s.starts_with('#'))
-            .and_then(vectorcraft_color::Color::from_hex)
-            .unwrap_or(vectorcraft_color::Color::WHITE);
+            .and_then(pluma_color::Color::from_hex)
+            .unwrap_or(pluma_color::Color::WHITE);
         // Light colors are display RGB, independent of the document's working profile.
         let mut rgb = color.to_rgb_uncalibrated().map(|c| (c * 255.0).round() as u8);
         if ui.color_edit_button_srgb(&mut rgb).on_hover_text(tl!("Color")).changed() {
@@ -510,7 +510,7 @@ fn rail_width(ui: &egui::Ui) -> f32 {
 /// A value can be typed, dragged, scrubbed by its label, or moved on its slider.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn number(ui: &mut egui::Ui, d: &mut Dialog, key: &str, name: &str, range: (f64, f64), suffix: &str, decimals: usize, unit: Option<Unit>) {
-    let default = vectorcraft_effects::default_params(&d.str("__effect")).and_then(|p| p.get(key).and_then(Value::as_f64)).unwrap_or(0.0);
+    let default = pluma_effects::default_params(&d.str("__effect")).and_then(|p| p.get(key).and_then(Value::as_f64)).unwrap_or(0.0);
     let from = |n| unit.map_or(n, |u| u.from_pt(n));
     let to = |n| unit.map_or(n, |u| u.to_pt(n));
     let typed = unit.map(|u| widgets::typed_unit(ui.ctx(), u));
@@ -536,7 +536,7 @@ pub(super) fn number(ui: &mut egui::Ui, d: &mut Dialog, key: &str, name: &str, r
                         .update_while_editing(false)
                         .custom_parser(|s| {
                             unit.map_or_else(
-                                || vectorcraft_doc::parse_number(&s.replace(['°', '%'], "")),
+                                || pluma_doc::parse_number(&s.replace(['°', '%'], "")),
                                 |u| typed.unwrap_or(u).parse(s).map(|v| u.from_pt(v)),
                             )
                         }),

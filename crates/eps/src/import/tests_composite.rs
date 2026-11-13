@@ -4,10 +4,10 @@
 //! carry (Adobe Technical Note #5012); the fonts here are written from scratch around the bundled
 //! Source Sans 3.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::NodeKind;
 use skrifa::instance::{LocationRef, Size};
 use skrifa::{FontRef, MetadataProvider};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::NodeKind;
 
 use super::tests::{all, bounds, fill, read};
 

@@ -3,7 +3,7 @@
 //!
 //! Each filter has a thumbnail, and the dialog has its own preview, as the
 //! [Filter Gallery](https://helpx.adobe.com/photoshop/desktop/effects-filters/get-started-with-filters/filter-gallery.html)
-//! describes. Both are an original drawing made for VectorCraft (a small landscape), passed through
+//! describes. Both are an original drawing made for Pluma (a small landscape), passed through
 //! the filter. The thumbnails use each filter's defaults. The preview uses the visible stack, or
 //! the filter being browsed when the stack is empty. The canvas preview and the one-undo OK are
 //! unchanged.
@@ -11,14 +11,14 @@
 use std::collections::HashMap;
 
 use egui;
+use pluma_effects::{EffectInfo, PIXEL_EFFECTS, PixelSpace};
+use pluma_geom::{Affine, Point};
 use serde_json::{Map, Value, json};
-use vectorcraft_effects::{EffectInfo, PIXEL_EFFECTS, PixelSpace};
-use vectorcraft_geom::{Affine, Point};
 
 use super::{DialogSpec, effect, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// Thumbnail of one filter, in pixels. The drawing is original; the filter is this app's.
 const THUMB: usize = 36;
@@ -58,7 +58,7 @@ struct StackEntry {
 }
 
 /// Open the gallery on the current selection.
-pub fn open(app: &mut VectorcraftApp, _p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, _p: &Value) -> Result<Value, String> {
     if app.session.active().is_none_or(|s| s.selection.is_empty()) {
         return Err(tl!("Select artwork to apply effects").into());
     }
@@ -72,21 +72,20 @@ pub fn open(app: &mut VectorcraftApp, _p: &Value) -> Result<Value, String> {
 
 fn effects_in_category(cat: usize) -> Vec<EffectInfo> {
     let path = CATEGORIES.get(cat).map(|(_, p)| *p).unwrap_or(CATEGORIES[0].1);
-    let mut out: Vec<EffectInfo> =
-        vectorcraft_effects::effect_catalog().into_iter().filter(|e| e.menu == path && PIXEL_EFFECTS.contains(&e.id)).collect();
+    let mut out: Vec<EffectInfo> = pluma_effects::effect_catalog().into_iter().filter(|e| e.menu == path && PIXEL_EFFECTS.contains(&e.id)).collect();
     out.sort_by(|a, b| a.label.cmp(b.label));
     out
 }
 
 fn default_params(id: &str) -> Map<String, Value> {
-    match vectorcraft_effects::effect_info(id).map(|e| e.defaults) {
+    match pluma_effects::effect_info(id).map(|e| e.defaults) {
         Some(Value::Object(m)) => m,
         _ => Map::new(),
     }
 }
 
 fn merged_params(id: &str, stored: &Map<String, Value>) -> Map<String, Value> {
-    match vectorcraft_effects::merged_params(id, &Value::Object(stored.clone())) {
+    match pluma_effects::merged_params(id, &Value::Object(stored.clone())) {
         Value::Object(m) => m,
         _ => default_params(id),
     }
@@ -178,12 +177,11 @@ fn write_param_target(d: &mut Dialog, stack: &mut [StackEntry], stack_sel: usize
 }
 
 /// Reuse the live effect dialog's fields for `effect_id` and `params`.
-fn effect_param_fields(app: &mut VectorcraftApp, ui: &mut egui::Ui, effect_id: &str, params: &mut Map<String, Value>) {
+fn effect_param_fields(app: &mut PlumaApp, ui: &mut egui::Ui, effect_id: &str, params: &mut Map<String, Value>) {
     if effect_id.is_empty() {
         return;
     }
-    let label =
-        vectorcraft_effects::effect_info(effect_id).map(|e| e.label.trim_end_matches('…').to_string()).unwrap_or_else(|| effect_id.to_string());
+    let label = pluma_effects::effect_info(effect_id).map(|e| e.label.trim_end_matches('…').to_string()).unwrap_or_else(|| effect_id.to_string());
     let mut fields = params.clone();
     fields.insert("__effect".into(), json!(effect_id));
     fields.insert("__label".into(), json!(label));
@@ -193,7 +191,7 @@ fn effect_param_fields(app: &mut VectorcraftApp, ui: &mut egui::Ui, effect_id: &
     if let Value::Object(m) = form::params(&temp) {
         *params = m;
     }
-    if let Value::Object(m) = vectorcraft_effects::upgrade_params(effect_id, &Value::Object(params.clone())) {
+    if let Value::Object(m) = pluma_effects::upgrade_params(effect_id, &Value::Object(params.clone())) {
         *params = m;
     }
 }
@@ -215,7 +213,7 @@ fn stack_batch_params(stack: &[StackEntry]) -> Value {
 }
 
 /// Live canvas preview of the stack (`command.batch` would settle the dialog interaction each frame).
-fn preview_stack_on_canvas(app: &mut VectorcraftApp, stack: &[StackEntry]) {
+fn preview_stack_on_canvas(app: &mut PlumaApp, stack: &[StackEntry]) {
     if app.session.in_interaction() {
         let _ = app.session.cancel_interaction();
     }
@@ -233,7 +231,7 @@ fn preview_stack_on_canvas(app: &mut VectorcraftApp, stack: &[StackEntry]) {
     }
 }
 
-fn stack_preview_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, stack: &[StackEntry]) {
+fn stack_preview_row(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, stack: &[StackEntry]) {
     const LAST: &str = super::form::PREVIEWED;
     ui.add_space(8.0);
     let mut on = d.bool("preview");
@@ -261,7 +259,7 @@ fn stack_preview_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog
 }
 
 fn effect_label(id: &str) -> String {
-    vectorcraft_effects::effect_info(id).map(|e| tl!(e.label).trim_end_matches('…').to_string()).unwrap_or_else(|| id.to_string())
+    pluma_effects::effect_info(id).map(|e| tl!(e.label).trim_end_matches('…').to_string()).unwrap_or_else(|| id.to_string())
 }
 
 /// Where the preview rasters sit: one document point per pixel, origin at the top-left.
@@ -271,7 +269,7 @@ fn preview_space(w: usize, h: usize) -> PixelSpace {
         to_doc: Affine::IDENTITY,
         px: 1.0,
         center: Point::new(wf / 2.0, hf / 2.0),
-        channels: vectorcraft_effects::pixel::Channels::Rgb,
+        channels: pluma_effects::pixel::Channels::Rgb,
         line: 1.0,
         extent: 0.5 * wf.hypot(hf),
     }
@@ -333,8 +331,8 @@ fn apply_pixel(id: &str, params: &Map<String, Value>, data: &mut [u8], w: usize,
     if n != data.len() || w == 0 || h == 0 {
         return;
     }
-    let effect = vectorcraft_doc::Effect { id: id.to_string(), params: Value::Object(params.clone()), visible: true };
-    let Some(vectorcraft_effects::RasterFx::Pixel(fx)) = vectorcraft_effects::raster_effects(std::slice::from_ref(&effect)).into_iter().next() else {
+    let effect = pluma_doc::Effect { id: id.to_string(), params: Value::Object(params.clone()), visible: true };
+    let Some(pluma_effects::RasterFx::Pixel(fx)) = pluma_effects::raster_effects(std::slice::from_ref(&effect)).into_iter().next() else {
         return;
     };
     fx.apply(data, w, h, &preview_space(w, h));
@@ -454,7 +452,7 @@ fn preview_area(ui: &mut egui::Ui, d: &Dialog, stack: &[StackEntry], browse: &st
     ui.add_space(8.0);
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let cat = category_ix(d);
     let effects = effects_in_category(cat);
@@ -609,7 +607,7 @@ fn add_selected(d: &mut Dialog, id: &str) {
     set_stack_focus(d, true);
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let stack = stack_of(d);
     if stack.is_empty() {
         if app.session.in_interaction() {
@@ -637,12 +635,12 @@ thread_local! {
 
 #[cfg(test)]
 mod tests {
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
 
-    use crate::VectorcraftApp;
+    use crate::PlumaApp;
 
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         crate::theme::apply(&ctx, Default::default());
@@ -653,7 +651,7 @@ mod tests {
 
     #[test]
     fn stack_preview_is_one_interaction() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap()["id"].as_u64().unwrap();
         app.run("ui.effectGalleryDialog", json!({})).unwrap();
@@ -663,12 +661,12 @@ mod tests {
         assert!(app.session.in_interaction(), "the stack previews on the canvas");
         crate::dialogs::cancel(&mut app);
         assert!(!app.session.in_interaction());
-        assert!(app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects.is_empty());
+        assert!(app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects.is_empty());
     }
 
     #[test]
     fn stack_ok_is_one_undo_step() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap()["id"].as_u64().unwrap();
         app.run("ui.effectGalleryDialog", json!({})).unwrap();
@@ -685,7 +683,7 @@ mod tests {
         let steps = app.session.active().unwrap().history.undo.len();
         crate::dialogs::confirm(&mut app).unwrap();
         let st = app.session.active().unwrap();
-        let n = st.doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+        let n = st.doc.node(pluma_doc::NodeId(id)).unwrap();
         assert_eq!(n.appearance.effects.len(), 2);
         assert_eq!(n.appearance.effects[0].id, "artistic.cutout");
         assert_eq!(n.appearance.effects[0].params.get("levels").and_then(|v| v.as_i64()), Some(3));
@@ -709,7 +707,7 @@ mod tests {
         assert!(seen.len() > 2);
         assert_ne!(seen[0], seen[1], "two filters share one thumbnail");
 
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap();
         app.run("ui.effectGalleryDialog", json!({})).unwrap();

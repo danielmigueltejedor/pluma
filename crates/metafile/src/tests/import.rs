@@ -1,9 +1,9 @@
-//! Metafiles read back: VectorCraft's own EMF and WMF round-trip, hand-built records of other
+//! Metafiles read back: Pluma's own EMF and WMF round-trip, hand-built records of other
 //! writers play as they draw, and damaged files fail or import partly without a panic.
 
-use vectorcraft_color::{Gradient, GradientPaint, Paint};
-use vectorcraft_doc::{AppearanceItem, Dash, Document, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
+use pluma_color::{Gradient, GradientPaint, Paint};
+use pluma_doc::{AppearanceItem, Dash, Document, Node, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
 
 use crate::bytes::Out;
 use crate::tests::*;
@@ -87,7 +87,7 @@ fn wmf_output_round_trips() {
 
 #[test]
 fn freeform_points_that_share_a_model_are_written_as_their_mix() {
-    use vectorcraft_color::{Color, Freeform, FreeformPoint, GradientKind};
+    use pluma_color::{Color, Freeform, FreeformPoint, GradientKind};
     let mid = |a: Color, b: Color| {
         let p = |x, c| FreeformPoint::new(Point::new(x, 50.0), c);
         let mut g = GradientPaint::new(Gradient { kind: GradientKind::Freeform, ..Default::default() });
@@ -220,7 +220,7 @@ fn hand_built_emf_plays_like_gdi() {
     let back = import(&hand_emf(5000, 3000, &records)).unwrap();
     let mm = 72.0 / 25.4;
     assert!(near(back.document.artboards[0].rect, Rect::new(0.0, 0.0, 50.0 * mm, 30.0 * mm), 0.01));
-    assert_eq!(back.warnings, vec!["2 records of kinds VectorCraft doesn't read were skipped".to_string()]);
+    assert_eq!(back.warnings, vec!["2 records of kinds Pluma doesn't read were skipped".to_string()]);
     let layer = back.document.layers[0].children().unwrap().clone();
     // The rectangle outside the clip; the lines and the text in a clipping group.
     assert_eq!(layer.len(), 2);
@@ -307,13 +307,13 @@ fn hand_built_wmf_plays_like_gdi() {
     ];
     let back = import(&hand_wmf(1440, 1440, &records)).unwrap();
     assert!(near(back.document.artboards[0].rect, Rect::new(0.0, 0.0, 72.0, 72.0), 1e-9));
-    assert_eq!(back.warnings, vec!["1 record of kinds VectorCraft doesn't read was skipped".to_string()]);
+    assert_eq!(back.warnings, vec!["1 record of kinds Pluma doesn't read was skipped".to_string()]);
     let p = paths(&back.document);
     assert_eq!(p.len(), 2);
     assert_eq!(fill_rgb(&p[0]), Some([0, 0, 255]));
     assert!(near(p[0].geometric_bounds().unwrap(), Rect::new(0.0, 0.0, 72.0, 36.0), 1e-9));
     let st = p[0].appearance.stroke().unwrap();
-    assert!((st.width - 1.0).abs() < 1e-9 && st.cap == vectorcraft_doc::LineCap::Square);
+    assert!((st.width - 1.0).abs() < 1e-9 && st.cap == pluma_doc::LineCap::Square);
     assert_eq!(fill_rgb(&p[1]), Some([0, 255, 0]), "the new brush took the freed slot");
 }
 
@@ -391,6 +391,6 @@ fn clips_nest_only_so_deep() {
         depth += 1;
         n = children.last().unwrap().clone();
     }
-    assert_eq!(depth, vectorcraft_doc::clipnest::MAX_NEST);
+    assert_eq!(depth, pluma_doc::clipnest::MAX_NEST);
     assert!(back.warnings.iter().any(|w| w.contains("clips nested more than")), "{:?}", back.warnings);
 }

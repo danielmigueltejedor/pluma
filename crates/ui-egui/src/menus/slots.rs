@@ -1,8 +1,8 @@
-use super::{VectorcraftApp, io};
+use super::{PlumaApp, io};
 
 /// The active document's perspective grid (View → Perspective Grid toggles).
-pub(super) fn perspective_grid(app: &VectorcraftApp) -> Option<vectorcraft_tools::distort::perspective::PerspectiveGrid> {
-    app.session.active().map(|d| vectorcraft_tools::distort::perspective::PerspectiveGrid::current(&d.doc))
+pub(super) fn perspective_grid(app: &PlumaApp) -> Option<pluma_tools::distort::perspective::PerspectiveGrid> {
+    app.session.active().map(|d| pluma_tools::distort::perspective::PerspectiveGrid::current(&d.doc))
 }
 
 /// File → Open Recent Files slots (Preferences → File Handling shows 0–30 of them).
@@ -40,13 +40,13 @@ pub(super) const RECENT_IDS: [&str; io::MAX_RECENT_FILES] = [
 ];
 
 /// The saved selection a `select.recallN` slot names (none past the document's last).
-pub(super) fn saved_selection_name(app: &VectorcraftApp, id: &str) -> Option<String> {
+pub(super) fn saved_selection_name(app: &PlumaApp, id: &str) -> Option<String> {
     let n = saved_selection_slot(id)?.checked_sub(1)?;
     app.session.active()?.doc.saved_selections.get(n).map(|x| x.name.clone())
 }
 
 /// The recent file a `file.openRecentN` slot names (none past the preference's count).
-pub(super) fn recent_slot<'a>(app: &'a VectorcraftApp, id: &str) -> Option<&'a String> {
+pub(super) fn recent_slot<'a>(app: &'a PlumaApp, id: &str) -> Option<&'a String> {
     let n: usize = id.strip_prefix("file.openRecent")?.parse().ok()?;
     io::recent_files(app).get(n.checked_sub(1)?)
 }
@@ -77,7 +77,7 @@ pub(super) const PERSPECTIVE_SLOTS: [[&str; crate::dialogs::perspective_presets:
 ];
 
 /// Select → saved selections: the n-th saved selection of the active document.
-pub(super) const SAVED_SELECTION_IDS: [&str; vectorcraft_engine::doc::SavedSelection::MAX] = [
+pub(super) const SAVED_SELECTION_IDS: [&str; pluma_engine::doc::SavedSelection::MAX] = [
     "select.recall1",
     "select.recall2",
     "select.recall3",
@@ -106,7 +106,7 @@ pub(super) const SAVED_SELECTION_IDS: [&str; vectorcraft_engine::doc::SavedSelec
 ];
 
 /// View → saved views: the n-th saved view of the active document.
-pub(super) const SAVED_VIEW_IDS: [&str; vectorcraft_engine::doc::SavedView::MAX] = [
+pub(super) const SAVED_VIEW_IDS: [&str; pluma_engine::doc::SavedView::MAX] = [
     "view.goto1",
     "view.goto2",
     "view.goto3",
@@ -140,7 +140,7 @@ pub(super) fn saved_view_slot(id: &str) -> Option<usize> {
 }
 
 /// The saved view a `view.gotoN` slot names (none past the document's last).
-pub(super) fn saved_view<'a>(app: &'a VectorcraftApp, id: &str) -> Option<&'a vectorcraft_engine::doc::SavedView> {
+pub(super) fn saved_view<'a>(app: &'a PlumaApp, id: &str) -> Option<&'a pluma_engine::doc::SavedView> {
     app.session.active()?.doc.views.get(saved_view_slot(id)?.checked_sub(1)?)
 }
 

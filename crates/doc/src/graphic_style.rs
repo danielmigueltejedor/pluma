@@ -12,7 +12,7 @@ pub struct GraphicStyle {
     #[serde(default = "one", skip_serializing_if = "skip::is_one")]
     pub opacity: f32,
     #[serde(default, skip_serializing_if = "skip::is_default")]
-    pub blend: vectorcraft_color::BlendMode,
+    pub blend: pluma_color::BlendMode,
     #[serde(default, skip_serializing_if = "skip::is_default")]
     pub isolate: bool,
     #[serde(default, skip_serializing_if = "skip::is_default")]
@@ -77,7 +77,7 @@ impl GraphicStyle {
 }
 
 pub(crate) fn default_graphic_styles() -> Vec<GraphicStyle> {
-    use vectorcraft_color::{Color, Paint};
+    use pluma_color::{Color, Paint};
     let solid = |hex| Paint::solid(Color::from_hex(hex).unwrap_or(Color::BLACK));
     [
         GraphicStyle::new(DEFAULT_GRAPHIC_STYLE, Appearance::default_art()),

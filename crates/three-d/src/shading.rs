@@ -1,7 +1,7 @@
 //! Gouraud lighting represented by an ordinary vector linear gradient on each triangle, and the
 //! flat surface shading of the classic 3D effects.
 
-use vectorcraft_geom::{Point, Vec2};
+use pluma_geom::{Point, Vec2};
 
 /// The surface of a classic 3D effect: how its faces are drawn and lit.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -3,12 +3,12 @@
 //! Each style is a map on normalised box coordinates (x, y) ∈ [-1, 1]² (y down). The path is
 //! split into short pieces whose control points are mapped (see `map_nonlinear`).
 
+use pluma_geom::{PathData, Point, Rect};
 use serde_json::Value;
-use vectorcraft_geom::{PathData, Point, Rect};
 
 use crate::util::{map_nonlinear_within, num, text};
 
-pub use vectorcraft_doc::live::{WarpStyle, warp_point};
+pub use pluma_doc::live::{WarpStyle, warp_point};
 
 /// Apply a warp to `path` using box `b`, making at most `max` anchors ([`map_nonlinear_within`]).
 pub fn warp(path: &PathData, b: Rect, style: WarpStyle, p: &Value, max: usize) -> PathData {

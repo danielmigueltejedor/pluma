@@ -4,10 +4,10 @@
 
 use std::path::{Path, PathBuf};
 
-use vectorcraft_doc::{Document, ImageObject, LinkInfo, Node, NodeKind};
-use vectorcraft_geom::Rect;
-use vectorcraft_svg::{ImportOptions, MAX_NESTED_SVG_IMAGES, SvgError, import_with, import_with_report, import_within};
-use vectorcraft_testkit::raster::{Image, assert_similar, render_artboard};
+use pluma_doc::{Document, ImageObject, LinkInfo, Node, NodeKind};
+use pluma_geom::Rect;
+use pluma_svg::{ImportOptions, MAX_NESTED_SVG_IMAGES, SvgError, import_with, import_with_report, import_within};
+use pluma_testkit::raster::{Image, assert_similar, render_artboard};
 
 fn svg(body: &str) -> String {
     format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="120">{body}</svg>"#)
@@ -53,7 +53,7 @@ fn png(w: u32, h: u32) -> Vec<u8> {
 
 /// A fresh folder for one test's files.
 fn folder(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-svg-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-svg-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("img")).unwrap();
     dir
@@ -62,7 +62,7 @@ fn folder(name: &str) -> PathBuf {
 /// Reads files as the app does (the link knows the size and hash).
 fn read(path: &str) -> Option<(Vec<u8>, LinkInfo)> {
     let bytes = std::fs::read(path).ok()?;
-    let link = LinkInfo { size: Some(bytes.len() as u64), hash: Some(vectorcraft_doc::links::hash_bytes(&bytes)), ..LinkInfo::new(path) };
+    let link = LinkInfo { size: Some(bytes.len() as u64), hash: Some(pluma_doc::links::hash_bytes(&bytes)), ..LinkInfo::new(path) };
     Some((bytes, link))
 }
 
@@ -81,7 +81,7 @@ fn a_linked_png_resolves_against_the_svg_folder_and_stays_linked() {
     let [(_, im)] = images(&d)[..] else { panic!("{:?}", art(&d)) };
     let link = im.link.as_ref().unwrap();
     assert_eq!(Path::new(&link.path), dir.join("img").join("photo one.png"));
-    assert_eq!(link.hash, Some(vectorcraft_doc::links::hash_bytes(&bytes)));
+    assert_eq!(link.hash, Some(pluma_doc::links::hash_bytes(&bytes)));
     assert_eq!((im.width, im.height), (40, 20));
     assert_eq!(*d.images[&im.key].bytes, bytes, "the file's pixels");
     let b = im.xf.transform_rect_bbox(Rect::new(0.0, 0.0, 40.0, 20.0));
@@ -145,7 +145,7 @@ fn svg_images_import_as_vector_art() {
     let inner =
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 20 10"><rect width="10" height="10" fill="#f00"/></svg>"##;
     std::fs::write(dir.join("img").join("logo.svg"), inner).unwrap();
-    let data = format!("data:image/svg+xml;base64,{}", vectorcraft_svg::base64_encode(inner.as_bytes()));
+    let data = format!("data:image/svg+xml;base64,{}", pluma_svg::base64_encode(inner.as_bytes()));
     let body =
         format!(r#"<image href="img/logo.svg" x="10" y="10" width="40" height="20"/><image href="{data}" x="100" y="10" width="40" height="20"/>"#);
     let (d, w) = open_in(&dir, &body);
@@ -164,9 +164,9 @@ fn svgz_images_import_as_vector_art() {
     let dir = folder("svgzimage");
     let inner =
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" viewBox="0 0 20 10"><rect width="10" height="10" fill="#f00"/></svg>"##;
-    let gz = vectorcraft_svg::compress(inner);
+    let gz = pluma_svg::compress(inner);
     std::fs::write(dir.join("img").join("logo.svgz"), &gz).unwrap();
-    let data = format!("data:image/svg+xml;base64,{}", vectorcraft_svg::base64_encode(&gz));
+    let data = format!("data:image/svg+xml;base64,{}", pluma_svg::base64_encode(&gz));
     let body =
         format!(r#"<image href="img/logo.svgz" x="10" y="10" width="40" height="20"/><image href="{data}" x="100" y="10" width="40" height="20"/>"#);
     let (d, w) = open_in(&dir, &body);
@@ -183,7 +183,7 @@ const SVG_NS: &str = r#"xmlns="http://www.w3.org/2000/svg""#;
 
 /// An image showing `svg`, from a base64 data URL of type `mime` (none when empty).
 fn image_of(mime: &str, svg: &str) -> String {
-    format!(r#"<image href="data:{mime};base64,{}" width="20" height="10"/>"#, vectorcraft_svg::base64_encode(svg.as_bytes()))
+    format!(r#"<image href="data:{mime};base64,{}" width="20" height="10"/>"#, pluma_svg::base64_encode(svg.as_bytes()))
 }
 
 /// An SVG showing a chain of `levels` SVG images from data URLs of type `mime`: each holds a
@@ -208,7 +208,7 @@ fn rects(d: &Document) -> usize {
 /// where it overflowed the stack, an abort (#3562).
 #[test]
 fn svg_images_in_svg_images_share_the_depth_cap() {
-    let most = vectorcraft_svg::MAX_ELEMENT_DEPTH;
+    let most = pluma_svg::MAX_ELEMENT_DEPTH;
     let left_out = |w: &[String]| w.iter().any(|w| w.contains("SVG images were left out"));
     for mime in ["image/svg+xml", "text/plain", ""] {
         // Within the cap together: all of it.
@@ -265,8 +265,8 @@ fn clip_path_children_unite_under_their_own_rules() {
         let mine = render_artboard(&d);
         assert_similar(&mine, &resvg_render(&page(body), 200, 200), 24.0, 0.003);
         // Written back out, the clip is still the union.
-        let out = vectorcraft_svg::export(&d, &Default::default());
-        assert_similar(&render_artboard(&vectorcraft_svg::import(&out).unwrap()), &mine, 24.0, 0.003);
+        let out = pluma_svg::export(&d, &Default::default());
+        assert_similar(&render_artboard(&pluma_svg::import(&out).unwrap()), &mine, 24.0, 0.003);
     }
     let (d, _) = import_with_report(&page(opposite)).unwrap();
     let mine = render_artboard(&d);
@@ -282,8 +282,8 @@ fn clip_path_children_unite_under_their_own_rules() {
     let clip = &art(&d)[1];
     assert_eq!(clip.name.as_deref(), Some("c"));
     let NodeKind::Group { children, clip: false } = &clip.kind else { panic!("{clip:?}") };
-    assert!(matches!(children[0].kind, NodeKind::Path { rule: vectorcraft_geom::FillRule::NonZero, .. }));
-    assert!(matches!(children[1].kind, NodeKind::Compound { rule: vectorcraft_geom::FillRule::EvenOdd, .. }));
+    assert!(matches!(children[0].kind, NodeKind::Path { rule: pluma_geom::FillRule::NonZero, .. }));
+    assert!(matches!(children[1].kind, NodeKind::Compound { rule: pluma_geom::FillRule::EvenOdd, .. }));
 }
 
 /// SVG 1.1 §14.3.5: a child of a clipPath element with its own clip-path is clipped by it before
@@ -306,8 +306,8 @@ fn clip_path_child_clip_path_clips_child() {
     assert_eq!(mine.over_white(25, 25), [255, 0, 0], "the left strip is clipped in");
     assert_eq!(mine.over_white(100, 100), [255, 255, 255], "the right side is cut by inner clip");
     // Written back out, the clip stays identical.
-    let out = vectorcraft_svg::export(&d, &Default::default());
-    assert_similar(&render_artboard(&vectorcraft_svg::import(&out).unwrap()), &mine, 24.0, 0.003);
+    let out = pluma_svg::export(&d, &Default::default());
+    assert_similar(&render_artboard(&pluma_svg::import(&out).unwrap()), &mine, 24.0, 0.003);
 }
 
 #[test]
@@ -600,7 +600,7 @@ fn svg_doc() -> String {
 #[test]
 fn nested_image_within_budget_imports_and_use_fan_out_is_refused() {
     let inner = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="10" height="10" fill="red"/></svg>"#;
-    let nested = format!("data:image/svg+xml;base64,{}", vectorcraft_svg::base64_encode(inner.as_bytes()));
+    let nested = format!("data:image/svg+xml;base64,{}", pluma_svg::base64_encode(inner.as_bytes()));
     let single = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><image href="{nested}" width="20" height="20"/></svg>"#);
     // An ordinary nested image imports within a small budget (3 objects: Layer 1, Group, Rect).
     let (d, _) = import_within(&single, &ImportOptions::default(), 10).unwrap();
@@ -639,7 +639,7 @@ fn nested_image_within_budget_imports_and_use_fan_out_is_refused() {
 #[test]
 fn nested_svg_images_past_count_cap_are_left_out() {
     let inner = r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="5" height="5"/></svg>"#;
-    let nested = format!("data:image/svg+xml;base64,{}", vectorcraft_svg::base64_encode(inner.as_bytes()));
+    let nested = format!("data:image/svg+xml;base64,{}", pluma_svg::base64_encode(inner.as_bytes()));
     let images = format!(r#"<image href="{nested}" width="10" height="10"/>"#).repeat(MAX_NESTED_SVG_IMAGES + 10);
     let svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">{images}</svg>"#);
     let (_d, warnings) = import_with(&svg, &ImportOptions::default()).unwrap();

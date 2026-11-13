@@ -3,7 +3,7 @@
 
 use std::borrow::Cow;
 
-use vectorcraft_geom::{Affine, Rect};
+use pluma_geom::{Affine, Rect};
 
 use crate::{Document, NodeId, NodeKind, TextObject};
 

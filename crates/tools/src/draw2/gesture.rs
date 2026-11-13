@@ -23,9 +23,9 @@
 //! pointer, even if Alt is released during the drag. Shift on each drag or release constrains that
 //! line to 45° steps from the canvas axes.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::{Affine, Point};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::{Affine, Point};
 
 use super::{FEEDBACK, blob_area, blob_tip, eraser_area, eraser_tip, points_json, polyline};
 use crate::guides::DrawSnap;
@@ -293,7 +293,7 @@ impl GestureTool {
             && let Some(&start) = self.points.first()
         {
             let origin = if self.id == "knife" { 0.0 } else { cx.constrain_angle };
-            return start + vectorcraft_geom::constrain_angle_from(p - start, 45.0, origin);
+            return start + pluma_geom::constrain_angle_from(p - start, 45.0, origin);
         }
         let Some(&start) = self.points.first().filter(|_| self.id == "blobBrush" && m.shift && !self.smoothing) else {
             self.shift_line = None;
@@ -303,7 +303,7 @@ impl GestureTool {
             // Raw press-to-pointer displacement in logical screen pixels along the constraint
             // axes. Zoom changes the document distance, not the activation tolerance.
             let v = p - start;
-            let v = vectorcraft_geom::constrain_axes(cx.constrain_angle).map_or(Point::new(v.x, v.y), |axes| axes.inverse() * Point::new(v.x, v.y));
+            let v = pluma_geom::constrain_axes(cx.constrain_angle).map_or(Point::new(v.x, v.y), |axes| axes.inverse() * Point::new(v.x, v.y));
             let x = v.x.abs() * cx.zoom;
             let y = v.y.abs() * cx.zoom;
             self.shift_line = if x >= 1.0 && y < 0.5 {
@@ -315,7 +315,7 @@ impl GestureTool {
                 return self.points.last().copied().unwrap_or(start);
             };
         }
-        start + vectorcraft_geom::constrain_angle_from(p - start, 180.0, self.shift_line.unwrap_or(cx.constrain_angle))
+        start + pluma_geom::constrain_angle_from(p - start, 180.0, self.shift_line.unwrap_or(cx.constrain_angle))
     }
 
     /// The Blob Brush's or the Eraser's tip at the pointer, before and while painting: its outline
@@ -606,7 +606,7 @@ impl Tool for GestureTool {
                     self.smoothing = true;
                 }
                 self.knife_shift(ev.mods);
-                self.moved |= self.points.first().is_some_and(|start| p.distance(*start) > vectorcraft_geom::EPS);
+                self.moved |= self.points.first().is_some_and(|start| p.distance(*start) > pluma_geom::EPS);
                 let p = self.constrained(cx, p, ev.mods);
                 let mut end = p;
                 if self.snaps() && !self.smoothing && !self.straight {
@@ -670,7 +670,7 @@ impl Tool for GestureTool {
                     return vec![];
                 }
                 // A release away from the press point counts as movement.
-                self.moved |= self.points.first().is_some_and(|start| p.distance(*start) > vectorcraft_geom::EPS);
+                self.moved |= self.points.first().is_some_and(|start| p.distance(*start) > pluma_geom::EPS);
                 // Alt pressed while the pointer stood still at the press point switches the release too.
                 if self.blob_alt_smooths(ev.mods) {
                     self.smoothing = true;
@@ -813,7 +813,7 @@ impl Tool for GestureTool {
         if cx.measurement_labels && self.id == "blobBrush" && !self.smoothing {
             let last = self.points[self.points.len() - 1];
             let length = self.points.windows(2).map(|w| w[0].distance(w[1])).sum();
-            o.push(Overlay::Measure { p: last + vectorcraft_geom::Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: format!("L: {}", cx.len(length)) });
+            o.push(Overlay::Measure { p: last + pluma_geom::Vec2::new(cx.tol(12.0), cx.tol(12.0)), text: format!("L: {}", cx.len(length)) });
         }
         // Over the stroke's footprint, which reaches the tip's edge at the pointer.
         o.extend(self.tip_outline(cx));

@@ -9,7 +9,7 @@
 //! Visibility is a painter's algorithm, as for Revolve: faces of a closed solid that face away
 //! from the viewer are left out, the rest are drawn back to front.
 
-use vectorcraft_geom::{BezPath, FillRule, ParamCurve, PathData, Point, Rect, Vec2};
+use pluma_geom::{BezPath, FillRule, ParamCurve, PathData, Point, Rect, Vec2};
 
 use crate::{MAX_FACES, Revolve, V3, eye_distance, perspective_scale};
 

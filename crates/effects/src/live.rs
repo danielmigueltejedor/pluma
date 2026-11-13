@@ -1,5 +1,5 @@
 //! Live objects (blends, envelopes, gradient meshes, repeats) evaluated alike for the renderer and
-//! every exporter, with what the pure evaluation in [`vectorcraft_doc::live`] can't do itself
+//! every exporter, with what the pure evaluation in [`pluma_doc::live`] can't do itself
 //! ([`Hooks`]): type inside an envelope distorts as its glyph outlines, run by run
 //! ([`outline_text`]); symbol instances as their symbol's art; with Distort Appearance strokes and
 //! geometry effects bend with the art ([`bake_appearance`]); with Distort Pattern Fills the pattern
@@ -7,9 +7,9 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::live::{self, Hooks, Outliner};
-use vectorcraft_doc::{Document, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect};
+use pluma_doc::live::{self, Hooks, Outliner};
+use pluma_doc::{Document, Node, NodeKind};
+use pluma_geom::{Affine, Rect};
 
 use crate::{bake_appearance, outline_text};
 
@@ -28,7 +28,7 @@ pub fn outline_object(doc: Option<&Document>, n: &Node) -> Option<Node> {
         NodeKind::SymbolInstance { symbol, xf } => {
             let doc = doc?;
             let sym = doc.symbols.iter().find(|s| s.name == *symbol)?;
-            let art = vectorcraft_doc::symbol_overrides::dynamic_art(&sym.art, n);
+            let art = pluma_doc::symbol_overrides::dynamic_art(&sym.art, n);
             let art = doc.place_symbol_art(symbol, &art, *xf)?;
             Some(Node::group(n.id, vec![Arc::new(art)]))
         }
@@ -40,7 +40,7 @@ pub fn outline_object(doc: Option<&Document>, n: &Node) -> Option<Node> {
 /// document, symbol instances and pattern tiles stay as they are).
 fn with_hooks<R>(doc: Option<&Document>, f: impl FnOnce(Hooks) -> R) -> R {
     // Envelopes map type from its glyphs here too, without an engine session.
-    vectorcraft_text::register_envelope_ink();
+    pluma_text::register_envelope_ink();
     let outline = |n: &Node| outline_object(doc, n);
     let tiles = |name: &str, xf: Affine, region: Rect| Some(doc?.pattern(name)?.instances_in(xf, region));
     let appearance = |n: &Node| bake_appearance(doc, n);

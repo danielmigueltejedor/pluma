@@ -3,12 +3,12 @@
 //! measure instead: two points (linear) or two straight lines (angular), then a click places it;
 //! a click on a circle or arc gives its radius. Escape cancels without leaving any artwork.
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
-use serde_json::{Value, json};
-use vectorcraft_doc::{
+use pluma_doc::{
     Node,
     dimension::{self, Dimension, DimensionMode, DimensionOptions, DimensionSource, PointRef, SegmentRef},
 };
-use vectorcraft_geom::{BezPath, Point, Vec2};
+use pluma_geom::{BezPath, Point, Vec2};
+use serde_json::{Value, json};
 
 /// The three kinds of dimension the tool draws.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -77,7 +77,7 @@ const ANCHOR_REACH: f64 = 8.0;
 /// `at` as a Shift click picks it: the direction from `last` snapped to 45° steps (from the
 /// constrain angle), the distance kept.
 fn constrained(cx: &ToolContext, last: Point, at: Point) -> Point {
-    last + vectorcraft_geom::constrain_angle_from(at - last, 45.0, cx.constrain_angle)
+    last + pluma_geom::constrain_angle_from(at - last, 45.0, cx.constrain_angle)
 }
 
 /// Nearest editable segment, with bounded work and no snapping to dimension artwork itself.
@@ -96,7 +96,7 @@ pub fn pick(cx: &ToolContext, p: Point) -> Option<SegmentRef> {
                         return;
                     }
                     *budget -= 1;
-                    use vectorcraft_geom::kurbo::ParamCurveNearest;
+                    use pluma_geom::kurbo::ParamCurveNearest;
                     let near = sp.segment(i).nearest(p, 1e-4);
                     if near.distance_sq < *dist * *dist {
                         *dist = near.distance_sq.sqrt();
@@ -165,14 +165,14 @@ fn anchor_under(cx: &ToolContext, p: Point) -> Option<(Point, PointRef)> {
 
 /// The point of `edge` closest to `p`.
 fn nearest_on(cx: &ToolContext, edge: &SegmentRef, p: Point) -> Option<Point> {
-    use vectorcraft_geom::kurbo::ParamCurveNearest;
+    use pluma_geom::kurbo::ParamCurveNearest;
     let sp = cx.doc.node(edge.node)?.path_data()?.subpaths.get(edge.subpath)?;
     if edge.segment >= sp.segment_count() {
         return None;
     }
     let c = sp.segment(edge.segment);
     let t = c.nearest(p, 1e-4).t;
-    use vectorcraft_geom::kurbo::ParamCurve;
+    use pluma_geom::kurbo::ParamCurve;
     let q = c.eval(t);
     (q.x.is_finite() && q.y.is_finite()).then_some(q)
 }
@@ -532,7 +532,7 @@ impl Tool for DimensionTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     /// A dropped click picks nothing and keeps the point an earlier click picked. A dropped drag
     /// out from a segment is canceled as by Escape.
@@ -632,14 +632,14 @@ mod tests {
     /// compound path's own segments. A press there that moves a few pixels picks it too.
     #[test]
     fn an_anchor_under_another_objects_edge_is_picked() {
+        use pluma_doc::{Appearance, NodeKind};
+        use pluma_geom::Rect;
         use std::sync::Arc;
-        use vectorcraft_doc::{Appearance, NodeKind};
-        use vectorcraft_geom::Rect;
         let (mut d, _) = doc_with_rect();
         let l = d.layers[0].id;
         let (outer, inner, compound) = (d.alloc_id(), d.alloc_id(), d.alloc_id());
-        let mut path = vectorcraft_geom::shapes::rectangle(Rect::new(20.0, 20.0, 40.0, 40.0));
-        path.subpaths.extend(vectorcraft_geom::shapes::rectangle(Rect::new(150.0, 103.0, 180.0, 130.0)).subpaths);
+        let mut path = pluma_geom::shapes::rectangle(Rect::new(20.0, 20.0, 40.0, 40.0));
+        path.subpaths.extend(pluma_geom::shapes::rectangle(Rect::new(150.0, 103.0, 180.0, 130.0)).subpaths);
         let art = Node::path(compound, path, Appearance::default_art());
         let inner_group = Node::new(inner, NodeKind::Group { children: vec![Arc::new(art)], clip: false });
         let group = Node::new(outer, NodeKind::Group { children: vec![Arc::new(inner_group)], clip: false });

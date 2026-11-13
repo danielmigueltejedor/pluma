@@ -10,12 +10,12 @@
 #[cfg(test)]
 mod tests;
 
+use pluma_color::Paint;
+use pluma_color::recolor::Rng;
+use pluma_doc::{Appearance, Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
+use pluma_geom::{Affine, ArcPath, Point};
+use pluma_text::edit;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_color::recolor::Rng;
-use vectorcraft_doc::{Appearance, Document, Node, NodeId, NodeKind, TextKind, TextObject, TextRun};
-use vectorcraft_geom::{Affine, ArcPath, Point};
-use vectorcraft_text::edit;
 
 use super::super::menucmds::whole_or;
 use super::super::object::choice;
@@ -224,7 +224,7 @@ fn path_types(s: &Session, p: &Value) -> Result<Vec<NodeId>> {
 /// Where the first character laid out in `lay` starts its baseline: the pen position of the first
 /// glyph in text order (a list marker, which has no characters, before the character it leads).
 /// None without a glyph.
-fn first_pen(lay: &vectorcraft_text::TextLayout) -> Option<Point> {
+fn first_pen(lay: &pluma_text::TextLayout) -> Option<Point> {
     lay.glyphs.iter().filter(|g| g.origin.x.is_finite() && g.origin.y.is_finite()).min_by_key(|g| (g.byte, g.len != 0)).map(|g| g.origin)
 }
 
@@ -234,10 +234,10 @@ fn first_pen(lay: &vectorcraft_text::TextLayout) -> Option<Point> {
 /// other type, or when it can't be placed.
 fn released_text(t: &TextObject) -> Option<TextObject> {
     let TextKind::OnPath { path, .. } = &t.kind else { return None };
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Where the first character sat. Text that didn't fit on the path has no glyph there: it
     // starts at the start bracket.
-    let at = first_pen(&vectorcraft_text::layout(db, t)).or_else(|| {
+    let at = first_pen(&pluma_text::layout(db, t)).or_else(|| {
         let ap = ArcPath::new(path);
         let (from, _) = t.kind.path_span()?;
         let (p, _) = ap.at(from * ap.len());
@@ -252,7 +252,7 @@ fn released_text(t: &TextObject) -> Option<TextObject> {
     out.first_para_continues = false;
     // Where the point type puts its own first character; the origin moves so it lands at `at`,
     // whatever the paragraph's alignment and direction.
-    let own = first_pen(&vectorcraft_text::layout(db, &out)).unwrap_or(Point::ZERO);
+    let own = first_pen(&pluma_text::layout(db, &out)).unwrap_or(Point::ZERO);
     let shift = at - own;
     if !(shift.x.is_finite() && shift.y.is_finite()) {
         return None;

@@ -112,15 +112,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use kurbo::{Affine, BezPath, PathEl, Point, Rect};
-use vectorcraft_color::gradient::Gradient;
-use vectorcraft_color::swatch::Swatch;
-use vectorcraft_color::{BlendMode, Paint};
-use vectorcraft_doc::cmyk::Inks;
-use vectorcraft_doc::{
+use pluma_color::gradient::Gradient;
+use pluma_color::swatch::Swatch;
+use pluma_color::{BlendMode, Paint};
+use pluma_doc::cmyk::Inks;
+use pluma_doc::{
     Appearance, AppearanceItem, Artboard, ColorMode, Dash, Document, FillLayer, ImageBlob, ImageObject, Knockout, LayerColor, LineCap, LineJoin,
     LinkInfo, Node, NodeId, NodeKind, OpacityMask, PageBox, PatternDef, StrokeLayer, Unit,
 };
-use vectorcraft_geom::{AnchorKind, FillRule, PathData};
+use pluma_geom::{AnchorKind, FillRule, PathData};
 
 use super::super::ate::CANVAS_CENTRE;
 use super::super::graphics::HAIRLINE;
@@ -319,7 +319,7 @@ fn swatch_names(data: &[u8], encoding: NameEncoding) -> (ShownNames, Option<&[u8
         false
     }
     let mut names = ShownNames::default();
-    names.reserve(vectorcraft_color::swatch::REGISTRATION);
+    names.reserve(pluma_color::swatch::REGISTRATION);
     // The reader reads these names again, and keeps the notes on them.
     let mut decoder = obj::Names::new(encoding);
     let mut colors = paint::ColorNames::new(encoding);
@@ -410,7 +410,7 @@ fn swatch_names(data: &[u8], encoding: NameEncoding) -> (ShownNames, Option<&[u8
     let palette = palette.map(|p| super::palette::palette(p, &mut decoder)).unwrap_or_default();
     if palette.is_empty() {
         for mode in [ColorMode::Rgb, ColorMode::Cmyk] {
-            let (swatches, groups) = vectorcraft_color::default_swatches(mode.model());
+            let (swatches, groups) = pluma_color::default_swatches(mode.model());
             for g in &groups {
                 names.reserve(&g.name);
                 g.swatches.iter().for_each(|s| names.reserve(&s.name));
@@ -696,7 +696,7 @@ impl<'a> Reader<'a> {
     fn new(data: &'a [u8]) -> Self {
         // An envelope's saved margins and its check against its drawn art measure type by its
         // glyphs, as the app maps it.
-        vectorcraft_text::register_envelope_ink();
+        pluma_text::register_envelope_ink();
         let mut doc = Document::new(1.0, 1.0);
         doc.layers.clear();
         Self {

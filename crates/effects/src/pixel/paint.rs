@@ -4,7 +4,7 @@
 //! dark areas with short diagonal strokes and brightens the light ones, Sponge paints highly
 //! textured areas of contrasting colour, Watercolor simplifies detail with a medium brush loaded
 //! with water and saturates the colour where tones change at edges). Visual approximations, not
-//! reproductions of a proprietary algorithm; the ranges and defaults are chosen for VectorCraft.
+//! reproductions of a proprietary algorithm; the ranges and defaults are chosen for Pluma.
 //!
 //! All three keep the object's coverage, so they paint nothing outside it. Their patterns lie in
 //! document space around the object's centre, as the Brush Strokes' and Texture filters' do.

@@ -63,14 +63,14 @@ pub(super) fn insert_items(list: &[(&'static str, &'static str)]) -> Vec<Item> {
 /// Type → Font: one item per available family, the installed fonts included. Built again only when
 /// the fonts or Show Font Names in English change (the menu tree is built every frame); labels are
 /// interned once each, so rebuilding doesn't allocate forever. The command still sets the English
-/// family name ([`vectorcraft_text::FontDb::canonical`]). Until the installed fonts are scanned it
+/// family name ([`pluma_text::FontDb::canonical`]). Until the installed fonts are scanned it
 /// lists the fonts already loaded, by their English names, rather than wait for the scan: the menu
 /// bar is drawn in the window's first frame, which a large font library would otherwise hold up
 /// past the first-frame watchdog (#5483).
 pub(super) fn font_items(english_names: bool) -> Vec<Item> {
     static NAMES: std::sync::Mutex<std::collections::BTreeSet<&'static str>> = std::sync::Mutex::new(std::collections::BTreeSet::new());
     static ITEMS: std::sync::Mutex<(u64, bool, bool, Vec<Item>)> = std::sync::Mutex::new((u64::MAX, true, false, Vec::new()));
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Read first: fonts that load meanwhile make the next frame build the list again. The scan
     // ends between changing the generation and counting as cataloged, so both are kept.
     let cataloged = db.installed_fonts_ready();
@@ -114,7 +114,7 @@ const CLASSIC_3D: &[&str] = &["Effect", "3D and Materials", "3D (Classic)"];
 /// The raster effects' submenus of the Effect menu (the Photoshop-style effects, below the
 /// vector effects): (submenu, the catalogue's menu path of its effects).
 /// The raster Stylize submenu shares its path with the vector one and lists only the effects at
-/// that path that [`vectorcraft_effects::PIXEL_EFFECTS`] names.
+/// that path that [`pluma_effects::PIXEL_EFFECTS`] names.
 const RASTER_MENUS: [(&str, &[&str]); 10] = [
     ("Artistic", &["Effect", "Artistic"]),
     ("Blur", &["Effect", "Blur"]),
@@ -130,7 +130,7 @@ const RASTER_MENUS: [(&str, &[&str]); 10] = [
 
 /// The Effect menu, built from the effects catalogue (vector effects), plus raster effects.
 pub(super) fn effect_menu() -> Vec<Item> {
-    let cat = vectorcraft_effects::effect_catalog();
+    let cat = pluma_effects::effect_catalog();
     let mut out = vec![
         c("Apply Last Effect", "effect.applyLast"),
         c("Last Effect…", "effect.last"),
@@ -155,13 +155,13 @@ pub(super) fn effect_menu() -> Vec<Item> {
         "SVG Filters",
         "Warp",
     ];
-    let top_level = |e: &vectorcraft_effects::EffectInfo| e.menu == ["Effect"] && order.contains(&e.label);
+    let top_level = |e: &pluma_effects::EffectInfo| e.menu == ["Effect"] && order.contains(&e.label);
     // An effect goes in the vector submenu its path names unless it is a Photoshop-style effect,
     // which goes in the raster submenu of the same name when `RASTER_MENUS` has one (Stylize ›
     // Glowing Edges).
     let in_vector_menu =
-        |e: &vectorcraft_effects::EffectInfo| order.iter().any(|s| e.menu == ["Effect", *s]) && !vectorcraft_effects::PIXEL_EFFECTS.contains(&e.id);
-    let item = |e: &vectorcraft_effects::EffectInfo| match e.defaults.as_object().is_some_and(|o| o.is_empty()) {
+        |e: &pluma_effects::EffectInfo| order.iter().any(|s| e.menu == ["Effect", *s]) && !pluma_effects::PIXEL_EFFECTS.contains(&e.id);
+    let item = |e: &pluma_effects::EffectInfo| match e.defaults.as_object().is_some_and(|o| o.is_empty()) {
         // No options (Effect → Pathfinder, Crop Marks): apply directly, like Illustrator.
         true => Item::Cmd(e.label, "effect.apply", json!({ "effect": e.id })),
         false => Item::Cmd(e.label, "effect.dialog", json!({ "effect": e.id })),
@@ -221,7 +221,7 @@ pub(super) fn effect_menu() -> Vec<Item> {
         out.extend(raster);
     }
     // Anything not placed above (future effects) still shows up.
-    let placed = |e: &vectorcraft_effects::EffectInfo| {
+    let placed = |e: &pluma_effects::EffectInfo| {
         top_level(e) || in_vector_menu(e) || e.menu == CLASSIC_3D || RASTER_MENUS.iter().any(|(_, path)| e.menu == *path)
     };
     for e in cat.iter().filter(|e| !placed(e)) {

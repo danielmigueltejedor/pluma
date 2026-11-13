@@ -7,10 +7,10 @@
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use vectorcraft_doc::Document;
-use vectorcraft_engine::file_access::ScopeHandle;
-use vectorcraft_geom::Affine;
-use vectorcraft_render::{RenderOptions, Rendered, Renderer};
+use pluma_doc::Document;
+use pluma_engine::file_access::ScopeHandle;
+use pluma_geom::Affine;
+use pluma_render::{RenderOptions, Rendered, Renderer};
 
 use crate::CacheKey;
 
@@ -39,7 +39,7 @@ pub struct Done {
     pub opts: RenderOptions,
     pub img: Rendered,
     pub ms: f64,
-    /// [`vectorcraft_render::FrameStats::moved`] of the frame.
+    /// [`pluma_render::FrameStats::moved`] of the frame.
     pub moved: usize,
     /// The frame holds pixels copied from the worker's last frame ([`crate::canvas::render_job`]),
     /// and `ms` is the time of the copy and of the parts rendered.
@@ -61,7 +61,7 @@ impl Worker {
         let (tx, jobs) = channel::<Job>();
         let (done_tx, rx) = channel::<Done>();
         std::thread::Builder::new()
-            .name("vectorcraft-render".into())
+            .name("pluma-render".into())
             .spawn(move || {
                 let mut r = Renderer::new();
                 let mut kept = None;

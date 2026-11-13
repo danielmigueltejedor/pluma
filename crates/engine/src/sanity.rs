@@ -35,7 +35,7 @@ pub(crate) fn deselect_hidden(menu: &cmd::menucmds::MenuState, d: &Document, sel
     guides || slices
 }
 
-/// The error of an edit that would nest objects deeper than [`vectorcraft_doc::MAX_DEPTH`].
+/// The error of an edit that would nest objects deeper than [`pluma_doc::MAX_DEPTH`].
 pub const TOO_DEEP: &str = "objects can't be nested more than 32 deep";
 
 /// Cheap sanity check after an edit: artboards and the objects just touched (the selection) must
@@ -49,7 +49,7 @@ pub(crate) fn doc_sane(d: &Document, sel: &Selection) -> bool {
         && objects_in_range(d, &sel.objects)
 }
 
-fn rect_in_range(r: vectorcraft_geom::Rect) -> bool {
+fn rect_in_range(r: pluma_geom::Rect) -> bool {
     [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= MAX_COORD)
 }
 

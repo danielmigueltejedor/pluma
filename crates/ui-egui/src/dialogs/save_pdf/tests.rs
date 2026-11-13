@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::Services;
@@ -11,12 +11,12 @@ type Log = Rc<RefCell<Vec<(String, Vec<u8>)>>>;
 /// The built-in presets are told from saved ones by name (only theirs are translated).
 #[test]
 fn built_in_presets_are_known_by_name() {
-    assert!(vectorcraft_pdf::builtin_presets().iter().all(|p| is_builtin_preset(&p.name)));
+    assert!(pluma_pdf::builtin_presets().iter().all(|p| is_builtin_preset(&p.name)));
     assert!(is_builtin_preset(pdf::DEFAULT_PRESET) && !is_builtin_preset("Default") && !is_builtin_preset("My Preset"));
 }
 
 /// An app with two artboards whose writer and URL opener record what they get.
-fn app() -> (VectorcraftApp, Log, Log) {
+fn app() -> (PlumaApp, Log, Log) {
     let (written, opened) = (Log::default(), Log::default());
     let (w, o) = (written.clone(), opened.clone());
     let services = Services {
@@ -27,21 +27,21 @@ fn app() -> (VectorcraftApp, Log, Log) {
         open_url: Some(Box::new(move |u: &str| o.borrow_mut().push((u.to_string(), vec![])))),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 120, "height": 90, "artboards": 3})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
     (app, written, opened)
 }
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-fn set_field(app: &mut VectorcraftApp, path: &str, v: Value) {
+fn set_field(app: &mut PlumaApp, path: &str, v: Value) {
     set(app.ui.dialog.as_mut().expect("dialog open"), path, v);
 }
 
@@ -84,7 +84,7 @@ fn confirm_runs_export_pdf_with_the_dialog_options() {
     assert_eq!(w.len(), 1);
     assert_eq!(w[0].0, "/tmp/out.pdf");
     assert!(w[0].1.starts_with(b"%PDF-1.5"), "compatibility reaches the writer");
-    assert_eq!(vectorcraft_pdf::import(&w[0].1).unwrap().artboards.len(), 2, "range 1,3");
+    assert_eq!(pluma_pdf::import(&w[0].1).unwrap().artboards.len(), 2, "range 1,3");
     assert!(!String::from_utf8_lossy(&w[0].1).contains("/FlateDecode"), "uncompressed content");
     assert_eq!(opened.borrow().len(), 1, "View PDF after Saving opens the file once");
     let url = &opened.borrow()[0].0;
@@ -131,7 +131,7 @@ fn warnings_reach_the_status_and_errors_keep_the_dialog_open() {
 #[test]
 fn summary_warnings_are_translated() {
     let fr = crate::i18n::Lang::from_code("fr").unwrap();
-    let shown = warning_line(fr, vectorcraft_engine::cmd::fileio::pdf::BLEED_LEFT_OUT);
+    let shown = warning_line(fr, pluma_engine::cmd::fileio::pdf::BLEED_LEFT_OUT);
     assert!(shown.starts_with("⚠ ") && !shown.contains("leaves out"), "{shown}");
     assert_eq!(warning_line(fr, "no row for this note"), "⚠ no row for this note");
     assert_eq!(warning_line(fr, "no row: for this note"), "⚠ no row\u{a0}: for this note");
@@ -148,7 +148,7 @@ fn an_image_that_couldnt_be_decoded_is_named_in_the_status() {
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
     // The image is placed on the first artboard.
-    vectorcraft_testkit::fixtures::place_cut_png(&mut app.session, &png, json!({"at": [60, 50]}));
+    pluma_testkit::fixtures::place_cut_png(&mut app.session, &png, json!({"at": [60, 50]}));
     app.run("ui.savePdfDialog", json!({"path": "/tmp/cut.pdf"})).unwrap();
     super::super::confirm(&mut app).unwrap();
     assert_eq!(app.ui.status, "Saved /tmp/cut.pdf with 1 note: an image couldn't be decoded and is missing from the picture");
@@ -189,11 +189,11 @@ fn marks_and_bleeds_reach_the_pdf() {
     let r = super::super::confirm(&mut app).unwrap();
     assert_eq!(r["warnings"], json!([]), "marks and bleed are applied");
     let bytes = &written.borrow()[0].1;
-    let page = &vectorcraft_pdf::info(bytes, None).unwrap().pages[0];
-    let trim = page.boxes.iter().find(|(b, _)| *b == vectorcraft_pdf::CropTo::Trim).unwrap().1;
+    let page = &pluma_pdf::info(bytes, None).unwrap().pages[0];
+    let trim = page.boxes.iter().find(|(b, _)| *b == pluma_pdf::CropTo::Trim).unwrap().1;
     assert_eq!((trim.width(), trim.x0), (120.0, 9.0 + 18.0 + 0.25), "the trim box is the artboard, inside the bleed and marks");
     let mut ellipse = false;
-    vectorcraft_pdf::import(bytes).unwrap().walk(|n| {
+    pluma_pdf::import(bytes).unwrap().walk(|n| {
         let b = n.path_data().and_then(|p| p.bounds()).unwrap_or_default();
         ellipse |= (b.width() - 20.0).abs() < 0.1 && (b.height() - 20.0).abs() < 0.1;
     });
@@ -239,13 +239,13 @@ fn confirming_preserves_passwords_supplied_when_opening_the_dialog() {
         let bytes = &written[0].1;
         assert!(String::from_utf8_lossy(bytes).contains("/Encrypt"));
         if open.is_empty() {
-            assert_eq!(vectorcraft_pdf::info(bytes, None).unwrap().pages.len(), 3);
+            assert_eq!(pluma_pdf::info(bytes, None).unwrap().pages.len(), 3);
         } else {
-            assert_eq!(vectorcraft_pdf::info(bytes, None).unwrap_err(), vectorcraft_pdf::PdfError::NeedsPassword);
+            assert_eq!(pluma_pdf::info(bytes, None).unwrap_err(), pluma_pdf::PdfError::NeedsPassword);
         }
-        assert_eq!(vectorcraft_pdf::info(bytes, Some("wrong")).unwrap_err(), vectorcraft_pdf::PdfError::WrongPassword);
+        assert_eq!(pluma_pdf::info(bytes, Some("wrong")).unwrap_err(), pluma_pdf::PdfError::WrongPassword);
         for password in [open, owner].into_iter().filter(|p| !p.is_empty()) {
-            assert_eq!(vectorcraft_pdf::info(bytes, Some(password)).unwrap().pages.len(), 3);
+            assert_eq!(pluma_pdf::info(bytes, Some(password)).unwrap().pages.len(), 3);
         }
     }
 }
@@ -307,7 +307,7 @@ fn create_layers_writes_pdf_layers() {
     }
     let r = super::super::confirm(&mut app).unwrap();
     assert_eq!(r["warnings"], json!([]));
-    let back = vectorcraft_pdf::import(&written.borrow()[0].1).unwrap();
+    let back = pluma_pdf::import(&written.borrow()[0].1).unwrap();
     let names: Vec<_> = back.layers.iter().filter_map(|l| l.name.clone()).collect();
     // The empty pages of the other artboards come in as page layers.
     assert_eq!(names[..2], ["Layer 1", "Notes"]);

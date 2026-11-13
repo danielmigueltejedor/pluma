@@ -16,19 +16,19 @@
 
 use std::sync::Arc;
 
-use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::webexport::{
+use pluma_engine::cmd::webexport::{
     self, SPEEDS, SliceScope, TableColor, WebFormat, WebMetadata, WebOutput, WebRender, WebSettings, download_seconds, hex,
 };
-use vectorcraft_render::AntiAlias;
-use vectorcraft_render::encode::quantize::{Dither, Reduction};
-use vectorcraft_render::encode::web::ColorSort;
+use pluma_render::AntiAlias;
+use pluma_render::encode::quantize::{Dither, Reduction};
+use pluma_render::encode::web::ColorSort;
+use serde_json::{Map, Value, json};
 
 use super::png_options::color_button;
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub const KIND: &str = "saveForWeb";
 
@@ -70,7 +70,7 @@ const MATTE_LABELS: [&str; 4] = ["None", "White", "Black", "Other"];
 const QUALITIES: [(&str, u8); 5] = [("Low", 10), ("Medium", 30), ("High", 60), ("Very High", 80), ("Maximum", 100)];
 
 /// Open on the document's active artboard, keeping the other remembered settings.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let n = app.session.active().ok_or("no document")?.doc.artboards.len();
     let mut s = app.session.last_web_settings();
     s.artboard = Some(crate::panels::artboards::selected(app, n));
@@ -105,7 +105,7 @@ fn params(d: &Dialog) -> Value {
 }
 
 /// A `preset` field (set by an agent, or the preset list) replaces the settings with the preset's.
-fn apply_preset(app: &VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
+fn apply_preset(app: &PlumaApp, d: &mut Dialog) -> Result<(), String> {
     let Some(name) = d.fields.remove("preset") else { return Ok(()) };
     let s = app.session.web_settings(&json!({ "preset": name }))?;
     d.fields.extend(settings_fields(&s));
@@ -113,11 +113,11 @@ fn apply_preset(app: &VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
 }
 
 /// The settings the fields describe.
-fn settings_of(app: &VectorcraftApp, d: &Dialog) -> Result<WebSettings, String> {
+fn settings_of(app: &PlumaApp, d: &Dialog) -> Result<WebSettings, String> {
     app.session.web_settings(&params(d))
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut d = d.clone();
     apply_preset(app, &mut d)?;
     let p = params(&d);
@@ -135,7 +135,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 /// `file.saveForWeb` with settings: write the files (`path`, else a picked file: the page with HTML
 /// output, else the image); the web downloads them. The status bar shows the export's first
 /// warning.
-pub(crate) fn save(app: &mut VectorcraftApp, mut p: Value) -> Result<Value, String> {
+pub(crate) fn save(app: &mut PlumaApp, mut p: Value) -> Result<Value, String> {
     // Bad settings never open a save panel.
     let s = app.session.web_settings(&p)?;
     let path = p.get("path").and_then(Value::as_str).map(str::to_string);
@@ -144,7 +144,7 @@ pub(crate) fn save(app: &mut VectorcraftApp, mut p: Value) -> Result<Value, Stri
         let mut names = vec![];
         for f in r["files"].as_array().into_iter().flatten() {
             let (Some(name), Some(data)) = (f["name"].as_str(), f["dataBase64"].as_str()) else { continue };
-            let bytes = vectorcraft_format::base64_decode(data).ok_or("the export returned unreadable data")?;
+            let bytes = pluma_format::base64_decode(data).ok_or("the export returned unreadable data")?;
             io::write_to(&mut app.services, name, &bytes)?;
             names.push(json!(name));
         }
@@ -185,12 +185,12 @@ pub(super) fn preview_name(stem: &str) -> &str {
 /// `file.saveForWeb.browser`: the HTML page and its images in a new temporary folder, opened in the
 /// default browser (desktop). When the export has warnings, the status bar shows the first in
 /// place of "Opened …".
-pub(crate) fn browser_preview(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn browser_preview(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if io::is_web(app) {
         return Err("Preview in Browser needs the desktop app (the web downloads files instead)".into());
     }
     app.refuse_automation("file.saveForWeb.browser")?;
-    let stem = app.session.active().map(|st| vectorcraft_engine::cmd::fileio::file_stem(&st.doc.title)).ok_or("no document")?;
+    let stem = app.session.active().map(|st| pluma_engine::cmd::fileio::file_stem(&st.doc.title)).ok_or("no document")?;
     let dir = temp_folder()?;
     let path = format!("{dir}/{}.html", preview_name(&stem));
     let mut q = if p.is_object() { p.clone() } else { json!({}) };
@@ -217,12 +217,12 @@ fn temp_folder() -> Result<String, String> {
     preview_folder_in(&std::env::temp_dir(), PREVIEW_KEEP)
 }
 
-/// The name of a folder that a preview made in the temporary folder, beside a `VectorCraft Save
+/// The name of a folder that a preview made in the temporary folder, beside a `Pluma Save
 /// for Web` it couldn't use, before the process id and the count.
 #[cfg(not(target_arch = "wasm32"))]
-const BESIDE: &str = "VectorCraft Save for Web ";
+const BESIDE: &str = "Pluma Save for Web ";
 
-/// A new folder for a browser preview in the temporary folder `tmp`: inside `VectorCraft Save for
+/// A new folder for a browser preview in the temporary folder `tmp`: inside `Pluma Save for
 /// Web` ([`preview_folder`]), or, when that folder can't be used, directly in `tmp`, named
 /// [`BESIDE`] followed by the process id and a count. The log says why the shared folder wasn't
 /// used. Each preview first removes the folders of that name in `tmp` last changed `keep` or longer
@@ -230,8 +230,8 @@ const BESIDE: &str = "VectorCraft Save for Web ";
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn preview_folder_in(tmp: &std::path::Path, keep: std::time::Duration) -> Result<String, String> {
     remove_old(tmp, BESIDE, keep);
-    preview_folder(&tmp.join("VectorCraft Save for Web"), keep).or_else(|e| {
-        log::warn!("vectorcraft: Preview in Browser can't use {e}, so the preview goes to a new folder of its own");
+    preview_folder(&tmp.join("Pluma Save for Web"), keep).or_else(|e| {
+        log::warn!("pluma: Preview in Browser can't use {e}, so the preview goes to a new folder of its own");
         new_folder(tmp, BESIDE)
     })
 }
@@ -395,7 +395,7 @@ fn texture(ctx: &egui::Context, name: &str, px: &[u8], [w, h]: [u32; 2]) -> egui
 
 /// The rendering for `s` and the optimised image for each of `panes`, from the cache when nothing
 /// they depend on changed.
-fn previews(app: &VectorcraftApp, ctx: &egui::Context, s: &WebSettings, panes: &[WebSettings]) -> (Result<Shot, String>, Vec<Result<Shot, String>>) {
+fn previews(app: &PlumaApp, ctx: &egui::Context, s: &WebSettings, panes: &[WebSettings]) -> (Result<Shot, String>, Vec<Result<Shot, String>>) {
     let Some(st) = app.session.active() else { return (Err("no document".into()), vec![]) };
     let doc = &st.doc;
     let mut cache: Cache = ctx.data(|m| m.get_temp(cache_id())).unwrap_or_default();
@@ -447,7 +447,7 @@ fn previews(app: &VectorcraftApp, ctx: &egui::Context, s: &WebSettings, panes: &
     (original, shots)
 }
 
-fn optimise(ctx: &egui::Context, doc: &vectorcraft_doc::Document, r: &WebRender, s: &WebSettings, pane: usize) -> Result<Shot, String> {
+fn optimise(ctx: &egui::Context, doc: &pluma_doc::Document, r: &WebRender, s: &WebSettings, pane: usize) -> Result<Shot, String> {
     let o = webexport::preview_image(doc, &r.rgba, r.width, r.height, s)?;
     let (px, w, h) = webexport::decode(&o)?;
     Ok(Shot {
@@ -482,7 +482,7 @@ fn alternates(s: &WebSettings) -> [WebSettings; 2] {
 
 // ---------- the dialog ----------
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     if app.session.active().is_none() {
         return true;
     }
@@ -510,7 +510,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// The view tabs, the panes and the zoom and speed row. Returns whether Preview in Browser was
 /// clicked.
-fn preview_area(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, settings: &Result<WebSettings, String>) -> bool {
+fn preview_area(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, settings: &Result<WebSettings, String>) -> bool {
     let t = Tokens::get(ui.ctx());
     let view = VIEWS.iter().position(|v| *v == d.str("__view")).unwrap_or(2);
     if let Some(i) = widgets::tab_bar(ui, &VIEW_LABELS, view) {
@@ -683,7 +683,7 @@ fn pairs<T: Copy>(all: &[T], key: fn(T) -> &'static str, label: fn(T) -> &'stati
     all.iter().map(|v| (key(*v), label(*v))).collect()
 }
 
-fn side(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
+fn side(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
     presets_row(app, ui, d, s);
     widgets::divider(ui);
     egui::ScrollArea::vertical().id_salt("sfw-settings").max_height(PREVIEW_H - 40.0).auto_shrink([false, true]).show(ui, |ui| {
@@ -735,7 +735,7 @@ fn side(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&
 }
 
 /// The preset list (the settings' preset, else "[Unnamed]") with Save and Delete.
-fn presets_row(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
+fn presets_row(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
     let presets = app.session.web_presets();
     let saved = app.session.prefs.web_export_presets.len();
     let current = s.and_then(|s| presets.iter().rposition(|p| p.settings == *s));
@@ -898,7 +898,7 @@ fn color_table(ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
         if c.locked {
             p.rect_filled(egui::Rect::from_min_size(r.right_bottom() - egui::vec2(5.0, 5.0), egui::vec2(4.0, 4.0)), 0.0, mark);
         }
-        if !c.transparent && vectorcraft_render::encode::quantize::web_safe(c.color) == c.color {
+        if !c.transparent && pluma_render::encode::quantize::web_safe(c.color) == c.color {
             let m = r.center();
             p.add(egui::Shape::convex_polygon(
                 vec![m + egui::vec2(0.0, -2.5), m + egui::vec2(2.5, 0.0), m + egui::vec2(0.0, 2.5), m + egui::vec2(-2.5, 0.0)],
@@ -968,11 +968,11 @@ pub(super) fn set_table(d: &mut Dialog, key: &str, value: Value) {
 
 /// Image Size: width and height in pixels (proportional) or a percentage, anti-aliasing, Clip to
 /// Artboard and which artboard.
-fn image_size(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
+fn image_size(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, s: Option<&WebSettings>) {
     widgets::subheader(ui, tl!("Image Size"));
     let Some(st) = app.session.active() else { return };
     let region = s.and_then(|s| webexport::region(&st.doc, s).ok());
-    let (w, h) = region.map_or((0, 0), |(r, scale)| vectorcraft_render::region_pixels(r, scale));
+    let (w, h) = region.map_or((0, 0), |(r, scale)| pluma_render::region_pixels(r, scale));
     let set = |d: &mut Dialog, key: &str, v: Value| {
         for k in ["width", "height", "percent"] {
             d.fields.insert(k.into(), Value::Null);

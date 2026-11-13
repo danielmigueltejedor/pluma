@@ -1,7 +1,7 @@
 # Spanish (es) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" forms).
 #
-# Clean-room: written from the meaning of VectorCraft's English labels in neutral, international
+# Clean-room: written from the meaning of Pluma's English labels in neutral, international
 # Spanish (Latin American usage: agregar, computadora, mouse), using the feature names Spanish-speaking
 # users of vector illustration software know (Mesa de trabajo, Muestras, Trazo, Relleno, Trazado,
 # Punto de ancla, Pluma, Selección directa, Buscatrazos, Motivo, Preajuste). No other application's
@@ -103,7 +103,7 @@
 	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	Un valor menor sigue el trazo de cerca; uno mayor da menos puntos y curvas más suaves.
 	A new preset starting from the selected one	Un preajuste nuevo a partir del seleccionado
 	A saved copy of the selected preset	Una copia guardada del preajuste seleccionado
-	About VectorCraft	Acerca de VectorCraft
+	About Pluma	Acerca de Pluma
 	above	arriba
 	Absolute Position	Posición absoluta
 	Accurate	Preciso
@@ -213,7 +213,7 @@ font-technology	Variable	Variables
 	Appearance Panel	Panel Apariencia
 	Appearance panel	Panel Apariencia
 	Applies when the linked file is relinked or updated.	Se aplica al volver a vincular o actualizar el archivo vinculado.
-	Applies the next time VectorCraft starts.	Se aplica la próxima vez que se inicie VectorCraft.
+	Applies the next time Pluma starts.	Se aplica la próxima vez que se inicie Pluma.
 	Apply	Aplicar
 	Apply Brush	Aplicar pincel
 	Apply Character Style	Aplicar estilo de carácter
@@ -250,8 +250,8 @@ font-technology	Variable	Variables
 	Artboard {number}	Mesa de trabajo {number}
 	Artboard:	Mesa de trabajo:
 	Artboards	Mesas de trabajo
-	ArtCraft Website	Sitio web de ArtCraft
-	ArtCraft website	Sitio web de ArtCraft
+	Nodalia Website	Sitio web de Nodalia
+	Nodalia website	Sitio web de Nodalia
 	Artwork Colors	Colores de la ilustración
 	As Multiple Assets	Como varios recursos
 	As Single Asset	Como un solo recurso
@@ -422,7 +422,7 @@ font-technology	Variable	Variables
 	Check Script	Comprobar script
 	Check Script…	Comprobar script…
 	Copy Report	Copiar informe
-	VectorCraft read this script without running it.	VectorCraft leyó este script sin ejecutarlo.
+	Pluma read this script without running it.	Pluma leyó este script sin ejecutarlo.
 	Needs nothing beyond plain JavaScript	Solo necesita JavaScript simple
 	Needs the script language's own objects or directives	Necesita objetos o directivas propios del lenguaje del script
 	Needs the document model	Necesita el modelo de documento
@@ -1696,7 +1696,7 @@ font-technology	Variable	Variables
 	Join	Unir
 	Join Our Discord	Únete a nuestro Discord
 	Join our Discord	Únete a nuestro Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Únete a la comunidad de ArtCraft en Discord (discord.gg/artcraft)
+	Join the Nodalia community on Discord (discord.gg/artcraft)	Únete a la comunidad de Nodalia en Discord (discord.gg/artcraft)
 	Join the lines of each paragraph	Unir las líneas de cada párrafo
 	Join Tool	Herramienta Unir
 	Justification…	Justificación…
@@ -1724,7 +1724,7 @@ font-technology	Variable	Variables
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	Importar conjunto de métodos abreviados
 	Import Shortcut Set…	Importar conjunto de métodos abreviados…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Cada entrada del archivo se asocia con una herramienta, un comando o un panel de VectorCraft. Revisa las asociaciones y responde lo que falta.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Cada entrada del archivo se asocia con una herramienta, un comando o un panel de Pluma. Revisa las asociaciones y responde lo que falta.
 	Keys	Teclas
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	El archivo guarda las teclas y los modificadores como códigos. Revisa los significados propuestos y responde los códigos que aún no se conocen.
 	Click, then press the key this code stands for (Esc cancels)	Haz clic y luego presiona la tecla que representa este código (Esc cancela)
@@ -1734,7 +1734,7 @@ font-technology	Variable	Variables
 	not known yet	aún desconocido
 	Shortcuts	Métodos abreviados
 	In the File	En el archivo
-	In VectorCraft	En VectorCraft
+	In Pluma	En Pluma
 	Needs Attention Only	Solo lo que requiere atención
 	Ready	Listo
 	Needs a choice	Requiere una elección
@@ -1743,7 +1743,7 @@ font-technology	Variable	Variables
 	Tools take a single key (optionally with Shift)	Las herramientas usan una sola tecla (opcionalmente con Shift)
 	A later row takes this shortcut	Una fila posterior usa este método abreviado
 	Same item as a later row	Mismo elemento que una fila posterior
-	Start from VectorCraft Defaults	Partir de los valores predeterminados de VectorCraft
+	Start from Pluma Defaults	Partir de los valores predeterminados de Pluma
 	Add to the Current Shortcuts	Agregar a los métodos abreviados actuales
 	Remember My Choices	Recordar mis elecciones
 	{ready} of {total} ready	{ready} de {total} listos
@@ -2406,7 +2406,7 @@ font-technology	Variable	Variables
 	Paragraph Style Options	Opciones de estilo de párrafo
 	Paragraph Styles	Estilos de párrafo
 	Paragraph Symbol	Símbolo de párrafo
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Parte de ArtCraft. MIT OR Apache-2.0. Fuentes: Source Sans 3, Inter, JetBrains Mono (OFL). Iconos: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Parte de Nodalia. MIT OR Apache-2.0. Fuentes: Source Sans 3, Inter, JetBrains Mono (OFL). Iconos: Lucide (ISC) + Pluma.
 	Password	Contraseña
 	Paste	Pegar
 	Paste in Back	Pegar detrás
@@ -2602,7 +2602,7 @@ digits	Malayalam	Malayálam
 	Quarter Space	Cuarto de espacio
 	Quick Actions	Acciones rápidas
 	Quickly start a new file	Empieza rápidamente un archivo nuevo
-	Quit VectorCraft	Salir de VectorCraft
+	Quit Pluma	Salir de Pluma
 	Radar Graph Tool	Herramienta Gráfico de radar
 	Radial	Radial
 	Radial Glows	Resplandores radiales
@@ -2733,7 +2733,7 @@ digits	Malayalam	Malayálam
 @plural	{n} folder or file couldn't be read|{n} folders or files couldn't be read	No se pudo leer {n} carpeta o archivo|No se pudieron leer {n} carpetas o archivos
 	The search stopped at its limit: search a smaller folder.	La búsqueda se detuvo en su límite: busca en una carpeta más pequeña.
 	Copy only fonts you own or are licensed to install.	Copia solo fuentes que te pertenezcan o cuya licencia te permita instalarlas.
-	VectorCraft copies the fonts to {folder}.	VectorCraft copia las fuentes en {folder}.
+	Pluma copies the fonts to {folder}.	Pluma copia las fuentes en {folder}.
 	Registered Trademark Symbol	Símbolo de marca registrada
 	Registration marks	Marcas de registro
 	Registry name:	Nombre del registro:
@@ -2854,9 +2854,9 @@ digits	Malayalam	Malayálam
 	Revert	Revertir
 	Revert to the saved version of “{name}”?	¿Revertir a la versión guardada de “{name}”?
 	Replace “{name}”, the file this document was opened from?	¿Reemplazar “{name}”, el archivo desde el que se abrió este documento?
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Al abrirlo quedó fuera lo que VectorCraft aún no puede leer ({what}), así que reemplazarlo lo pierde para siempre. Guárdelo con otro nombre para conservarlo.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Al abrirlo quedó fuera lo que Pluma aún no puede leer ({what}), así que reemplazarlo lo pierde para siempre. Guárdelo con otro nombre para conservarlo.
 	“{name}” already exists. Replace it?	“{name}” ya existe. ¿Reemplazarlo?
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	El nombre en el panel de guardado era “{typed}”, y VectorCraft añadió la extensión del tipo de archivo. Reemplazar el archivo sobrescribe su contenido.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	El nombre en el panel de guardado era “{typed}”, y Pluma añadió la extensión del tipo de archivo. Reemplazar el archivo sobrescribe su contenido.
 	Revolve…	Revolución…
 	RGB Color	Color RGB
 	Right	Derecha
@@ -3015,7 +3015,7 @@ digits	Malayalam	Malayálam
 	Saves the current bars, toolbar and panel layout.	Guarda la disposición actual de barras, barra de herramientas y paneles.
 	Save…	Guardar…
 	Saving	Guardando
-	Saving Poster.vectorcraft	Guardando Poster.vectorcraft
+	Saving Poster.pluma	Guardando Poster.pluma
 	Saving recovery data for {}	Guardando datos de recuperación de {}
 	Saving {}	Guardando {}
 	Scale	Escalar
@@ -3783,10 +3783,10 @@ digits	Malayalam	Malayálam
 	Vector Halftone	Semitono vectorial
 	Vector Halftone…	Semitono vectorial…
 	Vector illustration — fast, open, scriptable.	Ilustración vectorial: rápida, abierta y programable.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft no se cerró correctamente la última vez. Estos documentos tenían cambios sin guardar:
-	VectorCraft Help…	Ayuda de VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft en getartcraft.com
-	VectorCraft on GitHub	VectorCraft en GitHub
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma no se cerró correctamente la última vez. Estos documentos tenían cambios sin guardar:
+	Pluma Help…	Ayuda de Pluma…
+	Pluma on getnodalia.com	Pluma en getnodalia.com
+	Pluma on GitHub	Pluma en GitHub
 	Vectors	Vectores
 	Version {version} — open-source vector illustration in pure Rust.	Versión {version}: ilustración vectorial de código abierto en Rust puro.
 	Version:	Versión:
@@ -3826,7 +3826,7 @@ digits	Malayalam	Malayálam
 	Web Snap:	Ajuste a web:
 	Weight	Grosor
 	Weight:	Grosor:
-	Welcome to VectorCraft	Te damos la bienvenida a VectorCraft
+	Welcome to Pluma	Te damos la bienvenida a Pluma
 	When pasting text	Al pegar texto
 	White	Blanco
 	Widget Position:	Posición del widget:
@@ -4162,7 +4162,7 @@ axis	Both	Ambos
 @msg	Split Into Grid: select paths large enough for the grid	Dividir en cuadrícula: selecciona trazados lo bastante grandes para la cuadrícula
 @msg	Targa files are RGB: colorModel rgb	los archivos Targa son RGB: colorModel rgb
 @msg	Text Wrap: select a wrap object	Ceñir texto: selecciona un objeto para ceñir
-@msg	This shortcut file is in a form VectorCraft can't read.	Este archivo de métodos abreviados tiene un formato que VectorCraft no puede leer.
+@msg	This shortcut file is in a form Pluma can't read.	Este archivo de métodos abreviados tiene un formato que Pluma no puede leer.
 @msg	`antiAlias` must be "none", "sharp", "crisp" or "strong"	`antiAlias` debe ser "none", "sharp", "crisp" o "strong"
 @msg	`aspect` must be a number (%)	`aspect` debe ser un número (%)
 @msg	`at` must be [x, y]	`at` debe ser [x, y]
@@ -4293,7 +4293,7 @@ axis	Both	Ambos
 @msg	can't encode the document: {0}	no se puede codificar el documento: {0}
 @msg	can't parse shortcut `{c}`	no se puede interpretar el atajo `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	no se puede interpretar el atajo `{s}` de `{k}`
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	no se puede guardar la versión {0}: VectorCraft escribe las versiones {MIN_VERSION} a {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	no se puede guardar la versión {0}: Pluma escribe las versiones {MIN_VERSION} a {VERSION}
 @msg	can't write .{ext} images	no se pueden escribir imágenes .{ext}
 @msg	cannot distort a zero-size bounding box	no se puede distorsionar un cuadro delimitador de tamaño cero
 @msg	cannot read PDF: {0}	no se puede leer el PDF: {0}
@@ -4320,7 +4320,7 @@ axis	Both	Ambos
 @msg	empty brush stroke	trazo de pincel vacío
 @msg	empty cutter	cortador vacío
 @msg	empty path	trazado vacío
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	la versión de archivo {0} es más reciente de lo que admite este VectorCraft ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	la versión de archivo {0} es más reciente de lo que admite este Pluma ({VERSION})
 @msg	freeform point {i} needs `at` [x, y] and a valid `color`	el punto de forma libre {i} necesita `at` [x, y] y un `color` válido
 @msg	freeform line {i} must be an array of point indices	la línea de forma libre {i} debe ser una lista de índices de puntos
 @msg	give both `start` and `end` [x, y] (or neither)	indica `start` y `end` [x, y] (o ninguno de los dos)
@@ -4341,9 +4341,9 @@ axis	Both	Ambos
 @msg	invalid PDF setting: {0}	ajuste de PDF no válido: {0}
 @msg	invalid image data for `{0}`	datos de imagen no válidos para `{0}`
 @msg	invalid parameters for `{cmd}`: {msg}	parámetros no válidos para `{cmd}`: {msg}
-@msg	is not an image VectorCraft reads	no es una imagen que VectorCraft pueda leer
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	usa `{at}`, que el lector de PostScript de VectorCraft no conoce
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	usa `{at}`, que el lector de PostScript de VectorCraft no conoce, en {procs}
+@msg	is not an image Pluma reads	no es una imagen que Pluma pueda leer
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	usa `{at}`, que el lector de PostScript de Pluma no conoce
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	usa `{at}`, que el lector de PostScript de Pluma no conoce, en {procs}
 @msg	its Windows metafile preview was opened instead, which may simplify the art	en su lugar se abrió su previsualización de metarchivo de Windows, que puede simplificar la ilustración
 @msg	its preview was placed instead, at screen resolution	en su lugar se colocó su previsualización, a resolución de pantalla
 @msg	join needs open paths	unir necesita trazados abiertos
@@ -4400,7 +4400,7 @@ axis	Both	Ambos
 @msg	no file system here	aquí no hay sistema de archivos
 @msg	no file writer	no hay escritor de archivos
 @msg	no files to place	no hay archivos para colocar
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` no es un documento de VectorCraft, un PDF ni un archivo .ai compatible con PDF
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` no es un documento de Pluma, un PDF ni un archivo .ai compatible con PDF
 @msg	no format to export to	no hay formato al que exportar
 @msg	no free recovery area	no hay ningún área de recuperación libre
 @msg	no gradient stop or freeform point is selected	no hay ninguna parada de degradado ni punto de forma libre seleccionado
@@ -4445,7 +4445,7 @@ axis	Both	Ambos
 @msg	the action set file is larger than 8 MiB	el archivo de conjunto de acciones supera los 8 MiB
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: la referencia superaría los {MAX_BYTES} bytes
 @msg	the action set file holds more than 1,000 actions	el archivo de conjunto de acciones contiene más de 1000 acciones
-@msg	the action set file needs a later version of VectorCraft	el archivo de conjunto de acciones necesita una versión más reciente de VectorCraft
+@msg	the action set file needs a later version of Pluma	el archivo de conjunto de acciones necesita una versión más reciente de Pluma
 @msg	an action in the action set file has more than 10,000 steps	una acción del archivo de conjunto de acciones tiene más de 10 000 pasos
 @msg	no such anchor	no existe ese punto de ancla
 @msg	no such artboard	no existe esa mesa de trabajo
@@ -4477,8 +4477,8 @@ axis	Both	Ambos
 @msg	node {_1} is not text	el nodo {_1} no es texto
 @msg	node {_1} is on a locked artboard	el nodo {_1} está en una mesa de trabajo bloqueada
 @msg	not a DXF drawing	no es un dibujo DXF
-@msg	not a VectorCraft file: {0}	no es un archivo de VectorCraft: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	no es un conjunto de atajos de VectorCraft (falta `overrides`)
+@msg	not a Pluma file: {0}	no es un archivo de Pluma: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	no es un conjunto de atajos de Pluma (falta `overrides`)
 @msg	not a blend	no es una fusión
 @msg	not a graphic style library (format `{_1}`)	no es una biblioteca de estilos gráficos (formato `{_1}`)
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	no es un conjunto de métodos abreviados: el texto no empieza con un nombre con barra y una llave de apertura
@@ -4771,11 +4771,11 @@ axis	Both	Ambos
 @msg	Sent to {_1}	Se envió a {_1}
 @msg	{_1} files	{_1} archivos
 @msg	The graphics were lost and have been restarted	Se perdieron los gráficos y se reiniciaron
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	El procesador gráfico probado primero no pudo mostrar la ventana, así que VectorCraft se inició de nuevo con {summary}
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	El último inicio de VectorCraft terminó en {name} antes de que apareciera la ventana, así que se inició con {summary}. Para volver a probar ese procesador gráfico, cambia Preferencias › Rendimiento › Procesador gráfico o inicia con la variable WGPU_BACKEND definida
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	El último inicio de VectorCraft terminó mientras enumeraba los procesadores gráficos, así que se inició solo con OpenGL, en {summary}. Para volver a probar las demás interfaces gráficas, cambia Preferencias › Rendimiento › Procesador gráfico o inicia con la variable WGPU_BACKEND definida
-@msg	Loading VectorCraft…	Cargando VectorCraft…
-@msg	VectorCraft failed to start: {e}	VectorCraft no pudo iniciarse: {e}
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	El procesador gráfico probado primero no pudo mostrar la ventana, así que Pluma se inició de nuevo con {summary}
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	El último inicio de Pluma terminó en {name} antes de que apareciera la ventana, así que se inició con {summary}. Para volver a probar ese procesador gráfico, cambia Preferencias › Rendimiento › Procesador gráfico o inicia con la variable WGPU_BACKEND definida
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	El último inicio de Pluma terminó mientras enumeraba los procesadores gráficos, así que se inició solo con OpenGL, en {summary}. Para volver a probar las demás interfaces gráficas, cambia Preferencias › Rendimiento › Procesador gráfico o inicia con la variable WGPU_BACKEND definida
+@msg	Loading Pluma…	Cargando Pluma…
+@msg	Pluma failed to start: {e}	Pluma no pudo iniciarse: {e}
 @msg	A browser with WebGPU or WebGL2 is required.	Se necesita un navegador con WebGPU o WebGL2.
 @msg	The graphics were lost and couldn't be restarted.	Se perdieron los gráficos y no se pudieron reiniciar.
 @msg	Your unsaved changes are kept in this browser: reload the page to get them back.	Tus cambios sin guardar se conservan en este navegador: vuelve a cargar la página para recuperarlos.
@@ -4806,21 +4806,21 @@ axis	Both	Ambos
 @msg	it has more than {MAX_NODES} objects	tienen más de {MAX_NODES} objetos
 @msg	it has no layers	no tienen capas
 @msg	it has too many values in a row	tienen demasiados valores seguidos
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	tienen {_1}, que VectorCraft aún no lee de ellos
+@msg	it has {_1}, which Pluma doesn't read from it yet	tienen {_1}, que Pluma aún no lee de ellos
 @msg	its objects are nested too deeply	sus objetos están anidados a demasiada profundidad
 @msg	its section ending with `%{end}` doesn't end	su sección que termina con `%{end}` no termina
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	los pinceles que VectorCraft aún no puede leer se omitieron del panel Pinceles ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	los pinceles que Pluma aún no puede leer se omitieron del panel Pinceles ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	los objetos con varios rellenos o trazos, trazos de ancho variable, efectos o pinceles se importaron con su aspecto dibujado ({_1}): su aspecto aún no se puede editar
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	el nombre `{name}` no está en UTF-8 y se leyó como {label}: si no se ve bien, abre el archivo con otro legacyNameEncoding
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	el nombre `{name}` no está en UTF-8 y partes de él tampoco son {label} válido: abre el archivo con otro legacyNameEncoding
 @msg	more names that aren't UTF-8 were read as {label} ({count})	se leyeron como {label} más nombres que no están en UTF-8 ({count})
 @msg	gradient “{name}” isn't defined in the file: a plain colour stands in for it	el degradado “{name}” no está definido en el archivo: lo sustituye un color sólido
-@msg	an image VectorCraft can't read was left out	se omitió una imagen que VectorCraft no puede leer
+@msg	an image Pluma can't read was left out	se omitió una imagen que Pluma no puede leer
 @msg	graphs come in as plain art, without their data or settings	los gráficos se importan como ilustración normal, sin sus datos ni sus ajustes
 @msg	an image whose data is cut short was left out	se omitió una imagen con datos incompletos
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	una imagen incrustada de {_1} × {_2} píxeles se redujo a {_3} × {_4} píxeles para conservar las capas
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	las imágenes vinculadas muestran la vista previa de baja resolución guardada en el archivo hasta que se encuentren sus archivos: vuelva a vincularlas en el panel Vínculos
-@msg	linked type areas past VectorCraft's limits were left out	se omitieron las áreas de texto enlazadas que superan los límites de VectorCraft
+@msg	linked type areas past Pluma's limits were left out	se omitieron las áreas de texto enlazadas que superan los límites de Pluma
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	el texto que cambia de dirección de escritura dentro de un objeto de texto se abre en la dirección de su primer carácter
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	el texto usado como máscara en áreas enlazadas, texto ceñido o un trazado compuesto no recorta
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	las imágenes vinculadas sin vista previa en el archivo muestran un marcador de posición hasta que se encuentren sus archivos: vuelva a vincularlas en el panel Vínculos
@@ -4829,13 +4829,13 @@ axis	Both	Ambos
 @msg	this file was saved without PDF compatibility, and its editing data can't be read ({why})	este archivo se guardó sin compatibilidad con PDF y sus datos de edición no se pueden leer ({why})
 @msg	the PDF part couldn't be read ({_1}): the file opened from its editing data	no se pudo leer la parte PDF ({_1}): el archivo se abrió desde sus datos de edición
 @msg	No fonts are missing in this document	No faltan fuentes en este documento
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft no busca en carpetas de otras aplicaciones ni del sistema: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft no busca en las carpetas Shared ni Public de Users: {path}
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma no busca en carpetas de otras aplicaciones ni del sistema: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma no busca en las carpetas Shared ni Public de Users: {path}
 @msg	{path} is not a folder	{path} no es una carpeta
 @msg	the search couldn't start: try again in a moment	no se pudo iniciar la búsqueda: inténtalo de nuevo en un momento
 @msg	searching a folder isn't available on the web	en la web no se puede buscar en una carpeta
 @msg	every search thread stopped on an internal error (please report this bug)	todos los hilos de búsqueda se detuvieron por un error interno (informa de este error)
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	La carpeta Fonts de VectorCraft no está configurada aquí: la configuran la aplicación de escritorio y vectorcraft-cli
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	La carpeta Fonts de Pluma no está configurada aquí: la configuran la aplicación de escritorio y pluma-cli
 @msg	choose the font files to add	elige los archivos de fuentes que quieres agregar
 @msg	not a file	no es un archivo
 @msg	not a font file	no es un archivo de fuente
@@ -4848,7 +4848,7 @@ axis	Both	Ambos
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	Servicios
-	Hide VectorCraft	Ocultar VectorCraft
+	Hide Pluma	Ocultar Pluma
 	Zoom	Zoom
 	Bring All to Front	Traer todo al frente
 	Settings	Ajustes
@@ -4856,7 +4856,7 @@ axis	Both	Ambos
 	On: one locked object showing the document, updated when it changes.	Activado: un objeto bloqueado que muestra el documento y se actualiza cuando este cambia.
 	Off: an editable copy of its art, embedded in this document.	Desactivado: una copia editable de su ilustración, incrustada en este documento.
 	Images: link to the file instead of only embedding it.	Imágenes: vincular al archivo en lugar de solo incrustarlo.
-	VectorCraft documents: one locked object, updated when the file changes.	Documentos de VectorCraft: un objeto bloqueado que se actualiza cuando cambia el archivo.
+	Pluma documents: one locked object, updated when the file changes.	Documentos de Pluma: un objeto bloqueado que se actualiza cuando cambia el archivo.
 	A file dialog is open: choose there first	Hay un cuadro de diálogo de archivos abierto: elija primero en él
 	The document was closed while its file dialog was open	Se cerró el documento mientras su cuadro de diálogo de archivos estaba abierto
 	The dialog was closed before its file dialog answered	El cuadro de diálogo se cerró antes de que respondiera su cuadro de diálogo de archivos
@@ -4975,8 +4975,8 @@ axis	Both	Ambos
 	Bottom Right	Abajo a la derecha
 	Edge	Borde
 	System Title Bar	Barra de título del sistema
-	VectorCraft Title Bar on Every Desktop	Barra de título de VectorCraft en todos los escritorios
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Mientras está definida, la variable de entorno VECTORCRAFT_TITLEBAR elige la barra de título.
+	Pluma Title Bar on Every Desktop	Barra de título de Pluma en todos los escritorios
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Mientras está definida, la variable de entorno PLUMA_TITLEBAR elige la barra de título.
 	System Title Bar takes precedence over this option while it is on.	Mientras está activada, Barra de título del sistema tiene prioridad sobre esta opción.
 	Value Axis	Eje de valores
 	On Left Side	En el lado izquierdo
@@ -5134,7 +5134,7 @@ lighting	Light	Luz
 	Edge Intensity	Intensidad de bordes
 	Posterization	Posterización
 	Highlight Area	Área de iluminaciones
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	el archivo comprimido ocupa al descomprimirse más de lo que VectorCraft lee ({_1} MB de documento, {_2} MB por imagen)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	el archivo comprimido ocupa al descomprimirse más de lo que Pluma lee ({_1} MB de documento, {_2} MB por imagen)
 @msg	the document is too large to save compressed ({0}): save it with Use Compression off	el documento es demasiado grande para guardarlo comprimido ({0}): guárdelo con Usar compresión desactivado
 @msg	the file stopped being read (please report this bug)	se dejó de leer el archivo (informe de este error)
 	Concentric Dividers:	Divisiones concéntricas:
@@ -5229,7 +5229,7 @@ effect	Regular	Regular
 	All shortcuts reset to defaults.	Se restablecieron todos los métodos abreviados a los valores predeterminados.
 	Imported. Press OK to keep the imported set.	Importado. Presiona Aceptar para conservar el conjunto importado.
 	⚠ {chord} was already used by {names} — it has been removed there.	Atención: {chord} ya estaba en uso por {names}; se quitó de allí.
-	VectorCraft Defaults	Valores predeterminados de VectorCraft
+	Pluma Defaults	Valores predeterminados de Pluma
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} método abreviado está asignado más de una vez|{n} métodos abreviados están asignados más de una vez
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	«Simular» imprime las sobreimpresiones tal como las muestra la vista previa de sobreimpresión; las separaciones siempre las conservan. Un preajuste acopla la transparencia antes de imprimir (los archivos PostScript siempre la acoplan).
 	Preserve	Conservar
@@ -5427,7 +5427,7 @@ file-filter	Print presets	Preajustes de impresión
 file-filter	Export presets	Ajustes de exportación
 file-filter	SVG Compressed	SVG comprimido
 file-filter	PDF-compatible .ai	.ai compatible con PDF
-file-filter	VectorCraft Template	Plantilla de VectorCraft
+file-filter	Pluma Template	Plantilla de Pluma
 file-filter	Templates	Plantillas
 diagnostics	render	renderizado
 diagnostics	ui	interfaz
@@ -5469,7 +5469,7 @@ mark-style	Japanese	Japonesas
 	High Fidelity Photo	Foto de alta fidelidad
 	Image Trace (Make and Expand)	Calco de imagen (crear y expandir)
 	Joins:	Uniones:
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Mantiene el documento editable: VectorCraft vuelve a abrir el PDF sin perder nada. Para archivos que volverás a editar.
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	Mantiene el documento editable: Pluma vuelve a abrir el PDF sin perder nada. Para archivos que volverás a editar.
 	Lab Spot Colors	Tintas planas Lab
 	Lasso	Lazo
 	Length:	Longitud:
@@ -5509,9 +5509,9 @@ mark-style	Japanese	Japonesas
 	Touch Type	Retocar texto
 	UTF-16 (Unicode)	UTF-16 (Unicode)
 	Variation	Variación
-	VectorCraft Default	Predeterminado de VectorCraft
-	VectorCraft Generic CMYK (SWOP-like)	CMYK genérico de VectorCraft (similar a SWOP)
-	VectorCraft Swatches (.vcswatches)	Muestras de VectorCraft (.vcswatches)
+	Pluma Default	Predeterminado de Pluma
+	Pluma Generic CMYK (SWOP-like)	CMYK genérico de Pluma (similar a SWOP)
+	Pluma Swatches (.vcswatches)	Muestras de Pluma (.vcswatches)
 	Vertical Area Type	Texto de área vertical
 	Vertical Type	Texto vertical
 	Vertical Type on a Path	Texto vertical en trazado
@@ -6477,7 +6477,7 @@ breakText	Glyphs	Glifos
 	Malayalam	Malayálam
 	Odia	Oriya
 	Urdu	Urdu
-	VectorCraft {release} and later (version {n})	VectorCraft {release} y posteriores (versión {n})
+	Pluma {release} and later (version {n})	Pluma {release} y posteriores (versión {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Exportar todos los documentos abiertos como PDF
 	Export All Open Documents as SVG	Exportar todos los documentos abiertos como SVG
@@ -6629,14 +6629,14 @@ breakText	Glyphs	Glifos
 	Safe Mode	Modo seguro
 	Help › Safe Mode…	Ayuda › Modo seguro…
 	Enable on Re-launch	Activar en el próximo inicio
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	El último inicio de VectorCraft se detuvo mientras se cargaba el plugin {name}. Puede que no sea la causa.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	El último inicio de Pluma se detuvo mientras se cargaba el plugin {name}. Puede que no sea la causa.
 	Disable and Continue	Desactivar y continuar
 	Start Normally	Iniciar normalmente
 	Start in Safe Mode	Iniciar en modo seguro
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft está en modo seguro: ningún plugin se carga ni se ejecuta hasta que se inicie normalmente.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma está en modo seguro: ningún plugin se carga ni se ejecuta hasta que se inicie normalmente.
 	Disabled plug-ins	Plugins desactivados
 	No plug-ins are disabled.	No hay plugins desactivados.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	El modo seguro está activado: los plugins no se cargan ni se ejecutan hasta que VectorCraft se inicie normalmente
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	El modo seguro está activado: los plugins no se cargan ni se ejecutan hasta que Pluma se inicie normalmente
 @msg	give `id` or `file` (see plugin.safeMode)	indica `id` o `file` (consulta plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	ese plugin no está desactivado (consulta plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	No se pudieron guardar los plugins desactivados para el próximo inicio

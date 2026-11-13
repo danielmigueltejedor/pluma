@@ -6,7 +6,7 @@ use std::ops::ControlFlow;
 
 use kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest, PathSeg, Point, Shape as _};
 use linesweeper::topology::{ContourIdx, Contours};
-use vectorcraft_geom::{FillRule, PathData};
+use pluma_geom::{FillRule, PathData};
 
 use crate::boolean::{
     Arrangement, DEFAULT_PRECISION, Multi, Seg, Tidy, all_contours_to_path, contours_to_path, eps_for, fill_bezpath, normalize_bez, segs_to_subpath,
@@ -860,10 +860,10 @@ fn snap_points(raw: &BezPath, tol: f64) -> (BezPath, bool) {
     // Each contour's pieces, each with the segment it was and the indices of the two points it runs
     // between.
     let mut contours: Vec<Vec<(PathSeg, PathSeg, [usize; 2])>> = Vec::new();
-    for (range, closed) in vectorcraft_geom::bez::subpaths(raw) {
+    for (range, closed) in pluma_geom::bez::subpaths(raw) {
         let Some(els) = raw.elements().get(range) else { continue };
         let mut pieces = Vec::new();
-        for s in vectorcraft_geom::bez::segments(els) {
+        for s in pluma_geom::bez::segments(els) {
             let ((i, a), (j, b)) = (snap(s.start()), snap(s.end()));
             let mut seg = to_seg(s);
             crate::planar::pin_ends(std::slice::from_mut(&mut seg), a, b);
@@ -1115,8 +1115,8 @@ fn mid_point(c: &[Seg]) -> Point {
 mod tests {
     use super::*;
     use crate::boolean::CONTOUR_PASSES;
+    use pluma_geom::{Rect, SubPath, shapes};
     use proptest::prelude::*;
-    use vectorcraft_geom::{Rect, SubPath, shapes};
 
     /// The faces one contour pass per mask finds: what [`regions_of`] must match exactly when no
     /// face lies inside a hole of its own mask (`grouped` puts such an island in the frame's face).

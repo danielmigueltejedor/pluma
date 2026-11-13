@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use vectorcraft_doc::{DataValue, Node, NodeId, NodeKind, VariableKind};
+use pluma_doc::{DataValue, Node, NodeId, NodeKind, VariableKind};
 
 use super::Writer;
 use crate::ps;
@@ -207,7 +207,7 @@ impl Writer<'_> {
         // What the reader keeps: names it doesn't read, and names, bindings and values past its
         // caps, are left out.
         let mut budget = Budget::default();
-        let mut kept: Vec<&vectorcraft_doc::Variable> = vec![];
+        let mut kept: Vec<&pluma_doc::Variable> = vec![];
         for v in &vars.variables {
             let new = readable_name(&v.name) && !kept.iter().any(|k| k.name == v.name);
             if new && kept.len() < MAX_VARIABLES && budget.keep(v.name.len()) {

@@ -1,14 +1,14 @@
-//! The editing data written, then read back by VectorCraft's own reader ([`crate::ai_alone`]).
+//! The editing data written, then read back by Pluma's own reader ([`crate::ai_alone`]).
 
 use std::sync::Arc;
 
-use vectorcraft_color::swatch::{Swatch, SwatchGroup};
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{
+use pluma_color::swatch::{Swatch, SwatchGroup};
+use pluma_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{
     Appearance, AppearanceItem, Artboard, Dash, Document, FillLayer, ImageBlob, ImageObject, Knockout, LayerColor, LineCap, LineJoin, Node, NodeKind,
     OpacityMask, StrokeLayer, Symbol,
 };
-use vectorcraft_geom::{Affine, FillRule, PathData, Rect, shapes};
+use pluma_geom::{Affine, FillRule, PathData, Rect, shapes};
 
 use super::*;
 
@@ -494,11 +494,9 @@ fn an_artboard_larger_than_the_canvas_is_written_on_a_large_canvas() {
 fn a_pdf_carries_the_data_on_its_first_page() {
     let doc = sample();
     let (p, _) = private_data(&doc, &opts()).unwrap();
-    let pdf =
-        vectorcraft_pdf::export(&doc, &vectorcraft_pdf::PdfOptions { private_data: Some(p.clone()), ..vectorcraft_pdf::PdfOptions::uncompressed() })
-            .unwrap();
-    assert_eq!(vectorcraft_pdf::illustrator_data(&pdf, None).as_deref(), Some(&p.data[..]));
-    let (read, _) = crate::ai_alone(&vectorcraft_pdf::illustrator_data(&pdf, None).unwrap()).unwrap();
+    let pdf = pluma_pdf::export(&doc, &pluma_pdf::PdfOptions { private_data: Some(p.clone()), ..pluma_pdf::PdfOptions::uncompressed() }).unwrap();
+    assert_eq!(pluma_pdf::illustrator_data(&pdf, None).as_deref(), Some(&p.data[..]));
+    let (read, _) = crate::ai_alone(&pluma_pdf::illustrator_data(&pdf, None).unwrap()).unwrap();
     assert_eq!(lines(&read), lines(&doc));
 }
 
@@ -571,7 +569,7 @@ fn the_palette_starts_with_registration() {
     let cell = rgb.split("0 0 Pb\n").nth(1).unwrap().lines().take(2).collect::<Vec<_>>();
     assert!(cell[0].ends_with(" 0 0 0 ([Registration]) 0 1 Xz") && cell[0].split(' ').count() == 11, "{cell:?}");
     assert_eq!(cell[1], "([Registration]) Pc");
-    doc.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    doc.color_mode = pluma_doc::ColorMode::Cmyk;
     assert!(program(&doc).contains("0 0 Pb\n1 1 1 1 ([Registration]) 0 Xs\n([Registration]) Pc\n"));
     // It's the built-in swatch: reading back adds no swatch.
     assert_eq!(swatches(&read_back(&doc)), swatches(&doc));
@@ -644,14 +642,10 @@ fn unsupported() -> Document {
     doc.insert(Some(layer), usize::MAX, im).unwrap();
     // Type the text document can't hold (a gradient fill).
     let shade = Gradient::new(GradientKind::Linear, vec![GradientStop::new(0.0, Color::BLACK), GradientStop::new(1.0, Color::rgb(0.0, 0.0, 1.0))]);
-    let t = vectorcraft_doc::TextObject::point(
-        vectorcraft_geom::Point::new(10.0, 70.0),
+    let t = pluma_doc::TextObject::point(
+        pluma_geom::Point::new(10.0, 70.0),
         "Type",
-        vectorcraft_doc::CharStyle {
-            size: 18.0,
-            fill: Paint::Gradient(Box::new(GradientPaint::new(shade))),
-            ..vectorcraft_doc::CharStyle::default()
-        },
+        pluma_doc::CharStyle { size: 18.0, fill: Paint::Gradient(Box::new(GradientPaint::new(shade))), ..pluma_doc::CharStyle::default() },
     );
     let t = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     doc.insert(Some(layer), usize::MAX, t).unwrap();
@@ -713,9 +707,9 @@ fn brushed_strokes_are_written_as_their_brush_art() {
     );
     line.appearance.stroke_mut().unwrap().brush = Some("3 pt. Round".into());
     doc.insert(Some(layer), usize::MAX, line).unwrap();
-    let pieces = vectorcraft_brush::stroke_pieces(
+    let pieces = pluma_brush::stroke_pieces(
         &doc,
-        &vectorcraft_brush::find(&doc, "3 pt. Round").unwrap(),
+        &pluma_brush::find(&doc, "3 pt. Round").unwrap(),
         &shapes::line((20.0, 50.0).into(), (180.0, 50.0).into()).to_bezpath(),
         doc.layers[0].children().unwrap()[0].appearance.stroke().unwrap(),
     );
@@ -732,12 +726,12 @@ fn type_is_written_as_create_outlines_makes_it() {
     let layer = doc.layers[0].id;
     // A pattern fill: type the text document can't hold.
     let pattern = Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY };
-    let style = vectorcraft_doc::CharStyle { size: 18.0, fill: pattern, underline: true, ..vectorcraft_doc::CharStyle::default() };
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "Under", style);
+    let style = pluma_doc::CharStyle { size: 18.0, fill: pattern, underline: true, ..pluma_doc::CharStyle::default() };
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "Under", style);
     let mut t = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     t.name = Some("Title".into());
     doc.insert(Some(layer), usize::MAX, t.clone()).unwrap();
-    let outlined = vectorcraft_effects::outline_text(&t).unwrap();
+    let outlined = pluma_effects::outline_text(&t).unwrap();
     let back = read_back(&doc);
     let group = &back.layers[0].children().unwrap()[0];
     assert_eq!(group.name.as_deref(), Some("Title"));
@@ -756,9 +750,9 @@ fn inline_graphics_in_type_are_written_as_their_art() {
         Appearance::basic(solid(Color::rgb(0.0, 0.0, 1.0)), Paint::None, 0.0),
     );
     doc.symbols.push(Symbol { dynamic: false, name: "Mark".into(), art: Arc::new(mark) });
-    let style = vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() };
-    let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "A", style.clone());
-    t.runs.push(vectorcraft_doc::TextRun::inline(vectorcraft_doc::InlineArt::new("Mark"), style));
+    let style = pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() };
+    let mut t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "A", style.clone());
+    t.runs.push(pluma_doc::TextRun::inline(pluma_doc::InlineArt::new("Mark"), style));
     let mut text = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     // A stroke of the object's own above the Characters row: drawn over the inline graphic.
     let red = solid(Color::rgb(1.0, 0.0, 0.0));
@@ -793,7 +787,7 @@ fn a_scaled_nine_slice_symbol_instance_keeps_its_corner_size() {
     let corner = Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0)));
     let art = Node::group(doc.alloc_id(), vec![frame, corner]);
     doc.symbols.push(Symbol { dynamic: false, name: "S".into(), art: Arc::new(art) });
-    doc.set_symbol_nine_slice("S", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    doc.set_symbol_nine_slice("S", Some(pluma_doc::SymbolNineSlice::default()));
     let xf = Affine::scale_non_uniform(2.0, 1.5);
     let instance = Node::new(doc.alloc_id(), NodeKind::SymbolInstance { symbol: "S".into(), xf });
     doc.insert(Some(layer), usize::MAX, instance).unwrap();
@@ -807,7 +801,7 @@ fn a_scaled_nine_slice_symbol_instance_keeps_its_corner_size() {
 }
 
 /// Nested symbols whose instances multiply, written as their art (on a large canvas), stop at
-/// [`vectorcraft_doc::MAX_SYMBOL_NODES`] objects of symbol art in all, with a warning.
+/// [`pluma_doc::MAX_SYMBOL_NODES`] objects of symbol art in all, with a warning.
 #[test]
 fn nested_symbol_instances_stop_at_the_symbol_art_limit() {
     let mut doc = Document::new(20000.0, 100.0);
@@ -861,7 +855,7 @@ fn blend_doc() -> Document {
         Arc::new(square(&mut doc, Rect::new(10.0, 10.0, 12.0, 12.0), Color::gray(0.5))),
         Arc::new(square(&mut doc, Rect::new(30.0, 10.0, 32.0, 12.0), Color::gray(0.5))),
     ];
-    let spec = vectorcraft_doc::BlendSpec { spacing: vectorcraft_doc::BlendSpacing::Distance(10.0), ..Default::default() };
+    let spec = pluma_doc::BlendSpec { spacing: pluma_doc::BlendSpacing::Distance(10.0), ..Default::default() };
     let blend = Node::new(doc.alloc_id(), NodeKind::Blend { children: keys, spec: Box::new(spec) });
     doc.insert(Some(layer), usize::MAX, blend).unwrap();
     doc
@@ -1006,7 +1000,7 @@ fn paths_past_the_object_limit_are_left_out() {
 }
 
 /// On a canvas of the usual size, nested symbols whose instances multiply, written as their art in
-/// art cut to a clipping object, stop at [`vectorcraft_doc::MAX_SYMBOL_NODES`] objects of symbol art
+/// art cut to a clipping object, stop at [`pluma_doc::MAX_SYMBOL_NODES`] objects of symbol art
 /// in all, with a warning.
 #[test]
 fn clipped_nested_symbol_instances_stop_at_the_symbol_art_limit() {
@@ -1051,7 +1045,7 @@ fn a_stained_symbol_instance_is_written_in_its_stained_colors() {
     doc.symbols.push(Symbol { dynamic: false, name: "Dot".into(), art: Arc::new(art) });
     let mut instance = Node::new(doc.alloc_id(), NodeKind::SymbolInstance { symbol: "Dot".into(), xf: Affine::translate((50.0, 10.0)) });
     instance.appearance = Appearance::basic(solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0).into();
-    let stained = vectorcraft_brush::instance_art(&doc.symbols[0].art, &instance);
+    let stained = pluma_brush::instance_art(&doc.symbols[0].art, &instance);
     doc.insert(Some(layer), usize::MAX, instance).unwrap();
     let back = read_back(&doc);
     let NodeKind::Group { children, .. } = &back.layers[0].children().unwrap()[0].kind else { panic!("the instance's group") };
@@ -1075,7 +1069,7 @@ fn a_layer_with_crop_marks_keeps_its_art_and_gets_the_marks() {
         let square = Node::path(doc.alloc_id(), shapes::rectangle(at), Appearance::basic(solid(Color::BLACK), Paint::None, 0.0));
         doc.insert(Some(layer), usize::MAX, square).unwrap();
         if let Some(l) = doc.layers.get_mut(0) {
-            let fx = vectorcraft_doc::Effect { id: vectorcraft_effects::CROP_MARKS.into(), params: serde_json::json!({}), visible: true };
+            let fx = pluma_doc::Effect { id: pluma_effects::CROP_MARKS.into(), params: serde_json::json!({}), visible: true };
             let l = Arc::make_mut(l);
             let mut ap = (*l.appearance).clone();
             ap.effects.push(fx);
@@ -1106,7 +1100,7 @@ fn geometry_effects_in_a_symbol_are_written_as_their_result() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let mut ap = Appearance::basic(solid(Color::BLACK), Paint::None, 0.0);
-    ap.effects.push(vectorcraft_doc::Effect { id: "path.offsetPath".into(), params: serde_json::json!({"offset": 5}), visible: true });
+    ap.effects.push(pluma_doc::Effect { id: "path.offsetPath".into(), params: serde_json::json!({"offset": 5}), visible: true });
     let art = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), ap);
     doc.symbols.push(Symbol { dynamic: false, name: "Dot".into(), art: Arc::new(art) });
     let instance = Node::new(doc.alloc_id(), NodeKind::SymbolInstance { symbol: "Dot".into(), xf: Affine::translate((50.0, 20.0)) });
@@ -1130,7 +1124,7 @@ fn an_adjusted_image_in_a_symbol_is_written_in_its_adjusted_color() {
     let mut im = Node::new(doc.alloc_id(), NodeKind::Image(Box::new(im)));
     let shift = serde_json::json!({"amount": 100, "preserveLightness": false});
     let mut ap = (*im.appearance).clone();
-    ap.effects.push(vectorcraft_doc::Effect { id: "adjust.shiftToColor".into(), params: shift, visible: true });
+    ap.effects.push(pluma_doc::Effect { id: "adjust.shiftToColor".into(), params: shift, visible: true });
     im.appearance = ap.into();
     doc.symbols.push(Symbol { dynamic: false, name: "Picture".into(), art: Arc::new(im) });
     let instance = Node::new(doc.alloc_id(), NodeKind::SymbolInstance { symbol: "Picture".into(), xf: Affine::translate((50.0, 20.0)) });
@@ -1150,7 +1144,7 @@ fn a_group_fill_in_a_pattern_tile_is_written() {
     let dot = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::default());
     let mut group = Node::group(doc.alloc_id(), vec![Arc::new(dot)]);
     group.appearance = Appearance::basic(solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0).into();
-    doc.patterns.push(vectorcraft_doc::PatternDef::new("Dots", vec![Arc::new(group)]));
+    doc.patterns.push(pluma_doc::PatternDef::new("Dots", vec![Arc::new(group)]));
     let filled = Node::path(
         doc.alloc_id(),
         shapes::rectangle(Rect::new(20.0, 20.0, 40.0, 40.0)),
@@ -1172,10 +1166,10 @@ fn a_pattern_fill_of_too_many_tiles_is_written_gray() {
     let mut doc = Document::new(1200.0, 1200.0);
     let layer = doc.layers[0].id;
     let dot = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 0.5, 0.5)), Appearance::basic(solid(Color::BLACK), Paint::None, 0.0));
-    let tiny = vectorcraft_doc::PatternDef {
+    let tiny = pluma_doc::PatternDef {
         tile: Rect::new(0.0, 0.0, 1.0, 1.0),
-        tile_type: vectorcraft_doc::TileType::BrickByRow { offset: 0.5 },
-        ..vectorcraft_doc::PatternDef::new("Tiny", vec![Arc::new(dot)])
+        tile_type: pluma_doc::TileType::BrickByRow { offset: 0.5 },
+        ..pluma_doc::PatternDef::new("Tiny", vec![Arc::new(dot)])
     };
     doc.patterns.push(tiny);
     let filled = Node::path(
@@ -1254,7 +1248,7 @@ fn a_restored_document_opens_on_the_artboard_the_copy_names() {
 fn guides_are_their_path_then_the_guide_operator() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let line = shapes::line(vectorcraft_geom::Point::new(10.0, 80.0), vectorcraft_geom::Point::new(150.0, 80.0));
+    let line = shapes::line(pluma_geom::Point::new(10.0, 80.0), pluma_geom::Point::new(150.0, 80.0));
     for path in [shapes::rectangle(Rect::new(10.0, 10.0, 50.0, 40.0)), line] {
         let g = Node::new(doc.alloc_id(), NodeKind::Path { path, rule: FillRule::NonZero, live: None, clipping: false, guide: true });
         doc.insert(Some(layer), usize::MAX, g).unwrap();
@@ -1271,7 +1265,7 @@ fn effects_on_a_fill_are_reported_left_out() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let mut fill = FillLayer::new(solid(Color::BLACK));
-    fill.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: serde_json::json!({}), visible: true });
+    fill.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params: serde_json::json!({}), visible: true });
     let ap = Appearance { items: vec![AppearanceItem::Fill(fill)], ..Appearance::default() };
     let square = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 30.0, 30.0)), ap);
     doc.insert(Some(layer), usize::MAX, square).unwrap();
@@ -1715,10 +1709,10 @@ fn a_clipping_paths_other_paint_keeps_its_opacity() {
     // at the clipping path's opacity.
     let mut brick = doc.clone();
     let dot = square(&mut brick, Rect::new(0.0, 0.0, 2.0, 2.0), Color::rgb(1.0, 0.0, 0.0));
-    brick.patterns.push(vectorcraft_doc::PatternDef {
+    brick.patterns.push(pluma_doc::PatternDef {
         tile: Rect::new(0.0, 0.0, 4.0, 4.0),
-        tile_type: vectorcraft_doc::TileType::BrickByRow { offset: 0.5 },
-        ..vectorcraft_doc::PatternDef::new("Brick", vec![Arc::new(dot)])
+        tile_type: pluma_doc::TileType::BrickByRow { offset: 0.5 },
+        ..pluma_doc::PatternDef::new("Brick", vec![Arc::new(dot)])
     });
     if let Some(c) = Arc::make_mut(&mut brick.layers[0]).children_mut()
         && let Some(NodeKind::Group { children, .. }) = c.first_mut().map(|g| &mut Arc::make_mut(g).kind)
@@ -1830,10 +1824,10 @@ fn opacity_masks_nested_too_deep_are_left_out() {
 fn a_clipping_object_other_than_a_path_cuts_the_art() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let t = vectorcraft_doc::TextObject::point(
-        vectorcraft_geom::Point::new(10.0, 70.0),
+    let t = pluma_doc::TextObject::point(
+        pluma_geom::Point::new(10.0, 70.0),
         "Type",
-        vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() },
+        pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() },
     );
     let t = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     let inside = square(&mut doc, Rect::new(0.0, 0.0, 100.0, 100.0), Color::rgb(0.0, 0.0, 1.0));
@@ -1874,10 +1868,10 @@ fn cut_to_type(layer: &Node) -> Vec<&'static str> {
 fn a_clipping_layer_clipped_by_type_is_not_written_as_a_clipping_layer() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let t = vectorcraft_doc::TextObject::point(
-        vectorcraft_geom::Point::new(10.0, 70.0),
+    let t = pluma_doc::TextObject::point(
+        pluma_geom::Point::new(10.0, 70.0),
         "Type",
-        vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() },
+        pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() },
     );
     let t = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     doc.insert(Some(layer), usize::MAX, t).unwrap();
@@ -2017,7 +2011,7 @@ fn sunset() -> Gradient {
     )
 }
 
-fn gradient_paint(g: Gradient, geom: Option<vectorcraft_color::gradient::GradientGeom>, swatch: Option<&str>) -> Paint {
+fn gradient_paint(g: Gradient, geom: Option<pluma_color::gradient::GradientGeom>, swatch: Option<&str>) -> Paint {
     Paint::Gradient(Box::new(GradientPaint { geom, swatch: swatch.map(Into::into), ..GradientPaint::new(g) }))
 }
 
@@ -2036,7 +2030,7 @@ fn painted(doc: &mut Document, path: PathData, items: Vec<AppearanceItem>) -> No
 /// CMYK color and `Ink` at 70%; a rectangle filled with `Dots` turned, scaled and moved; and a
 /// rectangle stroked 8 points with `Dots`.
 fn gradients_and_patterns() -> Document {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let mut doc = Document::new(300.0, 200.0);
     let glow = ramp(GradientKind::Radial, &[(0.0, Color::rgb(1.0, 1.0, 1.0), 1.0, 0.5), (1.0, Color::rgb(0.1, 0.2, 0.8), 1.0, 0.5)]);
     let two = ramp(GradientKind::Linear, &[(0.0, Color::rgb(1.0, 1.0, 0.0), 1.0, 0.5), (1.0, Color::rgb(0.0, 0.0, 0.0), 1.0, 0.5)]);
@@ -2047,10 +2041,10 @@ fn gradients_and_patterns() -> Document {
         shapes::ellipse(Rect::new(5.0, 5.0, 9.0, 9.0)),
         vec![AppearanceItem::Fill(FillLayer::new(gradient_paint(two.clone(), None, None)))],
     );
-    let mut dots = vectorcraft_doc::PatternDef::new("Dots", vec![Arc::new(red), Arc::new(ball)]);
+    let mut dots = pluma_doc::PatternDef::new("Dots", vec![Arc::new(red), Arc::new(ball)]);
     dots.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     let check = square(&mut doc, Rect::new(0.0, 0.0, 5.0, 5.0), Color::BLACK);
-    let mut checks = vectorcraft_doc::PatternDef::new("Checks", vec![Arc::new(check)]);
+    let mut checks = pluma_doc::PatternDef::new("Checks", vec![Arc::new(check)]);
     checks.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     doc.patterns.extend([dots, checks]);
     let swatch = |name: &str, paint: Paint, spot: bool| Swatch { name: name.into(), paint, global: spot, spot };
@@ -2095,7 +2089,7 @@ fn gradients_and_patterns() -> Document {
     nodes.push(ring);
     let mut open = shapes::line((190.0, 110.0).into(), (280.0, 70.0).into());
     if let Some(sp) = open.subpaths.first_mut() {
-        sp.anchors.push(vectorcraft_geom::Anchor::corner((200.0, 70.0).into()));
+        sp.anchors.push(pluma_geom::Anchor::corner((200.0, 70.0).into()));
         sp.closed = false;
     }
     nodes.push(painted(&mut doc, open, vec![fill(gradient_paint(two, None, None))]));
@@ -2404,7 +2398,7 @@ fn gradient_options_and_links_the_data_cant_hold_are_reported() {
     let mut along = Document::new(200.0, 100.0);
     let layer = along.layers[0].id;
     let mut st = StrokeLayer::new(gradient_paint(sunset(), None, None), 4.0);
-    st.gradient_mode = vectorcraft_doc::StrokeGradientMode::Along;
+    st.gradient_mode = pluma_doc::StrokeGradientMode::Along;
     let n = painted(&mut along, shapes::rectangle(Rect::new(10.0, 10.0, 30.0, 30.0)), vec![AppearanceItem::Stroke(st)]);
     along.insert(Some(layer), usize::MAX, n).unwrap();
     let out = export_ai_editing(&along, &opts()).unwrap();
@@ -2415,7 +2409,7 @@ fn gradient_options_and_links_the_data_cant_hold_are_reported() {
     swatches.push(Swatch { name: "Brand".into(), paint: solid(BRAND), global: true, spot: false });
     doc.swatches = swatches.into();
     let mut g = sunset();
-    g.method = vectorcraft_color::gradient::GradientMethod::Perceptual;
+    g.method = pluma_color::gradient::GradientMethod::Perceptual;
     if let Some(s) = g.stops.first_mut() {
         s.set_color(BRAND, Some(("Brand".into(), 1.0)));
     }
@@ -2439,7 +2433,7 @@ fn a_pattern_whose_art_reaches_past_its_tile_is_written_as_its_tiles() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let big = square(&mut doc, Rect::new(-2.0, -2.0, 6.0, 6.0), Color::rgb(1.0, 0.0, 0.0));
-    let mut over = vectorcraft_doc::PatternDef::new("Over", vec![Arc::new(big)]);
+    let mut over = pluma_doc::PatternDef::new("Over", vec![Arc::new(big)]);
     over.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     doc.patterns.push(over);
     let n = painted(
@@ -2464,7 +2458,7 @@ fn a_pattern_fill_in_a_pattern_tile_is_written_as_its_tiles() {
         shapes::rectangle(Rect::new(2.0, 2.0, 18.0, 18.0)),
         vec![AppearanceItem::Fill(FillLayer::new(Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY }))],
     );
-    let mut nest = vectorcraft_doc::PatternDef::new("Nest", vec![Arc::new(inner)]);
+    let mut nest = pluma_doc::PatternDef::new("Nest", vec![Arc::new(inner)]);
     nest.tile = Rect::new(0.0, 0.0, 20.0, 20.0);
     doc.patterns.push(nest);
     let n = painted(
@@ -2521,7 +2515,7 @@ fn swatches_plus(doc: &mut Document, more: Vec<Swatch>) {
 /// multiple of √((1.5² + 1²) / 2), and the linear one at 45°.
 #[test]
 fn bg_places_gradients_on_their_paths() {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let radial = ramp(GradientKind::Radial, &[(0.0, Color::rgb(1.0, 1.0, 1.0), 1.0, 0.5), (1.0, Color::rgb(0.0, 0.0, 1.0), 1.0, 0.5)]);
     let off_center = GradientGeom { start: (90.0, 20.0).into(), end: (110.0, 20.0).into(), aspect: 1.0, focal: None };
     let fill = |p: Paint| AppearanceItem::Fill(FillLayer::new(p));
@@ -2529,7 +2523,7 @@ fn bg_places_gradients_on_their_paths() {
     let layer = doc.layers[0].id;
     let mut triangle = shapes::line((130.0, 10.0).into(), (190.0, 10.0).into());
     if let Some(sp) = triangle.subpaths.first_mut() {
-        sp.anchors.push(vectorcraft_geom::Anchor::corner((130.0, 40.0).into()));
+        sp.anchors.push(pluma_geom::Anchor::corner((130.0, 40.0).into()));
         sp.closed = true;
     }
     let turned = GradientGeom { start: (145.0, 10.0).into(), end: (160.0, 25.0).into(), aspect: 1.0, focal: None };
@@ -2537,7 +2531,7 @@ fn bg_places_gradients_on_their_paths() {
     doc.insert(Some(layer), usize::MAX, n).unwrap();
     let in_tile = painted(&mut doc, shapes::rectangle(Rect::new(0.0, 0.0, 120.0, 60.0)), vec![fill(gradient_paint(radial, Some(off_center), None))]);
     let slant = painted(&mut doc, triangle, vec![fill(gradient_paint(sunset(), Some(turned), None))]);
-    let mut tile = vectorcraft_doc::PatternDef::new("Tile", vec![Arc::new(in_tile), Arc::new(slant)]);
+    let mut tile = pluma_doc::PatternDef::new("Tile", vec![Arc::new(in_tile), Arc::new(slant)]);
     tile.tile = Rect::new(0.0, 0.0, 200.0, 60.0);
     doc.patterns.push(tile);
     swatches_plus(
@@ -2568,7 +2562,7 @@ fn bg_places_gradients_on_their_paths() {
 fn gradient_definitions_skip_the_names_of_swatches_and_patterns() {
     let mut doc = gradients_and_patterns();
     let check = square(&mut doc, Rect::new(0.0, 0.0, 5.0, 5.0), Color::BLACK);
-    let mut taken = vectorcraft_doc::PatternDef::new("Gradient 2", vec![Arc::new(check)]);
+    let mut taken = pluma_doc::PatternDef::new("Gradient 2", vec![Arc::new(check)]);
     taken.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     doc.patterns.push(taken);
     swatches_plus(
@@ -2618,7 +2612,7 @@ fn gradient_names_are_searched_from_the_last_one_given() {
 fn many_gradient_definitions_take_distinct_names_in_order() {
     let mut doc = one_object(shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), vec![]);
     let check = square(&mut doc, Rect::new(0.0, 0.0, 5.0, 5.0), Color::BLACK);
-    let mut taken = vectorcraft_doc::PatternDef::new("Gradient 7", vec![Arc::new(check)]);
+    let mut taken = pluma_doc::PatternDef::new("Gradient 7", vec![Arc::new(check)]);
     taken.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     doc.patterns.push(taken);
     swatches_plus(&mut doc, vec![Swatch { name: "Gradient 3".into(), paint: solid(Color::rgb(0.0, 0.5, 0.0)), global: false, spot: false }]);
@@ -2663,7 +2657,7 @@ fn a_linear_gradient_with_every_stop_at_one_place_keeps_its_sides() {
 /// gradients.
 #[test]
 fn gradients_that_cant_be_placed_are_reported_as_such() {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let point = GradientGeom { start: (20.0, 20.0).into(), end: (20.0, 20.0).into(), aspect: 1.0, focal: None };
     let flat = GradientGeom { start: (20.0, 20.0).into(), end: (40.0, 20.0).into(), aspect: 0.0, focal: None };
     let radial = ramp(GradientKind::Radial, &[(0.0, Color::rgb(1.0, 1.0, 1.0), 1.0, 0.5), (1.0, Color::rgb(0.0, 0.0, 0.0), 1.0, 0.5)]);
@@ -2688,7 +2682,7 @@ fn gradients_that_cant_be_placed_are_reported_as_such() {
 #[test]
 fn a_gradient_across_a_stroke_is_its_average_color() {
     let mut st = StrokeLayer::new(gradient_paint(sunset(), None, None), 4.0);
-    st.gradient_mode = vectorcraft_doc::StrokeGradientMode::Across;
+    st.gradient_mode = pluma_doc::StrokeGradientMode::Across;
     let doc = one_object(shapes::rectangle(Rect::new(10.0, 10.0, 50.0, 50.0)), vec![AppearanceItem::Stroke(st)]);
     let out = export_ai_editing(&doc, &opts()).unwrap();
     assert!(out.warnings.iter().any(|w| w == writer::GRADIENTS), "{:?}", out.warnings);
@@ -2703,20 +2697,20 @@ fn a_gradient_across_a_stroke_is_its_average_color() {
 #[test]
 fn hex_and_brick_patterns_are_written_as_their_tiles() {
     for tile_type in [
-        vectorcraft_doc::TileType::HexByRow,
-        vectorcraft_doc::TileType::HexByColumn,
-        vectorcraft_doc::TileType::BrickByRow { offset: 0.5 },
-        vectorcraft_doc::TileType::BrickByColumn { offset: 0.5 },
+        pluma_doc::TileType::HexByRow,
+        pluma_doc::TileType::HexByColumn,
+        pluma_doc::TileType::BrickByRow { offset: 0.5 },
+        pluma_doc::TileType::BrickByColumn { offset: 0.5 },
     ] {
         let mut doc = one_object(
             shapes::rectangle(Rect::new(20.0, 20.0, 60.0, 60.0)),
             vec![AppearanceItem::Fill(FillLayer::new(Paint::Pattern { pattern: "Cells".into(), xf: Affine::IDENTITY }))],
         );
         let dot = square(&mut doc, Rect::new(0.0, 0.0, 4.0, 4.0), Color::rgb(1.0, 0.0, 0.0));
-        doc.patterns.push(vectorcraft_doc::PatternDef {
+        doc.patterns.push(pluma_doc::PatternDef {
             tile: Rect::new(0.0, 0.0, 10.0, 10.0),
             tile_type,
-            ..vectorcraft_doc::PatternDef::new("Cells", vec![Arc::new(dot)])
+            ..pluma_doc::PatternDef::new("Cells", vec![Arc::new(dot)])
         });
         let out = export_ai_editing(&doc, &opts()).unwrap();
         assert!(out.warnings.iter().any(|w| w == writer::PATTERNS), "{tile_type:?}: {:?}", out.warnings);
@@ -2735,7 +2729,7 @@ fn an_open_path_keeps_its_gradient_fill_and_stroke() {
     let two = ramp(GradientKind::Linear, &[(0.0, Color::rgb(1.0, 1.0, 0.0), 1.0, 0.5), (1.0, Color::rgb(0.0, 0.0, 0.0), 1.0, 0.5)]);
     let mut open = shapes::line((20.0, 80.0).into(), (100.0, 20.0).into());
     if let Some(sp) = open.subpaths.first_mut() {
-        sp.anchors.push(vectorcraft_geom::Anchor::corner((150.0, 70.0).into()));
+        sp.anchors.push(pluma_geom::Anchor::corner((150.0, 70.0).into()));
         sp.closed = false;
     }
     let doc = one_object(
@@ -2785,7 +2779,7 @@ fn a_cmyk_documents_gradients_keep_their_stops() {
         shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 50.0)),
         vec![AppearanceItem::Fill(FillLayer::new(gradient_paint(cmyk, None, None)))],
     );
-    doc.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    doc.color_mode = pluma_doc::ColorMode::Cmyk;
     let text = program(&doc);
     assert!(text.contains("%AI9_ColorModel: 2\n"), "{text}");
     assert!(text.contains("%_1 0 0 0.2 1 0.5 6 25 100 Bs\n%_0 0.6 1 0 1 1 6 50 0 Bs\n"), "{text}");
@@ -2809,10 +2803,10 @@ fn a_compound_paths_gradient_is_on_its_last_subpath() {
 fn swatches_the_data_cant_hold_are_left_out() {
     let mut doc = gradients_and_patterns();
     let dot = square(&mut doc, Rect::new(0.0, 0.0, 4.0, 4.0), Color::rgb(1.0, 0.0, 0.0));
-    doc.patterns.push(vectorcraft_doc::PatternDef {
+    doc.patterns.push(pluma_doc::PatternDef {
         tile: Rect::new(0.0, 0.0, 10.0, 10.0),
-        tile_type: vectorcraft_doc::TileType::BrickByRow { offset: 0.5 },
-        ..vectorcraft_doc::PatternDef::new("Brick", vec![Arc::new(dot)])
+        tile_type: pluma_doc::TileType::BrickByRow { offset: 0.5 },
+        ..pluma_doc::PatternDef::new("Brick", vec![Arc::new(dot)])
     });
     let free = ramp(GradientKind::Freeform, &[(0.0, Color::rgb(1.0, 1.0, 1.0), 1.0, 0.5), (1.0, Color::rgb(0.0, 0.0, 0.0), 1.0, 0.5)]);
     let swatch = |name: &str, paint: Paint| Swatch { name: name.into(), paint, global: false, spot: false };
@@ -2861,7 +2855,7 @@ fn png_of(img: image::DynamicImage) -> Vec<u8> {
 }
 
 /// An image object of `blob`'s pixels (`w` × `h`) placed by `xf`, its blob kept in `doc`.
-fn image_node(doc: &mut Document, blob: ImageBlob, (w, h): (u32, u32), xf: Affine, link: Option<vectorcraft_doc::LinkInfo>) -> Node {
+fn image_node(doc: &mut Document, blob: ImageBlob, (w, h): (u32, u32), xf: Affine, link: Option<pluma_doc::LinkInfo>) -> Node {
     let key = blob.content_key();
     doc.images.insert(key.clone(), blob);
     let im = ImageObject { key, width: w, height: h, xf, link, placement: Default::default(), pixels: None };
@@ -2897,7 +2891,7 @@ fn images_doc() -> Document {
     let mut gray = image_node(&mut doc, ImageBlob::png(png_of(gray.into())), (4, 1), Affine::new([5.0, 0.0, 0.0, 5.0, 90.0, 60.0]), None);
     gray.visible = false;
     doc.insert(Some(layer), usize::MAX, gray).unwrap();
-    let inks = vectorcraft_doc::cmyk::Inks::new(2, 1, vec![255, 0, 0, 0, 10, 20, 30, 40]).unwrap();
+    let inks = pluma_doc::cmyk::Inks::new(2, 1, vec![255, 0, 0, 0, 10, 20, 30, 40]).unwrap();
     let cmyk = image_node(&mut doc, ImageBlob::cmyk_tiff(&inks).unwrap(), (2, 1), Affine::new([10.0, 0.0, 0.0, 10.0, 120.0, 10.0]), None);
     doc.insert(Some(layer), usize::MAX, cmyk).unwrap();
     let clip = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(150.0, 10.0, 170.0, 25.0)), Appearance::default());
@@ -2917,7 +2911,7 @@ fn images_doc() -> Document {
     let links_id = links.id;
     doc.layers.push(Arc::new(links));
     let pic = image::RgbaImage::from_fn(3, 3, |x, y| image::Rgba([(x * 80) as u8, (y * 80) as u8, 30, 255]));
-    let mut link = vectorcraft_doc::LinkInfo::new("/Users/someone/Job (1)/art/pic.png");
+    let mut link = pluma_doc::LinkInfo::new("/Users/someone/Job (1)/art/pic.png");
     link.relative = Some("art/pic.png".into());
     let placed = image_node(&mut doc, ImageBlob::png(png_of(pic.into())), (3, 3), Affine::new([4.0, 1.0, -1.0, 4.0, 60.0, 50.0]), Some(link));
     doc.insert(Some(links_id), usize::MAX, placed).unwrap();
@@ -2993,7 +2987,7 @@ fn an_images_knockout_shape_comes_back() {
     doc.insert(Some(layer), usize::MAX, shaped).unwrap();
     let plain = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), at(50.0), None);
     doc.insert(Some(layer), usize::MAX, plain).unwrap();
-    let mut link = vectorcraft_doc::LinkInfo::new("/Users/someone/Job/art/pic.png");
+    let mut link = pluma_doc::LinkInfo::new("/Users/someone/Job/art/pic.png");
     link.relative = Some("art/pic.png".into());
     let mut linked = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), at(90.0), Some(link));
     linked.knockout_shape = true;
@@ -3120,7 +3114,7 @@ fn a_linked_image_is_a_placed_file_with_a_preview() {
 fn a_relative_path_to_a_file_of_another_name_is_left_out() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut link = vectorcraft_doc::LinkInfo::new("/old/original.png");
+    let mut link = pluma_doc::LinkInfo::new("/old/original.png");
     link.relative = Some("assets/current.png".into());
     let im = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), Affine::scale(10.0), Some(link));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
@@ -3132,7 +3126,7 @@ fn a_relative_path_to_a_file_of_another_name_is_left_out() {
     // Names that differ only in letter case keep the folder where file names ignore case.
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut link = vectorcraft_doc::LinkInfo::new("C:\\Job\\art\\PHOTO.PNG");
+    let mut link = pluma_doc::LinkInfo::new("C:\\Job\\art\\PHOTO.PNG");
     link.relative = Some("art/photo.png".into());
     let im = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), Affine::scale(10.0), Some(link));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
@@ -3141,7 +3135,7 @@ fn a_relative_path_to_a_file_of_another_name_is_left_out() {
     // A relative path with `\` separators keeps its folder.
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut link = vectorcraft_doc::LinkInfo::new("C:\\Job\\art\\photo.png");
+    let mut link = pluma_doc::LinkInfo::new("C:\\Job\\art\\photo.png");
     link.relative = Some("art\\photo.png".into());
     let im = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), Affine::scale(10.0), Some(link));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
@@ -3154,7 +3148,7 @@ fn a_large_linked_image_has_a_smaller_preview_over_its_pixels() {
     let layer = doc.layers[0].id;
     let big = image::RgbaImage::from_fn(1024, 512, |x, y| image::Rgba([(x / 4) as u8, (y / 2) as u8, 0, 255]));
     let xf = Affine::new([0.1, 0.0, 0.0, 0.1, 20.0, 30.0]);
-    let im = image_node(&mut doc, ImageBlob::png(png_of(big.into())), (1024, 512), xf, Some(vectorcraft_doc::LinkInfo::new("/tmp/big.png")));
+    let im = image_node(&mut doc, ImageBlob::png(png_of(big.into())), (1024, 512), xf, Some(pluma_doc::LinkInfo::new("/tmp/big.png")));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
     assert!(program_shown(&doc).contains("\n256 128 1024 32 17 <131072 bytes>\n"));
     let back = read_back(&doc);
@@ -3201,13 +3195,7 @@ fn a_smaller_preview_takes_no_color_from_see_through_pixels() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let half = image::RgbaImage::from_fn(511, 3, |x, _| if x % 2 == 0 { image::Rgba([255, 0, 0, 0]) } else { image::Rgba([0, 0, 255, 255]) });
-    let im = image_node(
-        &mut doc,
-        ImageBlob::png(png_of(half.into())),
-        (511, 3),
-        Affine::scale(0.2),
-        Some(vectorcraft_doc::LinkInfo::new("/tmp/half.png")),
-    );
+    let im = image_node(&mut doc, ImageBlob::png(png_of(half.into())), (511, 3), Affine::scale(0.2), Some(pluma_doc::LinkInfo::new("/tmp/half.png")));
     doc.insert(Some(layer), usize::MAX, im).unwrap();
     let back = read_back(&doc);
     let NodeKind::Image(im) = &back.layers[0].children().unwrap()[0].kind else { panic!("not an image") };
@@ -3221,7 +3209,7 @@ fn a_smaller_preview_takes_no_color_from_see_through_pixels() {
 fn linked_images_in_masks_and_tiles_are_embedded() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let link = Some(vectorcraft_doc::LinkInfo::new("/tmp/ramp.png"));
+    let link = Some(pluma_doc::LinkInfo::new("/tmp/ramp.png"));
     let art = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), Affine::scale(10.0), link);
     let mut square =
         Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 20.0)), Appearance::basic(solid(Color::BLACK), Paint::None, 0.0));
@@ -3243,7 +3231,7 @@ fn an_image_in_a_mask_in_a_pattern_tile_ends_its_samples_once() {
     let mut square =
         Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 30.0, 20.0)), Appearance::basic(solid(Color::BLACK), Paint::None, 0.0));
     square.extras_mut().mask = Some(Box::new(OpacityMask::new(Node::group(doc.alloc_id(), vec![Arc::new(art)]), false)));
-    doc.patterns.push(vectorcraft_doc::PatternDef::new("Masked", vec![Arc::new(square)]));
+    doc.patterns.push(pluma_doc::PatternDef::new("Masked", vec![Arc::new(square)]));
     let filled = Node::path(
         doc.alloc_id(),
         shapes::rectangle(Rect::new(40.0, 40.0, 100.0, 80.0)),
@@ -3401,11 +3389,11 @@ fn sixteen_bit_cmyk_images_are_written_at_eight_bits() {
 
 // ---------- type ----------
 
-fn style(size: f64, fill: Color) -> vectorcraft_doc::CharStyle {
-    vectorcraft_doc::CharStyle { size, fill: solid(fill), ..vectorcraft_doc::CharStyle::default() }
+fn style(size: f64, fill: Color) -> pluma_doc::CharStyle {
+    pluma_doc::CharStyle { size, fill: solid(fill), ..pluma_doc::CharStyle::default() }
 }
 
-fn text_node(doc: &mut Document, t: vectorcraft_doc::TextObject) -> Node {
+fn text_node(doc: &mut Document, t: pluma_doc::TextObject) -> Node {
     Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)))
 }
 
@@ -3416,8 +3404,8 @@ fn text_node(doc: &mut Document, t: vectorcraft_doc::TextObject) -> Node {
 /// right-to-left paragraph; type on an open curve from a tenth of its length; vertical point type;
 /// hidden, locked point type at half opacity multiplied; and area type threaded through two frames.
 fn typed() -> Document {
-    use vectorcraft_doc::{CharStyle, FirstBaseline, Justify, ParaDirection, ParaStyle, TextKind, TextObject, TextRun};
-    use vectorcraft_geom::Point;
+    use pluma_doc::{CharStyle, FirstBaseline, Justify, ParaDirection, ParaStyle, TextKind, TextObject, TextRun};
+    use pluma_geom::Point;
     let mut doc = Document::new(300.0, 200.0);
     // One CMYK swatch, not the default ones: their CMYK equivalents round differently once read back.
     doc.swatches = vec![
@@ -3510,7 +3498,7 @@ fn typed() -> Document {
 /// transparency, kind and frame, matrix, orientation, area options and path span; each paragraph's
 /// attributes; each run's characters and attributes. Lengths to three decimals.
 fn type_lines(doc: &Document) -> Vec<String> {
-    use vectorcraft_doc::TextKind;
+    use pluma_doc::TextKind;
     let mut out = vec![];
     let mut all = vec![];
     paths(&doc.layers, &mut all);
@@ -3615,7 +3603,7 @@ fn one_swatch_document(w: f64, h: f64) -> Document {
 /// group holding `Leaf`; `Leaf` with an opacity mask whose art holds an instance of `Leaf`; `Shade`;
 /// and sublayer `Inner` (60%, Screen), which holds `Pair` mirrored.
 fn symbols_document() -> Document {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let mut doc = Document::new(300.0, 200.0);
     doc.swatches = vec![Swatch { name: "Leaf".into(), paint: solid(LEAF), global: false, spot: false }].into();
     doc.swatch_groups = vec![].into();
@@ -3647,8 +3635,8 @@ fn symbols_document() -> Document {
     for (name, art) in [("Spare", spare), ("Pair", pair), ("Leaf", leaf), ("Shade", shade), ("Solo", solo)] {
         doc.symbols.push(Symbol { dynamic: false, name: name.into(), art: Arc::new(art) });
     }
-    doc.set_symbol_registration("Leaf", vectorcraft_doc::SymbolRegistration(0));
-    doc.set_symbol_registration("Shade", vectorcraft_doc::SymbolRegistration(8));
+    doc.set_symbol_registration("Leaf", pluma_doc::SymbolRegistration(0));
+    doc.set_symbol_registration("Shade", pluma_doc::SymbolRegistration(8));
     // The instances.
     let mut art = vec![instance(&mut doc, "Leaf", Affine::translate((10.0, 10.0)))];
     let turned = Affine::translate((80.0, 20.0)) * Affine::rotate(30f64.to_radians()) * Affine::scale_non_uniform(1.5, 0.5);
@@ -3736,16 +3724,16 @@ fn type_is_written_again_as_the_same_bytes() {
 /// setting on comes back without it, and that is reported.
 #[test]
 fn standard_vertical_roman_alignment_comes_back() {
-    use vectorcraft_doc::{CharStyle, TextObject, TextRun};
+    use pluma_doc::{CharStyle, TextObject, TextRun};
     let plain = style(14.0, Color::BLACK);
     let roman = CharStyle { standard_vertical_roman: true, ..plain.clone() };
     let tcy = CharStyle { tate_chu_yoko: true, ..plain.clone() };
     let mut doc = Document::new(200.0, 200.0);
     let layer = doc.layers[0].id;
-    let mut down = TextObject::point(vectorcraft_geom::Point::new(150.0, 20.0), "", plain.clone());
+    let mut down = TextObject::point(pluma_geom::Point::new(150.0, 20.0), "", plain.clone());
     down.runs = vec![TextRun::new("Up AB ", roman.clone()), TextRun::new("turned CD ", plain.clone()), TextRun::new("12", tcy.clone())];
     down.vertical = true;
-    let mut across = TextObject::point(vectorcraft_geom::Point::new(20.0, 40.0), "", plain.clone());
+    let mut across = TextObject::point(pluma_geom::Point::new(20.0, 40.0), "", plain.clone());
     across.runs = vec![TextRun::new("Marked ", roman.clone()), TextRun::new("plain", plain.clone())];
     for t in [down, across] {
         let n = text_node(&mut doc, t);
@@ -3762,7 +3750,7 @@ fn standard_vertical_roman_alignment_comes_back() {
     let (written, read) = (texts(&doc), texts(&back));
     assert_eq!(read.iter().map(flags).collect::<Vec<_>>(), [vec![(true, false), (false, false), (false, true)], vec![(true, false), (false, false)]]);
     let origins = |t: &TextObject| {
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).glyphs.iter().map(|g| (r3(g.origin.x), r3(g.origin.y))).collect::<Vec<_>>()
+        pluma_text::layout(pluma_text::FontDb::global(), t).glyphs.iter().map(|g| (r3(g.origin.x), r3(g.origin.y))).collect::<Vec<_>>()
     };
     for (w, r) in written.iter().zip(&read) {
         assert_eq!(origins(r), origins(w), "vertical={}", w.vertical);
@@ -3828,18 +3816,18 @@ fn type_is_a_text_document_and_stubs() {
 /// it. Type that ends in an empty paragraph keeps it.
 #[test]
 fn scaled_point_type_and_a_last_empty_paragraph_come_back() {
-    use vectorcraft_doc::{CharStyle, ParaStyle, TextObject};
+    use pluma_doc::{CharStyle, ParaStyle, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut big = TextObject::point(vectorcraft_geom::Point::ZERO, "Big", CharStyle { leading: Some(20.0), ..style(12.0, Color::BLACK) });
+    let mut big = TextObject::point(pluma_geom::Point::ZERO, "Big", CharStyle { leading: Some(20.0), ..style(12.0, Color::BLACK) });
     big.xf = Affine::translate((20.0, 40.0)) * Affine::rotate(0.3) * Affine::scale(1.5);
     big.set_all_paras(ParaStyle { left_indent: 4.0, ..ParaStyle::default() });
-    let ends = TextObject::point(vectorcraft_geom::Point::new(20.0, 80.0), "Ends\n", style(12.0, Color::BLACK));
+    let ends = TextObject::point(pluma_geom::Point::new(20.0, 80.0), "Ends\n", style(12.0, Color::BLACK));
     let (big, ends) = (text_node(&mut doc, big), text_node(&mut doc, ends));
     doc.insert(Some(layer), usize::MAX, big).unwrap();
     doc.insert(Some(layer), usize::MAX, ends).unwrap();
     let back = read_back(&doc);
-    let texts: Vec<&vectorcraft_doc::TextObject> =
+    let texts: Vec<&pluma_doc::TextObject> =
         back.layers[0].children().unwrap().iter().filter_map(|n| if let NodeKind::Text(t) = &n.kind { Some(t.as_ref()) } else { None }).collect();
     let [big, ends] = texts.as_slice() else { panic!("two text objects: {texts:?}") };
     let s = big.xf.determinant().sqrt();
@@ -3851,7 +3839,7 @@ fn scaled_point_type_and_a_last_empty_paragraph_come_back() {
     let mut d = Document::new(200.0, 100.0);
     let layer = d.layers[0].id;
     let st = CharStyle { stroke: solid(Color::rgb(1.0, 0.0, 0.0)), stroke_width: 0.0, ..style(0.00001, Color::BLACK) };
-    let n = text_node(&mut d, TextObject::point(vectorcraft_geom::Point::new(20.0, 40.0), "Tiny", st));
+    let n = text_node(&mut d, TextObject::point(pluma_geom::Point::new(20.0, 40.0), "Tiny", st));
     d.insert(Some(layer), usize::MAX, n).unwrap();
     let back = read_back(&d);
     let NodeKind::Text(t) = &back.layers[0].children().unwrap()[0].kind else { panic!("type") };
@@ -3866,7 +3854,7 @@ fn scaled_point_type_and_a_last_empty_paragraph_come_back() {
 /// comes back as one story in its first frame with each paragraph's attributes once.
 #[test]
 fn a_story_split_between_frames_comes_back_whole() {
-    use vectorcraft_doc::{Justify, ParaStyle, TextKind, TextObject, TextRun};
+    use pluma_doc::{Justify, ParaStyle, TextKind, TextObject, TextRun};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let st = style(10.0, Color::BLACK);
@@ -3875,7 +3863,7 @@ fn a_story_split_between_frames_comes_back_whole() {
         ParaStyle { left_indent: 5.0, ..ParaStyle::default() },
         ParaStyle { space_before: 4.0, ..ParaStyle::default() },
     );
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "", st.clone());
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "", st.clone());
     first.runs = vec![TextRun::new("One two\nthree ", st.clone())];
     first.set_paragraph_styles(vec![p1.clone(), p2.clone()]);
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
@@ -3920,8 +3908,8 @@ fn a_story_longer_than_the_reader_reads_is_written_as_its_outlines() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let long = format!("A{}", " ".repeat(crate::import::MAX_STORY));
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 50.0), &long, style(12.0, Color::BLACK));
-    let short = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "Short", style(12.0, Color::BLACK));
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 50.0), &long, style(12.0, Color::BLACK));
+    let short = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 90.0), "Short", style(12.0, Color::BLACK));
     let (t, short) = (text_node(&mut doc, t), text_node(&mut doc, short));
     doc.insert(Some(layer), usize::MAX, t).unwrap();
     doc.insert(Some(layer), usize::MAX, short).unwrap();
@@ -3939,8 +3927,8 @@ fn stories_past_the_text_document_the_reader_reads_are_written_as_their_outlines
     let long = format!("A{}", " ".repeat(900_000));
     for i in 0..9 {
         // A font of its own, which no other story names.
-        let st = vectorcraft_doc::CharStyle { font_family: format!("Probe Family {i}"), ..style(8.0, Color::BLACK) };
-        let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 10.0 + f64::from(i) * 10.0), &long, st);
+        let st = pluma_doc::CharStyle { font_family: format!("Probe Family {i}"), ..style(8.0, Color::BLACK) };
+        let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 10.0 + f64::from(i) * 10.0), &long, st);
         let n = text_node(&mut doc, t);
         doc.insert(Some(layer), usize::MAX, n).unwrap();
     }
@@ -3960,10 +3948,10 @@ fn stories_past_the_text_document_the_reader_reads_are_written_as_their_outlines
 /// one.
 #[test]
 fn a_thread_of_horizontal_and_vertical_frames_is_written_as_its_outlines() {
-    use vectorcraft_doc::{TextKind, TextObject};
+    use pluma_doc::{TextKind, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "Across, then down", style(10.0, Color::BLACK));
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "Across, then down", style(10.0, Color::BLACK));
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     first.xf = Affine::IDENTITY;
     let mut second = first.clone();
@@ -3983,7 +3971,7 @@ fn a_thread_of_horizontal_and_vertical_frames_is_written_as_its_outlines() {
 /// thread: as text it would be read back in a closed frame.
 #[test]
 fn an_open_frame_whose_ends_meet_is_written_as_its_outlines() {
-    use vectorcraft_doc::{TextKind, TextObject};
+    use pluma_doc::{TextKind, TextObject};
     let open = |r: Rect| {
         let mut frame = shapes::rectangle(r);
         frame.subpaths[0].closed = false;
@@ -3991,7 +3979,7 @@ fn an_open_frame_whose_ends_meet_is_written_as_its_outlines() {
         frame.subpaths[0].anchors.push(start);
         frame
     };
-    let mut alone = TextObject::point(vectorcraft_geom::Point::ZERO, "Open", style(10.0, Color::BLACK));
+    let mut alone = TextObject::point(pluma_geom::Point::ZERO, "Open", style(10.0, Color::BLACK));
     alone.kind = TextKind::Area { frame: open(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     alone.xf = Affine::IDENTITY;
     let mut doc = Document::new(200.0, 100.0);
@@ -4020,10 +4008,10 @@ fn an_open_frame_whose_ends_meet_is_written_as_its_outlines() {
 /// of it, and comes back as one thread: the art of such a group isn't cut.
 #[test]
 fn a_thread_with_a_frame_in_a_clipping_group_stays_type() {
-    use vectorcraft_doc::{TextKind, TextObject};
+    use pluma_doc::{TextKind, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     first.xf = Affine::IDENTITY;
     let mut second = first.clone();
@@ -4044,10 +4032,10 @@ fn a_thread_with_a_frame_in_a_clipping_group_stays_type() {
 /// outlines, every frame of it; so is type whose size is past what the reader reads.
 #[test]
 fn a_thread_with_a_frame_in_cut_art_and_type_past_the_readers_sizes_are_outlines() {
-    use vectorcraft_doc::{TextKind, TextObject};
+    use pluma_doc::{TextKind, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     first.xf = Affine::IDENTITY;
     let mut second = first.clone();
@@ -4056,11 +4044,11 @@ fn a_thread_with_a_frame_in_cut_art_and_type_past_the_readers_sizes_are_outlines
     let (first, second) = (text_node(&mut doc, first), text_node(&mut doc, second));
     doc.text_threads.push(vec![first.id, second.id]);
     // The second frame is clipped by type: its art is cut to the type's outlines.
-    let clipper = text_node(&mut doc, TextObject::point(vectorcraft_geom::Point::new(110.0, 30.0), "CUT", style(30.0, Color::BLACK)));
+    let clipper = text_node(&mut doc, TextObject::point(pluma_geom::Point::new(110.0, 30.0), "CUT", style(30.0, Color::BLACK)));
     let cut = group(&mut doc, vec![clipper, second], true);
     doc.insert(Some(layer), usize::MAX, first).unwrap();
     doc.insert(Some(layer), usize::MAX, cut).unwrap();
-    let huge = TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "Huge", style(12.0, Color::BLACK));
+    let huge = TextObject::point(pluma_geom::Point::new(10.0, 90.0), "Huge", style(12.0, Color::BLACK));
     let huge = TextObject { xf: Affine::translate((10.0, 90.0)) * Affine::scale(1e5), ..huge };
     let huge = text_node(&mut doc, huge);
     doc.insert(Some(layer), usize::MAX, huge).unwrap();
@@ -4069,7 +4057,7 @@ fn a_thread_with_a_frame_in_cut_art_and_type_past_the_readers_sizes_are_outlines
     // Tracking that rounds to the reader's limit, 100,000, is written as outlines.
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut wide = TextObject::point(vectorcraft_geom::Point::new(10.0, 50.0), "Wide", style(12.0, Color::BLACK));
+    let mut wide = TextObject::point(pluma_geom::Point::new(10.0, 50.0), "Wide", style(12.0, Color::BLACK));
     wide.runs[0].style.tracking = 99_999.6;
     let wide = text_node(&mut doc, wide);
     doc.insert(Some(layer), usize::MAX, wide).unwrap();
@@ -4078,7 +4066,7 @@ fn a_thread_with_a_frame_in_cut_art_and_type_past_the_readers_sizes_are_outlines
     // A frame that is the clipping object of a clipping group is written as the clipping outline.
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "A story in two frames", style(10.0, Color::BLACK));
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     first.xf = Affine::IDENTITY;
     let mut second = first.clone();
@@ -4100,38 +4088,38 @@ fn type_the_data_cant_hold_is_written_as_its_outlines() {
     let layer = doc.layers[0].id;
     let g = Gradient::new(GradientKind::Linear, vec![GradientStop::new(0.0, Color::BLACK), GradientStop::new(1.0, Color::rgb(1.0, 0.0, 0.0))]);
     let fill = Paint::Gradient(Box::new(GradientPaint::new(g)));
-    let t = vectorcraft_doc::TextObject::point(
-        vectorcraft_geom::Point::new(10.0, 70.0),
+    let t = pluma_doc::TextObject::point(
+        pluma_geom::Point::new(10.0, 70.0),
         "Shaded",
-        vectorcraft_doc::CharStyle { size: 18.0, fill, ..vectorcraft_doc::CharStyle::default() },
+        pluma_doc::CharStyle { size: 18.0, fill, ..pluma_doc::CharStyle::default() },
     );
-    let mirrored = vectorcraft_doc::TextObject {
+    let mirrored = pluma_doc::TextObject {
         xf: Affine::new([-1.0, 0.0, 0.0, 1.0, 150.0, 70.0]),
-        ..vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "Mirror", style(18.0, Color::BLACK))
+        ..pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "Mirror", style(18.0, Color::BLACK))
     };
     // Area type in a frame of two subpaths: a frame of the text document is one path.
-    let mut holed = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "Two rings", style(10.0, Color::BLACK));
+    let mut holed = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "Two rings", style(10.0, Color::BLACK));
     let mut rings = shapes::rectangle(Rect::new(100.0, 10.0, 190.0, 90.0));
     rings.subpaths.extend(shapes::rectangle(Rect::new(120.0, 30.0, 170.0, 70.0)).subpaths);
-    holed.kind = vectorcraft_doc::TextKind::Area { frame: rings };
+    holed.kind = pluma_doc::TextKind::Area { frame: rings };
     holed.xf = Affine::IDENTITY;
     // A carriage return in the characters: a story ends its paragraphs with it. Area type that
     // flows around a wrap object: the wrap object's settings aren't written.
-    let returned = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "A\rB", style(10.0, Color::BLACK));
-    let mut wrapped = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "Wrapped round", style(10.0, Color::BLACK));
-    wrapped.kind = vectorcraft_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 60.0)) };
+    let returned = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 90.0), "A\rB", style(10.0, Color::BLACK));
+    let mut wrapped = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "Wrapped round", style(10.0, Color::BLACK));
+    wrapped.kind = pluma_doc::TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 60.0)) };
     wrapped.xf = Affine::IDENTITY;
-    wrapped.wrap = vec![vectorcraft_doc::WrapShape { path: shapes::rectangle(Rect::new(30.0, 20.0, 50.0, 40.0)), wrap: Default::default() }];
+    wrapped.wrap = vec![pluma_doc::WrapShape { path: shapes::rectangle(Rect::new(30.0, 20.0, 50.0, 40.0)), wrap: Default::default() }];
     let wrapped = text_node(&mut doc, wrapped);
     doc.insert(Some(layer), usize::MAX, wrapped).unwrap();
     // Type on an open path whose ends meet: it would be read back on a closed path.
-    let mut ring = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::ZERO, "Round", style(10.0, Color::BLACK));
+    let mut ring = pluma_doc::TextObject::point(pluma_geom::Point::ZERO, "Round", style(10.0, Color::BLACK));
     let mut open_ring = shapes::ellipse(Rect::new(120.0, 10.0, 180.0, 70.0));
     if let Some(first) = open_ring.subpaths[0].anchors.first().copied() {
         open_ring.subpaths[0].anchors.push(first);
     }
     open_ring.subpaths[0].closed = false;
-    ring.kind = vectorcraft_doc::TextKind::OnPath { path: open_ring, start: 0.0, end: None };
+    ring.kind = pluma_doc::TextKind::OnPath { path: open_ring, start: 0.0, end: None };
     ring.xf = Affine::IDENTITY;
     let ring = text_node(&mut doc, ring);
     doc.insert(Some(layer), usize::MAX, ring).unwrap();
@@ -4153,8 +4141,8 @@ fn type_the_data_cant_hold_is_written_as_its_outlines() {
 fn type_attributes_the_data_cant_hold_are_reported() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let st = vectorcraft_doc::CharStyle { underline: true, ..style(18.0, Color::BLACK) };
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "Under", st);
+    let st = pluma_doc::CharStyle { underline: true, ..style(18.0, Color::BLACK) };
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "Under", st);
     let t = text_node(&mut doc, t);
     doc.insert(Some(layer), usize::MAX, t).unwrap();
     let out = export_ai_editing(&doc, &opts()).unwrap();
@@ -4167,9 +4155,9 @@ fn type_attributes_the_data_cant_hold_are_reported() {
     // small capitals at another size, right-to-left letters aligned to the start of a paragraph
     // without a direction of its own, tracking that isn't a whole number.
     for edit in [
-        (|t: &mut vectorcraft_doc::TextObject| t.runs[0].style.no_break = true) as fn(&mut vectorcraft_doc::TextObject),
+        (|t: &mut pluma_doc::TextObject| t.runs[0].style.no_break = true) as fn(&mut pluma_doc::TextObject),
         |t| t.runs[0].style.tracking = 12.5,
-        |t| t.para.direction = Some(vectorcraft_doc::ParaDirection::LeftToRight),
+        |t| t.para.direction = Some(pluma_doc::ParaDirection::LeftToRight),
         |t| t.optical_margin = true,
         |t| t.runs[0].style.font_version = Some("2.0".into()),
         |t| t.runs[0].style.font_family = "my-missing font".into(),
@@ -4177,17 +4165,17 @@ fn type_attributes_the_data_cant_hold_are_reported() {
         |t| t.runs[0].style.small_caps = Some(80.0),
         |t| {
             t.runs[0].text = "\u{645}\u{631}\u{62d}\u{628}\u{627}".into();
-            t.para.justify = vectorcraft_doc::Justify::Auto;
+            t.para.justify = pluma_doc::Justify::Auto;
         },
     ] {
-        let with = |t: vectorcraft_doc::TextObject| {
+        let with = |t: pluma_doc::TextObject| {
             let mut d = Document::new(200.0, 100.0);
             let layer = d.layers[0].id;
             let n = text_node(&mut d, t);
             d.insert(Some(layer), usize::MAX, n).unwrap();
             export_ai_editing(&d, &opts()).unwrap().warnings
         };
-        let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "Kept", style(18.0, Color::BLACK));
+        let mut t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "Kept", style(18.0, Color::BLACK));
         assert!(with(t.clone()).is_empty());
         // A font that isn't installed keeps its family and style as its name.
         let mut missing = t.clone();
@@ -4204,11 +4192,11 @@ fn type_attributes_the_data_cant_hold_are_reported() {
 /// scaled by two factors, are written as outlines.
 #[test]
 fn scaled_area_type_and_type_on_a_path_stay_type() {
-    use vectorcraft_doc::{TextKind, TextObject};
+    use pluma_doc::{TextKind, TextObject};
     let mut doc = Document::new(20_000.0, 10_000.0);
     let layer = doc.layers[0].id;
     let framed = |text: &str, r: Rect| {
-        let mut t = TextObject::point(vectorcraft_geom::Point::ZERO, text, style(100.0, Color::BLACK));
+        let mut t = TextObject::point(pluma_geom::Point::ZERO, text, style(100.0, Color::BLACK));
         t.kind = TextKind::Area { frame: shapes::rectangle(r) };
         t.xf = Affine::IDENTITY;
         t
@@ -4216,7 +4204,7 @@ fn scaled_area_type_and_type_on_a_path_stay_type() {
     let mut area = framed("Area", Rect::new(1000.0, 1000.0, 5000.0, 3000.0));
     area.area.columns = 2;
     area.area.gutter = 200.0;
-    let mut on_path = TextObject::point(vectorcraft_geom::Point::ZERO, "Along", style(100.0, Color::BLACK));
+    let mut on_path = TextObject::point(pluma_geom::Point::ZERO, "Along", style(100.0, Color::BLACK));
     let mut curve = PathData::from_bezpath(&kurbo::BezPath::from_vec(vec![
         kurbo::PathEl::MoveTo((1000.0, 5000.0).into()),
         kurbo::PathEl::CurveTo((3000.0, 4000.0).into(), (7000.0, 4000.0).into(), (9000.0, 5000.0).into()),
@@ -4276,7 +4264,7 @@ fn scaled_area_type_and_type_on_a_path_stay_type() {
 fn the_knockout_shape_of_type_comes_back() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut text = text_node(&mut doc, vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 40.0), "Hi", style(10.0, Color::BLACK)));
+    let mut text = text_node(&mut doc, pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 40.0), "Hi", style(10.0, Color::BLACK)));
     (text.opacity, text.knockout_shape) = (0.5, true);
     doc.insert(Some(layer), usize::MAX, text).unwrap();
     assert!(export_ai_editing(&doc, &opts()).unwrap().warnings.is_empty());
@@ -4302,7 +4290,7 @@ fn beside(doc: &mut Document, kind: Beside, x: f64, state: (f32, BlendMode, bool
     let r = Rect::new(x, 10.0, x + 20.0, 30.0);
     let mut n = match kind {
         Beside::Type => {
-            let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(x, 40.0), "Hi", style(10.0, Color::BLACK));
+            let t = pluma_doc::TextObject::point(pluma_geom::Point::new(x, 40.0), "Hi", style(10.0, Color::BLACK));
             text_node(doc, t)
         }
         Beside::Compound => {
@@ -4431,7 +4419,7 @@ fn the_end_marker_of_the_text_document_stays_on_one_line() {
             let mut doc = Document::new(200.0, 100.0);
             let layer = doc.layers[0].id;
             let text = "x".repeat(len);
-            let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 40.0), &text, style(size, Color::BLACK));
+            let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 40.0), &text, style(size, Color::BLACK));
             let t = text_node(&mut doc, t);
             doc.insert(Some(layer), usize::MAX, t).unwrap();
             let p = program(&doc);
@@ -4450,13 +4438,13 @@ fn the_end_marker_of_the_text_document_stays_on_one_line() {
 /// and that paragraph comes back with the empty frame's style.
 #[test]
 fn an_empty_last_frame_keeps_the_style_of_the_last_paragraph() {
-    use vectorcraft_doc::{Justify, ParaStyle, TextKind, TextObject};
+    use pluma_doc::{Justify, ParaStyle, TextKind, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut first = TextObject::point(vectorcraft_geom::Point::ZERO, "Ends\n", style(10.0, Color::BLACK));
+    let mut first = TextObject::point(pluma_geom::Point::ZERO, "Ends\n", style(10.0, Color::BLACK));
     first.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(10.0, 10.0, 90.0, 40.0)) };
     first.xf = Affine::IDENTITY;
-    let mut second = TextObject::point(vectorcraft_geom::Point::ZERO, "", style(10.0, Color::BLACK));
+    let mut second = TextObject::point(pluma_geom::Point::ZERO, "", style(10.0, Color::BLACK));
     second.set_all_paras(ParaStyle { justify: Justify::Right, ..ParaStyle::default() });
     second.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(110.0, 10.0, 190.0, 40.0)) };
     second.xf = Affine::IDENTITY;
@@ -4476,7 +4464,7 @@ fn an_empty_last_frame_keeps_the_style_of_the_last_paragraph() {
 /// from the path's end comes back.
 #[test]
 fn a_first_baseline_minimum_and_a_path_end_the_reader_cant_read_are_reported() {
-    use vectorcraft_doc::{FirstBaseline, TextKind, TextObject};
+    use pluma_doc::{FirstBaseline, TextKind, TextObject};
     let with = |t: TextObject| {
         let mut d = Document::new(300.0, 200.0);
         let layer = d.layers[0].id;
@@ -4485,7 +4473,7 @@ fn a_first_baseline_minimum_and_a_path_end_the_reader_cant_read_are_reported() {
         let warnings = export_ai_editing(&d, &opts()).unwrap().warnings;
         (warnings, read_back(&d))
     };
-    let mut area = TextObject::point(vectorcraft_geom::Point::ZERO, "Area", style(12.0, Color::BLACK));
+    let mut area = TextObject::point(pluma_geom::Point::ZERO, "Area", style(12.0, Color::BLACK));
     area.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(20.0, 20.0, 140.0, 160.0)) };
     area.xf = Affine::IDENTITY;
     area.area.first_baseline_min = 40.0;
@@ -4503,7 +4491,7 @@ fn a_first_baseline_minimum_and_a_path_end_the_reader_cant_read_are_reported() {
             kurbo::PathEl::CurveTo((50.0, 110.0).into(), (110.0, 110.0).into(), (140.0, 150.0).into()),
         ]));
         curve.subpaths.iter_mut().for_each(|sp| sp.closed = false);
-        let mut t = TextObject::point(vectorcraft_geom::Point::ZERO, "On", style(12.0, Color::BLACK));
+        let mut t = TextObject::point(pluma_geom::Point::ZERO, "On", style(12.0, Color::BLACK));
         t.kind = TextKind::OnPath { path: curve, start: 0.0, end };
         t.xf = Affine::IDENTITY;
         t
@@ -4521,12 +4509,12 @@ fn a_first_baseline_minimum_and_a_path_end_the_reader_cant_read_are_reported() {
 /// it draws; Latin type aligned to the start comes back aligned left.
 #[test]
 fn type_aligned_to_the_start_of_its_direction_keeps_its_side() {
-    use vectorcraft_doc::{Justify, ParaDirection, ParaStyle, TextObject};
+    use pluma_doc::{Justify, ParaDirection, ParaStyle, TextObject};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let mut rtl = TextObject::point(vectorcraft_geom::Point::new(150.0, 40.0), "\u{5e9}\u{5dc}\u{5d5}\u{5dd}", style(12.0, Color::BLACK));
+    let mut rtl = TextObject::point(pluma_geom::Point::new(150.0, 40.0), "\u{5e9}\u{5dc}\u{5d5}\u{5dd}", style(12.0, Color::BLACK));
     rtl.set_all_paras(ParaStyle { justify: Justify::Auto, direction: Some(ParaDirection::RightToLeft), ..ParaStyle::default() });
-    let mut ltr = TextObject::point(vectorcraft_geom::Point::new(20.0, 80.0), "Start", style(12.0, Color::BLACK));
+    let mut ltr = TextObject::point(pluma_geom::Point::new(20.0, 80.0), "Start", style(12.0, Color::BLACK));
     ltr.set_all_paras(ParaStyle { justify: Justify::Auto, ..ParaStyle::default() });
     let (rtl, ltr) = (text_node(&mut doc, rtl), text_node(&mut doc, ltr));
     doc.insert(Some(layer), usize::MAX, rtl).unwrap();
@@ -4543,12 +4531,12 @@ fn type_aligned_to_the_start_of_its_direction_keeps_its_side() {
 fn type_in_opacity_masks_is_written_as_its_outlines() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let label = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 40.0), "Mask", style(18.0, Color::BLACK));
+    let label = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 40.0), "Mask", style(18.0, Color::BLACK));
     let label = text_node(&mut doc, label);
     let mut square = square(&mut doc, Rect::new(0.0, 0.0, 100.0, 100.0), Color::rgb(1.0, 0.0, 0.0));
     square.extras_mut().mask = Some(Box::new(OpacityMask::new(label, false)));
     doc.insert(Some(layer), usize::MAX, square).unwrap();
-    let plain = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "Plain", style(18.0, Color::BLACK));
+    let plain = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 90.0), "Plain", style(18.0, Color::BLACK));
     let plain = text_node(&mut doc, plain);
     doc.insert(Some(layer), usize::MAX, plain).unwrap();
     let out = export_ai_editing(&doc, &opts()).unwrap();
@@ -4562,7 +4550,7 @@ fn type_in_opacity_masks_is_written_as_its_outlines() {
 fn type_with_an_opacity_mask_is_written_as_its_outlines() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "Masked", style(18.0, Color::BLACK));
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "Masked", style(18.0, Color::BLACK));
     let mut t = text_node(&mut doc, t);
     let art = square(&mut doc, Rect::new(0.0, 0.0, 100.0, 100.0), Color::rgb(1.0, 1.0, 1.0));
     t.extras_mut().mask = Some(Box::new(OpacityMask::new(art, false)));
@@ -4670,7 +4658,7 @@ fn instances_the_data_cant_hold_are_written_as_their_art() {
     assert_eq!(export_ai_editing(&doc, &opts()).unwrap().warnings, [writer::SYMBOL_ART]);
     assert_eq!(kinds(&read_back(&doc)), ["art", "instance"]);
     // 9-slice guides.
-    doc.set_symbol_nine_slice("Leaf", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    doc.set_symbol_nine_slice("Leaf", Some(pluma_doc::SymbolNineSlice::default()));
     let out = export_ai_editing(&doc, &opts()).unwrap();
     assert_eq!(out.warnings, [writer::SYMBOL_ART, writer::SYMBOL_OPTIONS]);
     let back = read_back(&doc);
@@ -4697,7 +4685,7 @@ fn instances_the_data_cant_hold_are_written_as_their_art() {
     // A pattern a symbol's art and the layers both paint with: the layers' fill keeps it, the
     // symbol's art has its tiles.
     let dot = Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 4.0, 4.0), Color::BLACK));
-    let mut dots = vectorcraft_doc::PatternDef::new("Dots", vec![dot]);
+    let mut dots = pluma_doc::PatternDef::new("Dots", vec![dot]);
     dots.tile = Rect::new(0.0, 0.0, 8.0, 8.0);
     doc.patterns.push(dots);
     let fill = || Appearance::basic(Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY }, Paint::None, 0.0);
@@ -4717,7 +4705,7 @@ fn instances_the_data_cant_hold_are_written_as_their_art() {
     let mut doc = Document::new(200.0, 100.0);
     leaf(&mut doc);
     let tiled = instance(&mut doc, "Leaf", Affine::IDENTITY);
-    doc.patterns.push(vectorcraft_doc::PatternDef::new("Tiles", vec![Arc::new(tiled)]));
+    doc.patterns.push(pluma_doc::PatternDef::new("Tiles", vec![Arc::new(tiled)]));
     let fill = Appearance::basic(Paint::Pattern { pattern: "Tiles".into(), xf: Affine::IDENTITY }, Paint::None, 0.0);
     let filled = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 50.0)), fill);
     let layer = doc.layers[0].id;
@@ -4749,8 +4737,7 @@ fn instances_the_data_cant_hold_are_written_as_their_art() {
     leaf(&mut doc);
     doc.symbols[0].dynamic = true;
     let mut changed = instance(&mut doc, "Leaf", Affine::translate((50.0, 10.0)));
-    changed.extras_mut().symbol_overrides =
-        vec![vectorcraft_doc::SymbolOverride { fill: Some(solid(Color::rgb(0.0, 1.0, 0.0))), ..Default::default() }];
+    changed.extras_mut().symbol_overrides = vec![pluma_doc::SymbolOverride { fill: Some(solid(Color::rgb(0.0, 1.0, 0.0))), ..Default::default() }];
     let plain = instance(&mut doc, "Leaf", Affine::translate((80.0, 10.0)));
     let layer = doc.layers[0].id;
     doc.insert(Some(layer), usize::MAX, changed).unwrap();
@@ -4787,7 +4774,7 @@ fn symbols_with_pattern_fills_are_defined_with_tiles_and_placed_as_art() {
     let mut doc = Document::new(200.0, 100.0);
     // Tiles that cover the shape, so its tiles cut to it draw its box.
     let dot = Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 8.0, 8.0), Color::BLACK));
-    let mut dots = vectorcraft_doc::PatternDef::new("Dots", vec![dot]);
+    let mut dots = pluma_doc::PatternDef::new("Dots", vec![dot]);
     dots.tile = Rect::new(0.0, 0.0, 8.0, 8.0);
     doc.patterns.push(dots);
     let fill = || Appearance::basic(Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY }, Paint::None, 0.0);
@@ -4804,9 +4791,9 @@ fn symbols_with_pattern_fills_are_defined_with_tiles_and_placed_as_art() {
     let plain = square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0), LEAF);
     doc.symbols.push(Symbol { dynamic: false, name: "Plain".into(), art: Arc::new(plain) });
     // Type holding `Patch` as an inline graphic.
-    let style = vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() };
-    let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(0.0, 20.0), "A", style.clone());
-    t.runs.push(vectorcraft_doc::TextRun::inline(vectorcraft_doc::InlineArt::new("Patch"), style));
+    let style = pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() };
+    let mut t = pluma_doc::TextObject::point(pluma_geom::Point::new(0.0, 20.0), "A", style.clone());
+    t.runs.push(pluma_doc::TextRun::inline(pluma_doc::InlineArt::new("Patch"), style));
     let typed = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     doc.symbols.push(Symbol { dynamic: false, name: "Typed".into(), art: Arc::new(typed) });
     let layer = doc.layers[0].id;
@@ -4831,7 +4818,7 @@ fn symbols_with_pattern_fills_are_defined_with_tiles_and_placed_as_art() {
     // The pattern fills of both `Patch` instances and of the layers' path keep one placement.
     let placements = |n: &Node| {
         let mut out = vec![];
-        vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| {
+        pluma_doc::swatches::walk_with_masks(n, &mut |m| {
             for it in m.appearance.items.iter() {
                 if let Paint::Pattern { xf, .. } = it.paint() {
                     out.push(xf.as_coeffs().map(r3));
@@ -4859,20 +4846,16 @@ fn symbols_with_pattern_fills_are_defined_with_tiles_and_placed_as_art() {
 fn symbols_painting_patterns_through_brush_art_are_placed_as_art() {
     let mut doc = Document::new(200.0, 100.0);
     let dot = Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 8.0, 8.0), Color::BLACK));
-    let mut dots = vectorcraft_doc::PatternDef::new("Dots", vec![dot]);
+    let mut dots = pluma_doc::PatternDef::new("Dots", vec![dot]);
     dots.tile = Rect::new(0.0, 0.0, 8.0, 8.0);
     doc.patterns.push(dots);
     let fill = Appearance::basic(Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY }, Paint::None, 0.0);
     let art = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 40.0, 8.0)), fill);
-    let brush = vectorcraft_brush::Brush {
+    let brush = pluma_brush::Brush {
         name: "Dotted".into(),
-        kind: vectorcraft_brush::BrushKind::Art(vectorcraft_brush::ArtBrush {
-            art,
-            colorization: vectorcraft_brush::Colorization::None,
-            ..Default::default()
-        }),
+        kind: pluma_brush::BrushKind::Art(pluma_brush::ArtBrush { art, colorization: pluma_brush::Colorization::None, ..Default::default() }),
     };
-    vectorcraft_brush::store(&mut doc, &[brush]);
+    pluma_brush::store(&mut doc, &[brush]);
     let mut line =
         Node::path(doc.alloc_id(), shapes::line((0.0, 0.0).into(), (60.0, 0.0).into()), Appearance::basic(Paint::None, solid(Color::BLACK), 4.0));
     line.appearance.stroke_mut().unwrap().brush = Some("Dotted".into());
@@ -4898,19 +4881,19 @@ fn a_symbol_defined_inside_a_drawn_look_warns_of_its_own_effects() {
     let dot = square(&mut doc, Rect::new(0.0, 0.0, 6.0, 6.0), Color::BLACK);
     let placed = instance(&mut doc, "Shadowed", Affine::translate((8.0, 0.0)));
     let art = group(&mut doc, vec![dot, placed], false);
-    let brush = vectorcraft_brush::Brush {
+    let brush = pluma_brush::Brush {
         name: "Scattered".into(),
-        kind: vectorcraft_brush::BrushKind::Scatter(vectorcraft_brush::Scatter {
+        kind: pluma_brush::BrushKind::Scatter(pluma_brush::Scatter {
             art,
             size: (100.0, 100.0),
             spacing: (100.0, 100.0),
             scatter: (0.0, 0.0),
             rotation: (0.0, 0.0),
-            colorization: vectorcraft_brush::Colorization::None,
+            colorization: pluma_brush::Colorization::None,
             ..Default::default()
         }),
     };
-    vectorcraft_brush::store(&mut doc, &[brush]);
+    pluma_brush::store(&mut doc, &[brush]);
     let mut line =
         Node::path(doc.alloc_id(), shapes::line((10.0, 50.0).into(), (90.0, 50.0).into()), Appearance::basic(Paint::None, solid(Color::BLACK), 1.0));
     line.appearance.stroke_mut().unwrap().brush = Some("Scattered".into());
@@ -4936,7 +4919,7 @@ fn a_symbol_defined_inside_a_drawn_look_warns_of_its_own_effects() {
 fn scaled_instances_of_symbols_with_outlined_strokes_are_written_as_their_art() {
     let mut doc = Document::new(200.0, 100.0);
     let mut look = Appearance::basic(Paint::None, solid(Color::BLACK), 4.0);
-    look.stroke_mut().unwrap().align = vectorcraft_doc::StrokeAlign::Outside;
+    look.stroke_mut().unwrap().align = pluma_doc::StrokeAlign::Outside;
     let framed = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), look);
     doc.symbols.push(Symbol { dynamic: false, name: "Framed".into(), art: Arc::new(framed) });
     let inner = instance(&mut doc, "Framed", Affine::IDENTITY);
@@ -4983,7 +4966,7 @@ fn scaled_instances_of_symbols_with_outlined_strokes_are_written_as_their_art() 
 #[test]
 fn scaled_instances_of_symbols_drawn_only_at_their_own_size_are_written_as_their_art() {
     let mut doc = Document::new(200.0, 100.0);
-    let live = vectorcraft_doc::LiveShape::Rectangle {
+    let live = pluma_doc::LiveShape::Rectangle {
         w: 100.0,
         h: 100.0,
         radii: [10.0; 4],
@@ -5010,7 +4993,7 @@ fn scaled_instances_of_symbols_drawn_only_at_their_own_size_are_written_as_their
     // A blend of two squares 20 pt apart with a step every 10 pt.
     let keys =
         vec![Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 2.0, 2.0), LEAF)), Arc::new(square(&mut doc, Rect::new(20.0, 0.0, 22.0, 2.0), LEAF))];
-    let spec = vectorcraft_doc::BlendSpec { spacing: vectorcraft_doc::BlendSpacing::Distance(10.0), ..Default::default() };
+    let spec = pluma_doc::BlendSpec { spacing: pluma_doc::BlendSpacing::Distance(10.0), ..Default::default() };
     let blend = Node::new(doc.alloc_id(), NodeKind::Blend { children: keys, spec: Box::new(spec) });
     doc.symbols.push(Symbol { dynamic: false, name: "Steps".into(), art: Arc::new(blend) });
     // A symbol holding an instance of one with 9-slice guides.
@@ -5018,11 +5001,11 @@ fn scaled_instances_of_symbols_drawn_only_at_their_own_size_are_written_as_their
     let corner = Arc::new(square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0), Color::BLACK));
     let sliced = Node::group(doc.alloc_id(), vec![frame, corner]);
     doc.symbols.push(Symbol { dynamic: false, name: "Sliced".into(), art: Arc::new(sliced) });
-    doc.set_symbol_nine_slice("Sliced", Some(vectorcraft_doc::SymbolNineSlice::default()));
+    doc.set_symbol_nine_slice("Sliced", Some(pluma_doc::SymbolNineSlice::default()));
     let inner = instance(&mut doc, "Sliced", Affine::IDENTITY);
     let holder = group(&mut doc, vec![inner], false);
     doc.symbols.push(Symbol { dynamic: false, name: "Holder".into(), art: Arc::new(holder) });
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(0.0, 10.0), "Hi", style(10.0, Color::BLACK));
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(0.0, 10.0), "Hi", style(10.0, Color::BLACK));
     let typed = text_node(&mut doc, t);
     doc.symbols.push(Symbol { dynamic: false, name: "Typed".into(), art: Arc::new(typed) });
     let tiny = square(&mut doc, Rect::new(0.0, 0.0, 0.00001, 0.00001), LEAF);
@@ -5031,7 +5014,7 @@ fn scaled_instances_of_symbols_drawn_only_at_their_own_size_are_written_as_their
     doc.symbols.push(Symbol { dynamic: false, name: "Thin".into(), art: Arc::new(thin) });
     let plain = square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0), LEAF);
     doc.symbols.push(Symbol { dynamic: false, name: "Plain".into(), art: Arc::new(plain) });
-    let oval = vectorcraft_doc::LiveShape::Ellipse { w: 10.0, h: 6.0, pie: (0.0, 360.0), xf: Affine::IDENTITY };
+    let oval = pluma_doc::LiveShape::Ellipse { w: 10.0, h: 6.0, pie: (0.0, 360.0), xf: Affine::IDENTITY };
     let mut ellipse = Node::new(
         doc.alloc_id(),
         NodeKind::Path { path: oval.to_path(), rule: FillRule::NonZero, live: Some(Box::new(oval)), clipping: false, guide: false },
@@ -5086,16 +5069,14 @@ fn a_symbol_whose_root_is_hidden_still_draws() {
     let kids = back.layers[0].children().unwrap();
     assert!(matches!(kids[0].kind, NodeKind::SymbolInstance { .. }));
     let mut shown = 0;
-    vectorcraft_doc::swatches::walk_with_masks(&back.symbols[0].art, &mut |m| {
-        shown += usize::from(m.visible && matches!(m.kind, NodeKind::Path { .. }))
-    });
+    pluma_doc::swatches::walk_with_masks(&back.symbols[0].art, &mut |m| shown += usize::from(m.visible && matches!(m.kind, NodeKind::Path { .. })));
     assert!(back.symbols[0].art.visible && shown > 0, "{:?}", back.symbols[0].art);
 }
 
 /// The number of symbol instances in `n` and its subtree.
 fn instances(n: &Node) -> usize {
     let mut count = 0;
-    vectorcraft_doc::swatches::walk_with_masks(n, &mut |m| count += usize::from(matches!(m.kind, NodeKind::SymbolInstance { .. })));
+    pluma_doc::swatches::walk_with_masks(n, &mut |m| count += usize::from(matches!(m.kind, NodeKind::SymbolInstance { .. })));
     count
 }
 
@@ -5215,9 +5196,9 @@ fn a_symbol_found_while_its_holder_is_written_keeps_within_the_readers_count() {
         let one = instance(&mut doc, &format!("S{i}"), Affine::translate((10.0, 10.0)));
         doc.insert(Some(layer), usize::MAX, one).unwrap();
     }
-    let style = vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() };
-    let mut t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(0.0, 20.0), "A", style.clone());
-    t.runs.push(vectorcraft_doc::TextRun::inline(vectorcraft_doc::InlineArt::new("Inner"), style));
+    let style = pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() };
+    let mut t = pluma_doc::TextObject::point(pluma_geom::Point::new(0.0, 20.0), "A", style.clone());
+    t.runs.push(pluma_doc::TextRun::inline(pluma_doc::InlineArt::new("Inner"), style));
     let typed = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     doc.symbols.push(Symbol { dynamic: false, name: "Typed".into(), art: Arc::new(typed) });
     // The inline graphic's art holds an instance of a symbol of its own.
@@ -5244,7 +5225,7 @@ fn a_symbol_found_while_its_holder_is_written_keeps_within_the_readers_count() {
 fn symbol_options_and_linked_images_in_symbols_are_reported() {
     let mut doc = Document::new(200.0, 100.0);
     let pixels = png_of(image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 255, 255]))));
-    let link = vectorcraft_doc::LinkInfo { path: "/tmp/blue.png".into(), ..Default::default() };
+    let link = pluma_doc::LinkInfo { path: "/tmp/blue.png".into(), ..Default::default() };
     let picture = image_node(&mut doc, ImageBlob::new("image/png", pixels), (2, 2), Affine::scale(5.0), Some(link));
     doc.symbols.push(Symbol { dynamic: true, name: "Picture".into(), art: Arc::new(picture) });
     let one = instance(&mut doc, "Picture", Affine::translate((50.0, 10.0)));
@@ -5258,7 +5239,7 @@ fn symbol_options_and_linked_images_in_symbols_are_reported() {
     let NodeKind::Image(im) = &back.symbols[0].art.kind else { panic!("the symbol's image") };
     assert!(im.link.is_none());
     doc.symbols[0].dynamic = false;
-    doc.set_symbol_export_type("Picture", vectorcraft_doc::SymbolExportType::Graphic);
+    doc.set_symbol_export_type("Picture", pluma_doc::SymbolExportType::Graphic);
     assert_eq!(export_ai_editing(&doc, &opts()).unwrap().warnings, [writer::SYMBOL_OPTIONS, writer::LINKS_EMBEDDED]);
 }
 
@@ -5270,10 +5251,10 @@ fn every_registration_point_is_written_by_its_place() {
         let mut doc = Document::new(200.0, 100.0);
         let art = square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0), LEAF);
         doc.symbols.push(Symbol { dynamic: false, name: "Mark".into(), art: Arc::new(art) });
-        doc.set_symbol_registration("Mark", vectorcraft_doc::SymbolRegistration(point));
+        doc.set_symbol_registration("Mark", pluma_doc::SymbolRegistration(point));
         let p = program_shown(&doc);
         assert!(p.contains(&format!("%_{written} /Int (AI13PatternRegistrationType) ,\n")), "{point}: {p}");
-        assert_eq!(read_back(&doc).symbol_registration("Mark"), vectorcraft_doc::SymbolRegistration(read), "{point}");
+        assert_eq!(read_back(&doc).symbol_registration("Mark"), pluma_doc::SymbolRegistration(read), "{point}");
     }
 }
 
@@ -5306,7 +5287,7 @@ fn symbols_whose_art_is_a_group_with_a_state_come_back() {
         let layer = doc.layers[0].id;
         doc.insert(Some(layer), usize::MAX, one).unwrap();
     }
-    doc.set_symbol_registration("Labeled", vectorcraft_doc::SymbolRegistration(2));
+    doc.set_symbol_registration("Labeled", pluma_doc::SymbolRegistration(2));
     let out = export_ai_editing(&doc, &opts()).unwrap();
     assert!(out.warnings.is_empty(), "{:?}", out.warnings);
     let back = read_back(&doc);
@@ -5367,7 +5348,7 @@ fn symbol_names_and_missing_symbols() {
 /// size and comes back as it was.
 #[test]
 fn a_symbol_with_a_gradient_and_an_instance_on_a_large_canvas_comes_back() {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let mut doc = Document::new(20000.0, 100.0);
     let leaf = square(&mut doc, Rect::new(0.0, 0.0, 10.0, 10.0), LEAF);
     doc.symbols.push(Symbol { dynamic: false, name: "Leaf".into(), art: Arc::new(leaf) });
@@ -5482,11 +5463,11 @@ fn generated_instance_matrices_come_back() {
 #[test]
 fn type_in_a_symbols_art_is_written_as_its_outlines() {
     let mut doc = Document::new(200.0, 100.0);
-    let label = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(0.0, 20.0), "Tag", style(18.0, Color::BLACK));
+    let label = pluma_doc::TextObject::point(pluma_geom::Point::new(0.0, 20.0), "Tag", style(18.0, Color::BLACK));
     let label = text_node(&mut doc, label);
     doc.symbols.push(Symbol { dynamic: false, name: "Tag".into(), art: Arc::new(label) });
     let one = instance(&mut doc, "Tag", Affine::translate((20.0, 20.0)));
-    let plain = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "Plain", style(18.0, Color::BLACK));
+    let plain = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 90.0), "Plain", style(18.0, Color::BLACK));
     let plain = text_node(&mut doc, plain);
     let layer = doc.layers[0].id;
     doc.insert(Some(layer), usize::MAX, one).unwrap();
@@ -5501,13 +5482,13 @@ fn type_in_a_symbols_art_is_written_as_its_outlines() {
 // ---------- art styles ----------
 
 /// Effect `id` with its defaults and `params` over them.
-fn fx(id: &str, params: serde_json::Value) -> vectorcraft_doc::Effect {
-    vectorcraft_effects::new_effect(id, &params).unwrap()
+fn fx(id: &str, params: serde_json::Value) -> pluma_doc::Effect {
+    pluma_effects::new_effect(id, &params).unwrap()
 }
 
 /// A path `name` over `r` filled with `fill` and stroked 2 pt in `stroke` (none when `Paint::None`),
 /// with `effects`.
-fn styled_rect(doc: &mut Document, name: &str, r: Rect, fill: Paint, stroke: Paint, effects: Vec<vectorcraft_doc::Effect>) -> Node {
+fn styled_rect(doc: &mut Document, name: &str, r: Rect, fill: Paint, stroke: Paint, effects: Vec<pluma_doc::Effect>) -> Node {
     let mut ap = Appearance::basic(fill, stroke, 2.0);
     ap.effects = effects;
     named(Node::path(doc.alloc_id(), shapes::rectangle(r), ap), name)
@@ -5617,7 +5598,7 @@ fn styles_document() -> Document {
         // The contents over every fill and stroke.
         contents_index: Some(3),
     };
-    let mut layered = vectorcraft_doc::GraphicStyle::new("Layered", style_ap);
+    let mut layered = pluma_doc::GraphicStyle::new("Layered", style_ap);
     layered.id = 9;
     layered.opacity = 0.8;
     doc.graphic_styles.push(layered);
@@ -5625,7 +5606,7 @@ fn styles_document() -> Document {
     let mut linked_obj = Node::path(
         doc.alloc_id(),
         shapes::rectangle(Rect::new(170.0, 130.0, 220.0, 170.0)),
-        sunshine.appearance_on(&Node::group(vectorcraft_doc::NodeId(0), vec![])).into_owned(),
+        sunshine.appearance_on(&Node::group(pluma_doc::NodeId(0), vec![])).into_owned(),
     );
     linked_obj.extras_mut().graphic_style = Some(sunshine.id);
     add(&mut doc, named(linked_obj, "Sunny"));
@@ -5788,7 +5769,7 @@ fn a_link_to_a_built_in_graphic_style_is_read_back() {
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let sunshine = doc.graphic_style("Sunshine").unwrap().clone();
-    let ap = sunshine.appearance_on(&Node::group(vectorcraft_doc::NodeId(0), vec![])).into_owned();
+    let ap = sunshine.appearance_on(&Node::group(pluma_doc::NodeId(0), vec![])).into_owned();
     // Without a link, a new document's styles are not written.
     let mut plain = doc.clone();
     let unlinked = Node::path(plain.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 60.0, 50.0)), ap.clone());
@@ -5881,7 +5862,7 @@ fn appearances_the_reader_wouldnt_read_are_their_drawn_look() {
     // A graphic style with a gradient: left out, the others listed.
     let ramp = Gradient { stops: vec![GradientStop::new(0.0, Color::WHITE), GradientStop::new(1.0, Color::BLACK)], ..Gradient::default() };
     let graded = Appearance::basic(Paint::Gradient(Box::new(GradientPaint::new(ramp))), Paint::None, 0.0);
-    doc.graphic_styles.push(vectorcraft_doc::GraphicStyle::new("Graded", graded));
+    doc.graphic_styles.push(pluma_doc::GraphicStyle::new("Graded", graded));
     let out = export_ai_editing(&doc, &opts()).unwrap();
     assert!(out.warnings.iter().any(|w| w == writer::PANEL_STYLES), "{:?}", out.warnings);
     let p = String::from_utf8(out.program).unwrap().replace("\r\n", "\n");
@@ -5896,7 +5877,7 @@ fn appearances_the_reader_wouldnt_read_are_their_drawn_look() {
 fn a_graphic_styles_opacity_is_compared_at_the_written_precision() {
     let mut doc = Document::new(200.0, 100.0);
     let ap = Appearance::basic(solid(Color::BLACK), Paint::None, 1.0);
-    let mut g = vectorcraft_doc::GraphicStyle::new("Fine", ap.clone());
+    let mut g = pluma_doc::GraphicStyle::new("Fine", ap.clone());
     g.id = 1;
     g.opacity = 0.123456;
     *doc.graphic_styles = vec![g];
@@ -5949,7 +5930,7 @@ fn compound_shapes_are_not_written_with_an_art_style() {
 fn graphic_styles_past_the_lists_limits_are_left_out() {
     let plain = || Appearance::basic(solid(Color::BLACK), Paint::None, 1.0);
     let styled = |name: String, id: u32| {
-        let mut g = vectorcraft_doc::GraphicStyle::new(name, plain());
+        let mut g = pluma_doc::GraphicStyle::new(name, plain());
         g.id = id;
         g
     };
@@ -6099,7 +6080,7 @@ fn put(doc: &mut Document, n: Node) {
     doc.insert(Some(layer), usize::MAX, n).unwrap();
 }
 
-fn drop_shadow() -> vectorcraft_doc::Effect {
+fn drop_shadow() -> pluma_doc::Effect {
     fx("stylize.dropShadow", serde_json::json!({}))
 }
 
@@ -6117,7 +6098,7 @@ fn ring(doc: &mut Document, ap: Appearance) -> Node {
 }
 
 /// A path filled black with no stroke and `effects`.
-fn plain_rect(doc: &mut Document, name: &str, effects: Vec<vectorcraft_doc::Effect>) -> Node {
+fn plain_rect(doc: &mut Document, name: &str, effects: Vec<pluma_doc::Effect>) -> Node {
     styled_rect(doc, name, Rect::new(10.0, 10.0, 50.0, 40.0), black_fill(), Paint::None, effects)
 }
 
@@ -6166,7 +6147,7 @@ fn a_filled_even_odd_object_is_written_as_its_drawn_look() {
 
     let mut doc = Document::new(200.0, 100.0);
     let ap = Appearance::basic(black_fill(), Paint::None, 0.0);
-    let mut g = vectorcraft_doc::GraphicStyle::new("Solid", ap.clone());
+    let mut g = pluma_doc::GraphicStyle::new("Solid", ap.clone());
     g.id = 7;
     doc.graphic_styles.push(g);
     let mut n = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 50.0, 40.0)), ap);
@@ -6203,7 +6184,7 @@ fn a_compound_path_keeps_its_style() {
     let n = named(non_zero(ring(&mut doc, ap)), "Graded");
     put(&mut doc, n);
     let sunshine = doc.graphic_style("Sunshine").unwrap().clone();
-    let ap = sunshine.appearance_on(&Node::group(vectorcraft_doc::NodeId(0), vec![])).into_owned();
+    let ap = sunshine.appearance_on(&Node::group(pluma_doc::NodeId(0), vec![])).into_owned();
     let mut linked_ring = named(ring(&mut doc, ap), "Linked");
     if let NodeKind::Compound { rule, .. } = &mut linked_ring.kind {
         *rule = FillRule::NonZero;
@@ -6221,7 +6202,7 @@ fn a_compound_path_keeps_its_style() {
 #[test]
 fn a_group_holding_an_image_is_written_as_its_drawn_look() {
     let mut doc = Document::new(200.0, 100.0);
-    let link = Some(vectorcraft_doc::LinkInfo::new("/tmp/ramp.png"));
+    let link = Some(pluma_doc::LinkInfo::new("/tmp/ramp.png"));
     let im = image_node(&mut doc, ImageBlob::png(rgb_png()), (3, 2), Affine::scale(10.0), link);
     let mut g = group(&mut doc, vec![im], false);
     g.appearance = Appearance { effects: vec![drop_shadow()], ..Appearance::default() }.into();
@@ -6246,10 +6227,10 @@ fn a_link_left_out_warns() {
             items: vec![AppearanceItem::Fill(FillLayer::new(black_fill())), AppearanceItem::Fill(FillLayer::new(solid(Color::WHITE)))],
             ..Appearance::default()
         };
-        let mut layered = vectorcraft_doc::GraphicStyle::new("Layered", ap);
+        let mut layered = pluma_doc::GraphicStyle::new("Layered", ap);
         layered.id = 7;
         doc.graphic_styles.push(layered);
-        let mut plain = vectorcraft_doc::GraphicStyle::new("Plain", Appearance::basic(black_fill(), Paint::None, 0.0));
+        let mut plain = pluma_doc::GraphicStyle::new("Plain", Appearance::basic(black_fill(), Paint::None, 0.0));
         plain.id = 8;
         doc.graphic_styles.push(plain);
         let n = make(&mut doc, 7);
@@ -6340,7 +6321,7 @@ fn an_empty_graphic_styles_panel_warns() {
     // Every style left out.
     let stops = vec![GradientStop::new(0.0, Color::WHITE), GradientStop::new(1.0, Color::BLACK)];
     let graded = Paint::Gradient(Box::new(GradientPaint::new(Gradient::new(GradientKind::Linear, stops))));
-    doc.graphic_styles.push(vectorcraft_doc::GraphicStyle::new("Graded", Appearance::basic(graded, Paint::None, 0.0)));
+    doc.graphic_styles.push(pluma_doc::GraphicStyle::new("Graded", Appearance::basic(graded, Paint::None, 0.0)));
     let out = export_ai_editing(&doc, &opts()).unwrap();
     assert!(out.warnings.iter().any(|w| w == writer::PANEL_EMPTY) && out.warnings.iter().any(|w| w == writer::PANEL_STYLES), "{:?}", out.warnings);
     // A new document's styles aren't written and don't warn.
@@ -6353,7 +6334,7 @@ fn an_empty_graphic_styles_panel_warns() {
 fn a_graphic_style_of_a_name_another_has_is_left_out() {
     let mut doc = Document::new(200.0, 100.0);
     let style = |id: u32, c: Color| {
-        let mut g = vectorcraft_doc::GraphicStyle::new("Twin", Appearance::basic(solid(c), Paint::None, 0.0));
+        let mut g = pluma_doc::GraphicStyle::new("Twin", Appearance::basic(solid(c), Paint::None, 0.0));
         g.id = id;
         g
     };
@@ -6432,7 +6413,7 @@ fn every_effect_setting_written_on_an_object_is_read_back() {
         assert_eq!(n.appearance.effects.len(), 1, "{id} {params}");
         let (got, want) = (&n.appearance.effects[0], &effect);
         assert_eq!(got.id, want.id);
-        let (g, w) = (vectorcraft_effects::merged_params(&got.id, &got.params), vectorcraft_effects::merged_params(&want.id, &want.params));
+        let (g, w) = (pluma_effects::merged_params(&got.id, &got.params), pluma_effects::merged_params(&want.id, &want.params));
         for (key, value) in w.as_object().unwrap() {
             let read = g.get(key).unwrap_or(&serde_json::Value::Null);
             match (key.as_str(), value.as_f64()) {
@@ -6442,7 +6423,7 @@ fn every_effect_setting_written_on_an_object_is_read_back() {
                     assert_eq!(lower(read), lower(value), "{id} {key}");
                 }
                 ("color", _) => {
-                    let color = |p: &serde_json::Value| vectorcraft_effects::color_param(p, Color::BLACK).to_hex();
+                    let color = |p: &serde_json::Value| pluma_effects::color_param(p, Color::BLACK).to_hex();
                     assert_eq!(color(&g), color(&w), "{id}");
                 }
                 (_, Some(v)) => assert!((read.as_f64().unwrap() - v).abs() < 6e-3, "{id} {key}: {read} for {v}"),
@@ -6456,7 +6437,7 @@ fn every_effect_setting_written_on_an_object_is_read_back() {
     assert!(!p.contains("%AI9_BeginArtStyles"), "{p}");
     assert!(n.appearance.effects.is_empty());
     // A stroke's width profile.
-    let profile = vectorcraft_doc::WidthProfile { points: vec![(0.0, 1.0, 0.5), (0.5, 0.25, 0.75), (1.0, 0.0, 1.0)] };
+    let profile = pluma_doc::WidthProfile { points: vec![(0.0, 1.0, 0.5), (0.5, 0.25, 0.75), (1.0, 0.0, 1.0)] };
     let (n, warnings, p) = read_one(|doc| {
         let mut stroke = StrokeLayer::new(black_fill(), 4.0);
         stroke.profile = Some(profile.clone());
@@ -6468,7 +6449,7 @@ fn every_effect_setting_written_on_an_object_is_read_back() {
     assert_eq!(n.appearance.stroke().and_then(|s| s.profile.clone()), Some(profile));
     // A CMYK document: a CMYK and a spot fill, a CMYK stroke, and an effect's CMYK color stay as they are.
     let mut doc = Document::new(200.0, 100.0);
-    doc.color_mode = vectorcraft_doc::ColorMode::Cmyk;
+    doc.color_mode = pluma_doc::ColorMode::Cmyk;
     let mut swatches = (*doc.swatches).clone();
     swatches.push(Swatch { name: "Ink".into(), paint: solid(INK), global: true, spot: true });
     swatches.push(Swatch { name: "Brand".into(), paint: solid(BRAND), global: true, spot: false });
@@ -6485,7 +6466,7 @@ fn every_effect_setting_written_on_an_object_is_read_back() {
     let back = read_back(&doc);
     same_styles(&back, &doc);
     for n in back.layers[0].children().unwrap() {
-        assert!(matches!(vectorcraft_effects::color_param(&n.appearance.effects[0].params, Color::BLACK), Color::Cmyk { .. }), "{n:?}");
+        assert!(matches!(pluma_effects::color_param(&n.appearance.effects[0].params, Color::BLACK), Color::Cmyk { .. }), "{n:?}");
     }
     let spot = &back.layers[0].children().unwrap()[1];
     assert!(matches!(&spot.appearance.fill().unwrap().paint, Paint::Solid { swatch: Some(s), .. } if s == "Ink"), "{spot:?}");
@@ -6534,10 +6515,8 @@ fn every_effect_a_graphic_style_holds_is_read_back() {
     for (id, params) in cases {
         let effect = fx(id, params.clone());
         let mut doc = Document::new(200.0, 100.0);
-        let mut g = vectorcraft_doc::GraphicStyle::new(
-            "Held",
-            Appearance { effects: vec![effect.clone()], ..Appearance::basic(black_fill(), Paint::None, 0.0) },
-        );
+        let mut g =
+            pluma_doc::GraphicStyle::new("Held", Appearance { effects: vec![effect.clone()], ..Appearance::basic(black_fill(), Paint::None, 0.0) });
         g.id = 3;
         *doc.graphic_styles = vec![g];
         let out = export_ai_editing(&doc, &opts()).unwrap();
@@ -6546,7 +6525,7 @@ fn every_effect_a_graphic_style_holds_is_read_back() {
         let got = &back.graphic_styles[0].appearance.effects;
         assert_eq!(got.len(), 1, "{id} {params}");
         assert_eq!(got[0].id, effect.id);
-        let (g, w) = (vectorcraft_effects::merged_params(&got[0].id, &got[0].params), vectorcraft_effects::merged_params(&effect.id, &effect.params));
+        let (g, w) = (pluma_effects::merged_params(&got[0].id, &got[0].params), pluma_effects::merged_params(&effect.id, &effect.params));
         for (key, value) in w.as_object().unwrap() {
             // Random isn't written, and a style with it isn't read; its seed is the default.
             let read = g.get(key).unwrap_or(&serde_json::Value::Null);
@@ -6572,7 +6551,7 @@ fn every_effect_a_graphic_style_holds_is_read_back() {
         fx("distort.zigZag", json!({"size": 7.5, "relative": false, "ridges": 6, "points": "corner"})),
         fx("distort.transform", json!({"moveV": -7.5, "rotate": 30.0})),
     ];
-    doc.graphic_styles.push(vectorcraft_doc::GraphicStyle::new("Forms", Appearance { effects, ..Appearance::default() }));
+    doc.graphic_styles.push(pluma_doc::GraphicStyle::new("Forms", Appearance { effects, ..Appearance::default() }));
     let p = program_shown(&doc);
     assert!(p.contains("7.5 /Real (amount) ,") && p.contains("0 /Real (roundness) ,"), "{p}");
     assert!(p.contains("7.5 /Real (moveV_Pts) ,") && p.contains("0.5236 /Real (rotate_Radians) ,"), "{p}");
@@ -6587,7 +6566,7 @@ fn appearances_written_as_their_drawn_look() {
             "a pattern fill",
             Box::new(|doc| {
                 let tile = square(doc, Rect::new(0.0, 0.0, 5.0, 5.0), Color::BLACK);
-                let mut dots = vectorcraft_doc::PatternDef::new("Dots", vec![Arc::new(tile)]);
+                let mut dots = pluma_doc::PatternDef::new("Dots", vec![Arc::new(tile)]);
                 dots.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
                 doc.patterns.push(dots);
                 let fill = Paint::Pattern { pattern: "Dots".into(), xf: Affine::IDENTITY };
@@ -6658,7 +6637,7 @@ fn appearances_written_as_their_drawn_look() {
             "a group whose member's stroke is written as its outline",
             Box::new(|doc| {
                 let mut stroke = StrokeLayer::new(solid(Color::BLACK), 4.0);
-                stroke.profile = Some(vectorcraft_doc::WidthProfile { points: vec![(0.0, 1.0, 0.5), (0.5, 0.25, 0.75), (1.0, 0.0, 1.0)] });
+                stroke.profile = Some(pluma_doc::WidthProfile { points: vec![(0.0, 1.0, 0.5), (0.5, 0.25, 0.75), (1.0, 0.0, 1.0)] });
                 let ap = Appearance { items: vec![AppearanceItem::Stroke(stroke)], ..Appearance::default() };
                 let member = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 40.0, 40.0)), ap);
                 let mut g = group(doc, vec![member], false);
@@ -6671,7 +6650,7 @@ fn appearances_written_as_their_drawn_look() {
             "a group whose effects reshape a member filled with pattern tiles",
             Box::new(|doc| {
                 let big = square(doc, Rect::new(-2.0, -2.0, 6.0, 6.0), Color::rgb(1.0, 0.0, 0.0));
-                let mut over = vectorcraft_doc::PatternDef::new("Over", vec![Arc::new(big)]);
+                let mut over = pluma_doc::PatternDef::new("Over", vec![Arc::new(big)]);
                 over.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
                 doc.patterns.push(over);
                 let tiles = Paint::Pattern { pattern: "Over".into(), xf: Affine::IDENTITY };
@@ -6727,7 +6706,7 @@ fn a_link_to_a_style_that_moves_the_outline_is_kept_where_the_reader_reads_it() 
         let mut doc = Document::new(200.0, 100.0);
         let moved = fx("distort.transform", serde_json::json!({"copies": 0, "scaleH": 50.0}));
         let ap = Appearance { effects: vec![moved], ..Appearance::basic(black_fill(), Paint::None, 0.0) };
-        let mut g = vectorcraft_doc::GraphicStyle::new("Moved", ap.clone());
+        let mut g = pluma_doc::GraphicStyle::new("Moved", ap.clone());
         g.id = 9;
         doc.graphic_styles.push(g);
         let mut n = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 50.0, 40.0)), ap);
@@ -6813,7 +6792,7 @@ fn effects_in_a_pattern_a_styled_look_uses_are_warned_about() {
         Paint::None,
         vec![fx("blur.gaussian", serde_json::json!({}))],
     );
-    let mut grid = vectorcraft_doc::PatternDef::new("Grid", vec![Arc::new(dot)]);
+    let mut grid = pluma_doc::PatternDef::new("Grid", vec![Arc::new(dot)]);
     grid.tile = Rect::new(0.0, 0.0, 10.0, 10.0);
     doc.patterns.push(grid);
     let tiles = Paint::Pattern { pattern: "Grid".into(), xf: Affine::IDENTITY };
@@ -6912,10 +6891,10 @@ fn where_a_styled_object_keeps_its_style() {
     assert!(!shown(&out.program).contains("(Anon 1) XW"));
     // In art cut to a clipping object other than a path: type.
     let mut doc = Document::new(200.0, 100.0);
-    let t = vectorcraft_doc::TextObject::point(
-        vectorcraft_geom::Point::new(10.0, 70.0),
+    let t = pluma_doc::TextObject::point(
+        pluma_geom::Point::new(10.0, 70.0),
         "Type",
-        vectorcraft_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..vectorcraft_doc::CharStyle::default() },
+        pluma_doc::CharStyle { size: 18.0, fill: solid(Color::BLACK), ..pluma_doc::CharStyle::default() },
     );
     let t = Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t)));
     let n = inside(&mut doc);
@@ -7029,7 +7008,7 @@ fn same_appearance_tells_appearances_apart() {
 /// and a radial one with a focal point, and on a first artboard away from the origin among several.
 #[test]
 fn a_styled_objects_gradient_is_placed_as_a_plain_objects_is() {
-    use vectorcraft_color::gradient::GradientGeom;
+    use pluma_color::gradient::GradientGeom;
     let stops = || vec![GradientStop::new(0.0, Color::WHITE), GradientStop::new(1.0, Color::rgb(0.1, 0.2, 0.8))];
     let turned = GradientGeom { start: (120.0, 60.0).into(), end: (170.0, 90.0).into(), aspect: 1.0, focal: None };
     let mut focal = GradientGeom { start: (140.0, 70.0).into(), end: (170.0, 70.0).into(), aspect: 0.5, focal: None };
@@ -7038,11 +7017,11 @@ fn a_styled_objects_gradient_is_placed_as_a_plain_objects_is() {
     for (kind, geom) in [(GradientKind::Linear, turned), (GradientKind::Radial, focal)] {
         for board in boards {
             let paint = gradient_paint(Gradient::new(kind, stops()), Some(geom), None);
-            let make = |effects: Vec<vectorcraft_doc::Effect>| {
+            let make = |effects: Vec<pluma_doc::Effect>| {
                 let mut doc = Document::new(300.0, 200.0);
                 doc.artboards[0].rect = board;
                 let second = doc.artboards[0].clone();
-                doc.artboards.push(Artboard { rect: board + vectorcraft_geom::Vec2::new(400.0, 0.0), ..second });
+                doc.artboards.push(Artboard { rect: board + pluma_geom::Vec2::new(400.0, 0.0), ..second });
                 let n = styled_rect(&mut doc, "G", Rect::new(120.0, 60.0, 180.0, 100.0), paint.clone(), Paint::None, effects);
                 put(&mut doc, n);
                 doc
@@ -7077,7 +7056,7 @@ fn a_styled_objects_gradient_is_placed_as_a_plain_objects_is() {
 fn a_large_canvas_writes_every_object_as_its_look() {
     let warns = |doc: &Document| export_ai_editing(doc, &opts()).unwrap().warnings.iter().any(|w| w == writer::LARGE_CANVAS_STYLES);
     let mut styles_only = Document::new(20000.0, 100.0);
-    styles_only.graphic_styles.push(vectorcraft_doc::GraphicStyle::new("Mine", Appearance::basic(black_fill(), Paint::None, 0.0)));
+    styles_only.graphic_styles.push(pluma_doc::GraphicStyle::new("Mine", Appearance::basic(black_fill(), Paint::None, 0.0)));
     assert!(warns(&styles_only));
     assert_eq!(read_back(&styles_only).graphic_style("Mine"), None);
     let mut plain = Document::new(20000.0, 100.0);
@@ -7111,7 +7090,7 @@ fn a_large_canvas_writes_every_object_as_its_look() {
 /// and a `%`) and `Second` (empty text, shown, a linked file on a drive), `Second` shown; the
 /// variables locked.
 fn variables_doc() -> Document {
-    use vectorcraft_doc::{DataSet, DataValue, Variable, VariableKind};
+    use pluma_doc::{DataSet, DataValue, Variable, VariableKind};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let square = Node::path(doc.alloc_id(), shapes::rectangle(Rect::new(10.0, 10.0, 30.0, 30.0)), Appearance::basic(solid(GOLD), Paint::None, 0.0));
@@ -7123,9 +7102,9 @@ fn variables_doc() -> Document {
         ImageBlob::png(rgb_png()),
         (3, 2),
         Affine::new([10.0, 0.0, 0.0, 10.0, 100.0, 10.0]),
-        Some(vectorcraft_doc::LinkInfo::new("/tmp/a b/one.png")),
+        Some(pluma_doc::LinkInfo::new("/tmp/a b/one.png")),
     );
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 70.0), "Ann", style(18.0, Color::BLACK));
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 70.0), "Ann", style(18.0, Color::BLACK));
     let t = text_node(&mut doc, t);
     let ids = [square.id, badge.id, pic.id, t.id];
     for n in [square, badge, pic, t] {
@@ -7207,7 +7186,7 @@ fn variables_data_sets_and_bindings_are_read_back() {
 
 #[test]
 fn variables_and_data_sets_past_the_readers_caps_are_left_out() {
-    use vectorcraft_doc::{DataSet, Variable, VariableKind};
+    use pluma_doc::{DataSet, Variable, VariableKind};
     let mut doc = variables_doc();
     for i in 0..300 {
         doc.variables.variables.push(Variable { name: format!("extra{i}"), kind: VariableKind::Text });
@@ -7228,7 +7207,7 @@ fn variables_and_data_sets_past_the_readers_caps_are_left_out() {
 /// variable and every binding written reads back.
 #[test]
 fn bindings_that_fill_the_readers_budget_keep_every_variable() {
-    use vectorcraft_doc::{Variable, VariableKind};
+    use pluma_doc::{Variable, VariableKind};
     let mut doc = Document::new(200.0, 100.0);
     let layer = doc.layers[0].id;
     let mut ids = vec![];
@@ -7256,7 +7235,7 @@ fn bindings_that_fill_the_readers_budget_keep_every_variable() {
 
 #[test]
 fn long_xml_ids_and_text_of_many_lines_are_left_out() {
-    use vectorcraft_doc::DataValue;
+    use pluma_doc::DataValue;
     let mut doc = variables_doc();
     let badge = doc.variables.objects_of("show")[1];
     doc.node_mut(badge).unwrap().name = Some("_".repeat(60));
@@ -7312,7 +7291,7 @@ fn a_locked_library_without_variables_stays_locked() {
 
 #[test]
 fn names_the_reader_does_not_read_as_they_are_are_left_out() {
-    use vectorcraft_doc::{DataSet, Variable, VariableKind};
+    use pluma_doc::{DataSet, Variable, VariableKind};
     let mut doc = variables_doc();
     for name in ["x".repeat(256), " padded".into(), String::new(), "show".into()] {
         doc.variables.variables.push(Variable { name: name.clone(), kind: VariableKind::Text });
@@ -7343,23 +7322,23 @@ fn an_unlocked_library_without_a_data_set_is_read_back() {
     doc.variables.active_dataset = None;
     doc.variables.locked = false;
     let back = read_back(&doc);
-    let expected = vectorcraft_doc::Variables { bindings: back.variables.bindings.clone(), ..(*doc.variables).clone() };
+    let expected = pluma_doc::Variables { bindings: back.variables.bindings.clone(), ..(*doc.variables).clone() };
     assert_eq!(*back.variables, expected);
     assert_eq!(bound_objects(&back), bound_objects(&doc));
 }
 
 #[test]
 fn bindings_and_values_the_reader_cant_take_are_left_out() {
-    use vectorcraft_doc::{DataValue, VariableKind};
+    use pluma_doc::{DataValue, VariableKind};
     let mut doc = variables_doc();
     let layer = doc.layers[0].id;
     // Type of only white space is written as its outlines.
-    let t = vectorcraft_doc::TextObject::point(vectorcraft_geom::Point::new(10.0, 90.0), "   ", style(18.0, Color::BLACK));
+    let t = pluma_doc::TextObject::point(pluma_geom::Point::new(10.0, 90.0), "   ", style(18.0, Color::BLACK));
     let t = text_node(&mut doc, t);
     let text_id = t.id;
     doc.insert(Some(layer), usize::MAX, t).unwrap();
     doc.variables.bind(text_id, "name");
-    doc.variables.variables.push(vectorcraft_doc::Variable { name: "a:b".into(), kind: VariableKind::Text });
+    doc.variables.variables.push(pluma_doc::Variable { name: "a:b".into(), kind: VariableKind::Text });
     let first = &mut doc.variables.datasets[0].values;
     first.insert("chart".into(), DataValue::Graph("a,b\n1,2".into()));
     first.insert("a:b".into(), DataValue::Text("lost".into()));

@@ -1,9 +1,9 @@
 //! The undo history's memory (#1244): steps keep no lookup tables, unchanged selections are
 //! shared between steps, and past a memory budget the oldest steps go (never the last few).
 
+use pluma_doc::{Appearance, Node};
+use pluma_geom::shapes;
 use serde_json::json;
-use vectorcraft_doc::{Appearance, Node};
-use vectorcraft_geom::shapes;
 
 use crate::*;
 
@@ -226,7 +226,7 @@ fn color_mode_paint_snapshots_count_toward_the_history_budget() {
     let mut s = Session::new();
     s.execute("file.new", &json!({"width":100,"height":100})).unwrap();
     let mut appearance = s.new_art();
-    appearance.effects.push(vectorcraft_doc::Effect {
+    appearance.effects.push(pluma_doc::Effect {
         id: "stylize.dropShadow".into(),
         visible: true,
         params: json!({"color":"#ab6739", "retainedTemplateData":"x".repeat(128*1024)}),

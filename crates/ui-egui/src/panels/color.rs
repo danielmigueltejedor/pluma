@@ -15,14 +15,14 @@
 //! `ui.colorPanel` picks a mode and shows or hides the options as the panel menu does.
 
 use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, vec2};
+use pluma_color::cms;
+use pluma_color::{Color, GradientKind, Paint};
 use serde_json::{Value, json};
-use vectorcraft_color::cms;
-use vectorcraft_color::{Color, GradientKind, Paint};
 
 use super::{active_paint, color_json, live_run, pstate, set_pstate};
 use crate::theme::Tokens;
 use crate::widgets::{self, Live, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -199,7 +199,7 @@ pub fn spectrum_at(mode: Mode, x: f32, y: f32) -> Color {
             Color::cmyk(c0, m, yy, k)
         }
         Mode::WebSafe => web_safe(&c),
-        Mode::Lab => c.in_model(vectorcraft_color::cms::Model::Lab),
+        Mode::Lab => c.in_model(pluma_color::cms::Model::Lab),
         _ => c,
     }
 }
@@ -244,7 +244,7 @@ pub(crate) fn warning_chip(ui: &mut Ui, (icon, warning): (&str, &str), fix: &Col
 
 /// The printable colour closest to `c` (its working-CMYK reproduction, back in RGB) when `c` is out
 /// of the CMYK gamut, through `color.convert`.
-pub(crate) fn in_gamut(app: &mut VectorcraftApp, c: &Color) -> Option<Color> {
+pub(crate) fn in_gamut(app: &mut PlumaApp, c: &Color) -> Option<Color> {
     let r = app.run("color.convert", json!({"color": color_json(c), "to": "cmyk"})).ok()?;
     if !r["outOfGamut"].as_bool()? {
         return None;
@@ -256,7 +256,7 @@ pub(crate) fn in_gamut(app: &mut VectorcraftApp, c: &Color) -> Option<Color> {
 }
 
 /// [`in_gamut`], cached under `key` for the last colour asked (panels ask every frame).
-pub(crate) fn gamut_fix(app: &mut VectorcraftApp, ctx: &egui::Context, key: &str, c: &Color) -> Option<Color> {
+pub(crate) fn gamut_fix(app: &mut PlumaApp, ctx: &egui::Context, key: &str, c: &Color) -> Option<Color> {
     match pstate::<Option<(Color, Option<Color>)>>(ctx, key) {
         Some((k, fix)) if k == *c => fix,
         _ => {
@@ -289,7 +289,7 @@ pub fn deserialize_hide_options<'de, D: serde::Deserializer<'de>>(d: D) -> Resul
 
 /// The mode the panel shows `color` in: with nothing selected (the defaults for new art) the mode
 /// picked last, which the app keeps between sessions, else [`display_mode`].
-fn shown_mode(app: &VectorcraftApp, color: Option<&Color>) -> Mode {
+fn shown_mode(app: &PlumaApp, color: Option<&Color>) -> Mode {
     let defaults = app.session.active().is_none_or(|st| st.selection.subjects().is_empty());
     match app.ui.color_mode {
         Some(m) if defaults => m,
@@ -365,7 +365,7 @@ pub(crate) struct Tint {
 
 impl Tint {
     /// The tint `link` (a swatch name) and `tint` show: `None` unless the swatch is a global colour.
-    fn of(app: &VectorcraftApp, link: Option<&str>, tint: f32) -> Option<Self> {
+    fn of(app: &PlumaApp, link: Option<&str>, tint: f32) -> Option<Self> {
         let name = link?;
         let d = &app.session.active()?.doc;
         let spot = d.swatch(name)?.spot;
@@ -397,13 +397,13 @@ impl Target {
 }
 
 /// The active proxy's colour or gradient stop; no colour for None, patterns and a "?" proxy.
-fn target(app: &VectorcraftApp, ui: &Ui) -> Target {
+fn target(app: &PlumaApp, ui: &Ui) -> Target {
     target_with(app, super::active_mixed(app, ui.ctx()))
 }
 
 /// [`target`] with `mixed` for a "?" active proxy: the panel reads it from its per-frame cache,
 /// `ui.colorPanel` from the session.
-fn target_with(app: &VectorcraftApp, mixed: bool) -> Target {
+fn target_with(app: &PlumaApp, mixed: bool) -> Target {
     if mixed {
         return Target::Paint(None, None);
     }
@@ -426,13 +426,13 @@ fn target_with(app: &VectorcraftApp, mixed: bool) -> Target {
 }
 
 /// [`target`] for the Color Wheel panel, which edits what this panel's sliders edit.
-pub(crate) fn wheel_target(app: &VectorcraftApp, ui: &Ui) -> Target {
+pub(crate) fn wheel_target(app: &PlumaApp, ui: &Ui) -> Target {
     target(app, ui)
 }
 
 /// Apply `c` to the target, or with `behind` (an Alt-click) to the inactive proxy as a solid
 /// colour, keeping the active proxy in front.
-pub(crate) fn apply(app: &mut VectorcraftApp, tgt: &Target, c: Color, phase: Live, behind: bool) {
+pub(crate) fn apply(app: &mut PlumaApp, tgt: &Target, c: Color, phase: Live, behind: bool) {
     match tgt {
         Target::Stop { paint: Paint::Gradient(g), index, .. } if !behind => {
             let mut stops = g.gradient.stops.clone();
@@ -455,7 +455,7 @@ pub(crate) fn apply(app: &mut VectorcraftApp, tgt: &Target, c: Color, phase: Liv
 
 /// [`apply`] a color chosen in the panel; once the pick ends, it also becomes the Color Guide's
 /// base color.
-fn choose(app: &mut VectorcraftApp, tgt: &Target, c: Color, phase: Live, behind: bool) {
+fn choose(app: &mut PlumaApp, tgt: &Target, c: Color, phase: Live, behind: bool) {
     if phase == Live::Released {
         super::color_guide::choose_base(app, c);
     }
@@ -463,7 +463,7 @@ fn choose(app: &mut VectorcraftApp, tgt: &Target, c: Color, phase: Live, behind:
 }
 
 /// Set the target's tint of its swatch to `t` (0..1), keeping the link (the T slider).
-fn apply_tint(app: &mut VectorcraftApp, tgt: &Target, tint: &Tint, t: f32, phase: Live) {
+fn apply_tint(app: &mut PlumaApp, tgt: &Target, tint: &Tint, t: f32, phase: Live) {
     match tgt {
         Target::Stop { paint: Paint::Gradient(g), index, .. } => {
             let mut stops = g.gradient.stops.clone();
@@ -481,7 +481,7 @@ fn apply_tint(app: &mut VectorcraftApp, tgt: &Target, tint: &Tint, t: f32, phase
 
 /// Switch the panel to `mode`, converting the colour to its model (a tint becomes a process
 /// colour).
-fn set_mode(app: &mut VectorcraftApp, tgt: &Target, mode: Mode) {
+fn set_mode(app: &mut PlumaApp, tgt: &Target, mode: Mode) {
     app.ui.color_mode = Some(mode);
     if let Some(c) = tgt.color() {
         let conv = convert_to(mode, &c);
@@ -495,7 +495,7 @@ fn set_mode(app: &mut VectorcraftApp, tgt: &Target, mode: Mode) {
 /// is recolored in place, and a solid color or a "?" proxy goes through `paint.invert` or
 /// `paint.complement` (each selected object keeps its color model). Without a color or a "?"
 /// proxy nothing changes. With `behind` (Alt held) the command recolors the inactive proxy instead.
-fn recolor(app: &mut VectorcraftApp, ui: &Ui, tgt: &Target, invert: bool, behind: bool) {
+fn recolor(app: &mut PlumaApp, ui: &Ui, tgt: &Target, invert: bool, behind: bool) {
     let (cmd, f): (&str, fn(&Color) -> Color) =
         if invert { ("paint.invert", Color::invert_keep_model) } else { ("paint.complement", Color::complement_keep_model) };
     if behind {
@@ -515,7 +515,7 @@ fn recolor(app: &mut VectorcraftApp, ui: &Ui, tgt: &Target, invert: bool, behind
 /// Options (true) or Hide Options (false). → {mode, options, shown}: the mode picked last (null:
 /// none yet), whether the options show, and the mode the panel shows the color in (`tint` for a
 /// tint of a global or spot swatch).
-pub(crate) fn command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn command(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let mode = match p.get("mode") {
         None | Some(Value::Null) => None,
         Some(v) => Some(menu_mode(v).ok_or("`mode` must be grayscale, rgb, hsb, cmyk or websafe")?),
@@ -596,7 +596,7 @@ fn spectrum(ui: &mut Ui, mode: Mode, size: egui::Vec2) -> Option<SpectrumHit> {
 }
 
 /// Draw numeric paint controls, retaining live components while the color and settings match.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let tgt = target(app, ui);
     let color = tgt.color();
@@ -765,7 +765,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let hidden = app.ui.color_hide_options;
     if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {
         command(app, &json!({ "options": hidden })).ok();

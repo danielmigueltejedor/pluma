@@ -1,8 +1,8 @@
 //! The appearance model: a stack of fills and strokes, each with its own opacity, blend mode and
 //! effects, plus object-level effects.
 
+use pluma_color::{BlendMode, Color, Paint};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::{BlendMode, Color, Paint};
 
 mod layers;
 mod profile;
@@ -318,7 +318,7 @@ impl Appearance {
     }
 
     /// Gradient paints of the fills and strokes.
-    fn gradients_mut(&mut self) -> impl Iterator<Item = &mut vectorcraft_color::GradientPaint> {
+    fn gradients_mut(&mut self) -> impl Iterator<Item = &mut pluma_color::GradientPaint> {
         self.items.iter_mut().filter_map(|i| match i {
             AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. })
             | AppearanceItem::Stroke(StrokeLayer { paint: Paint::Gradient(g), .. }) => Some(&mut **g),
@@ -326,7 +326,7 @@ impl Appearance {
         })
     }
     /// Gradient paints of the fills and strokes.
-    pub(crate) fn gradients(&self) -> impl Iterator<Item = &vectorcraft_color::GradientPaint> {
+    pub(crate) fn gradients(&self) -> impl Iterator<Item = &pluma_color::GradientPaint> {
         self.items.iter().filter_map(|i| match i {
             AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. })
             | AppearanceItem::Stroke(StrokeLayer { paint: Paint::Gradient(g), .. }) => Some(&**g),
@@ -382,7 +382,7 @@ impl Appearance {
     }
     /// Fix unplaced gradients to their fit on `bounds` (the object's geometric bounds; strokes fit
     /// the stroke-inflated box), so they can follow transforms that refitting wouldn't reproduce.
-    pub fn pin_gradients(&mut self, bounds: vectorcraft_geom::Rect) {
+    pub fn pin_gradients(&mut self, bounds: pluma_geom::Rect) {
         for i in &mut self.items {
             match i {
                 AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => g.pin(bounds),
@@ -399,7 +399,7 @@ impl Appearance {
     /// Move placed gradients from an object whose geometric bounds are `from` to one whose bounds
     /// are `to`, keeping them at the same place relative to the box (strokes: relative to their
     /// stroke-inflated boxes, as they fit).
-    pub fn rebase_gradients(&mut self, from: vectorcraft_geom::Rect, to: vectorcraft_geom::Rect) {
+    pub fn rebase_gradients(&mut self, from: pluma_geom::Rect, to: pluma_geom::Rect) {
         for i in &mut self.items {
             match i {
                 AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => g.rebase(from, to),
@@ -414,7 +414,7 @@ impl Appearance {
         }
     }
     /// Map placed gradients through `a`.
-    pub fn transform_gradients(&mut self, a: vectorcraft_geom::Affine) {
+    pub fn transform_gradients(&mut self, a: pluma_geom::Affine) {
         for g in self.gradients_mut() {
             g.transform(a);
         }
@@ -423,7 +423,7 @@ impl Appearance {
     /// geometric bounds are `bounds` with a warp, given its local affine approximation at a point
     /// (taken at the middle of each gradient's vector). Unplaced ones are fixed to their fit first;
     /// other gradients stay as they are.
-    pub fn warp_linear_gradients(&mut self, bounds: vectorcraft_geom::Rect, near: &dyn Fn(vectorcraft_geom::Point) -> vectorcraft_geom::Affine) {
+    pub fn warp_linear_gradients(&mut self, bounds: pluma_geom::Rect, near: &dyn Fn(pluma_geom::Point) -> pluma_geom::Affine) {
         for i in &mut self.items {
             let (g, b) = match i {
                 AppearanceItem::Fill(FillLayer { paint: Paint::Gradient(g), .. }) => (g, bounds),
@@ -434,7 +434,7 @@ impl Appearance {
                 }
                 _ => continue,
             };
-            if g.gradient.kind != vectorcraft_color::GradientKind::Linear {
+            if g.gradient.kind != pluma_color::GradientKind::Linear {
                 continue;
             }
             g.pin(b);
@@ -446,11 +446,11 @@ impl Appearance {
     /// Map placed gradients through a warp, given its local affine approximation at a point (taken
     /// at each gradient's centre: the start of a radial, the middle of a linear vector). Freeform
     /// points each follow the warp at their own position.
-    pub fn warp_gradients(&mut self, near: &dyn Fn(vectorcraft_geom::Point) -> vectorcraft_geom::Affine) {
+    pub fn warp_gradients(&mut self, near: &dyn Fn(pluma_geom::Point) -> pluma_geom::Affine) {
         for g in self.gradients_mut() {
             let freeform = g.freeform.take();
             if let Some(geom) = g.geom {
-                let c = if g.gradient.kind == vectorcraft_color::GradientKind::Radial { geom.start } else { geom.start.midpoint(geom.end) };
+                let c = if g.gradient.kind == pluma_color::GradientKind::Radial { geom.start } else { geom.start.midpoint(geom.end) };
                 g.transform(near(c));
             }
             g.freeform = freeform.map(|mut f| {

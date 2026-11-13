@@ -18,12 +18,12 @@
 use std::sync::atomic::Ordering;
 
 use egui::{CornerRadius, Sense, Stroke, pos2, vec2};
+use pluma_tools::tool_info;
 use serde_json::{Value, json};
-use vectorcraft_tools::tool_info;
 
 use crate::state::{CustomToolbar, Dialog, UiState};
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, icons, widgets};
+use crate::{PlumaApp, icons, widgets};
 
 /// The most toolbars a workspace keeps.
 pub(crate) const MAX: usize = 64;
@@ -252,7 +252,7 @@ pub(crate) fn keep_strips(bar: &mut CustomToolbar) {
 }
 
 /// The commands of the toolbars made with New Toolbar; `None` for other ids.
-pub(crate) fn command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
+pub(crate) fn command(app: &mut PlumaApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     Some(match id {
         "window.toolbar.new" => match p.get("name").filter(|v| !v.is_null()) {
             Some(name) => match name.as_str() {
@@ -319,7 +319,7 @@ pub(crate) fn command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
 pub(crate) const KIND: &str = "newToolbar";
 
 /// OK in New Toolbar.
-pub(crate) fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn confirm(app: &mut PlumaApp) -> Result<Value, String> {
     let Some(d) = app.ui.dialog.clone() else { return Err("no dialog open".into()) };
     let name = create(&mut app.ui, &d.str("name"))?;
     app.ui.dialog = None;
@@ -327,7 +327,7 @@ pub(crate) fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
 }
 
 /// The New Toolbar dialog: the name, OK and Cancel.
-pub(crate) fn show_dialog(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn show_dialog(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let (mut ok, mut cancel) = (false, false);
@@ -373,7 +373,7 @@ pub(crate) const MANAGE: &str = "manageToolbars";
 /// The name typed in Manage Toolbars' text box becomes the selected toolbar's (a no-op while it is
 /// the same). Returns true when the selected toolbar was deleted or renamed while the dialog was
 /// open (a command, another workspace): none is selected then, and the name typed for it is dropped.
-fn rename_selected(app: &mut VectorcraftApp) -> Result<bool, String> {
+fn rename_selected(app: &mut PlumaApp) -> Result<bool, String> {
     let Some(d) = app.ui.dialog.as_ref() else { return Ok(false) };
     let (sel, name) = (d.str("selected"), d.str("name"));
     if !sel.is_empty() && find(&app.ui, &sel).is_none() {
@@ -396,7 +396,7 @@ fn rename_selected(app: &mut VectorcraftApp) -> Result<bool, String> {
 }
 
 /// OK in Manage Toolbars: the typed name is kept, and the dialog closes.
-pub(crate) fn confirm_manage(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn confirm_manage(app: &mut PlumaApp) -> Result<Value, String> {
     rename_selected(app)?;
     app.ui.dialog = None;
     Ok(Value::Null)
@@ -405,7 +405,7 @@ pub(crate) fn confirm_manage(app: &mut VectorcraftApp) -> Result<Value, String> 
 /// The Manage Toolbars dialog: the toolbars made with New Toolbar; the selected one's name in the
 /// text box, where a new name renames it; + copies the selected toolbar (none selected: makes a
 /// blank one), and the trash can deletes it.
-pub(crate) fn show_manage(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn show_manage(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let (mut ok, mut commit) = (false, false);
@@ -470,7 +470,7 @@ pub(crate) fn show_manage(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// or the trash can (`Some(false)`) is clicked. When that rename fails, the click is not applied,
 /// so the name typed can be corrected; when the selected toolbar has gone meanwhile, + and the trash
 /// can are not applied either.
-fn manage_step(app: &mut VectorcraftApp, commit: bool, pick: Option<String>, mut action: Option<bool>) {
+fn manage_step(app: &mut PlumaApp, commit: bool, pick: Option<String>, mut action: Option<bool>) {
     if commit || pick.is_some() || action.is_some() {
         match rename_selected(app) {
             Err(e) => {
@@ -563,7 +563,7 @@ enum Action {
 /// title bar's × hides it and its double arrow lays the tools out in one column or two; then its
 /// tool buttons (a group's flyout opens as the Tools panel's do) and the ••• button that opens the
 /// All Tools drawer beside it.
-pub(crate) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     // Tab hides them, also when Window › Tools shows the Tools panel again.
     if app.ui.tab_hid.is_some() || app.ui.custom_toolbars.iter().all(|b| !b.shown) {
         return;
@@ -806,17 +806,17 @@ pub(crate) fn remember(ui: &mut UiState, id: &str) {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     use super::*;
     use crate::menus::Item;
 
-    fn app() -> VectorcraftApp {
-        VectorcraftApp::new(Session::new(), Default::default())
+    fn app() -> PlumaApp {
+        PlumaApp::new(Session::new(), Default::default())
     }
 
     /// The items of Window › Toolbars: (label, command id, params).
-    fn toolbars_menu(app: &VectorcraftApp) -> Vec<(&'static str, &'static str, Value)> {
+    fn toolbars_menu(app: &PlumaApp) -> Vec<(&'static str, &'static str, Value)> {
         crate::shortcut_editor::sync(&app.ui);
         let window = crate::menus::menu_tree().into_iter().find(|(m, _)| *m == "Window").map(|(_, items)| items).unwrap();
         let Some(Item::Sub(_, items)) = window.into_iter().find(|i| matches!(i, Item::Sub("Toolbars", _))) else { panic!("no Toolbars submenu") };
@@ -882,7 +882,7 @@ mod tests {
         let mut app = app();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1200.0, 800.0));
             let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: Some(screen), ..Default::default() }, |ui| show_dialog(app, ui.ctx()));
             out.textures_delta.clear();
@@ -993,7 +993,7 @@ mod tests {
     }
 
     /// One frame of the whole window, `height` points tall.
-    fn window_frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, height: f32) {
+    fn window_frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64, height: f32) {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1200.0, height));
         let raw = egui::RawInput { time: Some(time), screen_rect: Some(screen), ..Default::default() };
         ctx.run_ui(raw, |ui| {
@@ -1018,7 +1018,7 @@ mod tests {
         app.run("window.toolbar.new", json!({"name": "Mine"})).unwrap();
         app.run("toolbar.addTool", json!({"tool": "pen", "toolbar": "Mine"})).unwrap();
         let mut time = 0.0;
-        let mut frames = |app: &mut VectorcraftApp| {
+        let mut frames = |app: &mut PlumaApp| {
             for _ in 0..3 {
                 time += 0.05;
                 window_frame(app, &ctx, time, 800.0);
@@ -1091,7 +1091,7 @@ mod tests {
         app.run("window.dock", json!({})).unwrap();
         app.ui.toolbar = true;
         frames(&mut app);
-        let open = |app: &mut VectorcraftApp, toolbar: Option<String>| {
+        let open = |app: &mut PlumaApp, toolbar: Option<String>| {
             app.ui.flyout = Some(0);
             // A group not torn off as a strip of the same toolbar.
             let group = if toolbar.is_some() { ["rectangle", "ellipse"] } else { ["pen", "curvature"] };
@@ -1191,7 +1191,7 @@ mod tests {
             app.run("toolbar.addTool", json!({"tool": tool, "toolbar": "Mine", "slot": 0, "place": "group"})).unwrap();
         }
         app.run("window.floatTools", json!({"tool": "pen", "toolbar": "Mine"})).unwrap();
-        let strips = |app: &VectorcraftApp| find(&app.ui, "Mine").unwrap().floating.iter().map(|f| f.tools.join(",")).collect::<Vec<_>>();
+        let strips = |app: &PlumaApp| find(&app.ui, "Mine").unwrap().floating.iter().map(|f| f.tools.join(",")).collect::<Vec<_>>();
         assert_eq!(strips(&app), ["pen,curvature,rectangle"]);
         app.run("toolbar.removeTool", json!({"tool": "curvature", "toolbar": "Mine"})).unwrap();
         assert_eq!(strips(&app), ["pen,rectangle"]);
@@ -1218,7 +1218,7 @@ mod tests {
         let mut app = app();
         let ctx = egui::Context::default();
         app.run("window.toolbar.new", json!({"name": "Tall"})).unwrap();
-        for tool in vectorcraft_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).take(30) {
+        for tool in pluma_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).take(30) {
             app.run("toolbar.addTool", json!({"tool": tool.id, "toolbar": "Tall"})).unwrap();
         }
         assert_eq!(find(&app.ui, "Tall").unwrap().slots.len(), 30);
@@ -1283,7 +1283,7 @@ mod tests {
             app.run("toolbar.addTool", json!({"tool": tool, "toolbar": "Mine"})).unwrap();
         }
         let mut time = 0.0;
-        let mut frames = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let mut frames = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             for e in std::iter::once(events).chain(std::iter::repeat_with(Vec::new)).take(3) {
                 time += 0.05;
                 let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1200.0, 800.0));
@@ -1322,7 +1322,7 @@ mod tests {
         assert!(!drawn(&ctx, area_id("Mine"), egui::Order::Middle));
     }
 
-    fn listed(app: &VectorcraftApp) -> Vec<&'static str> {
+    fn listed(app: &PlumaApp) -> Vec<&'static str> {
         toolbars_menu(app).into_iter().filter(|(_, id, _)| *id == "window.toolbar.custom").map(|(l, ..)| l).collect()
     }
 
@@ -1337,7 +1337,7 @@ mod tests {
         app.run("window.toolbar.new", json!({"name": "Mine"})).unwrap();
         app.run("toolbar.addTool", json!({"tool": "pen", "toolbar": "Mine"})).unwrap();
         app.run("window.toolbar.new", json!({"name": "Other"})).unwrap();
-        let back = |app: &mut VectorcraftApp| {
+        let back = |app: &mut PlumaApp| {
             app.run("window.workspace", json!({"name": "Essentials"})).unwrap();
             app.run("window.workspace", json!({"name": "Drawing"})).unwrap();
         };
@@ -1447,14 +1447,14 @@ mod tests {
         app.run("window.toolbar.new", json!({"name": "Mine"})).unwrap();
         app.run("window.toolbar.new", json!({"name": "Other"})).unwrap();
         let mut time = 0.0;
-        let mut frames = |app: &mut VectorcraftApp| {
+        let mut frames = |app: &mut PlumaApp| {
             for _ in 0..2 {
                 time += 0.05;
                 window_frame(app, &ctx, time, 800.0);
             }
         };
         frames(&mut app);
-        let open = |app: &mut VectorcraftApp, toolbar: Option<&str>| {
+        let open = |app: &mut PlumaApp, toolbar: Option<&str>| {
             app.ui.flyout = Some(0);
             ctx.data_mut(|d| {
                 d.insert_temp(egui::Id::unique("flyout-tools"), vec!["rectangle".to_string(), "ellipse".to_string()]);
@@ -1531,7 +1531,7 @@ mod tests {
         app.run("window.toolbar.new", json!({"name": "Mine"})).unwrap();
         app.run("window.toolbar.new", json!({"name": "Other"})).unwrap();
         app.run("window.toolbar.manage", json!({})).unwrap();
-        let typed = |app: &mut VectorcraftApp| {
+        let typed = |app: &mut PlumaApp| {
             let d = app.ui.dialog.as_mut().unwrap();
             d.fields.insert("selected".into(), json!("Mine"));
             d.fields.insert("name".into(), json!("other"));

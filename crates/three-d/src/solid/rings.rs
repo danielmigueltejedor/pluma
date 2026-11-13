@@ -12,7 +12,7 @@ pub(super) const MAX_PIECES: usize = 64;
 
 /// How many straight pieces follow `c` within `tolerance` (Wang's bound on a cubic's distance from
 /// its chords), 1 to 32.
-fn pieces(c: vectorcraft_geom::CubicBez, tolerance: f64) -> u32 {
+fn pieces(c: pluma_geom::CubicBez, tolerance: f64) -> u32 {
     let d = |a: Point, b: Point, c: Point| (a.to_vec2() - 2.0 * b.to_vec2() + c.to_vec2()).hypot();
     let bend = d(c.p0, c.p1, c.p2).max(d(c.p1, c.p2, c.p3));
     let n = (0.75 * bend / tolerance).sqrt().ceil();
@@ -43,7 +43,7 @@ pub(super) fn solid_rings(path: &PathData, rule: FillRule, size: f64, limit: usi
     if !meets(&sampled, &closed) {
         return orient(sampled, rule);
     }
-    match vectorcraft_pathops::try_unite_all_with(&[(&closed, rule)], DEBRIS) {
+    match pluma_pathops::try_unite_all_with(&[(&closed, rule)], DEBRIS) {
         Ok(merged) => sample(&merged, size, limit).map(wound),
         Err(_) => orient(sampled, rule),
     }
@@ -72,7 +72,7 @@ pub(super) fn meets(sampled: &[Vec<Point>], closed: &PathData) -> bool {
 pub(super) fn closed_straight(path: &PathData) -> std::borrow::Cow<'_, PathData> {
     // The closing segment (last anchor to first) as the boolean will draw it once closed; the
     // length test comes first, so a subpath of fewer than two anchors never reaches the index.
-    let straight = |sp: &vectorcraft_geom::SubPath| sp.closed || sp.anchors.len() < 2 || sp.segment_is_line(sp.anchors.len() - 1);
+    let straight = |sp: &pluma_geom::SubPath| sp.closed || sp.anchors.len() < 2 || sp.segment_is_line(sp.anchors.len() - 1);
     if path.subpaths.iter().all(straight) {
         return std::borrow::Cow::Borrowed(path);
     }

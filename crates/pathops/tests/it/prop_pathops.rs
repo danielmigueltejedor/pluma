@@ -3,21 +3,19 @@
 
 use crate::common;
 
+use pluma_geom::{FillRule, PathData, Point, Rect};
+use pluma_pathops::*;
+use pluma_testkit::geom::{directed_hausdorff, grid, hausdorff, polygon_area, rel_close};
+use pluma_testkit::strategies::{arb_closed_shape, arb_convex_polygon, arb_ellipse, arb_rect, arb_smooth_curve, arb_star_polygon, polygon_path};
 use proptest::prelude::*;
-use vectorcraft_geom::{FillRule, PathData, Point, Rect};
-use vectorcraft_pathops::*;
-use vectorcraft_testkit::geom::{directed_hausdorff, grid, hausdorff, polygon_area, rel_close};
-use vectorcraft_testkit::strategies::{
-    arb_closed_shape, arb_convex_polygon, arb_ellipse, arb_rect, arb_smooth_curve, arb_star_polygon, polygon_path,
-};
 
 const NZ: FillRule = FillRule::NonZero;
 
 fn inside(p: &PathData, q: Point) -> bool {
-    vectorcraft_geom::hit::fill_contains(&p.to_bezpath(), NZ, q)
+    pluma_geom::hit::fill_contains(&p.to_bezpath(), NZ, q)
 }
 fn near_edge(p: &PathData, q: Point, eps: f64) -> bool {
-    vectorcraft_geom::hit::distance_to_outline(&p.to_bezpath(), q) < eps
+    pluma_geom::hit::distance_to_outline(&p.to_bezpath(), q) < eps
 }
 
 proptest! {
@@ -207,9 +205,9 @@ proptest! {
 
 #[test]
 fn non_finite_input_is_an_error() {
-    let mut p = vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+    let mut p = pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
     p.subpaths[0].anchors[1].p.x = f64::NAN;
-    let q = vectorcraft_geom::shapes::rectangle(Rect::new(5.0, 5.0, 15.0, 15.0));
+    let q = pluma_geom::shapes::rectangle(Rect::new(5.0, 5.0, 15.0, 15.0));
     assert_eq!(try_boolean(&p, NZ, &q, NZ, BoolOp::Union, DEFAULT_PRECISION), Err(PathOpsError::NonFinite));
     assert!(boolean(&p, NZ, &q, NZ, BoolOp::Union).is_empty());
     assert!(offset_path(&q, f64::NAN, Join::Round, 4.0).is_empty());
@@ -219,7 +217,7 @@ fn non_finite_input_is_an_error() {
 #[test]
 fn empty_inputs() {
     let e = PathData::default();
-    let q = vectorcraft_geom::shapes::rectangle(Rect::new(5.0, 5.0, 15.0, 15.0));
+    let q = pluma_geom::shapes::rectangle(Rect::new(5.0, 5.0, 15.0, 15.0));
     assert!(rel_close(area(&boolean(&e, NZ, &q, NZ, BoolOp::Union), NZ), 100.0, 1e-9));
     assert!(boolean(&e, NZ, &q, NZ, BoolOp::Intersect).is_empty());
     assert!(pathfinder(PathfinderOp::Divide, &[]).is_empty());
@@ -229,7 +227,7 @@ fn empty_inputs() {
 
 #[test]
 fn bug_simplify_adds_anchors() {
-    use vectorcraft_geom::{Anchor, SubPath};
+    use pluma_geom::{Anchor, SubPath};
     let a = |p: (f64, f64), i: (f64, f64), o: (f64, f64)| Anchor::with_handles(p.into(), i.into(), o.into());
     let c = PathData::single(SubPath::new(
         vec![
@@ -249,7 +247,7 @@ fn bug_simplify_adds_anchors() {
 #[test]
 fn offset_large_delta_keeps_area() {
     for (r, d) in [(1.0, 5.0), (1.0, 3.0), (10.0, 30.0)] {
-        let p = vectorcraft_geom::shapes::ellipse(Rect::new(0.0, 0.0, 2.0 * r, 2.0 * r));
+        let p = pluma_geom::shapes::ellipse(Rect::new(0.0, 0.0, 2.0 * r, 2.0 * r));
         let got = area(&offset_path(&p, d, Join::Round, 4.0), NZ);
         let want = std::f64::consts::PI * (r + d) * (r + d);
         assert!(rel_close(got, want, 1e-2), "r={r} d={d}: {got} vs {want}");

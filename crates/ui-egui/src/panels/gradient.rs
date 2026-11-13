@@ -26,18 +26,18 @@
 //! the panel menu leaves the row out.
 
 use egui::{Color32, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
-use serde_json::{Value, json};
-use vectorcraft_color::gradient::{
+use pluma_color::gradient::{
     MIN_STOPS, duplicate_stop, insert_stop, midpoint_from_pos, midpoint_pos, move_stop, remove_stop, set_midpoint, swap_stop_colors,
 };
-use vectorcraft_color::{Color, Freeform, FreeformMode, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{NodeId, StrokeGradientMode};
+use pluma_color::{Color, Freeform, FreeformMode, Gradient, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint};
+use pluma_doc::{NodeId, StrokeGradientMode};
+use serde_json::{Value, json};
 
 use super::{active_paint, live_run, pstate, set_pstate};
 use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::widgets::{self, Live, PanelDrag, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 /// Dragging a stop this far below the ramp removes it.
 const REMOVE_DISTANCE: f32 = 28.0;
@@ -56,7 +56,7 @@ const MID_SELECTED: &str = "grad-mid";
 
 /// Select stop `i` (the session's selected stop, shared with the Gradient tool's annotator, the
 /// Color panel and agents), or none.
-fn select_stop(app: &mut VectorcraftApp, i: Option<usize>) {
+fn select_stop(app: &mut PlumaApp, i: Option<usize>) {
     app.run("gradient.selectStop", json!({ "index": i })).ok();
 }
 
@@ -68,7 +68,7 @@ pub fn x_to_offset(x: f32, left: f32, width: f32) -> f32 {
 }
 
 /// Stops as `paint.editGradient` JSON.
-pub use vectorcraft_tools::params::stops_json;
+pub use pluma_tools::params::stops_json;
 
 /// A colour dropped on the ramp: recolours stop `on` (fully opaque), or adds an opaque stop of
 /// that colour at `offset`, linked to `link` (a global swatch and tint) when given. Returns the
@@ -85,7 +85,7 @@ fn drop_color(g: &Gradient, on: Option<usize>, offset: f32, c: Color, link: Opti
 
 /// The swatch link a dropped paint's params give a stop: `{swatch, tint?}` of a global or spot
 /// colour or a tint swatch (a proxy's tint carries its percentage); none for other colours.
-pub(crate) fn dropped_link(app: &VectorcraftApp, params: &Value) -> Option<(String, f32)> {
+pub(crate) fn dropped_link(app: &PlumaApp, params: &Value) -> Option<(String, f32)> {
     let name = params.get("swatch")?.as_str()?;
     let d = &app.session.active()?.doc;
     let (base, own) = d.swatch_link(name)?;
@@ -98,7 +98,7 @@ pub(crate) fn dropped_link(app: &VectorcraftApp, params: &Value) -> Option<(Stri
 /// point of a freeform gradient; the stop or point stays selected and keeps the color's model.
 /// Returns false, and changes nothing, when the active paint is not a gradient or no stop or point
 /// is selected.
-pub(crate) fn recolor_selected(app: &mut VectorcraftApp, c: Color, params: &Value) -> bool {
+pub(crate) fn recolor_selected(app: &mut PlumaApp, c: Color, params: &Value) -> bool {
     let Paint::Gradient(g) = active_paint(app) else { return false };
     if g.gradient.kind == GradientKind::Freeform {
         let Some(i) = app.session.selected_freeform_point().filter(|i| *i < shown_points(&g).points.len()) else { return false };
@@ -126,7 +126,7 @@ fn dragged_stops(origin: &[GradientStop], i: usize, offset: f32, copy: bool, ove
 
 /// The Type row: Linear, Radial and Freeform for the paint behind the active proxy (one of them
 /// lit when it is a gradient). The Gradient panel's and the Properties panel's.
-pub(crate) fn type_row(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn type_row(app: &mut PlumaApp, ui: &mut Ui) {
     let kind = current(app).map(|g| g.gradient.kind);
     ui.horizontal(|ui| {
         widgets::dim_label(ui, tl!("Type:"));
@@ -143,12 +143,12 @@ pub(crate) fn type_row(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// Set how the Gradient tool adds the points of the freeform gradient behind the active proxy.
-fn set_draw_mode(app: &mut VectorcraftApp, mode: FreeformMode) {
+fn set_draw_mode(app: &mut PlumaApp, mode: FreeformMode) {
     edit(app, json!({ "mode": mode.label().to_lowercase() }), Live::Released);
 }
 
 /// The Properties panel's Draw row for a freeform gradient: Points and Lines as radio buttons.
-pub(crate) fn draw_radios(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn draw_radios(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(g) = current(app).filter(|g| g.gradient.kind == GradientKind::Freeform) else { return };
     let mode = shown_points(&g).mode;
     ui.horizontal(|ui| {
@@ -162,7 +162,7 @@ pub(crate) fn draw_radios(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// The gradient behind the active proxy.
-fn current(app: &VectorcraftApp) -> Option<GradientPaint> {
+fn current(app: &PlumaApp) -> Option<GradientPaint> {
     match active_paint(app) {
         Paint::Gradient(g) => Some(*g),
         _ => None,
@@ -170,7 +170,7 @@ fn current(app: &VectorcraftApp) -> Option<GradientPaint> {
 }
 
 /// Edit the gradient behind the active proxy (`paint.editGradient` params).
-fn edit(app: &mut VectorcraftApp, params: Value, phase: Live) {
+fn edit(app: &mut PlumaApp, params: Value, phase: Live) {
     let mut p = params;
     p["stroke"] = json!(!app.session.fill_active);
     live_run(app, "Gradient", "paint.editGradient", p, phase);
@@ -178,19 +178,19 @@ fn edit(app: &mut VectorcraftApp, params: Value, phase: Live) {
 
 /// Write `stops` to the gradient behind the active proxy (live while dragging) and, once
 /// released, select stop `select` (the panel, the stop popover and the Color panel share this).
-pub(crate) fn set_stops(app: &mut VectorcraftApp, stops: &[GradientStop], select: Option<usize>, phase: Live) {
+pub(crate) fn set_stops(app: &mut PlumaApp, stops: &[GradientStop], select: Option<usize>, phase: Live) {
     write_stops(app, json!({ "stops": stops_json(stops) }), select, phase);
 }
 
 /// [`set_stops`] with `keepModel`, for colors copied from existing paint (a swatch, a dropped
 /// color, a sample of the gradient) and for the Color panel's sliders, which work in the model
 /// picked there: the stops keep the color models given, in a CMYK document too.
-pub(crate) fn set_stops_keeping_models(app: &mut VectorcraftApp, stops: &[GradientStop], select: Option<usize>, phase: Live) {
+pub(crate) fn set_stops_keeping_models(app: &mut PlumaApp, stops: &[GradientStop], select: Option<usize>, phase: Live) {
     write_stops(app, json!({ "stops": stops_json(stops), "keepModel": true }), select, phase);
 }
 
 /// Edit the stops with `params` (live while dragging) and, once released, select stop `select`.
-fn write_stops(app: &mut VectorcraftApp, params: Value, select: Option<usize>, phase: Live) {
+fn write_stops(app: &mut PlumaApp, params: Value, select: Option<usize>, phase: Live) {
     edit(app, params, phase);
     if phase == Live::Released
         && let Some(i) = select
@@ -205,18 +205,18 @@ fn write_stops(app: &mut VectorcraftApp, params: Value, select: Option<usize>, p
 /// selected with the Type tool take it alone and an unpainted stroke gets its 1 pt weight. With
 /// nothing selected it sets the default. Cmd/Ctrl-click on the Gradient Fill box or on the Tools
 /// panel's Gradient button runs it.
-pub(crate) fn reset_to_linear_white_black(app: &mut VectorcraftApp) {
+pub(crate) fn reset_to_linear_white_black(app: &mut PlumaApp) {
     let cmd = if app.session.fill_active { "paint.setFill" } else { "paint.setStroke" };
     app.run(cmd, json!({ "gradient": { "kind": "linear", "stops": stops_json(&Gradient::default().stops) } })).ok();
 }
 
 /// Save the gradient as a swatch; its stops keep their color models.
-fn save_to_swatches(app: &mut VectorcraftApp, g: &GradientPaint) {
+fn save_to_swatches(app: &mut PlumaApp, g: &GradientPaint) {
     app.run("swatch.new", super::swatch_paint_params(&Paint::Gradient(Box::new(g.clone())))).ok();
 }
 
 /// The document's gradient swatches (groups included): name and gradient.
-fn gradient_swatches(app: &VectorcraftApp) -> Vec<(String, GradientPaint)> {
+fn gradient_swatches(app: &PlumaApp) -> Vec<(String, GradientPaint)> {
     let Some(st) = app.session.active() else { return vec![] };
     let d = &st.doc;
     d.swatches
@@ -231,12 +231,12 @@ fn gradient_swatches(app: &VectorcraftApp) -> Vec<(String, GradientPaint)> {
 
 /// The selected midpoint diamond: kept for the object it was picked on, and given up when a stop
 /// is selected.
-fn selected_mid(app: &VectorcraftApp, ctx: &egui::Context, stops: usize) -> Option<usize> {
+fn selected_mid(app: &PlumaApp, ctx: &egui::Context, stops: usize) -> Option<usize> {
     let (i, owner) = pstate::<Option<(usize, Option<NodeId>)>>(ctx, MID_SELECTED)?;
     (app.session.selected_stop().is_none() && i + 1 < stops && owner == first_id(app)).then_some(i)
 }
 
-fn first_id(app: &VectorcraftApp) -> Option<NodeId> {
+fn first_id(app: &PlumaApp) -> Option<NodeId> {
     app.session.active().and_then(|d| d.selection.objects.first().copied())
 }
 
@@ -255,7 +255,7 @@ enum Drag {
     Mid(usize),
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let gp = current(app);
     let is_grad = gp.is_some();
@@ -377,7 +377,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// The Method row (Illustrator 30): how a linear or radial gradient mixes the colours between its
 /// stops, Classic or Perceptual.
-fn method_row(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint, is_grad: bool) {
+fn method_row(app: &mut PlumaApp, ui: &mut Ui, g: &GradientPaint, is_grad: bool) {
     let methods = [(GradientMethod::Classic, tl!("Classic")), (GradientMethod::Perceptual, tl!("Perceptual"))];
     let current = g.gradient.method;
     let shown = methods.iter().find(|(m, _)| *m == current).map_or("", |(_, l)| *l);
@@ -397,7 +397,7 @@ fn method_row(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint, is_grad:
 /// saved ones; a choice applies to the gradient behind the active proxy, keeping its placement
 /// (`gradient.presets.apply`; a solid or no paint becomes the gradient). The menu shows the preset
 /// the gradient is, if any.
-fn presets_row(app: &mut VectorcraftApp, ui: &mut Ui, g: Option<&GradientPaint>) {
+fn presets_row(app: &mut PlumaApp, ui: &mut Ui, g: Option<&GradientPaint>) {
     let shown = g.and_then(|g| app.session.gradient_preset_name(&g.gradient)).unwrap_or_default();
     let enabled = crate::menus::enabled(app, "gradient.presets.apply");
     ui.horizontal(|ui| {
@@ -411,7 +411,7 @@ fn presets_row(app: &mut VectorcraftApp, ui: &mut Ui, g: Option<&GradientPaint>)
 
 /// The Presets menu's rows: each library's name over its presets, then the saved presets. Returns
 /// the name of the one clicked.
-fn preset_list(app: &VectorcraftApp, ui: &mut Ui, shown: &str) -> Option<String> {
+fn preset_list(app: &PlumaApp, ui: &mut Ui, shown: &str) -> Option<String> {
     let t = Tokens::get(ui.ctx());
     ui.set_min_width(200.0);
     let mut chosen = None;
@@ -454,18 +454,18 @@ fn gradient_row(ui: &mut Ui, t: &Tokens, g: &GradientPaint, name: &str, marked: 
 /// The freeform points shown: the gradient's own, else (unplaced) as many as it places, coloured
 /// along the stops.
 pub(crate) fn shown_points(g: &GradientPaint) -> std::borrow::Cow<'_, Freeform> {
-    g.freeform_on(vectorcraft_geom::Rect::new(0.0, 0.0, 1.0, 1.0))
+    g.freeform_on(pluma_geom::Rect::new(0.0, 0.0, 1.0, 1.0))
 }
 
 /// Run a `paint.freeform.*` command on the paint behind the active proxy.
-pub(crate) fn edit_point(app: &mut VectorcraftApp, cmd: &str, mut params: Value) {
+pub(crate) fn edit_point(app: &mut PlumaApp, cmd: &str, mut params: Value) {
     params["stroke"] = json!(!app.session.fill_active);
     live_run(app, "Gradient", cmd, params, Live::Released);
 }
 
 /// The freeform section: the proxy beside the Draw toggle, then the selected point's colour,
 /// opacity and spread, and Delete Point.
-fn freeform_section(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint) {
+fn freeform_section(app: &mut PlumaApp, ui: &mut Ui, g: &GradientPaint) {
     let f = shown_points(g);
     let mode = f.mode;
     ui.horizontal(|ui| {
@@ -526,7 +526,7 @@ fn freeform_section(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint) {
 
 /// The gradient thumbnail (click: apply a gradient; drag: onto art) and its menu of gradient
 /// swatches with Save to Swatches.
-fn thumbnail(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint, is_grad: bool) {
+fn thumbnail(app: &mut PlumaApp, ui: &mut Ui, g: &GradientPaint, is_grad: bool) {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::click_and_drag());
     widgets::gradient_chip(ui, r, g);
@@ -574,7 +574,7 @@ fn thumbnail(app: &mut VectorcraftApp, ui: &mut Ui, g: &GradientPaint, is_grad: 
 
 /// The selected stop's colour (click: its popover; the eyedropper samples one from the art),
 /// opacity and location (a selected diamond's midpoint instead).
-fn stop_fields(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: bool) {
+fn stop_fields(app: &mut PlumaApp, ui: &mut Ui, g: &Gradient, is_grad: bool) {
     let stops = &g.stops;
     let sel = app.session.selected_stop().filter(|i| *i < stops.len() && is_grad);
     let mid = selected_mid(app, ui.ctx(), stops.len()).filter(|_| is_grad);
@@ -586,7 +586,7 @@ fn stop_fields(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: boo
             widgets::swatch_tile(ui, r, &Paint::solid(s.color), false, resp.hovered());
             // A linked stop names its swatch and tint.
             let label = match &s.swatch {
-                Some(n) => format!("{n} {}%", vectorcraft_color::tint_percent(s.tint)),
+                Some(n) => format!("{n} {}%", pluma_color::tint_percent(s.tint)),
                 None => s.color.to_hex().to_uppercase(),
             };
             widgets::dim_name(ui, &label);
@@ -632,7 +632,7 @@ fn stop_fields(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: boo
 
 /// The ramp with Delete Stop at its right end, level with the ramp so it shows whenever the ramp
 /// does: it deletes the selected stop, never below two.
-fn ramp_row(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: bool) {
+fn ramp_row(app: &mut PlumaApp, ui: &mut Ui, g: &Gradient, is_grad: bool) {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         let w = (ui.available_width() - DELETE_STOP_SIZE).max(DELETE_STOP_SIZE * 2.0);
@@ -655,20 +655,20 @@ fn ramp_row(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: bool) 
 
 /// The stop's eyedropper: the Eyedropper tool samples the next colour clicked on the art into the
 /// selected stop, then hands back to the current tool.
-pub(crate) fn stop_eyedropper(app: &mut VectorcraftApp) {
+pub(crate) fn stop_eyedropper(app: &mut PlumaApp) {
     let back = app.session.tool_id();
     app.select_tool("eyedropper");
     app.session.set_tool_option("stop", &json!(back));
 }
 
 /// Open the stop popover for stop `i` at screen position `at`.
-fn open_popover(app: &mut VectorcraftApp, i: usize, at: Pos2) {
+fn open_popover(app: &mut PlumaApp, i: usize, at: Pos2) {
     select_stop(app, Some(i));
     show_popover(app, i, at);
 }
 
 /// The popover for the selected stop or freeform point `i`, at screen position `at`.
-fn show_popover(app: &mut VectorcraftApp, i: usize, at: Pos2) {
+fn show_popover(app: &mut PlumaApp, i: usize, at: Pos2) {
     app.ui.dialog = Some(Dialog::new("gradientStop", json!({ "index": i, "screen": [at.x, at.y], "tab": "color" })));
 }
 
@@ -708,7 +708,7 @@ fn paint_diamond(ui: &Ui, t: &Tokens, c: Pos2, lit: bool) {
 }
 
 /// A house-shaped stop marker at `(x, top)`, with a chip of the stop's colour.
-fn paint_stop(ui: &Ui, t: &Tokens, (x, top): (f32, f32), (selected, outline): (bool, Color32), color: &vectorcraft_color::Color) {
+fn paint_stop(ui: &Ui, t: &Tokens, (x, top): (f32, f32), (selected, outline): (bool, Color32), color: &pluma_color::Color) {
     let body = vec![pos2(x, top), pos2(x + 6.0, top + 5.0), pos2(x + 6.0, top + 15.0), pos2(x - 6.0, top + 15.0), pos2(x - 6.0, top + 5.0)];
     ui.painter().add(egui::Shape::convex_polygon(body, if selected { t.text_strong } else { t.icon }, Stroke::new(1.0, outline)));
     let chip = Rect::from_min_size(pos2(x - 4.0, top + 6.0), vec2(8.0, 7.0));
@@ -716,7 +716,7 @@ fn paint_stop(ui: &Ui, t: &Tokens, (x, top): (f32, f32), (selected, outline): (b
 }
 
 /// The stops after a colour swatch was dropped on the ramp `bar`, and the stop to select.
-fn dropped_swatch(app: &VectorcraftApp, ui: &Ui, g: &Gradient, area_resp: &egui::Response, bar: Rect) -> Option<(Vec<GradientStop>, usize)> {
+fn dropped_swatch(app: &PlumaApp, ui: &Ui, g: &Gradient, area_resp: &egui::Response, bar: Rect) -> Option<(Vec<GradientStop>, usize)> {
     let marker = |o: f32| Rect::from_min_size(pos2(bar.left() + o * bar.width() - 6.0, bar.bottom() + 2.0), vec2(12.0, 16.0));
     let d = area_resp.dnd_release_payload::<PanelDrag>()?;
     let c = d.color()?;
@@ -729,7 +729,7 @@ fn dropped_swatch(app: &VectorcraftApp, ui: &Ui, g: &Gradient, area_resp: &egui:
 }
 
 /// The gradient slider, `w` points wide: ramp, stops below, midpoint diamonds above.
-fn ramp(app: &mut VectorcraftApp, ui: &mut Ui, g: &Gradient, is_grad: bool, w: f32) {
+fn ramp(app: &mut PlumaApp, ui: &mut Ui, g: &Gradient, is_grad: bool, w: f32) {
     let t = Tokens::get(ui.ctx());
     let (area, area_resp) = ui.allocate_exact_size(vec2(w, 50.0), Sense::hover());
     let bar = Rect::from_min_size(area.min + vec2(8.0, 10.0), vec2(w - 16.0, 18.0));
@@ -871,7 +871,7 @@ type StopEdit = (Vec<GradientStop>, Live);
 
 /// What the ramp's gestures this frame asked for: the midpoint or stop to select, the new stops, the stop popover.
 fn apply_ramp_edit(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ui: &Ui,
     sel: Option<usize>,
     (pick_mid, select): (Option<usize>, Option<usize>),
@@ -901,7 +901,7 @@ fn apply_ramp_edit(
     }
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let g = current(app);
     let hidden: bool = pstate(ui.ctx(), HIDE_OPTIONS);
     if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {

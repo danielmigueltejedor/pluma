@@ -1,15 +1,15 @@
 use std::collections::BTreeSet;
 
 use egui::{Color32, Pos2, Shape};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::Rect;
+use pluma_engine::Session;
+use pluma_geom::Rect;
 
 use super::*;
 use crate::menus::enabled;
 
 /// An app with `n` new 400 × 300 pt documents, the last one current.
-fn app_with(n: usize) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with(n: usize) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     for _ in 0..n {
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     }
@@ -18,12 +18,12 @@ fn app_with(n: usize) -> VectorcraftApp {
 
 /// One headless frame of the canvas panel's body (the tabs and the canvas or panes) on a
 /// 1200 × 800 window → the shapes it drew, `Shape::Vec`s flattened.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<Shape> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<Shape> {
     frame_in(app, ctx, events, vec2(1200.0, 800.0))
 }
 
 /// [`frame`] on a window `size` points large.
-fn frame_in(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>, size: egui::Vec2) -> Vec<Shape> {
+fn frame_in(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>, size: egui::Vec2) -> Vec<Shape> {
     fn flat(s: Shape, out: &mut Vec<Shape>) {
         match s {
             Shape::Vec(v) => v.into_iter().for_each(|s| flat(s, out)),
@@ -44,7 +44,7 @@ fn button(pos: Pos2, pressed: bool) -> egui::Event {
 }
 
 /// The documents' indices in the panes the last frame drew, and the panes.
-fn panes(app: &VectorcraftApp) -> (Vec<usize>, Vec<egui::Rect>) {
+fn panes(app: &PlumaApp) -> (Vec<usize>, Vec<egui::Rect>) {
     app.canvas.panes.last.iter().map(|(w, r)| (w.0, *r)).unzip()
 }
 
@@ -124,7 +124,7 @@ fn a_press_in_another_pane_makes_its_document_current_without_drawing() {
     app.select_tool("rectangle");
     let pane = panes(&app).1[0];
     let (from, to) = (pane.center() - vec2(30.0, 20.0), pane.center() + vec2(30.0, 20.0));
-    let drag = |app: &mut VectorcraftApp| {
+    let drag = |app: &mut PlumaApp| {
         frame(app, &ctx, vec![egui::Event::PointerMoved(from)]);
         frame(app, &ctx, vec![button(from, true)]);
         for k in 1..=4 {
@@ -160,7 +160,7 @@ fn consolidate_all_windows_shows_one_document_again() {
 #[test]
 fn arrange_items_follow_the_open_documents() {
     let mut app = app_with(0);
-    let items = |app: &VectorcraftApp| (enabled(app, "window.arrange.tile"), enabled(app, "window.arrange.consolidateAllWindows"));
+    let items = |app: &PlumaApp| (enabled(app, "window.arrange.tile"), enabled(app, "window.arrange.consolidateAllWindows"));
     assert_eq!(items(&app), (false, false), "no document");
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     assert_eq!(items(&app), (false, false), "one document");
@@ -242,7 +242,7 @@ fn other_panes_draw_their_guides_and_selected_objects() {
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
     app.session.execute("guide.add", &json!({"vertical": true, "pos": 300})).unwrap();
     let st = &app.session.documents()[0];
-    let layer = super::c32(st.doc.layer_color(vectorcraft_doc::NodeId(id)));
+    let layer = super::c32(st.doc.layer_color(pluma_doc::NodeId(id)));
     app.run("document.activate", json!({"index": 1})).unwrap();
     app.run("window.arrange.tile", json!({})).unwrap();
     let ctx = egui::Context::default();

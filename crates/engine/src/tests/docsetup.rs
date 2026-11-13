@@ -1,9 +1,9 @@
 //! File → Document Setup (`document.setup`): validation, one undo step, round-trips, and the
 //! options other commands read (typographer's quotes, superscript/subscript, SVG text export).
 
+use pluma_doc::{CharPosition, DocSetup, ExportText, GridSize, NodeId, NodeKind, ScriptMetrics, TextObject, TextStyleDef, Unit};
+use pluma_tools::{PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::{CharPosition, DocSetup, ExportText, GridSize, NodeId, NodeKind, ScriptMetrics, TextObject, TextStyleDef, Unit};
-use vectorcraft_tools::{PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -315,10 +315,10 @@ fn a_file_with_script_proportions_out_of_range_opens_with_them_in_range() {
     }
     let mut art = d.node(id).unwrap().clone();
     art.id = NodeId(9000);
-    d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Formula".into(), art: Arc::new(art) });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Formula".into(), art: Arc::new(art) });
     if let Some(g) = d.node_mut(graph).and_then(|n| n.extras_if_any()).and_then(|e| e.graph.as_deref_mut()) {
         let position = CharPosition::Subscript(ScriptMetrics { size: 0.0, position: 1000.0 });
-        g.label_styles.legend = Some(vectorcraft_doc::CharStyle { position, small_caps: Some(0.0), ..vectorcraft_doc::CharStyle::default() });
+        g.label_styles.legend = Some(pluma_doc::CharStyle { position, small_caps: Some(0.0), ..pluma_doc::CharStyle::default() });
     }
     let original = d.pattern_edit.as_mut().and_then(|pe| pe.original.as_mut()).and_then(|p| p.art.first_mut());
     if let Some(NodeKind::Text(t)) = original.map(|a| &mut Arc::make_mut(a).kind) {
@@ -326,8 +326,8 @@ fn a_file_with_script_proportions_out_of_range_opens_with_them_in_range() {
     }
     let attrs = json!({"position": {"kind": "superscript", "size": 1000.0, "position": -1000.0}, "small_caps": 0.0, "tracking": -5000.0});
     d.char_styles.push(TextStyleDef { name: "Note".into(), attrs: attrs.as_object().unwrap().clone() });
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save_file(&d));
-    s.execute("document.open", &json!({"name": "scripts.vectorcraft", "dataBase64": data})).unwrap();
+    let data = pluma_format::base64_encode(&pluma_format::save_file(&d));
+    s.execute("document.open", &json!({"name": "scripts.pluma", "dataBase64": data})).unwrap();
     let raised = CharPosition::Superscript(ScriptMetrics { size: 1.0, position: 500.0 });
     let t = text(&s, id);
     assert_eq!((t.runs[0].style.small_caps, t.runs[1].style.small_caps), (Some(1.0), Some(200.0)));
@@ -364,7 +364,7 @@ fn setup_survives_save_and_load() {
     )
     .unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save_file(d)).unwrap();
+    let back = pluma_format::load(&pluma_format::save_file(d)).unwrap();
     assert_eq!(back.setup, d.setup);
     assert_eq!(back.setup.grid_colors_name(), "Custom");
 }
@@ -401,11 +401,11 @@ fn a_file_with_the_old_highlight_substituted_fonts_value_opens_and_keeps_it() {
     let mut s = session();
     let mut d = (*s.doc().unwrap().doc).clone();
     d.setup.highlight_substituted_fonts = false;
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save_file(&d));
-    s.execute("document.open", &json!({"name": "old.vectorcraft", "dataBase64": data})).unwrap();
+    let data = pluma_format::base64_encode(&pluma_format::save_file(&d));
+    s.execute("document.open", &json!({"name": "old.pluma", "dataBase64": data})).unwrap();
     assert!(!setup(&s).highlight_substituted_fonts);
     assert!(s.prefs.highlight_substituted_fonts, "the preference decides the screen");
-    let again = vectorcraft_format::load(&vectorcraft_format::save_file(&s.doc().unwrap().doc)).unwrap();
+    let again = pluma_format::load(&pluma_format::save_file(&s.doc().unwrap().doc)).unwrap();
     assert!(!again.setup.highlight_substituted_fonts);
     let q = s.execute("document.setup", &json!({})).unwrap();
     assert_eq!(s.execute("document.setup", &q).unwrap(), q);
@@ -422,8 +422,8 @@ fn a_file_with_setup_values_out_of_range_opens_with_them_in_range() {
     d.setup.superscript = ScriptMetrics { size: 0.0, position: f64::MAX };
     d.setup.subscript = ScriptMetrics { size: f64::MAX, position: -1000.0 };
     d.setup.small_caps_size = -5.0;
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save_file(&d));
-    s.execute("document.open", &json!({"name": "setup.vectorcraft", "dataBase64": data})).unwrap();
+    let data = pluma_format::base64_encode(&pluma_format::save_file(&d));
+    s.execute("document.open", &json!({"name": "setup.pluma", "dataBase64": data})).unwrap();
     let st = setup(&s);
     assert_eq!(st.bleed, [0.0, 72.0, 72.0, 9.0]);
     assert_eq!(st.superscript, ScriptMetrics { size: 1.0, position: 500.0 });
@@ -441,7 +441,7 @@ fn svg_text_export_follows_the_export_text_setting() {
         let mut p = p;
         p["format"] = json!("svg");
         let r = s.execute("document.export", &p).unwrap();
-        String::from_utf8(vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()).unwrap()
+        String::from_utf8(pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()).unwrap()
     };
     assert!(svg(&mut s, json!({})).contains("<text"));
     s.execute("document.setup", &json!({"exportText": "appearance"})).unwrap();
@@ -463,8 +463,8 @@ fn discard_white_overprint_keeps_white_overprints_in_overprint_preview() {
     let white = rect(&mut s, "#ffffff");
     s.execute("object.setOverprint", &json!({"fill": true, "ids": [white]})).unwrap();
     let centre = |s: &Session| {
-        let opts = vectorcraft_render::RenderOptions { background: Some([255; 4]), overprint_preview: true, ..Default::default() };
-        vectorcraft_render::Renderer::new().render(&s.doc().unwrap().doc, 40, 40, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(20, 20)
+        let opts = pluma_render::RenderOptions { background: Some([255; 4]), overprint_preview: true, ..Default::default() };
+        pluma_render::Renderer::new().render(&s.doc().unwrap().doc, 40, 40, pluma_geom::Affine::IDENTITY, &opts).pixel(20, 20)
     };
     // On by default: the white knocks out as it will print.
     assert_eq!(centre(&s), [255, 255, 255, 255]);
@@ -482,5 +482,5 @@ fn saved_flattener_presets_and_background_contents() {
     assert_eq!(setup(&s).flattener_preset, None, "the default is not stored");
     let r = s.execute("document.setup", &json!({"backgroundContents": "white"})).unwrap();
     assert_eq!(r["backgroundContents"], "white");
-    assert_eq!(setup(&s).background, vectorcraft_doc::Background::White);
+    assert_eq!(setup(&s).background, pluma_doc::Background::White);
 }

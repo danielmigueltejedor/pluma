@@ -1,10 +1,10 @@
 use super::{
-    Color, Color32, Document, Entry, GradientKind, Paint, Rect, Response, Sense, Shape, Stroke, StrokeKind, Tokens, Ui, VectorcraftApp, View, icons,
-    pos2, vec2,
+    Color, Color32, Document, Entry, GradientKind, Paint, PlumaApp, Rect, Response, Sense, Shape, Stroke, StrokeKind, Tokens, Ui, View, icons, pos2,
+    vec2,
 };
 
 /// A pattern swatch drawn as a rendered tile (cached by the definition's identity and size).
-pub(super) fn pattern_thumb(app: &VectorcraftApp, ui: &Ui, r: Rect, paint: &Paint) {
+pub(super) fn pattern_thumb(app: &PlumaApp, ui: &Ui, r: Rect, paint: &Paint) {
     if let Some(st) = app.session.active() {
         pattern_thumb_in(&st.doc, ui, r, paint);
     }
@@ -27,7 +27,7 @@ pub(super) fn pattern_thumb_in(doc: &Document, ui: &Ui, r: Rect, paint: &Paint) 
         px,
     );
     let tex = CACHE.with(|c| c.borrow().get(&key).cloned()).unwrap_or_else(|| {
-        let tex = vectorcraft_render::render_pattern_swatch(doc, pattern, px).map(|img| {
+        let tex = pluma_render::render_pattern_swatch(doc, pattern, px).map(|img| {
             let color = crate::canvas::color_image(&img);
             ui.ctx().load_texture(format!("pattern-swatch-{pattern}-{px}"), color, egui::TextureOptions::LINEAR)
         });

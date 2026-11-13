@@ -2,7 +2,7 @@ use super::*;
 use craft_ui::docking::Side;
 use serde_json::json;
 
-/// `ui.json` as VectorCraft 0.16 (8bf090b25) saved it after: Swatches moved below Layers;
+/// `ui.json` as Pluma 0.16 (8bf090b25) saved it after: Swatches moved below Layers;
 /// Color, then Stroke onto it, floated; Gradient floated with Transparency below it (a set);
 /// Align floated and collapsed; Pathfinder floated with Transform below it, the set docked as
 /// column 1; Libraries docked on the icon column; Symbols moved beside Swatches, then closed

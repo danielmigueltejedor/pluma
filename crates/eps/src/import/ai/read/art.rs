@@ -9,8 +9,8 @@ use super::{
     Affine, AnchorKind, Appearance, AppearanceItem, Arc, BezPath, CANVAS_CENTRE, FillLayer, ImageBlob, ImageObject, Inks, Instance, LinkInfo, Node,
     NodeId, NodeKind, Obj, OpacityMask, PageBox, Paint, PathData, PathEl, Point, Reader, Rect, StrokeLayer, V, ps,
 };
-use vectorcraft_doc::links::missing_placeholder;
-use vectorcraft_doc::placed_document::key_for;
+use pluma_doc::links::missing_placeholder;
+use pluma_doc::placed_document::key_for;
 
 impl<'a> Reader<'a> {
     /// A text object (`/AI11Text`): an empty group standing for it, named after its story.
@@ -78,8 +78,8 @@ impl<'a> Reader<'a> {
             return Ok(());
         }
         let target = self.space().transform_rect_bbox(art_box);
-        let opts = vectorcraft_pdf::ImportOptions { layers: false, ..Default::default() };
-        let read = match vectorcraft_pdf::import_with_report(&pdf, &opts) {
+        let opts = pluma_pdf::ImportOptions { layers: false, ..Default::default() };
+        let read = match pluma_pdf::import_with_report(&pdf, &opts) {
             Ok(r) => r,
             Err(e) => {
                 self.warn(&format!("{NON_NATIVE_ART_UNREAD} ({e})"));
@@ -87,7 +87,7 @@ impl<'a> Reader<'a> {
             }
         };
         let mut art: Vec<Node> = read.document.layers.iter().filter_map(|l| l.children()).flatten().map(|n| n.as_ref().clone()).collect();
-        let Some(bbox) = art.iter().fold(None, |acc, n| vectorcraft_geom::union_opt(acc, n.geometric_bounds())) else { return Ok(()) };
+        let Some(bbox) = art.iter().fold(None, |acc, n| pluma_geom::union_opt(acc, n.geometric_bounds())) else { return Ok(()) };
         if bbox.width() <= 0.0 || bbox.height() <= 0.0 {
             return Ok(());
         }
@@ -432,18 +432,18 @@ impl<'a> Reader<'a> {
         self.image_link = None;
         let space = self.raster.as_ref().and_then(|r| r.space.clone()).unwrap_or_default();
         let Some((m, n)) = Self::image_operands(&vals) else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let [_, _, _, _, w, h, bits, kind, alpha, _, binary, rest @ ..] = n.as_slice() else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         // ImageMask 1: the image is transparent and takes a color (version 7 specification §8.1).
         let image_mask = rest.first() == Some(&1.0);
         let (w, h) = (*w as u64, *h as u64);
         if w == 0 || h == 0 || ![1.0, 8.0].contains(bits) {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         let channels = channels(&space, *kind);
@@ -487,10 +487,10 @@ impl<'a> Reader<'a> {
         let ink = ink.map(|(paint, named)| {
             // Its colour counts toward the document's colour model, as a fill's does (Registration
             // says nothing of it).
-            let registration = matches!(&paint, Paint::Solid { swatch: Some(s), .. } if s == vectorcraft_color::swatch::REGISTRATION);
+            let registration = matches!(&paint, Paint::Solid { swatch: Some(s), .. } if s == pluma_color::swatch::REGISTRATION);
             match paint.color().filter(|_| !registration) {
-                Some(vectorcraft_color::Color::Rgb { .. }) => self.rgb_colors += 1,
-                Some(vectorcraft_color::Color::Cmyk { .. }) => self.cmyk_colors += 1,
+                Some(pluma_color::Color::Rgb { .. }) => self.rgb_colors += 1,
+                Some(pluma_color::Color::Cmyk { .. }) => self.cmyk_colors += 1,
                 _ => {}
             }
             self.spots.extend(named);
@@ -543,12 +543,12 @@ impl<'a> Reader<'a> {
             }
         }
         let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, rgba) else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let mut png = vec![];
         if img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).is_err() {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         self.add_raster(ImageBlob::new("image/png", png), None, &m, (w as u32, h as u32), None)
@@ -578,7 +578,7 @@ impl<'a> Reader<'a> {
         let mut png = vec![];
         let written = image::GrayImage::from_raw(w, h, gray).map(|img| img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png));
         if !matches!(written, Some(Ok(()))) {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         self.add_raster(ImageBlob::new("image/png", png), alpha, m, (w, h), Some(paint))
@@ -589,7 +589,7 @@ impl<'a> Reader<'a> {
     fn mask_paint(&self) -> Paint {
         match &self.gs.fill {
             p @ Paint::Solid { .. } => p.clone(),
-            _ => Paint::solid(vectorcraft_color::Color::BLACK),
+            _ => Paint::solid(pluma_color::Color::BLACK),
         }
     }
 
@@ -604,29 +604,29 @@ impl<'a> Reader<'a> {
         let path = self.image_link.take();
         let operands = Self::image_operands(&vals);
         let (Some(path), Some((m, n))) = (path, operands) else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let (&[a, b, c, d, tx, ty], &[_, _, _, _, w, h, bits, ..]) = (m.as_slice(), n.as_slice()) else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         if !(1.0..=MAX_SIDE).contains(&w) || !(1.0..=MAX_SIDE).contains(&h) || ![1.0, 8.0].contains(&bits) {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         let (w, h) = (w as u32, h as u32);
         let Some(to_doc) = self.image_space() else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let xf = to_doc * Affine::new([a, b, c, d, tx, ty]) * FLIP;
         if !xf.as_coeffs().iter().all(|v| v.is_finite()) || xf.determinant().abs() < 1e-12 {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         let Some(png) = missing_placeholder() else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         // The placeholder is all the document has of the file: what a missing link shows.
@@ -703,7 +703,7 @@ impl<'a> Reader<'a> {
             return Ok(());
         }
         let [a, b, c, d, tx, ty] = m else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let xf = self.space() * Affine::new([*a, *b, *c, *d, *tx, *ty]) * FLIP;
@@ -719,16 +719,16 @@ impl<'a> Reader<'a> {
         // downwards, (u, -v): pixels → (u, -v) → art space. Flipping the matrix's result instead
         // gives the same place only when the image isn't rotated (b = c = 0).
         let [a, b, c, d, tx, ty] = m else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let Some(to_doc) = self.image_space() else {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         };
         let xf = to_doc * Affine::new([*a, *b, *c, *d, *tx, *ty]) * FLIP;
         if !xf.as_coeffs().iter().all(|v| v.is_finite()) || xf.determinant().abs() < 1e-12 {
-            self.image_left_out("an image VectorCraft can't read was left out");
+            self.image_left_out("an image Pluma can't read was left out");
             return Ok(());
         }
         let mask = alpha.and_then(|a| self.alpha_mask(a, w, h, xf));
@@ -1064,7 +1064,7 @@ pub(super) fn relative_path(folder: &str, name: &str) -> Option<String> {
 /// placeholder): the blob's own key and the path's. Images of other files that show the same pixels
 /// have keys of their own, and reading one file's pixels in changes that file's images only.
 fn linked_key(blob: &ImageBlob, path: &str) -> String {
-    format!("{}-{}", blob.content_key(), vectorcraft_doc::links::hash_bytes(path.as_bytes()))
+    format!("{}-{}", blob.content_key(), pluma_doc::links::hash_bytes(path.as_bytes()))
 }
 
 pub(super) fn sane(r: Rect) -> bool {
@@ -1090,7 +1090,7 @@ pub(super) fn two(v: &str) -> Option<(f64, f64)> {
 /// A CMYK sample in RGB.
 fn cmyk_rgb([c, m, y, k]: [u8; 4]) -> [u8; 3] {
     let f = |v: u8| f32::from(v) / 255.0;
-    let rgb = vectorcraft_color::Color::cmyk(f(c), f(m), f(y), f(k)).to_rgba8(1.0);
+    let rgb = pluma_color::Color::cmyk(f(c), f(m), f(y), f(k)).to_rgba8(1.0);
     [rgb[0], rgb[1], rgb[2]]
 }
 

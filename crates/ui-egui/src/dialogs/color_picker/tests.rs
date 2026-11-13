@@ -1,29 +1,29 @@
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 use crate::panels::color::in_gamut;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app
 }
 
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(Default::default(), |ui| super::super::show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-fn fill_hex(app: &VectorcraftApp) -> String {
+fn fill_hex(app: &PlumaApp) -> String {
     crate::panels::current_paints(app).0.color().unwrap().to_hex()
 }
 
 /// Runs one frame of the dialog with `events` in `ctx`, which keeps the keyboard focus from
 /// frame to frame, and returns the texts drawn with their screen rects.
-fn frame_in(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+fn frame_in(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
     let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
     out.textures_delta.clear();
     fn collect(s: &egui::Shape, out: &mut Vec<(String, Rect)>) {
@@ -111,7 +111,7 @@ fn gamut_correction_gives_a_printable_colour() {
 #[test]
 fn the_selection_shows_the_colour_live() {
     let mut app = app();
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let before = undo(&app);
     app.run("ui.colorPicker", json!({})).unwrap();
     frame(&mut app);
@@ -143,8 +143,8 @@ fn an_artboard_shows_its_background_color_live() {
     let mut app = app();
     app.run("select.set", json!({"ids": []})).unwrap();
     app.run("artboard.new", json!({})).unwrap();
-    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let color = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let art = app.session.doc().unwrap().doc.layers.clone();
     let before = undo(&app);
     app.run("ui.colorPicker", json!({"artboard": 1})).unwrap();
@@ -179,8 +179,8 @@ fn an_artboard_shows_its_background_color_live() {
 fn an_untouched_picker_leaves_an_artboard_without_a_color() {
     let mut app = app();
     app.run("artboard.new", json!({})).unwrap();
-    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let color = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let before = undo(&app);
     app.run("ui.colorPicker", json!({"artboard": 1})).unwrap();
     frame(&mut app);
@@ -203,8 +203,8 @@ fn an_untouched_picker_keeps_an_artboards_rgb_color_in_a_cmyk_document() {
     app.run("artboard.new", json!({})).unwrap();
     app.run("file.documentColorMode", json!({"mode": "cmyk"})).unwrap();
     app.run("artboard.setProps", json!({"index": 1, "color": "#ff0000"})).unwrap();
-    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[1].color;
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let color = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards[1].color;
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let start = color(&app);
     assert!(matches!(start, Some(Color::Rgb { .. })), "set as RGB");
     let before = undo(&app);
@@ -229,8 +229,8 @@ fn an_untouched_picker_adds_no_undo_step_for_an_artboards_color() {
     let mut app = app();
     app.run("artboard.new", json!({})).unwrap();
     app.run("artboard.setProps", json!({"index": 1, "color": "#ff0000"})).unwrap();
-    let color = |app: &VectorcraftApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
-    let undo = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let color = |app: &PlumaApp| app.session.doc().unwrap().doc.artboards[1].color.map(|c| c.to_hex());
+    let undo = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let before = undo(&app);
     app.run("ui.colorPicker", json!({"artboard": 1})).unwrap();
     frame(&mut app);
@@ -280,7 +280,7 @@ fn open_set_hex_and_confirm_fills() {
 #[test]
 fn ok_makes_the_picked_color_the_color_guides_base() {
     let mut app = app();
-    let base = |app: &VectorcraftApp| crate::panels::color_guide::base_color(app).to_hex();
+    let base = |app: &PlumaApp| crate::panels::color_guide::base_color(app).to_hex();
     app.ui.color_guide_base = Some(Color::WHITE);
     app.run("ui.colorPicker", json!({})).unwrap();
     app.ui.dialog.as_mut().unwrap().fields.insert("hex".into(), json!("2050a0"));
@@ -394,7 +394,7 @@ impl Drawn {
 
 /// Runs a dialog frame with real egui input at a physical window size, accounting for UI zoom,
 /// and returns the painted controls for layout and interaction assertions.
-fn draw(ctx: &egui::Context, app: &mut VectorcraftApp, size: egui::Vec2, events: Vec<egui::Event>) -> Drawn {
+fn draw(ctx: &egui::Context, app: &mut PlumaApp, size: egui::Vec2, events: Vec<egui::Event>) -> Drawn {
     let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, size / ctx.zoom_factor())), events, ..Default::default() };
     let mut out = ctx.run_ui(input, |ui| {
         crate::shortcuts::handle(app, ui.ctx());
@@ -414,7 +414,7 @@ fn screen() -> egui::Vec2 {
 }
 
 /// Lets the auto-sized dialog settle over six frames and returns the next frame's controls.
-fn settled(ctx: &egui::Context, app: &mut VectorcraftApp, size: egui::Vec2) -> Drawn {
+fn settled(ctx: &egui::Context, app: &mut PlumaApp, size: egui::Vec2) -> Drawn {
     for _ in 0..6 {
         draw(ctx, app, size, vec![]);
     }
@@ -430,7 +430,7 @@ fn context() -> egui::Context {
 }
 
 /// Sends a primary pointer press and release in separate frames at the given position.
-fn click_at(ctx: &egui::Context, app: &mut VectorcraftApp, at: egui::Pos2) {
+fn click_at(ctx: &egui::Context, app: &mut PlumaApp, at: egui::Pos2) {
     for pressed in [true, false] {
         draw(
             ctx,

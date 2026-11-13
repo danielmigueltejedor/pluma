@@ -10,12 +10,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pluma_color::Color;
+use pluma_doc::Effect;
+use pluma_geom::{Affine, Vec2};
 use serde_json::json;
 use usvg::filter::{ColorInterpolation, ColorMatrixKind, CompositeOperator, Filter, Input, Kind, MorphologyOperator, TransferFunction};
 use usvg::roxmltree;
-use vectorcraft_color::Color;
-use vectorcraft_doc::Effect;
-use vectorcraft_geom::{Affine, Vec2};
 
 /// Attribute our export writes on the filter of a shadow or glow whose blend mode isn't normal
 /// (filters composite normally; the mode comes back on import).
@@ -35,7 +35,7 @@ pub(super) fn blends(xml: &roxmltree::Document, markers: &str) -> HashMap<String
 
 /// A `<filter>` element as written ([`sources`]): its XML, its primitives' element names and its
 /// place among the filters in document order, and whether it looks different outside the document
-/// ([`vectorcraft_effects::svg_filter::depends_on_styles`]). Its check and its primitives as usvg
+/// ([`pluma_effects::svg_filter::depends_on_styles`]). Its check and its primitives as usvg
 /// reads them are worked out once, when first asked for.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Source {
@@ -48,14 +48,14 @@ pub(crate) struct Source {
 }
 
 impl Source {
-    /// The filter's name when [`vectorcraft_effects::svg_filter::check`] takes it.
+    /// The filter's name when [`pluma_effects::svg_filter::check`] takes it.
     fn name(&self) -> Option<&String> {
-        self.name.get_or_init(|| vectorcraft_effects::svg_filter::check(&self.xml).ok()).as_ref()
+        self.name.get_or_init(|| pluma_effects::svg_filter::check(&self.xml).ok()).as_ref()
     }
 
-    /// Its primitives as usvg reads them ([`vectorcraft_effects::svg_filter::primitive_forms`]).
+    /// Its primitives as usvg reads them ([`pluma_effects::svg_filter::primitive_forms`]).
     fn forms(&self) -> Option<&Vec<String>> {
-        self.forms.get_or_init(|| vectorcraft_effects::svg_filter::primitive_forms(&self.xml)).as_ref()
+        self.forms.get_or_init(|| pluma_effects::svg_filter::primitive_forms(&self.xml)).as_ref()
     }
 }
 
@@ -67,15 +67,15 @@ pub(super) fn sources(xml: &roxmltree::Document, markers: &str) -> HashMap<Strin
         return HashMap::new();
     }
     let text = xml.input_text();
-    let styles = vectorcraft_effects::svg_filter::Styles::of(xml);
+    let styles = pluma_effects::svg_filter::Styles::of(xml);
     xml.descendants()
         .filter(|n| n.has_tag_name((super::SVG_NS, "filter")))
         .enumerate()
         .filter_map(|(order, n)| {
             let id = n.attribute("id")?.to_string();
             let primitives = n.children().filter(roxmltree::Node::is_element).map(|p| p.tag_name().name().to_string()).collect();
-            let xml = vectorcraft_effects::svg_filter::element_xml(n, text)?;
-            let styled = vectorcraft_effects::svg_filter::depends_on_styles(n, &styles);
+            let xml = pluma_effects::svg_filter::element_xml(n, text)?;
+            let styled = pluma_effects::svg_filter::depends_on_styles(n, &styles);
             Some((id, Source { xml, primitives, order, styled, ..Default::default() }))
         })
         .collect()
@@ -93,7 +93,7 @@ fn element_name(k: &Kind) -> String {
 /// first of them in document order is taken. usvg's tree doesn't say which `<filter>` an element
 /// named, so other sources with the same primitives leave the filter without a source.
 fn source_of<'a>(filter: &Filter, sources: &'a HashMap<String, Source>) -> Option<&'a Source> {
-    use vectorcraft_effects::svg_filter::with_id;
+    use pluma_effects::svg_filter::with_id;
     if let Some(s) = sources.get(filter.id()) {
         return Some(s);
     }
@@ -112,7 +112,7 @@ fn source_of<'a>(filter: &Filter, sources: &'a HashMap<String, Source>) -> Optio
 /// `filters` (in the order they apply) as Effect › SVG Filters effects, each holding its filter's
 /// XML from `sources` ([`sources`]), in user space mapped to the document by `ts`. `None` when one
 /// isn't there, looks different outside the document, or isn't a filter the effect draws
-/// ([`vectorcraft_effects::svg_filter::check`]), or
+/// ([`pluma_effects::svg_filter::check`]), or
 /// when `ts` turns or skews the user space or scales it past what the effect measures (0.001 to
 /// 1000 points to a unit). Where `ts` moves the user space is the effect's `origin`.
 pub(super) fn kept(filters: &[Arc<Filter>], ts: Affine, sources: &HashMap<String, Source>) -> Option<Vec<Effect>> {
@@ -126,7 +126,7 @@ pub(super) fn kept(filters: &[Arc<Filter>], ts: Affine, sources: &HashMap<String
             // A filter styled by the document is left out rather than drawn differently.
             let source = source_of(filter, sources).filter(|s| !s.styled)?;
             let params = json!({ "name": source.name()?, "xml": source.xml, "scale": a, "origin": [e, f] });
-            Some(Effect { id: vectorcraft_effects::SVG_FILTER.into(), params, visible: true })
+            Some(Effect { id: pluma_effects::SVG_FILTER.into(), params, visible: true })
         })
         .collect()
 }

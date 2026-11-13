@@ -5,7 +5,7 @@
 //!
 //! System clipboard: the copied objects as SVG markup (what other apps paste), and SVG markup from
 //! other apps turned into clipboard objects (pasted with the Paste commands). The UI owns the
-//! platform clipboard; these commands only convert. Within VectorCraft the internal clipboard stays
+//! platform clipboard; these commands only convert. Within Pluma the internal clipboard stays
 //! lossless (live effects, masks, symbols); SVG is the outside format, with PNG, PDF and plain
 //! text besides it (see `flavours`).
 
@@ -16,11 +16,11 @@ mod table;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use pluma_brush::Brush;
+use pluma_color::Swatch;
+use pluma_doc::{Document, GraphicStyle, ImageBlob, Node, NodeId, NodeKind, PatternDef, Selection, Symbol, TextStyleDef};
+use pluma_geom::{PathData, Rect};
 use serde_json::{Value, json};
-use vectorcraft_brush::Brush;
-use vectorcraft_color::Swatch;
-use vectorcraft_doc::{Document, GraphicStyle, ImageBlob, Node, NodeId, NodeKind, PatternDef, Selection, Symbol, TextStyleDef};
-use vectorcraft_geom::{PathData, Rect};
 
 pub use flavours::{AI, BITMAP, EMF, EPS, FILE_HEAD, Flavour, PASTE_ORDER, PDF, PNG, SVG, TEXT, file_flavour, is_address, names_a_picture};
 pub use flavours::{ImageRead, read_image};
@@ -95,15 +95,15 @@ pub struct Clipboard {
     pub source_doc: Option<u64>,
     /// The artboards copied with the Artboard tool (`artboard.copy`); `nodes` are then their art.
     /// Pasting adds a copy of each with the art.
-    pub artboards: Vec<vectorcraft_doc::Artboard>,
+    pub artboards: Vec<pluma_doc::Artboard>,
     /// The selected ruler guides copied with (or without) the objects (#3226), as canvas guides on
     /// no layer: pasting puts them on the layer new art goes to, moved as the objects are.
-    pub guides: Vec<vectorcraft_doc::Guide>,
+    pub guides: Vec<pluma_doc::Guide>,
 }
 
 /// Indices of segments selected on `sp` (either explicitly or via incident anchors).
 pub(crate) fn subpath_selected_segments(
-    sp: &vectorcraft_geom::SubPath,
+    sp: &pluma_geom::SubPath,
     si: usize,
     seg_refs: Option<&BTreeSet<(usize, usize)>>,
     anchor_refs: Option<&BTreeSet<(usize, usize)>>,
@@ -215,7 +215,7 @@ impl Clipboard {
         self.nodes.is_empty() && self.artboards.is_empty() && self.guides.is_empty()
     }
 
-    /// Does it hold art (objects or artboards) for other apps? Ruler guides stay in VectorCraft:
+    /// Does it hold art (objects or artboards) for other apps? Ruler guides stay in Pluma:
     /// a Copy of guides alone empties the system clipboard (#3226).
     pub fn has_art(&self) -> bool {
         !self.nodes.is_empty() || !self.artboards.is_empty()
@@ -305,7 +305,7 @@ impl Clipboard {
         d.char_styles = self.char_styles.clone().into();
         d.para_styles = self.para_styles.clone().into();
         if !self.brushes.is_empty() {
-            let mut lib = vectorcraft_brush::library(&d);
+            let mut lib = pluma_brush::library(&d);
             // Each brush's place in the library by name: finding it by scanning the growing list
             // made a library of N brushes cost N² comparisons.
             let mut at: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -321,7 +321,7 @@ impl Clipboard {
                     }
                 }
             }
-            vectorcraft_brush::store(&mut d, &lib);
+            pluma_brush::store(&mut d, &lib);
         }
         // The layer's id is above every copied object's, so the document saves and reopens as
         // a native file.
@@ -329,7 +329,7 @@ impl Clipboard {
         for n in &self.nodes {
             n.walk(&mut |c| top = top.max(c.id.0));
         }
-        let mut layer = Node::layer(NodeId(top.saturating_add(1)), "Clipboard", vectorcraft_doc::LayerColor::Preset(0));
+        let mut layer = Node::layer(NodeId(top.saturating_add(1)), "Clipboard", pluma_doc::LayerColor::Preset(0));
         if let Some(ch) = layer.children_mut() {
             *ch = self.nodes.iter().cloned().map(Arc::new).collect();
         }
@@ -346,9 +346,9 @@ impl Clipboard {
         let d = self.to_document();
         // SVG has no filters for the Photoshop-style effects: their objects go in as images.
         let flat = super::rasterfx::flatten_pixel_effects(&d);
-        Some(vectorcraft_svg::export(
+        Some(pluma_svg::export(
             flat.as_ref().unwrap_or(&d),
-            &vectorcraft_svg::ExportOptions { artboard: None, object_ids: vectorcraft_svg::ObjectIds::Minimal, ..Default::default() },
+            &pluma_svg::ExportOptions { artboard: None, object_ids: pluma_svg::ObjectIds::Minimal, ..Default::default() },
         ))
     }
 }
@@ -369,8 +369,8 @@ fn import_svg(s: &mut Session, p: &Value) -> Result<Value> {
     let svg = match (str_param(p, "svg"), str_param(p, "dataBase64")) {
         (Some(svg), _) => std::borrow::Cow::Borrowed(svg),
         (None, Some(b64)) => {
-            let bytes = vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(C, "bad base64"))?;
-            vectorcraft_svg::text_of(&bytes).map_err(|e| bad(C, e.to_string()))?.into_owned().into()
+            let bytes = pluma_format::base64_decode(b64).ok_or_else(|| bad(C, "bad base64"))?;
+            pluma_svg::text_of(&bytes).map_err(|e| bad(C, e.to_string()))?.into_owned().into()
         }
         (None, None) => return Err(bad(C, "give svg, or dataBase64 of an SVG or SVGZ file")),
     };
@@ -450,7 +450,7 @@ mod tests {
         s.execute("edit.copy", &json!({})).unwrap();
         let svg = s.execute("clipboard.exportSvg", &json!({})).unwrap()["svg"].as_str().unwrap().to_string();
         assert!(looks_like_svg(&svg) && svg.contains("#12ab34"), "{svg}");
-        // As if pasted into another VectorCraft window.
+        // As if pasted into another Pluma window.
         let mut t = session();
         assert_eq!(t.execute("clipboard.importSvg", &json!({"svg": svg, "center": [200, 150]})).unwrap()["count"], 1);
         t.execute("edit.pasteInPlace", &json!({})).unwrap();
@@ -470,9 +470,9 @@ mod tests {
         s.execute("edit.paste", &json!({})).unwrap();
         let mut checked = 0;
         s.doc().unwrap().doc.walk(|n| {
-            let vectorcraft_doc::NodeKind::Text(t) = &n.kind else { return };
+            let pluma_doc::NodeKind::Text(t) = &n.kind else { return };
             let cached = t.cached_bounds.expect("pasted type computed its bounds");
-            let real = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).bounds;
+            let real = pluma_text::layout(pluma_text::FontDb::global(), t).bounds;
             assert!((cached.width() - real.width()).abs() < 1e-6, "{cached:?} {real:?}");
             assert!(cached.width() > t.estimate_bounds().width() + 1.0, "{cached:?} is just the estimate");
             checked += 1;
@@ -496,7 +496,7 @@ mod tests {
         s.execute("edit.paste", &json!({})).unwrap();
         let d = &s.doc().unwrap().doc;
         let compound = d.node(NodeId(c)).unwrap();
-        assert!(compound.children().unwrap().iter().all(|ch| matches!(ch.kind, vectorcraft_doc::NodeKind::Path { .. })));
+        assert!(compound.children().unwrap().iter().all(|ch| matches!(ch.kind, pluma_doc::NodeKind::Path { .. })));
     }
 
     #[test]

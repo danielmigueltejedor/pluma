@@ -4,8 +4,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use kurbo::{CubicBez, ParamCurve, PathSeg, Point, Rect, Vec2};
-use vectorcraft_geom::path::measured_arclen;
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, SubPath};
+use pluma_geom::path::measured_arclen;
+use pluma_geom::{Anchor, AnchorKind, PathData, SubPath};
 
 use crate::boolean::{Seg, segs_to_subpath};
 use crate::fit::{end_tangent, fit_cubics, fit_single, fit_single_from, is_straight, largest_second_difference, sample, start_tangent, unit};
@@ -547,7 +547,7 @@ pub fn smooth(path: &PathData, amount: f64) -> PathData {
 }
 
 /// The Smooth slider's level Auto-Smooth picks, halfway between minimum and maximum smoothing.
-/// VectorCraft's own rule: the help page says only that Auto-Smooth smooths the path automatically
+/// Pluma's own rule: the help page says only that Auto-Smooth smooths the path automatically
 /// (https://helpx.adobe.com/illustrator/desktop/draw-shapes-and-paths/modify-paths/refine-path-segments-with-the-smooth-slider.html).
 /// [`smooth_level`] already scales with each path's size, so one level suits every path.
 pub const SMOOTH_AUTO_LEVEL: f64 = 50.0;
@@ -571,7 +571,7 @@ pub fn smooth_options(path: &PathData, level: f64) -> SimplifyOptions {
 
 /// Object › Path › Smooth at slider level `level`, from 0 (minimum smoothing: the path stays within
 /// 0.1 % of its longer side of where it was) to 100 (maximum). The help page names only the two
-/// ends; the rest is VectorCraft's own rule ([`smooth_options`]). Each subpath is smoothed along its
+/// ends; the rest is Pluma's own rule ([`smooth_options`]). Each subpath is smoothed along its
 /// length, so that bumps and jags give way to one curve, then refitted with curves as Simplify
 /// does, keeping a corner only where the path turns back on itself. A refit never has more anchor
 /// points than the subpath had: a shape whose corners it can't round, such as a rectangle, stays as

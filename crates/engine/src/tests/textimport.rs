@@ -1,9 +1,9 @@
 //! File → Place of a text file (Text Import Options), an RTF file or a Word document: the text set
 //! as area type.
 
+use pluma_doc::{NodeKind, TextKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, TextKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -14,7 +14,7 @@ fn session() -> Session {
 }
 
 fn place_text(s: &mut Session, text: &[u8], extra: Value) -> Value {
-    let mut p = json!({"name": "notes.txt", "dataBase64": vectorcraft_format::base64_encode(text)});
+    let mut p = json!({"name": "notes.txt", "dataBase64": pluma_format::base64_encode(text)});
     if let (Some(o), Value::Object(e)) = (p.as_object_mut(), extra) {
         o.extend(e);
     }
@@ -71,7 +71,7 @@ fn type_placed_on_an_artboard_edge_takes_that_artboards_frame() {
 #[test]
 fn text_files_report_and_queue_with_their_options() {
     let mut s = session();
-    let file = json!({"name": "a.txt", "dataBase64": vectorcraft_format::base64_encode(b"caf\xe9")});
+    let file = json!({"name": "a.txt", "dataBase64": pluma_format::base64_encode(b"caf\xe9")});
     let info = s.execute("file.place.info", &file).unwrap();
     assert_eq!((info["format"].as_str(), info["width"].as_f64(), info["height"].as_f64()), (Some("txt"), Some(468.0), Some(648.0)));
     // Not UTF-8: read as Windows-1252, or Mac Roman for a Mac file.
@@ -82,7 +82,7 @@ fn text_files_report_and_queue_with_their_options() {
     assert_eq!(s.tool_options()["name"], "a.txt");
     let bad = json!({"name": "a.txt", "dataBase64": "YQ==", "text": {"platform": "beos"}});
     assert!(s.execute("file.place", &bad).is_err());
-    let blank = json!({"name": "blank.txt", "dataBase64": vectorcraft_format::base64_encode(b" \r\n\t\r\n")});
+    let blank = json!({"name": "blank.txt", "dataBase64": pluma_format::base64_encode(b" \r\n\t\r\n")});
     assert!(s.execute("file.place", &blank).is_err(), "no text to place");
     // Replace: the frame takes the replaced object's bounds.
     s.execute("shape.rectangle", &json!({"x": 50, "y": 60, "width": 80, "height": 40})).unwrap();
@@ -108,7 +108,7 @@ const LETTER_RTF: &str = concat!(
 fn rtf_places_as_area_type_with_its_character_and_paragraph_formatting() {
     let mut s = session();
     s.execute("document.setup", &json!({"superscript": {"size": 50, "position": 40}})).unwrap();
-    let r = s.execute("file.place", &json!({"name": "letter.rtf", "dataBase64": vectorcraft_format::base64_encode(LETTER_RTF.as_bytes())})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "letter.rtf", "dataBase64": pluma_format::base64_encode(LETTER_RTF.as_bytes())})).unwrap();
     assert_eq!((r["format"].as_str(), r["name"].as_str()), (Some("rtf"), Some("letter.rtf")));
     let (body, frame) = placed(&s, &r);
     assert_eq!(body, "Plain and bold words2.\nCentered café");
@@ -128,17 +128,17 @@ fn rtf_places_as_area_type_with_its_character_and_paragraph_formatting() {
             ("café", "Arial", "Italic", 18.0),
         ]
     );
-    let superscript = vectorcraft_doc::ScriptMetrics { size: 50.0, position: 40.0 };
-    assert_eq!(t.runs[3].style.position, vectorcraft_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
-    let red = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(255, 0, 0));
+    let superscript = pluma_doc::ScriptMetrics { size: 50.0, position: 40.0 };
+    assert_eq!(t.runs[3].style.position, pluma_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
+    let red = pluma_color::Paint::solid(pluma_color::Color::rgb8(255, 0, 0));
     assert_eq!((t.runs[0].style.fill == red, t.runs[5].style.fill == red, t.runs[6].style.fill == red), (false, true, true));
     let paras = t.paragraph_styles();
     let summary: Vec<_> = paras.iter().map(|p| (p.justify, p.left_indent, p.space_after)).collect();
-    assert_eq!(summary, [(vectorcraft_doc::Justify::Left, 0.0, 0.0), (vectorcraft_doc::Justify::Center, 36.0, 12.0)]);
+    assert_eq!(summary, [(pluma_doc::Justify::Left, 0.0, 0.0), (pluma_doc::Justify::Center, 36.0, 12.0)]);
     let st = s.doc().unwrap();
     assert_eq!((st.history.undo.len(), st.selection.objects.len()), (2, 1), "Document Setup and Place, each one undo step");
     // Info and the place cursor report it as RTF.
-    let file = json!({"name": "letter.rtf", "dataBase64": vectorcraft_format::base64_encode(LETTER_RTF.as_bytes())});
+    let file = json!({"name": "letter.rtf", "dataBase64": pluma_format::base64_encode(LETTER_RTF.as_bytes())});
     let info = s.execute("file.place.info", &file).unwrap();
     assert_eq!((info["format"].as_str(), info["width"].as_f64()), (Some("rtf"), Some(468.0)));
     let q = s.execute("file.place.queue", &json!({"files": [file]})).unwrap();
@@ -148,9 +148,8 @@ fn rtf_places_as_area_type_with_its_character_and_paragraph_formatting() {
 #[test]
 fn malformed_rtf_fails_cleanly() {
     let mut s = session();
-    let place = |s: &mut Session, name: &str, bytes: &[u8]| {
-        s.execute("file.place", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}))
-    };
+    let place =
+        |s: &mut Session, name: &str, bytes: &[u8]| s.execute("file.place", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)}));
     assert!(place(&mut s, "a.rtf", b"Plain words, not RTF").is_err(), "an .rtf file that isn't RTF");
     assert!(place(&mut s, "a.rtf", br"{\rtf1{\fonttbl{\f0 Arial;}}\par\par }").is_err(), "no text to place");
     assert!(place(&mut s, "a.rtf", br"{\rtf1 {\pict\bin999999 ").is_err(), "binary data past the end of the file");
@@ -261,7 +260,7 @@ fn docx_places_as_area_type_with_its_styles_and_formatting() {
     );
     let mut s = session();
     s.execute("document.setup", &json!({"superscript": {"size": 50, "position": 40}})).unwrap();
-    let file = json!({"name": "report.docx", "dataBase64": vectorcraft_format::base64_encode(&docx(body, STYLES))});
+    let file = json!({"name": "report.docx", "dataBase64": pluma_format::base64_encode(&docx(body, STYLES))});
     let r = s.execute("file.place", &file).unwrap();
     assert_eq!((r["format"].as_str(), r["name"].as_str()), (Some("docx"), Some("report.docx")));
     let (text, frame) = placed(&s, &r);
@@ -283,16 +282,16 @@ fn docx_places_as_area_type_with_its_styles_and_formatting() {
             (" page 7", "Georgia", "Regular", 11.0),
         ]
     );
-    let navy = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(0x1F, 0x38, 0x64));
+    let navy = pluma_color::Paint::solid(pluma_color::Color::rgb8(0x1F, 0x38, 0x64));
     assert_eq!((t.runs[0].style.fill == navy, t.runs[1].style.fill == navy, t.runs[3].style.fill == navy), (true, true, false));
     assert_eq!((t.runs[3].style.underline, t.runs[4].style.underline), (false, true));
     let caps: Vec<_> = t.runs.iter().map(|r| r.style.all_caps).collect();
     assert_eq!(caps, [true, false, false, true, true, true, true], "runs without a character style take the default one");
-    let superscript = vectorcraft_doc::ScriptMetrics { size: 50.0, position: 40.0 };
-    assert_eq!(t.runs[5].style.position, vectorcraft_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
+    let superscript = pluma_doc::ScriptMetrics { size: 50.0, position: 40.0 };
+    assert_eq!(t.runs[5].style.position, pluma_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
     let paras = t.paragraph_styles();
     let summary: Vec<_> = paras.iter().map(|p| (p.justify, p.left_indent, p.first_line_indent, p.space_before, p.space_after)).collect();
-    assert_eq!(summary, [(vectorcraft_doc::Justify::Center, 0.0, 0.0, 12.0, 0.0), (vectorcraft_doc::Justify::JustifyLeft, 36.0, -18.0, 0.0, 8.0)]);
+    assert_eq!(summary, [(pluma_doc::Justify::Center, 0.0, 0.0, 12.0, 0.0), (pluma_doc::Justify::JustifyLeft, 36.0, -18.0, 0.0, 8.0)]);
     let st = s.doc().unwrap();
     assert_eq!((st.history.undo.len(), st.selection.objects.len()), (2, 1), "Document Setup and Place, each one undo step");
     // Info and the place cursor report it as a Word document.
@@ -316,7 +315,7 @@ fn docx_double_strikethrough_is_not_a_toggle_property() {
         r#"<w:r><w:rPr><w:rStyle w:val="AlsoStruck"/><w:dstrike w:val="0"/></w:rPr><w:t>three</w:t></w:r></w:p>"#,
     );
     let mut s = session();
-    let r = s.execute("file.place", &json!({"name": "struck.docx", "dataBase64": vectorcraft_format::base64_encode(&docx(body, styles))})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "struck.docx", "dataBase64": pluma_format::base64_encode(&docx(body, styles))})).unwrap();
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
     let struck: Vec<_> = t.runs.iter().map(|r| (r.text.as_str(), r.style.strikethrough)).collect();
@@ -347,7 +346,7 @@ fn docx_tables_breaks_and_fields_place_as_paragraphs_and_tabs() {
     zip[length..].copy_from_slice(&(comment.len() as u16).to_le_bytes());
     zip.extend(comment);
     let mut s = session();
-    let r = s.execute("file.place", &json!({"name": "notes.bin", "dataBase64": vectorcraft_format::base64_encode(&zip)})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "notes.bin", "dataBase64": pluma_format::base64_encode(&zip)})).unwrap();
     assert_eq!(r["format"].as_str(), Some("docx"));
     assert_eq!(
         placed(&s, &r).0,
@@ -357,19 +356,19 @@ fn docx_tables_breaks_and_fields_place_as_paragraphs_and_tabs() {
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
     let paras = t.paragraph_styles();
-    assert_eq!(paras[paras.len() - 2].justify, vectorcraft_doc::Justify::JustifyRight, "the last line of right-to-left justified text at the right");
+    assert_eq!(paras[paras.len() - 2].justify, pluma_doc::Justify::JustifyRight, "the last line of right-to-left justified text at the right");
     let last = paras.last().cloned().unwrap();
     // The start indent of a right-to-left paragraph is its right indent.
     assert_eq!(
         (last.justify, last.left_indent, last.right_indent, last.direction),
-        (vectorcraft_doc::Justify::Left, 0.0, 20.0, Some(vectorcraft_doc::ParaDirection::RightToLeft))
+        (pluma_doc::Justify::Left, 0.0, 20.0, Some(pluma_doc::ParaDirection::RightToLeft))
     );
 }
 
 #[test]
 fn docx_kashida_justification_places_with_insert_kashidas() {
-    use vectorcraft_doc::Justify;
-    use vectorcraft_doc::text::Kashida;
+    use pluma_doc::Justify;
+    use pluma_doc::text::Kashida;
     // The document holds right-to-left paragraphs justified with each kashida length and with `both`, a paragraph style
     // that sets `mediumKashida`, that style under direct formatting, and a left-to-right paragraph.
     let styles = r#"<w:style w:type="paragraph" w:styleId="Kashidas"><w:pPr><w:bidi/><w:jc w:val="mediumKashida"/></w:pPr></w:style>"#;
@@ -387,7 +386,7 @@ fn docx_kashida_justification_places_with_insert_kashidas() {
     .map(para)
     .concat();
     let mut s = session();
-    let r = s.execute("file.place", &json!({"name": "kashida.docx", "dataBase64": vectorcraft_format::base64_encode(&docx(&body, styles))})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "kashida.docx", "dataBase64": pluma_format::base64_encode(&docx(&body, styles))})).unwrap();
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
     let paras: Vec<_> = t.paragraph_styles().iter().map(|p| (p.justify, p.kashida)).collect();
@@ -411,7 +410,7 @@ fn docx_kashida_justification_places_with_insert_kashidas() {
 fn malformed_docx_fails_cleanly() {
     let mut s = session();
     let place = |s: &mut Session, name: &str, bytes: &[u8]| {
-        s.execute("file.place", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).map_err(|e| e.to_string())
+        s.execute("file.place", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).map_err(|e| e.to_string())
     };
     let store = |files: &[(&str, &[u8])]| cmd::fileio::zip::store(files).unwrap();
     let document = |body: &str| format!(r#"<w:document xmlns:w="{W_NS}"><w:body>{body}</w:body></w:document>"#);
@@ -419,7 +418,7 @@ fn malformed_docx_fails_cleanly() {
     let e = place(&mut s, "a.docx", &store(&[("readme.txt", b"x")])).unwrap_err();
     assert!(e.contains("no main document part"), "{e}");
     let e = place(&mut s, "a.zip", &store(&[("readme.txt", b"x")])).unwrap_err();
-    assert!(e.contains("not a format VectorCraft reads"), "a ZIP archive of something else isn't read as a Word document: {e}");
+    assert!(e.contains("not a format Pluma reads"), "a ZIP archive of something else isn't read as a Word document: {e}");
     let sheet = r#"<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>"#;
     let e = place(&mut s, "a.docx", &store(&[("word/document.xml", sheet.as_bytes())])).unwrap_err();
     assert!(e.contains("not a WordprocessingML document"), "{e}");
@@ -712,7 +711,7 @@ fn doc_places_as_area_type_with_its_styles_and_formatting() {
     };
     let mut s = session();
     s.execute("document.setup", &json!({"superscript": {"size": 50, "position": 40}})).unwrap();
-    let file = json!({"name": "report.doc", "dataBase64": vectorcraft_format::base64_encode(&doc.build())});
+    let file = json!({"name": "report.doc", "dataBase64": pluma_format::base64_encode(&doc.build())});
     let r = s.execute("file.place", &file).unwrap();
     assert_eq!((r["format"].as_str(), r["name"].as_str()), (Some("doc"), Some("report.doc")));
     let (text, frame) = placed(&s, &r);
@@ -733,14 +732,14 @@ fn doc_places_as_area_type_with_its_styles_and_formatting() {
             (" café ✓ 7", "Times New Roman", "Regular", 11.0),
         ]
     );
-    let navy = vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb8(0x1F, 0x38, 0x64));
+    let navy = pluma_color::Paint::solid(pluma_color::Color::rgb8(0x1F, 0x38, 0x64));
     assert_eq!((t.runs[0].style.fill == navy, t.runs[1].style.fill == navy, t.runs[3].style.fill == navy), (true, true, false));
     assert_eq!((t.runs[3].style.underline, t.runs[4].style.underline), (false, true));
-    let superscript = vectorcraft_doc::ScriptMetrics { size: 50.0, position: 40.0 };
-    assert_eq!(t.runs[5].style.position, vectorcraft_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
+    let superscript = pluma_doc::ScriptMetrics { size: 50.0, position: 40.0 };
+    assert_eq!(t.runs[5].style.position, pluma_doc::CharPosition::Superscript(superscript), "in Document Setup's proportions");
     let paras = t.paragraph_styles();
     let summary: Vec<_> = paras.iter().map(|p| (p.justify, p.left_indent, p.first_line_indent, p.space_before, p.space_after)).collect();
-    assert_eq!(summary, [(vectorcraft_doc::Justify::Center, 0.0, 0.0, 12.0, 0.0), (vectorcraft_doc::Justify::JustifyLeft, 36.0, -18.0, 0.0, 8.0)]);
+    assert_eq!(summary, [(pluma_doc::Justify::Center, 0.0, 0.0, 12.0, 0.0), (pluma_doc::Justify::JustifyLeft, 36.0, -18.0, 0.0, 8.0)]);
     let fields = "the Word document's fields were placed as the text of their results";
     let revisions = "the Word document's tracked changes were accepted: deleted text was left out and inserted text kept";
     assert_eq!(r["warnings"], json!([fields, revisions]));
@@ -772,7 +771,7 @@ fn doc_indents_set_later_hold_over_the_styles_physical_or_logical_ones() {
         ..Word97::default()
     };
     let mut s = session();
-    let file = json!({"name": "indents.doc", "dataBase64": vectorcraft_format::base64_encode(&doc.build())});
+    let file = json!({"name": "indents.doc", "dataBase64": pluma_format::base64_encode(&doc.build())});
     let r = s.execute("file.place", &file).unwrap();
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
@@ -808,13 +807,13 @@ fn doc_tables_breaks_and_other_stories_place_as_paragraphs_and_tabs_with_warning
     };
     let mut s = session();
     // Recognized by its WordDocument stream whatever its name says.
-    let r = s.execute("file.place", &json!({"name": "notes.bin", "dataBase64": vectorcraft_format::base64_encode(&doc.build())})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "notes.bin", "dataBase64": pluma_format::base64_encode(&doc.build())})).unwrap();
     assert_eq!(r["format"].as_str(), Some("doc"));
     assert_eq!(placed(&s, &r).0, "Line one\nline two\na\tb\nxy\nsec\nnext\npicture\tend\u{2011}ok\nrtl");
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
     let last = t.paragraph_styles().last().cloned().unwrap();
-    assert_eq!((last.justify, last.direction), (vectorcraft_doc::Justify::JustifyRight, Some(vectorcraft_doc::ParaDirection::RightToLeft)));
+    assert_eq!((last.justify, last.direction), (pluma_doc::Justify::JustifyRight, Some(pluma_doc::ParaDirection::RightToLeft)));
     assert_eq!(
         r["warnings"],
         json!([
@@ -829,18 +828,18 @@ fn doc_tables_breaks_and_other_stories_place_as_paragraphs_and_tabs_with_warning
 fn malformed_doc_fails_cleanly() {
     let mut s = session();
     let place = |s: &mut Session, name: &str, bytes: &[u8]| {
-        s.execute("file.place", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).map_err(|e| e.to_string())
+        s.execute("file.place", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).map_err(|e| e.to_string())
     };
     let words = || Word97 { pieces: vec![("words\r", true)], ..Word97::default() };
     let e = place(&mut s, "a.doc", b"Plain words, not a compound file").unwrap_err();
-    assert!(e.contains("not a format VectorCraft reads"), "{e}");
+    assert!(e.contains("not a format Pluma reads"), "{e}");
     // An RTF file named `.doc` is still placed as RTF.
     let r = place(&mut s, "a.doc", br"{\rtf1 Rich}").unwrap();
     assert_eq!((r["format"].as_str(), placed(&s, &r).0.as_str()), (Some("rtf"), "Rich"));
     let e = place(&mut s, "a.doc", &compound_file(&[("Other", b"x")])).unwrap_err();
     assert!(e.contains("no WordDocument stream"), "{e}");
     let e = place(&mut s, "a.bin", &compound_file(&[("Other", b"x")])).unwrap_err();
-    assert!(e.contains("not a format VectorCraft reads"), "a compound file of something else isn't read as a Word document: {e}");
+    assert!(e.contains("not a format Pluma reads"), "a compound file of something else isn't read as a Word document: {e}");
     let e = place(&mut s, "a.doc", &[&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1][..], &[0; 600]].concat()).unwrap_err();
     assert!(e.contains("compound file structure is damaged"), "{e}");
     let e = place(&mut s, "a.doc", &compound_file(&[("WordDocument", &[0; 900])])).unwrap_err();
@@ -926,7 +925,7 @@ fn doc_styles_are_worked_out_once_however_many_paragraphs_use_them() {
     .build();
     let mut s = session();
     let started = std::time::Instant::now();
-    let r = s.execute("file.place", &json!({"name": "a.doc", "dataBase64": vectorcraft_format::base64_encode(&doc)})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "a.doc", "dataBase64": pluma_format::base64_encode(&doc)})).unwrap();
     let took = started.elapsed();
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
@@ -937,7 +936,7 @@ fn doc_styles_are_worked_out_once_however_many_paragraphs_use_them() {
     let mut styles: Vec<_> = (0..33u16).map(|i| Some((1, i + 1, vec![], vec![]))).collect();
     styles.push(Some((1, 0x0FFF, vec![], prls(&[(0x4A43, &[24, 0])]))));
     let doc = Word97 { pieces: vec![("a\rb\r", true)], papx: vec![(1, 31, vec![]), (3, 0, vec![])], styles, ..Word97::default() }.build();
-    let r = s.execute("file.place", &json!({"name": "a.doc", "dataBase64": vectorcraft_format::base64_encode(&doc)})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "a.doc", "dataBase64": pluma_format::base64_encode(&doc)})).unwrap();
     let n = s.doc().unwrap().doc.node(NodeId(r["ids"][0].as_u64().unwrap())).unwrap().clone();
     let NodeKind::Text(t) = &n.kind else { panic!("not type") };
     assert_eq!(t.runs.iter().map(|r| (r.text.as_str(), r.style.size)).collect::<Vec<_>>(), [("a\nb", 12.0)]);
@@ -947,7 +946,7 @@ fn doc_styles_are_worked_out_once_however_many_paragraphs_use_them() {
 fn doc_property_runs_paragraphs_and_properties_read_are_limited() {
     let mut s = session();
     let place = |s: &mut Session, doc: &Word97| {
-        s.execute("file.place", &json!({"name": "a.doc", "dataBase64": vectorcraft_format::base64_encode(&doc.build())})).map_err(|e| e.to_string())
+        s.execute("file.place", &json!({"name": "a.doc", "dataBase64": pluma_format::base64_encode(&doc.build())})).map_err(|e| e.to_string())
     };
     // 100,001 hidden characters whose properties alternate between two lists that give the same
     // formatting: more than 100,000 runs of character properties, though the type placed is one run.

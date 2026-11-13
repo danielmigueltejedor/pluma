@@ -1,9 +1,9 @@
 //! Drawing / path-editing tools driven through the session (tools → actions → `path.*` commands).
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::{FillRule, PathData, Point};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::{FillRule, PathData, Point};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::tooling::{UiRequest, ViewInfo};
 use crate::*;
@@ -58,7 +58,7 @@ fn blob_tip_angle_changes_horizontal_extent_and_stays_page_oriented() {
 #[test]
 fn blob_pressure_peak_stays_at_the_sample_with_a_flat_tip() {
     use kurbo::ParamCurveNearest;
-    use vectorcraft_geom::Point;
+    use pluma_geom::Point;
 
     let mut s = session();
     s.execute(
@@ -150,7 +150,7 @@ fn near(a: Point, b: Point) -> bool {
 }
 
 fn area(pd: &PathData) -> f64 {
-    vectorcraft_pathops::area(pd, FillRule::NonZero)
+    pluma_pathops::area(pd, FillRule::NonZero)
 }
 
 #[test]
@@ -425,8 +425,8 @@ fn pencil_with_keep_selected_off_leaves_nothing_selected() {
 /// fitted.
 #[test]
 fn freehand_with_fit_off_joins_the_points_with_straight_segments() {
-    let corners = |sp: &vectorcraft_geom::SubPath| sp.anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p);
-    let at = |sp: &vectorcraft_geom::SubPath| sp.anchors.iter().map(|a| (a.p.x, a.p.y)).collect::<Vec<_>>();
+    let corners = |sp: &pluma_geom::SubPath| sp.anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p);
+    let at = |sp: &pluma_geom::SubPath| sp.anchors.iter().map(|a| (a.p.x, a.p.y)).collect::<Vec<_>>();
     let pts = wave(100.0, 400.0, 100.0);
     let mut s = session();
     let fitted = s.execute("path.freehand", &json!({"points": pts.iter().map(|p| [p.0, p.1]).collect::<Vec<_>>()})).unwrap();
@@ -540,9 +540,8 @@ fn blob_brush_merges_only_with_the_selection_and_keep_selected_off_deselects() {
 #[test]
 fn blob_brush_size_follows_the_pen_pressure() {
     let mut s = session();
-    let inside = |s: &Session, id: NodeId, x: f64, y: f64| {
-        vectorcraft_geom::hit::fill_contains(&path(s, id).to_bezpath(), FillRule::NonZero, Point::new(x, y))
-    };
+    let inside =
+        |s: &Session, id: NodeId, x: f64, y: f64| pluma_geom::hit::fill_contains(&path(s, id).to_bezpath(), FillRule::NonZero, Point::new(x, y));
     let blob = |s: &mut Session, p: serde_json::Value| NodeId(s.execute("path.blob", &p).unwrap()["id"].as_u64().unwrap());
     // Lightest at the left end, hardest at the right: about 2 pt wide to 18 pt wide.
     let pressed = |y: f64| (0..=20).map(|i| json!([100.0 + f64::from(i) * 10.0, y, f64::from(i) / 20.0])).collect::<Vec<_>>();
@@ -582,9 +581,8 @@ fn eraser_size_follows_the_pen_pressure() {
         let mut s = session();
         rect(&mut s, 0.0, 0.0, 400.0, 200.0);
         s.execute("path.eraseRegion", &json!({"points": pressed(100.0), "size": 10, "sizeMode": mode, "sizeVariation": 8})).unwrap();
-        let filled = |x: f64, y: f64| {
-            paths(&s).iter().any(|(_, pd)| vectorcraft_geom::hit::fill_contains(&pd.to_bezpath(), FillRule::NonZero, Point::new(x, y)))
-        };
+        let filled =
+            |x: f64, y: f64| paths(&s).iter().any(|(_, pd)| pluma_geom::hit::fill_contains(&pd.to_bezpath(), FillRule::NonZero, Point::new(x, y)));
         assert_eq!((!filled(110.0, 103.0), !filled(290.0, 107.0)), (light, hard), "{mode}");
         assert!(!filled(200.0, 100.0) && filled(110.0, 150.0), "{mode}: the stroke is erased, the rest stays");
     }
@@ -730,7 +728,7 @@ fn path_curvature_with_three_points_saves_end_handles() {
     let (first, mid, last) = (sp.anchors[0], sp.anchors[1], sp.anchors[2]);
     assert!(first.has_out() && !first.has_in(), "{first:?}");
     assert!(last.has_in() && !last.has_out(), "{last:?}");
-    assert_eq!(mid.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(mid.kind, pluma_geom::AnchorKind::Smooth);
     assert!(!sp.segment_is_line(0) && !sp.segment_is_line(1));
     // Two points stay a straight line.
     let two = json!([{"x": 0, "y": 0}, {"x": 100, "y": -100}]);
@@ -743,9 +741,9 @@ fn path_curvature_with_three_points_saves_end_handles() {
 #[test]
 fn curvature_rubber_band_is_the_path_the_click_makes() {
     let band = |s: &mut Session| {
-        s.overlays(view()).into_iter().find_map(|o| if let vectorcraft_tools::Overlay::Path { path, .. } = o { Some(path) } else { None }).unwrap()
+        s.overlays(view()).into_iter().find_map(|o| if let pluma_tools::Overlay::Path { path, .. } = o { Some(path) } else { None }).unwrap()
     };
-    let bez = |sp: &vectorcraft_geom::SubPath| {
+    let bez = |sp: &pluma_geom::SubPath| {
         let mut bp = kurbo::BezPath::new();
         sp.to_bezpath_into(&mut bp);
         bp
@@ -777,7 +775,7 @@ fn curvature_rubber_band_is_the_path_the_click_makes() {
     s.pointer(&PointerEvent::new(PointerKind::Up, 450.0, 400.0), v).unwrap();
     let made = path(&s, id).subpaths[0].clone();
     assert_eq!(made.anchors.len(), 4);
-    let tail = vectorcraft_geom::SubPath::new(made.anchors[1..].to_vec(), false);
+    let tail = pluma_geom::SubPath::new(made.anchors[1..].to_vec(), false);
     assert_eq!(preview, bez(&tail));
 }
 
@@ -790,7 +788,7 @@ fn convert_anchor_to_smooth_uses_the_curvature_rule() {
     let id = NodeId(s.execute("path.create", &json!({ "anchors": anchors })).unwrap()["id"].as_u64().unwrap());
     s.execute("path.convertAnchor", &json!({"id": id.0, "subpath": 0, "anchor": 1, "to": "smooth"})).unwrap();
     let a = path(&s, id).subpaths[0].anchors[1];
-    assert_eq!(a.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(a.kind, pluma_geom::AnchorKind::Smooth);
     // Along the circle through it and its neighbours, each between a third and two thirds of
     // its own chord; the shorter side's handle is the shorter.
     let (prev, next) = (Point::new(0.0, 0.0), Point::new(200.0, 100.0));
@@ -820,7 +818,7 @@ fn curvature_clicks_build_smooth_path() {
     assert_eq!(ps.len(), 1);
     let sp = &ps[0].1.subpaths[0];
     assert_eq!(sp.anchors.len(), 3);
-    assert_eq!(sp.anchors[1].kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(sp.anchors[1].kind, pluma_geom::AnchorKind::Smooth);
     // Alt-click the middle point → corner.
     s.pointer(&PointerEvent::new(PointerKind::Down, 200.0, 200.0).with_mods(Mods { alt: true, ..Default::default() }), v).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Up, 200.0, 200.0), v).unwrap();
@@ -874,7 +872,7 @@ fn curvature_delete_curves_through_the_remaining_points() {
         gesture(&mut s, &[(x, y)], Mods::default());
         s.tool_key(ToolKey::Delete, Mods::default(), v).unwrap();
         assert_eq!(undo_steps(&s), steps + 1, "one step");
-        let want = vectorcraft_tools::draw2::curvature_spline(&remaining(gone), false);
+        let want = pluma_tools::draw2::curvature_spline(&remaining(gone), false);
         let got = path(&s, id).subpaths[0].clone();
         assert_eq!(got.anchors.len(), want.anchors.len());
         for (a, b) in got.anchors.iter().zip(&want.anchors) {
@@ -983,7 +981,7 @@ fn anchor_point_tool_converts() {
     let id = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
     drag(&mut s, "anchorPoint", &[(100.0, 100.0), (130.0, 80.0)], Mods::default());
     let a = path(&s, id).subpaths[0].anchors[0];
-    assert_eq!(a.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(a.kind, pluma_geom::AnchorKind::Smooth);
     assert_eq!(a.h_out, Point::new(130.0, 80.0));
     assert_eq!(a.h_in, Point::new(70.0, 120.0));
     // Click the smooth anchor → corner again.
@@ -1010,7 +1008,7 @@ fn anchor_point_tool_click_on_a_handle_retracts_it() {
     click(&mut s, "anchorPoint", 130.0, 80.0);
     let a = path(&s, id).subpaths[0].anchors[0];
     assert!(!a.has_out());
-    assert_eq!((a.p, a.h_in, a.kind), (smooth.p, smooth.h_in, vectorcraft_geom::AnchorKind::Corner));
+    assert_eq!((a.p, a.h_in, a.kind), (smooth.p, smooth.h_in, pluma_geom::AnchorKind::Corner));
     assert_eq!(undo_steps(&s), undo + 1);
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(path(&s, id).subpaths[0].anchors[0], smooth);
@@ -1175,7 +1173,7 @@ fn eraser_keeps_the_holes_of_a_compound_path() {
                             }
                             _ => continue,
                         };
-                        hit |= vectorcraft_geom::hit::fill_contains(&PathData::new(subs).to_bezpath(), rule, Point::new(x, y));
+                        hit |= pluma_geom::hit::fill_contains(&PathData::new(subs).to_bezpath(), rule, Point::new(x, y));
                     }
                 }
                 hit
@@ -1455,7 +1453,7 @@ fn spiral_drags_with_alt_and_ctrl_change_its_segments_and_decay() {
 }
 
 /// The children of the grid a `shape.rectangularGrid` / `shape.polarGrid` call made, bottom first.
-fn grid(s: &mut Session, cmd: &str, p: serde_json::Value) -> Vec<std::sync::Arc<vectorcraft_doc::Node>> {
+fn grid(s: &mut Session, cmd: &str, p: serde_json::Value) -> Vec<std::sync::Arc<pluma_doc::Node>> {
     let id = NodeId(s.execute(cmd, &p).unwrap()["id"].as_u64().unwrap());
     s.doc().unwrap().doc.node(id).unwrap().children().unwrap().to_vec()
 }
@@ -1467,8 +1465,8 @@ fn with(base: &serde_json::Value, extra: serde_json::Value) -> serde_json::Value
     p
 }
 
-fn is_filled(n: &vectorcraft_doc::Node) -> bool {
-    n.appearance.fill().is_some_and(|f| f.paint != vectorcraft_color::Paint::None)
+fn is_filled(n: &pluma_doc::Node) -> bool {
+    n.appearance.fill().is_some_and(|f| f.paint != pluma_color::Paint::None)
 }
 
 /// #1377: the Rectangular Grid options. By default the frame is one rectangle under evenly spaced
@@ -1481,7 +1479,7 @@ fn rectangular_grid_options_frame_fill_and_skew() {
     s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
     let base = json!({"x": 0, "y": 0, "width": 100, "height": 100, "rows": 3, "columns": 3});
     // The y of the three horizontal dividers and the x of the three vertical ones (the last six children).
-    let dividers = |g: &[std::sync::Arc<vectorcraft_doc::Node>]| {
+    let dividers = |g: &[std::sync::Arc<pluma_doc::Node>]| {
         let starts: Vec<Point> = g[g.len() - 6..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[0].p).collect();
         starts[..3].iter().map(|p| p.y).chain(starts[3..].iter().map(|p| p.x)).collect::<Vec<_>>()
     };
@@ -1533,7 +1531,7 @@ fn grid_drag_keys_skew_the_grid_drawn() {
         s.pointer(&PointerEvent::new(PointerKind::Up, 200.0, 200.0), v).unwrap();
         let drawn = s.doc().unwrap().doc.layers[0].children().unwrap().last().unwrap().children().unwrap().to_vec();
         let want = grid(&mut s, &format!("shape.{tool}"), with(&json!({"x": 100, "y": 100, "width": 100, "height": 100}), skews.clone()));
-        let geometry = |g: &[std::sync::Arc<vectorcraft_doc::Node>]| g.iter().map(|n| format!("{:?}", n.geometric_bounds())).collect::<Vec<_>>();
+        let geometry = |g: &[std::sync::Arc<pluma_doc::Node>]| g.iter().map(|n| format!("{:?}", n.geometric_bounds())).collect::<Vec<_>>();
         assert_eq!(geometry(&drawn), geometry(&want), "{tool}");
         let o = s.tool_options();
         for (k, value) in skews.as_object().unwrap() {
@@ -1551,9 +1549,8 @@ fn polar_grid_options_compound_fill_and_skew() {
     let mut s = session();
     s.execute("paint.setFill", &json!({"color": "#00ff00"})).unwrap();
     let base = json!({"x": 0, "y": 0, "width": 100, "height": 100, "concentric": 3, "radial": 4});
-    let width = |n: &vectorcraft_doc::Node| n.geometric_bounds().unwrap().width();
-    let tips =
-        |g: &[std::sync::Arc<vectorcraft_doc::Node>]| g[4..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[1].p).collect::<Vec<_>>();
+    let width = |n: &pluma_doc::Node| n.geometric_bounds().unwrap().width();
+    let tips = |g: &[std::sync::Arc<pluma_doc::Node>]| g[4..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[1].p).collect::<Vec<_>>();
     let plain = grid(&mut s, CMD, base.clone());
     assert_eq!(plain.len(), 8);
     assert_eq!(plain[..4].iter().map(|n| width(n).round()).collect::<Vec<_>>(), [100.0, 75.0, 50.0, 25.0], "largest at the bottom");
@@ -1938,7 +1935,7 @@ fn move_anchor_takes_its_handles_along_and_refuses_a_subpath_that_is_not_a_whole
     let a = path(&s, id).subpaths[0].anchors[0];
     s.execute("path.moveAnchor", &json!({"id": id.0, "anchor": 0, "x": a.p.x + 15.0, "y": a.p.y - 5.0})).unwrap();
     let b = path(&s, id).subpaths[0].anchors[0];
-    assert_eq!(b.p, a.p + vectorcraft_geom::Vec2::new(15.0, -5.0));
+    assert_eq!(b.p, a.p + pluma_geom::Vec2::new(15.0, -5.0));
     assert_eq!(b.h_out - b.p, a.h_out - a.p);
     assert_eq!(b.h_in - b.p, a.h_in - a.p);
     assert!(s.execute("path.moveAnchor", &json!({"id": id.0, "anchor": 99, "x": 0, "y": 0})).is_err());
@@ -2411,7 +2408,7 @@ fn convert_anchors_turns_the_selected_anchors_corner_or_smooth() {
     s.execute("path.convertAnchors", &json!({"to": "smooth"})).unwrap();
     let a = path(&s, id).subpaths[0].anchors.clone();
     assert_eq!(undo_steps(&s), undo + 1);
-    assert_eq!(a[1].kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(a[1].kind, pluma_geom::AnchorKind::Smooth);
     let r = 100.0 * 2f64.sqrt() / 3.0;
     assert!(near(a[1].h_in, Point::new(200.0 - r, 100.0)) && near(a[1].h_out, Point::new(200.0 + r, 100.0)), "{:?}", a[1]);
     assert!(!a[0].has_out() && !a[2].has_in(), "the neighbours keep theirs");
@@ -2618,7 +2615,7 @@ fn pen_with_alt_moves_one_handle_and_converts_anchors() {
 }
 
 /// The anchor's handles point opposite ways.
-fn smooth(a: vectorcraft_geom::Anchor) -> bool {
+fn smooth(a: pluma_geom::Anchor) -> bool {
     let (i, o) = (a.h_in - a.p, a.h_out - a.p);
     (i.x * o.y - i.y * o.x).abs() < 1e-6 && i.x * o.x + i.y * o.y < 0.0
 }
@@ -2635,8 +2632,8 @@ fn pen_with_cmd_borrows_direct_selection_and_goes_on_drawing() {
     gesture(&mut s, &[(100.0, 300.0)], none);
     gesture(&mut s, &[(200.0, 300.0), (250.0, 300.0)], none);
     let id = s.doc().unwrap().selection.objects[0];
-    assert_eq!(s.cursor(Point::new(250.0, 300.0), none, v), vectorcraft_tools::Cursor::PenDrawing);
-    assert_eq!(s.cursor(Point::new(250.0, 300.0), cmd, v), vectorcraft_tools::Cursor::ArrowHollow, "Direct Selection's");
+    assert_eq!(s.cursor(Point::new(250.0, 300.0), none, v), pluma_tools::Cursor::PenDrawing);
+    assert_eq!(s.cursor(Point::new(250.0, 300.0), cmd, v), pluma_tools::Cursor::ArrowHollow, "Direct Selection's");
     // The new anchor's outgoing handle: it moves, its incoming one turning with it.
     s.pointer(&PointerEvent::new(PointerKind::Down, 250.0, 300.0).with_mods(cmd), v).unwrap();
     assert_eq!(s.tool_id(), "directSelection");
@@ -2789,7 +2786,7 @@ fn pen_cmd_drag_edits_anchors_and_segments_and_goes_on_drawing() {
     assert_eq!(points(&s, id), [(100.0, 100.0), (210.0, 140.0), (300.0, 100.0)]);
     assert_eq!(s.tool_id(), "pen");
     let pen = s.cursor(Point::new(700.0, 300.0), none, v);
-    assert!(matches!(pen, vectorcraft_tools::Cursor::Pen | vectorcraft_tools::Cursor::PenDrawing), "{pen:?}");
+    assert!(matches!(pen, pluma_tools::Cursor::Pen | pluma_tools::Cursor::PenDrawing), "{pen:?}");
     // The next click goes on drawing the same path from its end.
     gesture(&mut s, &[(400.0, 200.0)], none);
     assert_eq!(paths(&s).len(), 3, "no new path");
@@ -2813,7 +2810,7 @@ fn pen_cmd_drag_edits_anchors_and_segments_and_goes_on_drawing() {
     gesture(&mut s, &[(100.0, 300.0)], none);
     gesture(&mut s, &[(300.0, 300.0)], none);
     let flat = s.doc().unwrap().selection.objects[0];
-    assert_ne!(s.cursor(Point::new(200.0, 300.0), cmd, v), vectorcraft_tools::Cursor::ResizeV);
+    assert_ne!(s.cursor(Point::new(200.0, 300.0), cmd, v), pluma_tools::Cursor::ResizeV);
     assert_eq!(gesture(&mut s, &[(200.0, 300.0), (200.0, 320.0), (200.0, 340.0)], cmd), 1);
     assert_eq!(points(&s, flat), [(100.0, 340.0), (300.0, 340.0)]);
     assert_eq!(s.tool_id(), "pen");
@@ -2863,7 +2860,7 @@ fn cmd_lends_the_selection_tool_and_its_bounding_box_to_direct_selection() {
     assert_eq!(s.lent_tool_id(&cmd), Some("selection"));
     // The path selected whole: the bottom-right handle scales it.
     s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
-    assert_eq!(s.cursor(Point::new(200.0, 200.0), cmd, v), vectorcraft_tools::Cursor::ResizeNwSe);
+    assert_eq!(s.cursor(Point::new(200.0, 200.0), cmd, v), pluma_tools::Cursor::ResizeNwSe);
     s.pointer(&PointerEvent::new(PointerKind::Down, 200.0, 200.0).with_mods(cmd), v).unwrap();
     assert_eq!(s.tool_id(), "selection");
     for at in [250.0, 300.0] {
@@ -2890,7 +2887,7 @@ fn the_pen_drops_the_new_path_asterisk_once_a_path_is_started() {
     // The Pen's asterisk means a click starts a new path: it shows until the first anchor is
     // placed, the pen has no badge while the path is drawn, and the asterisk comes back once the
     // path is finished (Enter, or a click on the first anchor that closes it).
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     let (none, v) = (Mods::default(), view());
     let empty = Point::new(500.0, 500.0);
     let mut s = session();
@@ -2928,7 +2925,7 @@ fn reshaping_a_segment_keeps_smooth_anchors_smooth() {
 /// Both handles of segment `seg` stand at right angles to the line between its anchors, at one
 /// length: that length, positive on the right of the line as it runs from the first anchor (y
 /// down).
-fn perpendicular_handles(sp: &vectorcraft_geom::SubPath, seg: usize) -> f64 {
+fn perpendicular_handles(sp: &pluma_geom::SubPath, seg: usize) -> f64 {
     let n = sp.anchors.len();
     let (a, b) = (sp.anchors[seg], sp.anchors[(seg + 1) % n]);
     let chord = b.p - a.p;
@@ -3050,7 +3047,7 @@ fn pen_with_alt_converts_the_anchors_of_the_path_being_drawn() {
 /// finishes it.
 #[test]
 fn the_pen_continues_any_open_path_and_joins_another() {
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     let (v, none) = (view(), Mods::default());
     let mut s = session();
     let a = line(&mut s, 100.0, 100.0, 200.0, 100.0);
@@ -3364,19 +3361,19 @@ fn join_to_corner_or_smooth_sets_the_merged_anchor() {
     s.execute("path.average", &json!({"axis": "both"})).unwrap();
     s.execute("path.join", &json!({"to": "corner"})).unwrap();
     let a = &path(&s, r).subpaths[0].anchors[0];
-    assert_eq!(a.kind, vectorcraft_geom::AnchorKind::Corner);
+    assert_eq!(a.kind, pluma_geom::AnchorKind::Corner);
     assert_eq!((a.h_in, a.h_out), (a.p, a.p));
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     s.execute("path.average", &json!({"axis": "both"})).unwrap();
     s.execute("path.join", &json!({"to": "smooth"})).unwrap();
     let a = &path(&s, r).subpaths[0].anchors[0];
-    assert_eq!(a.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(a.kind, pluma_geom::AnchorKind::Smooth);
     let a = line(&mut s, 0.0, 0.0, 100.0, 0.0);
     let b = line(&mut s, 100.0, 0.0, 200.0, 0.0);
     s.execute("path.join", &json!({"ids": [a.0, b.0], "to": "smooth"})).unwrap();
     let j = &path(&s, a).subpaths[0].anchors[1];
-    assert_eq!(j.kind, vectorcraft_geom::AnchorKind::Smooth);
+    assert_eq!(j.kind, pluma_geom::AnchorKind::Smooth);
 }
 
 #[test]
@@ -3565,7 +3562,7 @@ fn open_anchor_delete_does_not_change_explicit_remove_anchors() {
 /// Baked transforms and mixed whole/partial selection survive splitting and atomic Undo/Redo.
 #[test]
 fn open_anchor_delete_after_transform_keeps_mixed_selection_atomic() {
-    use vectorcraft_geom::Affine;
+    use pluma_geom::Affine;
     for xf in [
         Affine::IDENTITY,
         Affine::translate((23.0, -17.0)),
@@ -3626,7 +3623,7 @@ fn open_anchor_delete_after_transform_keeps_mixed_selection_atomic() {
 /// Pen tool can continue drawing an open path inside a compound path and close it.
 #[test]
 fn compound_path_pen_continue_and_close() {
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     let (v, none) = (view(), Mods::default());
     let mut s = session();
     let r = rect(&mut s, 50.0, 50.0, 200.0, 200.0);
@@ -3663,7 +3660,7 @@ fn compound_path_pen_continue_and_close() {
 /// Pen tool can continue an open path inside a compound path and join another open path inside it.
 #[test]
 fn compound_path_pen_continue_and_join() {
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     let (v, none) = (view(), Mods::default());
     let mut s = session();
     let a = line(&mut s, 100.0, 100.0, 200.0, 100.0);
@@ -3862,7 +3859,7 @@ fn join_multi_subpath_retains_unjoined_subpaths() {
     let a = line(&mut s, 0.0, 0.0, 100.0, 0.0);
     let b = line(&mut s, 200.0, 0.0, 300.0, 0.0);
     // Add a second open subpath to b.
-    let second_sub = vectorcraft_geom::SubPath::polyline(&[Point::new(400.0, 50.0), Point::new(500.0, 50.0)], false);
+    let second_sub = pluma_geom::SubPath::polyline(&[Point::new(400.0, 50.0), Point::new(500.0, 50.0)], false);
     s.edit("Add Subpath", |d, _| {
         if let NodeKind::Path { path, .. } = &mut d.node_mut(b).unwrap().kind {
             path.subpaths.push(second_sub);
@@ -3893,7 +3890,7 @@ fn join_multi_subpath_retains_unjoined_subpaths() {
 /// The Pen tool does not continue or join guide paths.
 #[test]
 fn pen_does_not_continue_or_join_guide_paths() {
-    use vectorcraft_tools::Cursor;
+    use pluma_tools::Cursor;
     let (v, none) = (view(), Mods::default());
     let mut s = session();
     let g = line(&mut s, 100.0, 100.0, 200.0, 100.0);
@@ -3910,7 +3907,7 @@ fn pen_does_not_continue_or_join_guide_paths() {
 fn join_two_subpaths_of_same_path_node() {
     let mut s = session();
     let p = line(&mut s, 0.0, 0.0, 100.0, 0.0);
-    let sub2 = vectorcraft_geom::SubPath::polyline(&[Point::new(150.0, 0.0), Point::new(250.0, 0.0)], false);
+    let sub2 = pluma_geom::SubPath::polyline(&[Point::new(150.0, 0.0), Point::new(250.0, 0.0)], false);
     s.edit("Add Subpath", |d, _| {
         if let NodeKind::Path { path, .. } = &mut d.node_mut(p).unwrap().kind {
             path.subpaths.push(sub2);
@@ -4148,7 +4145,7 @@ fn join_two_refuses_an_empty_subpath() {
     let b = line(&mut s, 20.0, 0.0, 30.0, 0.0);
     s.edit("Empty subpath", |d, _| {
         if let NodeKind::Path { path, .. } = &mut d.node_mut(a).unwrap().kind {
-            path.subpaths[0] = vectorcraft_geom::SubPath::new(vec![], false);
+            path.subpaths[0] = pluma_geom::SubPath::new(vec![], false);
         }
         Ok(())
     })
@@ -4212,7 +4209,7 @@ fn pencil_fidelity_goes_down_to_a_hundredth_and_lower_keeps_more() {
     assert!(counts[4] > counts[2], "{counts:?}");
     // Below the floor, the lowest Fidelity (0.01 px) at the highest zoom (64000 %), is read as the
     // floor (#5729).
-    let floor = vectorcraft_tools::draw2::MIN_FIDELITY / 640.0;
+    let floor = pluma_tools::draw2::MIN_FIDELITY / 640.0;
     let at_floor = blob_anchors(&mut s, floor);
     assert!(at_floor >= counts[4], "{counts:?}");
     assert_eq!(blob_anchors(&mut s, floor / 10.0), at_floor);

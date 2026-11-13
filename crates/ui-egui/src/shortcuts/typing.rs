@@ -1,4 +1,4 @@
-use super::{EngineResult, Key, Mods, SurroundingUnit, ToolKey, UiRequest, VectorcraftApp, ViewInfo, chord_runs_a_command};
+use super::{EngineResult, Key, Mods, PlumaApp, SurroundingUnit, ToolKey, UiRequest, ViewInfo, chord_runs_a_command};
 use crate::panels::character::TextInput;
 
 /// Drop each key press made with Ctrl and Alt held that is followed by the text it typed. Firefox
@@ -22,7 +22,7 @@ pub(super) fn drop_typing_presses(i: &mut egui::InputState) {
 
 /// End an IME composition outside the IME (a click away, the IME going away): the
 /// marked text stays as typed, and the system IME is told to drop it.
-pub(crate) fn keep_marked_text(app: &mut VectorcraftApp) {
+pub(crate) fn keep_marked_text(app: &mut PlumaApp) {
     let Some(m) = app.ime_marked.take() else { return };
     app.ime_discard = true;
     if app.session.tool_composing() {
@@ -60,7 +60,7 @@ enum Seq {
 
 /// Typed text, IME events, editing keys, Enter and clipboard events, in the order they came, to the
 /// Type tool. Escape is handled before them, in [`handle`].
-pub(super) fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
+pub(super) fn type_text(app: &mut PlumaApp, ctx: &egui::Context) -> bool {
     let view = app.view_info();
     // Switching apps mid-composition needs nothing: the macOS IME keeps its marked text and goes
     // on with it when the window comes back (measured with Kotoeri), as the tool does.
@@ -227,7 +227,7 @@ fn type_sequence(ctx: &egui::Context) -> Vec<Seq> {
 /// Apply one sequence item to the active tool; the caller filters stale/deferred events and
 /// turns a successful IME mutation into its receipt.
 fn apply_type_event(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ctx: &egui::Context,
     view: ViewInfo,
     e: Seq,

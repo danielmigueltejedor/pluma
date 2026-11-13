@@ -1,8 +1,8 @@
 use super::*;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::pattern::{PatternEdit, RepeatSpec, pattern_paint};
-use vectorcraft_doc::{Appearance, NodeId, NodeKind};
-use vectorcraft_geom::shapes;
+use pluma_color::{Color, Paint};
+use pluma_doc::pattern::{PatternEdit, RepeatSpec, pattern_paint};
+use pluma_doc::{Appearance, NodeId, NodeKind};
+use pluma_geom::shapes;
 
 /// A 20×20 tile with a red 10×10 square in its top-left corner.
 fn doc_with_pattern(tt: TileType) -> Document {
@@ -39,7 +39,7 @@ fn is_white(p: [u8; 4]) -> bool {
 /// pattern's paint transform must not resample the effect's raster).
 #[test]
 fn effects_after_a_pattern_fill_keep_their_place_and_size() {
-    let fx = |id: &str, params: serde_json::Value| vectorcraft_doc::Effect { id: id.into(), params, visible: true };
+    let fx = |id: &str, params: serde_json::Value| pluma_doc::Effect { id: id.into(), params, visible: true };
     for effect in [
         fx("blur.gaussian", serde_json::json!({"radius": 4.0})),
         fx("stylize.dropShadow", serde_json::json!({"x": 6, "y": 6, "blur": 3, "opacity": 100})),
@@ -132,7 +132,7 @@ fn pattern_follows_zoom_and_paint_transform() {
     assert!(is_red(r.pixel(10, 10)) && is_white(r.pixel(30, 10)) && is_red(r.pixel(50, 10)));
     let mut d2 = d.clone();
     let id = d2.layers[0].children().unwrap()[0].id;
-    vectorcraft_doc::pattern::transform_pattern_paints(d2.node_mut(id).unwrap(), Affine::translate((10.0, 0.0)));
+    pluma_doc::pattern::transform_pattern_paints(d2.node_mut(id).unwrap(), Affine::translate((10.0, 0.0)));
     let r = render(&d2, 1.0);
     assert!(is_white(r.pixel(5, 5)) && is_red(r.pixel(15, 5)));
 }
@@ -143,7 +143,7 @@ fn doc_with_two_scales(s: f64) -> Document {
     let mut d = doc_with_pattern(TileType::Grid);
     let square = shapes::rectangle(Rect::new(120.0, 120.0, 160.0, 160.0));
     let mut n = Node::path(d.alloc_id(), square, Appearance::basic(pattern_paint("Checks"), Paint::None, 0.0));
-    vectorcraft_doc::pattern::transform_pattern_paints(&mut n, Affine::scale(s));
+    pluma_doc::pattern::transform_pattern_paints(&mut n, Affine::scale(s));
     let l = d.layers[0].id;
     d.insert(Some(l), 1, n).unwrap();
     d
@@ -250,7 +250,7 @@ fn kept_tiles_stay_within_the_budget() {
 /// tile kept.
 #[test]
 fn kept_tiles_count_the_images_they_could_not_decode() {
-    use vectorcraft_doc::{ImageBlob, ImageObject};
+    use pluma_doc::{ImageBlob, ImageObject};
     let mut d = doc_with_pattern(TileType::Grid);
     // A PNG signature with nothing after it.
     d.images.insert("cut".into(), ImageBlob::new("image/png", b"\x89PNG\r\n\x1a\n".to_vec()));

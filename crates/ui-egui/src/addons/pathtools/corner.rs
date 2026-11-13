@@ -3,13 +3,13 @@
 //! can also take every other anchor, or only the corners in an angle range).
 
 use egui::Ui;
+use pluma_doc::LiveCorners;
+use pluma_geom::shapes::CornerKind;
+use pluma_tools::addons::corner_tool::{ID, MAX_RADIUS, RADIUS};
 use serde_json::{Value, json};
-use vectorcraft_doc::LiveCorners;
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_tools::addons::corner_tool::{ID, MAX_RADIUS, RADIUS};
 
 use super::{LABEL_W, run};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::corners::kind_label;
 use crate::widgets::{self, dim_label};
 
@@ -18,14 +18,14 @@ pub const COMMAND: &str = "addon.pathtools.cornerTool";
 const FIELD_W: f32 = 96.0;
 
 /// Object › Plug-ins › Path Precision Tools › Corner Tool.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     app.select_tool(ID);
     app.run("window.panel", json!({ "panel": super::ID }))
 }
 
 /// How many corners Apply would edit: the selected paths' direct-selected ones, or all of a path
 /// selected whole.
-fn selected_corners(app: &VectorcraftApp) -> usize {
+fn selected_corners(app: &PlumaApp) -> usize {
     let Some(st) = app.session.active() else { return 0 };
     let of = |id| {
         let lc = st.doc.node(id).and_then(LiveCorners::of)?;
@@ -34,7 +34,7 @@ fn selected_corners(app: &VectorcraftApp) -> usize {
     st.selection.objects.iter().filter_map(|id| of(*id)).sum()
 }
 
-pub(super) fn section(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(super) fn section(app: &mut PlumaApp, ui: &mut Ui) {
     let options = app.session.tool_options_of(ID);
     let radius = options["radius"].as_f64().unwrap_or(RADIUS);
     let kind = serde_json::from_value::<CornerKind>(options["kind"].clone()).unwrap_or_default();

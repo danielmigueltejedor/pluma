@@ -2,7 +2,7 @@
 # (empty context = plain UI; `@id` = command id; `@plural` = plural forms;
 # other contexts = `tr_ctx`; `@msg` = status/error messages).
 #
-# Clean-room: translated from VectorCraft's English source using ordinary Vietnamese software
+# Clean-room: translated from Pluma's English source using ordinary Vietnamese software
 # and vector-graphics vocabulary; no proprietary localisation resource was copied.
 # AI-assisted; native review welcome.
 #
@@ -108,7 +108,7 @@
 	A new preset starting from the selected one	Thiết lập sẵn mới bắt đầu từ thiết lập đang chọn
 	A saved copy of the selected preset	Bản sao đã lưu của thiết lập đang chọn
 	About	Giới thiệu
-	About VectorCraft	Giới thiệu VectorCraft
+	About Pluma	Giới thiệu Pluma
 	above	phía trên
 	Above Text	Phía trên văn bản
 	Absolute	Tuyệt đối
@@ -230,7 +230,7 @@ font-technology	Variable	Biến thiên
 	Appearance of Black	Diện mạo màu đen
 	Appearance Panel	Bảng Diện mạo
 	Appearance panel	Bảng diện mạo
-	Applies the next time VectorCraft starts.	Áp dụng vào lần tiếp theo VectorCraft khởi động.
+	Applies the next time Pluma starts.	Áp dụng vào lần tiếp theo Pluma khởi động.
 	Applies when the linked file is relinked or updated.	Áp dụng khi tệp liên kết được liên kết lại hoặc cập nhật.
 	Apply	Áp dụng
 	Apply Brush	Áp dụng cọ
@@ -276,8 +276,8 @@ font-technology	Variable	Biến thiên
 	Artboard:	Bảng vẽ:
 	Artboards	Các bảng vẽ
 	Artboards: {n}	Bảng vẽ: {n}
-	ArtCraft Website	Trang web ArtCraft
-	ArtCraft website	Trang web ArtCraft
+	Nodalia Website	Trang web Nodalia
+	Nodalia website	Trang web Nodalia
 	Artistic	Nghệ thuật
 	Artwork Colors	Màu sắc tác phẩm
 	As Multiple Assets	Thành nhiều asset
@@ -498,7 +498,7 @@ font-technology	Variable	Biến thiên
 	Check Script	Kiểm tra script
 	Check Script…	Kiểm tra script…
 	Copy Report	Sao chép báo cáo
-	VectorCraft read this script without running it.	VectorCraft đã đọc script này mà không chạy nó.
+	Pluma read this script without running it.	Pluma đã đọc script này mà không chạy nó.
 	Needs nothing beyond plain JavaScript	Chỉ cần JavaScript thông thường
 	Needs the script language's own objects or directives	Cần các đối tượng hoặc chỉ thị riêng của ngôn ngữ script
 	Needs the document model	Cần mô hình tài liệu
@@ -1478,7 +1478,7 @@ file-filter	Print presets	Thiết lập sẵn in
 file-filter	Export presets	Cài đặt sẵn xuất
 file-filter	SVG Compressed	SVG nén
 file-filter	PDF-compatible .ai	.ai tương thích PDF
-file-filter	VectorCraft Template	Mẫu VectorCraft
+file-filter	Pluma Template	Mẫu Pluma
 file-filter	Templates	Mẫu
 	Flattener Preview	Xem trước làm phẳng
 	Flip	Lật
@@ -1707,7 +1707,7 @@ file-filter	Templates	Mẫu
 	Hide Thumbnail	Ẩn hình thu nhỏ
 	Hide Thumbnails	Ẩn các hình thu nhỏ
 	Hide Transparency Grid	Ẩn lưới trong suốt
-	Hide VectorCraft	Ẩn VectorCraft
+	Hide Pluma	Ẩn Pluma
 	High	Cao
 	High (300 ppi)	Cao (300 ppi)
 	High Performance (discrete)	Hiệu suất cao (rời rạc)
@@ -1895,7 +1895,7 @@ digits	Hindi	Hindi
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.
 	Import Shortcut Set	Nhập bộ phím tắt
 	Import Shortcut Set…	Nhập bộ phím tắt…
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Mỗi mục trong tệp được ghép với một công cụ, lệnh hoặc bảng của VectorCraft. Hãy kiểm tra các cặp ghép và trả lời những mục còn lại.
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	Mỗi mục trong tệp được ghép với một công cụ, lệnh hoặc bảng của Pluma. Hãy kiểm tra các cặp ghép và trả lời những mục còn lại.
 	Keys	Phím
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	Tệp ghi phím và phím bổ trợ dưới dạng mã. Hãy kiểm tra các nghĩa được đề xuất và trả lời những mã chưa biết.
 	Click, then press the key this code stands for (Esc cancels)	Bấm, rồi nhấn phím mà mã này biểu thị (Esc để hủy)
@@ -1907,7 +1907,7 @@ digits	Hindi	Hindi
 	Shortcuts	Phím tắt
 	Shortcut	Phím tắt
 	In the File	Trong tệp
-	In VectorCraft	Trong VectorCraft
+	In Pluma	Trong Pluma
 	Needs Attention Only	Chỉ mục cần chú ý
 	Ready	Sẵn sàng
 	Needs a choice	Cần chọn
@@ -1916,7 +1916,7 @@ digits	Hindi	Hindi
 	Tools take a single key (optionally with Shift)	Công cụ chỉ nhận một phím đơn (tùy chọn với Shift)
 	A later row takes this shortcut	Một hàng phía sau dùng phím tắt này
 	Same item as a later row	Cùng mục với một hàng phía sau
-	Start from VectorCraft Defaults	Bắt đầu từ mặc định VectorCraft
+	Start from Pluma Defaults	Bắt đầu từ mặc định Pluma
 	Add to the Current Shortcuts	Thêm vào phím tắt hiện tại
 	Remember My Choices	Ghi nhớ lựa chọn của tôi
 	{ready} of {total} ready	Sẵn sàng {ready} trong {total}
@@ -2010,7 +2010,7 @@ digits	Hindi	Hindi
 	Join	Nối
 	Join Our Discord	Tham gia Discord
 	Join our Discord	Tham gia Discord của chúng tôi
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Tham gia cộng đồng ArtCraft trên Discord (discord.gg/artcraft)
+	Join the Nodalia community on Discord (discord.gg/artcraft)	Tham gia cộng đồng Nodalia trên Discord (discord.gg/artcraft)
 	Join the lines of each paragraph	Nối các dòng trong mỗi đoạn văn
 	Join Tool	Công cụ Nối
 	Joins	Kiểu nối
@@ -2625,9 +2625,9 @@ digits	Hindi	Hindi
 	Open Recent Files	Mở tệp gần đây
 	Open Swatch Library	Mở thư viện mẫu màu
 	Open the URL in the web browser	Mở URL trong trình duyệt web
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Khi mở, những phần VectorCraft chưa đọc được ({what}) đã bị bỏ qua, nên thay thế sẽ mất chúng vĩnh viễn. Hãy lưu với tên khác để giữ lại.
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	Khi mở, những phần Pluma chưa đọc được ({what}) đã bị bỏ qua, nên thay thế sẽ mất chúng vĩnh viễn. Hãy lưu với tên khác để giữ lại.
 	“{name}” already exists. Replace it?	“{name}” đã tồn tại. Thay thế tệp này?
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	Tên trong bảng lưu là “{typed}”, và VectorCraft đã thêm phần mở rộng của loại tệp. Thay thế tệp sẽ ghi đè nội dung của tệp.
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	Tên trong bảng lưu là “{typed}”, và Pluma đã thêm phần mở rộng của loại tệp. Thay thế tệp sẽ ghi đè nội dung của tệp.
 	Open…	Mở…
 	Optical	Quang học
 	Optical Margin Alignment	Căn lề quang học
@@ -2712,7 +2712,7 @@ digits	Hindi	Hindi
 	Paragraph Style Options	Tùy chọn kiểu đoạn văn
 	Paragraph Styles	Kiểu đoạn văn
 	Paragraph Symbol	Ký hiệu đoạn văn
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Một phần của ArtCraft. MIT OR Apache-2.0. Phông chữ: Source Sans 3, Inter, JetBrains Mono (OFL). Biểu tượng: Lucide (ISC) + VectorCraft.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Một phần của Nodalia. MIT OR Apache-2.0. Phông chữ: Source Sans 3, Inter, JetBrains Mono (OFL). Biểu tượng: Lucide (ISC) + Pluma.
 	Password	Mật khẩu
 	Paste	Dán
 	Paste Design	Dán thiết kế
@@ -2921,7 +2921,7 @@ mark-style	Japanese	Kiểu Nhật
 	Quarter Space	Khoảng cách một phần tư
 	Quick Actions	Hành động nhanh
 	Quickly start a new file	Tạo nhanh tệp mới
-	Quit VectorCraft	Thoát VectorCraft
+	Quit Pluma	Thoát Pluma
 	Radar Graph Tool	Công cụ Biểu đồ radar
 	Radial	Hướng tâm
 	Radial Blur	Mờ hướng tâm
@@ -3356,7 +3356,7 @@ mark-style	Japanese	Kiểu Nhật
 	Saves the current bars, toolbar and panel layout.	Lưu bố cục thanh, thanh công cụ và bảng hiện tại.
 	Save…	Lưu…
 	Saving	Đang lưu
-	Saving Poster.vectorcraft	Đang lưu Poster.vectorcraft
+	Saving Poster.pluma	Đang lưu Poster.pluma
 	Saving recovery data for {}	Đang lưu dữ liệu khôi phục cho {}
 	Saving {}	Đang lưu {}
 	Scale	Tỷ lệ
@@ -3847,8 +3847,8 @@ mark-style	Japanese	Kiểu Nhật
 	Symbols	Ký hiệu
 	System Layout	Bố cục hệ thống
 	System Title Bar	Thanh tiêu đề hệ thống
-	VectorCraft Title Bar on Every Desktop	Thanh tiêu đề VectorCraft trên mọi màn hình nền
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	Khi biến môi trường VECTORCRAFT_TITLEBAR được đặt, biến này chọn thanh tiêu đề.
+	Pluma Title Bar on Every Desktop	Thanh tiêu đề Pluma trên mọi màn hình nền
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	Khi biến môi trường PLUMA_TITLEBAR được đặt, biến này chọn thanh tiêu đề.
 	System Title Bar takes precedence over this option while it is on.	Khi Thanh tiêu đề hệ thống được bật, tùy chọn đó được ưu tiên hơn tùy chọn này.
 	Tab	Tab
 	Tab Stops	Vị trí tab
@@ -4167,12 +4167,12 @@ mark-style	Japanese	Kiểu Nhật
 	Vector Halftone	Halftone vector
 	Vector Halftone…	Halftone vector…
 	Vector illustration — fast, open, scriptable.	Minh họa vector — nhanh, mở, có thể lập trình.
-	VectorCraft copies the fonts to {folder}.	VectorCraft sao chép phông chữ vào {folder}.
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft không thoát bình thường lần trước. Các tài liệu này có thay đổi chưa lưu:
-	VectorCraft documents: one locked object, updated when the file changes.	Tài liệu VectorCraft: một đối tượng bị khóa, cập nhật khi tệp thay đổi.
-	VectorCraft Help…	Trợ giúp VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft trên getartcraft.com
-	VectorCraft on GitHub	VectorCraft trên GitHub
+	Pluma copies the fonts to {folder}.	Pluma sao chép phông chữ vào {folder}.
+	Pluma didn't quit normally last time. These documents had unsaved changes:	Pluma không thoát bình thường lần trước. Các tài liệu này có thay đổi chưa lưu:
+	Pluma documents: one locked object, updated when the file changes.	Tài liệu Pluma: một đối tượng bị khóa, cập nhật khi tệp thay đổi.
+	Pluma Help…	Trợ giúp Pluma…
+	Pluma on getnodalia.com	Pluma trên getnodalia.com
+	Pluma on GitHub	Pluma trên GitHub
 	Vectors	Vector
 	Version	Phiên bản
 	Version {version} — open-source vector illustration in pure Rust.	Phiên bản {version} — minh họa vector mã nguồn mở bằng Rust thuần túy.
@@ -4218,7 +4218,7 @@ mark-style	Japanese	Kiểu Nhật
 	Web Snap:	Khớp màu Web:
 	Weight	Độ dày
 	Weight:	Độ dày:
-	Welcome to VectorCraft	Chào mừng đến với VectorCraft
+	Welcome to Pluma	Chào mừng đến với Pluma
 	When pasting text	Khi dán văn bản
 	White	Trắng
 	White Intensity	Cường độ trắng
@@ -4446,7 +4446,7 @@ theme	Appearance	Giao diện
 @msg	action is required	action là bắt buộc
 @msg	add a format to export	thêm định dạng để xuất
 @msg	already editing a pattern	đang chỉnh sửa họa tiết
-@msg	an image VectorCraft can't read was left out	một ảnh VectorCraft không đọc được đã bị bỏ qua
+@msg	an image Pluma can't read was left out	một ảnh Pluma không đọc được đã bị bỏ qua
 @msg	graphs come in as plain art, without their data or settings	biểu đồ được nhập dưới dạng hình vẽ thường, không kèm dữ liệu và thiết lập của chúng
 @msg	an image whose data is cut short was left out	một ảnh bị cắt ngắn dữ liệu đã bị bỏ qua
 @msg	an embedded image of {_1} × {_2} pixels was reduced to {_3} × {_4} pixels to keep the layers	một ảnh nhúng {_1} × {_2} điểm ảnh đã được thu nhỏ còn {_3} × {_4} điểm ảnh để giữ các lớp
@@ -4493,7 +4493,7 @@ theme	Appearance	Giao diện
 @msg	can't encode the document: {0}	không thể mã hóa tài liệu: {0}
 @msg	can't parse shortcut `{c}`	không thể phân tích phím tắt `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	không thể phân tích phím tắt `{s}` cho `{k}`
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	không thể lưu phiên bản {0}: VectorCraft ghi phiên bản {MIN_VERSION} đến {VERSION}
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	không thể lưu phiên bản {0}: Pluma ghi phiên bản {MIN_VERSION} đến {VERSION}
 @msg	can't write .{ext} images	không thể ghi ảnh .{ext}
 @msg	cannot distort a zero-size bounding box	không thể làm méo khung giới hạn kích thước bằng không
 @msg	cannot read PDF: {0}	không thể đọc PDF: {0}
@@ -4585,7 +4585,7 @@ theme	Appearance	Giao diện
 @msg	Packaging {_1}	Đang đóng gói {_1}
 @msg	Placing {_1}	Đang đặt {_1}
 @msg	Pasting	Đang dán
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	phiên bản tệp {0} mới hơn VectorCraft hỗ trợ ({VERSION})
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	phiên bản tệp {0} mới hơn Pluma hỗ trợ ({VERSION})
 @msg	Flatten Transparency: select objects to flatten	Dẹp phẳng độ trong suốt: hãy chọn đối tượng để dẹp phẳng
 @msg	Flatten Transparency: {e}	Dẹp phẳng độ trong suốt: {e}
 @msg	freeform line {i} must be an array of point indices	đường tự do {i} phải là mảng chỉ mục điểm
@@ -4625,7 +4625,7 @@ theme	Appearance	Giao diện
 @msg	invalid parameters for `{cmd}`: {msg}	tham số không hợp lệ cho `{cmd}`: {msg}
 @msg	invalid PDF setting: {0}	cài đặt PDF không hợp lệ: {0}
 @msg	invalid restored panel group	nhóm bảng được phục hồi không hợp lệ
-@msg	is not an image VectorCraft reads	không phải ảnh mà VectorCraft đọc được
+@msg	is not an image Pluma reads	không phải ảnh mà Pluma đọc được
 @msg	it ends inside a group or compound path	nó kết thúc bên trong một nhóm hoặc đường dẫn phức
 @msg	it ends inside a layer	nó kết thúc bên trong một lớp
 @msg	it ends inside a multi-layer mask	nó kết thúc bên trong một mặt nạ nhiều lớp
@@ -4640,9 +4640,9 @@ theme	Appearance	Giao diện
 @msg	it has too many text objects	nó có quá nhiều đối tượng văn bản
 @msg	it has too many values in a row	nó có quá nhiều giá trị liên tiếp
 @msg	it has too much text	nó có quá nhiều văn bản
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	nó có {_1}, VectorCraft chưa đọc được từ đó
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	nó dùng `{at}`, trình đọc PostScript của VectorCraft không hỗ trợ
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	nó dùng `{at}`, trình đọc PostScript của VectorCraft không hỗ trợ, trong {procs}
+@msg	it has {_1}, which Pluma doesn't read from it yet	nó có {_1}, Pluma chưa đọc được từ đó
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	nó dùng `{at}`, trình đọc PostScript của Pluma không hỗ trợ
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	nó dùng `{at}`, trình đọc PostScript của Pluma không hỗ trợ, trong {procs}
 @msg	its editing data doesn't say where its art is	dữ liệu chỉnh sửa không cho biết vị trí tác phẩm
 @msg	its editing data doesn't say where its artboard is	dữ liệu chỉnh sửa không cho biết vị trí bảng vẽ
 @msg	its editing data has no layers	dữ liệu chỉnh sửa không có lớp
@@ -4667,7 +4667,7 @@ theme	Appearance	Giao diện
 @msg	line {line}: value for `{var}` must be true or false	dòng {line}: giá trị của `{var}` phải là true hoặc false
 @msg	line {line}: value for `{var}` is longer than {MAX_GRAPH_CSV} bytes	dòng {line}: giá trị của `{var}` dài hơn {MAX_GRAPH_CSV} byte
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	ảnh liên kết hiển thị bản xem trước độ phân giải thấp đã lưu trong tệp cho đến khi tìm thấy tệp gốc: liên kết lại trong bảng Liên kết
-@msg	linked type areas past VectorCraft's limits were left out	các vùng chữ liên kết vượt quá giới hạn của VectorCraft đã bị bỏ qua
+@msg	linked type areas past Pluma's limits were left out	các vùng chữ liên kết vượt quá giới hạn của Pluma đã bị bỏ qua
 @msg	type that changes writing direction inside a text object opens in the direction of its first character	chữ đổi hướng viết bên trong một đối tượng văn bản sẽ mở theo hướng của ký tự đầu tiên
 @msg	type used as a mask in linked areas, wraparound text or a compound path doesn't clip	chữ dùng làm mặt nạ trong các vùng liên kết, chữ bao quanh hoặc đường dẫn phức không cắt xén
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	ảnh liên kết không có bản xem trước trong tệp hiển thị ô giữ chỗ cho đến khi tìm thấy tệp gốc: liên kết lại trong bảng Liên kết
@@ -4675,7 +4675,7 @@ theme	Appearance	Giao diện
 @msg	Live Paint takes paths and compound paths: convert type, images and other objects to paths first	Tô trực tiếp nhận đường dẫn và đường dẫn phức: hãy chuyển văn bản, hình ảnh và các đối tượng khác thành đường dẫn trước
 @msg	Live Paint: select paths or compound paths	Tô trực tiếp: chọn đường dẫn hoặc đường dẫn phức
 @msg	Live Paint: these paths are too degenerate to paint	Tô trực tiếp: các đường dẫn này quá suy biến để tô
-@msg	Loading VectorCraft…	Đang tải VectorCraft…
+@msg	Loading Pluma…	Đang tải Pluma…
 @msg	Make Guides: select paths	Tạo đường căn: hãy chọn đường dẫn
 @msg	missing `folder`	thiếu `folder`
 @msg	missing `id` (see plugin.list)	thiếu `id` (xem plugin.list)
@@ -4727,7 +4727,7 @@ theme	Appearance	Giao diện
 @msg	no file system here	không có hệ thống tệp ở đây
 @msg	no file writer	không có bộ ghi tệp
 @msg	no files to place	không có tệp để đặt
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` không phải là tài liệu VectorCraft, tệp PDF hay tệp .ai tương thích PDF
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` không phải là tài liệu Pluma, tệp PDF hay tệp .ai tương thích PDF
 @msg	No fonts are missing in this document	Không có phông chữ nào bị thiếu trong tài liệu này
 @msg	no format to export to	không có định dạng để xuất
 @msg	no free recovery area	không có vùng phục hồi trống
@@ -4780,7 +4780,7 @@ theme	Appearance	Giao diện
 @msg	the action set file is larger than 8 MiB	tệp bộ hành động lớn hơn 8 MiB
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: tài liệu tham khảo sẽ lớn hơn {MAX_BYTES} byte
 @msg	the action set file holds more than 1,000 actions	tệp bộ hành động chứa hơn 1.000 hành động
-@msg	the action set file needs a later version of VectorCraft	tệp bộ hành động cần phiên bản VectorCraft mới hơn
+@msg	the action set file needs a later version of Pluma	tệp bộ hành động cần phiên bản Pluma mới hơn
 @msg	an action in the action set file has more than 10,000 steps	một hành động trong tệp bộ hành động có hơn 10.000 bước
 @msg	no such anchor	không có điểm neo như vậy
 @msg	no such artboard	không có bảng vẽ như vậy
@@ -4819,10 +4819,10 @@ theme	Appearance	Giao diện
 @msg	not a PSD file	không phải tệp PSD
 @msg	not a stored central record	không phải bản ghi trung tâm đã lưu
 @msg	not a valid plug-in module: {0}	không phải mô-đun plug-in hợp lệ: {0}
-@msg	not a VectorCraft file: {0}	không phải tệp VectorCraft: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	không phải bộ phím tắt VectorCraft (thiếu `overrides`)
+@msg	not a Pluma file: {0}	không phải tệp Pluma: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	không phải bộ phím tắt Pluma (thiếu `overrides`)
 @msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	không phải bộ phím tắt: văn bản không bắt đầu bằng một tên có dấu gạch chéo và một dấu ngoặc nhọn mở
-@msg	This shortcut file is in a form VectorCraft can't read.	Tệp phím tắt này có dạng mà VectorCraft không đọc được.
+@msg	This shortcut file is in a form Pluma can't read.	Tệp phím tắt này có dạng mà Pluma không đọc được.
 @msg	not an EMF or WMF file	không phải tệp EMF hoặc WMF
 @msg	not found	không tìm thấy
 @msg	not in pattern editing mode	không ở chế độ chỉnh sửa họa tiết
@@ -4852,7 +4852,7 @@ theme	Appearance	Giao diện
 @msg	object {0} cannot have children	đối tượng {0} không thể có phần tử con
 @msg	object {id} is not a path	đối tượng {id} không phải là đường dẫn
 @msg	object {id} is not a selected top-level object	đối tượng {id} không phải là đối tượng cấp cao nhất đã chọn
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	các cọ mà VectorCraft chưa đọc được đã bị bỏ khỏi bảng Cọ ({_1})
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	các cọ mà Pluma chưa đọc được đã bị bỏ khỏi bảng Cọ ({_1})
 @msg	objects with several fills or strokes, variable-width strokes, effects or brushes came in as their drawn look ({_1}): their appearance isn't editable yet	đối tượng có nhiều tô hoặc nét, nét có độ rộng thay đổi, hiệu ứng hoặc cọ đã vào dưới dạng bề ngoài ({_1}): diện mạo chưa thể chỉnh sửa
 @msg	the name `{name}` isn't UTF-8 and was read as {label}: if it looks wrong, open the file with another legacyNameEncoding	tên `{name}` không phải UTF-8 và đã được đọc theo {label}: nếu trông sai, hãy mở tệp với legacyNameEncoding khác
 @msg	the name `{name}` isn't UTF-8, and parts of it aren't valid {label} either: open the file with another legacyNameEncoding	tên `{name}` không phải UTF-8, và một số phần cũng không hợp lệ trong {label}: hãy mở tệp với legacyNameEncoding khác
@@ -5028,7 +5028,7 @@ theme	Appearance	Giao diện
 @msg	the artboard to fit must be a positive size up to {_1} pt	bảng vẽ cần khớp phải có kích thước dương tối đa {_1} pt
 @msg	the background worker stopped	tiến trình nền đã dừng
 @msg	the blend has no spine	đối tượng hòa trộn không có trục
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	tệp nén giải nén ra nhiều hơn VectorCraft đọc ({_1} MB tài liệu, {_2} MB mỗi ảnh)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	tệp nén giải nén ra nhiều hơn Pluma đọc ({_1} MB tài liệu, {_2} MB mỗi ảnh)
 @msg	the compressed file unpacks to more than {_1} MB	tệp nén giải nén ra hơn {_1} MB
 @msg	the document has never been saved	tài liệu chưa bao giờ được lưu
 @msg	the document has no artboard	tài liệu không có bảng vẽ
@@ -5050,9 +5050,9 @@ theme	Appearance	Giao diện
 @msg	the file was read up to an error ({why}): what follows it was left out	tệp được đọc đến khi gặp lỗi ({why}): phần sau đó bị bỏ qua
 @msg	the file's preview header points outside the file	tiêu đề xem trước của tệp trỏ ra ngoài tệp
 @msg	the files come to more than 1 GB: add fewer at a time	các tệp tổng cộng hơn 1 GB: thêm ít hơn mỗi lần
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	Bộ xử lý đồ họa thử trước không hiển thị được cửa sổ, VectorCraft đã khởi động lại trên {summary}
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Lần khởi động trước của VectorCraft đã dừng trên {name} trước khi cửa sổ xuất hiện, nên VectorCraft đã khởi động trên {summary}. Để thử lại bộ xử lý đồ họa đó, hãy đổi Tùy chọn › Hiệu suất › Bộ xử lý đồ họa hoặc khởi động với biến WGPU_BACKEND được đặt
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Lần khởi động trước của VectorCraft đã dừng khi đang liệt kê các bộ xử lý đồ họa, nên VectorCraft đã khởi động trên {summary} chỉ với OpenGL. Để thử lại các giao diện đồ họa khác, hãy đổi Tùy chọn › Hiệu suất › Bộ xử lý đồ họa hoặc khởi động với biến WGPU_BACKEND được đặt
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	Bộ xử lý đồ họa thử trước không hiển thị được cửa sổ, Pluma đã khởi động lại trên {summary}
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Lần khởi động trước của Pluma đã dừng trên {name} trước khi cửa sổ xuất hiện, nên Pluma đã khởi động trên {summary}. Để thử lại bộ xử lý đồ họa đó, hãy đổi Tùy chọn › Hiệu suất › Bộ xử lý đồ họa hoặc khởi động với biến WGPU_BACKEND được đặt
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	Lần khởi động trước của Pluma đã dừng khi đang liệt kê các bộ xử lý đồ họa, nên Pluma đã khởi động trên {summary} chỉ với OpenGL. Để thử lại các giao diện đồ họa khác, hãy đổi Tùy chọn › Hiệu suất › Bộ xử lý đồ họa hoặc khởi động với biến WGPU_BACKEND được đặt
 @msg	The graphics were lost and couldn't be restarted.	Đồ họa đã mất và không thể khởi động lại.
 @msg	The graphics were lost and have been restarted	Đồ họa đã mất và đã được khởi động lại
 @msg	the guide is on a hidden or locked layer	đường căn nằm trên lớp ẩn hoặc bị khóa
@@ -5173,10 +5173,10 @@ theme	Appearance	Giao diện
 @msg	a new document won't read these variables back with their kind: {names}	tài liệu mới sẽ không đọc lại các biến số này đúng loại: {names}
 @msg	a new document refuses this file because of these variables: {names}	tài liệu mới sẽ từ chối tệp này vì các biến số sau: {names}
 @msg	the header `{header}` for `{name}` would read back as the variable `{other}`: rename one of them	tiêu đề `{header}` của `{name}` sẽ được đọc thành biến số `{other}`: hãy đổi tên một trong hai
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	VectorCraft không tìm kiếm trong thư mục của ứng dụng khác hoặc hệ thống: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	VectorCraft không tìm kiếm thư mục Shared hoặc Public trong Users: {path}
-@msg	VectorCraft failed to start: {e}	VectorCraft khởi động thất bại: {e}
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	Thư mục Phông chữ của VectorCraft chưa được đặt ở đây: ứng dụng máy tính và vectorcraft-cli đặt nó
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	Pluma không tìm kiếm trong thư mục của ứng dụng khác hoặc hệ thống: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	Pluma không tìm kiếm thư mục Shared hoặc Public trong Users: {path}
+@msg	Pluma failed to start: {e}	Pluma khởi động thất bại: {e}
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Thư mục Phông chữ của Pluma chưa được đặt ở đây: ứng dụng máy tính và pluma-cli đặt nó
 @msg	`{key}: {top}` and `options.{key}: {inner}` disagree: give the option once	`{key}: {top}` và `options.{key}: {inner}` không khớp nhau: chỉ nêu tùy chọn một lần
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	tệp phiên bản {0} không thể nén: chỉ phiên bản {COMPRESSED_SINCE} trở lên mới mở tệp nén
 @msg	width and height are at least 1 pixel	chiều rộng và chiều cao phải ít nhất 1 pixel
@@ -6136,7 +6136,7 @@ breakText	Glyphs	Glyph
 	Malayalam	Tiếng Malayalam
 	Odia	Tiếng Odia
 	Urdu	Tiếng Urdu
-	VectorCraft {release} and later (version {n})	VectorCraft {release} trở lên (phiên bản {n})
+	Pluma {release} and later (version {n})	Pluma {release} trở lên (phiên bản {n})
 # Document Tools add-on: Export All Open Documents (#4920).
 	Export All Open Documents as PDF	Xuất tất cả tài liệu đang mở dưới dạng PDF
 	Export All Open Documents as SVG	Xuất tất cả tài liệu đang mở dưới dạng SVG
@@ -6288,14 +6288,14 @@ breakText	Glyphs	Glyph
 	Safe Mode	Chế độ an toàn
 	Help › Safe Mode…	Trợ giúp › Chế độ an toàn…
 	Enable on Re-launch	Bật ở lần khởi chạy tiếp theo
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	Lần khởi chạy VectorCraft trước đã dừng khi đang tải plug-in {name}. Có thể plug-in đó không phải là nguyên nhân.
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Lần khởi chạy Pluma trước đã dừng khi đang tải plug-in {name}. Có thể plug-in đó không phải là nguyên nhân.
 	Disable and Continue	Tắt và tiếp tục
 	Start Normally	Khởi động bình thường
 	Start in Safe Mode	Khởi động ở chế độ an toàn
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft đang ở chế độ an toàn: không plug-in nào được tải hay chạy cho đến khi ứng dụng khởi động bình thường.
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma đang ở chế độ an toàn: không plug-in nào được tải hay chạy cho đến khi ứng dụng khởi động bình thường.
 	Disabled plug-ins	Plug-in đã tắt
 	No plug-ins are disabled.	Không có plug-in nào bị tắt.
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	Chế độ an toàn đang bật: plug-in không được tải hay chạy cho đến khi VectorCraft khởi động bình thường
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	Chế độ an toàn đang bật: plug-in không được tải hay chạy cho đến khi Pluma khởi động bình thường
 @msg	give `id` or `file` (see plugin.safeMode)	cung cấp `id` hoặc `file` (xem plugin.safeMode)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	plug-in đó không bị tắt (xem plugin.safeMode)
 @msg	Couldn't save the disabled plug-ins for the next launch	Không thể lưu các plug-in đã tắt cho lần khởi chạy tiếp theo

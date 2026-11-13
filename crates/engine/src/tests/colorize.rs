@@ -1,8 +1,8 @@
 //! A fill color colorizes grayscale and 1-bit images (`paint.setFill` on the image).
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{ImageBlob, Node, NodeKind};
 use serde_json::json;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{ImageBlob, Node, NodeKind};
 
 use crate::*;
 
@@ -34,15 +34,7 @@ fn image(s: &mut Session, key: &str, blob: ImageBlob) -> NodeId {
     s.edit("Place", |d, sel| {
         d.images.insert(key.clone(), blob);
         let id = d.alloc_id();
-        let im = vectorcraft_doc::ImageObject {
-            key,
-            width: 2,
-            height: 1,
-            xf: Default::default(),
-            link: None,
-            placement: Default::default(),
-            pixels: None,
-        };
+        let im = pluma_doc::ImageObject { key, width: 2, height: 1, xf: Default::default(), link: None, placement: Default::default(), pixels: None };
         d.insert(d.default_layer(), 0, Node::new(id, NodeKind::Image(Box::new(im))))?;
         sel.set([id]);
         Ok(id)
@@ -377,7 +369,7 @@ fn colorized_gray_image_is_flattened_for_pdf_13() {
         "{}",
         tinted["warnings"]
     );
-    let bytes = vectorcraft_format::base64_decode(tinted["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(tinted["dataBase64"].as_str().unwrap()).unwrap();
     assert!(!String::from_utf8_lossy(&bytes).contains("/SMask"), "PDF 1.3 has no soft mask");
 }
 
@@ -388,7 +380,7 @@ fn colorized_gray_image_is_flattened_for_pdf_x_1a() {
     s.execute("paint.setFill", &json!({"color": "#ff0000", "ids": [id.0]})).unwrap();
     let out = s.execute("document.exportPdf", &json!({"standard": "pdfX1a"})).unwrap();
     assert!(out["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("transparency is flattened")), "{}", out["warnings"]);
-    let bytes = vectorcraft_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
     assert!(!String::from_utf8_lossy(&bytes).contains("/SMask"), "PDF/X-1a has no soft mask");
 }
 
@@ -416,7 +408,7 @@ fn eps_export_writes_a_colorized_image_in_its_spot_ink_without_flattening() {
     s.execute("paint.setFill", &json!({"swatch": "Ink", "ids": [id.0]})).unwrap();
     let out = s.execute("document.exportEps", &json!({"previewFormat": "none", "useArtboards": false})).unwrap();
     assert!(out["warnings"].as_array().unwrap().iter().all(|w| !w.as_str().unwrap().contains("transparency is flattened")), "{}", out["warnings"]);
-    let bytes = vectorcraft_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(out["dataBase64"].as_str().unwrap()).unwrap();
     let ps = String::from_utf8_lossy(&bytes);
     assert!(ps.contains("imagemask") && ps.contains("/Separation (Ink) cvn"), "the image prints on the Ink plate");
     assert!(ps.contains("%%DocumentCustomColors: (Ink)"));
@@ -446,7 +438,7 @@ fn eps_export_still_flattens_a_colorize_paint_on_a_color_image() {
 #[test]
 fn a_colorized_missing_link_placeholder_is_not_flattened() {
     let mut s = session();
-    let bytes = std::sync::Arc::new(vectorcraft_doc::links::missing_placeholder().unwrap());
+    let bytes = std::sync::Arc::new(pluma_doc::links::missing_placeholder().unwrap());
     let id = image(&mut s, "pic", ImageBlob { mime: "image/png".into(), bytes: bytes.clone(), proxy: Some(bytes) });
     s.edit("Colorize", |d, _| {
         d.node_mut(id).unwrap().extras_mut().colorize = Some(Box::new(Paint::solid(Color::rgb8(255, 0, 0))));
@@ -471,7 +463,7 @@ fn flattened_colorized_image_shows_the_art_under_white_pixels() {
     let id = image(&mut s, "gray", gray(false));
     s.edit("Scale image", |d, _| {
         if let NodeKind::Image(im) = &mut d.node_mut(id).unwrap().kind {
-            im.xf = vectorcraft_geom::Affine::scale(20.0);
+            im.xf = pluma_geom::Affine::scale(20.0);
         }
         Ok(())
     })
@@ -483,9 +475,9 @@ fn flattened_colorized_image_shows_the_art_under_white_pixels() {
     options.no_transparency = Some(Default::default());
     options.clip_complex_regions = true;
     let flat = crate::cmd::flatten::flatten_document(doc, &options).unwrap().unwrap();
-    let region = vectorcraft_geom::Rect::new(0.0, 0.0, 40.0, 20.0);
-    let before = vectorcraft_render::Renderer::new().render_region(doc, region, 1.0, true);
-    let after = vectorcraft_render::Renderer::new().render_region(&flat, region, 1.0, true);
+    let region = pluma_geom::Rect::new(0.0, 0.0, 40.0, 20.0);
+    let before = pluma_render::Renderer::new().render_region(doc, region, 1.0, true);
+    let after = pluma_render::Renderer::new().render_region(&flat, region, 1.0, true);
     for (x, expected) in [(10, [255, 0, 0]), (30, [0, 0, 255])] {
         let a = before.pixel(x, 10);
         let b = after.pixel(x, 10);
@@ -600,7 +592,7 @@ fn the_active_fill_item_takes_the_paint_instead() {
     s.execute("paint.setFill", &json!({"color": "#0000ff"})).unwrap();
     assert_eq!(colorize(&s, id), None);
     let n = s.doc().unwrap().doc.node(id).unwrap().clone();
-    let blue = vectorcraft_color::Color::rgb(0.0, 0.0, 1.0);
+    let blue = pluma_color::Color::rgb(0.0, 0.0, 1.0);
     assert_eq!(n.appearance.fill().and_then(|f| f.paint.color()), Some(blue), "the fill item took the color");
 }
 
@@ -636,11 +628,11 @@ fn colorized_images_save_and_open_with_their_color() {
     let id = image(&mut s, "gray", gray(false));
     s.execute("paint.setFill", &json!({"swatch": "Ink"})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert_eq!(&back.layers, &d.layers);
     assert!(back.node(id).unwrap().extras().colorize.is_some());
     // Swatch edits reach it as they reach fills.
     s.execute("swatch.edit", &json!({"name": "Ink", "color": {"c": 100, "m": 0, "y": 0, "k": 0}})).unwrap();
     let Some(Paint::Solid { color, .. }) = colorize(&s, id) else { panic!() };
-    assert_eq!(color, vectorcraft_color::Color::Cmyk { c: 1.0, m: 0.0, y: 0.0, k: 0.0 });
+    assert_eq!(color, pluma_color::Color::Cmyk { c: 1.0, m: 0.0, y: 0.0, k: 0.0 });
 }

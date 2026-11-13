@@ -3,7 +3,7 @@
 //! enforces on every run.
 //!
 //! `doc.read`, `doc.write`, `state` and `progress` are the names of the plug-in capability model in
-//! storytold/photocraft#662; the other names are VectorCraft's own. A manifest without
+//! storytold/photocraft#662; the other names are Pluma's own. A manifest without
 //! `permissions` gets the ones its kind implies ([`Permission::implied`]): what every plug-in of
 //! that kind could do before manifests listed them. `progress`, `settings` and `cache`, which let a
 //! plug-in use the host imports of API level 2 ([`crate::host`]), are never implied: a manifest

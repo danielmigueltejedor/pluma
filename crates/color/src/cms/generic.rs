@@ -1,11 +1,11 @@
-//! "VectorCraft Generic CMYK (SWOP-like)": our own parametric press model.
+//! "Pluma Generic CMYK (SWOP-like)": our own parametric press model.
 //!
 //! We can't redistribute Adobe's or ECI's characterisation profiles, so the built-in CMYK space is
 //! a small physical model instead of an ICC LUT. It is *ours* and only SWOP-*like*. Two of its
 //! figures are published values for SWOP printing: the tone value increase of each ink at 40% and
 //! 50% from CGATS TR 001 (<https://registry.color.org/cmyk-registry/cgats_tr_001>), and the 300%
 //! total ink limit (<https://en.wikipedia.org/wiki/Specifications_for_Web_Offset_Publications>).
-//! The paper, solid and overprint colors and the black-generation curve are VectorCraft's own values.
+//! The paper, solid and overprint colors and the black-generation curve are Pluma's own values.
 //!
 //! * **Forward (CMYK → XYZ):** each ink's nominal dot area `a` is widened by a tone curve
 //!   `a + 4·g·a·(1−a)·(1 + s·(2a−1))` that passes through the TR 001 tone value increase at 50%
@@ -62,7 +62,7 @@ pub struct GenericCmykParams {
     pub bg: BlackGeneration,
 }
 
-/// The built-in SWOP-like press: TR 001 tone value increase, a 300% ink limit, and VectorCraft's
+/// The built-in SWOP-like press: TR 001 tone value increase, a 300% ink limit, and Pluma's
 /// own paper, primaries and black curve.
 pub fn swop_like() -> GenericCmykParams {
     GenericCmykParams {

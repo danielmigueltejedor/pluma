@@ -1,38 +1,38 @@
 {
   "id": "vectorcraft",
-  "name": "VectorCraft",
-  "upgradeCode": "601C6437-08AE-4645-ADCC-27F036C2EA2F",
+  "name": "Pluma",
+  "upgradeCode": "0E78361F-E7B5-49CA-83E5-DC8FB914E33F",
   "sources": [
-    "vectorcraft.wxs"
+    "pluma.wxs"
   ],
-  "icon": "assets/app-icon/vectorcraft.ico",
+  "icon": "assets/app-icon/pluma.ico",
   "localization": [
-    "vectorcraft.en-us.wxl"
+    "pluma.en-us.wxl"
   ],
   "extensions": [
     "UI",
     "Util"
   ],
   "payloads": [
-    "vectorcraft-cli.exe",
-    "vectorcraft.exe"
+    "pluma-cli.exe",
+    "pluma.exe"
   ],
   "registry": [
     [
       "-1",
-      "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\vectorcraft.exe",
+      "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\pluma.exe",
       "",
-      "[#VectorcraftExe]"
+      "[#PlumaExe]"
     ],
     [
       "-1",
-      "Software\\VectorCraft",
+      "Software\\Pluma",
       "InstallDir",
       "[INSTALLFOLDER]"
     ],
     [
       "-1",
-      "Software\\VectorCraft",
+      "Software\\Pluma",
       "DesktopShortcut",
       "#1"
     ]

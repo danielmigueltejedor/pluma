@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use egui::emath::{GuiRounding as _, TSTransform};
 use egui::epaint::{ClippedShape, Primitive, RectShape, TessellationOptions, Tessellator, Vertex};
 use egui::{Mesh, Vec2};
-use vectorcraft_doc::{AnchorRef, NodeId, SegmentRef};
+use pluma_doc::{AnchorRef, NodeId, SegmentRef};
 
 use super::outline::{KEY_OUTLINE, c32, node_outline, to_screen_path, walk_drawn};
 use super::overlays::{HandleLook, anchor_square, selected_anchor};
@@ -270,7 +270,7 @@ impl ObjectMarks {
 }
 
 /// The node `id` as held in the document, for its identity.
-fn node_arc(doc: &vectorcraft_doc::Document, id: NodeId) -> Option<&Arc<Node>> {
+fn node_arc(doc: &pluma_doc::Document, id: NodeId) -> Option<&Arc<Node>> {
     let path = doc.index_path(id)?;
     let (first, rest) = path.split_first()?;
     let mut node = doc.layers.get(*first)?;
@@ -567,7 +567,7 @@ impl SelectionMarks {
     /// is still valid. Entries of any other object are dropped.
     pub(super) fn paint(
         &mut self,
-        st: &vectorcraft_engine::DocState,
+        st: &pluma_engine::DocState,
         p: &egui::Painter,
         xf: &Xf,
         options: &MarkOptions,
@@ -645,7 +645,7 @@ impl SelectionMarks {
     /// Bring the key object's outline up to date. True when it changed.
     fn update_key(
         &mut self,
-        st: &vectorcraft_engine::DocState,
+        st: &pluma_engine::DocState,
         key: Option<NodeId>,
         xf: &Xf,
         map: &ViewMap,
@@ -766,7 +766,7 @@ fn key_marks(node: &Arc<Node>, color: Color32, source: (u64, u64), xf: &Xf, map:
 }
 
 /// Draw the key object's outline and the marks of `objects` as plain shapes, keeping nothing.
-fn draw_once(st: &vectorcraft_engine::DocState, p: &egui::Painter, xf: &Xf, options: &MarkOptions, key: Option<NodeId>, objects: &[NodeId]) {
+fn draw_once(st: &pluma_engine::DocState, p: &egui::Painter, xf: &Xf, options: &MarkOptions, key: Option<NodeId>, objects: &[NodeId]) {
     let map = ViewMap::new(xf);
     let symbols = st.doc.symbol_boxes();
     let source = (st.uid, st.revision);
@@ -819,7 +819,7 @@ fn add_marks(p: &egui::Painter, map: &ViewMap, look: HandleLook, marks: Vec<Mark
 /// Build the marks of the selected object `id`.
 #[allow(clippy::too_many_arguments)]
 fn object_marks(
-    st: &vectorcraft_engine::DocState,
+    st: &pluma_engine::DocState,
     id: NodeId,
     node: &Arc<Node>,
     color: Color32,
@@ -836,13 +836,13 @@ fn object_marks(
     let (mut marks, mut handles, mut with_handles) = (MarkList::new(map), MarkList::new(map), 0);
     // Path outlines (and area type / placed document / image / mesh / symbol outlines;
     // point type baselines and origin are drawn below).
-    if !matches!(n.kind, NodeKind::Text(ref tx) if matches!(tx.kind, vectorcraft_doc::TextKind::Point)) {
+    if !matches!(n.kind, NodeKind::Text(ref tx) if matches!(tx.kind, pluma_doc::TextKind::Point)) {
         marks.outline(&node_outline(n, symbols), xf, Stroke::new(1.0, color));
     }
     // Anchors (and handles for selected anchors in direct mode); a gradient mesh's or a mesh
     // envelope's points.
     walk_drawn(n, &mut |c| {
-        let envelope = vectorcraft_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid);
+        let envelope = pluma_doc::live::envelope_overlay(c).and_then(|(_, grid)| grid);
         let grid = match &c.kind {
             NodeKind::Mesh(m) => Some(m),
             _ => envelope.as_ref(),
@@ -863,7 +863,7 @@ fn object_marks(
             for &(si, seg) in segments {
                 let Some(sp) = path.subpaths.get(si).filter(|sp| seg < sp.segment_count()) else { continue };
                 let curve = sp.segment(seg);
-                let mut outline = vectorcraft_geom::BezPath::new();
+                let mut outline = pluma_geom::BezPath::new();
                 outline.move_to(curve.p0);
                 if sp.segment_is_line(seg) {
                     outline.line_to(curve.p3);
@@ -877,7 +877,7 @@ fn object_marks(
             // An object selected whole has all its anchors selected, and so do the paths inside a
             // group, compound path or clip group selected whole. Direction handles show only on a
             // path that is selected itself: those are the handles that `handle_anchors` in
-            // `vectorcraft-tools` lets the tools drag.
+            // `pluma-tools` lets the tools drag.
             let (sel, handles_shown) = match partial {
                 Some(set) => {
                     let sel = set.contains(&(si, ai));
@@ -917,7 +917,7 @@ fn object_marks(
     // alignment and rotation, and the anchor (area type shows its frame instead, which may
     // not be a rectangle, and type on a path its path).
     if let NodeKind::Text(tx) = &n.kind
-        && matches!(tx.kind, vectorcraft_doc::TextKind::Point)
+        && matches!(tx.kind, pluma_doc::TextKind::Point)
     {
         for (a, b) in tx.baselines() {
             marks.line(tx.xf * a, tx.xf * b, Stroke::new(1.0, color));

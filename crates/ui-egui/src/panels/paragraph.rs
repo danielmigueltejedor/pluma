@@ -6,15 +6,15 @@
 //! (with the East Asian options) and picks the Single-line or Every-line Composer.
 
 use egui::{Ui, vec2};
-use serde_json::{Value, json};
-use vectorcraft_doc::{
+use pluma_doc::{
     Composer, HyphenationOptions, JustificationOptions, Justify, Kinsoku, KinsokuShoriType, Mojikumi, NodeKind, ParaDirection, ParaStyle,
     SingleWordJustify,
 };
+use serde_json::{Value, json};
 
 use super::character::{Metric, Shared, text_style};
 use super::{pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
 
@@ -30,7 +30,7 @@ pub const ALIGNMENTS: [(Justify, &str, &str, &str); 7] = [
 
 /// Paragraph attributes apply to the selected text objects' paragraphs or, while the Type tool
 /// edits text, to the paragraphs its selection (or caret) touches (ending its typing session).
-fn format(app: &mut VectorcraftApp, p: Value) {
+fn format(app: &mut PlumaApp, p: Value) {
     para_cmd(app, "text.setFormat", p);
 }
 
@@ -46,7 +46,7 @@ pub const ALIGN_COMMANDS: [(&str, &str); 5] = [
 
 /// Align the paragraphs of the selected type, or those the Type tool's selection touches, as
 /// `justify` (an [`ALIGN_COMMANDS`] alignment, #1111).
-pub(crate) fn align(app: &mut VectorcraftApp, justify: &str) -> Result<Value, String> {
+pub(crate) fn align(app: &mut PlumaApp, justify: &str) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     para_cmd(app, "text.setStyle", json!({ "justify": justify }));
     Ok(Value::Null)
@@ -55,7 +55,7 @@ pub(crate) fn align(app: &mut VectorcraftApp, justify: &str) -> Result<Value, St
 /// `type.lineComposer` (Cmd+Alt+Shift+C): the Single-line Composer for the paragraphs the panel
 /// acts on when they all use the Every-line Composer, else the Every-line Composer. Returns the
 /// composer set.
-pub(crate) fn toggle_composer(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn toggle_composer(app: &mut PlumaApp) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     let id = if shared_composer(app) == Some(Composer::EveryLine) { "singleLine" } else { "everyLine" };
     format(app, json!({ "composer": id }));
@@ -64,19 +64,19 @@ pub(crate) fn toggle_composer(app: &mut VectorcraftApp) -> Result<Value, String>
 
 /// `type.hyphenate` (Cmd+Alt+Shift+H): what the Hyphenate checkbox does, on the paragraphs the
 /// panel acts on. Returns whether they now hyphenate.
-pub(crate) fn toggle_hyphenate(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn toggle_hyphenate(app: &mut PlumaApp) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     let on = shared_hyphenate(app) != Some(true);
     format(app, json!({ "hyphenate": on }));
     Ok(json!(on))
 }
 
-fn para_cmd(app: &mut VectorcraftApp, cmd: &str, p: Value) {
+fn para_cmd(app: &mut PlumaApp, cmd: &str, p: Value) {
     run_on_paragraphs(app, cmd, p).ok();
 }
 
 /// Run `cmd` on the paragraphs the Paragraph panel acts on ([`format`]) and return its result.
-pub(crate) fn run_on_paragraphs(app: &mut VectorcraftApp, cmd: &str, mut p: Value) -> Result<Value, String> {
+pub(crate) fn run_on_paragraphs(app: &mut PlumaApp, cmd: &str, mut p: Value) -> Result<Value, String> {
     if let Some((id, a, b)) = super::character::text_editing(app) {
         super::character::end_typing(app);
         match super::character::text_story(app) {
@@ -94,7 +94,7 @@ pub(crate) fn run_on_paragraphs(app: &mut VectorcraftApp, cmd: &str, mut p: Valu
 
 /// Does the paragraph being edited (at the caret), else the selected text's first paragraph, run
 /// right to left: its Paragraph Direction, else from its first strong character?
-fn resolved_rtl(app: &VectorcraftApp, para: &ParaStyle) -> bool {
+fn resolved_rtl(app: &PlumaApp, para: &ParaStyle) -> bool {
     let editing = super::character::text_editing(app);
     let text = editing.and_then(|(id, _, _)| match app.session.active().and_then(|d| d.doc.node(id)).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => Some(t.as_ref()),
@@ -102,8 +102,8 @@ fn resolved_rtl(app: &VectorcraftApp, para: &ParaStyle) -> bool {
     });
     let Some(t) = text.or_else(|| super::character::first_selected_text(app)) else { return para.direction == Some(ParaDirection::RightToLeft) };
     let plain = t.plain_text();
-    let paragraph = vectorcraft_text::edit::paragraph_at(&plain, editing.map_or(0, |(_, a, _)| a));
-    vectorcraft_text::paragraph_is_rtl(plain.get(paragraph).unwrap_or_default(), para.direction)
+    let paragraph = pluma_text::edit::paragraph_at(&plain, editing.map_or(0, |(_, a, _)| a));
+    pluma_text::paragraph_is_rtl(plain.get(paragraph).unwrap_or_default(), para.direction)
 }
 
 /// The alignment button that shows `justify` in a paragraph running right to left (`rtl`) or not:
@@ -119,7 +119,7 @@ fn shown_alignment(justify: Justify, rtl: bool) -> Justify {
 /// Add the displayed alignments touched by the byte range (all paragraphs without a range).
 /// Walk forward through run fragments so paragraph lookup never rescans an earlier prefix.
 /// Only Auto needs paragraph text; borrow a fragment until style runs split it.
-fn collect_text_alignment(text: &vectorcraft_doc::TextObject, range: Option<(usize, usize)>, shared: &mut Option<Justify>) -> bool {
+fn collect_text_alignment(text: &pluma_doc::TextObject, range: Option<(usize, usize)>, shared: &mut Option<Justify>) -> bool {
     use std::borrow::Cow;
     let (a, b) = range.map_or((0, usize::MAX), |(a, b)| (a.min(b), a.max(b)));
     let mut record = |index, plain: &str, start, end| {
@@ -127,7 +127,7 @@ fn collect_text_alignment(text: &vectorcraft_doc::TextObject, range: Option<(usi
             return true;
         }
         let para = text.para_at(index);
-        let rtl = para.justify == Justify::Auto && vectorcraft_text::paragraph_is_rtl(plain, para.direction);
+        let rtl = para.justify == Justify::Auto && pluma_text::paragraph_is_rtl(plain, para.direction);
         let value = shown_alignment(para.justify, rtl);
         if shared.is_some_and(|old| old != value) {
             return false;
@@ -140,7 +140,7 @@ fn collect_text_alignment(text: &vectorcraft_doc::TextObject, range: Option<(usi
     for run in &text.runs {
         let mut rest = run.text.as_str();
         while !rest.is_empty() {
-            let span = vectorcraft_text::edit::paragraph_at(rest, 0);
+            let span = pluma_text::edit::paragraph_at(rest, 0);
             let part = rest.get(span.clone()).unwrap_or_default();
             let para = text.para_at(index);
             if para.justify == Justify::Auto && !part.is_empty() {
@@ -174,7 +174,7 @@ fn collect_text_alignment(text: &vectorcraft_doc::TextObject, range: Option<(usi
 
 /// The frames of the threaded story whose whole text the Type tool has selected after Select All
 /// ([`super::character::text_story`]), in thread order.
-fn story_texts(app: &VectorcraftApp) -> Option<Vec<&vectorcraft_doc::TextObject>> {
+fn story_texts(app: &PlumaApp) -> Option<Vec<&pluma_doc::TextObject>> {
     let st = app.session.active()?;
     let story = super::character::text_story(app)?;
     Some(
@@ -189,7 +189,7 @@ fn story_texts(app: &VectorcraftApp) -> Option<Vec<&vectorcraft_doc::TextObject>
 }
 
 /// Visit every paragraph the Paragraph panel acts on.
-fn visit_paragraphs(app: &VectorcraftApp, mut f: impl FnMut(&ParaStyle)) {
+fn visit_paragraphs(app: &PlumaApp, mut f: impl FnMut(&ParaStyle)) {
     let Some(st) = app.session.active() else { return };
     if let Some(texts) = story_texts(app) {
         for t in texts {
@@ -220,7 +220,7 @@ fn visit_paragraphs(app: &VectorcraftApp, mut f: impl FnMut(&ParaStyle)) {
 }
 
 /// A distance shared by every paragraph in scope, or `None` when they differ (blank spin field).
-pub(crate) fn shared_para_field(app: &VectorcraftApp, field: impl Fn(&ParaStyle) -> f64) -> Option<f64> {
+pub(crate) fn shared_para_field(app: &PlumaApp, field: impl Fn(&ParaStyle) -> f64) -> Option<f64> {
     let mut acc = Shared::None;
     let mut any = false;
     visit_paragraphs(app, |p| {
@@ -234,7 +234,7 @@ pub(crate) fn shared_para_field(app: &VectorcraftApp, field: impl Fn(&ParaStyle)
 }
 
 /// A justification option shared by every paragraph in scope, or `None` when they differ.
-pub(crate) fn shared_justification_f64(app: &VectorcraftApp, f: impl Fn(&JustificationOptions) -> f64) -> Option<f64> {
+pub(crate) fn shared_justification_f64(app: &PlumaApp, f: impl Fn(&JustificationOptions) -> f64) -> Option<f64> {
     let mut acc = Shared::None;
     let mut any = false;
     visit_paragraphs(app, |p| {
@@ -248,12 +248,12 @@ pub(crate) fn shared_justification_f64(app: &VectorcraftApp, f: impl Fn(&Justifi
 }
 
 /// Single Word Justification shared by every paragraph in scope, or `None` when they differ.
-pub(crate) fn shared_single_word_justify(app: &VectorcraftApp) -> Option<SingleWordJustify> {
+pub(crate) fn shared_single_word_justify(app: &PlumaApp) -> Option<SingleWordJustify> {
     shared_para(app, |p| p.justification.single_word)
 }
 
 /// A paragraph attribute shared by every paragraph in scope, or `None` when they differ.
-pub(crate) fn shared_para<T: PartialEq + Copy>(app: &VectorcraftApp, field: impl Fn(&ParaStyle) -> T) -> Option<T> {
+pub(crate) fn shared_para<T: PartialEq + Copy>(app: &PlumaApp, field: impl Fn(&ParaStyle) -> T) -> Option<T> {
     let mut acc = Shared::None;
     let mut any = false;
     visit_paragraphs(app, |p| {
@@ -267,12 +267,12 @@ pub(crate) fn shared_para<T: PartialEq + Copy>(app: &VectorcraftApp, field: impl
 }
 
 /// The composer every paragraph in scope shares, or `None` when they differ (neither menu item checked).
-fn shared_composer(app: &VectorcraftApp) -> Option<Composer> {
+fn shared_composer(app: &PlumaApp) -> Option<Composer> {
     shared_para(app, |p| p.composer)
 }
 
 /// Hyphenation shared by every paragraph in scope, or `None` when they differ (checkbox off).
-pub(crate) fn shared_hyphenate(app: &VectorcraftApp) -> Option<bool> {
+pub(crate) fn shared_hyphenate(app: &PlumaApp) -> Option<bool> {
     shared_para(app, |p| p.hyphenate)
 }
 
@@ -281,7 +281,7 @@ fn paragraph_plain_at(plain: &str, index: usize) -> &str {
     let mut rest = plain;
     let mut idx = 0;
     while idx <= index && (!rest.is_empty() || idx == 0) {
-        let span = vectorcraft_text::edit::paragraph_at(rest, 0);
+        let span = pluma_text::edit::paragraph_at(rest, 0);
         let part = rest.get(span.clone()).unwrap_or("");
         if idx == index {
             return part;
@@ -296,14 +296,14 @@ fn paragraph_plain_at(plain: &str, index: usize) -> &str {
 }
 
 /// Whether the Paragraph Direction buttons would highlight RTL for this paragraph.
-fn displayed_paragraph_rtl(text: &vectorcraft_doc::TextObject, index: usize) -> bool {
+fn displayed_paragraph_rtl(text: &pluma_doc::TextObject, index: usize) -> bool {
     let plain = text.plain_text();
     let para = text.para_at(index);
-    vectorcraft_text::paragraph_is_rtl(paragraph_plain_at(&plain, index), para.direction)
+    pluma_text::paragraph_is_rtl(paragraph_plain_at(&plain, index), para.direction)
 }
 
 /// Collect the direction the Paragraph panel shows for each paragraph in `text`; `false` is LTR.
-fn collect_text_direction(text: &vectorcraft_doc::TextObject, range: Option<(usize, usize)>, shared: &mut Option<bool>) -> bool {
+fn collect_text_direction(text: &pluma_doc::TextObject, range: Option<(usize, usize)>, shared: &mut Option<bool>) -> bool {
     let para_range = range.map(|(a, b)| text.paragraphs_in(a, b)).unwrap_or_else(|| 0..text.paragraph_count());
     for i in para_range {
         let rtl = displayed_paragraph_rtl(text, i);
@@ -316,7 +316,7 @@ fn collect_text_direction(text: &vectorcraft_doc::TextObject, range: Option<(usi
 }
 
 /// `None` when paragraphs in scope disagree on displayed direction (neither direction button on).
-fn selected_paragraph_direction(app: &VectorcraftApp, fallback: &ParaStyle) -> Option<bool> {
+fn selected_paragraph_direction(app: &PlumaApp, fallback: &ParaStyle) -> Option<bool> {
     let default = Some(resolved_rtl(app, fallback));
     let Some(st) = app.session.active() else { return default };
     let mut shared = None;
@@ -328,7 +328,7 @@ fn selected_paragraph_direction(app: &VectorcraftApp, fallback: &ParaStyle) -> O
     {
         return if collect_text_direction(text, Some((a, b)), &mut shared) { shared.or(default) } else { None };
     }
-    fn collect(node: &vectorcraft_doc::Node, shared: &mut Option<bool>) -> bool {
+    fn collect(node: &pluma_doc::Node, shared: &mut Option<bool>) -> bool {
         if let NodeKind::Text(text) = &node.kind {
             return collect_text_direction(text, None, shared);
         }
@@ -343,17 +343,17 @@ fn selected_paragraph_direction(app: &VectorcraftApp, fallback: &ParaStyle) -> O
 }
 
 /// A hyphenation option shared by every paragraph in scope, or `None` when they differ.
-pub(crate) fn shared_hyphenation_field<T: PartialEq + Copy>(app: &VectorcraftApp, f: impl Fn(&HyphenationOptions) -> T) -> Option<T> {
+pub(crate) fn shared_hyphenation_field<T: PartialEq + Copy>(app: &PlumaApp, f: impl Fn(&HyphenationOptions) -> T) -> Option<T> {
     shared_para(app, |p| f(&p.hyphenation))
 }
 
 /// The hyphenation zone shared by every paragraph in scope, or `None` when they differ.
-pub(crate) fn shared_hyphenation_zone(app: &VectorcraftApp) -> Option<f64> {
+pub(crate) fn shared_hyphenation_zone(app: &PlumaApp) -> Option<f64> {
     shared_para_field(app, |p| p.hyphenation.zone)
 }
 
 /// None means differing displayed alignments, following the other mixed-value controls.
-fn selected_alignment(app: &VectorcraftApp, fallback: &ParaStyle) -> Option<Justify> {
+fn selected_alignment(app: &PlumaApp, fallback: &ParaStyle) -> Option<Justify> {
     let default = Some(shown_alignment(fallback.justify, fallback.direction == Some(ParaDirection::RightToLeft)));
     let Some(st) = app.session.active() else { return default };
     let mut shared = None;
@@ -365,7 +365,7 @@ fn selected_alignment(app: &VectorcraftApp, fallback: &ParaStyle) -> Option<Just
     {
         return if collect_text_alignment(text, Some((a, b)), &mut shared) { shared.or(default) } else { None };
     }
-    fn collect(node: &vectorcraft_doc::Node, shared: &mut Option<Justify>) -> bool {
+    fn collect(node: &pluma_doc::Node, shared: &mut Option<Justify>) -> bool {
         if let NodeKind::Text(text) = &node.kind {
             return collect_text_alignment(text, None, shared);
         }
@@ -381,12 +381,12 @@ fn selected_alignment(app: &VectorcraftApp, fallback: &ParaStyle) -> Option<Just
 
 /// The seven alignment buttons shared by Paragraph and Properties; no button is selected
 /// when the paragraphs they act on have differing displayed alignments.
-pub fn alignment_buttons(app: &mut VectorcraftApp, ui: &mut Ui, para: &ParaStyle, size: f32) {
+pub fn alignment_buttons(app: &mut PlumaApp, ui: &mut Ui, para: &ParaStyle, size: f32) {
     first_alignment_buttons(app, ui, para, size, ALIGNMENTS.len());
 }
 
 /// The first `count` of the [`ALIGNMENTS`] buttons.
-fn first_alignment_buttons(app: &mut VectorcraftApp, ui: &mut Ui, para: &ParaStyle, size: f32, count: usize) {
+fn first_alignment_buttons(app: &mut PlumaApp, ui: &mut Ui, para: &ParaStyle, size: f32, count: usize) {
     let shown = selected_alignment(app, para);
     for (j, icon, tip, id) in ALIGNMENTS.into_iter().take(count) {
         if widgets::icon_button(ui, icon, tip, shown == Some(j), size).clicked() {
@@ -419,7 +419,7 @@ fn control_bar_link_text(ui: &Ui) -> egui::RichText {
 /// and the Align left, Align center and Align right buttons, `size` points square as the bar's others. `reserve` gives the room the controls
 /// after them keep, asked only when type is selected: short of room, the buttons are left out,
 /// then the link too. Returns whether the link shows.
-pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui, size: f32, reserve: impl FnOnce(&Ui) -> f32) -> bool {
+pub(crate) fn control_bar(app: &mut PlumaApp, ui: &mut Ui, size: f32, reserve: impl FnOnce(&Ui) -> f32) -> bool {
     let Some((_, para)) = text_style(app) else { return false };
     let text = control_bar_link_text(ui);
     let link_width = widgets::text_width(ui, text.clone());
@@ -445,7 +445,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui, size: f32, rese
 /// Type › Bullets and Numbering › Apply Bullets (`type.applyBullets {bullet?}`): the paragraphs of
 /// the selected type, or those the Type tool's selection touches, become a bulleted list with
 /// `bullet`; without it, a list keeps its bullet and other paragraphs take the dot.
-pub(crate) fn apply_bullets(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn apply_bullets(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     let params = match p.get("bullet") {
         Some(b) => json!({ "bullet": b }),
@@ -458,7 +458,7 @@ pub(crate) fn apply_bullets(app: &mut VectorcraftApp, p: &Value) -> Result<Value
 /// the selected type, or those the Type tool's selection touches, become a numbered list with
 /// number style `number`; without it, a numbered list keeps its style and other paragraphs are
 /// numbered 1, 2, 3.
-pub(crate) fn apply_numbers(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn apply_numbers(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     let params = match p.get("number") {
         Some(n) => json!({ "number": n }),
@@ -469,8 +469,8 @@ pub(crate) fn apply_numbers(app: &mut VectorcraftApp, p: &Value) -> Result<Value
 
 /// The Bullets presets, in the order they are listed: (name, `text.setFormat`'s `bullet`, bullet;
 /// None for the preset that turns the list off).
-pub(crate) fn bullet_presets() -> [(&'static str, &'static str, Option<vectorcraft_doc::text::Bullet>); 5] {
-    use vectorcraft_doc::text::Bullet;
+pub(crate) fn bullet_presets() -> [(&'static str, &'static str, Option<pluma_doc::text::Bullet>); 5] {
+    use pluma_doc::text::Bullet;
     [
         (tl!("None"), "none", None),
         (tl!("Filled Dot"), "dot", Some(Bullet::Dot)),
@@ -482,7 +482,7 @@ pub(crate) fn bullet_presets() -> [(&'static str, &'static str, Option<vectorcra
 
 /// The first `n` numbers of number style `style`, as the Numbered List presets show them ("1, 2,
 /// 3").
-pub(crate) fn number_sample(style: vectorcraft_doc::text::NumberStyle, n: u32) -> String {
+pub(crate) fn number_sample(style: pluma_doc::text::NumberStyle, n: u32) -> String {
     (1..=n).map(|k| style.format(k)).collect::<Vec<_>>().join(", ")
 }
 
@@ -490,7 +490,7 @@ pub(crate) fn number_sample(style: vectorcraft_doc::text::NumberStyle, n: u32) -
 /// list paragraphs of the selected type, or of those the Type tool's selection touches, become
 /// characters of the text and the lists are turned off (`text.convertListToText`, which also moves
 /// the Type tool's anchor and caret past the characters inserted at or before them).
-pub(crate) fn convert_list_to_text(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn convert_list_to_text(app: &mut PlumaApp) -> Result<Value, String> {
     text_style(app).ok_or("select some type first")?;
     run_on_paragraphs(app, "text.convertListToText", json!({}))
 }
@@ -500,7 +500,7 @@ pub(crate) fn convert_list_to_text(app: &mut VectorcraftApp) -> Result<Value, St
 /// they all are one. The arrow lists the presets (`{bullet}`): None turns the list off, and the
 /// one every paragraph has is checked. More Options after them opens Bullets and Numbering on its
 /// Bullets tab.
-pub fn bullets_button(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) {
+pub fn bullets_button(app: &mut PlumaApp, ui: &mut Ui, size: f32) {
     let t = Tokens::get(ui.ctx());
     let shown = shared_para(app, |p| p.list.filter(|l| l.number.is_none()).map(|l| l.bullet));
     if widgets::icon_button(ui, "dc-para-bullets", tl!("Bullets"), matches!(shown, Some(Some(_))), size).clicked() {
@@ -534,7 +534,7 @@ pub fn bullets_button(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) {
 
 /// A row of the Bullets presets: a check when `checked`, the bullet drawn (a slash for None), then
 /// its name. Whether it was clicked.
-fn bullet_row(ui: &mut Ui, name: &str, bullet: Option<vectorcraft_doc::text::Bullet>, checked: bool) -> bool {
+fn bullet_row(ui: &mut Ui, name: &str, bullet: Option<pluma_doc::text::Bullet>, checked: bool) -> bool {
     let t = Tokens::get(ui.ctx());
     let (rect, resp) = ui.allocate_exact_size(vec2(130.0, 22.0), egui::Sense::click());
     if resp.hovered() {
@@ -552,8 +552,8 @@ fn bullet_row(ui: &mut Ui, name: &str, bullet: Option<vectorcraft_doc::text::Bul
 }
 
 /// Draw `bullet` centered on `c` in `color` as the presets show it (a slash for None).
-pub(crate) fn paint_bullet(painter: &egui::Painter, c: egui::Pos2, bullet: Option<vectorcraft_doc::text::Bullet>, color: egui::Color32) {
-    use vectorcraft_doc::text::Bullet;
+pub(crate) fn paint_bullet(painter: &egui::Painter, c: egui::Pos2, bullet: Option<pluma_doc::text::Bullet>, color: egui::Color32) {
+    use pluma_doc::text::Bullet;
     let stroke = egui::Stroke::new(1.5, color);
     match bullet {
         None => painter.line_segment([c + vec2(-5.0, 5.0), c + vec2(5.0, -5.0)], stroke),
@@ -581,7 +581,7 @@ fn more_options_row(ui: &mut Ui) -> bool {
 
 /// More Options: open Bullets and Numbering on `tab` (`ui.bulletsAndNumbering`), or show why it
 /// can't open.
-fn more_options(app: &mut VectorcraftApp, tab: &str) {
+fn more_options(app: &mut PlumaApp, tab: &str) {
     if let Err(e) = app.run("ui.bulletsAndNumbering", json!({ "tab": tab })) {
         app.status(e);
     }
@@ -592,8 +592,8 @@ fn more_options(app: &mut VectorcraftApp, tab: &str) {
 /// pressed while they all are one. The arrow lists the presets (`{number}`), each shown by its
 /// first three numbers: None turns the list off, and the one every paragraph has is checked. More
 /// Options after them opens Bullets and Numbering on its Numbers tab.
-pub fn numbers_button(app: &mut VectorcraftApp, ui: &mut Ui, size: f32) {
-    use vectorcraft_doc::text::NumberStyle;
+pub fn numbers_button(app: &mut PlumaApp, ui: &mut Ui, size: f32) {
+    use pluma_doc::text::NumberStyle;
     let t = Tokens::get(ui.ctx());
     let shown = shared_para(app, |p| p.list.and_then(|l| l.number));
     if widgets::icon_button(ui, "dc-para-numbers", tl!("Numbered List"), matches!(shown, Some(Some(_))), size).clicked() {
@@ -647,14 +647,14 @@ fn number_row(ui: &mut Ui, sample: &str, checked: bool) -> bool {
 }
 
 /// The Hyphenate checkbox for the paragraphs the panel acts on.
-pub fn hyphenate_check(app: &mut VectorcraftApp, ui: &mut Ui, _para: &ParaStyle) {
+pub fn hyphenate_check(app: &mut PlumaApp, ui: &mut Ui, _para: &ParaStyle) {
     let hyphenate = shared_hyphenate(app);
     if widgets::check(ui, tl!("Hyphenate"), hyphenate == Some(true), true) {
         format(app, json!({"hyphenate": hyphenate != Some(true)}));
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let Some((_, para)) = text_style(app) else {
         super::empty_state(ui, "pilcrow", tl!("No text selected"), tl!("Select a text object to edit its paragraph attributes."));
@@ -760,7 +760,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // How long the kashidas are that justify Arabic lines, with the Middle Eastern (Indic) options.
     if app.session.prefs.show_indic_options {
         ui.horizontal(|ui| {
-            use vectorcraft_doc::text::Kashida;
+            use pluma_doc::text::Kashida;
             widgets::dim_label(ui, tl!("Insert Kashidas"));
             let kinds = [
                 (tl!("None"), Kashida::None, "none"),
@@ -810,7 +810,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let style = text_style(app);
     let has = style.is_some();
     let hidden: bool = pstate(ui.ctx(), "pa-hide-options");
@@ -837,7 +837,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
     // the East Asian options.
     if app.session.prefs.show_east_asian_options {
         ui.separator();
-        let top_to_top = style.as_ref().is_some_and(|(_, p)| p.leading_model == vectorcraft_doc::LeadingModel::EmBoxTop);
+        let top_to_top = style.as_ref().is_some_and(|(_, p)| p.leading_model == pluma_doc::LeadingModel::EmBoxTop);
         if menu_item(ui, tl!("Top-to-Top Leading"), has, top_to_top) {
             format(app, json!({"leadingModel": "emBoxTop"}));
         }
@@ -849,7 +849,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
         ui.add_enabled_ui(has, |ui| {
             // Indented like the items beside it (their check column).
             ui.menu_button(format!("   {}", tl!("Burasagari")), |ui| {
-                use vectorcraft_doc::Burasagari;
+                use pluma_doc::Burasagari;
                 for (label, b, key) in [
                     (tl!("None"), Burasagari::None, "none"),
                     (tl!("Regular"), Burasagari::Standard, "standard"),
@@ -895,7 +895,7 @@ pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// Kinsoku Shori Type (`key`: `"pushInFirst"`, `"pushOutFirst"` or `"pushOutOnly"`) for the
 /// paragraphs the panel acts on ([`format`]), in one undo step.
-fn set_kinsoku_type(app: &mut VectorcraftApp, key: &str) {
+fn set_kinsoku_type(app: &mut PlumaApp, key: &str) {
     format(app, json!({"kinsokuType": key}));
 }
 
@@ -905,9 +905,9 @@ fn set_kinsoku_type(app: &mut VectorcraftApp, key: &str) {
 /// Set, Regular burasagari, the Hard kinsoku set, Push Out Only, the Every-line Composer, Roman
 /// Hanging Punctuation off, no kashidas and no tab stops, as one undo step named Reset Panel (inside
 /// an undo group that is already open, as part of its step).
-fn reset_panel(app: &mut VectorcraftApp) {
+fn reset_panel(app: &mut PlumaApp) {
     let h = HyphenationOptions::default();
-    let j = vectorcraft_doc::JustificationOptions::default();
+    let j = pluma_doc::JustificationOptions::default();
     // The Type tool's typing session stays an undo step of its own.
     super::character::end_typing(app);
     let open = app.session.active().is_some_and(|st| st.undo_group.is_some());

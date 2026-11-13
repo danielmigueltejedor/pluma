@@ -1,4 +1,4 @@
-//! Hand-written Illustrator editing data (the format `vectorcraft_eps`'s reader documents) and the
+//! Hand-written Illustrator editing data (the format `pluma_eps`'s reader documents) and the
 //! EPS, `.ai` and PDF files that carry it, for import tests. Nothing here comes from files another
 //! app wrote, except the key names that [`pdf`] uses, the XML node keys of [`xml_node`] and
 //! the keys of [`on_path_record`] and [`on_path_member`].
@@ -15,7 +15,7 @@ pub fn editing_data_in(art: [f64; 4], board: [f64; 4], body: &str) -> String {
     let [a0, a1, a2, a3] = art;
     let [b0, b1, b2, b3] = board;
     format!(
-        "{PS_HEADER}\n%%Creator: VectorCraft tests\n%%BoundingBox: {a0} {a1} {a2} {a3}\n%%HiResBoundingBox: {a0} {a1} {a2} {a3}\n\
+        "{PS_HEADER}\n%%Creator: Pluma tests\n%%BoundingBox: {a0} {a1} {a2} {a3}\n%%HiResBoundingBox: {a0} {a1} {a2} {a3}\n\
          %AI5_FileFormat 14.0\n%AI3_Cropmarks: {b0} {b1} {b2} {b3}\n%%EndComments\n\
          %%BeginProlog\n%%EndProlog\n%%BeginSetup\n%%EndSetup\n{body}\n%%PageTrailer\ngsave annotatepage grestore showpage\n%%Trailer\n%%EOF\n"
     )
@@ -306,7 +306,7 @@ pub fn page_pdf() -> &'static str {
 /// `data` after it, not compressed.
 pub fn eps(data: &[u8], page: &str) -> Vec<u8> {
     let mut out = format!(
-        "{PS_HEADER} EPSF-3.0\n%%Creator: VectorCraft tests\n%%BoundingBox: 0 0 200 100\n%%HiResBoundingBox: 0 0 200 100\n%%EndComments\n{page}showpage\n%%EOF\n%AI9_PrivateDataBegin\n"
+        "{PS_HEADER} EPSF-3.0\n%%Creator: Pluma tests\n%%BoundingBox: 0 0 200 100\n%%HiResBoundingBox: 0 0 200 100\n%%EndComments\n{page}showpage\n%%EOF\n%AI9_PrivateDataBegin\n"
     )
     .into_bytes();
     out.extend_from_slice(data);

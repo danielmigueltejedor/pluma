@@ -1,4 +1,4 @@
-//! Machine-readable parameter schemas for VectorCraft commands. A [`ParamSchema`] lists what each
+//! Machine-readable parameter schemas for Pluma commands. A [`ParamSchema`] lists what each
 //! parameter of a command is ([`Param`], [`Type`]): its type, whether it is required, what an
 //! omitted value means, whether null counts as omitted, and the API levels it was added and
 //! deprecated at. From one schema come:
@@ -8,7 +8,7 @@
 //! - [`ParamSchema::definition_problem`], which checks the schema itself;
 //! - [`ParamSchema::params_text`], the params text a command lists;
 //! - [`ParamSchema::to_json`], the schema as a JSON object in the shape of a JSON Schema 2020-12
-//!   object schema (<https://json-schema.org/draft/2020-12>), with VectorCraft's own fields as
+//!   object schema (<https://json-schema.org/draft/2020-12>), with Pluma's own fields as
 //!   `x-` keywords;
 //! - [`hash`], a hash of a set of command schemas, which changes whenever any of them changes.
 //!
@@ -16,7 +16,7 @@
 //! shows a bounded part of a refused value and of a refused key, and the value is not written out
 //! first, so a huge or deeply nested value costs no more to refuse than a small one.
 //!
-//! The crate knows no command and depends on no other VectorCraft crate.
+//! The crate knows no command and depends on no other Pluma crate.
 #![forbid(unsafe_code)]
 
 use std::fmt;
@@ -272,7 +272,7 @@ impl ParamSchema {
 
     /// The schema as a JSON Schema 2020-12 object schema. Defaults written as JSON go in
     /// `default`, a parameter that accepts null as omitted is an `anyOf` with `{"type": "null"}`,
-    /// and VectorCraft's own fields are `x-since`, `x-deprecatedSince`, `x-lenient`, `x-unit`,
+    /// and Pluma's own fields are `x-since`, `x-deprecatedSince`, `x-lenient`, `x-unit`,
     /// `x-kind`, `x-cost`, `x-writes` and `x-returns`. The root `type` is `["object", "null"]` when
     /// no parameter is required, because null params read as `{}`, and `"object"` otherwise. A JSON
     /// Schema validator accepts the values [`ParamSchema::validate`] accepts, except that an

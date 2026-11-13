@@ -21,7 +21,7 @@ pub enum VariableKind {
     Image,
     /// A graph object's data (CSV of categories and series, as Graph Data uses).
     Graph,
-    /// A variable a file declares without a kind (or with one VectorCraft doesn't know): it drives
+    /// A variable a file declares without a kind (or with one Pluma doesn't know): it drives
     /// nothing, no value fits it, and nothing can be bound to it.
     Unknown,
 }

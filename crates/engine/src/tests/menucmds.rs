@@ -1,9 +1,9 @@
 //! Menu long-tail commands (Object/Edit/Select/Type/View/File), driven through `Session::execute`.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, ColorMode, LiveShape, Node, NodeKind, TextKind};
+use pluma_geom::{Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ColorMode, LiveShape, Node, NodeKind, TextKind};
-use vectorcraft_geom::{Rect, shapes};
 
 use crate::tests_large_edits::{layer, run_soon, square, undo_gives_back};
 use crate::*;
@@ -51,7 +51,7 @@ pub(crate) fn place_undecodable_png_sized(s: &mut Session, w: u32, h: u32) -> No
     image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]))
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
-    let r = s.execute("file.place", &json!({"name": "cut.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "cut.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
     let id = NodeId(r["ids"][0].as_u64().unwrap());
     cut_pixels(s, id);
     id
@@ -68,7 +68,7 @@ pub(crate) fn cut_pixels(s: &mut Session, id: NodeId) {
     let mut png = doc.images[&old].bytes.to_vec();
     let idat = png.windows(4).position(|w| w == b"IDAT").unwrap();
     png.truncate(idat + 8);
-    let cut = vectorcraft_doc::ImageBlob::new("image/png", png);
+    let cut = pluma_doc::ImageBlob::new("image/png", png);
     let key = cut.content_key();
     doc.images.insert(key.clone(), cut);
     if let Some(Node { kind: NodeKind::Image(im), .. }) = doc.node_mut(id) {
@@ -898,8 +898,7 @@ fn hide_unselected_artwork_keeps_a_group_that_holds_a_selected_layer() {
     let sub = s
         .edit("nest", |d, _| {
             let id = d.alloc_id();
-            d.insert(Some(g), usize::MAX, Node::layer(id, "Sub", vectorcraft_doc::LayerColor::Preset(1)))
-                .map_err(|e| EngineError::Other(e.to_string()))?;
+            d.insert(Some(g), usize::MAX, Node::layer(id, "Sub", pluma_doc::LayerColor::Preset(1))).map_err(|e| EngineError::Other(e.to_string()))?;
             let art = d.remove(z).map_err(|e| EngineError::Other(e.to_string()))?;
             d.insert(Some(id), 0, (*art).clone()).map_err(|e| EngineError::Other(e.to_string()))?;
             Ok(id)
@@ -1245,7 +1244,7 @@ fn transform_each_refuses_strokes_given_as_text_and_keeps_transform_again() {
     sel(&mut s, &[a]);
     s.execute("stroke.set", &json!({"weight": 4})).unwrap();
     s.execute("object.transformEach", &json!({"moveH": 10})).unwrap();
-    let saved = |s: &Session| vectorcraft_format::save(&s.doc().unwrap().doc, false);
+    let saved = |s: &Session| pluma_format::save(&s.doc().unwrap().doc, false);
     let repeat = |s: &Session| s.doc().unwrap().last_transform.clone();
     let before = (saved(&s), history(&s), repeat(&s));
     for strokes in [json!("false"), json!("true"), json!(0)] {
@@ -1709,7 +1708,7 @@ fn blend_make_release_options() {
     assert_eq!(undo_len(&s), n + 1);
     let gn = node(&s, g);
     assert!(matches!(gn.kind, NodeKind::Blend { .. }), "live blend");
-    let ch = vectorcraft_doc::live::expand_live(&gn);
+    let ch = pluma_doc::live::expand_live(&gn);
     assert_eq!(ch.len(), 5);
     // Middle step: halfway in position, size and colour.
     let mid = &ch[2];
@@ -1719,7 +1718,7 @@ fn blend_make_release_options() {
     assert!((c[0] - 0.5).abs() < 1e-3);
     // Options: 1 step.
     s.execute("object.blend.options", &json!({"steps": 1})).unwrap();
-    assert_eq!(vectorcraft_doc::live::expand_live(&node(&s, g)).len(), 3);
+    assert_eq!(pluma_doc::live::expand_live(&node(&s, g)).len(), 3);
     // Release: keys only, back in the layer.
     let r = s.execute("object.blend.release", &json!({})).unwrap();
     assert_eq!(r["ids"].as_array().unwrap().len(), 2);
@@ -3153,7 +3152,7 @@ fn update_selection_replaces_the_recalled_saved_selection() {
     s.execute("select.recall", &json!({"name": "Other"})).unwrap();
     assert_eq!(selected(&s), vec![a, b]);
     // It travels with the file.
-    let loaded = vectorcraft_format::load(&vectorcraft_format::save_file(&s.doc().unwrap().doc)).unwrap();
+    let loaded = pluma_format::load(&pluma_format::save_file(&s.doc().unwrap().doc)).unwrap();
     assert_eq!(loaded.saved_selections.iter().map(|x| x.objects.len()).collect::<Vec<_>>(), [3, 2]);
     // It is one undo step.
     s.execute("edit.undo", &json!({})).unwrap();
@@ -3294,7 +3293,7 @@ fn saved_selections_live_in_the_document() {
     sel(&mut s, &[a, b]);
     s.execute("select.save", &json!({"name": "Both"})).unwrap();
     // They travel with the file.
-    let loaded = vectorcraft_format::load(&vectorcraft_format::save_file(&s.doc().unwrap().doc)).unwrap();
+    let loaded = pluma_format::load(&pluma_format::save_file(&s.doc().unwrap().doc)).unwrap();
     assert_eq!(loaded.saved_selections.iter().map(|x| x.name.as_str()).collect::<Vec<_>>(), ["A", "Both"]);
     // Saving is an undo step.
     s.execute("edit.undo", &json!({})).unwrap();
@@ -3692,7 +3691,7 @@ fn ruler_guides_and_lock() {
 /// new guides included, can't be selected, moved or deleted.
 #[test]
 fn new_guides_can_be_made_while_guides_are_locked() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     let path = guide_path(&mut s, 300.0);
     s.execute("guide.add", &json!({"vertical": false, "pos": 50})).unwrap();
@@ -4221,7 +4220,7 @@ fn artboard_guides_go_with_their_artboard() {
 /// canvas; with the Artboard tool it is an artboard guide of the active artboard.
 #[test]
 fn guides_dragged_out_of_a_ruler_snap_and_take_the_artboard_tool_s_artboard() {
-    use vectorcraft_tools::{Overlay, PointerEvent, PointerKind};
+    use pluma_tools::{Overlay, PointerEvent, PointerKind};
     let mut s = session();
     rect(&mut s, 100.0, 100.0, 100.0, 100.0);
     let v = ViewInfo::default();
@@ -4260,9 +4259,9 @@ fn guides_dragged_out_of_a_ruler_snap_and_take_the_artboard_tool_s_artboard() {
 #[test]
 fn guides_from_older_files_are_put_on_a_layer() {
     let mut s = Session::new();
-    let mut d = vectorcraft_doc::Document::new(400.0, 300.0);
-    d.guides.push(vectorcraft_doc::Guide::new(true, 50.0));
-    d.guides.push(vectorcraft_doc::Guide::new(false, 80.0));
+    let mut d = pluma_doc::Document::new(400.0, 300.0);
+    d.guides.push(pluma_doc::Guide::new(true, 50.0));
+    d.guides.push(pluma_doc::Guide::new(false, 80.0));
     s.add_document(d, None);
     let st = s.doc().unwrap();
     let top = st.doc.default_layer();
@@ -4367,7 +4366,7 @@ fn guides_go_with_their_layers_when_duplicated_merged_and_flattened() {
 /// Guides).
 #[test]
 fn moved_art_snaps_to_the_artboard_edges_and_centre() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     let a = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
     let v = ViewInfo::default();
@@ -4387,7 +4386,7 @@ fn moved_art_snaps_to_the_artboard_edges_and_centre() {
 /// guides hidden or locked the press goes to the art.
 #[test]
 fn selection_tool_drags_a_ruler_guide() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut s = session();
     let a = rect(&mut s, 100.0, 100.0, 100.0, 100.0);
     s.execute("guide.add", &json!({"vertical": true, "pos": 150})).unwrap();
@@ -4552,7 +4551,7 @@ fn opening_in_cmyk_can_put_rgb_greys_on_the_black_plate() {
         fill(&mut s, id, hex);
     }
     let svg = s.execute("document.serialize", &json!({"format": "svg"})).unwrap()["text"].as_str().unwrap().to_string();
-    let data = vectorcraft_format::base64_encode(svg.as_bytes());
+    let data = pluma_format::base64_encode(svg.as_bytes());
     let mut o = Session::new();
     o.execute("document.open", &json!({"name": "greys.svg", "dataBase64": data, "colorMode": "cmyk", "grays": "black"})).unwrap();
     let d = &o.doc().unwrap().doc;
@@ -4606,10 +4605,10 @@ fn saved_selection_names_are_trimmed_and_capped() {
     sel(&mut s, &[a]);
     let long = "n".repeat(1000);
     let name = s.execute("select.save", &json!({ "name": format!(" {long} ") })).unwrap()["name"].clone();
-    assert_eq!(name.as_str().map(|n| n.chars().count()), Some(vectorcraft_doc::SavedSelection::MAX_NAME));
+    assert_eq!(name.as_str().map(|n| n.chars().count()), Some(pluma_doc::SavedSelection::MAX_NAME));
     s.execute("select.editSaved", &json!({"name": name, "newName": format!("{long}é")})).unwrap();
     let list = s.execute("select.savedList", &json!({})).unwrap();
-    assert_eq!(list[0].as_str().map(|n| n.chars().count()), Some(vectorcraft_doc::SavedSelection::MAX_NAME));
+    assert_eq!(list[0].as_str().map(|n| n.chars().count()), Some(pluma_doc::SavedSelection::MAX_NAME));
 }
 
 #[test]
@@ -4624,7 +4623,7 @@ fn crop_image_trim_cuts_to_the_opaque_pixels_as_they_are() {
     let mut png = Vec::new();
     px.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "art.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+    s.execute("document.open", &json!({"name": "art.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
     s.execute("select.all", &json!({})).unwrap();
     let img = selected(&s)[0];
     s.execute("object.scale", &json!({"sx": 200, "origin": [0, 0]})).unwrap();
@@ -4651,7 +4650,7 @@ fn crop_image_trim_checks_the_rgba_size_before_decoding() {
     let trim = |w: u32, h: u32| {
         let png = crate::tests_linkspanel::png_header(w, h);
         let mut s = Session::new();
-        s.execute("document.open", &json!({"name": "wall.png", "dataBase64": vectorcraft_format::base64_encode(&png)})).unwrap();
+        s.execute("document.open", &json!({"name": "wall.png", "dataBase64": pluma_format::base64_encode(&png)})).unwrap();
         s.execute("select.all", &json!({})).unwrap();
         s.execute("object.cropImage", &json!({"trim": true})).unwrap_err().to_string()
     };
@@ -4665,10 +4664,10 @@ fn crop_image_trim_checks_the_rgba_size_before_decoding() {
 #[test]
 fn crop_image_trim_leaves_a_cmyk_image_alone() {
     // CMYK images keep their ink amounts and have no alpha: nothing to cut, and not an error.
-    let inks = vectorcraft_doc::cmyk::Inks::new(4, 2, [255, 0, 0, 0].repeat(8)).unwrap();
-    let tiff = vectorcraft_doc::ImageBlob::cmyk_tiff(&inks).unwrap();
+    let inks = pluma_doc::cmyk::Inks::new(4, 2, [255, 0, 0, 0].repeat(8)).unwrap();
+    let tiff = pluma_doc::ImageBlob::cmyk_tiff(&inks).unwrap();
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "inks.tif", "dataBase64": vectorcraft_format::base64_encode(&tiff.bytes)})).unwrap();
+    s.execute("document.open", &json!({"name": "inks.tif", "dataBase64": pluma_format::base64_encode(&tiff.bytes)})).unwrap();
     s.execute("select.all", &json!({})).unwrap();
     let r = s.execute("object.cropImage", &json!({"trim": true})).unwrap();
     assert_eq!((r["trimmed"].as_bool(), r["width"].as_u64(), r["height"].as_u64()), (Some(false), Some(4), Some(2)), "{r}");

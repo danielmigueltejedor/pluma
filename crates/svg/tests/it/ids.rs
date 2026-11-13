@@ -3,10 +3,10 @@
 
 use std::collections::HashSet;
 
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, Document, Node};
-use vectorcraft_geom::{Rect, shapes};
-use vectorcraft_svg::{ExportOptions, ObjectIds, Styling, export, import};
+use pluma_color::{Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{Appearance, Document, Node};
+use pluma_geom::{Rect, shapes};
+use pluma_svg::{ExportOptions, ObjectIds, Styling, export, import};
 
 /// A document with a named rectangle, an unnamed gradient-filled one and a second layer.
 fn doc(title: &str, shift: f64) -> Document {

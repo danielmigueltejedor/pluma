@@ -4,10 +4,10 @@
 //! page describes. Drawing and hit testing share the document-space geometry of
 //! [`GridHandles::of`]; a drag previews the existing Repeat Options command and commits as one undo
 //! step.
+use pluma_doc::pattern::tile_offset;
+use pluma_doc::{Document, NodeId, NodeKind, OrientedBox, RepeatKind, Selection};
+use pluma_geom::{Point, Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::pattern::tile_offset;
-use vectorcraft_doc::{Document, NodeId, NodeKind, OrientedBox, RepeatKind, Selection};
-use vectorcraft_geom::{Point, Rect, Vec2};
 
 use crate::bbox::Handle;
 use crate::{Action, Cursor, Mods, ToolContext};
@@ -257,8 +257,8 @@ impl GridDrag {
 mod tests {
     use super::*;
     use crate::testutil::{cx, doc_with_rect, paint};
+    use pluma_doc::pattern::RepeatSpec;
     use std::sync::Arc;
-    use vectorcraft_doc::pattern::RepeatSpec;
 
     /// [`doc_with_rect`]'s 100 × 100 square at (100, 100) as a 3 × 3 grid repeat with 20 pt of
     /// spacing, selected: tiles every 120 pt, the grid 340 pt square.

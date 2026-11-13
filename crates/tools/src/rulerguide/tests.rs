@@ -1,14 +1,14 @@
 use super::*;
 use crate::testutil::*;
 use crate::{Mods, ScreenFrame};
-use vectorcraft_doc::{Guide, Selection};
-use vectorcraft_geom::Vec2;
+use pluma_doc::{Guide, Selection};
+use pluma_geom::Vec2;
 
 fn ev(kind: PointerKind, x: f64, y: f64, mods: Mods) -> PointerEvent {
     PointerEvent::new(kind, x, y).with_mods(mods)
 }
 
-fn guides_doc() -> vectorcraft_doc::Document {
+fn guides_doc() -> pluma_doc::Document {
     let (mut d, _) = doc_with_rect();
     d.guides = vec![Guide::new(true, 300.0), Guide::new(false, 400.0)];
     d
@@ -249,10 +249,10 @@ fn with_smart_guides_off_snap_to_point_pulls_guides_onto_anchors() {
 fn an_artboard_guide_is_picked_and_snapped_to_across_its_artboard_only() {
     let (mut d, _) = doc_with_rect();
     let id = d.next_artboard_id();
-    d.artboards.push(vectorcraft_doc::Artboard {
+    d.artboards.push(pluma_doc::Artboard {
         id,
         name: "B".into(),
-        rect: vectorcraft_geom::Rect::new(600.0, 0.0, 900.0, 300.0),
+        rect: pluma_geom::Rect::new(600.0, 0.0, 900.0, 300.0),
         locked: false,
         show_center_mark: false,
         show_cross_hairs: false,
@@ -355,8 +355,8 @@ fn dropped_on_its_ruler_the_guide_is_deleted() {
 }
 
 // Tick positions are explicit fixtures in each unit, independent of the snap implementation.
-fn origin_tick_cases() -> Vec<(vectorcraft_doc::Unit, f64, Point, Point, Point, f64)> {
-    use vectorcraft_doc::Unit;
+fn origin_tick_cases() -> Vec<(pluma_doc::Unit, f64, Point, Point, Point, f64)> {
+    use pluma_doc::Unit;
     let mm = |v| Unit::Millimeters.to_pt(v);
     let inch = |v| Unit::Inches.to_pt(v);
     vec![
@@ -396,7 +396,7 @@ fn ruler_guide_shift_new_uses_document_origin() {
     for (unit, zoom, origin, pointer, expected, tick) in origin_tick_cases() {
         let (mut doc, _) = doc_with_rect();
         doc.ruler_origin = origin;
-        doc.rulers = vectorcraft_doc::RulerMode::Global;
+        doc.rulers = pluma_doc::RulerMode::Global;
         let (selection, paint) = (Selection::default(), paint());
         let c = ToolContext { unit, zoom, smart_guides: false, snap_to_point: false, ..cx(&doc, &selection, &paint) };
         for vertical in [false, true] {
@@ -422,7 +422,7 @@ fn ruler_guide_shift_move_uses_document_origin() {
     for (unit, zoom, origin, pointer, expected, _) in origin_tick_cases() {
         let mut doc = guides_doc();
         doc.ruler_origin = origin;
-        doc.rulers = vectorcraft_doc::RulerMode::Global;
+        doc.rulers = pluma_doc::RulerMode::Global;
         let paint = paint();
         for (index, vertical, from) in [(0, true, 300.0), (1, false, 400.0)] {
             let mut selection = Selection::default();
@@ -463,7 +463,7 @@ fn ruler_guide_shift_zero_and_invalid_origins_use_zero() {
     ] {
         let mut doc = guides_doc();
         doc.ruler_origin = origin;
-        doc.rulers = vectorcraft_doc::RulerMode::Global;
+        doc.rulers = pluma_doc::RulerMode::Global;
         let paint = paint();
         for (index, vertical, from, want) in [(0, true, 300.0, 225.0), (1, false, 400.0, 235.0)] {
             let mut selection = Selection::default();
@@ -487,7 +487,7 @@ fn ruler_guide_origin_leaves_other_snap_modes_unchanged() {
     for origin in [Point::ZERO, Point::new(17.0, 23.0), Point::new(-17.0, -23.0)] {
         let mut doc = guides_doc();
         doc.ruler_origin = origin;
-        doc.rulers = vectorcraft_doc::RulerMode::Global;
+        doc.rulers = pluma_doc::RulerMode::Global;
         let paint = paint();
         for (index, vertical, from) in [(0, true, 300.0), (1, false, 400.0)] {
             let mut selection = Selection::default();
@@ -525,9 +525,9 @@ fn ruler_guide_origin_readouts_are_relative_for_new_and_moved_guides() {
     ] {
         let mut doc = guides_doc();
         doc.ruler_origin = origin;
-        doc.rulers = vectorcraft_doc::RulerMode::Global;
+        doc.rulers = pluma_doc::RulerMode::Global;
         let paint = paint();
-        for unit in [vectorcraft_doc::Unit::Points, vectorcraft_doc::Unit::Millimeters] {
+        for unit in [pluma_doc::Unit::Points, pluma_doc::Unit::Millimeters] {
             for (index, vertical, from) in [(0, true, 300.0), (1, false, 400.0)] {
                 let mut selection = Selection::default();
                 selection.set_guides([index]);
@@ -564,7 +564,7 @@ fn ruler_guide_origin_readouts_are_relative_for_new_and_moved_guides() {
 #[test]
 fn ruler_guide_readouts_count_from_the_active_artboard_with_artboard_rulers() {
     let mut doc = guides_doc();
-    doc.artboards.push(vectorcraft_doc::Artboard {
+    doc.artboards.push(pluma_doc::Artboard {
         id: 2,
         name: "Artboard 2".into(),
         rect: Rect::new(150.0, 200.0, 350.0, 400.0),
@@ -578,9 +578,9 @@ fn ruler_guide_readouts_count_from_the_active_artboard_with_artboard_rulers() {
     doc.ruler_origin = Point::new(5.0, 5.0);
     let (paint, selection) = (paint(), Selection::default());
     for (rulers, active, zero) in [
-        (vectorcraft_doc::RulerMode::Artboard, 1, Point::new(150.0, 200.0)),
-        (vectorcraft_doc::RulerMode::Artboard, 0, Point::new(doc.artboards[0].rect.x0, doc.artboards[0].rect.y0)),
-        (vectorcraft_doc::RulerMode::Global, 1, Point::new(5.0, 5.0)),
+        (pluma_doc::RulerMode::Artboard, 1, Point::new(150.0, 200.0)),
+        (pluma_doc::RulerMode::Artboard, 0, Point::new(doc.artboards[0].rect.x0, doc.artboards[0].rect.y0)),
+        (pluma_doc::RulerMode::Global, 1, Point::new(5.0, 5.0)),
     ] {
         doc.rulers = rulers;
         let c = ToolContext { ruler_origin: doc.ruler_origin_for(active), smart_guides: false, snap_to_point: false, ..cx(&doc, &selection, &paint) };

@@ -10,9 +10,9 @@
 //! anywhere changes nothing until the pointer moves, and a Contour that already stands at some
 //! distance continues from there. Shift rounds the distance to whole points.
 
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::{BezPath, FillRule, Point, hit};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::{BezPath, FillRule, Point, hit};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 

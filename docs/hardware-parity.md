@@ -2,20 +2,20 @@
 
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-11-09 · **Change:** minor (interim macOS cursor delivery, #2292; native validation pending; scores and estimates unchanged; Windows: the pen's tilt and barrel rotation from Windows Ink, #372) · **Target:** Adobe Illustrator 2026 (30.x)
 
-What hardware Illustrator uses, per platform, against VectorCraft. Illustrator's side is from its public
+What hardware Illustrator uses, per platform, against Pluma. Illustrator's side is from its public
 documentation (GPU Performance, touch workspace, pen pressure pages); ours from the code
 (`crates/ui-egui/src/canvas.rs`, `touch.rs`, `graphics.rs`, `crates/render`). Part of
 [target-app-parity.md](target-app-parity.md).
 
 ## Summary
 
-**~35% (estimated), 25–45 h.** VectorCraft rasterizes the canvas on the CPU (multithreaded `vello_cpu`) and uses
+**~35% (estimated), 25–45 h.** Pluma rasterizes the canvas on the CPU (multithreaded `vello_cpu`) and uses
 the GPU only to composite, so any GPU that can show a window works, at the cost of GPU-accelerated preview
-on huge documents. VectorCraft reads pen pressure on Windows, on the web, on macOS, and on Linux under X11 and XWayland, and it
+on huge documents. Pluma reads pen pressure on Windows, on the web, on macOS, and on Linux under X11 and XWayland, and it
 reads the pen's eraser end on Windows, on macOS, on Linux under X11 and XWayland, and on the web when it presses.
 It reads the pen's tilt and barrel rotation on macOS and on Linux under X11 and XWayland.
 
-| Feature | Illustrator | VectorCraft macOS | Windows | Linux | Web | Status / hours |
+| Feature | Illustrator | Pluma macOS | Windows | Linux | Web | Status / hours |
 |---|---|---|---|---|---|---|
 | GPU-accelerated canvas (GPU Performance, GPU Preview, GPU anti-aliasing) | Metal, DirectX | CPU raster, GPU composite (wgpu/Metal) | CPU raster, GPU composite (DX12, OpenGL fallback) | CPU raster, GPU composite (Vulkan/GL) | WebGPU, WebGL2 fallback | partial; a GPU renderer spike is pending (M5): 15–25 h |
 | Multithreaded rendering off the UI thread | partial | yes | yes | yes | single-threaded | beyond Illustrator |
@@ -37,7 +37,7 @@ It reads the pen's tilt and barrel rotation on macOS and on Linux under X11 and 
 |---|---|---|
 | 2026-11-09 | minor | Interim macOS canvas cursor delivery (#2292): existing artwork in aligned 1×/2× AppKit representations, visible system fallback and host-owned restoration. Headless routing, bitmap and ownership coverage; native timing, menus, focus/handback, mixed displays, Spotlight and full-screen Spaces remain unverified. Scores and estimates unchanged. |
 | 2026-11-05 | minor | Windows (#372): with Windows Ink, each pen pointer message's `POINTER_PEN_INFO` gives the pen's tilt (`tiltX`, `tiltY`) and barrel rotation where its pen mask says the pen reports them, written into the canvas's pen feed as on macOS and Linux, so a 6D Art Pen's barrel turns a Calligraphic brush's nib. Unit-tested (`windows_stylus::tests::a_pens_tilt_and_rotation_come_where_it_reports_them`); not yet tried with a pen, so the score is unchanged (estimated) |
-| 2026-11-01 | patch | Linux (#4967): on a Wayland session, Linux Display Server › Automatic opens the window through XWayland when a pen is attached as the app starts, as X11 (XWayland) When a Pen Is Attached does and as PhotoCraft does; on native Wayland winit 0.30 gets no tablet input and KWin 6.3+ and Mutter emulate no pointer, so the pen moved only the compositor's cursor. `VECTORCRAFT_NATIVE_WAYLAND=1` keeps Wayland. Unit-tested (`xwayland::tests`); not tried with a tablet; score unchanged (estimated) |
+| 2026-11-01 | patch | Linux (#4967): on a Wayland session, Linux Display Server › Automatic opens the window through XWayland when a pen is attached as the app starts, as X11 (XWayland) When a Pen Is Attached does and as Lienzo does; on native Wayland winit 0.30 gets no tablet input and KWin 6.3+ and Mutter emulate no pointer, so the pen moved only the compositor's cursor. `PLUMA_NATIVE_WAYLAND=1` keeps Wayland. Unit-tested (`xwayland::tests`); not tried with a tablet; score unchanged (estimated) |
 | 2026-10-30 | patch | Touch (#4198): a second finger landing cancels the tool press the first finger began, also in the same frame (the Pencil's stroke and a Selection move are rolled back, nothing enters the undo history), and a finger landing while another is down presses nothing, so a pinch or two-finger pan only navigates. Headless canvas test `a_second_finger_cancels_the_tool_gesture_the_first_began`; not tried on a touch screen; score unchanged (estimated) |
 | 2026-10-24 | minor | macOS: an AppKit local event monitor reads each mouse and tablet event's pen pressure and the pen's end before the window gets it and writes them into the canvas's pen feed (#852): each pointer move of a stroke keeps its own pressure, mouse event coalescing is off, and the eraser end selects the Eraser tool. The mapping is unit-tested on every platform and the macOS code type-checks for `aarch64-apple-darwin`; not yet tried on a Mac with a tablet, so the score is unchanged (estimated) |
 | 2026-10-15 | patch | Web review: preserve pen buttons and modifiers; leave fingers to eframe before the first pen contact; remove persistent pen policy. Canvas regression tests cover intermediate moves and long-touch cancellation on native and web input. Physical-device QA pending. |

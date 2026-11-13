@@ -4,8 +4,8 @@
 //! testing need nothing special; after an edit the engine joins the slices and re-distributes them
 //! with [`distribute`].
 
-use vectorcraft_doc::text::ListCounts;
-use vectorcraft_doc::{ParaStyle, TextObject, TextRun};
+use pluma_doc::text::ListCounts;
+use pluma_doc::{ParaStyle, TextObject, TextRun};
 
 use crate::edit::{normalize, runs_len, slice_runs, style_at};
 use crate::{FontDb, layout};
@@ -105,14 +105,14 @@ impl Slice {
 
 /// The counts of numbered list paragraphs at each level after the paragraphs of `runs` (styles
 /// `paras`, one per paragraph) but the last one, counted on from `counts` as the layout counts them
-/// ([`vectorcraft_doc::text::ParaList::next_marker`]). A slice's last paragraph also starts the
+/// ([`pluma_doc::text::ParaList::next_marker`]). A slice's last paragraph also starts the
 /// next frame, which counts it.
 fn count_list_paragraphs(runs: &[TextRun], paras: &[ParaStyle], mut counts: ListCounts) -> ListCounts {
     let text: String = runs.iter().map(|r| r.text.as_str()).collect();
     let mut pieces: Vec<&str> = text.split('\n').collect();
     pieces.pop();
     for (piece, para) in pieces.iter().zip(paras) {
-        vectorcraft_doc::text::ParaList::next_marker(para.list, piece.is_empty(), &mut counts);
+        pluma_doc::text::ParaList::next_marker(para.list, piece.is_empty(), &mut counts);
     }
     counts
 }

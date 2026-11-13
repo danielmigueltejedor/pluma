@@ -8,10 +8,10 @@ mod checks;
 mod tests;
 mod text;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind};
+use pluma_geom::{PathData, SubPath};
+use pluma_pathops::addons as po;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::{PathData, SubPath};
-use vectorcraft_pathops::addons as po;
 
 use self::checks::{Kind, MAX_OBJECTS, Outcome, Scope, set_path};
 use super::super::edit::selected_roots;

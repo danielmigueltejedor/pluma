@@ -1,8 +1,8 @@
-VectorCraft app icon (vectorcraft.svg, vectorcraft-small.svg and every file derived from them in this
-directory: vectorcraft-1024.png, vectorcraft-macos-512.png, vectorcraft.icns, vectorcraft.ico, hicolor/).
+Pluma app icon (pluma.svg, pluma-small.svg and every file derived from them in this
+directory: pluma-1024.png, pluma-macos-512.png, pluma.icns, pluma.ico, hicolor/).
 
-Original artwork made for this project by the project owner, drawn in ArtCraft and vectorised for
-VectorCraft (no third-party material). Licensed like the rest of VectorCraft, under either of
+Original artwork made for this project by the project owner, drawn in Nodalia and vectorised for
+Pluma (no third-party material). Licensed like the rest of Pluma, under either of
 
   * Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
   * MIT license (https://opensource.org/licenses/MIT)

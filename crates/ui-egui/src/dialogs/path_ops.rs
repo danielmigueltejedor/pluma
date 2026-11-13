@@ -1,11 +1,11 @@
 //! Path dialogs: Average, Average & Join, and Offset Path, Simplify and Split Into Grid with Preview.
 
+use pluma_doc::{NodeId, NodeKind, Unit};
+use pluma_geom::PathData;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind, Unit};
-use vectorcraft_geom::PathData;
 
 use super::{DialogSpec, form, run_and_close};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::theme::Tokens;
 
@@ -153,7 +153,7 @@ fn simplify_fields(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit) {
 /// Simplify's Show Original Path: while the dialog previews with it on, every path the preview ran
 /// on, with its id, as it was before the preview (from the interaction's snapshot). Empty
 /// otherwise.
-pub(crate) fn original_paths(app: &VectorcraftApp) -> Vec<(NodeId, &PathData)> {
+pub(crate) fn original_paths(app: &PlumaApp) -> Vec<(NodeId, &PathData)> {
     let Some(d) = app.ui.dialog.as_ref().filter(|d| d.kind == "simplify" && d.bool("showOriginal") && d.bool("preview")) else { return vec![] };
     let (Some(ids), Some(it)) = (d.fields.get(ORIGINAL_IDS).and_then(Value::as_array), app.session.active().and_then(|st| st.interaction.as_ref()))
     else {
@@ -170,7 +170,7 @@ pub(crate) fn original_paths(app: &VectorcraftApp) -> Vec<(NodeId, &PathData)> {
         .collect()
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     if d.kind == "splitIntoGrid" {
         split_grid(ui, d, unit);
@@ -204,7 +204,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let (id, params) = command(d);
     if previewed(&d.kind).is_none() {
         let r = run_and_close(app, id, params)?;

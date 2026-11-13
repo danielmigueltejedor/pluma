@@ -2,8 +2,8 @@
 //! (`print.tiling.set`): the pages drawn are print.preview's, and where the tool puts them is
 //! saved with the print settings.
 
+use pluma_tools::{PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_tools::{PointerEvent, PointerKind};
 
 use crate::tooling::ViewInfo;
 use crate::*;
@@ -115,7 +115,7 @@ fn the_tool_puts_the_first_page_where_it_is_dragged_as_one_undo_step() {
     assert!((rect(&page["imageable"])[0] - 40.0).abs() < 1e-6 && (rect(&page["imageable"])[1] - 30.0).abs() < 1e-6);
     // Saved in the native file.
     let doc = &s.doc().unwrap().doc;
-    assert_eq!(vectorcraft_format::load(&vectorcraft_format::save(doc, false)).unwrap().print_setup, doc.print_setup);
+    assert_eq!(pluma_format::load(&pluma_format::save(doc, false)).unwrap().print_setup, doc.print_setup);
     // A double click puts the pages back where the placement puts them.
     s.pointer(&PointerEvent::new(PointerKind::DoubleClick, 10.0, 10.0), v).unwrap();
     assert_eq!(s.execute("print.setup", &json!({})).unwrap()["settings"]["tileOrigin"]["placed"], false);
@@ -172,7 +172,7 @@ fn an_origin_on_an_artboards_right_or_bottom_edge_is_measured_from_that_artboard
 #[test]
 fn settings_saved_before_the_tile_origin_still_load() {
     let mut s = session();
-    let mut old = serde_json::to_value(vectorcraft_pdf::PrintSettings::default()).unwrap();
+    let mut old = serde_json::to_value(pluma_pdf::PrintSettings::default()).unwrap();
     old.as_object_mut().unwrap().remove("tileOrigin");
     old["copies"] = json!(2);
     let mut doc = (*s.doc().unwrap().doc).clone();

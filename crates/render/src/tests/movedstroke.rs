@@ -3,12 +3,12 @@
 //! offset, with the pixels a new renderer draws. A change other than a move outlines the stroke
 //! and makes the slices again.
 
-use vectorcraft_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{
+use pluma_color::{Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{
     Appearance, AppearanceItem, ArrowAlign, Arrowhead, Dash, FillLayer, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeGradientMode, StrokeLayer,
     WidthProfile,
 };
-use vectorcraft_geom::{PathData, Point, Vec2};
+use pluma_geom::{PathData, Point, Vec2};
 
 use crate::renderer::{SLICES_MADE, STROKES_OUTLINED, anchors_moved, offset_between};
 use crate::*;

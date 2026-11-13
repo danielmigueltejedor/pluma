@@ -1,4 +1,4 @@
-use super::{BezPath, Color32, Node, NodeKind, PathEl, Point, Pos2, Shape, Stroke, SymbolBoxes, VectorcraftApp, Xf, pos2};
+use super::{BezPath, Color32, Node, NodeKind, PathEl, PlumaApp, Point, Pos2, Shape, Stroke, SymbolBoxes, Xf, pos2};
 
 pub(super) fn to_screen_path(bp: &BezPath, xf: &Xf) -> Vec<Vec<Pos2>> {
     // Flatten for drawing: a polyline per subpath (tolerance ~0.25 screen px).
@@ -52,19 +52,19 @@ pub(super) fn node_outline(n: &Node, symbols: &SymbolBoxes) -> BezPath {
             if c.extras().perspective.is_none() {
                 if let Some(path) = t.area_frame().or_else(|| t.type_path()) {
                     bp.extend(path.to_bezpath());
-                } else if matches!(t.kind, vectorcraft_doc::TextKind::Point) {
+                } else if matches!(t.kind, pluma_doc::TextKind::Point) {
                     for (a, b) in t.baselines() {
                         bp.move_to(t.xf * a);
                         bp.line_to(t.xf * b);
                     }
                 }
             } else if let Some(b) = c.geometric_bounds_with(symbols) {
-                bp.extend(vectorcraft_geom::shapes::rectangle(b).to_bezpath());
+                bp.extend(pluma_geom::shapes::rectangle(b).to_bezpath());
             }
         }
         NodeKind::Image(_) | NodeKind::SymbolInstance { .. } => {
             if let Some(b) = c.geometric_bounds_with(symbols) {
-                bp.extend(vectorcraft_geom::shapes::rectangle(b).to_bezpath());
+                bp.extend(pluma_geom::shapes::rectangle(b).to_bezpath());
             }
         }
         // A placed document shows its box, turned with it.
@@ -78,7 +78,7 @@ pub(super) fn node_outline(n: &Node, symbols: &SymbolBoxes) -> BezPath {
         NodeKind::Mesh(m) => bp.extend(m.lines().to_bezpath()),
         // An envelope shows its mesh (or top object), not its content.
         NodeKind::Envelope { .. } => {
-            if let Some((lines, _)) = vectorcraft_doc::live::envelope_overlay(c) {
+            if let Some((lines, _)) = pluma_doc::live::envelope_overlay(c) {
                 bp.extend(lines.to_bezpath());
             }
         }
@@ -125,15 +125,15 @@ fn overlay_points(n: &Node) -> usize {
     match &n.kind {
         NodeKind::Path { path, .. } => path.anchor_count(),
         NodeKind::Text(t) => match &t.kind {
-            vectorcraft_doc::TextKind::Point => 6,
+            pluma_doc::TextKind::Point => 6,
             _ if n.extras().perspective.is_some() => 4,
-            vectorcraft_doc::TextKind::Area { frame } => frame.anchor_count(),
-            vectorcraft_doc::TextKind::OnPath { path, .. } => path.anchor_count(),
+            pluma_doc::TextKind::Area { frame } => frame.anchor_count(),
+            pluma_doc::TextKind::OnPath { path, .. } => path.anchor_count(),
         },
         NodeKind::Image(_) | NodeKind::SymbolInstance { .. } | NodeKind::PlacedDocument(_) => 4,
         NodeKind::Mesh(m) => m.lines().anchor_count() + m.points.len(),
         NodeKind::Envelope { .. } => {
-            vectorcraft_doc::live::envelope_overlay(n).map_or(0, |(lines, grid)| lines.anchor_count() + grid.map_or(0, |g| g.points.len()))
+            pluma_doc::live::envelope_overlay(n).map_or(0, |(lines, grid)| lines.anchor_count() + grid.map_or(0, |g| g.points.len()))
         }
         _ => 0,
     }
@@ -160,29 +160,29 @@ pub(super) fn walk_drawn<'a>(n: &'a Node, f: &mut impl FnMut(&'a Node)) {
 
 /// The topmost editable object under document point `p` at `zoom`, as what is drawn there
 /// ([`hit_with`]): a swatch or a symbol dropped on art.
-pub(super) fn hit_at(app: &VectorcraftApp, p: Point, zoom: f64) -> Option<vectorcraft_doc::hit::Hit> {
-    hit_with(app, p, zoom, vectorcraft_doc::hit::hit_test)
+pub(super) fn hit_at(app: &PlumaApp, p: Point, zoom: f64) -> Option<pluma_doc::hit::Hit> {
+    hit_with(app, p, zoom, pluma_doc::hit::hit_test)
 }
 
 /// The topmost editable object under document point `p` at `zoom`, as the selection tools pick
 /// it: [`hit_at`], and a clipping path on its outline before the art it clips
-/// ([`vectorcraft_doc::hit::HitOptions::clip_outlines`]). Object Highlighting and a right-click's
+/// ([`pluma_doc::hit::HitOptions::clip_outlines`]). Object Highlighting and a right-click's
 /// selection show and take what a click of those tools would.
-pub(super) fn selection_hit_at(app: &VectorcraftApp, p: Point, zoom: f64) -> Option<vectorcraft_doc::hit::Hit> {
-    hit_with(app, p, zoom, |doc, p, opt| vectorcraft_doc::hit::hit_test(doc, p, vectorcraft_doc::hit::HitOptions { clip_outlines: true, ..opt }))
+pub(super) fn selection_hit_at(app: &PlumaApp, p: Point, zoom: f64) -> Option<pluma_doc::hit::Hit> {
+    hit_with(app, p, zoom, |doc, p, opt| pluma_doc::hit::hit_test(doc, p, pluma_doc::hit::HitOptions { clip_outlines: true, ..opt }))
 }
 
 /// `test` on the active document at document point `p`, with the options the selection tools hit
 /// objects with at `zoom` (Selection & Anchor Display › Tolerance and Object Selection by Path Only,
 /// Type › Type Object Selection by Path Only, isolation mode).
 pub(super) fn hit_with<T>(
-    app: &VectorcraftApp,
+    app: &PlumaApp,
     p: Point,
     zoom: f64,
-    test: impl FnOnce(&vectorcraft_doc::Document, Point, vectorcraft_doc::hit::HitOptions) -> Option<T>,
+    test: impl FnOnce(&pluma_doc::Document, Point, pluma_doc::hit::HitOptions) -> Option<T>,
 ) -> Option<T> {
     let prefs = &app.session.prefs;
-    let opt = vectorcraft_doc::hit::HitOptions {
+    let opt = pluma_doc::hit::HitOptions {
         tol: prefs.selection_tolerance / zoom,
         outline: app.outline_view(),
         path_only: prefs.object_selection_by_path_only,
@@ -197,5 +197,5 @@ pub(super) fn hit_with<T>(
 fn kurbo_flatten(p: &BezPath, tol: f64, f: &mut impl FnMut(PathEl)) {
     // Bounded per curve: a document's far-out handles, zoomed onto the screen, made kurbo
     // reserve gigabytes for the selection outline.
-    vectorcraft_geom::flatten(p.elements().iter().copied(), tol, f);
+    pluma_geom::flatten(p.elements().iter().copied(), tol, f);
 }

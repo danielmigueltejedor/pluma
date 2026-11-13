@@ -7,26 +7,26 @@
 use egui::Ui;
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::state::Dialog;
 use crate::theme::Tokens;
 use crate::widgets;
 
 /// Open the dialog.
-pub fn open(app: &mut VectorcraftApp) {
+pub fn open(app: &mut PlumaApp) {
     open_at(app, 0);
 }
 
 /// Open the dialog on the first font the document misses, to replace it (Missing Fonts' Find
 /// Fonts).
-pub fn open_on_missing(app: &mut VectorcraftApp) {
+pub fn open_on_missing(app: &mut PlumaApp) {
     let first = fonts(app).iter().position(|f| matches!(f["status"].as_str(), Some("missing" | "substitute")));
     open_at(app, first.unwrap_or(0));
 }
 
 /// Open the dialog with the document's font `selected` (an index into `text.fonts`) chosen,
 /// System's font ([`system_family`]) to change to, and the last Find In choice (Document at first).
-fn open_at(app: &mut VectorcraftApp, selected: usize) {
+fn open_at(app: &mut PlumaApp, selected: usize) {
     let find_in = FIND_IN.iter().find(|f| **f == app.ui.find_font_in).copied().unwrap_or("document");
     let used = fonts(app);
     let source = "system";
@@ -42,7 +42,7 @@ fn open_at(app: &mut VectorcraftApp, selected: usize) {
 /// The font System chooses: Source Sans 3 when it is installed, otherwise the font menu's first
 /// family (none when the menu is empty).
 fn system_family() -> String {
-    system_family_in(installed, &vectorcraft_text::FontDb::global().menu_family_list())
+    system_family_in(installed, &pluma_text::FontDb::global().menu_family_list())
 }
 
 /// [`system_family`] for the installed check `is_installed` and the font menu `menu`.
@@ -60,11 +60,11 @@ const SOURCE_LABELS: [&str; 3] = ["Document", "Recent", "System"];
 /// family. Document lists the families `text.fonts` names, once each, in its order; Recent lists
 /// the font menu's recent families (newest first, Number of Recent Fonts at most) that are
 /// installed.
-fn replacement_families(app: &VectorcraftApp, source: &str, used: &[Value]) -> Option<Vec<String>> {
+fn replacement_families(app: &PlumaApp, source: &str, used: &[Value]) -> Option<Vec<String>> {
     let names: Vec<String> = match source {
         "document" => used.iter().filter_map(|f| f["family"].as_str()).map(str::to_string).collect(),
         "recent" => {
-            let installed = vectorcraft_text::FontDb::global().menu_family_list();
+            let installed = pluma_text::FontDb::global().menu_family_list();
             app.recent_fonts().iter().filter_map(|r| installed.iter().find(|f| f.eq_ignore_ascii_case(r)).cloned()).collect()
         }
         _ => return None,
@@ -99,8 +99,8 @@ fn row_matches(family: &str, style: &str, query: &str) -> bool {
 /// Replace With Font's rows for `source` ([`SOURCES`]). Document lists the family and style pairs
 /// `text.fonts` names, once each, in its order; Recent and System list their families with each
 /// family's closest style and then its styles.
-fn replacement_rows(app: &VectorcraftApp, source: &str, used: &[Value]) -> Vec<Row> {
-    let db = vectorcraft_text::FontDb::global();
+fn replacement_rows(app: &PlumaApp, source: &str, used: &[Value]) -> Vec<Row> {
+    let db = pluma_text::FontDb::global();
     let mut rows: Vec<Row> = vec![];
     match source {
         "document" => {
@@ -127,7 +127,7 @@ fn replacement_rows(app: &VectorcraftApp, source: &str, used: &[Value]) -> Vec<R
 }
 
 /// Add `family` to `rows`: each style once, the closest style first, every row naming its style.
-fn push_family(rows: &mut Vec<Row>, db: &vectorcraft_text::FontDb, family: &str) {
+fn push_family(rows: &mut Vec<Row>, db: &pluma_text::FontDb, family: &str) {
     if family.is_empty() {
         return;
     }
@@ -158,7 +158,7 @@ fn rows_json(rows: &[Row]) -> Value {
 /// Can the replacement name that very face: `family` and `style` both exist, no stand-in. A row of
 /// an unavailable style stays listed, but only a font with that style is chosen as the replacement.
 fn exact(family: &str, style: &str) -> bool {
-    !family.is_empty() && vectorcraft_text::FontDb::global().resolve(family, style).is_some_and(|(_, m)| m == vectorcraft_text::FontMatch::Exact)
+    !family.is_empty() && pluma_text::FontDb::global().resolve(family, style).is_some_and(|(_, m)| m == pluma_text::FontMatch::Exact)
 }
 
 /// Can a row be chosen as the replacement: its family is installed and the style is the font's own
@@ -169,8 +169,7 @@ fn listed(row: &Row) -> bool {
 
 /// Is `family` installed: it resolves to a face of its own, as `text.replaceFont` requires.
 fn installed(family: &str) -> bool {
-    !family.is_empty()
-        && vectorcraft_text::FontDb::global().resolve(family, "Regular").is_some_and(|(_, m)| m != vectorcraft_text::FontMatch::Missing)
+    !family.is_empty() && pluma_text::FontDb::global().resolve(family, "Regular").is_some_and(|(_, m)| m != pluma_text::FontMatch::Missing)
 }
 
 /// Can Change and Change All replace with the dialog's font: a family is chosen, it is installed,
@@ -183,7 +182,7 @@ fn can_replace(d: &Dialog, families: Option<&[String]>) -> bool {
     }
     match families {
         Some(list) => can_replace_in(&family, installed, list),
-        None => can_replace_in(&family, installed, &vectorcraft_text::FontDb::global().menu_family_list()),
+        None => can_replace_in(&family, installed, &pluma_text::FontDb::global().menu_family_list()),
     }
 }
 
@@ -195,7 +194,7 @@ fn can_replace_in(family: &str, is_installed: impl Fn(&str) -> bool, list: &[Str
 /// Show list `source` ([`SOURCES`]): the chosen family stays when the list has it and it is
 /// installed, otherwise the list's first installed family (none when there is none) is chosen in
 /// its closest style. System chooses [`system_family`].
-fn set_source(app: &VectorcraftApp, d: &mut Dialog, source: &str, used: &[Value]) {
+fn set_source(app: &PlumaApp, d: &mut Dialog, source: &str, used: &[Value]) {
     d.fields.insert("replaceFrom".into(), json!(source));
     let rows = replacement_rows(app, source, used);
     d.fields.insert("rows".into(), rows_json(&rows));
@@ -219,13 +218,13 @@ const FIND_IN_LABELS: [&str; 3] = ["Document", "Artboard", "Layers"];
 
 /// The `scope` Find passes `select.font` for Find In choice `find_in`. A document without
 /// artboards, or without a layer to look in, is looked through whole.
-fn find_scope(app: &VectorcraftApp, find_in: &str) -> Value {
+fn find_scope(app: &PlumaApp, find_in: &str) -> Value {
     let Some(st) = app.session.active() else { return json!("document") };
     let n = st.doc.artboards.len();
     match find_in {
         "artboard" if n > 0 => json!({ "artboards": [crate::panels::artboards::selected(app, n)] }),
         "layers" => {
-            let is_layer = |id: &vectorcraft_doc::NodeId| st.doc.node(*id).is_some_and(vectorcraft_doc::Node::is_layer);
+            let is_layer = |id: &pluma_doc::NodeId| st.doc.node(*id).is_some_and(pluma_doc::Node::is_layer);
             let mut layers: Vec<u64> = st.highlighted_rows().into_iter().filter(is_layer).map(|id| id.0).collect();
             if layers.is_empty() {
                 layers.extend(st.current_layer().map(|id| id.0));
@@ -237,7 +236,7 @@ fn find_scope(app: &VectorcraftApp, find_in: &str) -> Value {
 }
 
 /// Run the dialog's button `button` (find, change or changeAll) on the document font `from`.
-fn run_button(app: &mut VectorcraftApp, d: &Dialog, button: &str, from: &Value) -> Result<Value, String> {
+fn run_button(app: &mut PlumaApp, d: &Dialog, button: &str, from: &Value) -> Result<Value, String> {
     match button {
         "find" => {
             let scope = find_scope(app, &d.str("findIn"));
@@ -248,11 +247,11 @@ fn run_button(app: &mut VectorcraftApp, d: &Dialog, button: &str, from: &Value) 
     }
 }
 
-fn fonts(app: &mut VectorcraftApp) -> Vec<Value> {
+fn fonts(app: &mut PlumaApp) -> Vec<Value> {
     app.session.execute("text.fonts", &json!({})).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default()
 }
 
-pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn confirm(app: &mut PlumaApp) -> Result<Value, String> {
     if let Some(ctx) = app.ui_ctx.clone() {
         clear_search(&ctx);
     }
@@ -270,19 +269,19 @@ fn clear_search(ctx: &egui::Context) {
 }
 
 /// Replace the selected document font with the chosen one (`all`: everywhere, else the selection).
-fn change(app: &mut VectorcraftApp, d: &Dialog, from: &Value, all: bool) -> Result<Value, String> {
+fn change(app: &mut PlumaApp, d: &Dialog, from: &Value, all: bool) -> Result<Value, String> {
     let style = d.str("style");
     let to = if style.is_empty() { json!({ "family": d.str("family") }) } else { json!({ "family": d.str("family"), "style": style }) };
     app.run("text.replaceFont", json!({ "from": { "family": from["family"], "style": from["style"] }, "to": to, "selectionOnly": !all }))
 }
 
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let list = fonts(app);
     // Find in Folder… shows when the document misses fonts, fonts used only in its symbols included.
     let offer_folder = crate::picks::can(app, &crate::picks::PickRequest::Folder)
-        && app.session.active().is_some_and(|st| !vectorcraft_engine::cmd::fontfiles::missing_fonts(&st.doc).is_empty());
+        && app.session.active().is_some_and(|st| !pluma_engine::cmd::fontfiles::missing_fonts(&st.doc).is_empty());
     let mut close = false;
     let mut find_in_folder = false;
     let mut act: Option<&str> = None;
@@ -460,7 +459,7 @@ mod tests {
 
     #[test]
     fn dialog_draws_and_changes_all() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         open(&mut app);
@@ -479,10 +478,10 @@ mod tests {
     /// layer), as `select.font`'s scope.
     #[test]
     fn find_in_limits_find_to_the_artboard_or_the_layers() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("artboard.new", &json!({"x": 200, "y": 0, "width": 100, "height": 100})).unwrap();
-        let text = |app: &mut VectorcraftApp, x: i32| {
+        let text = |app: &mut PlumaApp, x: i32| {
             app.session.execute("text.create", &json!({"x": x, "y": 40, "text": "Hi", "font": "Inter"})).unwrap()["id"].as_u64().unwrap()
         };
         let first = text(&mut app, 10);
@@ -492,7 +491,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         // Choose Find In on the open dialog, draw a frame, then press Find.
-        let find = |app: &mut VectorcraftApp, find_in: &str| {
+        let find = |app: &mut PlumaApp, find_in: &str| {
             open(app);
             app.ui.dialog.as_mut().unwrap().fields.insert("findIn".into(), json!(find_in));
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui.ctx()));
@@ -520,7 +519,7 @@ mod tests {
     /// Change All leaves locked text in its font, and the status bar says so.
     #[test]
     fn change_all_clears_the_skip_warning_after_unlocking_text() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
@@ -545,14 +544,14 @@ mod tests {
 
     #[test]
     fn replacement_keeps_only_font_warnings_that_still_apply() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 70, "text": "Bye", "font": "Missing Family"})).unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 90, "text": "Other", "font": "Inter"})).unwrap();
 
-        let replace = |app: &mut VectorcraftApp, from: &str, from_style: Option<&str>, style: &str| {
+        let replace = |app: &mut PlumaApp, from: &str, from_style: Option<&str>, style: &str| {
             app.run("text.replaceFont", json!({"from": {"family": from, "style": from_style}, "to": {"family": "Source Sans 3", "style": style}}))
                 .unwrap()
         };
@@ -581,7 +580,7 @@ mod tests {
 
     #[test]
     fn a_style_specific_retry_clears_a_family_wide_skipped_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 70, "text": "Bye", "font": "Missing Family"})).unwrap();
@@ -604,8 +603,8 @@ mod tests {
 
     #[test]
     fn new_text_in_the_source_font_does_not_keep_an_old_skip_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-        let replace = |app: &mut VectorcraftApp, from: &str, style: &str| {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+        let replace = |app: &mut PlumaApp, from: &str, style: &str| {
             app.run("text.replaceFont", json!({"from": {"family": from}, "to": {"family": "Source Sans 3", "style": style}})).unwrap()
         };
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -618,7 +617,7 @@ mod tests {
         assert_eq!((first["runs"].as_u64(), first["skipped"].as_u64()), (Some(1), Some(1)));
         app.session.execute("text.create", &json!({"x": 10, "y": 90, "text": "New", "font": "Missing Family"})).unwrap();
         app.run("object.unlockAll", json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(skipped)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(skipped)];
         let second = app
             .run("text.replaceFont", json!({"from": {"family": "Missing Family"}, "to": {"family": "Source Sans 3"}, "selectionOnly": true}))
             .unwrap();
@@ -630,7 +629,7 @@ mod tests {
 
     #[test]
     fn unlocking_skipped_text_clears_its_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 30, "text": "Other", "font": "Inter"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 60, "text": "Locked", "font": "Missing Family"})).unwrap();
@@ -646,7 +645,7 @@ mod tests {
 
     #[test]
     fn a_document_revision_refreshes_the_skip_warning_on_tick() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 60, "text": "Locked", "font": "Missing Family"})).unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
@@ -664,19 +663,19 @@ mod tests {
 
     #[test]
     fn a_selection_only_retry_ignores_unselected_text_in_the_same_font() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Outside", "font": "Missing Family"})).unwrap();
         let selected = app.session.execute("text.create", &json!({"x": 10, "y": 70, "text": "Selected", "font": "Missing Family"})).unwrap()["id"]
             .as_u64()
             .unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(selected)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(selected)];
         let params = json!({"from": {"family": "Missing Family"}, "to": {"family": "Source Sans 3"}, "selectionOnly": true});
         let first = app.run("text.replaceFont", params.clone()).unwrap();
         assert_eq!((first["runs"].as_u64(), first["skipped"].as_u64()), (Some(0), Some(1)));
         app.run("object.unlockAll", json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(selected)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(selected)];
         let second = app.run("text.replaceFont", params).unwrap();
         assert_eq!(second["runs"], 1, "{second}");
         assert!(second.get("warning").is_none(), "{second}");
@@ -686,7 +685,7 @@ mod tests {
 
     #[test]
     fn a_changed_selection_keeps_the_original_warning_scope() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 30, "text": "Outside", "font": "Missing Family"})).unwrap();
         let added = app.session.execute("text.create", &json!({"x": 10, "y": 60, "text": "Added", "font": "Missing Family"})).unwrap()["id"]
@@ -696,12 +695,12 @@ mod tests {
             .as_u64()
             .unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(skipped)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(skipped)];
         let params = json!({"from": {"family": "Missing Family"}, "to": {"family": "Source Sans 3"}, "selectionOnly": true});
         let first = app.run("text.replaceFont", params.clone()).unwrap();
         assert_eq!(first["skipped"], 1, "{first}");
         app.run("object.unlockAll", json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(skipped), vectorcraft_doc::NodeId(added)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(skipped), pluma_doc::NodeId(added)];
         let second = app.run("text.replaceFont", params).unwrap();
         assert_eq!(second["runs"], 2, "{second}");
         assert!(second.get("warning").is_none(), "{second}");
@@ -711,13 +710,13 @@ mod tests {
 
     #[test]
     fn changing_selection_does_not_clear_a_skipped_font_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         let selected = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Locked", "font": "Missing Family"})).unwrap()["id"]
             .as_u64()
             .unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
-        app.session.active_mut().unwrap().selection.objects = vec![vectorcraft_doc::NodeId(selected)];
+        app.session.active_mut().unwrap().selection.objects = vec![pluma_doc::NodeId(selected)];
         let first = app
             .run("text.replaceFont", json!({"from": {"family": "Missing Family"}, "to": {"family": "Source Sans 3"}, "selectionOnly": true}))
             .unwrap();
@@ -738,7 +737,7 @@ mod tests {
 
     #[test]
     fn replacing_a_font_in_another_document_keeps_the_original_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Locked", "font": "Missing Family"})).unwrap();
         app.session.execute("object.lock", &json!({})).unwrap();
@@ -759,7 +758,7 @@ mod tests {
 
     #[test]
     fn a_comma_in_a_substituted_style_keeps_its_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 70, "text": "Other", "font": "Inter"})).unwrap();
@@ -776,7 +775,7 @@ mod tests {
 
     #[test]
     fn an_unrelated_substituted_style_does_not_keep_a_resolved_warning() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Missing Family"})).unwrap();
         app.session.execute("text.create", &json!({"x": 10, "y": 70, "text": "Other", "font": "Inter"})).unwrap();
@@ -797,9 +796,9 @@ mod tests {
 
     #[test]
     fn find_in_folder_puts_the_missing_fonts_dialog_in_find_fonts_place() {
-        let dir = std::fs::canonicalize(vectorcraft_testkit::temp_dir("find-font-folder")).unwrap();
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-        app.session.search_rules = Some(vectorcraft_engine::cmd::findfiles::Rules { user_content: vec![dir.clone()], ..Default::default() });
+        let dir = std::fs::canonicalize(pluma_testkit::temp_dir("find-font-folder")).unwrap();
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+        app.session.search_rules = Some(pluma_engine::cmd::findfiles::Rules { user_content: vec![dir.clone()], ..Default::default() });
         app.session.search_threads = Some(1);
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         assert!(!crate::menus::enabled(&app, "ui.findFontsInFolder"), "no folder picker (the web)");
@@ -823,8 +822,8 @@ mod tests {
     }
 
     /// A document set in Inter and Source Serif 4 (Inter twice), with Inter the one recent font.
-    fn two_font_document() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn two_font_document() -> PlumaApp {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         for (y, font) in [(20, "Inter"), (40, "Source Serif 4"), (60, "Inter")] {
             app.session.execute("text.create", &json!({"x": 10, "y": y, "text": "Hi", "font": font})).unwrap();
@@ -856,7 +855,7 @@ mod tests {
     }
 
     /// One headless frame of the dialog: every text it painted, with where.
-    fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
+    fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
         fn collect(s: &egui::epaint::Shape, out: &mut Vec<(String, egui::Rect)>) {
             match s {
                 egui::epaint::Shape::Text(t) => out.push((t.galley.text().to_string(), egui::Rect::from_min_size(t.pos, t.galley.size()))),
@@ -880,7 +879,7 @@ mod tests {
     }
 
     /// A click at `at`: the press on one frame, the release on the next.
-    fn click(ctx: &egui::Context, app: &mut VectorcraftApp, at: egui::Pos2) {
+    fn click(ctx: &egui::Context, app: &mut PlumaApp, at: egui::Pos2) {
         let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         frame(ctx, app, vec![egui::Event::PointerMoved(at), button(true)]);
         frame(ctx, app, vec![button(false)]);
@@ -888,8 +887,8 @@ mod tests {
     }
 
     /// A document set in `families`, one text each.
-    fn many_font_document(families: &[&str]) -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn many_font_document(families: &[&str]) -> PlumaApp {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         for (i, family) in families.iter().enumerate() {
             app.session.execute("text.create", &json!({"x": 10, "y": 10.0 + i as f64 * 20.0, "text": "Hi", "font": family})).unwrap();
@@ -901,7 +900,7 @@ mod tests {
     /// no font file.
     #[test]
     fn the_closest_style_is_the_face_a_style_less_request_gets() {
-        let db = vectorcraft_text::FontDb::global();
+        let db = pluma_text::FontDb::global();
         for family in ["Source Sans 3", "Inter"] {
             let closest = db.closest_style(family).unwrap_or_else(|| panic!("{family} is installed"));
             let face = db.face(family, "").unwrap_or_else(|| panic!("{family} resolves"));
@@ -913,7 +912,7 @@ mod tests {
     /// replacement and Change stays off for it: only a style the font has can be the target.
     #[test]
     fn a_substituted_style_is_listed_but_not_chosen() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         // A style Source Sans 3 has none of: its closest style stands in.
         app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Hi", "font": "Source Sans 3", "style": "Black Wide"})).unwrap();
@@ -1077,7 +1076,7 @@ mod tests {
             [Row { family: "Inter".into(), style: "Regular".into() }, Row { family: "Source Serif 4".into(), style: "Regular".into() }],
             "one row per family and style the document uses"
         );
-        let db = vectorcraft_text::FontDb::global();
+        let db = pluma_text::FontDb::global();
         let closest = db.closest_style("Inter").expect("Inter is installed");
         let recent = replacement_rows(&app, "recent", &used);
         assert_eq!(recent.first(), Some(&Row { family: "Inter".into(), style: closest.clone() }), "the closest style comes first, by name");
@@ -1185,7 +1184,7 @@ mod tests {
     /// Document lists a missing family, but Change and Change All stay off for it, in every list.
     #[test]
     fn a_missing_document_font_is_listed_but_not_offered_to_change_to() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         for (y, font) in [(20, "Missing Family"), (40, "Inter")] {
             app.session.execute("text.create", &json!({"x": 10, "y": y, "text": "Hi", "font": font})).unwrap();
@@ -1251,7 +1250,7 @@ mod tests {
         assert!(can_replace_in("inter", |_| true, &menu));
         assert!(!can_replace_in(".Hidden", |_| true, &menu));
         assert!(!can_replace_in("Inter", |_| false, &menu));
-        let hidden = vectorcraft_text::FontDb::global().family_list().iter().find(|f| f.starts_with('.') && installed(f)).cloned();
+        let hidden = pluma_text::FontDb::global().family_list().iter().find(|f| f.starts_with('.') && installed(f)).cloned();
         if let Some(hidden) = hidden {
             let mut app = two_font_document();
             open(&mut app);

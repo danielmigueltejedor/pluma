@@ -1,9 +1,9 @@
 [package]
-name = "vectorcraft-svg"
+name = "pluma-svg"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft SVG import and export"
+description = "Pluma SVG import and export"
 
 [lints]
 workspace = true
@@ -11,13 +11,13 @@ workspace = true
 [dependencies]
 # Which paths stored in documents may be opened.
 craft-docpath = { workspace = true }
-vectorcraft-geom = { workspace = true }
-vectorcraft-color = { workspace = true }
-vectorcraft-doc = { workspace = true }
-vectorcraft-effects = { workspace = true }
-vectorcraft-brush = { workspace = true }
-vectorcraft-text = { workspace = true }
-vectorcraft-pathops = { workspace = true }
+pluma-geom = { workspace = true }
+pluma-color = { workspace = true }
+pluma-doc = { workspace = true }
+pluma-effects = { workspace = true }
+pluma-brush = { workspace = true }
+pluma-text = { workspace = true }
+pluma-pathops = { workspace = true }
 kurbo = { workspace = true }
 usvg = { workspace = true }
 thiserror = { workspace = true }
@@ -35,10 +35,10 @@ simplecss = "0.2.2"
 # Reading embedded font subsets back.
 skrifa = { workspace = true }
 # A variable font built in code (no font file is committed).
-vectorcraft-text = { workspace = true, features = ["test-fonts"] }
+pluma-text = { workspace = true, features = ["test-fonts"] }
 resvg = { version = "0.45", default-features = false, features = ["raster-images"] }
 # usvg as a reference viewer that lays text out in a font (text_layout.rs).
 usvg = { workspace = true, features = ["text"] }
-vectorcraft-testkit = { workspace = true }
+pluma-testkit = { workspace = true }
 proptest = { workspace = true }
 image = { workspace = true }

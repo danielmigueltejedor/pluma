@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
+use pluma_doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
 
 use crate::Session;
 
@@ -43,7 +43,7 @@ fn three_d_type_turns_the_effect_in_place_keeping_shared_settings_in_one_undo_st
             assert_eq!(params["ambient"], 40.0);
             assert_eq!(params["lightIntensity"], 55.0);
             // Settings only the new effect takes start at its defaults; others are dropped.
-            let defaults = vectorcraft_render::effects::default_params(to).unwrap();
+            let defaults = pluma_render::effects::default_params(to).unwrap();
             for key in params.as_object().unwrap().keys() {
                 assert!(defaults.get(key).is_some(), "{from_type} → {to_type} kept `{key}`");
             }

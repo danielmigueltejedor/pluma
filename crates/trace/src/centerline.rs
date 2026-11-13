@@ -25,7 +25,7 @@ mod distance;
 mod graph;
 mod thin;
 
-use vectorcraft_geom::{PathData, Point};
+use pluma_geom::{PathData, Point};
 
 use crate::Raster;
 use crate::fit;

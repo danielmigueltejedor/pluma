@@ -3,9 +3,9 @@
 
 use crate::*;
 use kurbo::{Affine, Shape};
-use vectorcraft_doc::text::Kashida;
-use vectorcraft_doc::{CharStyle, JustificationOptions, Justify, SingleWordJustify, TextKind, TextRun};
-use vectorcraft_geom::PathData;
+use pluma_doc::text::Kashida;
+use pluma_doc::{CharStyle, JustificationOptions, Justify, SingleWordJustify, TextKind, TextRun};
+use pluma_geom::PathData;
 
 fn db() -> &'static FontDb {
     FontDb::global()

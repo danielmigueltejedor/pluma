@@ -14,7 +14,7 @@ use crate::{Appearance, Document, Effect, Node};
 const PIXEL_RADII_SINCE: u32 = 3;
 const HALFTONE: &str = "pixelate.colorHalftone";
 const RADIUS: &str = "maxRadius";
-/// The key of `Document::unknown` that holds the brush definitions (`vectorcraft-brush`'s
+/// The key of `Document::unknown` that holds the brush definitions (`pluma-brush`'s
 /// `DOC_KEY`), whose art can carry effects.
 const BRUSHES: &str = "brushes";
 /// The radius (points) an older document's halftone without one drew with.
@@ -229,7 +229,7 @@ mod tests {
         let mut look = Appearance::default_art();
         look.effects = vec![halftone(Some(8.0))];
         let face = FaceEdit {
-            selector: FaceSelector { sources: vec![0], anchor: vectorcraft_geom::Point::ZERO },
+            selector: FaceSelector { sources: vec![0], anchor: pluma_geom::Point::ZERO },
             erase: false,
             erase_edges: false,
             paint_source: None,
@@ -265,7 +265,7 @@ mod tests {
         let id = d.alloc_id();
         let mut look = Appearance::default_art();
         look.effects = vec![halftone(Some(8.0))];
-        let square = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
+        let square = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
         let tile = Arc::new(Node::path(id, square, look));
         let original = Some(crate::PatternDef::new("Tile", vec![tile]));
         d.pattern_edit = Some(crate::PatternEdit { pattern: "Tile".into(), layer: crate::NodeId(0), original });

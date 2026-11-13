@@ -1,9 +1,9 @@
 //! SVG import units: physical lengths keep their printed size, pixels and user units map 1:1 to
 //! points, and the document's units follow the file's.
 
-use vectorcraft_doc::{Document, Node, NodeKind, Unit};
-use vectorcraft_geom::Rect;
-use vectorcraft_svg::import;
+use pluma_doc::{Document, Node, NodeKind, Unit};
+use pluma_geom::Rect;
+use pluma_svg::import;
 
 fn art(d: &Document) -> Vec<&Node> {
     let mut v = Vec::new();

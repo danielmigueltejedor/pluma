@@ -1,6 +1,6 @@
-use super::{VectorcraftApp, io, place};
+use super::{PlumaApp, io, place};
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// A file dialog is open off the UI thread (a sheet on macOS, [`picks`]): what asked for it runs
     /// again when it answers.
     pub fn file_dialog_open(&self) -> bool {

@@ -2,11 +2,11 @@
 //! viewer blends each patch's corner colours smoothly, instead of the mesh being cut into small
 //! flat-coloured paths that band, show seams and make the file large.
 
-use vectorcraft_color::Color;
-use vectorcraft_doc::live::{GradientMesh, MeshAppearance};
-use vectorcraft_doc::{ColorMode, Document, Node, NodeKind};
-use vectorcraft_geom::{Rect, shapes};
-use vectorcraft_testkit::raster::{assert_similar, render_artboard};
+use pluma_color::Color;
+use pluma_doc::live::{GradientMesh, MeshAppearance};
+use pluma_doc::{ColorMode, Document, Node, NodeKind};
+use pluma_geom::{Rect, shapes};
+use pluma_testkit::raster::{assert_similar, render_artboard};
 
 use crate::*;
 

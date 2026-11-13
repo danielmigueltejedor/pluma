@@ -1,4 +1,4 @@
-//! VectorCraft's outgoing IME producer: the Type tool's committed logical text, its stable owner
+//! Pluma's outgoing IME producer: the Type tool's committed logical text, its stable owner
 //! and context generation, and the explicit `InputMethod`/`Other` cause.
 //!
 //! The shared [`egui::ime_context`] helper does the lifecycle bookkeeping. This module is the thin
@@ -9,10 +9,10 @@
 use egui::ime_context::{CommittedText, ImeContextUpdate, ImeMutationStamp, ImeObservation, ImeTarget};
 use egui::output::{IMEOutput, MAX_IME_SURROUNDING_TEXT_BYTES};
 use egui::{Context, Id};
-use vectorcraft_engine::{Session, ViewInfo};
-use vectorcraft_tools::ImeSurrounding;
+use pluma_engine::{Session, ViewInfo};
+use pluma_tools::ImeSurrounding;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// The same byte limit the fork's [`egui::output::IMESurroundingText::from_text`] enforces. Asking
 /// the engine for exactly this window avoids cloning a large document just to discard most of it.
@@ -68,17 +68,17 @@ pub(crate) struct ResetGuard {
 
 /// Temp-memory key marking whether this viewport is currently inside a UI pass.
 fn mode_id(viewport: egui::ViewportId) -> Id {
-    Id::unique(("vectorcraft.ime.in-ui-pass", viewport))
+    Id::unique(("pluma.ime.in-ui-pass", viewport))
 }
 /// Temp-memory key for the pass number and descriptor identity observed during this viewport's UI
 /// pass.
 fn output_id(viewport: egui::ViewportId) -> Id {
-    Id::unique(("vectorcraft.ime.pass-output", viewport))
+    Id::unique(("pluma.ime.pass-output", viewport))
 }
 
 /// Install before the host's first pass. Callbacks borrow their own Ui's Context, never capture it.
 pub(crate) fn install_hooks(ctx: &Context) {
-    let installed = Id::unique("vectorcraft.ime.mode-hooks-installed");
+    let installed = Id::unique("pluma.ime.mode-hooks-installed");
     let first = ctx.data_mut(|data| {
         if data.get_temp::<bool>(installed).unwrap_or(false) {
             false
@@ -91,7 +91,7 @@ pub(crate) fn install_hooks(ctx: &Context) {
         return;
     }
     ctx.on_begin_pass(
-        "VectorCraft IME pass begin",
+        "Pluma IME pass begin",
         std::sync::Arc::new(|ui| {
             let ctx = ui.ctx();
             let id = mode_id(ctx.viewport_id());
@@ -99,7 +99,7 @@ pub(crate) fn install_hooks(ctx: &Context) {
         }),
     );
     ctx.on_end_pass(
-        "VectorCraft IME pass end",
+        "Pluma IME pass end",
         std::sync::Arc::new(|ui| {
             let ctx = ui.ctx();
             let id = mode_id(ctx.viewport_id());
@@ -114,7 +114,7 @@ pub(crate) fn install_hooks(ctx: &Context) {
 /// helper so the pre-UI route test, the post-UI finalizer and the end-of-pass observation cannot
 /// drift apart; Home in particular is an ineligible route even though the Type tool keeps its
 /// target across it.
-fn pass_eligible(app: &VectorcraftApp, ctx: &Context) -> bool {
+fn pass_eligible(app: &PlumaApp, ctx: &Context) -> bool {
     !app.viewport_hidden(ctx)
         && !crate::menus::home_showing(app)
         && app.ui.dialog.is_none()
@@ -131,7 +131,7 @@ fn pass_eligible(app: &VectorcraftApp, ctx: &Context) -> bool {
 /// such a descriptor arrives, so allocating on a hidden, Home, stock or geometry-less route would
 /// attach a foreign token to whatever stock field publishes next. An ineligible route retires the
 /// local guard instead; a later eligible activation allocates a fresh request.
-fn route_live(app: &mut VectorcraftApp, ctx: &Context) -> bool {
+fn route_live(app: &mut PlumaApp, ctx: &Context) -> bool {
     if !pass_eligible(app, ctx) {
         return false;
     }
@@ -142,7 +142,7 @@ fn route_live(app: &mut VectorcraftApp, ctx: &Context) -> bool {
 /// Allocate a reset request on an eligible custom-editor route and replace the guard with the
 /// confirmed destination, commit stamp and prior output identity; suspend instead when the route
 /// cannot publish.
-fn request_guard(app: &mut VectorcraftApp, ctx: &Context, deferred: bool) -> bool {
+fn request_guard(app: &mut PlumaApp, ctx: &Context, deferred: bool) -> bool {
     if !route_live(app, ctx) {
         suspend(app, ctx);
         return false;
@@ -175,7 +175,7 @@ fn request_guard(app: &mut VectorcraftApp, ctx: &Context, deferred: bool) -> boo
 /// Temp-memory key for the test-only count of IME reset requests since the last take.
 #[cfg(test)]
 fn request_count_id() -> Id {
-    Id::unique("vectorcraft.ime.test-request-count")
+    Id::unique("pluma.ime.test-request-count")
 }
 
 /// Increment the test-only request counter for every reset allocation, including intermediates
@@ -197,14 +197,14 @@ pub(crate) fn take_request_count(ctx: &Context) -> u64 {
 
 /// True only while a pointer/navigation/command notice is waiting for its real later handler.
 /// Destination-dependent raw input must not mutate the old caret until that handler ran.
-pub(crate) fn deferred(app: &VectorcraftApp, ctx: &Context) -> bool {
+pub(crate) fn deferred(app: &PlumaApp, ctx: &Context) -> bool {
     app.ime_resets.get(&ctx.viewport_id()).is_some_and(|guard| guard.deferred)
 }
 
 /// Retire a live guard when this pass cannot publish the custom editor at all (the route lost
 /// its target or caret geometry, or the viewport is hidden). This runs before any reset marker is
 /// considered, so a marker for the old request cannot complete a route that no longer exists.
-pub(crate) fn suspend_if_route_lost(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn suspend_if_route_lost(app: &mut PlumaApp, ctx: &Context) {
     let viewport = ctx.viewport_id();
     if app.ime_resets.get(&viewport).is_none_or(|guard| guard.suspended) {
         return;
@@ -215,13 +215,13 @@ pub(crate) fn suspend_if_route_lost(app: &mut VectorcraftApp, ctx: &Context) {
 }
 
 /// Whether this viewport has a guard, including a suspended guard that currently owns no request.
-pub(crate) fn blocked(app: &VectorcraftApp, ctx: &Context) -> bool {
+pub(crate) fn blocked(app: &PlumaApp, ctx: &Context) -> bool {
     app.ime_resets.contains_key(&ctx.viewport_id())
 }
 
 /// Return the reset request awaiting native completion for this viewport; test helper.
 #[cfg(test)]
-pub(crate) fn pending_request(app: &VectorcraftApp, ctx: &Context) -> Option<egui::ImeResetId> {
+pub(crate) fn pending_request(app: &PlumaApp, ctx: &Context) -> Option<egui::ImeResetId> {
     app.ime_resets.get(&ctx.viewport_id()).and_then(|guard| guard.request)
 }
 
@@ -230,7 +230,7 @@ pub(crate) fn pending_request(app: &VectorcraftApp, ctx: &Context) -> Option<egu
 /// allocated here: the final handler may still invalidate the route (a click that ends editing, a
 /// modal, a stock field), and a token allocated now would survive in egui's memory for the next
 /// descriptor. The eligible finalizer allocates for the confirmed destination instead.
-pub(crate) fn defer_interrupt(app: &mut VectorcraftApp, ctx: &Context) -> bool {
+pub(crate) fn defer_interrupt(app: &mut PlumaApp, ctx: &Context) -> bool {
     let live = route_live(app, ctx);
     let was_blocked = blocked(app, ctx);
     // Settle with the old suffix still fenced off, but never allocate: the raw suffix after this
@@ -255,7 +255,7 @@ pub(crate) fn defer_interrupt(app: &mut VectorcraftApp, ctx: &Context) -> bool {
 }
 
 /// Retire the current request but keep the guard awaiting the finalizer's confirmed destination.
-fn place_deferred_guard(app: &mut VectorcraftApp, ctx: &Context) {
+fn place_deferred_guard(app: &mut PlumaApp, ctx: &Context) {
     let viewport = ctx.viewport_id();
     let destination = incoming_selection(app);
     let view = app.view_info();
@@ -290,7 +290,7 @@ fn place_deferred_guard(app: &mut VectorcraftApp, ctx: &Context) {
 /// allocated: the pass's final descriptor does not exist yet, so a token bound here could outlive
 /// the route (a later palette/dialog/Home) in egui's memory. The post-UI finalizer, which confirms
 /// the descriptor, binds the replacement for `pending`.
-fn mark_pending(app: &mut VectorcraftApp, ctx: &Context) {
+fn mark_pending(app: &mut PlumaApp, ctx: &Context) {
     let viewport = ctx.viewport_id();
     let destination = incoming_selection(app);
     let view = app.view_info();
@@ -322,7 +322,7 @@ fn mark_pending(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// Retire the guard's request and clear its deferred and pending flags while keeping the guard
 /// blocked until an eligible route allocates a replacement.
-fn suspend(app: &mut VectorcraftApp, ctx: &Context) {
+fn suspend(app: &mut PlumaApp, ctx: &Context) {
     if let Some(guard) = app.ime_resets.get_mut(&ctx.viewport_id()) {
         guard.request = None;
         guard.suspended = true;
@@ -334,7 +334,7 @@ fn suspend(app: &mut VectorcraftApp, ctx: &Context) {
 /// A close request ends this viewport's IME route without publishing a custom descriptor. Settle
 /// any preview without a token (a later stock field must not inherit one) and retire the guard so
 /// a cancelled close rearms on a fresh generation.
-pub(crate) fn close_viewport(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn close_viewport(app: &mut PlumaApp, ctx: &Context) {
     let viewport = ctx.viewport_id();
     interrupt_incoming_impl(app, ctx, Fence::Unbound);
     app.ime_compositions.remove(&viewport);
@@ -344,7 +344,7 @@ pub(crate) fn close_viewport(app: &mut VectorcraftApp, ctx: &Context) {
 /// Only this ordered raw control can lift an interrupted guard. Call-return and old terminals
 /// do not acknowledge it. A missing, suspended, deferred or pending guard is inert: in particular
 /// this must not synchronize an active composition into a fresh guard after `controls_without_editor`.
-pub(crate) fn complete(app: &mut VectorcraftApp, ctx: &Context, request: egui::ImeResetId) -> bool {
+pub(crate) fn complete(app: &mut PlumaApp, ctx: &Context, request: egui::ImeResetId) -> bool {
     let viewport = ctx.viewport_id();
     if !app.ime_resets.get(&viewport).is_some_and(|guard| !guard.suspended && !guard.deferred && !guard.pending) {
         return false;
@@ -375,7 +375,7 @@ pub(crate) fn complete(app: &mut VectorcraftApp, ctx: &Context, request: egui::I
 
 /// This path owns controls only when the custom editor cannot process ANY raw mutations.
 /// Retire its activation before walking controls; leave the stock field's text/keys intact.
-pub(crate) fn controls_without_editor(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn controls_without_editor(app: &mut PlumaApp, ctx: &Context) {
     suspend(app, ctx);
     let controls = ctx.input_mut(|input| {
         let mut controls = Vec::new();
@@ -396,7 +396,7 @@ pub(crate) fn controls_without_editor(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// Clear the previous pass's caret rectangle and published descriptor identity before this
 /// viewport's UI runs.
-pub(crate) fn begin_ui(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn begin_ui(app: &mut PlumaApp, ctx: &Context) {
     app.ime_caret_rect = None;
     let id = output_id(ctx.viewport_id());
     ctx.data_mut(|data| data.remove::<(u64, OutputContext)>(id));
@@ -404,7 +404,7 @@ pub(crate) fn begin_ui(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// Every UI exit, including discarded/stock/no-geometry output, observes this pass's descriptor.
 /// Losing publication retires R1; reactivation allocates R2 even for the same model/caret.
-pub(crate) fn finish_ui(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn finish_ui(app: &mut PlumaApp, ctx: &Context) {
     let viewport = ctx.viewport_id();
     let custom = ctx
         .data(|data| data.get_temp::<(u64, OutputContext)>(output_id(viewport)))
@@ -438,14 +438,14 @@ pub(crate) fn finish_ui(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// Whether this pass can publish a custom editor and the descriptor recorded during the pass is the
 /// one actually published.
-fn eligible(app: &VectorcraftApp, ctx: &Context, custom: Option<OutputContext>) -> bool {
+fn eligible(app: &PlumaApp, ctx: &Context, custom: Option<OutputContext>) -> bool {
     let actual = ctx.output(|output| output.ime.as_ref().map(OutputContext::from));
     eligible_with(app, ctx, custom, actual)
 }
 
 /// Require a custom descriptor, a matching actual output and an eligible route before an IME guard
 /// may settle or re-arm.
-fn eligible_with(app: &VectorcraftApp, ctx: &Context, custom: Option<OutputContext>, actual: Option<OutputContext>) -> bool {
+fn eligible_with(app: &PlumaApp, ctx: &Context, custom: Option<OutputContext>, actual: Option<OutputContext>) -> bool {
     custom.is_some() && actual == custom && pass_eligible(app, ctx)
 }
 
@@ -457,7 +457,7 @@ fn needs_replacement(guard: &ResetGuard, destination: Option<IncomingSelection>,
 
 /// A full pass calls logic before UI; absence at that intermediate point is not publication
 /// loss. Standalone run_logic has no fresh geometry and must retire a pending activation once.
-pub(crate) fn finish_logic(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn finish_logic(app: &mut PlumaApp, ctx: &Context) {
     let id = mode_id(ctx.viewport_id());
     if !ctx.data(|data| data.get_temp::<bool>(id).unwrap_or(false)) {
         // A logic-only iteration has no fresh custom descriptor: settle a changed preview without
@@ -469,7 +469,7 @@ pub(crate) fn finish_logic(app: &mut VectorcraftApp, ctx: &Context) {
 
 /// Read the current Type-tool target and its anchor and caret offsets, or `None` when no text edit
 /// target or selection options are available.
-fn incoming_selection(app: &mut VectorcraftApp) -> Option<IncomingSelection> {
+fn incoming_selection(app: &mut PlumaApp) -> Option<IncomingSelection> {
     let view = app.view_info();
     let target = target(&mut app.session, view)?;
     let options = app.session.tool_options();
@@ -478,7 +478,7 @@ fn incoming_selection(app: &mut VectorcraftApp) -> Option<IncomingSelection> {
 
 /// Record a successfully accepted preedit. Accepted IME deletes refresh this selection without
 /// invalidating the commit that belongs to them.
-pub(crate) fn remember_incoming(app: &mut VectorcraftApp, ctx: &Context, preedit_empty: Option<bool>) {
+pub(crate) fn remember_incoming(app: &mut PlumaApp, ctx: &Context, preedit_empty: Option<bool>) {
     let viewport = ctx.viewport_id();
     let Some(selection) = incoming_selection(app) else { return };
     let next = match (preedit_empty, app.ime_compositions.get(&viewport)) {
@@ -508,12 +508,12 @@ enum Fence {
 /// `tool_text`: the caret or document may already have changed. Settle with no request on a route
 /// that has no custom editor (a stock field, a hidden window); core could attach such a token to
 /// the stock descriptor.
-fn interrupt_incoming_unbound(app: &mut VectorcraftApp, ctx: &Context) {
+fn interrupt_incoming_unbound(app: &mut PlumaApp, ctx: &Context) {
     interrupt_incoming_impl(app, ctx, Fence::Unbound);
 }
 
 /// Returns whether an active/terminal preview was settled.
-fn interrupt_incoming_impl(app: &mut VectorcraftApp, ctx: &Context, fence: Fence) -> bool {
+fn interrupt_incoming_impl(app: &mut PlumaApp, ctx: &Context, fence: Fence) -> bool {
     let viewport = ctx.viewport_id();
     let previous = app.ime_compositions.get(&viewport).copied();
     let Some(IncomingComposition::Active(expected) | IncomingComposition::TerminalPending(expected)) = previous else { return false };
@@ -558,26 +558,26 @@ fn interrupt_incoming_impl(app: &mut VectorcraftApp, ctx: &Context, fence: Fence
 /// The finalizer form: check application changes after the canvas/panels ran. A live preview
 /// ending on its own is an interruption even if the caret happened to land at its old offset. No
 /// prior composition means a direct commit remains legitimate. Only a post-UI call may bind.
-pub(crate) fn sync_incoming(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn sync_incoming(app: &mut PlumaApp, ctx: &Context) {
     sync_incoming_impl(app, ctx, Fence::Bound);
 }
 
 /// Pre-UI form: the pass's descriptor does not exist yet, so a changed composition or guard is
 /// settled `pending` and the post-UI finalizer binds the replacement after confirming it.
-pub(crate) fn sync_incoming_before_ui(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn sync_incoming_before_ui(app: &mut PlumaApp, ctx: &Context) {
     sync_incoming_impl(app, ctx, Fence::Pending);
 }
 
 /// Settlement for a pass that publishes no custom descriptor (standalone hidden logic). It settles
 /// an interrupted preview without allocating a token that a later stock field could consume.
-fn sync_incoming_unbound(app: &mut VectorcraftApp, ctx: &Context) {
+fn sync_incoming_unbound(app: &mut PlumaApp, ctx: &Context) {
     sync_incoming_impl(app, ctx, Fence::Unbound);
 }
 
 /// Settle an incoming composition whose selection, composing state, session or context no longer
 /// matches the recorded expectation, applying the fence policy; with no recorded composition, also
 /// retire or replace a guard whose destination, commit stamp, context or pending state changed.
-fn sync_incoming_impl(app: &mut VectorcraftApp, ctx: &Context, fence: Fence) {
+fn sync_incoming_impl(app: &mut PlumaApp, ctx: &Context, fence: Fence) {
     let previous = app.ime_compositions.get(&ctx.viewport_id()).copied();
     let expected = match previous {
         Some(IncomingComposition::Active(selection) | IncomingComposition::TerminalPending(selection)) => selection,
@@ -622,7 +622,7 @@ fn sync_incoming_impl(app: &mut VectorcraftApp, ctx: &Context, fence: Fence) {
 /// tool's edit session, so leaving and re-entering the same text object starts a fresh IME
 /// context while ordinary typing, selection and caret moves keep the old one.
 pub(crate) fn target(session: &mut Session, view: ViewInfo) -> Option<ImeTarget> {
-    session.tool_ime_target(view).map(|(document, node, session)| ImeTarget::new(Id::unique(("vectorcraft-type-ime", document, node)), session))
+    session.tool_ime_target(view).map(|(document, node, session)| ImeTarget::new(Id::unique(("pluma-type-ime", document, node)), session))
 }
 
 /// The bounded committed text and UTF-8 offsets, or `None` for an explicit unavailability reason.
@@ -656,13 +656,7 @@ pub(crate) fn stamp(session: &mut Session, view: ViewInfo) -> Option<ImeMutation
 ///
 /// A stale target, a no-op (`before == after`), or an unavailable receipt earns nothing: the
 /// tracker then reports `Other` for any snapshot change it cannot prove came from the IME.
-pub(crate) fn note_ime_apply(
-    app: &mut VectorcraftApp,
-    ctx: &Context,
-    view: ViewInfo,
-    target_before: Option<ImeTarget>,
-    before: Option<ImeMutationStamp>,
-) {
+pub(crate) fn note_ime_apply(app: &mut PlumaApp, ctx: &Context, view: ViewInfo, target_before: Option<ImeTarget>, before: Option<ImeMutationStamp>) {
     let (Some(target_before), Some(before)) = (target_before, before) else { return };
     if target(&mut app.session, view) != Some(target_before) {
         return;
@@ -686,7 +680,7 @@ pub(crate) fn note_ime_apply(
 /// `before == after` is a no-op and is not reported. A changed target (editing ended) is left to
 /// the normal context-transition rule.
 pub(crate) fn note_application_edit(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ctx: &Context,
     view: ViewInfo,
     target_before: Option<ImeTarget>,
@@ -709,7 +703,7 @@ pub(crate) fn note_application_edit(
 /// keyboard, and no dialog or palette covers it). Pass `false` for a hidden/absent owner. The
 /// tracker gets `cumulative_frame_nr_for` and `cumulative_pass_nr_for` separately, so cause
 /// accumulates across a frame's discarded passes while an unchanged second pass keeps its cause.
-pub(crate) fn observe(app: &mut VectorcraftApp, ctx: &Context, focused: bool) -> Option<ImeContextUpdate> {
+pub(crate) fn observe(app: &mut PlumaApp, ctx: &Context, focused: bool) -> Option<ImeContextUpdate> {
     let viewport = ctx.viewport_id();
     if !focused {
         return app.ime_context.observe(viewport, None);
@@ -731,18 +725,18 @@ pub(crate) fn observe(app: &mut VectorcraftApp, ctx: &Context, focused: bool) ->
 }
 
 /// Mark this viewport's IME owner absent for a pass (no document, Home, a hidden canvas).
-pub(crate) fn observe_none(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn observe_none(app: &mut PlumaApp, ctx: &Context) {
     app.ime_context.observe(ctx.viewport_id(), None);
 }
 
 /// Observe and write the outgoing descriptor once, at the end of the pass.
 ///
-/// The canvas records only the caret geometry (`VectorcraftApp::ime_caret_rect`) while it draws.
+/// The canvas records only the caret geometry (`PlumaApp::ime_caret_rect`) while it draws.
 /// By the time this runs, every dialog, floating panel, progress window and the palette has drawn
 /// and ran its commands, so the owner, focused state, committed text and cause are the ones of the
 /// latest completed pass. A dialog's own `TextEdit` descriptor is left alone: writing `None` here
 /// would clobber it.
-pub(crate) fn end_of_pass(app: &mut VectorcraftApp, ctx: &Context) {
+pub(crate) fn end_of_pass(app: &mut PlumaApp, ctx: &Context) {
     let ours = app.ime_caret_rect.is_some() && pass_eligible(app, ctx);
     if !ours {
         // No custom editor owns the IME this pass (Home, no document, a dialog, a palette, a hidden
@@ -802,14 +796,14 @@ pub(crate) fn write_output(ctx: &Context, update: Option<ImeContextUpdate>, rect
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pluma_engine::Session;
     use serde_json::json;
-    use vectorcraft_engine::Session;
 
     /// The update prompt ends the Type tool's IME route, as a dialog does.
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn the_update_prompt_ends_the_type_tools_route() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         let id = app.run("text.create", json!({"x": 20, "y": 80, "text": "Text", "size": 12, "color": "#000000"})).unwrap()["id"].as_u64().unwrap();
         let view = app.view_info();
@@ -817,7 +811,7 @@ mod tests {
         app.session.set_tool_option("textSelection", &json!({"id": id, "start": 4, "end": 4}));
         assert!(app.session.tool_wants_text());
         let ctx = Context::default();
-        let eligible = |app: &VectorcraftApp| {
+        let eligible = |app: &PlumaApp| {
             let mut eligible = false;
             let mut out = ctx.run_ui(egui::RawInput::default(), |ui| eligible = pass_eligible(app, ui.ctx()));
             out.textures_delta.clear();
@@ -832,7 +826,7 @@ mod tests {
     /// while an unchanged descriptor keeps the existing request.
     #[test]
     fn same_owner_new_generation_or_purpose_requires_a_replacement_request() {
-        let owner = Id::unique("vectorcraft-ime-output-context-test");
+        let owner = Id::unique("pluma-ime-output-context-test");
         let previous = OutputContext { owner, generation: 7, purpose: egui::IMEPurpose::Normal };
         let guard = ResetGuard {
             request: None,

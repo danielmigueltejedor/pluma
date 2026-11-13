@@ -27,12 +27,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use kurbo::{Affine, BezPath, Point, Rect, Vec2};
-use vectorcraft_doc::live::{
+use pluma_doc::live::{
     EnvelopeKind, EnvelopeOptions, GradientMesh, H_DOWN, H_LEFT, H_RIGHT, H_UP, PreserveShape, default_fidelity, envelope_content_boxes,
     envelope_stroke_margin,
 };
-use vectorcraft_doc::{Appearance, Document, Effect, ImageBlob, LayerColor, Node, NodeId, NodeKind, PatternDef};
-use vectorcraft_geom::PathData;
+use pluma_doc::{Appearance, Document, Effect, ImageBlob, LayerColor, Node, NodeId, NodeKind, PatternDef};
+use pluma_geom::PathData;
 
 use super::obj::Obj;
 use crate::import::native::compare::{MAX_DIFFERENCE, MAX_SOLID_DIFFERENCE, compare_scale, differ, differ_in_colour, differ_on_black};
@@ -40,7 +40,7 @@ use crate::import::native::compare::{MAX_DIFFERENCE, MAX_SOLID_DIFFERENCE, compa
 /// The plugin that writes envelopes.
 pub(super) const PLUGIN: &str = "Adobe Deform Plugin"; // brand-ok: the plugin name the files use
 /// The note for an envelope that keeps its drawn art.
-pub(crate) const DRAWN: &str = "an envelope VectorCraft couldn't read as a live envelope comes in as its drawn art";
+pub(crate) const DRAWN: &str = "an envelope Pluma couldn't read as a live envelope comes in as its drawn art";
 /// The note for an envelope of type, which keeps its drawn art with its type hidden (unless the
 /// text document gives the type nothing, which a note of its own then says).
 pub(crate) const TYPE_DRAWN: &str = "type in an envelope comes in as the envelope's drawn art, not as editable type";
@@ -332,8 +332,8 @@ fn alone(node: &Node, layer: NodeId, shared: &Shared<'_>) -> Document {
 /// black), those whose neighbours all differ too (where one draws something the other doesn't, not
 /// an edge drawn a little apart), and the pixels either inks. `None` when they can't be drawn.
 fn differing(live: &Document, drawn: &Document, region: Rect, scale: f64) -> Option<(usize, usize, usize)> {
-    let x = vectorcraft_render::Renderer::new().render_region(live, region, scale, false);
-    let y = vectorcraft_render::Renderer::new().render_region(drawn, region, scale, false);
+    let x = pluma_render::Renderer::new().render_region(live, region, scale, false);
+    let y = pluma_render::Renderer::new().render_region(drawn, region, scale, false);
     if x.width == 0 || x.height == 0 || x.width != y.width || x.height != y.height {
         return None;
     }
@@ -464,8 +464,8 @@ pub(super) fn drawn_alike(live: &Node, drawn: &Node, layer: NodeId, shared: &Sha
 /// [`drawn_alike`] for type under a Warp, compared over all that its effects draw, which can reach
 /// past its own box.
 pub(super) fn warped_alike(live: &Node, drawn: &Node, layer: NodeId, shared: &Shared<'_>, page: Option<Rect>, spent: &mut Spent) -> bool {
-    let reach = vectorcraft_render::effect_bounds(&alone(live, layer, shared).symbol_boxes(), live);
-    alike_within(live, drawn, vectorcraft_geom::union_opt(live.visual_bounds(), reach), layer, shared, page, spent)
+    let reach = pluma_render::effect_bounds(&alone(live, layer, shared).symbol_boxes(), live);
+    alike_within(live, drawn, pluma_geom::union_opt(live.visual_bounds(), reach), layer, shared, page, spent)
 }
 
 /// [`drawn_alike`], with `live` measured as `reach`.

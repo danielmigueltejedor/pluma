@@ -2,16 +2,16 @@
 //! still float them.
 
 use egui::{Event, PointerButton, Pos2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, chrome};
+use crate::{PlumaApp, chrome};
 
 const SIZE: egui::Vec2 = egui::vec2(1000.0, 700.0);
 const NAMES: [&str; 4] = ["Alpha", "Bravo", "Charlie", "Delta"];
 
 /// Run a tab-strip frame; → the tabs' titles with their rects, and the frame's output.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> (Vec<(String, egui::Rect)>, egui::FullOutput) {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, time: f64, events: Vec<Event>) -> (Vec<(String, egui::Rect)>, egui::FullOutput) {
     let mut out = ctx.run_ui(
         egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, SIZE)), time: Some(time), events, ..Default::default() },
         |ui| {
@@ -39,8 +39,8 @@ fn button(at: Pos2, pressed: bool) -> Event {
 
 /// An app with documents Alpha, Bravo, Charlie and Delta, Delta current, and a context that has
 /// drawn the strip once.
-fn app() -> (VectorcraftApp, egui::Context) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> (PlumaApp, egui::Context) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     for name in NAMES {
         app.run("file.new", json!({"width": 100, "height": 100, "name": name})).unwrap();
     }
@@ -51,23 +51,23 @@ fn app() -> (VectorcraftApp, egui::Context) {
     (app, ctx)
 }
 
-fn order(app: &VectorcraftApp) -> Vec<String> {
+fn order(app: &PlumaApp) -> Vec<String> {
     app.session.documents().iter().map(|d| d.title()).collect()
 }
 
-fn current(app: &VectorcraftApp) -> String {
+fn current(app: &PlumaApp) -> String {
     app.session.active().map(|d| d.title()).unwrap_or_default()
 }
 
 /// The middle of the title of `name`'s tab.
-fn tab(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, name: &str) -> Pos2 {
+fn tab(app: &mut PlumaApp, ctx: &egui::Context, time: f64, name: &str) -> Pos2 {
     let (texts, _) = frame(app, ctx, time, vec![]);
     texts.iter().find(|(t, _)| t.starts_with(name)).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("{name}'s tab: {texts:?}"))
 }
 
 /// Press at `from`, move to `to` in steps, and release there; → the output of the frame before
 /// the release (while the tab is still dragged).
-fn drag(app: &mut VectorcraftApp, ctx: &egui::Context, time: f64, from: Pos2, to: Pos2) -> egui::FullOutput {
+fn drag(app: &mut PlumaApp, ctx: &egui::Context, time: f64, from: Pos2, to: Pos2) -> egui::FullOutput {
     frame(app, ctx, time, vec![Event::PointerMoved(from)]);
     frame(app, ctx, time + 0.05, vec![button(from, true)]);
     let mut last = None;
@@ -141,7 +141,7 @@ fn views_follow_a_move_made_by_the_engine_command() {
 #[test]
 fn views_follow_closes_and_moves_made_in_one_batch() {
     let (mut app, _ctx) = app();
-    let zooms = |app: &VectorcraftApp| app.views.iter().map(|v| v.zoom).collect::<Vec<_>>();
+    let zooms = |app: &PlumaApp| app.views.iter().map(|v| v.zoom).collect::<Vec<_>>();
     for (k, v) in app.views.iter_mut().enumerate() {
         v.zoom = 1.0 + k as f64;
     }

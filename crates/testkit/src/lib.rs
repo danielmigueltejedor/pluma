@@ -1,4 +1,4 @@
-//! VectorCraft test helpers.
+//! Pluma test helpers.
 //!
 //! - [`fixtures`]: sessions and documents in known states (empty, single/multi selection, a "rich"
 //!   document touching most node kinds), plus a [`fixtures::DocBuilder`] for building documents
@@ -6,7 +6,7 @@
 //! - [`strategies`]: proptest strategies for geometry and for engine command sequences ([`strategies::Op`]), and
 //!   junk-parameter generators for fuzzing the command registry.
 //! - [`invariants`]: structural checks for documents and sessions, and round-trip checks
-//!   (`.vectorcraft`, SVG, `document.inspect`).
+//!   (`.pluma`, SVG, `document.inspect`).
 //! - [`raster`]: rendering helpers and image comparison with a perceptual tolerance.
 //! - [`geom`]: geometry assertions (approximate equality, curve sampling, Hausdorff distance).
 //! - [`pdf`]: hand-written PDF files (page boxes, colour spaces, encryption) for import tests.
@@ -34,10 +34,10 @@ pub mod raster;
 pub mod strategies;
 pub mod tiff;
 
+pub use pluma_engine::{Session, doc::NodeId};
 pub use serde_json::{Value, json};
-pub use vectorcraft_engine::{Session, doc::NodeId};
 /// Re-exports so dependents without direct dependencies (e.g. app test crates) can use them.
-pub use {vectorcraft_doc as doc, vectorcraft_format as format, vectorcraft_render as render, vectorcraft_svg as svg};
+pub use {pluma_doc as doc, pluma_format as format, pluma_render as render, pluma_svg as svg};
 
 /// A per-process temporary directory for test output (created on first use). It is made with
 /// `create_dir` (owner-only on Unix), and a directory that already exists is reused only when it is
@@ -50,7 +50,7 @@ pub fn temp_dir(tag: &str) -> std::path::PathBuf {
     // Held to the end: another thread's first files must not land before the emptying.
     let mut seen = SEEN.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let first = seen.insert(tag.to_string());
-    let dir = std::env::temp_dir().join(format!("vectorcraft-testkit-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-testkit-{tag}-{}", std::process::id()));
     // Unix sets the mode on it; elsewhere it stays as made.
     #[cfg_attr(not(unix), allow(unused_mut))]
     let mut b = std::fs::DirBuilder::new();
@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn a_temp_dir_starts_empty_in_a_process_and_stays_for_later_calls() {
         let tag = "fresh-temp-dir";
-        let left = std::env::temp_dir().join(format!("vectorcraft-testkit-{tag}-{}", std::process::id()));
+        let left = std::env::temp_dir().join(format!("pluma-testkit-{tag}-{}", std::process::id()));
         // Made private, as `temp_dir` makes it: a directory others can reach is refused, not reused.
         #[cfg_attr(not(unix), allow(unused_mut))]
         let mut b = std::fs::DirBuilder::new();

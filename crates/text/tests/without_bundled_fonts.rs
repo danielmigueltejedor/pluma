@@ -1,14 +1,14 @@
 //! The `bundled-fonts` feature turned off, as by an embedder that supplies its own fonts at run
 //! time: a database starts without the bundled fonts, text in no font lays out with no glyphs
 //! instead of failing, and the fonts added later are used. Run with
-//! `cargo test -p vectorcraft-text --no-default-features --test without_bundled_fonts`.
+//! `cargo test -p pluma-text --no-default-features --test without_bundled_fonts`.
 #![cfg(not(feature = "bundled-fonts"))]
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use kurbo::Point;
-use vectorcraft_doc::CharStyle;
-use vectorcraft_text::{CRAFT_FONTS, FALLBACK_FAMILY, FontDb, TextObject, layout};
+use pluma_doc::CharStyle;
+use pluma_text::{CRAFT_FONTS, FALLBACK_FAMILY, FontDb, TextObject, layout};
 
 #[test]
 fn fonts_come_from_the_embedder() {

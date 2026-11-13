@@ -4,14 +4,14 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use egui::{CornerRadius, Sense, Stroke, Ui, vec2};
+use pluma_doc::NodeKind;
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
 
 use crate::panels::stroke as stroke_panel;
 use crate::state::{ROTATE_VIEW_ANGLES, ZOOM_STOPS, zoom_label};
 use crate::theme::{self, Tokens};
 use crate::widgets;
-use crate::{VectorcraftApp, icons, menus, titlebar};
+use crate::{PlumaApp, icons, menus, titlebar};
 
 mod control_bar;
 mod hints;
@@ -32,7 +32,7 @@ use tabs::{CLOSE_BEFORE_TITLE, first_tab_shown, tab_drop, tab_groups, tab_title}
 pub use tabs::{doc_tabs, isolation_bar, step_document};
 pub(crate) use tabs::{document_window_title, show_document, window_tab};
 
-/// The application bar's height, in points (compact, as in PhotoCraft).
+/// The application bar's height, in points (compact, as in Lienzo).
 pub const APP_BAR_HEIGHT: f32 = 32.0;
 /// The brand mark's side.
 const MARK: f32 = 18.0;
@@ -40,12 +40,12 @@ const MARK: f32 = 18.0;
 const WIDGET_H: f32 = 22.0;
 
 /// The application bar: brand mark, Home, menus, then Discord, search and the workspace switcher
-/// at the right. With [`VectorcraftApp::custom_titlebar`] it is also the window's title bar
+/// at the right. With [`PlumaApp::custom_titlebar`] it is also the window's title bar
 /// ([`titlebar`]): the caption buttons take the right end and the rest of the bar drags the window.
 /// On macOS, under the system's transparent title bar, its empty space drags and zooms the window
 /// too ([`titlebar::drag_area`]). With the system title bar (Windows and Linux, `system_title_bar`) the OS draws its own icon and
 /// title, so the in-app bar shows Home, menus and workspace controls only: no brand mark.
-pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn app_bar(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let custom = app.custom_titlebar;
     let system = system_title_bar(app);
@@ -80,7 +80,7 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
             // In Safe Mode, a label that stays in the bar whatever document is open, and opens
             // Help › Safe Mode; the other controls fit in the room it leaves, and the workspace
             // switcher (also under Window › Workspace) goes when a minimal one doesn't fit.
-            let safe = vectorcraft_plugins::safe_mode::active().then(|| egui::RichText::new(tl!("Safe Mode")).color(t.warning).size(12.0));
+            let safe = pluma_plugins::safe_mode::active().then(|| egui::RichText::new(tl!("Safe Mode")).color(t.warning).size(12.0));
             let safe_w = safe.as_ref().map_or(0.0, |label| {
                 let text = ui.painter().layout_no_wrap(label.text().to_string(), egui::FontId::proportional(12.0), t.warning);
                 text.size().x + 2.0 * ui.spacing().button_padding.x + 8.0 + ui.spacing().item_spacing.x
@@ -93,7 +93,7 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
             let ws = ui.painter().layout_no_wrap(ws_name, egui::FontId::proportional(12.0), t.text);
             let ws_w = (ws.size().x + 36.0).clamp(112.0, 190.0);
             let gap = ui.spacing().item_spacing.x;
-            // The search icon, as in PhotoCraft: shown while a minimal switcher fits beside it.
+            // The search icon, as in Lienzo: shown while a minimal switcher fits beside it.
             let icon = 28.0;
             let search = switcher && room >= 64.0 + 8.0 + gap + icon;
             let ws_w = ws_w.min(room - 8.0 - gap - if search { icon } else { 0.0 }).max(64.0);
@@ -132,7 +132,7 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                 crate::community::discord_button(app, ui, false);
             }
             if app.services.native_menu.is_some() {
-                let title = ui.painter().layout_no_wrap("VectorCraft".into(), egui::FontId::proportional(13.5), t.text);
+                let title = ui.painter().layout_no_wrap("Pluma".into(), egui::FontId::proportional(13.5), t.text);
                 let title_rect = egui::Rect::from_center_size(full.center(), title.size());
                 // Keep the title centered only while the interactive groups leave room for it.
                 if title_rect.left() >= menus_end + 8.0 && title_rect.right() <= ui.min_rect().left() - 8.0 {
@@ -147,31 +147,31 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// Whether the window shows the system's title bar instead of the app drawing its own
-/// ([`VectorcraftApp::desktop_frame`]): Windows with Preferences › User Interface › System Title
+/// ([`PlumaApp::desktop_frame`]): Windows with Preferences › User Interface › System Title
 /// Bar, and Linux whenever the desktop draws the frame, with or without the preference. The
 /// preference is read when the app starts, so changing it later does not change this. macOS
 /// always has system decorations, but keeps the in-app brand mark, so it never counts as system
 /// mode here; nor does the web build (the browser tab has no document title), nor an embedder
 /// without a window of its own.
-pub fn system_title_bar(app: &VectorcraftApp) -> bool {
+pub fn system_title_bar(app: &PlumaApp) -> bool {
     app.desktop_frame && !app.custom_titlebar && !cfg!(any(target_os = "macos", target_arch = "wasm32"))
 }
 
 /// The OS window title: the active document's name suffixed with the app name (a `*` prefix
 /// marks unsaved changes, like the `*` in the document tabs), or just the app name with no
 /// document open; in Safe Mode, followed by "(Safe Mode)".
-pub fn window_title(app: &VectorcraftApp) -> String {
+pub fn window_title(app: &PlumaApp) -> String {
     let title = app
         .session
         .active()
-        .map(|d| format!("{}{} \u{2014} VectorCraft", if d.is_dirty() { "*" } else { "" }, d.title()))
-        .unwrap_or_else(|| "VectorCraft".into());
-    if vectorcraft_plugins::safe_mode::active() { format!("{title} ({})", tl!("Safe Mode")) } else { title }
+        .map(|d| format!("{}{} \u{2014} Pluma", if d.is_dirty() { "*" } else { "" }, d.title()))
+        .unwrap_or_else(|| "Pluma".into());
+    if pluma_plugins::safe_mode::active() { format!("{title} ({})", tl!("Safe Mode")) } else { title }
 }
 
 /// Keep the OS window title (and the taskbar / Alt-Tab entry) on the active file. Sends
 /// `ViewportCommand::Title` only when the title changed since the last frame.
-pub fn sync_window_title(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn sync_window_title(app: &mut PlumaApp, ctx: &egui::Context) {
     let want = window_title(app);
     if app.last_window_title != want {
         app.last_window_title = want.clone();
@@ -185,7 +185,7 @@ pub fn sync_window_title(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// Full Screen Mode and Presentation Mode fill the screen (#4365: the taskbar and the window's
 /// frame stayed): the window goes full screen when one of them starts, and back when a mode with
 /// the menu bar returns. A window that was full screen already stays so.
-pub fn sync_fullscreen(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn sync_fullscreen(app: &mut PlumaApp, ctx: &egui::Context) {
     let want = app.ui.screen_mode >= 2;
     let is = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
     if want && !is && !app.fullscreen_for_mode {
@@ -229,13 +229,13 @@ mod visual_regressions {
         for brightness in theme::Brightness::ALL {
             for width in [800.0, 1280.0] {
                 for scale in [1.0, 1.5, 2.0] {
-                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
                     app.services.native_menu = Some(crate::native_menu::NativeMenu::new(Box::new(NativeMenus)));
                     app.ui.status = format!("Saved /Users/example/Documents/{}/illustration.svg", "long-folder-name/".repeat(10));
                     let mut ready = false;
                     let mut harness =
                         egui_kittest::Harness::builder().with_size(vec2(width, 200.0)).with_pixels_per_point(scale).wgpu().build_ui_state(
-                            move |ui, app: &mut VectorcraftApp| {
+                            move |ui, app: &mut PlumaApp| {
                                 if !ready {
                                     egui_extras::install_image_loaders(ui.ctx());
                                     theme::install_fonts(ui.ctx());
@@ -250,7 +250,7 @@ mod visual_regressions {
                         );
                     harness.input_mut().max_texture_side = Some(8192);
                     harness.run_steps(4);
-                    let stem = format!("vectorcraft-chrome-{brightness:?}-{width}-{scale}x");
+                    let stem = format!("pluma-chrome-{brightness:?}-{width}-{scale}x");
                     harness.render().unwrap().save(directory.join(format!("{stem}.png"))).unwrap();
                     let mut regions = serde_json::Map::new();
                     for id in ["app_bar", "status_bar"] {
@@ -291,7 +291,7 @@ mod visual_regressions {
                     egui_extras::install_image_loaders(&ctx);
                     theme::install_fonts(&ctx);
                     theme::apply(&ctx, brightness);
-                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
                     app.services.native_menu = Some(crate::native_menu::NativeMenu::new(Box::new(NativeMenus)));
                     let mut output = ctx.run_ui(scaled_input(vec2(width, 640.0), scale), |ui| app_bar(&mut app, ui));
                     output.textures_delta.clear();
@@ -305,12 +305,12 @@ mod visual_regressions {
                             _ => None,
                         })
                         .collect();
-                    let title = texts.iter().find(|text| text.galley.job.text == "VectorCraft");
+                    let title = texts.iter().find(|text| text.galley.job.text == "Pluma");
                     if width >= 1280.0 {
                         assert!(title.is_some(), "the title remains visible when the header has room");
                     }
                     if let Some(title) = title {
-                        for text in texts.iter().filter(|text| text.galley.job.text != "VectorCraft") {
+                        for text in texts.iter().filter(|text| text.galley.job.text != "Pluma") {
                             assert!(
                                 !title.visual_bounding_rect().intersects(text.visual_bounding_rect()),
                                 "{width}: title overlaps {:?}",
@@ -332,7 +332,7 @@ mod visual_regressions {
                     egui_extras::install_image_loaders(&ctx);
                     theme::install_fonts(&ctx);
                     theme::apply(&ctx, brightness);
-                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
                     app.ui.status = format!("Saved /Users/example/Documents/{}/illustration.svg", "long-folder-name/".repeat(10));
                     let mut output = ctx.run_ui(scaled_input(vec2(width, 640.0), scale), |ui| status_bar(&mut app, ui));
                     output.textures_delta.clear();

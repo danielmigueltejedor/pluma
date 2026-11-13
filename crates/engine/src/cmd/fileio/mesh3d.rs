@@ -2,7 +2,7 @@
 //! its MTL materials, glTF 2.0 (one `.gltf` file, its buffer embedded as a data URI), USDA and
 //! USDZ (the USDA layer in an uncompressed ZIP, its data on a 64-byte boundary).
 //!
-//! Each solid of the object ([`vectorcraft_render::effects::three_d_meshes`]) is its own mesh, with a
+//! Each solid of the object ([`pluma_render::effects::three_d_meshes`]) is its own mesh, with a
 //! material in the color it is painted (solids of one color share it). Positions are y up and
 //! about the point the object turns about: in points in OBJ and USD (whose layer says how many
 //! meters a unit is), in meters in glTF, as its specification asks. glTF and USD colors are linear,
@@ -14,8 +14,8 @@
 
 use std::fmt::Write as _;
 
+use pluma_render::effects::SolidMesh;
 use serde_json::{Value, json};
-use vectorcraft_render::effects::SolidMesh;
 
 /// The formats a 3D asset exports to, as `assets.set3DFormat` names them: USDA first, the default.
 pub const FORMATS_3D: [&str; 4] = ["usda", "usdz", "gltf", "obj"];
@@ -180,7 +180,7 @@ fn gltf(stem: &str, parts: &[SolidMesh]) -> String {
         })
         .collect();
     let doc = json!({
-        "asset": { "version": "2.0", "generator": "VectorCraft" },
+        "asset": { "version": "2.0", "generator": "Pluma" },
         "scene": 0,
         "scenes": [{ "nodes": [0] }],
         "nodes": [{ "name": stem, "mesh": 0 }],
@@ -188,7 +188,7 @@ fn gltf(stem: &str, parts: &[SolidMesh]) -> String {
         "materials": materials,
         "buffers": [{
             "byteLength": buffer.len(),
-            "uri": format!("data:application/octet-stream;base64,{}", vectorcraft_format::base64_encode(&buffer)),
+            "uri": format!("data:application/octet-stream;base64,{}", pluma_format::base64_encode(&buffer)),
         }],
         "bufferViews": views,
         "accessors": accessors,

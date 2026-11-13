@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use vectorcraft_affinity::{Archive, Limits, stream};
+use pluma_affinity::{Archive, Limits, stream};
 
 use crate::corpus;
 use crate::features;
@@ -57,12 +57,12 @@ fn public_documents_map_to_the_model() {
     let mut warnings = std::collections::BTreeMap::<String, usize>::new();
     let mut failures = Vec::new();
     let (mut nodes, mut docs) = (0usize, 0usize);
-    fn count(n: &[vectorcraft_affinity::model::Node]) -> usize {
+    fn count(n: &[pluma_affinity::model::Node]) -> usize {
         n.iter().map(|n| 1 + count(&n.children)).sum()
     }
     for p in &paths {
         let bytes = std::fs::read(p).unwrap();
-        match vectorcraft_affinity::read(&bytes, Limits::default()) {
+        match pluma_affinity::read(&bytes, Limits::default()) {
             Ok(d) => {
                 docs += 1;
                 nodes += d.spreads.iter().map(|s| count(&s.nodes)).sum::<usize>();
@@ -93,7 +93,7 @@ fn affinity3_feature_retention_matches_pinned_signatures() {
         let (name, signature) = line.split_once('\t').expect("signature row must have a tab");
         assert!(checked.insert(name), "duplicate fixture {name}");
         let bytes = std::fs::read(dir.join(name)).unwrap();
-        let doc = vectorcraft_affinity::read(&bytes, Limits::default()).unwrap();
+        let doc = pluma_affinity::read(&bytes, Limits::default()).unwrap();
         assert_eq!(
             features::signature(&doc),
             signature,

@@ -1,5 +1,5 @@
 use kurbo::{ParamCurve, Point};
-use vectorcraft_geom::{Anchor, PathData, SubPath};
+use pluma_geom::{Anchor, PathData, SubPath};
 
 use super::*;
 

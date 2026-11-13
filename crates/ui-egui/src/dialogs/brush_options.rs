@@ -19,14 +19,14 @@
 //! a number, and Cancel adds nothing.
 
 use egui::{Color32, Sense, Stroke, pos2, vec2};
+use pluma_brush::{Bristle, Brush, BrushKind, Calligraphic, Variation};
 use serde_json::{Map, Value, json};
-use vectorcraft_brush::{Bristle, Brush, BrushKind, Calligraphic, Variation};
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, brush_art_options, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Brush Options.
 pub const KIND: &str = "brushOptions";
@@ -89,7 +89,7 @@ fn variation_key(key: &str) -> String {
 }
 
 /// Open the options of brush `name` (default: the selected path's brush, else the current one).
-pub fn open(app: &mut VectorcraftApp, name: Option<&str>) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, name: Option<&str>) -> Result<Value, String> {
     let name = match name {
         Some(n) => n.to_string(),
         None => target(app).ok_or("no brush selected")?,
@@ -134,16 +134,16 @@ fn fields(b: &Brush, def: Value) -> Result<Map<String, Value>, String> {
 }
 
 /// Can Brush Options open without a name (the selected path's brush, else the current one, exists)?
-pub fn available(app: &VectorcraftApp) -> bool {
+pub fn available(app: &PlumaApp) -> bool {
     let Some(st) = app.session.active() else { return false };
-    target(app).is_some_and(|n| vectorcraft_brush::find(&st.doc, &n).is_some())
+    target(app).is_some_and(|n| pluma_brush::find(&st.doc, &n).is_some())
 }
 
 /// The brush Brush Options opens on without a name: the selected path's brush, else the current one.
-fn target(app: &VectorcraftApp) -> Option<String> {
+fn target(app: &PlumaApp) -> Option<String> {
     let st = app.session.active()?;
     let selected = st.selection.subjects().first().and_then(|id| st.doc.node(*id)).and_then(|n| n.appearance.stroke()?.brush.clone());
-    selected.or_else(|| vectorcraft_brush::current(&st.doc))
+    selected.or_else(|| pluma_brush::current(&st.doc))
 }
 
 /// Open the Brush Options of a new brush of type `ty` (`calligraphic` | `scatter` | `art` |
@@ -152,11 +152,11 @@ fn target(app: &VectorcraftApp) -> Option<String> {
 /// brush takes the art `brush.selectionArt` gives for `ids` (else for the selection) as its art,
 /// and a pattern brush takes it as its side tile; the preview draws it. Without that art nothing
 /// opens.
-pub(super) fn open_new(app: &mut VectorcraftApp, ty: &str, ids: Option<Value>) -> Result<Value, String> {
+pub(super) fn open_new(app: &mut PlumaApp, ty: &str, ids: Option<Value>) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document open")?;
     let patterns = serde_json::to_value(&st.doc.patterns).unwrap_or_default();
     let title: String = ty.chars().take(1).flat_map(char::to_uppercase).chain(ty.chars().skip(1)).collect();
-    let name = vectorcraft_brush::unique_name(&vectorcraft_brush::library(&st.doc), &format!("New {title} Brush"));
+    let name = pluma_brush::unique_name(&pluma_brush::library(&st.doc), &format!("New {title} Brush"));
     let mut def = json!({ "name": name, "type": ty });
     let art_key = match ty {
         "scatter" | "art" => Some("art"),
@@ -189,7 +189,7 @@ pub(super) fn open_new(app: &mut VectorcraftApp, ty: &str, ids: Option<Value>) -
 /// the dialog opened with (`art` or `side` of `__def`, which the preview draws) and the dropped
 /// art's ids. A selection changed or cleared while the dialog is open does not change the art. The
 /// dialog closes once the brush is made.
-fn create(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn create(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut brush_params = params(d);
     if d.str("__type") == "pattern" {
         if d.str("sideTile") == "none" {
@@ -239,7 +239,7 @@ fn create(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 }
 
 /// OK: make the new brush when New Brush opened the dialog, else edit the brush.
-fn ok(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn ok(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.bool(CREATE) { create(app, d) } else { confirm(app, d) }
 }
 
@@ -278,7 +278,7 @@ fn params(d: &Dialog) -> Value {
     }
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     grid(ui, |ui| {
         label(ui, tl!("Name:"));
         let max = if d.str("__type") == "bristle" { Bristle::MAX_NAME_CHARS } else { usize::MAX };
@@ -294,7 +294,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn calligraphic_body(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn calligraphic_body(app: &PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     let c = calligraphic(d);
     ui.horizontal(|ui| {
         nib_preview(ui, &c, vec2(NIB_W, 84.0));
@@ -326,7 +326,7 @@ fn calligraphic_body(app: &VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
     });
 }
 
-fn bristle_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
+fn bristle_body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) {
     form::choice(ui, d, "shape", tl!("Shape:"), (LABEL_W, 150.0), &SHAPES);
     widgets::label_row(ui, tl!("Size:"), LABEL_W, |ui| {
         form::length(ui, d, "size", app.session.general_unit(), 80.0);
@@ -342,7 +342,7 @@ fn bristle_body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
 
 /// A stroke painted with the brush the fields describe (type `ty`, definition fields `def`), with
 /// the active document's resources (the patterns, symbols… its art uses).
-pub(super) fn stroke_preview(app: &VectorcraftApp, ui: &mut egui::Ui, ty: &str, def: Value, size: egui::Vec2) {
+pub(super) fn stroke_preview(app: &PlumaApp, ui: &mut egui::Ui, ty: &str, def: Value, size: egui::Vec2) {
     let mut def = match def {
         Value::Object(o) => o,
         _ => Map::new(),
@@ -396,7 +396,7 @@ fn nib_preview(ui: &mut egui::Ui, c: &Calligraphic, size: egui::Vec2) {
 
 /// OK: edit the brush (and rename it). A name another brush has, or a new bristle brush name that
 /// is too long, keeps the dialog open.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let name = d.str("name").trim().to_string();
     let r = app.run("brush.options", json!({ "name": d.str("__brush"), "newName": name, "params": params(d) }));
     if r.is_ok() {

@@ -1,6 +1,6 @@
 use super::{Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Tokens, Ui, Vec2, icons, pos2, theme, vec2};
 
-pub(crate) const PANEL_FOOTER: &str = "vectorcraft-panel-footer";
+pub(crate) const PANEL_FOOTER: &str = "pluma-panel-footer";
 const FOOTER_HEIGHT: f32 = 31.0;
 
 /// The finite body edge supplied by a sized dock, float or user-resized flyout.

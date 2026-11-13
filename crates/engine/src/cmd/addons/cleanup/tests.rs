@@ -1,10 +1,10 @@
 //! Artwork Cleanup's commands: Simplify Anchors (Keep Shape), the health check's kinds found and
 //! fixed one by one, Fix as one undo step, scopes, Show, Deep Ungroup and Rejoin Path Pieces.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Node, NodeId, NodeKind};
+use pluma_geom::{FillRule, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Node, NodeId, NodeKind};
-use vectorcraft_geom::{FillRule, Rect};
 
 use crate::Session;
 
@@ -261,8 +261,8 @@ fn each_check_finds_and_fixes_its_issue_and_leaves_clean_art_alone() {
 
 /// The pixel at (100, 100) of the document drawn on white.
 fn pixel(s: &Session) -> [u8; 4] {
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    vectorcraft_render::Renderer::new().render(&s.doc().unwrap().doc, 400, 300, vectorcraft_geom::Affine::IDENTITY, &opts).pixel(100, 100)
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    pluma_render::Renderer::new().render(&s.doc().unwrap().doc, 400, 300, pluma_geom::Affine::IDENTITY, &opts).pixel(100, 100)
 }
 
 /// A clipping path hides the art outside it: empty type that clips a group, and type off every

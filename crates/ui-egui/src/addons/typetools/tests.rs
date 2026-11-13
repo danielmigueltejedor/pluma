@@ -1,28 +1,28 @@
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
 
 use super::KIND;
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// An app with one type object, selected.
-fn app() -> (VectorcraftApp, NodeId) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> (PlumaApp, NodeId) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let id = NodeId(app.run("text.create", json!({"x": 40, "y": 100, "text": "abc", "size": 20})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [id.0]})).unwrap();
     (app, id)
 }
 
-fn sizes(app: &VectorcraftApp, id: NodeId) -> Vec<f64> {
+fn sizes(app: &PlumaApp, id: NodeId) -> Vec<f64> {
     match &app.session.doc().unwrap().doc.node(id).unwrap().kind {
         NodeKind::Text(t) => t.runs.iter().flat_map(|r| r.text.chars().map(|_| r.style.size).collect::<Vec<_>>()).collect(),
         _ => panic!("not text"),
     }
 }
 
-fn open(app: &mut VectorcraftApp) {
+fn open(app: &mut PlumaApp) {
     let entries = menus::menu_entries(app);
     let item = entries.iter().find(|e| e.path == ["Object", "Plug-ins", "Type Tools"] && e.label == "Text Tweaker…").unwrap();
     let (id, p) = menus::click_target(&item.label, item.command.as_deref().unwrap(), &item.params);
@@ -62,9 +62,9 @@ fn another_attribute_starts_from_its_own_values() {
 }
 
 /// The kind of object `id` is, and whether it is type on a path.
-fn on_path(app: &VectorcraftApp, id: NodeId) -> Option<bool> {
+fn on_path(app: &PlumaApp, id: NodeId) -> Option<bool> {
     match &app.session.doc().unwrap().doc.node(id)?.kind {
-        NodeKind::Text(t) => Some(matches!(t.kind, vectorcraft_doc::TextKind::OnPath { .. })),
+        NodeKind::Text(t) => Some(matches!(t.kind, pluma_doc::TextKind::OnPath { .. })),
         _ => None,
     }
 }
@@ -75,14 +75,14 @@ fn on_path(app: &VectorcraftApp, id: NodeId) -> Option<bool> {
 /// keeps it as one step.
 #[test]
 fn release_type_on_a_path_previews_cancels_and_runs_on_ok() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
     let path = app.run("path.create", json!({"d": "M100 200 C200 100 400 100 500 200"})).unwrap()["id"].as_u64().unwrap();
     let id = NodeId(app.run("text.createInPath", json!({"path": path, "mode": "onPath", "text": "Release me"})).unwrap()["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [id.0]})).unwrap();
-    let steps = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let steps = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let (start, n) = (app.session.doc().unwrap().doc.clone(), steps(&app));
-    let open = |app: &mut VectorcraftApp| {
+    let open = |app: &mut PlumaApp| {
         let entries = menus::menu_entries(app);
         let item = entries.iter().find(|e| e.path == ["Object", "Plug-ins", "Type Tools"] && e.label == "Release Type on a Path…").unwrap();
         assert!(item.enabled);

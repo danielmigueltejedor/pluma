@@ -1,8 +1,8 @@
 //! Transform panel › Align to Pixel Grid (`object.setPixelAligned`): a pixel-aligned path keeps its
 //! horizontal and vertical segments on the pixel grid through transforms.
 
+use pluma_doc::{NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
 
 use crate::Session;
 
@@ -278,12 +278,11 @@ fn a_stroke_without_paint_snaps_to_whole_points() {
     let id = path(&mut s, "M10.3 20.6 L40.7 20.6 L40.7 30.3 L10.3 30.3 Z", 1.0);
     // An imported file can hold a stroke item without paint that keeps its weight.
     let n = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(NodeId(id)).unwrap();
-    let Some(vectorcraft_doc::AppearanceItem::Stroke(st)) =
-        n.appearance.items.iter_mut().find(|i| matches!(i, vectorcraft_doc::AppearanceItem::Stroke(_)))
+    let Some(pluma_doc::AppearanceItem::Stroke(st)) = n.appearance.items.iter_mut().find(|i| matches!(i, pluma_doc::AppearanceItem::Stroke(_)))
     else {
         panic!("no stroke");
     };
-    st.paint = vectorcraft_color::Paint::None;
+    st.paint = pluma_color::Paint::None;
     assert_eq!(st.width, 1.0);
     s.execute("object.setPixelAligned", &json!({})).unwrap();
     assert_eq!(points(&s, id), [(10.0, 21.0), (41.0, 21.0), (41.0, 30.0), (10.0, 30.0)]);
@@ -318,7 +317,7 @@ fn a_path_with_live_corners_snaps_its_inner_edges() {
     let base = |s: &Session| {
         let n = s.doc().unwrap().doc.node(NodeId(id)).unwrap().clone();
         let NodeKind::Path { live: Some(live), .. } = &n.kind else { panic!("no Live Corners") };
-        let vectorcraft_doc::LiveShape::Path { base, .. } = &**live else { panic!("not a path with Live Corners") };
+        let pluma_doc::LiveShape::Path { base, .. } = &**live else { panic!("not a path with Live Corners") };
         base.anchors().map(|(_, _, a)| (a.p.x, a.p.y)).collect::<Vec<_>>()
     };
     assert!(base(&s).iter().any(|p| close(*p, (40.0, 20.3))));
@@ -410,7 +409,7 @@ fn a_linked_opacity_mask_follows_a_snap() {
     s.execute("object.setPixelAligned", &json!({"ids": [o]})).unwrap();
     let to = s.doc().unwrap().doc.node(NodeId(o)).unwrap().geometric_bounds().unwrap();
     assert_eq!(points(&s, o), [(10.0, 21.0), (41.0, 21.0), (41.0, 30.0), (10.0, 30.0)]);
-    let at = |r: vectorcraft_geom::Rect, x: f64, y: f64| ((x - r.x0) / r.width(), (y - r.y0) / r.height());
+    let at = |r: pluma_geom::Rect, x: f64, y: f64| ((x - r.x0) / r.width(), (y - r.y0) / r.height());
     let after = mask_bounds(&s);
     assert!(close(at(to, after.x0, after.y0), at(from, mask.x0, mask.y0)), "{after:?} from {mask:?}");
     assert!(close(at(to, after.x1, after.y1), at(from, mask.x1, mask.y1)), "{after:?} from {mask:?}");
@@ -506,7 +505,7 @@ fn type_and_images_cannot_be_aligned() {
     let before = points(&s, p);
     let text = s.execute("text.create", &json!({"x": 10, "y": 100, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     let png = crate::tests_links::png(4, 4, [255, 0, 0]);
-    s.execute("file.place", &json!({"name": "red.png", "dataBase64": vectorcraft_format::base64_encode(&png), "link": false})).unwrap();
+    s.execute("file.place", &json!({"name": "red.png", "dataBase64": pluma_format::base64_encode(&png), "link": false})).unwrap();
     let image = {
         let st = s.doc().unwrap();
         let id = st.selection.objects[0];
@@ -535,7 +534,7 @@ fn the_property_is_saved_and_read_back() {
     let b = path(&mut s, "M110.3 20.6 L140.7 20.6 L140.7 30.3 L110.3 30.3 Z", 2.0);
     s.execute("object.setPixelAligned", &json!({"ids": [a]})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert!(back.node(NodeId(a)).unwrap().extras().pixel_aligned);
     assert!(!back.node(NodeId(b)).unwrap().extras().pixel_aligned);
     let plain: Value = serde_json::to_value(d.node(NodeId(b)).unwrap()).unwrap();
@@ -599,7 +598,7 @@ fn the_art_of_a_linked_opacity_mask_keeps_it_aligned() {
 /// The start point of path object `id`'s placed gradient fill.
 fn gradient_start(s: &Session, id: u64) -> (f64, f64) {
     let n = s.doc().unwrap().doc.node(NodeId(id)).unwrap().clone();
-    let Some(vectorcraft_color::Paint::Gradient(g)) = n.appearance.paint_at(None, true) else { panic!("no gradient fill") };
+    let Some(pluma_color::Paint::Gradient(g)) = n.appearance.paint_at(None, true) else { panic!("no gradient fill") };
     let p = g.geom.expect("a placed gradient").start;
     (p.x, p.y)
 }
@@ -613,8 +612,8 @@ fn placed_gradients_follow_the_snapped_path() {
     {
         let n = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(NodeId(id)).unwrap();
         let bounds = n.geometric_bounds().unwrap();
-        let Some(vectorcraft_doc::AppearanceItem::Fill(f)) = n.appearance.items.iter_mut().find(|i| i.is_fill()) else { panic!("no fill") };
-        let vectorcraft_color::Paint::Gradient(g) = &mut f.paint else { panic!("no gradient fill") };
+        let Some(pluma_doc::AppearanceItem::Fill(f)) = n.appearance.items.iter_mut().find(|i| i.is_fill()) else { panic!("no fill") };
+        let pluma_color::Paint::Gradient(g) = &mut f.paint else { panic!("no gradient fill") };
         g.pin(bounds);
     }
     s.execute("object.setPixelAligned", &json!({"ids": [id]})).unwrap();
@@ -633,7 +632,7 @@ fn strokes(s: &Session, id: u64) -> Vec<(usize, f64)> {
         .iter()
         .enumerate()
         .filter_map(|(i, it)| match it {
-            vectorcraft_doc::AppearanceItem::Stroke(st) => Some((i, st.width)),
+            pluma_doc::AppearanceItem::Stroke(st) => Some((i, st.width)),
             _ => None,
         })
         .collect()
@@ -735,7 +734,7 @@ fn patterns_follow_the_snap_with_transform_patterns() {
     s.execute("object.setPixelAligned", &json!({"ids": [a]})).unwrap();
     let tiles = |s: &Session| {
         let n = s.doc().unwrap().doc.node(NodeId(a)).unwrap().clone();
-        let vectorcraft_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("no pattern fill") };
+        let pluma_color::Paint::Pattern { xf, .. } = n.appearance.fill_paint() else { panic!("no pattern fill") };
         xf.as_coeffs()
     };
     let (before, xf) = (points(&s, a), tiles(&s));

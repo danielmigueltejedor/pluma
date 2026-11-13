@@ -1,5 +1,5 @@
 use super::cursor::only_view_differs;
-use super::{Affine, CacheKey, Color32, Point, Pos2, Shape, VectorcraftApp, Xf, color_image_owned, pos2, vec2};
+use super::{Affine, CacheKey, Color32, PlumaApp, Point, Pos2, Shape, Xf, color_image_owned, pos2, vec2};
 
 /// The fraction of the canvas's resolution, each way, that [`Fill`] is rendered at.
 const FILL_SCALE: f64 = 0.25;
@@ -38,21 +38,21 @@ pub(super) fn fill_view(key: &CacheKey) -> (u32, u32, Affine) {
 /// of the canvas `rect` it leaves uncovered show `doc` from [`crate::CanvasCache::fill`]. The fill
 /// worker ([`crate::CanvasCache::fill_worker`]) renders it with the frame shown's options and these
 /// changes: images draw only from pixels already decoded
-/// ([`vectorcraft_render::RenderOptions::kept_images_only`]) and draw mips
-/// ([`vectorcraft_render::RenderOptions::image_mips`]), raster effects render within a drag's
-/// budget ([`vectorcraft_render::RenderOptions::dragging`]), and rasters cached for moved objects
-/// are not reused ([`vectorcraft_render::RenderOptions::interacting`] off). This thread only copies a
+/// ([`pluma_render::RenderOptions::kept_images_only`]) and draw mips
+/// ([`pluma_render::RenderOptions::image_mips`]), raster effects render within a drag's
+/// budget ([`pluma_render::RenderOptions::dragging`]), and rasters cached for moved objects
+/// are not reused ([`pluma_render::RenderOptions::interacting`] off). This thread only copies a
 /// finished fill into its texture and draws it. A fill is asked for again when the one shown or on
 /// its way does not cover the canvas, when the view's zoom is more than twice or less than half
 /// its own, and when the document, its revision or anything but the view changed; until it
 /// arrives, the fill shown is drawn where it reaches. It is dropped once the canvas shows the frame
 /// for `key`, and while the frame shown differs from `key` in more than the view.
 pub(super) fn fill_uncovered(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     ctx: &egui::Context,
     painter: &egui::Painter,
     key: &CacheKey,
-    doc: &std::sync::Arc<vectorcraft_doc::Document>,
+    doc: &std::sync::Arc<pluma_doc::Document>,
     rect: egui::Rect,
     xf: &Xf,
 ) {
@@ -80,7 +80,7 @@ pub(super) fn fill_uncovered(
                 (-0.5..=f64::from(w) + 0.5).contains(&p.x) && (-0.5..=f64::from(h) + 0.5).contains(&p.y)
             })
     };
-    let opts = vectorcraft_render::RenderOptions { kept_images_only: true, image_mips: true, interacting: false, dragging: true, ..opts.clone() };
+    let opts = pluma_render::RenderOptions { kept_images_only: true, image_mips: true, interacting: false, dragging: true, ..opts.clone() };
     let gaps = shown_frame(k, rect, xf).map_or_else(Vec::new, |shown| uncovered(shown, rect));
     if let Some(done) = done.filter(|d| usable(&d.key)) {
         let (fw, fh) = (done.img.width, done.img.height);
@@ -105,7 +105,7 @@ pub(super) fn fill_uncovered(
             h,
             view,
             opts,
-            scope: vectorcraft_engine::file_access::ScopeHandle::capture(),
+            scope: pluma_engine::file_access::ScopeHandle::capture(),
             may_copy: false,
             may_keep: false,
         });

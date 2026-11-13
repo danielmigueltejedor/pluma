@@ -8,9 +8,9 @@
 use std::f64::consts::{PI, TAU};
 
 use kurbo::{Affine, Point, Vec2};
-use vectorcraft_geom::corners::cut_corners;
-use vectorcraft_geom::shapes::KAPPA;
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, SubPath};
+use pluma_geom::corners::cut_corners;
+use pluma_geom::shapes::KAPPA;
+use pluma_geom::{Anchor, AnchorKind, PathData, SubPath};
 
 /// The fewest sides, points or teeth.
 pub const MIN_COUNT: u32 = 3;
@@ -296,7 +296,7 @@ impl ParametricShape {
             center: m * Point::ZERO,
             width: self.width * sx,
             height: self.height * sy,
-            rotation: vectorcraft_geom::normalize_deg(x.y.atan2(x.x).to_degrees()),
+            rotation: pluma_geom::normalize_deg(x.y.atan2(x.x).to_degrees()),
             radius: self.radius * (sx * sy).sqrt(),
             ..*self
         };
@@ -641,7 +641,7 @@ mod tests {
 
     #[test]
     fn plain_rectangles_ellipses_and_regular_polygons_are_recognised() {
-        use vectorcraft_geom::shapes;
+        use pluma_geom::shapes;
         let r = recognise(&shapes::rectangle(kurbo::Rect::new(10.0, 20.0, 110.0, 70.0))).unwrap();
         assert_eq!(r.kind, ShapeKind::Rectangle);
         assert!(r.center.distance(Point::new(60.0, 45.0)) < 1e-9);

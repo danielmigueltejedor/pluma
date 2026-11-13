@@ -52,7 +52,7 @@ pub(crate) struct StrokeEntry {
 }
 
 /// The slices of a stroke whose gradient runs along or across it, each with its paint and bounds.
-pub(crate) type Slices = Arc<Vec<(BezPath, vectorcraft_color::Paint, Rect)>>;
+pub(crate) type Slices = Arc<Vec<(BezPath, pluma_color::Paint, Rect)>>;
 
 /// The key of cached [`Slices`]: ([`Renderer::stroke_owner`] of the stroke's object, stroke layer
 /// address, tolerance level).
@@ -110,13 +110,13 @@ pub(crate) struct PlacedEntry {
     pub(crate) art: std::sync::Weak<Node>,
     /// The art placed, or `None` for art placed again in every frame ([`depends_on_document`]).
     pub(crate) placed: Option<Arc<Node>>,
-    /// The font generation ([`vectorcraft_text::FontDb::generation`]) the art was placed in, when
+    /// The font generation ([`pluma_text::FontDb::generation`]) the art was placed in, when
     /// it holds type: the art is placed again when the fonts change.
     pub(crate) fonts: Option<u64>,
     /// The 9-slice map the art was placed through ([`Renderer::sliced_art`]), or `None` for art
     /// placed by the transform alone ([`Renderer::placed_art`]). An entry is used only by the
     /// function that made it, with the same map.
-    pub(crate) slice: Option<vectorcraft_doc::NineSliceMap>,
+    pub(crate) slice: Option<pluma_doc::NineSliceMap>,
 }
 
 /// Type drawn with an anti-aliasing method other than Sharp, as [`Renderer::draw_type_edges`] drew

@@ -17,20 +17,18 @@
 //! them. Ids given out in a run are never given out again for a document, also after an in-run
 //! undo or a rollback.
 //!
-//! The values here are VectorCraft's own limits: [`MAX_SOURCE_BYTES`], [`DEFAULT_FUEL`],
+//! The values here are Pluma's own limits: [`MAX_SOURCE_BYTES`], [`DEFAULT_FUEL`],
 //! [`MAX_FUEL`], [`SLICE_FUEL`], [`HEAP_BYTES`], [`MAX_HOST_CALLS`], [`GROWTH_OBJECTS`],
 //! [`GROWTH_BYTES`], [`MAX_CONTINUES`], [`MAX_LOG_LINES`], [`MAX_LOG_BYTES`], [`MAX_ARGS_BYTES`],
-//! and the 64 levels, 16 MiB and 1,048,576 entries of [`vectorcraft_js::DataLimits`]'s default.
+//! and the 64 levels, 16 MiB and 1,048,576 entries of [`pluma_js::DataLimits`]'s default.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use pluma_js::{Data, DataLimits, HostError, HostFunction, HostItem, Interrupt, LimitKind, Limits, Options, Progress, Realm, RunError, RunErrorKind};
 use serde_json::{Map, Value, json};
-use vectorcraft_js::{
-    Data, DataLimits, HostError, HostFunction, HostItem, Interrupt, LimitKind, Limits, Options, Progress, Realm, RunError, RunErrorKind,
-};
 
 use crate::{
     Clipboard, DocState, DrawMode, EngineError, Journal, NodeId, PaintDefaults, Result, Session, cmd, command_specs, guard, waits_for_tool_edit,
@@ -183,13 +181,13 @@ struct World {
 struct Choices {
     prefs: crate::Prefs,
     caps_lock: bool,
-    eyedropper_sample: Option<Arc<vectorcraft_doc::Node>>,
+    eyedropper_sample: Option<Arc<pluma_doc::Node>>,
     global_edit_options: cmd::globaledit::Options,
     recent_urls: Vec<String>,
     gradient_stop: Option<(usize, cmd::gradient::StopOwner)>,
     freeform_point: Option<(usize, cmd::gradient::StopOwner)>,
     active_appearance_item: Option<cmd::appearance::ActiveItem>,
-    envelope_defaults: Option<(vectorcraft_doc::live::EnvelopeOptions, f64)>,
+    envelope_defaults: Option<(pluma_doc::live::EnvelopeOptions, f64)>,
 }
 
 impl Choices {
@@ -1005,7 +1003,7 @@ impl Session {
             self.script_key = Some(key);
             return None;
         }
-        if vectorcraft_doc::cancel::check().is_err() {
+        if pluma_doc::cancel::check().is_err() {
             self.script_stop.set();
         }
         job.host.calls_this_slice.set(0);

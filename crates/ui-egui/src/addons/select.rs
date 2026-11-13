@@ -7,7 +7,7 @@
 use egui::{Sense, Ui, vec2};
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::menus::Item;
 use crate::state::Dialog;
@@ -34,7 +34,7 @@ pub fn menu() -> Vec<Item> {
 }
 
 /// The dialog's fields to start with: the active artboard chosen, Overlapping.
-pub(crate) fn fields(app: &VectorcraftApp) -> Value {
+pub(crate) fn fields(app: &PlumaApp) -> Value {
     json!({ "artboards": [app.view().map_or(0, |v| v.artboard)], "relation": "overlap" })
 }
 
@@ -90,7 +90,7 @@ pub(crate) fn click(chosen: &mut Vec<usize>, anchor: Option<usize>, i: usize, sh
     Some(i)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let unit = app.session.general_unit();
     let boards: Vec<(String, f64, f64)> = app
@@ -187,7 +187,7 @@ pub(crate) fn row_clicked(d: &mut Dialog, i: usize, shown: &[usize], m: egui::Mo
 /// A double-click on row `i`: artboard `i` becomes active and fits in the window, as a
 /// double-click on its number in the Artboards panel does (`view.goToArtboard`). The dialog stays
 /// open, and the artboards chosen are those chosen before the double-click.
-pub(crate) fn row_double_clicked(app: &mut VectorcraftApp, d: &mut Dialog, i: usize) {
+pub(crate) fn row_double_clicked(app: &mut PlumaApp, d: &mut Dialog, i: usize) {
     if let Some(before) = d.fields.remove("__before") {
         d.fields.insert("artboards".into(), before);
     }
@@ -196,7 +196,7 @@ pub(crate) fn row_double_clicked(app: &mut VectorcraftApp, d: &mut Dialog, i: us
 }
 
 /// OK: select the objects and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     app.run(COMMAND, form::params(d))
 }

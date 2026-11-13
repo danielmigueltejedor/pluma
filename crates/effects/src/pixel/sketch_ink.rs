@@ -6,7 +6,7 @@
 //! diagonal strokes, Photocopy copies only the edges of large dark areas and takes the midtones to
 //! black or white, Stamp simplifies the image to solid black and white as a rubber stamp would).
 //! Visual approximations, not reproductions of a proprietary algorithm; the ranges and defaults
-//! are chosen for VectorCraft.
+//! are chosen for Pluma.
 //!
 //! All four keep the object's coverage, so they paint nothing outside it. Their sizes are in
 //! document points, whatever the raster's resolution.

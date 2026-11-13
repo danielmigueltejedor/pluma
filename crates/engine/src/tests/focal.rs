@@ -1,10 +1,10 @@
 //! Radial gradients' extent and focal point (M3.98): `paint.setGradientGeom {aspect, focal}`,
 //! focal points through transforms, params and the native format, and the radial annotator.
 
+use pluma_color::{GradientGeom, Paint};
+use pluma_geom::Point;
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_color::{GradientGeom, Paint};
-use vectorcraft_geom::Point;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use crate::*;
 
@@ -77,12 +77,12 @@ fn the_focal_point_round_trips_through_params_and_the_native_format() {
     let want = geom(&s, id);
     // Gradient params (what swatches and agents read) carry it, and give it back.
     let Paint::Gradient(g) = s.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint() else { panic!("a gradient fill") };
-    let params = vectorcraft_tools::params::gradient_params(&g);
+    let params = pluma_tools::params::gradient_params(&g);
     assert_eq!(params["focal"], json!([170.0, 190.0]));
     s.execute("paint.setFill", &json!({"gradient": {"kind": "linear"}})).unwrap();
     s.execute("paint.setFill", &json!({ "gradient": params })).unwrap();
     assert_eq!(geom(&s, id), want);
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Paint::Gradient(g) = back.node(id).unwrap().appearance.fill_paint() else { panic!("gradient lost") };
     assert_eq!(g.geom, Some(want));
 }

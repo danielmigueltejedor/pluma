@@ -37,7 +37,7 @@ closed, removes its dimensions in the same undo step rather than attaching them 
 edge. A linked dimension moved on its own stays where it was dropped (its distance from the art
 changes); moved together with its art, it keeps its distance.
 
-Native `.vectorcraft` files keep the recipes and links. SVG, PDF and bitmap output contain
+Native `.pluma` files keep the recipes and links. SVG, PDF and bitmap output contain
 ordinary paths and text, so exported dimensions look the same. Ungrouping a dimension leaves its
 paths and text as ordinary art. Object › Expand, Object › Expand Appearance, Type › Create Outlines
 and Object › Path › Outline Stroke turn a dimension whose art they change into a plain group of that

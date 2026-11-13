@@ -4,7 +4,7 @@ use crate::panels::library_panel;
 use egui::{Event, PointerButton, Pos2, Rect, vec2};
 
 /// One headless frame of the panel (and its menu) with `events`: the texts drawn, with where.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>) -> Vec<(String, Rect)> {
     let screen = Rect::from_min_size(Pos2::ZERO, vec2(280.0, 700.0));
     let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| show(app, ui));
     out.textures_delta.clear();
@@ -12,7 +12,7 @@ fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>) -> V
 }
 
 /// Click the panel's `label` (the first one drawn).
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     let texts = frame(app, ctx, vec![]);
     let at = texts.iter().find(|(t, _)| t == label).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no `{label}` in {texts:?}"));
     let press = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -20,23 +20,23 @@ fn click(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
     frame(app, ctx, vec![press(false)]);
 }
 
-fn traced_app() -> VectorcraftApp {
+fn traced_app() -> PlumaApp {
     traced_app_with_ink(0)
 }
 
 /// A quick trace, then the Image Trace button.
-fn trace_and_open(app: &mut VectorcraftApp, preset: &str) {
+fn trace_and_open(app: &mut PlumaApp, preset: &str) {
     trace_with(app, preset);
     open_settings(app);
 }
 
-fn traced_app_with_ink(ink: u8) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn traced_app_with_ink(ink: u8) -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let img = image::RgbaImage::from_fn(20, 20, |x, _| image::Rgba(if x < 10 { [ink, ink, ink, 255] } else { [255, 255, 255, 255] }));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     app.run("file.place", json!({"name": "half.png", "dataBase64": data, "link": false})).unwrap();
     app.run("imageTrace.make", json!({"preset": "Default"})).unwrap();
     app
@@ -53,8 +53,8 @@ fn tracing_presets_arrow(window: &PopupWindow) -> Pos2 {
 /// not scroll.
 #[test]
 fn a_long_tracing_preset_list_scrolls_inside_a_short_window() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let draw = |app: &mut VectorcraftApp, ui: &mut Ui| trace_button(app, ui, TRACE_BUTTON_W);
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let draw = |app: &mut PlumaApp, ui: &mut Ui| trace_button(app, ui, TRACE_BUTTON_W);
     let built_in = app.session.execute("imageTrace.presets", &json!({})).unwrap();
     let name = |p: &Value| p["name"].as_str().unwrap().to_string();
     let built_in = built_in["presets"].as_array().unwrap();
@@ -68,12 +68,12 @@ fn a_long_tracing_preset_list_scrolls_inside_a_short_window() {
 
 #[test]
 fn a_large_image_traces_and_the_status_bar_says_it_is_slower() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let img = image::RgbaImage::from_fn(1601, 12, |x, _| image::Rgba(if x < 800 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     app.run("file.place", json!({"name": "wide.png", "dataBase64": data, "link": false})).unwrap();
     trace_with(&mut app, "Default");
     assert!(target(&app).2.is_some(), "the image is traced");
@@ -82,12 +82,12 @@ fn a_large_image_traces_and_the_status_bar_says_it_is_slower() {
 
 #[test]
 fn a_large_image_traced_as_a_flat_logo_shows_the_size_it_was_traced_at() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     let img = image::RgbaImage::from_fn(1602, 1602, |x, _| image::Rgba(if x < 800 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     app.run("file.place", json!({"name": "logo.png", "dataBase64": data, "link": false})).unwrap();
     trace_with(&mut app, "Flat Logo");
     assert!(target(&app).2.is_some(), "the image is traced: {}", app.ui.status);
@@ -118,10 +118,10 @@ fn sketch_quick_trace_reveals_all_adjustments_and_keeps_the_source() {
     assert!(crate::panel_docking::showing(&app.ui, "imageTrace"));
     assert_eq!(app.session.active().unwrap().history.undo.len(), steps);
     // Optional local visual QA; no reference images or generated captures are committed.
-    if let Some(path) = std::env::var_os("VECTORCRAFT_TRACE_CAPTURE") {
+    if let Some(path) = std::env::var_os("PLUMA_TRACE_CAPTURE") {
         let mut ready = false;
         let mut harness = egui_kittest::Harness::builder().with_size(vec2(340.0, 820.0)).wgpu().build_ui_state(
-            move |ui, app: &mut VectorcraftApp| {
+            move |ui, app: &mut PlumaApp| {
                 if !ready {
                     egui_extras::install_image_loaders(ui.ctx());
                     crate::theme::install_fonts(ui.ctx());
@@ -222,8 +222,8 @@ fn turning_preview_on_traces_the_changes_that_waited() {
     let mut app = traced_app();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let strokes = |app: &VectorcraftApp| target(app).2.map(|t| t["params"]["strokes"].clone());
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let strokes = |app: &PlumaApp| target(app).2.map(|t| t["params"]["strokes"].clone());
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     let steps = undo(&app);
     click(&mut app, &ctx, "Preview");
     click(&mut app, &ctx, "Preview");
@@ -259,7 +259,7 @@ fn preview_turned_on_with_nothing_selected_traces_when_the_object_is_selected_ag
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let a = first_selected(&app).unwrap().id;
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     click(&mut app, &ctx, "Preview");
     click(&mut app, &ctx, "Strokes");
     assert_eq!(target(&app).2.unwrap()["params"]["strokes"], json!(false), "the change waits");
@@ -304,7 +304,7 @@ fn settings_that_wait_come_back_when_their_object_is_selected_again() {
     app.run("edit.duplicate", json!({})).unwrap();
     let b = first_selected(&app).unwrap().id;
     let shown = |ctx: &egui::Context| pstate::<TraceUi>(ctx, "image-trace").params["strokes"].clone();
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     app.run("select.set", json!({"ids": [a.0]})).unwrap();
     click(&mut app, &ctx, "Preview");
     click(&mut app, &ctx, "Strokes");
@@ -345,7 +345,7 @@ fn settings_that_wait_are_kept_when_a_plain_image_is_traced_in_between() {
     let img = image::RgbaImage::from_fn(20, 20, |_, y| image::Rgba(if y < 10 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     app.run("file.place", json!({"name": "plain.png", "dataBase64": data, "link": false})).unwrap();
     assert!(target(&app).1, "a plain image is selected");
     frame(&mut app, &ctx, vec![]);
@@ -390,7 +390,7 @@ fn preview_is_kept_with_the_preferences_and_reset_to_default_leaves_it() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     click(&mut app, &ctx, "Preview");
-    let menu_frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+    let menu_frame = |app: &mut PlumaApp, events: Vec<Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| menu(app, ui));
         out.textures_delta.clear();
         crate::tests_removeanchors::shapes_text(&out.shapes.iter().map(|c| c.shape.clone()).collect::<Vec<_>>())
@@ -458,8 +458,8 @@ fn holding_the_eye_button_shows_the_source_image_until_released() {
     crate::theme::install_fonts(&ctx);
     frame(&mut app, &ctx, vec![]);
     let id = first_selected(&app).unwrap().id;
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
-    let revision = |app: &VectorcraftApp| app.session.active().unwrap().revision;
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
+    let revision = |app: &PlumaApp| app.session.active().unwrap().revision;
     let (steps, rev) = (undo(&app), revision(&app));
     let at = ctx.data(|d| d.get_temp::<Rect>(egui::Id::unique("trace-hold-source"))).unwrap().center();
     let press = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -500,7 +500,7 @@ fn the_trace_controls_work_when_another_object_is_selected_first() {
     frame(&mut app, &ctx, vec![press(false)]);
     assert_eq!(app.ui.trace_hold_source, None);
 
-    let menu_frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+    let menu_frame = |app: &mut PlumaApp, events: Vec<Event>| {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(280.0, 700.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
         out.textures_delta.clear();
@@ -528,7 +528,7 @@ fn view_and_expand_work_when_another_object_is_selected_first() {
     crate::theme::install_fonts(&ctx);
     click(&mut app, &ctx, "Tracing Result");
     click(&mut app, &ctx, "Outlines");
-    let view = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(trace_id).unwrap().trace_view();
+    let view = |app: &PlumaApp| app.session.active().unwrap().doc.node(trace_id).unwrap().trace_view();
     assert_eq!(view(&app), TraceView::Outlines, "the View menu sets the Image Trace object's view");
     click(&mut app, &ctx, "Expand");
     let st = app.session.active().unwrap();
@@ -561,7 +561,7 @@ fn trace_view_and_preview_work_when_another_object_is_selected_first() {
     assert!(texts.iter().any(|(t, _)| t == "Outlines") && !texts.iter().any(|(t, _)| t == "Tracing Result"), "{texts:?}");
 
     // Tracing again replaces the object, so look it up in the selection.
-    let strokes = |app: &VectorcraftApp| {
+    let strokes = |app: &PlumaApp| {
         let st = app.session.active().unwrap();
         let n = st.selection.objects.iter().find_map(|id| st.doc.node(*id).filter(|n| is_trace(n)));
         n.and_then(|n| n.extras().trace.as_deref().cloned()).map(|t| t["params"]["strokes"].clone())
@@ -602,7 +602,7 @@ fn the_view_row_fits_the_properties_panel() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     // Where the panel's content ends after a few frames.
-    let right = |app: &mut VectorcraftApp| {
+    let right = |app: &mut PlumaApp| {
         let mut right = 0.0;
         for _ in 0..3 {
             let screen = Rect::from_min_size(Pos2::ZERO, vec2(280.0, 700.0));
@@ -662,7 +662,7 @@ fn the_palette_shows_in_color_mode_and_traces_again() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let has = |texts: &[(String, Rect)], s: &str| texts.iter().any(|(t, _)| t == s);
-    let palette = |app: &VectorcraftApp| target(app).2.map(|t| t["params"]["palette"].clone());
+    let palette = |app: &PlumaApp| target(app).2.map(|t| t["params"]["palette"].clone());
     assert!(!has(&frame(&mut app, &ctx, vec![]), "Palette:"), "Black and White has no palette");
     app.run("imageTrace.make", json!({"preset": "6 Colors"})).unwrap();
     let texts = frame(&mut app, &ctx, vec![]);
@@ -689,7 +689,7 @@ fn document_library_colors_lists_the_documents_color_groups() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let has = |texts: &[(String, Rect)], s: &str| texts.iter().any(|(t, _)| t == s);
-    let stored = |app: &VectorcraftApp, key: &str| target(app).2.map(|t| t["params"][key].clone());
+    let stored = |app: &PlumaApp, key: &str| target(app).2.map(|t| t["params"][key].clone());
     let texts = frame(&mut app, &ctx, vec![]);
     assert!(has(&texts, "Colors:") && has(&texts, "All"), "{texts:?}");
     // The list holds All and the document's groups; a group traces again with its colors.
@@ -744,7 +744,7 @@ fn a_color_group_the_active_document_lacks_is_all() {
     click(&mut app, &ctx, "All");
     click(&mut app, &ctx, "   Brand");
     assert_eq!(target(&app).2.map(|t| t["params"]["colorGroup"].clone()), Some(json!("Brand")));
-    let shows_brand = |app: &mut VectorcraftApp| frame(app, &ctx, vec![]).iter().any(|(t, _)| t == "Brand");
+    let shows_brand = |app: &mut PlumaApp| frame(app, &ctx, vec![]).iter().any(|(t, _)| t == "Brand");
     // Without the group the row shows All; undoing its removal shows it again.
     app.run("swatch.ungroup", json!({"name": "Brand"})).unwrap();
     assert!(!shows_brand(&mut app));
@@ -755,7 +755,7 @@ fn a_color_group_the_active_document_lacks_is_all() {
     let img = image::RgbaImage::from_fn(20, 20, |x, _| image::Rgba(if x < 10 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    let data = vectorcraft_format::base64_encode(&png);
+    let data = pluma_format::base64_encode(&png);
     app.run("file.place", json!({"name": "half.png", "dataBase64": data, "link": false})).unwrap();
     let texts = frame(&mut app, &ctx, vec![]);
     let has = |s: &str| texts.iter().any(|(t, _)| t == s);
@@ -777,7 +777,7 @@ fn create_strokes_traces_again_and_keeps_one_kind_on() {
     let mut app = traced_app();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let create = |app: &VectorcraftApp| target(app).2.map(|t| (t["params"]["fills"].clone(), t["params"]["strokes"].clone()));
+    let create = |app: &PlumaApp| target(app).2.map(|t| (t["params"]["fills"].clone(), t["params"]["strokes"].clone()));
     let texts = frame(&mut app, &ctx, vec![]);
     for s in ["Create:", "Fills", "Strokes", "Stroke", "10"] {
         assert!(texts.iter().any(|(t, _)| t == s), "{s}: {texts:?}");
@@ -794,7 +794,7 @@ fn create_strokes_traces_again_and_keeps_one_kind_on() {
 }
 
 /// Click at `at`, then draw a frame.
-fn click_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2) {
+fn click_at(app: &mut PlumaApp, ctx: &egui::Context, at: Pos2) {
     let press = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
     frame(app, ctx, vec![Event::PointerMoved(at), press(true)]);
     frame(app, ctx, vec![press(false)]);
@@ -802,13 +802,13 @@ fn click_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2) {
 }
 
 /// Choose `item` from Manage Presets, next to the Preset dropdown. Whether it was enabled.
-fn manage(app: &mut VectorcraftApp, ctx: &egui::Context, item: &str) -> bool {
+fn manage(app: &mut PlumaApp, ctx: &egui::Context, item: &str) -> bool {
     frame(app, ctx, vec![]);
     let button = ctx.data(|d| d.get_temp::<Rect>(egui::Id::unique("trace-manage-presets"))).unwrap();
     click_at(app, ctx, button.center());
     let texts = frame(app, ctx, vec![]);
     let at = texts.iter().find(|(t, _)| t.trim() == item).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no `{item}` in {texts:?}"));
-    let state = |app: &VectorcraftApp| (app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone())), app.session.prefs.trace_presets.clone());
+    let state = |app: &PlumaApp| (app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone())), app.session.prefs.trace_presets.clone());
     let before = state(app);
     click_at(app, ctx, at);
     // Escape closes the menu when the item was disabled.
@@ -880,7 +880,7 @@ fn renaming_another_saved_preset_with_the_same_settings_keeps_the_panel_preset()
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     frame(&mut app, &ctx, vec![]);
-    let save = |app: &mut VectorcraftApp, p: Value| {
+    let save = |app: &mut PlumaApp, p: Value| {
         app.session.execute("imageTrace.presets.save", &p).unwrap();
         frame(app, &ctx, vec![]);
         shown_preset(&ctx)
@@ -914,7 +914,7 @@ fn settings_that_wait_follow_a_renamed_or_deleted_preset() {
     st.preset = "Ink".into();
     st.params = ink;
     set_pstate(&ctx, "image-trace", st);
-    let select = |app: &mut VectorcraftApp, id: NodeId| {
+    let select = |app: &mut PlumaApp, id: NodeId| {
         app.run("select.set", json!({"ids": [id.0]})).unwrap();
         frame(app, &ctx, vec![]);
         shown_preset(&ctx)
@@ -1009,7 +1009,7 @@ fn selecting_an_object_traced_with_a_renamed_preset_shows_the_new_name() {
     // Custom, also after that preset is renamed.
     app.session.execute("imageTrace.presets.delete", &json!({"name": "Dark Ink"})).unwrap();
     app.session.execute("imageTrace.presets.save", &json!({"name": "Dark Ink", "preset": "Sketched Art"})).unwrap();
-    let shown = |app: &mut VectorcraftApp| {
+    let shown = |app: &mut PlumaApp| {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         frame(app, &ctx, vec![]);
@@ -1029,7 +1029,7 @@ fn the_control_bar_and_properties_show_a_renamed_or_changed_preset_as_the_panel_
     trace_with(&mut app, "Ink");
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let texts = |app: &mut VectorcraftApp, properties: bool| {
+    let texts = |app: &mut PlumaApp, properties: bool| {
         let screen = Rect::from_min_size(Pos2::ZERO, vec2(900.0, 700.0));
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), ..Default::default() }, |ui| {
             if properties {
@@ -1041,7 +1041,7 @@ fn the_control_bar_and_properties_show_a_renamed_or_changed_preset_as_the_panel_
         out.textures_delta.clear();
         crate::tests_removeanchors::shapes_text(&out.shapes.iter().map(|c| c.shape.clone()).collect::<Vec<_>>())
     };
-    let shows = |app: &mut VectorcraftApp, name: &str| {
+    let shows = |app: &mut PlumaApp, name: &str| {
         for properties in [false, true] {
             let t = texts(app, properties);
             assert!(t.iter().any(|(s, _)| s == name), "{} shows {name}: {t:?}", if properties { "Properties" } else { "Control bar" });
@@ -1061,7 +1061,7 @@ fn the_control_bar_and_properties_show_a_renamed_or_changed_preset_as_the_panel_
 #[test]
 fn an_object_traced_with_a_reused_preset_name_that_was_renamed_shows_custom() {
     let mut app = traced_app_with_ink(100);
-    let save = |app: &mut VectorcraftApp, p: Value| {
+    let save = |app: &mut PlumaApp, p: Value| {
         app.session.execute("imageTrace.presets.save", &p).unwrap();
     };
     save(&mut app, json!({"name": "A", "preset": "Sketched Art"}));
@@ -1084,7 +1084,7 @@ fn an_object_traced_between_two_renames_shows_the_last_name() {
     app.session.execute("imageTrace.presets.save", &json!({"name": "A", "newName": "B"})).unwrap();
     trace_and_open(&mut app, "B");
     app.session.execute("imageTrace.presets.save", &json!({"name": "B", "newName": "C"})).unwrap();
-    let shown = |app: &mut VectorcraftApp| {
+    let shown = |app: &mut PlumaApp| {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         frame(app, &ctx, vec![]);
@@ -1218,7 +1218,7 @@ fn the_preset_list_is_read_once_for_each_change_of_the_saved_presets() {
 }
 
 /// Choose `preset` from the Preset dropdown, which shows `shown`.
-fn choose_from_preset_menu(app: &mut VectorcraftApp, ctx: &egui::Context, shown: &str, preset: &str) {
+fn choose_from_preset_menu(app: &mut PlumaApp, ctx: &egui::Context, shown: &str, preset: &str) {
     let texts = frame(app, ctx, vec![]);
     let combo = texts.iter().rfind(|(t, _)| t == shown).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("no `{shown}` in {texts:?}"));
     click_at(app, ctx, combo);
@@ -1243,7 +1243,7 @@ fn each_preset_button_traces_the_selected_object_again_with_its_preset() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     frame(&mut app, &ctx, vec![]);
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     for (label, preset) in [
         ("Auto Color", "Auto Color"),
         ("High Color", "High Fidelity Photo"),
@@ -1297,7 +1297,7 @@ fn the_selected_preset_button_follows_the_preset_menu() {
 #[test]
 fn a_preset_button_with_no_image_selected_changes_the_panel_settings_as_the_preset_menu_does() {
     let blank = || {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
         app
     };
@@ -1324,7 +1324,7 @@ fn a_preset_button_with_no_image_selected_changes_the_panel_settings_as_the_pres
 
 #[test]
 fn panel_and_menu_draw_headless() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     for _ in 0..2 {
@@ -1355,8 +1355,8 @@ fn a_trace_off_the_ui_thread_is_adopted_when_it_lands() {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     app.adopt_context(&ctx);
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
-    let strokes = |app: &VectorcraftApp| target(app).2.map(|t| t["params"]["strokes"].clone());
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
+    let strokes = |app: &PlumaApp| target(app).2.map(|t| t["params"]["strokes"].clone());
     let steps = undo(&app);
     click(&mut app, &ctx, "Preview");
     click(&mut app, &ctx, "Strokes");

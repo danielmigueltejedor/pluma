@@ -1,4 +1,4 @@
-use vectorcraft_geom::{BezPath, FillRule, PathData, Point, Rect};
+use pluma_geom::{BezPath, FillRule, PathData, Point, Rect};
 
 use super::*;
 
@@ -212,7 +212,7 @@ fn a_plane_turns_about_the_given_centre() {
 #[test]
 fn inflate_covers_the_shape_and_puffs_by_the_volume() {
     let mut c = BezPath::new();
-    c.extend(vectorcraft_geom::kurbo::Shape::path_elements(&vectorcraft_geom::kurbo::Circle::new((100.0, 100.0), 50.0), 0.01));
+    c.extend(pluma_geom::kurbo::Shape::path_elements(&pluma_geom::kurbo::Circle::new((100.0, 100.0), 50.0), 0.01));
     let (p, b) = shape(&c);
     let f = inflate(&p, FillRule::EvenOdd, b, Inflate::default(), front()).unwrap();
     // Straight on, the cushion covers the circle (sampled as a polygon) and nothing else.
@@ -318,7 +318,7 @@ fn the_inflate_membrane_matches_known_solutions() {
     // ∇²φ = −1, zero on the outline: a disc of radius r peaks at r²/4, a square of side l at
     // about 0.07367 l².
     let mut c = BezPath::new();
-    c.extend(vectorcraft_geom::kurbo::Shape::path_elements(&vectorcraft_geom::kurbo::Circle::new((100.0, 100.0), 50.0), 0.01));
+    c.extend(pluma_geom::kurbo::Shape::path_elements(&pluma_geom::kurbo::Circle::new((100.0, 100.0), 50.0), 0.01));
     let (p, b) = shape(&c);
     let r = rings(&p, FillRule::EvenOdd, 100.0, MAX_SOLID_POINTS).unwrap();
     let disc = Membrane::solve(&r, &Edges::new(&r), b.origin(), b.width() / 48.0, 49, 49);
@@ -390,7 +390,7 @@ fn small_curves_take_few_points_and_rotate_takes_large_outlines() {
     // Each piece stays within the tolerance of the curve: a circle's chords sag at most 0.05 pt
     // here (1/2000 of its 100 pt size is less).
     let mut c = BezPath::new();
-    c.extend(vectorcraft_geom::kurbo::Shape::path_elements(&vectorcraft_geom::kurbo::Circle::new((50.0, 50.0), 50.0), 0.01));
+    c.extend(pluma_geom::kurbo::Shape::path_elements(&pluma_geom::kurbo::Circle::new((50.0, 50.0), 50.0), 0.01));
     let (p, r) = shape(&c);
     let ring = &rings(&p, FillRule::EvenOdd, 100.0, MAX_SOLID_POINTS).unwrap()[0];
     for (a, b) in ring.iter().zip(ring.iter().cycle().skip(1)) {
@@ -735,7 +735,7 @@ fn nonzero_shapes_keep_the_middle_a_same_way_contour_encloses() {
         if clockwise {
             pts.reverse();
         }
-        vectorcraft_geom::SubPath::polyline(&pts, true)
+        pluma_geom::SubPath::polyline(&pts, true)
     };
     let (outer, inner) = (Rect::new(0.0, 0.0, 100.0, 100.0), Rect::new(25.0, 25.0, 75.0, 75.0));
     let nested = |inner_clockwise: bool| PathData::new(vec![rect(outer, false), rect(inner, inner_clockwise)]);
@@ -785,7 +785,7 @@ fn many_small_rings_far_apart_are_too_complex() {
 #[test]
 fn crossing_contours_make_one_outline() {
     let rect = |r: Rect| {
-        vectorcraft_geom::SubPath::polyline(&[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)], true)
+        pluma_geom::SubPath::polyline(&[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)], true)
     };
     // The stem, an arm starting inside it, and a leg starting inside the arm.
     let k = PathData::new(vec![
@@ -795,7 +795,7 @@ fn crossing_contours_make_one_outline() {
     ]);
     let b = k.bounds().unwrap();
     for rule in [FillRule::NonZero, FillRule::EvenOdd] {
-        let filled = vectorcraft_pathops::area(&k, rule);
+        let filled = pluma_pathops::area(&k, rule);
         assert!(close(area(&plane(&k, rule, b, front()).unwrap()), filled, 1e-6), "{rule:?}: Rotate");
         let f = extrude(&k, rule, b, Extrude::default(), front()).unwrap();
         assert_eq!(f.len(), 1, "{rule:?}: straight on, only the front cap shows");
@@ -805,7 +805,7 @@ fn crossing_contours_make_one_outline() {
         assert!(close(area(&puffed), filled, filled * 1e-3), "{rule:?}: Inflate's front, {} against {filled}", area(&puffed));
     }
     // The filled area is the union's: the stem, the arm past it and the leg past the arm.
-    assert!(close(vectorcraft_pathops::area(&k, FillRule::NonZero), 20.0 * 100.0 + 40.0 * 20.0 + 20.0 * 50.0 - 10.0 * 10.0, 1e-6));
+    assert!(close(pluma_pathops::area(&k, FillRule::NonZero), 20.0 * 100.0 + 40.0 * 20.0 + 20.0 * 50.0 - 10.0 * 10.0, 1e-6));
 }
 
 /// Resolving overlaps keeps every contour that fills area, however narrow: a hairline beside a
@@ -813,7 +813,7 @@ fn crossing_contours_make_one_outline() {
 #[test]
 fn resolving_overlaps_keeps_narrow_contours() {
     let rect = |r: Rect| {
-        vectorcraft_geom::SubPath::polyline(&[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)], true)
+        pluma_geom::SubPath::polyline(&[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)], true)
     };
     // A hairline beside a square, and two bars crossing elsewhere so the profile is resolved.
     let hairline = Rect::new(120.0, 0.0, 120.005, 50.0);
@@ -876,10 +876,7 @@ fn contours_meet_when_they_cross_touch_or_fold_back() {
         [Rect::new(0.0, 0.0, 50.0, 50.0), Rect::new(50.0, 0.0, 100.0, 50.0)]
             .iter()
             .map(|r| {
-                vectorcraft_geom::SubPath::polyline(
-                    &[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)],
-                    true,
-                )
+                pluma_geom::SubPath::polyline(&[Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)], true)
             })
             .collect(),
     );
@@ -901,11 +898,10 @@ fn contours_meet_when_they_cross_touch_or_fold_back() {
 /// as it was; and a profile the boolean refuses is built from its contours as drawn.
 #[test]
 fn flat_invalid_and_refused_profiles() {
-    let flat =
-        PathData::new(vec![vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 10.0), Point::new(20.0, 20.0)], true)]);
+    let flat = PathData::new(vec![pluma_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 10.0), Point::new(20.0, 20.0)], true)]);
     let crossing_flat = PathData::new(vec![
-        vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 10.0), Point::new(20.0, 20.0)], true),
-        vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 20.0), Point::new(10.0, 10.0), Point::new(20.0, 0.0)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 10.0), Point::new(20.0, 20.0)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(0.0, 20.0), Point::new(10.0, 10.0), Point::new(20.0, 0.0)], true),
     ]);
     let b = Rect::new(0.0, 0.0, 20.0, 20.0);
     for p in [&flat, &crossing_flat] {
@@ -925,11 +921,8 @@ fn flat_invalid_and_refused_profiles() {
             Point::new(100.0 + 100.0 * a.cos(), 100.0 + 100.0 * a.sin())
         })
         .collect();
-    let star = PathData::new(vec![vectorcraft_geom::SubPath::polyline(&star, true)]);
-    assert_eq!(
-        vectorcraft_pathops::try_unite_all_with(&[(&star, FillRule::NonZero)], rings::DEBRIS),
-        Err(vectorcraft_pathops::PathOpsError::TooComplex)
-    );
+    let star = PathData::new(vec![pluma_geom::SubPath::polyline(&star, true)]);
+    assert_eq!(pluma_pathops::try_unite_all_with(&[(&star, FillRule::NonZero)], rings::DEBRIS), Err(pluma_pathops::PathOpsError::TooComplex));
     let b = star.bounds().unwrap();
     let drawn: f64 =
         rings::rings(&star, FillRule::NonZero, b.width().max(b.height()), usize::MAX).unwrap().iter().map(|r| rings::signed_area(r)).sum();
@@ -941,7 +934,7 @@ fn flat_invalid_and_refused_profiles() {
 /// lobes; contours that cancel each other fill nothing. Both go through the boolean.
 #[test]
 fn self_crossing_and_cancelling_profiles_are_resolved() {
-    let poly = |pts: &[(f64, f64)]| vectorcraft_geom::SubPath::polyline(&pts.iter().map(|&(x, y)| Point::new(x, y)).collect::<Vec<_>>(), true);
+    let poly = |pts: &[(f64, f64)]| pluma_geom::SubPath::polyline(&pts.iter().map(|&(x, y)| Point::new(x, y)).collect::<Vec<_>>(), true);
     let bowtie = PathData::new(vec![poly(&[(0.0, 0.0), (10.0, 10.0), (10.0, 0.0), (0.0, 10.0)])]);
     let b = bowtie.bounds().unwrap();
     for rule in [FillRule::NonZero, FillRule::EvenOdd] {
@@ -961,7 +954,7 @@ fn self_crossing_and_cancelling_profiles_are_resolved() {
 /// a whole, never judged from one point each, so touching parts are kept and holes stay open.
 #[test]
 fn touching_contours_keep_their_parts_and_holes() {
-    let poly = |pts: &[(f64, f64)]| vectorcraft_geom::SubPath::polyline(&pts.iter().map(|&(x, y)| Point::new(x, y)).collect::<Vec<_>>(), true);
+    let poly = |pts: &[(f64, f64)]| pluma_geom::SubPath::polyline(&pts.iter().map(|&(x, y)| Point::new(x, y)).collect::<Vec<_>>(), true);
     // A triangle whose tip rests on a square's edge.
     let tip = PathData::new(vec![poly(&[(0.0, 10.0), (10.0, 10.0), (10.0, 20.0), (0.0, 20.0)]), poly(&[(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)])]);
     let b = tip.bounds().unwrap();
@@ -980,26 +973,26 @@ fn touching_contours_keep_their_parts_and_holes() {
 /// renderer's fill, whether or not other contours meet.
 #[test]
 fn an_open_subpath_closes_straight_whether_or_not_contours_meet() {
-    let open = vectorcraft_geom::SubPath {
+    let open = pluma_geom::SubPath {
         anchors: vec![
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor {
                 p: Point::new(0.0, 0.0),
                 h_in: Point::new(0.0, -50.0),
                 h_out: Point::new(0.0, 0.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
-            vectorcraft_geom::Anchor::corner(Point::new(50.0, 100.0)),
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor::corner(Point::new(50.0, 100.0)),
+            pluma_geom::Anchor {
                 p: Point::new(100.0, 0.0),
                 h_in: Point::new(100.0, 0.0),
                 h_out: Point::new(100.0, -50.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
         ],
         closed: false,
     };
     let rect = |x0: f64, y0: f64, x1: f64, y1: f64| {
-        vectorcraft_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
+        pluma_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
     };
     let alone = PathData::new(vec![open.clone()]);
     let with_bars = PathData::new(vec![open, rect(200.0, 40.0, 260.0, 60.0), rect(220.0, 20.0, 240.0, 80.0)]);
@@ -1014,10 +1007,10 @@ fn an_open_subpath_closes_straight_whether_or_not_contours_meet() {
 #[test]
 fn flat_far_and_too_large_merges() {
     let rect = |x0: f64, y0: f64, x1: f64, y1: f64| {
-        vectorcraft_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
+        pluma_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
     };
     let squares: Vec<_> = (0..12).map(|i| rect(i as f64 * 20.0, 0.0, i as f64 * 20.0 + 10.0, 10.0)).collect();
-    let line = vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 300.0), Point::new(50.0, 300.0), Point::new(100.0, 300.0)], false);
+    let line = pluma_geom::SubPath::polyline(&[Point::new(0.0, 300.0), Point::new(50.0, 300.0), Point::new(100.0, 300.0)], false);
     let with_line = PathData::new(squares.iter().cloned().chain([line]).collect());
     assert!(!rings::meets(&rings::sample(&with_line, 300.0, usize::MAX).unwrap(), &rings::closed_straight(&with_line)));
     assert!(close(area(&plane(&with_line, FillRule::NonZero, with_line.bounds().unwrap(), front()).unwrap()), 1200.0, 1e-6));
@@ -1028,19 +1021,19 @@ fn flat_far_and_too_large_merges() {
     assert_eq!(cap.iter().map(|f| f.contours.len()).sum::<usize>(), 1, "joined into one outline");
     assert!(close(area(&cap), 200.0, 1e-3), "joined, not lost");
     // Handles count too: a lobe whose handles reach 1.3e8 widens the boolean's snapping to 1.85e-6.
-    let lobe = vectorcraft_geom::SubPath {
+    let lobe = pluma_geom::SubPath {
         anchors: vec![
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor {
                 p: Point::new(0.0, 1000.0),
                 h_in: Point::new(0.0, 1000.0),
                 h_out: Point::new(1.3e8, 1000.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor {
                 p: Point::new(0.0, 1100.0),
                 h_in: Point::new(1.3e8, 1100.0),
                 h_out: Point::new(0.0, 1100.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
         ],
         closed: true,
@@ -1063,7 +1056,7 @@ fn flat_far_and_too_large_merges() {
     for rule in [FillRule::NonZero, FillRule::EvenOdd] {
         assert_eq!(extrude(&grid, rule, b, Extrude::default(), front()).unwrap_err(), "The shape is too complex for a 3D effect", "{rule:?}");
         assert_eq!(inflate(&grid, rule, b, Inflate::default(), front()).unwrap_err(), "The shape is too complex for a 3D effect", "{rule:?}");
-        assert!(close(area(&plane(&grid, rule, b, front()).unwrap()), vectorcraft_pathops::area(&grid, rule), 1e-6), "{rule:?}: Rotate");
+        assert!(close(area(&plane(&grid, rule, b, front()).unwrap()), pluma_pathops::area(&grid, rule), 1e-6), "{rule:?}: Rotate");
     }
 }
 
@@ -1074,15 +1067,15 @@ fn flat_far_and_too_large_merges() {
 #[test]
 fn meets_within_twice_the_boolean_tolerance() {
     let rect = |x0: f64, y0: f64, x1: f64, y1: f64| {
-        vectorcraft_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
+        pluma_geom::SubPath::polyline(&[Point::new(x0, y0), Point::new(x1, y0), Point::new(x1, y1), Point::new(x0, y1)], true)
     };
     let meets = |p: &PathData| rings::meets(&rings::sample(p, 300.0, usize::MAX).unwrap(), &rings::closed_straight(p));
     // Two triangles whose facing 45° edges are 1.4e-6 apart, the second's corners 0.99e-6 lower on
     // the page (greater y) than the first's: snapped onto the first's heights, they are joined.
     let d = 0.99e-6;
     let snapped = PathData::new(vec![
-        vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
-        vectorcraft_geom::SubPath::polyline(&[Point::new(10.0 + d, d), Point::new(10.0 + d, 10.0 + d), Point::new(d, 10.0 + d)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(10.0 + d, d), Point::new(10.0 + d, 10.0 + d), Point::new(d, 10.0 + d)], true),
     ]);
     assert!(meets(&snapped));
     let cap = plane(&snapped, FillRule::NonZero, snapped.bounds().unwrap(), front()).unwrap();
@@ -1092,13 +1085,13 @@ fn meets_within_twice_the_boolean_tolerance() {
     // one drawn: both triangles, two outlines.
     let tri = |g: f64| {
         PathData::new(vec![
-            vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
-            vectorcraft_geom::SubPath::polyline(&[Point::new(10.0 + g, 0.0), Point::new(10.0 + g, 10.0), Point::new(g, 10.0)], true),
+            pluma_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
+            pluma_geom::SubPath::polyline(&[Point::new(10.0 + g, 0.0), Point::new(10.0 + g, 10.0), Point::new(g, 10.0)], true),
         ])
     };
     let apart = tri(1.4e-6 * std::f64::consts::SQRT_2);
     assert!(meets(&apart));
-    assert_eq!(vectorcraft_pathops::try_unite_all_with(&[(&apart, FillRule::NonZero)], rings::DEBRIS).map(|p| p.subpaths.len()), Ok(2));
+    assert_eq!(pluma_pathops::try_unite_all_with(&[(&apart, FillRule::NonZero)], rings::DEBRIS).map(|p| p.subpaths.len()), Ok(2));
     let cap = plane(&apart, FillRule::NonZero, apart.bounds().unwrap(), front()).unwrap();
     assert_eq!(cap.iter().map(|f| f.contours.len()).sum::<usize>(), 2);
     assert!(close(area(&cap), 100.0, 1e-3), "both kept");
@@ -1110,33 +1103,33 @@ fn meets_within_twice_the_boolean_tolerance() {
     let lift = 0.999e-6;
     let g = 2.05e-6 * std::f64::consts::SQRT_2 - lift;
     let past = PathData::new(vec![
-        vectorcraft_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
-        vectorcraft_geom::SubPath::polyline(&[Point::new(10.0 + g, lift), Point::new(10.0 + g, 10.0 + lift), Point::new(g, 10.0 + lift)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
+        pluma_geom::SubPath::polyline(&[Point::new(10.0 + g, lift), Point::new(10.0 + g, 10.0 + lift), Point::new(g, 10.0 + lift)], true),
     ]);
     assert!(!meets(&past));
-    assert_eq!(vectorcraft_pathops::try_unite_all_with(&[(&past, FillRule::NonZero)], rings::DEBRIS).map(|p| p.subpaths.len()), Ok(2));
+    assert_eq!(pluma_pathops::try_unite_all_with(&[(&past, FillRule::NonZero)], rings::DEBRIS).map(|p| p.subpaths.len()), Ok(2));
     // Near the origin, contours a few millionths apart stay apart and skip the boolean.
     assert!(!meets(&PathData::new(vec![rect(0.0, 0.0, 10.0, 10.0), rect(10.0 + 2.2e-6, 0.0, 20.0, 10.0)])));
     // What the boolean is given decides the tolerance: an open subpath's end handles (closed
     // straight) and a one-anchor subpath (skipped) don't widen it.
-    let ends = vectorcraft_geom::SubPath {
+    let ends = pluma_geom::SubPath {
         anchors: vec![
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor {
                 p: Point::new(0.0, 0.0),
                 h_in: Point::new(1e9, 0.0),
                 h_out: Point::new(0.0, 0.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
-            vectorcraft_geom::Anchor {
+            pluma_geom::Anchor {
                 p: Point::new(10.0, 0.0),
                 h_in: Point::new(10.0, 0.0),
                 h_out: Point::new(1e9, 0.0),
-                kind: vectorcraft_geom::AnchorKind::Corner,
+                kind: pluma_geom::AnchorKind::Corner,
             },
         ],
         closed: false,
     };
-    let speck = vectorcraft_geom::SubPath { anchors: vec![vectorcraft_geom::Anchor::corner(Point::new(1e9, 1e9))], closed: true };
+    let speck = pluma_geom::SubPath { anchors: vec![pluma_geom::Anchor::corner(Point::new(1e9, 1e9))], closed: true };
     let quiet = PathData::new(vec![ends, speck]);
     assert_eq!(rings::touch(&rings::closed_straight(&quiet)), 1e-6);
     // A closing-side handle at either end alone is enough to close the subpath straight.
@@ -1168,12 +1161,12 @@ fn the_merged_rings_are_turned_as_a_whole() {
 /// A subpath of one anchor draws nothing, so it builds nothing, beside other art or not.
 #[test]
 fn a_one_anchor_subpath_builds_nothing() {
-    let loop_ = vectorcraft_geom::SubPath {
-        anchors: vec![vectorcraft_geom::Anchor {
+    let loop_ = pluma_geom::SubPath {
+        anchors: vec![pluma_geom::Anchor {
             p: Point::new(0.0, 0.0),
             h_in: Point::new(-20.0, 30.0),
             h_out: Point::new(20.0, 30.0),
-            kind: vectorcraft_geom::AnchorKind::Corner,
+            kind: pluma_geom::AnchorKind::Corner,
         }],
         closed: true,
     };

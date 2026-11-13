@@ -6,22 +6,22 @@
 use std::sync::Arc;
 
 use egui::{Event, Pos2, Rect, ViewportCommand, ViewportId, ViewportInfo, vec2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use crate::control::ControlRequest;
-use crate::{Services, VectorcraftApp};
+use crate::{PlumaApp, Services};
 
 const SCREEN: egui::Vec2 = vec2(320.0, 200.0);
 
 /// Build a screenshot test app with a write service, control channel and temporary directory on a
 /// 100 by 100 document.
-fn app(tag: &str) -> (VectorcraftApp, std::sync::mpsc::Sender<ControlRequest>, std::path::PathBuf) {
-    let dir = vectorcraft_testkit::temp_dir(tag);
+fn app(tag: &str) -> (PlumaApp, std::sync::mpsc::Sender<ControlRequest>, std::path::PathBuf) {
+    let dir = pluma_testkit::temp_dir(tag);
     let services =
         Services { write: Some(Box::new(|path: &str, bytes: &[u8]| std::fs::write(path, bytes).map_err(|e| e.to_string()))), ..Default::default() };
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), services).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), services).with_control(rx);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     (app, tx, dir)
 }
@@ -34,7 +34,7 @@ fn request(tx: &std::sync::mpsc::Sender<ControlRequest>, params: serde_json::Val
 }
 
 /// Run one tick-then-UI host frame at the requested screen size and discard texture deltas.
-fn frame_at(app: &mut VectorcraftApp, ctx: &egui::Context, size: egui::Vec2, events: Vec<Event>) -> egui::FullOutput {
+fn frame_at(app: &mut PlumaApp, ctx: &egui::Context, size: egui::Vec2, events: Vec<Event>) -> egui::FullOutput {
     let raw = egui::RawInput { events, screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)), ..Default::default() };
     app.begin_host_iteration();
     let mut out = ctx.run_ui(raw, |ui| {
@@ -46,7 +46,7 @@ fn frame_at(app: &mut VectorcraftApp, ctx: &egui::Context, size: egui::Vec2, eve
 }
 
 /// Run one host frame at the standard 320 by 200 screenshot size.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::FullOutput {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context) -> egui::FullOutput {
     frame_at(app, ctx, SCREEN, vec![])
 }
 
@@ -62,7 +62,7 @@ fn issued(out: &egui::FullOutput) -> Option<egui::ScreenshotCallback> {
 /// Make an admitted capture due now, with no deadline: the settle policy and the deadline both
 /// measure wall-clock time, which a test must not race. The frame count in `issue_screenshots`
 /// still proves the settle passes, and the timeout tests set the deadline in the past themselves.
-fn allow_due(app: &mut VectorcraftApp) {
+fn allow_due(app: &mut PlumaApp) {
     for queued in &mut app.queued_screenshots {
         queued.due_ms = f64::MIN;
     }
@@ -72,7 +72,7 @@ fn allow_due(app: &mut VectorcraftApp) {
 }
 
 /// Run full frames until the capture is issued (bounded: a failure is an error, not a hang).
-fn drive_until_issued(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::ScreenshotCallback {
+fn drive_until_issued(app: &mut PlumaApp, ctx: &egui::Context) -> egui::ScreenshotCallback {
     for _ in 0..64 {
         let out = frame(app, ctx);
         if let Some(callback) = issued(&out) {
@@ -83,13 +83,13 @@ fn drive_until_issued(app: &mut VectorcraftApp, ctx: &egui::Context) -> egui::Sc
 }
 
 /// Two full frames install and settle the interface fonts before the first request.
-fn ready(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn ready(app: &mut PlumaApp, ctx: &egui::Context) {
     frame(app, ctx);
     frame(app, ctx);
 }
 
 /// Drain an admitted request and make it due: a frame takes it from the control channel.
-fn admit(app: &mut VectorcraftApp, ctx: &egui::Context) {
+fn admit(app: &mut PlumaApp, ctx: &egui::Context) {
     frame(app, ctx);
     allow_due(app);
 }

@@ -2,8 +2,8 @@
 //! Adobe publishes the names, not numeric settings. These values are our own; Standard
 //! retains the existing default. A preset replaces the light rig and ambient only.
 
+use pluma_three_d::{DEFAULT_LIGHT, Light};
 use serde_json::{Value, json};
-use vectorcraft_three_d::{DEFAULT_LIGHT, Light};
 
 #[derive(Clone, Copy, Debug)]
 pub struct LightingPreset {

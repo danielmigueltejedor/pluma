@@ -1,10 +1,10 @@
 //! Smart Guides for the drawing tools, driven through the session (#506): where the Rectangle
 //! tool's corners and the Pen's anchors land, and the guides they show.
 
+use pluma_doc::NodeId;
+use pluma_geom::{Point, Rect};
+use pluma_tools::{Mods, Overlay, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::{Point, Rect};
-use vectorcraft_tools::{Mods, Overlay, PointerEvent, PointerKind};
 
 use crate::tooling::ViewInfo;
 use crate::*;

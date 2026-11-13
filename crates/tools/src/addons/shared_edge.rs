@@ -6,15 +6,15 @@
 //! near anchors meet half way, and an anchor one path lacks is added to match. Shift+Alt asks for
 //! an end inside a stretch that could merge.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::{BezPath, Point};
+use pluma_pathops::addons::pathtools::{Follow, MergePlan, MergePreview, ends_at, merge_preview, stretches_at};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::{BezPath, Point};
-use vectorcraft_pathops::addons::pathtools::{Follow, MergePlan, MergePreview, ends_at, merge_preview, stretches_at};
 
 use crate::builder::HIGHLIGHT_RED;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
-pub use vectorcraft_pathops::addons::pathtools::{COINCIDENCE, MAX_COINCIDENCE};
+pub use pluma_pathops::addons::pathtools::{COINCIDENCE, MAX_COINCIDENCE};
 
 /// The tool's id.
 pub const ID: &str = "sharedEdge";
@@ -220,8 +220,8 @@ impl Tool for SharedEdgeTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::{Appearance, Document, Node, Selection};
-    use vectorcraft_geom::{PathData, SubPath};
+    use pluma_doc::{Appearance, Document, Node, Selection};
+    use pluma_geom::{PathData, SubPath};
 
     /// A lower and an upper square sharing the edge x = 100 from y = 0 to y = 100; `gap` pushes the
     /// upper one right. → (the document, the lower one, the upper one).

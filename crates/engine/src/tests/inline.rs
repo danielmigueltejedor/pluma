@@ -1,9 +1,9 @@
 //! Inline graphics in text: `text.insertInline`, editing over them, undo, following their symbol.
 
+use pluma_doc::text::INLINE_CHAR;
+use pluma_doc::{NodeId, NodeKind, TextObject};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_doc::text::INLINE_CHAR;
-use vectorcraft_doc::{NodeId, NodeKind, TextObject};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -176,7 +176,7 @@ fn a_list_paragraph_starting_with_an_inline_graphic_keeps_its_bullet() {
     let id = text(&mut s, "ab");
     s.execute("text.insertInline", &json!({"id": id.0, "at": 0, "symbol": "Dot", "scale": 1})).unwrap();
     s.execute("text.setFormat", &json!({"ids": [id.0], "list": "bullet"})).unwrap();
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &obj(&s, id));
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), &obj(&s, id));
     assert_eq!(lay.markers.len(), 1);
     let bullet = &lay.glyphs[lay.markers[0].glyphs.start];
     assert!(bullet.origin.x < lay.inlines[0].bounds.x0, "the bullet comes before the graphic");
@@ -191,9 +191,9 @@ fn saved_documents_keep_inline_graphics() {
     let id = text(&mut s, "ab");
     s.execute("text.insertInline", &json!({"id": id.0, "at": 1, "symbol": "Dot", "scale": 2})).unwrap();
     let doc = (*s.doc().unwrap().doc).clone();
-    let bytes = vectorcraft_format::save(&doc, false);
+    let bytes = pluma_format::save(&doc, false);
     assert!(String::from_utf8_lossy(&bytes).contains("\"inline\""));
-    let mut back = vectorcraft_format::load(&bytes).unwrap();
+    let mut back = pluma_format::load(&bytes).unwrap();
     // Bounds aren't saved: opening resolves them.
     let mut s2 = Session::new();
     back.title = "copy".into();

@@ -5,7 +5,7 @@
 use egui::{Color32, CornerRadius, Sense, Ui, vec2};
 
 use crate::theme::{self, Tokens};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 /// Discord's brand colour (a colour, not a logo).
 const DISCORD: Color32 = Color32::from_rgb(0x58, 0x65, 0xF2);
@@ -25,7 +25,7 @@ pub fn discord_width(ui: &Ui, large: bool) -> f32 {
 }
 
 /// The Discord button: compact and quiet for the app bar, large for About / Home.
-pub fn discord_button(app: &mut VectorcraftApp, ui: &mut Ui, large: bool) -> egui::Response {
+pub fn discord_button(app: &mut PlumaApp, ui: &mut Ui, large: bool) -> egui::Response {
     let (galley, h, w) = discord_layout(ui, large);
     let icon = h * 0.55;
     let (r, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
@@ -33,7 +33,7 @@ pub fn discord_button(app: &mut VectorcraftApp, ui: &mut Ui, large: bool) -> egu
     let ir = egui::Rect::from_center_size(r.left_center() + vec2(h * 0.35 + icon / 2.0, 0.0), vec2(icon, icon));
     if large {
         // The theme's accent, as the primary buttons use it, so the call to action matches the
-        // rest of the window (and PhotoCraft's, #4684); Discord's colour stays on the app-bar icon.
+        // rest of the window (and Lienzo's, #4684); Discord's colour stays on the app-bar icon.
         let t = Tokens::get(ui.ctx());
         let fill = if resp.hovered() { t.accent } else { t.accent_strong };
         ui.painter().rect_filled(r, CornerRadius::same((h / 2.0) as u8), fill);
@@ -46,7 +46,7 @@ pub fn discord_button(app: &mut VectorcraftApp, ui: &mut Ui, large: bool) -> egu
         icons::paint(ui, "message-circle", ir, DISCORD);
         ui.painter().galley(egui::pos2(ir.right() + h * 0.2, at.y), galley, if resp.hovered() { t.text_strong } else { t.text });
     }
-    let resp = resp.on_hover_text(tl!("Join the ArtCraft community on Discord (discord.gg/artcraft)"));
+    let resp = resp.on_hover_text(tl!("Join the Nodalia community on Discord (discord.gg/artcraft)"));
     if resp.clicked() {
         app.open_link("help.discord");
     }
@@ -55,7 +55,7 @@ pub fn discord_button(app: &mut VectorcraftApp, ui: &mut Ui, large: bool) -> egu
 
 /// One link row: icon, label, opens the command's URL. `centered` drops the icon so the label
 /// alone sits in the middle of the column.
-fn link(app: &mut VectorcraftApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str, centered: bool) {
+fn link(app: &mut PlumaApp, ui: &mut Ui, icon: &str, label: &str, cmd: &str, url: &str, centered: bool) {
     let t = Tokens::get(ui.ctx());
     let button = |ui: &mut Ui| ui.add(egui::Button::new(egui::RichText::new(label).color(t.accent).size(13.0)).frame(false)).on_hover_text(url);
     let r = if centered {
@@ -73,23 +73,23 @@ fn link(app: &mut VectorcraftApp, ui: &mut Ui, icon: &str, label: &str, cmd: &st
 }
 
 /// The Discord button and the website / app page / GitHub links.
-pub fn links(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn links(app: &mut PlumaApp, ui: &mut Ui) {
     links_in(app, ui, false);
 }
 
-/// [`links`] for a centred column (the Home screen's, as PhotoCraft's, #4684): the Discord button
+/// [`links`] for a centred column (the Home screen's, as Lienzo's, #4684): the Discord button
 /// and the links, each in the middle.
-pub fn links_centered(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn links_centered(app: &mut PlumaApp, ui: &mut Ui) {
     links_in(app, ui, true);
 }
 
-fn links_in(app: &mut VectorcraftApp, ui: &mut Ui, centered: bool) {
+fn links_in(app: &mut PlumaApp, ui: &mut Ui, centered: bool) {
     discord_button(app, ui, true);
     ui.add_space(8.0);
     let l = app.session.execute("help.links", &serde_json::json!({})).unwrap_or_default();
     let s = |k: &str| l[k].as_str().unwrap_or("").to_string();
-    link(app, ui, "globe", tl!("ArtCraft website"), "help.website", &s("website"), centered);
-    link(app, ui, "external-link", tl!("VectorCraft on getartcraft.com"), "help.appPage", &s("appPage"), centered);
+    link(app, ui, "globe", tl!("Nodalia website"), "help.website", &s("website"), centered);
+    link(app, ui, "external-link", tl!("Pluma on getnodalia.com"), "help.appPage", &s("appPage"), centered);
     link(app, ui, "git-branch", tl!("Source code on GitHub"), "help.github", &s("github"), centered);
 }
 
@@ -103,22 +103,22 @@ mod tests {
         let opened = Arc::new(Mutex::new(vec![]));
         let o = opened.clone();
         let services = crate::Services { open_url: Some(Box::new(move |u: &str| o.lock().unwrap().push(u.to_string()))), ..Default::default() };
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), services);
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), services);
         for id in ["help.discord", "help.website", "help.appPage", "help.github"] {
             crate::menus::invoke(&mut app, id, serde_json::json!({}));
         }
         assert_eq!(
             *opened.lock().unwrap(),
             [
-                "https://discord.gg/artcraft",
-                "https://getartcraft.com",
-                "https://getartcraft.com/apps/vectorcraft",
-                "https://github.com/storytold/vectorcraft"
+                "https://github.com/getnodalia/pluma/issues",
+                "https://getnodalia.com",
+                "https://getnodalia.com/pluma",
+                "https://github.com/getnodalia/pluma"
             ]
         );
         // The control channel / MCP path returns the URL without opening a browser.
         let v = app.run("help.discord", serde_json::json!({})).unwrap();
-        assert_eq!(v["url"], "https://discord.gg/artcraft");
+        assert_eq!(v["url"], "https://github.com/getnodalia/pluma/issues");
         assert_eq!(opened.lock().unwrap().len(), 4);
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);

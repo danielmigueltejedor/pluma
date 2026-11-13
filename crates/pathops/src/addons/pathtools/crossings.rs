@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveNearest, Point, Rect};
-use vectorcraft_geom::{Anchor, AnchorKind, PathData, SubPath};
+use pluma_geom::{Anchor, AnchorKind, PathData, SubPath};
 
 /// Most segments [`crossings`] compares at once.
 pub const MAX_CROSSING_SEGMENTS: usize = 10_000;

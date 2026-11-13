@@ -1,4 +1,4 @@
-//! Placed documents: another VectorCraft file, or a page of a PDF or `.ai` file, placed linked
+//! Placed documents: another Pluma file, or a page of a PDF or `.ai` file, placed linked
 //! ([`PlacedDocument`]).
 //!
 //! The object keeps the link to the file and the file's bytes, stored like image data in
@@ -20,14 +20,14 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 
+use pluma_geom::{Affine, Rect};
 use serde::{Deserialize, Serialize};
-use vectorcraft_geom::{Affine, Rect};
 
-use vectorcraft_color::Paint;
+use pluma_color::Paint;
 
 use crate::{AppearanceItem, Document, ImageBlob, ImageObject, LinkInfo, Node, NodeKind, PatternDef, PlacementOptions, Symbol};
 
-/// A placed document: an artboard of another VectorCraft file, or a page of a PDF or `.ai` file,
+/// A placed document: an artboard of another Pluma file, or a page of a PDF or `.ai` file,
 /// shown as one locked object.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PlacedDocument {
@@ -39,7 +39,7 @@ pub struct PlacedDocument {
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
     pub bounding: bool,
     /// The box of a PDF or `.ai` page shown when not `bounding` (File › Place's `crop`); a
-    /// VectorCraft document shows its artboard whatever this says.
+    /// Pluma document shows its artboard whatever this says.
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
     pub page_box: PageBox,
     /// The artboard's size (or the art's) at 100% (pt).
@@ -103,9 +103,9 @@ impl PlacedDocument {
     }
 
     /// The four corners of the box in the document.
-    pub fn corners(&self) -> [vectorcraft_geom::Point; 4] {
+    pub fn corners(&self) -> [pluma_geom::Point; 4] {
         let r = self.natural();
-        [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)].map(|(x, y)| self.xf * vectorcraft_geom::Point::new(x, y))
+        [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)].map(|(x, y)| self.xf * pluma_geom::Point::new(x, y))
     }
 
     /// The box in the document (axis-aligned).
@@ -642,7 +642,7 @@ mod tests {
 
     fn placed(key: &str) -> PlacedDocument {
         PlacedDocument {
-            link: LinkInfo::new("/art/logo.vectorcraft"),
+            link: LinkInfo::new("/art/logo.pluma"),
             key: key.into(),
             bounding: false,
             page_box: PageBox::Crop,
@@ -686,7 +686,7 @@ mod tests {
         let n = Node::new(NodeId(3), NodeKind::PlacedDocument(Box::new(placed("doc1-1"))));
         let v = serde_json::to_value(&n).unwrap();
         assert_eq!(v["kind"]["type"], "placeddocument");
-        assert_eq!(v["kind"]["link"]["path"], "/art/logo.vectorcraft");
+        assert_eq!(v["kind"]["link"]["path"], "/art/logo.pluma");
         // The box of a PDF page is written only when it isn't the crop box.
         assert!(v["kind"].get("page_box").is_none(), "{v}");
         let back: Node = serde_json::from_value(v).unwrap();

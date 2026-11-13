@@ -16,8 +16,8 @@
 //! it about that centre, as the Selection tool's rotate zone does; a press anywhere else draws a
 //! new shape (#5477).
 
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use crate::bbox::{move_delta, rotate_for_drag};
 use crate::corners::{self, CornerDrag};
@@ -167,7 +167,7 @@ impl ShapeTool {
 
     /// The selection's box, while this tool shows it (the tools that draw a box, with a selection
     /// and no anchors picked on their own).
-    fn box_of(&self, cx: &ToolContext) -> Option<vectorcraft_doc::OrientedBox> {
+    fn box_of(&self, cx: &ToolContext) -> Option<pluma_doc::OrientedBox> {
         shows_shape_widgets(self.id).then(|| shown_box(cx)).flatten()
     }
 
@@ -318,7 +318,7 @@ impl ShapeTool {
             "lineSegment" => Some(Leave::segment(cx, start, m.shift)),
             // With a Constrain Angle, Shift's square is taken along the rotated axes
             // ([`Self::command_at`]), not the page's diagonal.
-            _ => Some(Leave::diagonal(start, m.shift && vectorcraft_geom::constrain_axes(cx.constrain_angle).is_none())),
+            _ => Some(Leave::diagonal(start, m.shift && pluma_geom::constrain_axes(cx.constrain_angle).is_none())),
         }
     }
 
@@ -338,7 +338,7 @@ impl ShapeTool {
                 let v = p - start;
                 let r = v.hypot().max(0.01);
                 // Shift keeps the base orientation: upright, turned by the Constrain Angle.
-                let rot = if m.shift { vectorcraft_geom::constrain_rotation(base).unwrap_or(0.0) } else { (v.atan2().to_degrees() + 90.0) % 360.0 };
+                let rot = if m.shift { pluma_geom::constrain_rotation(base).unwrap_or(0.0) } else { (v.atan2().to_degrees() + 90.0) % 360.0 };
                 if self.id == "polygon" {
                     ("shape.polygon".into(), json!({ "cx": start.x, "cy": start.y, "radius": r, "sides": self.sides, "rotation": rot }))
                 } else {
@@ -374,7 +374,7 @@ impl ShapeTool {
 /// axes (`None` for the page's own: 0° or a whole turn, where the box is on the page exactly).
 /// The drawn shape and its size label both come from it.
 pub(crate) fn turned_box(start: Point, p: Point, m: Mods, base: f64) -> (Rect, Option<Affine>) {
-    match vectorcraft_geom::constrain_axes(base) {
+    match pluma_geom::constrain_axes(base) {
         None => (drag_rect(start, p, m), None),
         Some(axes) => {
             let back = axes.inverse();
@@ -391,7 +391,7 @@ pub(crate) fn box_params(start: Point, p: Point, m: Mods, base: f64) -> Value {
         (r, None) => json!({ "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height() }),
         (r, Some(axes)) => {
             let c = axes * r.center();
-            let rotation = -vectorcraft_geom::normalize_deg(base);
+            let rotation = -pluma_geom::normalize_deg(base);
             json!({ "x": c.x - r.width() / 2.0, "y": c.y - r.height() / 2.0, "width": r.width(), "height": r.height(), "rotation": rotation })
         }
     }

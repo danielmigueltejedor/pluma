@@ -1,4 +1,4 @@
-//! `cargo run --release -p vectorcraft-engine --example export_bench -- [FORMAT] [FILE…]` — wall
+//! `cargo run --release -p pluma-engine --example export_bench -- [FORMAT] [FILE…]` — wall
 //! time of `document.export` (default SVG) for each file (default: the documents in `examples/`).
 //! `ITERS` sets the runs per file (default 7); prints the median and the fastest run.
 // Example (dev tool): unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
@@ -7,8 +7,8 @@
 use std::path::PathBuf;
 use std::time::Instant;
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -20,7 +20,7 @@ fn main() {
         files.sort();
     }
     let iters: usize = std::env::var("ITERS").ok().and_then(|v| v.parse().ok()).unwrap_or(7).max(1);
-    let out_dir = std::env::temp_dir().join(format!("vectorcraft-export-bench-{}", std::process::id()));
+    let out_dir = std::env::temp_dir().join(format!("pluma-export-bench-{}", std::process::id()));
     std::fs::create_dir_all(&out_dir).unwrap();
     let mut total = 0.0;
     for file in &files {

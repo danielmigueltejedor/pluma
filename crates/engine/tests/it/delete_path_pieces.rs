@@ -1,11 +1,11 @@
 //! Original synthetic geometry for the deletion half of #3380; no external fixtures.
 
+use pluma_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
+use pluma_doc::{Appearance, NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_geom::{Affine, Anchor, PathData, Rect, SubPath};
+use pluma_testkit::{invariants::check_session, raster::render_artboard};
 use serde_json::json;
-use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::{Affine, Anchor, PathData, Rect, SubPath};
-use vectorcraft_testkit::{invariants::check_session, raster::render_artboard};
 
 /// Create the same rectangle for the edited path and its stacking-order neighbors.
 fn rectangle(s: &mut Session) -> NodeId {
@@ -34,9 +34,7 @@ fn deleting_opposite_rectangle_segments_makes_independent_styled_objects_and_und
             n.name = Some("Styled rectangle".into());
             n.opacity = 0.65;
             n.transform(Affine::translate((12.0, 8.0)) * Affine::rotate(0.23) * Affine::scale_non_uniform(1.1, 0.8), true);
-            n.appearance =
-                Appearance::basic(vectorcraft_color::Paint::None, vectorcraft_color::Paint::solid(vectorcraft_color::Color::rgb(0.2, 0.4, 0.8)), 4.0)
-                    .into();
+            n.appearance = Appearance::basic(pluma_color::Paint::None, pluma_color::Paint::solid(pluma_color::Color::rgb(0.2, 0.4, 0.8)), 4.0).into();
         }
         s.execute("select.segments", &json!({"id": id.0, "segments": [[0, 1], [0, 3]]})).unwrap();
         let original = s.doc().unwrap().doc.node(id).unwrap().clone();

@@ -1,9 +1,9 @@
 //! Drawing again only what an edit changed gives the pixels of drawing it all again.
 
 use crate::*;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::Appearance;
-use vectorcraft_geom::{Anchor, PathData, Point, SubPath, Vec2, shapes};
+use pluma_color::{Color, Paint};
+use pluma_doc::Appearance;
+use pluma_geom::{Anchor, PathData, Point, SubPath, Vec2, shapes};
 
 const W: u32 = 160;
 const H: u32 = 120;
@@ -18,8 +18,8 @@ fn rect(d: &mut Document, r: Rect, fill: Color) -> Node {
     Node::path(id, shapes::rectangle(r), Appearance::basic(Paint::solid(fill), Paint::solid(Color::BLACK), 2.0))
 }
 
-fn shadow() -> vectorcraft_doc::Effect {
-    vectorcraft_doc::Effect {
+fn shadow() -> pluma_doc::Effect {
+    pluma_doc::Effect {
         id: "stylize.dropShadow".into(),
         params: serde_json::json!({"x": 6.0, "y": 6.0, "blur": 4.0, "opacity": 75.0}),
         visible: true,
@@ -159,7 +159,7 @@ fn adding_removing_and_restacking_change_those_objects() {
 fn a_part_of_a_frame_draws_a_cropped_blur_from_the_frames_raster() {
     let (mut d, _) = document();
     let mut back = rect(&mut d, Rect::new(0.0, 0.0, 110.0, 80.0), Color::rgb(0.1, 0.3, 0.9));
-    back.appearance.effects.push(vectorcraft_doc::Effect { id: "blur.gaussian".into(), params: serde_json::json!({"radius": 500.0}), visible: true });
+    back.appearance.effects.push(pluma_doc::Effect { id: "blur.gaussian".into(), params: serde_json::json!({"radius": 500.0}), visible: true });
     let l = d.layers[0].id;
     d.insert(Some(l), 0, back).unwrap();
     let view = Affine::scale(2.0) * Affine::translate((-20.0, -15.0));
@@ -183,16 +183,13 @@ fn reshaping_the_path_of_type_on_a_path_changes_where_its_letters_were_and_are()
     let mut old = Document::new(110.0, 80.0);
     let l = old.layers[0].id;
     let on = |y: f64| {
-        let mut t = vectorcraft_doc::text::TextObject::point(
-            Point::ZERO,
-            "Text along a path",
-            vectorcraft_doc::text::CharStyle { size: 14.0, ..Default::default() },
-        );
+        let mut t =
+            pluma_doc::text::TextObject::point(Point::ZERO, "Text along a path", pluma_doc::text::CharStyle { size: 14.0, ..Default::default() });
         let line = kurbo::Line::new((10.0, 60.0), (90.0, y)).to_path(0.1);
-        t.kind = vectorcraft_doc::TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
+        t.kind = pluma_doc::TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
         t.xf = Affine::IDENTITY;
-        // The engine lays out type that changed ([`vectorcraft_doc::TextObject::cached_bounds`]).
-        t.cached_bounds = Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds);
+        // The engine lays out type that changed ([`pluma_doc::TextObject::cached_bounds`]).
+        t.cached_bounds = Some(pluma_text::layout(pluma_text::FontDb::global(), &t).bounds);
         t
     };
     let text = old.insert(Some(l), 0, Node::new(NodeId(0), NodeKind::Text(Box::new(on(55.0))))).unwrap();
@@ -209,16 +206,16 @@ fn reshaping_the_path_of_type_on_a_path_changes_where_its_letters_were_and_are()
 fn moving_type_with_mitred_strokes_changes_where_its_spikes_reach() {
     let mut old = Document::new(110.0, 80.0);
     let l = old.layers[0].id;
-    let style = vectorcraft_doc::text::CharStyle {
+    let style = pluma_doc::text::CharStyle {
         size: 30.0,
         stroke: Paint::solid(Color::BLACK),
         stroke_width: 10.0,
-        stroke_join: vectorcraft_doc::LineJoin::Miter,
+        stroke_join: pluma_doc::LineJoin::Miter,
         stroke_miter_limit: 10.0,
         ..Default::default()
     };
-    let mut t = vectorcraft_doc::text::TextObject::point(Point::new(10.0, 50.0), "VAWV", style);
-    t.cached_bounds = Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds);
+    let mut t = pluma_doc::text::TextObject::point(Point::new(10.0, 50.0), "VAWV", style);
+    t.cached_bounds = Some(pluma_text::layout(pluma_text::FontDb::global(), &t).bounds);
     let text = old.insert(Some(l), 0, Node::new(NodeId(0), NodeKind::Text(Box::new(t)))).unwrap();
     let mut new = old.clone();
     new.node_mut(text).unwrap().transform(Affine::translate((9.0, 7.0)), false);
@@ -231,7 +228,7 @@ fn an_unchanged_document_changes_nothing_and_a_new_symbol_everything() {
     assert_eq!(redraw(&old, &old.clone()), Changed::Nothing);
     let mut new = old.clone();
     let art = Arc::new(rect(&mut new, Rect::new(0.0, 0.0, 5.0, 5.0), Color::BLACK));
-    new.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "Dot".into(), art });
+    new.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Dot".into(), art });
     assert_eq!(redraw(&old, &new), Changed::Everything);
 }
 
@@ -241,7 +238,7 @@ fn an_unchanged_document_changes_nothing_and_a_new_symbol_everything() {
 fn an_edit_while_a_pattern_is_edited_changes_everything() {
     let (mut old, [loose, ..]) = document();
     let l = old.layers[0].id;
-    old.pattern_edit = Some(vectorcraft_doc::PatternEdit { pattern: "Tile".into(), layer: l, original: None });
+    old.pattern_edit = Some(pluma_doc::PatternEdit { pattern: "Tile".into(), layer: l, original: None });
     let mut new = old.clone();
     new.node_mut(loose).unwrap().transform(Affine::translate((7.0, 3.0)), false);
     assert_eq!(changed(&old, &new), Changed::Everything);
@@ -252,16 +249,16 @@ fn an_edit_while_a_pattern_is_edited_changes_everything() {
 fn moving_stretched_type_changes_where_its_stretched_strokes_reach() {
     let mut old = Document::new(110.0, 80.0);
     let l = old.layers[0].id;
-    let style = vectorcraft_doc::text::CharStyle {
+    let style = pluma_doc::text::CharStyle {
         size: 4.0,
         stroke: Paint::solid(Color::BLACK),
         stroke_width: 1.0,
-        stroke_join: vectorcraft_doc::LineJoin::Miter,
+        stroke_join: pluma_doc::LineJoin::Miter,
         stroke_miter_limit: 10.0,
         ..Default::default()
     };
-    let mut t = vectorcraft_doc::text::TextObject::point(Point::ZERO, "VAWV", style);
-    t.cached_bounds = Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds);
+    let mut t = pluma_doc::text::TextObject::point(Point::ZERO, "VAWV", style);
+    t.cached_bounds = Some(pluma_text::layout(pluma_text::FontDb::global(), &t).bounds);
     // Its area stays, so its scale factor is 1, while it grows ten times as wide.
     t.xf = Affine::translate((10.0, 40.0)) * Affine::scale_non_uniform(10.0, 0.1);
     let text = old.insert(Some(l), 0, Node::new(NodeId(0), NodeKind::Text(Box::new(t)))).unwrap();
@@ -373,7 +370,7 @@ fn moving_an_anchor_of_a_stroked_path_changes_as_far_as_its_joints_reach() {
     let (old, id) = long_path(open, FillRule::NonZero, 3.0);
     let mut sq = old.clone();
     if let Some(AppearanceItem::Stroke(s)) = sq.node_mut(id).unwrap().appearance.items.get_mut(1) {
-        s.cap = vectorcraft_doc::LineCap::Square;
+        s.cap = pluma_doc::LineCap::Square;
     }
     let a = area(redraw(&sq, &move_anchor(&sq, id, 279, Vec2::new(5.0, 2.0))));
     assert!(a.width() < 50.0, "{a:?}");
@@ -413,13 +410,12 @@ fn moving_an_anchor_of_a_compound_path_changes_only_round_its_segments() {
 fn a_path_painted_by_its_whole_shape_changes_whole_when_an_anchor_moves() {
     let (plain, id) = long_path(wavy(400, 45.0, 32.0), FillRule::NonZero, 1.0);
     let mut graded = plain.clone();
-    let stops = vec![vectorcraft_color::GradientStop::new(0.0, Color::BLACK), vectorcraft_color::GradientStop::new(1.0, Color::WHITE)];
-    graded.node_mut(id).unwrap().appearance.fill_mut().unwrap().paint = Paint::Gradient(Box::new(vectorcraft_color::GradientPaint::new(
-        vectorcraft_color::Gradient::new(vectorcraft_color::GradientKind::Linear, stops),
-    )));
+    let stops = vec![pluma_color::GradientStop::new(0.0, Color::BLACK), pluma_color::GradientStop::new(1.0, Color::WHITE)];
+    graded.node_mut(id).unwrap().appearance.fill_mut().unwrap().paint =
+        Paint::Gradient(Box::new(pluma_color::GradientPaint::new(pluma_color::Gradient::new(pluma_color::GradientKind::Linear, stops))));
     let mut dashed = plain.clone();
     if let Some(AppearanceItem::Stroke(s)) = dashed.node_mut(id).unwrap().appearance.items.get_mut(1) {
-        s.dash = Some(vectorcraft_doc::Dash { pattern: vec![3.0, 2.0], ..Default::default() });
+        s.dash = Some(pluma_doc::Dash { pattern: vec![3.0, 2.0], ..Default::default() });
     }
     for old in [graded, dashed] {
         let a = area(redraw(&old, &move_anchor(&old, id, 100, Vec2::new(2.0, 2.0))));
@@ -435,7 +431,7 @@ fn a_path_painted_by_its_whole_shape_changes_whole_when_an_anchor_moves() {
 
 /// Changing a 3D effect's parameters on `make`'s object, from `before` to `after`.
 fn three_d_change(make: impl Fn(&mut Document) -> Node, id: &str, before: serde_json::Value, after: serde_json::Value) -> Changed {
-    let effect = |params: serde_json::Value| vectorcraft_doc::Effect { id: id.into(), params, visible: true };
+    let effect = |params: serde_json::Value| pluma_doc::Effect { id: id.into(), params, visible: true };
     let mut old = Document::new(110.0, 80.0);
     let l = old.layers[0].id;
     let mut n = make(&mut old);
@@ -450,7 +446,7 @@ fn three_d_change(make: impl Fn(&mut Document) -> Node, id: &str, before: serde_
 /// shallower or turned solid changes where the deeper one drew too.
 #[test]
 fn a_3d_effect_changed_on_type_or_a_group_changes_where_its_solid_was() {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let blue = Color::rgb(0.1, 0.2, 0.6);
     let type_k = move |d: &mut Document| {
         let style = CharStyle { size: 30.0, fill: Paint::solid(blue), ..Default::default() };
@@ -477,9 +473,9 @@ fn a_3d_effect_changed_on_type_or_a_group_changes_where_its_solid_was() {
         let style = CharStyle { size: 14.0, fill: Paint::solid(blue), ..Default::default() };
         let mut t = TextObject::point(Point::ZERO, "Along", style);
         let line = kurbo::Line::new((30.0, 55.0), (80.0, 35.0)).to_path(0.1);
-        t.kind = vectorcraft_doc::TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
+        t.kind = pluma_doc::TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
         t.xf = Affine::IDENTITY;
-        t.cached_bounds = Some(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t).bounds);
+        t.cached_bounds = Some(pluma_text::layout(pluma_text::FontDb::global(), &t).bounds);
         Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)))
     };
     let hiding = move |d: &mut Document| {
@@ -508,11 +504,11 @@ fn a_3d_effect_changed_on_type_or_a_group_changes_where_its_solid_was() {
 /// makes the art again to draw it.
 #[test]
 fn a_renderer_measures_an_edit_with_the_3d_art_it_draws() {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let mut old = Document::new(110.0, 80.0);
     let style = CharStyle { size: 30.0, fill: Paint::solid(Color::rgb(0.1, 0.2, 0.6)), ..Default::default() };
     let mut n = Node::new(old.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(40.0, 50.0), "K", style))));
-    let extrude = |depth: f64| vectorcraft_doc::Effect {
+    let extrude = |depth: f64| pluma_doc::Effect {
         id: "threeD.extrude".into(),
         params: serde_json::json!({"depth": depth, "position": "isometricTop"}),
         visible: true,
@@ -548,7 +544,7 @@ fn traced(view: &str) -> (Document, NodeId, NodeId, NodeId) {
     let mut png = vec![];
     let red = image::RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
     red.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    d.images.insert("red".into(), vectorcraft_doc::ImageBlob::new("image/png", png));
+    d.images.insert("red".into(), pluma_doc::ImageBlob::new("image/png", png));
     let source = red_image(&mut d, 10.0);
     let a = rect(&mut d, Rect::new(60.0, 10.0, 70.0, 20.0), Color::rgb(0.0, 0.5, 0.0));
     let b = rect(&mut d, Rect::new(80.0, 10.0, 90.0, 20.0), Color::rgb(1.0, 0.5, 0.0));
@@ -563,7 +559,7 @@ fn traced(view: &str) -> (Document, NodeId, NodeId, NodeId) {
 /// A hidden 30 pt square of the red image at (`x`, 10), as an Image Trace object's source.
 fn red_image(d: &mut Document, x: f64) -> Node {
     let xf = Affine::translate((x, 10.0)) * Affine::scale(30.0);
-    let im = vectorcraft_doc::ImageObject { key: "red".into(), width: 1, height: 1, xf, link: None, placement: Default::default(), pixels: None };
+    let im = pluma_doc::ImageObject { key: "red".into(), width: 1, height: 1, xf, link: None, placement: Default::default(), pixels: None };
     let mut source = Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)));
     source.visible = false;
     source
@@ -642,7 +638,7 @@ fn recolouring_a_traced_shape_changes_only_the_shape() {
 #[test]
 fn an_edit_to_what_the_view_hides_changes_nothing() {
     let mut old = Document::new(W as f64, H as f64);
-    let template = Node::layer(old.alloc_id(), "Template", vectorcraft_doc::LayerColor::Preset(1));
+    let template = Node::layer(old.alloc_id(), "Template", pluma_doc::LayerColor::Preset(1));
     let template = old.insert(None, usize::MAX, template).unwrap();
     if let Some(NodeKind::Layer { template: t, .. }) = old.node_mut(template).map(|n| &mut n.kind) {
         *t = true;
@@ -671,11 +667,11 @@ fn an_edit_to_what_the_view_hides_changes_nothing() {
 /// made to measure it, and as [`changed`] does.
 #[test]
 fn an_edit_measured_under_overprint_holds_no_art() {
-    use vectorcraft_doc::{CharStyle, TextObject};
+    use pluma_doc::{CharStyle, TextObject};
     let mut old = Document::new(110.0, 80.0);
     let style = CharStyle { size: 30.0, fill: Paint::solid(Color::rgb(0.1, 0.2, 0.6)), ..Default::default() };
     let mut n = Node::new(old.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(40.0, 50.0), "K", style))));
-    let extrude = |depth: f64| vectorcraft_doc::Effect {
+    let extrude = |depth: f64| pluma_doc::Effect {
         id: "threeD.extrude".into(),
         params: serde_json::json!({"depth": depth, "position": "isometricTop"}),
         visible: true,
@@ -705,7 +701,7 @@ fn an_edit_measured_under_overprint_holds_no_art() {
 /// instance changes nothing there, and changes where it draws in an export.
 #[test]
 fn an_edit_to_the_instance_symbol_editing_came_from_changes_nothing_on_screen() {
-    use vectorcraft_doc::{Symbol, SymbolEdit};
+    use pluma_doc::{Symbol, SymbolEdit};
     let mut old = Document::new(W as f64, H as f64);
     let art = rect(&mut old, Rect::new(20.0, 20.0, 50.0, 50.0), Color::rgb(0.0, 0.5, 0.0));
     old.symbols.push(Symbol { dynamic: false, name: "Square".into(), art: Arc::new(art.clone()) });

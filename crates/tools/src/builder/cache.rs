@@ -65,7 +65,7 @@ fn build_map(shapes: Vec<po::Shape>, live: bool, gap: f64) -> BuilderMap {
 #[cfg(not(target_arch = "wasm32"))]
 fn spawn_build(shapes: Vec<po::Shape>, live: bool, gap: f64) -> Option<Receiver<BuilderMap>> {
     let (tx, done) = std::sync::mpsc::channel();
-    let spawned = std::thread::Builder::new().name("vectorcraft-region-map".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("pluma-region-map".into()).spawn(move || {
         // The tool may have dropped the receiver meanwhile (another tool, another selection).
         let _ = tx.send(build_map(shapes, live, gap));
     });

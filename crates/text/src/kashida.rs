@@ -11,7 +11,7 @@
 
 use std::ops::Range;
 
-use vectorcraft_doc::text::Kashida;
+use pluma_doc::text::Kashida;
 
 use crate::shape::SGlyph;
 

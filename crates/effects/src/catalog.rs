@@ -204,7 +204,7 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             CLASSIC_EXTRUDE,
             "Extrude & Bevel (Classic)…",
             &["Effect", "3D and Materials", "3D (Classic)"],
-            "{depth: pt (0..2000, 50), cap: bool (true: solid; false: hollow), bevel: none|classic|rounded|cove|step|ogee (none), bevelHeight: pt (1..100, 4; the bevel is as wide as it is tall), bevelInside: bool (false: added around the shape; true: carved into it), rotationX: degrees (-180..180, -21.88), rotationY: degrees (-180..180, -23.4), rotationZ: degrees (-180..180, 9.06; the defaults are the Off-Axis Front position), perspectiveAngle: degrees (0..160, 0; 0 is none, wider brings the eye nearer), surface: wireframe|none|diffuse|plastic (plastic; wireframe draws the edges of every face, hidden ones included, and fills none; none keeps the paint unlit; diffuse lights the faces softly; plastic adds a glossy highlight), lights: null or array of 1..10 objects (intensity: % 0..100, rotation: degrees -180..180, height: degrees 0..90, behind: bool; overrides the single-light fields; the lights add up; color and softness are not used), lightRotation: degrees (-180..180, 125.26; round the object on the page, 0 on its right, counterclockwise), lightHeight: degrees (0..90, 30; 0 beside the object, 90 straight in front), lightBehind: bool (false; true lights it from behind), lightIntensity: % (0..100, 100), ambient: % (0..100, 50; Ambient Light, every face whichever way it faces), highlightIntensity: % (0..100, 60; plastic only), highlightSize: % (0..100, 90; 100 broad, 0 a small spot; plastic only), blendSteps: integer (1..256, 25; how many levels the shading and the highlight are rounded to), shadingColor: black|custom|none (black; the color the faces darken toward; none keeps the paint and adds only the highlight), shadingCustom: #rrggbb (#000000; the color shadingColor custom darkens toward), drawHiddenFaces: bool (false; also draws the faces turned away, behind the others)}. The front face is the art, extruded backwards about the center of its bounds; a solid is built for the top fill and for each stroke, each in its own paint. The defaults are VectorCraft's own.",
+            "{depth: pt (0..2000, 50), cap: bool (true: solid; false: hollow), bevel: none|classic|rounded|cove|step|ogee (none), bevelHeight: pt (1..100, 4; the bevel is as wide as it is tall), bevelInside: bool (false: added around the shape; true: carved into it), rotationX: degrees (-180..180, -21.88), rotationY: degrees (-180..180, -23.4), rotationZ: degrees (-180..180, 9.06; the defaults are the Off-Axis Front position), perspectiveAngle: degrees (0..160, 0; 0 is none, wider brings the eye nearer), surface: wireframe|none|diffuse|plastic (plastic; wireframe draws the edges of every face, hidden ones included, and fills none; none keeps the paint unlit; diffuse lights the faces softly; plastic adds a glossy highlight), lights: null or array of 1..10 objects (intensity: % 0..100, rotation: degrees -180..180, height: degrees 0..90, behind: bool; overrides the single-light fields; the lights add up; color and softness are not used), lightRotation: degrees (-180..180, 125.26; round the object on the page, 0 on its right, counterclockwise), lightHeight: degrees (0..90, 30; 0 beside the object, 90 straight in front), lightBehind: bool (false; true lights it from behind), lightIntensity: % (0..100, 100), ambient: % (0..100, 50; Ambient Light, every face whichever way it faces), highlightIntensity: % (0..100, 60; plastic only), highlightSize: % (0..100, 90; 100 broad, 0 a small spot; plastic only), blendSteps: integer (1..256, 25; how many levels the shading and the highlight are rounded to), shadingColor: black|custom|none (black; the color the faces darken toward; none keeps the paint and adds only the highlight), shadingCustom: #rrggbb (#000000; the color shadingColor custom darkens toward), drawHiddenFaces: bool (false; also draws the faces turned away, behind the others)}. The front face is the art, extruded backwards about the center of its bounds; a solid is built for the top fill and for each stroke, each in its own paint. The defaults are Pluma's own.",
             json!({"depth":50.0,"cap":true,"bevel":"none","bevelHeight":4.0,"bevelInside":false,"rotationX":-21.88,"rotationY":-23.4,"rotationZ":9.06,"perspectiveAngle":0.0,"surface":"plastic","lights":null,"lightRotation":125.26438968275465,"lightHeight":30.0,"lightBehind":false,"lightIntensity":100.0,"ambient":50.0,"highlightIntensity":60.0,"highlightSize":90.0,"blendSteps":25,"shadingColor":"black","shadingCustom":"#000000","drawHiddenFaces":false}),
         ),
         g(
@@ -327,77 +327,77 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "artistic.coloredPencil",
             "Colored Pencil…",
             ARTISTIC,
-            "{pencilWidth: 1..24 (5; stroke spacing in document units), strokePressure: 0..15 (5; how heavily the strokes darken), paperBrightness: 0..50 (25; lifts lighter areas toward the paper)} redraws the object in coloured pencil strokes along its edges, keeping its hues and coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{pencilWidth: 1..24 (5; stroke spacing in document units), strokePressure: 0..15 (5; how heavily the strokes darken), paperBrightness: 0..50 (25; lifts lighter areas toward the paper)} redraws the object in coloured pencil strokes along its edges, keeping its hues and coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"pencilWidth": 5.0, "strokePressure": 5.0, "paperBrightness": 25.0}),
         ),
         r(
             "artistic.cutout",
             "Cutout…",
             ARTISTIC,
-            "{levels: 2..8 (4; steps per colour channel: more levels, more flat colours), edgeSimplicity: 0..10 (4; simpler, smoother edges), edgeFidelity: 1..3 (2; keeps more of the edges' detail)} redraws the object as flat pieces of coloured paper, each piece painted in the average colour that falls into it, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{levels: 2..8 (4; steps per colour channel: more levels, more flat colours), edgeSimplicity: 0..10 (4; simpler, smoother edges), edgeFidelity: 1..3 (2; keeps more of the edges' detail)} redraws the object as flat pieces of coloured paper, each piece painted in the average colour that falls into it, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"levels": 4.0, "edgeSimplicity": 4.0, "edgeFidelity": 2.0}),
         ),
         r(
             "artistic.dryBrush",
             "Dry Brush…",
             ARTISTIC,
-            "{brushSize: 1..10 (2; length of the brush strokes), brushDetail: 0..10 (10; more detail keeps finer structure), texture: 1..3 (1; stronger edges and bristle grain at 3)} repaints the object with short strokes along its form and darkens its edges, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{brushSize: 1..10 (2; length of the brush strokes), brushDetail: 0..10 (10; more detail keeps finer structure), texture: 1..3 (1; stronger edges and bristle grain at 3)} repaints the object with short strokes along its form and darkens its edges, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"brushSize": 2.0, "brushDetail": 10.0, "texture": 1.0}),
         ),
         r(
             "artistic.filmGrain",
             "Film Grain…",
             ARTISTIC,
-            "{grain: 0..20 (4; monochrome noise in shadows and midtones), highlightArea: 0..20 (0; widens the bright highlight area), intensity: 0..10 (10; highlight strength and quieter highlight grain)}. Smooth document-space grain follows translations; minification uses approximate footprint filtering. Coverage and pure white are preserved; black takes light speckles, and saturated colour channels may clip. Grain 0 with either highlightArea 0 or intensity 0 leaves the art unchanged. Original visual approximation; chosen VectorCraft defaults.",
+            "{grain: 0..20 (4; monochrome noise in shadows and midtones), highlightArea: 0..20 (0; widens the bright highlight area), intensity: 0..10 (10; highlight strength and quieter highlight grain)}. Smooth document-space grain follows translations; minification uses approximate footprint filtering. Coverage and pure white are preserved; black takes light speckles, and saturated colour channels may clip. Grain 0 with either highlightArea 0 or intensity 0 leaves the art unchanged. Original visual approximation; chosen Pluma defaults.",
             json!({"grain": 4.0, "highlightArea": 0.0, "intensity": 10.0}),
         ),
         r(
             "artistic.fresco",
             "Fresco…",
             ARTISTIC,
-            "{brushSize: 1..10 (2; wider brush dabs), brushDetail: 0..10 (10; sharper edges and less smoothing), texture: 1..3 (1; deeper plaster relief)} repaints the object as coarse pigment on a textured wall, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{brushSize: 1..10 (2; wider brush dabs), brushDetail: 0..10 (10; sharper edges and less smoothing), texture: 1..3 (1; deeper plaster relief)} repaints the object as coarse pigment on a textured wall, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"brushSize": 2.0, "brushDetail": 10.0, "texture": 1.0}),
         ),
         r(
             "artistic.neonGlow",
             "Neon Glow…",
             ARTISTIC,
-            "{glowSize: -24..24 (5; above 0 the light areas glow, below 0 the dark ones; farther from 0 spreads the glow wider), glowBrightness: 0..50 (15; a stronger glow over dimmer greys), color: \"#rrggbb\" (\"#4da6ff\"; the glow's colour)} redraws the object in greys lit by a coloured glow, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{glowSize: -24..24 (5; above 0 the light areas glow, below 0 the dark ones; farther from 0 spreads the glow wider), glowBrightness: 0..50 (15; a stronger glow over dimmer greys), color: \"#rrggbb\" (\"#4da6ff\"; the glow's colour)} redraws the object in greys lit by a coloured glow, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"glowSize": 5.0, "glowBrightness": 15.0, "color": "#4da6ff"}),
         ),
         r(
             "artistic.paintDaubs",
             "Paint Daubs…",
             ARTISTIC,
-            "{brushSize: 1..50 (10; dab centres farther apart), sharpness: 0..40 (25; harder dab edges), brushType: \"simple\"|\"lightRough\"|\"darkRough\"|\"wideSharp\"|\"wideBlurry\"|\"sparkle\" (\"simple\")} repaints the object with thick round brush dabs in the local colours, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{brushSize: 1..50 (10; dab centres farther apart), sharpness: 0..40 (25; harder dab edges), brushType: \"simple\"|\"lightRough\"|\"darkRough\"|\"wideSharp\"|\"wideBlurry\"|\"sparkle\" (\"simple\")} repaints the object with thick round brush dabs in the local colours, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"brushSize": 10.0, "sharpness": 25.0, "brushType": "simple"}),
         ),
         r(
             "artistic.paletteKnife",
             "Palette Knife…",
             ARTISTIC,
-            "{strokeSize: 1..50 (10; length of the knife strokes in document units), strokeDetail: 1..3 (2; more detail keeps more of the original), softness: 0..10 (3; softens the strokes)} smears the object's colours with short angled knife strokes, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{strokeSize: 1..50 (10; length of the knife strokes in document units), strokeDetail: 1..3 (2; more detail keeps more of the original), softness: 0..10 (3; softens the strokes)} smears the object's colours with short angled knife strokes, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"strokeSize": 10.0, "strokeDetail": 2.0, "softness": 3.0}),
         ),
         r(
             "artistic.plasticWrap",
             "Plastic Wrap…",
             ARTISTIC,
-            "{highlightStrength: 0..20 (20; brighter specular highlights), detail: 0..15 (12; finer wrinkles in document space), smoothness: 1..15 (15; softer folds)} coats the object in shiny plastic, keeping its coverage. highlightStrength 0 leaves the art unchanged. Original visual approximation; chosen VectorCraft defaults.",
+            "{highlightStrength: 0..20 (20; brighter specular highlights), detail: 0..15 (12; finer wrinkles in document space), smoothness: 1..15 (15; softer folds)} coats the object in shiny plastic, keeping its coverage. highlightStrength 0 leaves the art unchanged. Original visual approximation; chosen Pluma defaults.",
             json!({"highlightStrength": 20.0, "detail": 12.0, "smoothness": 15.0}),
         ),
         r(
             "artistic.posterEdges",
             "Poster Edges…",
             ARTISTIC,
-            "{edgeThickness: 0..10 (2; wider lines), edgeIntensity: 0..10 (1; darker lines, on fainter edges too), posterization: 0..6 (2; posterization + 2 levels per colour channel)} reduces the object's colours and draws black lines on its edges, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{edgeThickness: 0..10 (2; wider lines), edgeIntensity: 0..10 (1; darker lines, on fainter edges too), posterization: 0..6 (2; posterization + 2 levels per colour channel)} reduces the object's colours and draws black lines on its edges, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"edgeThickness": 2.0, "edgeIntensity": 1.0, "posterization": 2.0}),
         ),
         r(
             "artistic.roughPastels",
             "Rough Pastels…",
             ARTISTIC,
-            "{strokeLength: 0..40 (6; longer pastel strokes), strokeDetail: 1..20 (10; bristle texture along the strokes), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false)} repaints the object in soft diagonal pastel strokes over a textured surface, keeping its coverage. Slider ranges follow the documented controls; numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults.",
+            "{strokeLength: 0..40 (6; longer pastel strokes), strokeDetail: 1..20 (10; bristle texture along the strokes), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false)} repaints the object in soft diagonal pastel strokes over a textured surface, keeping its coverage. Slider ranges follow the documented controls; numeric defaults are chosen for Pluma and are not verified against proprietary defaults.",
             json!({
                 "strokeLength": 6.0,
                 "strokeDetail": 10.0,
@@ -412,21 +412,21 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "artistic.smudgeStick",
             "Smudge Stick…",
             ARTISTIC,
-            "{strokeLength: 0..10 (2; length of the short diagonal strokes), highlightArea: 0..20 (12; widens the area counted as light), intensity: 0..10 (10; how far the light areas are lightened)} smudges the dark areas along short diagonal strokes; the lighter areas become brighter and lose detail. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{strokeLength: 0..10 (2; length of the short diagonal strokes), highlightArea: 0..20 (12; widens the area counted as light), intensity: 0..10 (10; how far the light areas are lightened)} smudges the dark areas along short diagonal strokes; the lighter areas become brighter and lose detail. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"strokeLength": 2.0, "highlightArea": 12.0, "intensity": 10.0}),
         ),
         r(
             "artistic.sponge",
             "Sponge…",
             ARTISTIC,
-            "{brushSize: 0..10 (2; size of the sponge's pores), definition: 0..25 (12; how strongly lighter and darker blobs contrast), smoothness: 1..15 (5; softer blob edges)} paints the object as if dabbed with a sponge, in highly textured areas of contrasting colour. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{brushSize: 0..10 (2; size of the sponge's pores), definition: 0..25 (12; how strongly lighter and darker blobs contrast), smoothness: 1..15 (5; softer blob edges)} paints the object as if dabbed with a sponge, in highly textured areas of contrasting colour. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"brushSize": 2.0, "definition": 12.0, "smoothness": 5.0}),
         ),
         r(
             "artistic.underpainting",
             "Underpainting…",
             ARTISTIC,
-            "{brushSize: 0..40 (6; wider, softer strokes), textureCoverage: 0..40 (16; more of the relief texture on the strokes), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; surfaces made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} paints the object with broad strokes over a textured ground, keeping its coverage. Slider ranges follow the documented controls; numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults. Original visual approximation.",
+            "{brushSize: 0..40 (6; wider, softer strokes), textureCoverage: 0..40 (16; more of the relief texture on the strokes), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; surfaces made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} paints the object with broad strokes over a textured ground, keeping its coverage. Slider ranges follow the documented controls; numeric defaults are chosen for Pluma and are not verified against proprietary defaults. Original visual approximation.",
             json!({
                 "brushSize": 6.0,
                 "textureCoverage": 16.0,
@@ -441,7 +441,7 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "artistic.watercolor",
             "Watercolor…",
             ARTISTIC,
-            "{brushDetail: 1..14 (9; the larger, the more detail stays), shadowIntensity: 0..10 (1; deepens the shadows), texture: 1..3 (1; paper grain, whole numbers)} paints the object in a watercolor style: detail simplified, colour saturated and darker where tones change at edges. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{brushDetail: 1..14 (9; the larger, the more detail stays), shadowIntensity: 0..10 (1; deepens the shadows), texture: 1..3 (1; paper grain, whole numbers)} paints the object in a watercolor style: detail simplified, colour saturated and darker where tones change at edges. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"brushDetail": 9.0, "shadowIntensity": 1.0, "texture": 1.0}),
         ),
         r(
@@ -546,35 +546,35 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "sketch.basRelief",
             "Bas Relief…",
             SKETCH,
-            "{detail: 1..15 (13; the larger, the finer the features that stay), smoothness: 1..15 (3; rounds the carving), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"bottom\"; where the light comes from)} carves the object in low relief in black and white: surfaces facing the light turn white, those turned away black, flat areas grey. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{detail: 1..15 (13; the larger, the finer the features that stay), smoothness: 1..15 (3; rounds the carving), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"bottom\"; where the light comes from)} carves the object in low relief in black and white: surfaces facing the light turn white, those turned away black, flat areas grey. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"detail": 13.0, "smoothness": 3.0, "lightDirection": "bottom"}),
         ),
         r(
             "sketch.chalkCharcoal",
             "Chalk & Charcoal…",
             SKETCH,
-            "{chalkArea: 0..20 (6; chalk in light areas), charcoalArea: 0..20 (6; charcoal in dark areas), strokePressure: 0..5 (2)} redraws the object with chalk highlights and charcoal strokes on white paper, keeping its coverage. Original visual approximation from public documentation; slider ranges and defaults are VectorCraft choices, not verified proprietary values.",
+            "{chalkArea: 0..20 (6; chalk in light areas), charcoalArea: 0..20 (6; charcoal in dark areas), strokePressure: 0..5 (2)} redraws the object with chalk highlights and charcoal strokes on white paper, keeping its coverage. Original visual approximation from public documentation; slider ranges and defaults are Pluma choices, not verified proprietary values.",
             json!({"chalkArea": 6.0, "charcoalArea": 6.0, "strokePressure": 2.0}),
         ),
         r(
             "sketch.charcoal",
             "Charcoal…",
             SKETCH,
-            "{thickness: 1..7 (1; width of the bold edges and of the strokes' spacing), detail: 0..5 (1; the larger, the finer the edges), lightDarkBalance: 0..100 (50; how far into the lights the charcoal reaches)} redraws the object in black charcoal on white paper: bold edges and diagonal strokes over the midtones. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{thickness: 1..7 (1; width of the bold edges and of the strokes' spacing), detail: 0..5 (1; the larger, the finer the edges), lightDarkBalance: 0..100 (50; how far into the lights the charcoal reaches)} redraws the object in black charcoal on white paper: bold edges and diagonal strokes over the midtones. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"thickness": 1.0, "detail": 1.0, "lightDarkBalance": 50.0}),
         ),
         r(
             "sketch.chrome",
             "Chrome…",
             SKETCH,
-            "{detail: 0..10 (4; finer surface texture), smoothness: 0..10 (4; softer relief before the highlights and shadows)} treats the object as polished chrome lit from the top left: bright highlights on high points and dark shadows in low ones, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{detail: 0..10 (4; finer surface texture), smoothness: 0..10 (4; softer relief before the highlights and shadows)} treats the object as polished chrome lit from the top left: bright highlights on high points and dark shadows in low ones, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"detail": 4.0, "smoothness": 4.0}),
         ),
         r(
             "sketch.conteCrayon",
             "Conté Crayon…",
             SKETCH,
-            "{foregroundLevel: 0..20 (12; how far the black crayon reaches from the shadows into the midtones), backgroundLevel: 0..20 (10; how far the white crayon reaches from the highlights into the midtones), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; the paper's surface, made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} redraws the object in a dense black crayon in its dark areas and a pure white crayon in its light areas, on mid-grey paper whose texture breaks the strokes and stands in relief, keeping its coverage. Public help names Foreground Level, Background Level and the texture options but not slider ranges or dialog defaults; ranges and defaults here are unverified VectorCraft choices. Original visual approximation, not a proprietary reproduction.",
+            "{foregroundLevel: 0..20 (12; how far the black crayon reaches from the shadows into the midtones), backgroundLevel: 0..20 (10; how far the white crayon reaches from the highlights into the midtones), texture: \"brick\"|\"burlap\"|\"canvas\"|\"sandstone\" (\"canvas\"; the paper's surface, made in code), scaling: % 50..200 (100), relief: 0..50 (4), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\"), invert: bool (false; turns the surface's heights over)} redraws the object in a dense black crayon in its dark areas and a pure white crayon in its light areas, on mid-grey paper whose texture breaks the strokes and stands in relief, keeping its coverage. Public help names Foreground Level, Background Level and the texture options but not slider ranges or dialog defaults; ranges and defaults here are unverified Pluma choices. Original visual approximation, not a proprietary reproduction.",
             json!({
                 "foregroundLevel": 12.0,
                 "backgroundLevel": 10.0,
@@ -596,56 +596,56 @@ pub fn effect_catalog() -> Vec<EffectInfo> {
             "sketch.halftonePattern",
             "Halftone Pattern…",
             SKETCH,
-            "{size: pt 1..12 (1; how far apart the screen's dots, rings or lines are), contrast: 0..50 (5; 50 draws pure black and white), patternType: \"circle\"|\"dot\"|\"line\" (\"dot\"; rings round the object's centre, dots on a square grid, horizontal lines)} redraws the object in black ink on white paper through a halftone screen whose ink covers as much as the colour is dark, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults (the public help pages give no numbers).",
+            "{size: pt 1..12 (1; how far apart the screen's dots, rings or lines are), contrast: 0..50 (5; 50 draws pure black and white), patternType: \"circle\"|\"dot\"|\"line\" (\"dot\"; rings round the object's centre, dots on a square grid, horizontal lines)} redraws the object in black ink on white paper through a halftone screen whose ink covers as much as the colour is dark, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for Pluma and are not verified against proprietary defaults (the public help pages give no numbers).",
             json!({"size": 1.0, "contrast": 5.0, "patternType": "dot"}),
         ),
         r(
             "sketch.notePaper",
             "Note Paper…",
             SKETCH,
-            "{imageBalance: 0..50 (25; lower tones darken the emboss, higher lighten it), graininess: 0..10 (0; fibrous paper texture), relief: 0..50 (4; emboss strength in points)} embosses the object's tones on warm paper, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for VectorCraft and are not verified against proprietary defaults (the public help pages give no numbers).",
+            "{imageBalance: 0..50 (25; lower tones darken the emboss, higher lighten it), graininess: 0..10 (0; fibrous paper texture), relief: 0..50 (4; emboss strength in points)} embosses the object's tones on warm paper, keeping its coverage. Original visual approximation from the public Sketch effects reference; slider ranges follow the documented control names, numeric defaults are chosen for Pluma and are not verified against proprietary defaults (the public help pages give no numbers).",
             json!({"imageBalance": 25.0, "graininess": 0.0, "relief": 4.0}),
         ),
         r(
             "sketch.photocopy",
             "Photocopy…",
             SKETCH,
-            "{detail: 1..24 (7; the larger, the finer the features that copy), darkness: 1..50 (25; the larger, the more of the dark copies)} copies the object in black on white: large dark areas copy only around their edges and midtones go to black or white. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{detail: 1..24 (7; the larger, the finer the features that copy), darkness: 1..50 (25; the larger, the more of the dark copies)} copies the object in black on white: large dark areas copy only around their edges and midtones go to black or white. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"detail": 7.0, "darkness": 25.0}),
         ),
         r(
             "sketch.plaster",
             "Plaster…",
             SKETCH,
-            "{imageBalance: 1..50 (20; higher values sink more of the image), smoothness: 1..15 (8; higher values soften the relief), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\")} molds the object in relief plaster and lights it from that direction; dark areas are raised and light areas recessed, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{imageBalance: 1..50 (20; higher values sink more of the image), smoothness: 1..15 (8; higher values soften the relief), lightDirection: \"bottom\"|\"bottomLeft\"|\"left\"|\"topLeft\"|\"top\"|\"topRight\"|\"right\"|\"bottomRight\" (\"top\")} molds the object in relief plaster and lights it from that direction; dark areas are raised and light areas recessed, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"imageBalance": 20.0, "smoothness": 8.0, "lightDirection": "top"}),
         ),
         r(
             "sketch.reticulation",
             "Reticulation…",
             SKETCH,
-            "{density: 0..50 (12; finer grain at higher values), foregroundLevel: 0..50 (6; pulls shadows toward black ink), backgroundLevel: 0..50 (6; pulls highlights toward white paper)} redraws the object in black ink on white paper through a high-contrast film-grain screen, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{density: 0..50 (12; finer grain at higher values), foregroundLevel: 0..50 (6; pulls shadows toward black ink), backgroundLevel: 0..50 (6; pulls highlights toward white paper)} redraws the object in black ink on white paper through a high-contrast film-grain screen, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"density": 12.0, "foregroundLevel": 6.0, "backgroundLevel": 6.0}),
         ),
         r(
             "sketch.stamp",
             "Stamp…",
             SKETCH,
-            "{lightDarkBalance: 0..50 (25; the larger, the more of the object prints black), smoothness: 1..50 (5; rounds the shapes)} simplifies the object to solid black and white, as a rubber stamp would print it. Coverage is kept. Original visual approximation; chosen VectorCraft defaults.",
+            "{lightDarkBalance: 0..50 (25; the larger, the more of the object prints black), smoothness: 1..50 (5; rounds the shapes)} simplifies the object to solid black and white, as a rubber stamp would print it. Coverage is kept. Original visual approximation; chosen Pluma defaults.",
             json!({"lightDarkBalance": 25.0, "smoothness": 5.0}),
         ),
         r(
             "sketch.tornEdges",
             "Torn Edges…",
             SKETCH,
-            "{imageBalance: 0..50 (25; lower leaves more midtones as ink, higher as paper), smoothness: 0..15 (11; softens tones and the ragged edges), contrast: 0..20 (17; 20 is pure black and white)} redraws the object in high-contrast black and white with torn, ragged edges along its tones, keeping its coverage. Original visual approximation; chosen VectorCraft defaults.",
+            "{imageBalance: 0..50 (25; lower leaves more midtones as ink, higher as paper), smoothness: 0..15 (11; softens tones and the ragged edges), contrast: 0..20 (17; 20 is pure black and white)} redraws the object in high-contrast black and white with torn, ragged edges along its tones, keeping its coverage. Original visual approximation; chosen Pluma defaults.",
             json!({"imageBalance": 25.0, "smoothness": 11.0, "contrast": 17.0}),
         ),
         r(
             "sketch.waterPaper",
             "Water Paper…",
             SKETCH,
-            "{fiberLength: pt 3..50 (15; scale of paper fibers and blotchy daubs), brightness: 0..100 (50), contrast: 0..100 (50)} washes the object's colours as if painted on damp fibrous paper, with soft flow and a fibrous modulation. Public helpx names Fiber Length, Brightness and Contrast but not slider ranges or dialog defaults; ranges and defaults here are unverified VectorCraft choices. Original visual approximation, not a proprietary reproduction.",
+            "{fiberLength: pt 3..50 (15; scale of paper fibers and blotchy daubs), brightness: 0..100 (50), contrast: 0..100 (50)} washes the object's colours as if painted on damp fibrous paper, with soft flow and a fibrous modulation. Public helpx names Fiber Length, Brightness and Contrast but not slider ranges or dialog defaults; ranges and defaults here are unverified Pluma choices. Original visual approximation, not a proprietary reproduction.",
             json!({"fiberLength": 15.0, "brightness": 50.0, "contrast": 50.0}),
         ),
         r(
@@ -858,8 +858,8 @@ pub fn effect_info(id: &str) -> Option<EffectInfo> {
 
 /// The catalogue entry of the installed effect plug-in with effect id `id` (`plugin.<id>`).
 pub(crate) fn plugin_info(id: &str) -> Option<EffectInfo> {
-    use vectorcraft_plugins::registry::intern;
-    let p = vectorcraft_plugins::effect::installed(id)?;
+    use pluma_plugins::registry::intern;
+    let p = pluma_plugins::effect::installed(id)?;
     let m = p.manifest();
     let dots = if m.params.is_empty() || m.name.ends_with('…') { "" } else { "…" };
     Some(EffectInfo {
@@ -875,5 +875,5 @@ pub(crate) fn plugin_info(id: &str) -> Option<EffectInfo> {
 
 /// The installed effect plug-ins as catalogue entries (Effect › Plug-ins), by plug-in id.
 pub fn plugin_effects() -> Vec<EffectInfo> {
-    vectorcraft_plugins::registry::list().iter().filter_map(|p| plugin_info(&vectorcraft_plugins::effect::effect_id(p.id()))).collect()
+    pluma_plugins::registry::list().iter().filter_map(|p| plugin_info(&pluma_plugins::effect::effect_id(p.id()))).collect()
 }

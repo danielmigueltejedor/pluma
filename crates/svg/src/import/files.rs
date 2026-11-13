@@ -9,9 +9,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
+use pluma_doc::LinkInfo;
+use pluma_doc::links::missing_placeholder;
 use usvg::{ImageHrefResolver, ImageKind, roxmltree};
-use vectorcraft_doc::LinkInfo;
-use vectorcraft_doc::links::missing_placeholder;
 
 use super::{Edits, depth, href};
 use crate::{ImportOptions, MAX_ELEMENT_DEPTH, MAX_SVGZ, SvgError};
@@ -139,7 +139,7 @@ impl Files {
                 let (path, file) = target(h, opts.folder);
                 let read = file.and_then(|file| opts.read.and_then(|read| read(&file)));
                 let source = match read {
-                    Some((bytes, link)) => files.source(bytes, link).ok_or("is not an image VectorCraft reads"),
+                    Some((bytes, link)) => files.source(bytes, link).ok_or("is not an image Pluma reads"),
                     None => Err("not found"),
                 };
                 let source = source.or_else(|why| {

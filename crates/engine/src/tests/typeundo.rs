@@ -1,8 +1,8 @@
 //! Edit › Undo and Redo while the Type tool edits: the caret goes to where the step changed the text.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 

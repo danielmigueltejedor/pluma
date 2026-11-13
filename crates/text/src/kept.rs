@@ -10,9 +10,9 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::mem::{size_of, size_of_val};
 use std::sync::{LazyLock, Mutex, MutexGuard, PoisonError};
 
-use vectorcraft_doc::color::Paint;
-use vectorcraft_doc::{CharStyle, ParaStyle, TextKind, TextObject, TextRun};
-use vectorcraft_geom::{Anchor, PathData};
+use pluma_doc::color::Paint;
+use pluma_doc::{CharStyle, ParaStyle, TextKind, TextObject, TextRun};
+use pluma_geom::{Anchor, PathData};
 
 use crate::{FontDb, PositionedGlyph, TextLayout};
 

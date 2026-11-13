@@ -1,11 +1,11 @@
 use super::entries::{Row, entry, shown_shortcut};
 use super::invoke::{field_event, focused_text_field, invoke, to_field, with_held_keys};
 use super::tree::menu_tree_named;
-use super::{Entry, Item, Tokens, Value, VectorcraftApp, widgets};
+use super::{Entry, Item, PlumaApp, Tokens, Value, widgets};
 
 /// Render the menu bar.
 /// The in-window menu bar. Returns where its titles end (x): the bar itself takes the full width.
-pub fn menu_bar(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> f32 {
+pub fn menu_bar(app: &mut PlumaApp, ui: &mut egui::Ui) -> f32 {
     let t = Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
     // The press that opens a menu takes the keyboard from a focused text field: the field and its
@@ -25,8 +25,8 @@ pub fn menu_bar(app: &mut VectorcraftApp, ui: &mut egui::Ui) -> f32 {
     let mut clicked: Option<(String, Value)> = None;
     let tree = menu_tree_named(app.session.prefs.font_names_in_english);
     // No application menu in the window (as in Illustrator): the bar starts at File on every
-    // platform. The VectorCraft menu stays in the tree: the native Mac bar takes it from there.
-    let tree: Vec<(&str, Vec<Item>)> = tree.into_iter().filter(|(title, _)| *title != "VectorCraft").collect();
+    // platform. The Pluma menu stays in the tree: the native Mac bar takes it from there.
+    let tree: Vec<(&str, Vec<Item>)> = tree.into_iter().filter(|(title, _)| *title != "Pluma").collect();
     // A menu bar for its layout and menu-button style, but the titles use `Popup::menu` directly:
     // egui 0.37's `MenuButton` opens the title under a resting pointer while another menu is open,
     // and the app switches titles on movement only (`switch_on_hover`, the native behaviour).
@@ -104,7 +104,7 @@ fn switch_on_hover(ctx: &egui::Context, titles: &[egui::Response]) -> bool {
 
 /// A top-level menu's popup: as wide as its widest item (label plus shortcut), at least 230 pt;
 /// it scrolls when it is taller than the window.
-pub(super) fn menu_body(app: &VectorcraftApp, ui: &mut egui::Ui, items: &[Item], clicked: &mut Option<(String, Value)>) {
+pub(super) fn menu_body(app: &PlumaApp, ui: &mut egui::Ui, items: &[Item], clicked: &mut Option<(String, Value)>) {
     widgets::menu_scroll(ui, |ui| {
         ui.set_min_width(230.0);
         render_items(app, ui, items, true, clicked);
@@ -113,7 +113,7 @@ pub(super) fn menu_body(app: &VectorcraftApp, ui: &mut egui::Ui, items: &[Item],
 
 /// `items` as menu buttons; with `checks`, items that can be on or off show a check mark (or the
 /// room for one).
-pub(super) fn render_items(app: &VectorcraftApp, ui: &mut egui::Ui, items: &[Item], checks: bool, clicked: &mut Option<(String, Value)>) {
+pub(super) fn render_items(app: &PlumaApp, ui: &mut egui::Ui, items: &[Item], checks: bool, clicked: &mut Option<(String, Value)>) {
     let t = Tokens::get(ui.ctx());
     for e in items.iter().filter_map(|it| entry(app, it)) {
         match e {
@@ -138,14 +138,14 @@ pub(super) fn render_items(app: &VectorcraftApp, ui: &mut egui::Ui, items: &[Ite
 
 /// Whether every item of a submenu can be on or off: a menu drawn without check marks (the canvas
 /// context menu) still shows them there, since its label alone can't say whether it is on.
-fn only_toggles(app: &VectorcraftApp, items: &[Item]) -> bool {
+fn only_toggles(app: &PlumaApp, items: &[Item]) -> bool {
     let mut rows = items.iter().filter_map(|it| entry(app, it)).filter(|e| !matches!(e, Entry::Sep)).peekable();
     rows.peek().is_some() && rows.all(|e| matches!(e, Entry::Item(r) if r.checked.is_some()))
 }
 
 /// One menu item: its label (with a check mark, or the room for one, under `checks`), its shortcut,
 /// and Type › Font's samples.
-fn render_row(app: &VectorcraftApp, ui: &mut egui::Ui, row: &Row, checks: bool, clicked: &mut Option<(String, Value)>) {
+fn render_row(app: &PlumaApp, ui: &mut egui::Ui, row: &Row, checks: bool, clicked: &mut Option<(String, Value)>) {
     let sc = row.shortcut.map(shown_shortcut).unwrap_or_default();
     let Some((id, p)) = row.command else {
         ui.add_enabled_ui(false, |ui| {
@@ -185,22 +185,22 @@ fn render_row(app: &VectorcraftApp, ui: &mut egui::Ui, row: &Row, checks: bool, 
 }
 
 /// Why a dimmed menu item is dimmed, for the ones that say.
-fn disabled_hint(app: &VectorcraftApp, id: &str) -> Option<&'static str> {
+fn disabled_hint(app: &PlumaApp, id: &str) -> Option<&'static str> {
     match id {
-        "ui.expandDialog" if vectorcraft_engine::cmd::expand::has_appearance(&app.session) => Some(crate::dialogs::expand::appearance_first()),
+        "ui.expandDialog" if pluma_engine::cmd::expand::has_appearance(&app.session) => Some(crate::dialogs::expand::appearance_first()),
         _ => None,
     }
 }
 
 /// What the Home screen remembers when it opens (`app.home`): the active document and the
 /// document count. When either changes, the Home screen gives way to the document.
-pub(crate) fn home_key(app: &VectorcraftApp) -> (Option<u64>, usize) {
+pub(crate) fn home_key(app: &PlumaApp) -> (Option<u64>, usize) {
     (app.session.active().map(|d| d.uid), app.session.documents().len())
 }
 
 /// Whether the Home screen is up: chosen with the Home button (`app.home`), or no document is open
 /// and Preferences › General › Show The Home Screen When No Documents Are Open is on (#394). Off,
 /// an app with no document shows an empty window, and the Home button still opens the screen.
-pub(crate) fn home_showing(app: &VectorcraftApp) -> bool {
+pub(crate) fn home_showing(app: &PlumaApp) -> bool {
     app.ui.home.is_some() || (app.session.active().is_none() && app.session.prefs.show_home_screen)
 }

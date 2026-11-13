@@ -2,9 +2,9 @@
 //! profile), after the raster export rows it shares with PNG Options ([`super::png_options`]): the
 //! `psdOptions` dialog.
 
+use pluma_render::encode::jpeg::ColorModel;
+use pluma_render::encode::psd::PsdOptions;
 use serde_json::{Map, Value, json};
-use vectorcraft_render::encode::jpeg::ColorModel;
-use vectorcraft_render::encode::psd::PsdOptions;
 
 use super::form;
 use super::png_options::choice;

@@ -10,13 +10,13 @@
 //! or the name of the filter being edited), and with an applied effect `__index`, `__item` and
 //! `missing` (the name of a deleted filter the effect names).
 
+use pluma_engine::doc::SvgFilter;
 use serde_json::{Value, json};
-use vectorcraft_engine::doc::SvgFilter;
 
 use super::DialogSpec;
 use crate::picks::PickRequest;
 use crate::state::Dialog;
-use crate::{FilePick, VectorcraftApp, widgets};
+use crate::{FilePick, PlumaApp, widgets};
 
 /// The dialog kind of Apply SVG Filter.
 pub const KIND: &str = "svgFilter";
@@ -31,7 +31,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// The active document's SVG filters.
-fn filters(app: &VectorcraftApp) -> Vec<SvgFilter> {
+fn filters(app: &PlumaApp) -> Vec<SvgFilter> {
     app.session.active().map(|st| st.doc.svg_filters.clone()).unwrap_or_default()
 }
 
@@ -39,7 +39,7 @@ fn filters(app: &VectorcraftApp) -> Vec<SvgFilter> {
 /// `index`, for the applied SVG filter at `index` of `item` (null: the object's effects): the
 /// document's filter of its name selected; when the document has none of its name, the name shown
 /// above the list if the filter was deleted, or else its code open as a new filter.
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     if app.session.active().is_none() {
         return Err("no document open".into());
     }
@@ -50,7 +50,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
             q["item"] = item.clone();
         }
         let applied = app.session.appearance_effect_target(&q).map(|(_, fx)| fx.to_vec()).unwrap_or_default();
-        let e = applied.get(k as usize).filter(|e| e.id == vectorcraft_effects::SVG_FILTER).ok_or_else(|| format!("no SVG filter at index {k}"))?;
+        let e = applied.get(k as usize).filter(|e| e.id == pluma_effects::SVG_FILTER).ok_or_else(|| format!("no SVG filter at index {k}"))?;
         let name = e.params.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
         let xml = e.params.get("xml").and_then(Value::as_str).unwrap_or_default().to_string();
         let held = filters(app).into_iter().find(|f| f.name == name);
@@ -76,7 +76,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 }
 
 /// OK: the selected filter to the selection, or in the applied effect's place.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let name = d.str("selected");
     let f = filters(app).into_iter().find(|f| f.name == name).ok_or("select an SVG filter")?;
     let r = match d.fields.get("__index").and_then(Value::as_u64) {
@@ -100,7 +100,7 @@ fn names_store() -> &'static std::sync::RwLock<Vec<&'static str>> {
 }
 
 /// Mirror the active document's SVG filter names for the menu tree (cheap when unchanged).
-pub fn sync(app: &VectorcraftApp) {
+pub fn sync(app: &PlumaApp) {
     let names: Vec<String> = app.session.active().map(|st| st.doc.svg_filters.iter().map(|f| f.name.clone()).collect()).unwrap_or_default();
     let same = names_store().read().map(|v| v.len() == names.len() && v.iter().zip(&names).all(|(a, b)| *a == b)).unwrap_or(true);
     if !same {
@@ -130,7 +130,7 @@ fn items_for(names: Vec<&'static str>) -> Vec<crate::menus::Item> {
 }
 
 /// `ui.importSvgFilter {}`: add the filters of an SVG file the user picks to the active document.
-pub fn import_file(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn import_file(app: &mut PlumaApp) -> Result<Value, String> {
     let path = crate::picks::open(app, &pick()).ok_or("cancelled")?;
     let r = app.run("svgFilter.import", json!({ "path": path }))?;
     let added = r["added"].as_array().map_or(0, Vec::len);
@@ -148,7 +148,7 @@ pub(crate) fn pick() -> FilePick {
 
 /// Import…: the filters of the SVG file picked in the open dialog, added to the document, the first
 /// one added selected.
-fn import(app: &mut VectorcraftApp, d: &mut Dialog) -> Result<(), String> {
+fn import(app: &mut PlumaApp, d: &mut Dialog) -> Result<(), String> {
     let Some(path) = crate::picks::open(app, &pick()) else { return Ok(()) };
     let r = app.run("svgFilter.import", json!({ "path": path }))?;
     if let Some(first) = r["added"].get(0).and_then(Value::as_str) {
@@ -169,7 +169,7 @@ enum Action {
     Discard,
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let list = filters(app);
     let selected = d.str("selected");
     let editing = d.str("editing");
@@ -283,18 +283,18 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     const SHIFT: &str = r#"<filter id="Shift"><feOffset dx="3"/></filter>"#;
 
-    fn app() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app
     }
 
     /// One headless frame of the dialog's body: the texts drawn.
-    fn frame(app: &mut VectorcraftApp, d: &mut Dialog) -> Vec<String> {
+    fn frame(app: &mut PlumaApp, d: &mut Dialog) -> Vec<String> {
         fn texts(s: &egui::Shape, out: &mut Vec<String>) {
             match s {
                 egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn lists_the_documents_filters_and_ok_applies_the_selected_one() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         assert!(open(&mut app, &json!({})).is_err(), "no document");
         let mut app = self::app();
         app.session.execute("svgFilter.define", &json!({"xml": SHIFT})).unwrap();
@@ -328,7 +328,7 @@ mod tests {
         assert!((SPEC.ok_enabled.unwrap())(&app, &d));
         confirm(&mut app, &d).unwrap();
         assert!(app.ui.dialog.is_none());
-        let fx = &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects;
+        let fx = &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects;
         assert_eq!((fx.len(), fx[0].params["name"].as_str()), (1, Some("Shift")));
     }
 
@@ -347,7 +347,7 @@ mod tests {
         assert_eq!((d.kind.as_str(), d.str("selected").as_str()), (KIND, "Shift"));
         d.fields.insert("selected".into(), json!("Other"));
         confirm(&mut app, &d).unwrap();
-        let fx = &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects;
+        let fx = &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects;
         assert_eq!((fx.len(), fx[0].params["name"].as_str()), (1, Some("Other")), "in its place, not added");
         // Edited since it was applied: the effect follows the edit, and the filter stays selected.
         app.session.execute("svgFilter.define", &json!({"xml": "<filter id=\"Other\"><feOffset dy=\"9\"/></filter>", "replace": "Other"})).unwrap();
@@ -361,14 +361,14 @@ mod tests {
         assert_eq!((d.str("missing").as_str(), d.str("selected").as_str(), d.str("editing").as_str()), ("Other", "", ""));
         assert!(!(SPEC.ok_enabled.unwrap())(&app, &d));
         // An applied filter the document never held (from an opened file) opens as code to save.
-        let e = vectorcraft_doc::Effect {
+        let e = pluma_doc::Effect {
             id: "svg.filter".into(),
             params: json!({"name": "Kept", "xml": "<filter id=\"Kept\"><feOffset dx=\"1\"/></filter>"}),
             visible: true,
         };
         app.session
             .edit("Plant", |d, _| {
-                d.node_mut(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects = vec![e];
+                d.node_mut(pluma_doc::NodeId(id)).unwrap().appearance.effects = vec![e];
                 Ok(())
             })
             .unwrap();
@@ -384,7 +384,7 @@ mod tests {
     fn an_edit_from_one_objects_effect_changes_every_user() {
         let mut app = app();
         app.session.execute("svgFilter.define", &json!({"xml": SHIFT})).unwrap();
-        let rect = |app: &mut VectorcraftApp, x: f64| {
+        let rect = |app: &mut PlumaApp, x: f64| {
             app.session.execute("shape.rectangle", &json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap()
         };
         let (a, b) = (rect(&mut app, 10.0), rect(&mut app, 50.0));
@@ -396,8 +396,8 @@ mod tests {
         d.fields.insert("editing".into(), json!(d.str("selected")));
         let edited = r#"<filter id="Shift"><feOffset dx="8"/></filter>"#;
         app.run("svgFilter.define", json!({"xml": edited, "replace": d.str("editing")})).unwrap();
-        let xml = |app: &VectorcraftApp, id: u64| {
-            app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["xml"].clone()
+        let xml = |app: &PlumaApp, id: u64| {
+            app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().appearance.effects[0].params["xml"].clone()
         };
         assert_eq!((xml(&app, a), xml(&app, b)), (json!(edited), json!(edited)));
         app.session.execute("svgFilter.delete", &json!({"name": "Shift"})).unwrap();

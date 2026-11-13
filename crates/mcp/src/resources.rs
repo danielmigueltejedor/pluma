@@ -1,7 +1,7 @@
 //! MCP resources: the fixed documents, the templates an agent can address parts of the
 //! document by, and reading either.
 //!
-//! The templates matter for long sessions. `vectorcraft://document/json` returns the whole model,
+//! The templates matter for long sessions. `pluma://document/json` returns the whole model,
 //! which on a real document is thousands of lines an agent pays for again on every change; the
 //! templates hand out one object, one command definition or one effect's parameters instead, and
 //! they are what `completion/complete` suggests ids and names from.
@@ -12,14 +12,14 @@ use crate::backend::Backend;
 use crate::prompts::Live;
 
 /// The active document's summary: artboards, layer tree, selection, history.
-pub const DOC_URI: &str = "vectorcraft://document";
+pub const DOC_URI: &str = "pluma://document";
 /// The whole document model as JSON.
-pub const DOC_JSON_URI: &str = "vectorcraft://document/json";
+pub const DOC_JSON_URI: &str = "pluma://document/json";
 
 /// The live command catalog, including enabled state.
-pub const COMMANDS_URI: &str = "vectorcraft://commands";
+pub const COMMANDS_URI: &str = "pluma://commands";
 /// The command API reference in Markdown (`engine.apiReference`).
-pub const REFERENCE_URI: &str = "vectorcraft://commands/reference";
+pub const REFERENCE_URI: &str = "pluma://commands/reference";
 
 /// The media type of the JSON resources.
 pub const JSON: &str = "application/json";
@@ -58,7 +58,7 @@ pub struct Template {
 /// Every template, in `resources/templates/list` order.
 pub static TEMPLATES: &[Template] = &[
     Template {
-        uri: "vectorcraft://object/{id}",
+        uri: "pluma://object/{id}",
         name: "object",
         title: "One layer or object",
         description: "The layer or object with this id, with its children, bounds and paint (document.node {summary: true}; `opacity` is a 0–1 fraction, `opacityPct` the 0–100 % the drawing tools take). Large containers can be sliced with run_command document.node {id, summary, depth, childLimit}: truncated levels report childCount",
@@ -66,7 +66,7 @@ pub static TEMPLATES: &[Template] = &[
         live: Live::Objects,
     },
     Template {
-        uri: "vectorcraft://command/{id}",
+        uri: "pluma://command/{id}",
         name: "command",
         title: "One command",
         description: "The command with this id: label, menu path, shortcut, parameter description and whether it is enabled now (engine.commands)",
@@ -74,7 +74,7 @@ pub static TEMPLATES: &[Template] = &[
         live: Live::Commands,
     },
     Template {
-        uri: "vectorcraft://effect/{id}",
+        uri: "pluma://effect/{id}",
         name: "effect",
         title: "One live effect",
         description: "The live effect with this id and its parameters with their defaults (effect.list)",
@@ -82,7 +82,7 @@ pub static TEMPLATES: &[Template] = &[
         live: Live::Effects,
     },
     Template {
-        uri: "vectorcraft://swatch/{name}",
+        uri: "pluma://swatch/{name}",
         name: "swatch",
         title: "One swatch",
         description: "The swatch or gradient/pattern swatch with this name (swatch.list)",
@@ -257,19 +257,19 @@ mod tests {
 
     #[test]
     fn variables_are_split_out_and_decoded() {
-        assert_eq!(variable("vectorcraft://object/42", "vectorcraft://object/{id}"), "42");
-        assert_eq!(variable("vectorcraft://swatch/Brand%2040%25", "vectorcraft://swatch/{name}"), "Brand 40%");
-        assert_eq!(variable("vectorcraft://swatch/a%zzb", "vectorcraft://swatch/{name}"), "a%zzb");
-        assert_eq!(variable("vectorcraft://other", "vectorcraft://object/{id}"), "");
-        assert_eq!(variable_name("vectorcraft://swatch/{name}"), "name");
+        assert_eq!(variable("pluma://object/42", "pluma://object/{id}"), "42");
+        assert_eq!(variable("pluma://swatch/Brand%2040%25", "pluma://swatch/{name}"), "Brand 40%");
+        assert_eq!(variable("pluma://swatch/a%zzb", "pluma://swatch/{name}"), "a%zzb");
+        assert_eq!(variable("pluma://other", "pluma://object/{id}"), "");
+        assert_eq!(variable_name("pluma://swatch/{name}"), "name");
         assert_eq!(variable_name("no template"), "");
     }
 
     #[test]
     fn templates_are_addressable() {
-        assert_eq!(template_source("vectorcraft://object/7"), ("vectorcraft://object/{id}", Some(Live::Objects)));
-        assert_eq!(template_source("vectorcraft://command/paint.setFill").1, Some(Live::Commands));
-        assert_eq!(template_source("vectorcraft://document").1, None);
+        assert_eq!(template_source("pluma://object/7"), ("pluma://object/{id}", Some(Live::Objects)));
+        assert_eq!(template_source("pluma://command/paint.setFill").1, Some(Live::Commands));
+        assert_eq!(template_source("pluma://document").1, None);
     }
 
     #[test]
@@ -314,12 +314,12 @@ mod tests {
         assert_eq!(read.mime, MARKDOWN);
         let direct = b.call("engine.execute", json!({"command": "engine.apiReference", "params": {}})).unwrap();
         assert_eq!(read.text, direct["markdown"].as_str().unwrap());
-        assert!(read.text.starts_with("# VectorCraft command API reference\n"), "{}", read.text);
+        assert!(read.text.starts_with("# Pluma command API reference\n"), "{}", read.text);
         assert_eq!(read_contents(b.as_mut(), REFERENCE_URI).unwrap(), read);
         let commands = read_contents(b.as_mut(), COMMANDS_URI).unwrap();
         assert_eq!(commands.mime, JSON);
         assert!(serde_json::from_str::<Value>(&commands.text).unwrap().is_array());
-        assert!(matches!(read_contents(b.as_mut(), "vectorcraft://commands/nope"), Err(ReadError::NotFound(_))));
+        assert!(matches!(read_contents(b.as_mut(), "pluma://commands/nope"), Err(ReadError::NotFound(_))));
     }
 
     /// A reply without the Markdown text, and an app that cannot be reached, are backend errors.
@@ -334,16 +334,16 @@ mod tests {
     #[test]
     fn missing_and_unknown_uris_are_errors() {
         let mut b = Box::new(crate::Headless::with_document());
-        assert!(read(b.as_mut(), "vectorcraft://nope").is_err());
-        assert!(read(b.as_mut(), "vectorcraft://object/").is_err());
-        assert!(read(b.as_mut(), "vectorcraft://object/99999").is_err());
+        assert!(read(b.as_mut(), "pluma://nope").is_err());
+        assert!(read(b.as_mut(), "pluma://object/").is_err());
+        assert!(read(b.as_mut(), "pluma://object/99999").is_err());
         assert!(read(b.as_mut(), DOC_URI).is_ok());
         // An id that names nothing is a bad value; without a document the backend says why.
-        for uri in ["vectorcraft://object/99999", "vectorcraft://object/abc"] {
+        for uri in ["pluma://object/99999", "pluma://object/abc"] {
             assert!(matches!(read(b.as_mut(), uri), Err(ReadError::Invalid(_))), "{uri}");
         }
         let mut empty = Box::new(crate::Headless::new());
-        assert!(matches!(read(empty.as_mut(), "vectorcraft://object/1"), Err(ReadError::Backend(_))));
+        assert!(matches!(read(empty.as_mut(), "pluma://object/1"), Err(ReadError::Backend(_))));
     }
 
     #[test]
@@ -351,10 +351,10 @@ mod tests {
         let mut b = Box::new(crate::Headless::with_document());
         let made = b.call("engine.execute", json!({"command": "shape.rectangle", "params": {"x": 10, "y": 10, "width": 50, "height": 40}})).unwrap();
         let id = made["id"].as_i64().expect("shape.rectangle returns an integer id");
-        for uri in [format!("vectorcraft://object/+{id}"), format!("vectorcraft://object/-{id}")] {
+        for uri in [format!("pluma://object/+{id}"), format!("pluma://object/-{id}")] {
             assert!(matches!(read(b.as_mut(), &uri), Err(ReadError::Invalid(_))), "{uri}");
         }
-        assert!(read(b.as_mut(), &format!("vectorcraft://object/{id}")).is_ok());
+        assert!(read(b.as_mut(), &format!("pluma://object/{id}")).is_ok());
     }
 
     #[test]
@@ -362,14 +362,14 @@ mod tests {
         let mut b = Box::new(crate::Headless::with_document());
         let made = b.call("engine.execute", json!({"command": "shape.rectangle", "params": {"x": 10, "y": 10, "width": 50, "height": 40}})).unwrap();
         let id = made["id"].as_i64().unwrap_or_default().to_string();
-        let v = read(b.as_mut(), &format!("vectorcraft://object/{id}")).unwrap();
+        let v = read(b.as_mut(), &format!("pluma://object/{id}")).unwrap();
         assert_eq!(v["id"].to_string(), id);
         assert!(v["bounds"].is_object(), "{v}");
         // Layers resolve too, not just drawn objects.
         let inspect = b.call("document.inspect", json!({})).unwrap();
         let layer = inspect["layers"].as_array().and_then(|l| l.first()).expect("a layer");
         let lid = layer["id"].to_string();
-        let v = read(b.as_mut(), &format!("vectorcraft://object/{lid}")).unwrap();
+        let v = read(b.as_mut(), &format!("pluma://object/{lid}")).unwrap();
         assert_eq!(v["id"].to_string(), lid);
     }
 }

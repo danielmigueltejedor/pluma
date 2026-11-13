@@ -6,9 +6,9 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_engine::Session;
+use pluma_plugins::wat as tpl;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_plugins::wat as tpl;
 
 /// Sets "zoom" to "hello" and writes "hel" to the cache entry "tile".
 const WRITES: &str = "(if (call $vc_settings_set (i32.const 0x2000) (i32.const 4) (i32.const 0x2100) (i32.const 5)) (then unreachable))
@@ -29,7 +29,7 @@ fn install_storing(s: &mut Session, id: &str, first: &str) {
     let manifest = format!(r#"{{"id":"{id}","name":"Test {id}","kind":"filter","api":2,"permissions":["settings","cache"]}}"#);
     let data = format!(r#"{} (data (i32.const 0x2000) "zoomtile") (data (i32.const 0x2100) "hello")"#, tpl::STORAGE_IMPORTS);
     let wasm = wat::parse_str(tpl::with_imports(&manifest, &data, first, r#"{"objects":[]}"#)).unwrap();
-    let data = vectorcraft_format::base64_encode(&wasm);
+    let data = pluma_format::base64_encode(&wasm);
     run(s, "plugin.install", json!({"dataBase64": data, "grant": ["settings", "cache"], "replace": true}));
 }
 

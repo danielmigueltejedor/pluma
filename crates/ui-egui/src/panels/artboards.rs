@@ -12,24 +12,24 @@
 //! (`artboard.setProps` with `locked`); Delete leaves locked artboards.
 
 use egui::{Sense, Ui, pos2, vec2};
+use pluma_color::Color;
+use pluma_doc::ColorMode;
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::ColorMode;
-use vectorcraft_geom::Rect;
 
 use super::{alt_held, pstate, set_pstate};
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 /// The Artboard tool's Move Artwork with Artboard and Scale Artwork with Artboard options (#602) as
 /// check boxes: the Control bar ([`control_bar`]) and Properties show them while the tool is in use.
-pub(crate) fn art_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn art_options(app: &mut PlumaApp, ui: &mut Ui) {
     art_option_boxes(app, ui, false);
 }
 
 /// [`art_options`], or with `compact` the boxes alone, each option's name in its tooltip.
-fn art_option_boxes(app: &mut VectorcraftApp, ui: &mut Ui, compact: bool) {
+fn art_option_boxes(app: &mut PlumaApp, ui: &mut Ui, compact: bool) {
     let opts = app.session.tool_options();
     for (key, label, default) in [("moveArt", tl!("Move Artwork with Artboard"), true), ("scaleArt", tl!("Scale Artwork with Artboard"), false)] {
         let on = opts[key].as_bool().unwrap_or(default);
@@ -62,7 +62,7 @@ const NAME_FIELD_ROOM: f32 = 330.0;
 /// Constrain Width and Height Proportions link. Each control runs the command its Properties panel
 /// or Transform panel counterpart runs. Returns false, and draws nothing, while another tool is in
 /// use.
-pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
+pub(crate) fn control_bar(app: &mut PlumaApp, ui: &mut Ui) -> bool {
     if app.session.tool_id() != "artboard" {
         return false;
     }
@@ -105,7 +105,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
     let refi = super::transform::reference_index(ui);
     super::transform::reference_locator(ui, refi);
     let link = super::transform::proportional(app, ui);
-    let rp = vectorcraft_geom::reference_point(r, refi);
+    let rp = pluma_geom::reference_point(r, refi);
     // The W/H link sits between W and H, but is made after H so Tab goes from W straight to H and
     // finds the link after it, as in the object Control bar.
     let mut link_room = None;
@@ -138,13 +138,13 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
 
 /// Whether artboards resized while the Artboard tool is in use take their art along (its Scale
 /// Artwork with Artboard option): the panels' sizes pass it to `artboard.setProps` as `scaleArt`.
-pub(crate) fn scale_art(app: &VectorcraftApp) -> bool {
+pub(crate) fn scale_art(app: &PlumaApp) -> bool {
     app.session.tool_id() == "artboard" && app.session.tool_options()["scaleArt"].as_bool().unwrap_or(false)
 }
 
 /// Whether position edits take their art along, matching the Artboard tool's move option. The tool
 /// keeps the option while another tool is in use, as when this panel opens Artboard Options.
-pub(crate) fn move_art(app: &VectorcraftApp) -> bool {
+pub(crate) fn move_art(app: &PlumaApp) -> bool {
     app.session.tool_options_of("artboard")["moveArt"].as_bool().unwrap_or(true)
 }
 
@@ -153,7 +153,7 @@ pub(crate) fn move_art(app: &VectorcraftApp) -> bool {
 pub(crate) const FILLS: [&str; 3] = ["None", "White", "Black"];
 
 /// The background colors [`FILLS`] stand for, White and Black in the document's color mode.
-pub(crate) fn fill_colors(app: &VectorcraftApp) -> [Option<Color>; 3] {
+pub(crate) fn fill_colors(app: &PlumaApp) -> [Option<Color>; 3] {
     if app.session.active().is_some_and(|d| d.doc.color_mode == ColorMode::Cmyk) {
         [None, Some(Color::cmyk(0.0, 0.0, 0.0, 0.0)), Some(Color::cmyk(0.0, 0.0, 0.0, 1.0))]
     } else {
@@ -162,18 +162,18 @@ pub(crate) fn fill_colors(app: &VectorcraftApp) -> [Option<Color>; 3] {
 }
 
 /// The name the Fill list shows for background `color`: one of [`FILLS`], else Custom.
-pub(crate) fn fill_name(app: &VectorcraftApp, color: Option<Color>) -> &'static str {
+pub(crate) fn fill_name(app: &PlumaApp, color: Option<Color>) -> &'static str {
     fill_colors(app).iter().position(|c| *c == color).map_or("Custom", |i| FILLS[i])
 }
 
 /// The active artboard (of `n`).
-pub(crate) fn selected(app: &VectorcraftApp, n: usize) -> usize {
+pub(crate) fn selected(app: &PlumaApp, n: usize) -> usize {
     app.view().map_or(0, |v| v.artboard).min(n.saturating_sub(1))
 }
 
 /// The selected artboards (of `n`): while the Artboard tool is in use, those it has selected
 /// (Shift-click, #1139), else the active one.
-pub(crate) fn picked(app: &VectorcraftApp, n: usize) -> Vec<usize> {
+pub(crate) fn picked(app: &PlumaApp, n: usize) -> Vec<usize> {
     let tool = (app.session.tool_id() == "artboard").then(|| app.session.tool_options()["selected"].clone());
     let mut all: Vec<usize> = tool
         .iter()
@@ -192,21 +192,21 @@ pub(crate) fn picked(app: &VectorcraftApp, n: usize) -> Vec<usize> {
 }
 
 /// The picked artboards that can be deleted: those that aren't locked.
-pub(crate) fn deletable(app: &VectorcraftApp, n: usize) -> Vec<usize> {
+pub(crate) fn deletable(app: &PlumaApp, n: usize) -> Vec<usize> {
     let locked = |i: &usize| app.session.active().and_then(|d| d.doc.artboards.get(*i)).is_some_and(|a| a.locked);
     picked(app, n).into_iter().filter(|i| !locked(i)).collect()
 }
 
 /// The artboards a name typed in artboard `i`'s row's name field goes to: the selected artboards
 /// ([`picked`]) when `i` is one of them, else `i` alone. Locked artboards are renamed too.
-pub(crate) fn renamed_with(app: &VectorcraftApp, i: usize) -> Vec<usize> {
+pub(crate) fn renamed_with(app: &PlumaApp, i: usize) -> Vec<usize> {
     let all = picked(app, app.session.active().map_or(0, |d| d.doc.artboards.len()));
     if all.contains(&i) { all } else { vec![i] }
 }
 
 /// The artboards a new size for artboard `i` goes to: those [`renamed_with`] gives. Another
 /// selected artboard that is locked keeps its size.
-pub(crate) fn resized_with(app: &VectorcraftApp, i: usize) -> Vec<usize> {
+pub(crate) fn resized_with(app: &PlumaApp, i: usize) -> Vec<usize> {
     let locked = |j: &usize| app.session.active().and_then(|d| d.doc.artboards.get(*j)).is_some_and(|a| a.locked);
     renamed_with(app, i).into_iter().filter(|j| *j == i || !locked(j)).collect()
 }
@@ -234,12 +234,7 @@ pub(crate) fn set_props_params(common: Value, mut entries: Vec<Value>) -> Option
 /// Run `artboard.setProps` with `common` on each artboard of `indices` that `entry` gives fields for
 /// (from its index and rectangle), in one undo step ([`set_props_params`]). Nothing runs when it
 /// gives none.
-pub(crate) fn set_props(
-    app: &mut VectorcraftApp,
-    indices: &[usize],
-    common: Value,
-    entry: impl Fn(usize, Rect) -> Option<Value>,
-) -> Result<Value, String> {
+pub(crate) fn set_props(app: &mut PlumaApp, indices: &[usize], common: Value, entry: impl Fn(usize, Rect) -> Option<Value>) -> Result<Value, String> {
     let entries: Vec<Value> = app
         .session
         .active()
@@ -253,20 +248,20 @@ pub(crate) fn set_props(
 
 /// Rename the artboards of `indices` in one undo step (`artboard.rename`): one artboard takes `name`
 /// (trimmed), and several take it numbered in panel order, `name-1`, `name-2` and so on.
-fn rename(app: &mut VectorcraftApp, indices: &[usize], name: &str) -> Result<Value, String> {
+fn rename(app: &mut PlumaApp, indices: &[usize], name: &str) -> Result<Value, String> {
     app.run("artboard.rename", json!({"indices": indices, "name": name}))
 }
 
 /// Open the name field on artboard `i`'s row. The name typed there goes to the artboards
 /// [`renamed_with`] gives for `i` now, numbered when there are several ([`rename`]).
-fn start_rename(ctx: &egui::Context, app: &VectorcraftApp, i: usize) {
+fn start_rename(ctx: &egui::Context, app: &PlumaApp, i: usize) {
     set_pstate(ctx, "ab-edit", Some(i));
     set_pstate(ctx, "ab-edit-all", renamed_with(app, i));
 }
 
 /// The artboards Delete Artboards deletes (of `n`): the picked ones that aren't locked, without
 /// artboard 1 when that would be all of them. Empty when none can go, since one is always left.
-pub(crate) fn delete_targets(app: &VectorcraftApp, n: usize) -> Vec<usize> {
+pub(crate) fn delete_targets(app: &PlumaApp, n: usize) -> Vec<usize> {
     let mut all = deletable(app, n);
     if n > 1 && all.len() == n {
         // Deleting all artboards keeps artboard 1 (the public Delete artboards guide).
@@ -276,7 +271,7 @@ pub(crate) fn delete_targets(app: &VectorcraftApp, n: usize) -> Vec<usize> {
 }
 
 /// Delete the picked artboards that aren't locked and select a remaining one.
-pub(crate) fn delete_selected(app: &mut VectorcraftApp) {
+pub(crate) fn delete_selected(app: &mut PlumaApp) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let all = delete_targets(app, n);
     if !all.is_empty() && app.run("artboard.delete", json!({ "indices": all })).is_ok() {
@@ -286,7 +281,7 @@ pub(crate) fn delete_selected(app: &mut VectorcraftApp) {
 
 /// Artboards panel › Delete Empty Artboards: delete the artboards with no artwork, then make the
 /// active artboard, where it is now, active again, or else the nearest one before it that is left.
-pub(crate) fn delete_empty(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn delete_empty(app: &mut PlumaApp) -> Result<Value, String> {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let active = selected(app, n);
     let r = app.run("artboard.deleteEmpty", json!({}))?;
@@ -305,7 +300,7 @@ pub struct MenuFacts {
     revision: u64,
     picked: Vec<usize>,
     /// The right-click's point, in document coordinates: where the menu's Paste puts artboards.
-    pub(crate) at: vectorcraft_geom::Point,
+    pub(crate) at: pluma_geom::Point,
     /// Whether Delete Empty Artboards has an artboard to delete.
     pub(crate) any_empty: bool,
     /// Whether Fit to Artwork Bounds has art to fit a selected artboard to.
@@ -313,29 +308,29 @@ pub struct MenuFacts {
 }
 
 /// Whether an unlocked artboard of `indices` has art that Fit to Artwork Bounds fits it to, kept by
-/// the document ([`vectorcraft_engine::DocState::any_art_to_fit`]): the canvas menu asks on every
+/// the document ([`pluma_engine::DocState::any_art_to_fit`]): the canvas menu asks on every
 /// frame it is open without its [`MenuFacts`].
-pub(crate) fn fit_has_art(app: &VectorcraftApp, indices: &[usize]) -> bool {
+pub(crate) fn fit_has_art(app: &PlumaApp, indices: &[usize]) -> bool {
     app.session.active().is_some_and(|st| st.any_art_to_fit(indices))
 }
 
 /// A right-click on the canvas at `p` with the Artboard tool: an artboard under the pointer that
 /// isn't selected becomes the only selected one, and the menu's facts are measured.
-pub(crate) fn right_click(app: &mut VectorcraftApp, p: vectorcraft_geom::Point) {
+pub(crate) fn right_click(app: &mut PlumaApp, p: pluma_geom::Point) {
     let Some(st) = app.session.active() else { return };
     let (uid, n, hit) = (st.uid, st.doc.artboards.len(), st.doc.artboard_at(p));
     if let Some(i) = hit.filter(|i| !picked(app, n).contains(i)) {
         select(app, i);
     }
     let all = picked(app, n);
-    let any_empty = vectorcraft_engine::find_command("artboard.deleteEmpty").is_some_and(|c| (c.enabled)(&app.session).is_ok());
+    let any_empty = pluma_engine::find_command("artboard.deleteEmpty").is_some_and(|c| (c.enabled)(&app.session).is_ok());
     let any_art = fit_has_art(app, &all);
     let revision = app.session.active().map_or(0, |st| st.revision);
     app.ui.context_artboards = Some(MenuFacts { uid, revision, picked: all, at: p, any_empty, any_art });
 }
 
 /// The facts of the open canvas menu, while they still describe the document and the selection.
-pub(crate) fn open_menu_facts(app: &VectorcraftApp) -> Option<&MenuFacts> {
+pub(crate) fn open_menu_facts(app: &PlumaApp) -> Option<&MenuFacts> {
     let st = app.session.active()?;
     let n = st.doc.artboards.len();
     app.ui.context_artboards.as_ref().filter(|f| f.uid == st.uid && f.revision == st.revision && f.picked == picked(app, n))
@@ -345,7 +340,7 @@ pub(crate) fn open_menu_facts(app: &VectorcraftApp) -> Option<&MenuFacts> {
 /// use, with the view and the tool's selection following it as they do in the Artboards panel: a
 /// new artboard becomes active, the copies are selected, and a deletion makes a remaining artboard
 /// active. None for any other command or tool.
-pub(crate) fn run_menu_item(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
+pub(crate) fn run_menu_item(app: &mut PlumaApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     if app.session.tool_id() != "artboard" {
         return None;
     }
@@ -372,7 +367,7 @@ pub(crate) fn run_menu_item(app: &mut VectorcraftApp, id: &str, p: &Value) -> Op
 
 /// `artboard.selectAll`: the Artboard tool, chosen first when another tool is in use, selects every
 /// artboard → the artboards selected, the active one first.
-pub(crate) fn select_all_command(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn select_all_command(app: &mut PlumaApp) -> Result<Value, String> {
     if app.session.active().is_none() {
         return Err("no document".into());
     }
@@ -388,7 +383,7 @@ pub(crate) fn select_all_command(app: &mut VectorcraftApp) -> Result<Value, Stri
 /// without Shift or where the last range started; when its artboard is no longer selected, the
 /// range starts from the active artboard. Returns where the range starts, the anchor for the next
 /// Shift-click.
-fn select_range(app: &mut VectorcraftApp, anchor: Option<usize>, i: usize, n: usize) -> usize {
+fn select_range(app: &mut PlumaApp, anchor: Option<usize>, i: usize, n: usize) -> usize {
     let from = anchor.filter(|a| picked(app, n).contains(a)).unwrap_or_else(|| selected(app, n));
     let mut all: Vec<usize> = (from.min(i)..=from.max(i)).filter(|j| *j != i).collect();
     all.insert(0, i);
@@ -402,7 +397,7 @@ fn select_range(app: &mut VectorcraftApp, anchor: Option<usize>, i: usize, n: us
 /// Ctrl/Cmd-click on artboard `i`'s row while the Artboard tool is in use: adds its artboard to the
 /// tool's selection and makes it the active one, or takes it out and makes the lowest-numbered
 /// remaining artboard active. The only selected artboard stays selected.
-pub(crate) fn toggle(app: &mut VectorcraftApp, i: usize, n: usize) {
+pub(crate) fn toggle(app: &mut PlumaApp, i: usize, n: usize) {
     let mut all = picked(app, n);
     match all.iter().position(|j| *j == i) {
         Some(at) if all.len() > 1 => {
@@ -422,7 +417,7 @@ pub(crate) fn toggle(app: &mut VectorcraftApp, i: usize, n: usize) {
 
 /// Whether the panel has the keyboard: one of its rows was clicked, and in every frame since then
 /// the panel was drawn and the pointer was not pressed outside its list.
-fn has_keyboard(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+fn has_keyboard(app: &PlumaApp, ctx: &egui::Context) -> bool {
     pstate::<Option<u64>>(ctx, "ab-keys").is_some_and(|f| f + 1 >= app.frame_iteration())
 }
 
@@ -430,13 +425,13 @@ fn has_keyboard(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
 /// panel has the keyboard and the Artboard tool is in use. [`crate::shortcuts::handle`] and
 /// [`crate::menus::invoke_from_system_menu`] read it before they run `select.all`, which they reach
 /// only while no text field has the keyboard.
-pub(crate) fn selects_all(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+pub(crate) fn selects_all(app: &PlumaApp, ctx: &egui::Context) -> bool {
     app.session.tool_id() == "artboard" && has_keyboard(app, ctx)
 }
 
 /// Ctrl/Cmd+A while [`selects_all`]: the Artboard tool selects every artboard, and the active
 /// artboard stays active. The art's selection stays as it is.
-pub(crate) fn select_all(app: &mut VectorcraftApp) {
+pub(crate) fn select_all(app: &mut PlumaApp) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     if n == 0 {
         return;
@@ -448,7 +443,7 @@ pub(crate) fn select_all(app: &mut VectorcraftApp) {
 
 /// Make artboard `i` the active one, leaving the view where it is: the navigator's and, while it
 /// is the tool, the Artboard tool's.
-pub(crate) fn select(app: &mut VectorcraftApp, i: usize) {
+pub(crate) fn select(app: &mut PlumaApp, i: usize) {
     if let Some(v) = app.view_mut() {
         v.artboard = i;
     }
@@ -458,7 +453,7 @@ pub(crate) fn select(app: &mut VectorcraftApp, i: usize) {
 }
 
 /// Add an artboard with the default settings (`artboard.new`) and make it the active artboard.
-pub(crate) fn add_new(app: &mut VectorcraftApp) {
+pub(crate) fn add_new(app: &mut PlumaApp) {
     if let Ok(r) = app.run("artboard.new", json!({}))
         && let Some(new) = r["index"].as_u64()
     {
@@ -471,7 +466,7 @@ pub(crate) fn add_new(app: &mut VectorcraftApp) {
 struct RowDrag(usize);
 
 /// Duplicate artboard `i` (`artboard.duplicate`) and make the copy the active artboard.
-fn duplicate(app: &mut VectorcraftApp, i: usize) {
+fn duplicate(app: &mut PlumaApp, i: usize) {
     if let Ok(r) = app.run("artboard.duplicate", json!({ "index": i }))
         && let Some(copy) = r["index"].as_u64()
     {
@@ -481,7 +476,7 @@ fn duplicate(app: &mut VectorcraftApp, i: usize) {
 
 /// Duplicate the selected artboards ([`picked`]) in one undo step (`artboard.duplicate {indices}`)
 /// and select the copies, the active artboard's copy active.
-pub(crate) fn duplicate_picked(app: &mut VectorcraftApp) {
+pub(crate) fn duplicate_picked(app: &mut PlumaApp) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let all = picked(app, n);
     let Ok(r) = app.run("artboard.duplicate", json!({ "indices": all })) else { return };
@@ -490,7 +485,7 @@ pub(crate) fn duplicate_picked(app: &mut VectorcraftApp) {
 
 /// After `artboard.duplicate` of the artboards `all` returned `r`: select the copies, the active
 /// artboard's copy active.
-fn select_copies(app: &mut VectorcraftApp, all: &[usize], r: &Value) {
+fn select_copies(app: &mut PlumaApp, all: &[usize], r: &Value) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let active = selected(app, n);
     let copies: Vec<usize> =
@@ -504,7 +499,7 @@ fn select_copies(app: &mut VectorcraftApp, all: &[usize], r: &Value) {
 }
 
 /// Draw the artboard list and its commands, filling the space above a sized panel's footer.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let abs: Vec<String> = app.session.active().map(|d| d.doc.artboards.iter().map(|a| a.name.clone()).collect()).unwrap_or_default();
     let locked: Vec<bool> = app.session.active().map(|d| d.doc.artboards.iter().map(|a| a.locked).collect()).unwrap_or_default();
@@ -698,11 +693,11 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// Open Rearrange All Artboards (#681).
-pub(crate) fn open_rearrange(app: &mut VectorcraftApp) {
+pub(crate) fn open_rearrange(app: &mut PlumaApp) {
     app.run("ui.menuDialog", json!({ "command": "artboard.rearrange" })).ok();
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let n = app.session.active().map(|d| d.doc.artboards.len()).unwrap_or(0);
     let sel = selected(app, n);
     if menu_item(ui, tl!("New Artboard"), n > 0, false) {

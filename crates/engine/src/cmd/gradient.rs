@@ -1,11 +1,11 @@
 //! The Gradient panel and the Gradient tool: in-place gradient edits and the gradient vector.
 
+use pluma_color::{Gradient, GradientGeom, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint};
+use pluma_doc::appearance::stroke_paint_bounds;
+use pluma_doc::{Document, Node, NodeKind, StrokeGradientMode};
+use pluma_geom::{Affine, Point, Rect};
+use pluma_tools::params::color_json;
 use serde_json::{Value, json};
-use vectorcraft_color::{Gradient, GradientGeom, GradientKind, GradientMethod, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::appearance::stroke_paint_bounds;
-use vectorcraft_doc::{Document, Node, NodeKind, StrokeGradientMode};
-use vectorcraft_geom::{Affine, Point, Rect};
-use vectorcraft_tools::params::color_json;
 
 use super::appearance::{ItemTarget, edit_items, edits_stroke, item_target};
 use super::edit::{outermost, selected_roots};
@@ -162,7 +162,7 @@ pub(crate) fn link_stops(d: &Document, v: &Value) -> Parsed<Value> {
 /// RGB color in a CMYK document becoming CMYK through the color settings
 /// ([`super::paint::new_color`], with `p`'s `keepModel`). `None` for a stop that names a swatch,
 /// which gives its color in the swatch's model, and for a color stored as given.
-pub(crate) type StopColors = Vec<Option<(vectorcraft_color::Color, vectorcraft_color::Color)>>;
+pub(crate) type StopColors = Vec<Option<(pluma_color::Color, pluma_color::Color)>>;
 
 /// The [`StopColors`] of `g`'s stops.
 pub(crate) fn stop_colors(s: &Session, p: &Value, g: &Value) -> StopColors {
@@ -184,7 +184,7 @@ pub(crate) fn with_stored_stops<'a>(g: &'a Value, old: &Paint, stored: &StopColo
     if stored.iter().all(Option::is_none) {
         return Cow::Borrowed(g);
     }
-    let had = |c: &vectorcraft_color::Color| matches!(old, Paint::Gradient(o) if o.gradient.stops.iter().any(|st| st.color == *c));
+    let had = |c: &pluma_color::Color| matches!(old, Paint::Gradient(o) if o.gradient.stops.iter().any(|st| st.color == *c));
     let mut v = g.clone();
     let Some(stops) = v.get_mut("stops").and_then(Value::as_array_mut) else { return Cow::Borrowed(g) };
     for (st, sc) in stops.iter_mut().zip(stored) {
@@ -249,7 +249,7 @@ fn plates_param(v: &Value) -> Option<[f32; 4]> {
 }
 
 /// Parse a gradient paint object (the `gradient` param of `paint.setFill`). Lossless for everything
-/// `vectorcraft_tools::params::gradient_params` writes.
+/// `pluma_tools::params::gradient_params` writes.
 pub(crate) fn parse_gradient(g: &Value) -> Parsed<GradientPaint> {
     if !g.is_object() {
         return Err("`gradient` must be an object".into());
@@ -337,7 +337,7 @@ pub(crate) fn apply_gradient_edit_in(
 }
 
 /// New implicit stops use the document's model; existing gradients retain their own colors.
-fn gradient_for_edit(paint: &Paint, model: Option<vectorcraft_color::cms::Model>) -> GradientPaint {
+fn gradient_for_edit(paint: &Paint, model: Option<pluma_color::cms::Model>) -> GradientPaint {
     match paint {
         Paint::Gradient(g) => (**g).clone(),
         _ => {
@@ -355,7 +355,7 @@ fn apply_gradient_edit_in_model(
     p: &Value,
     bounds: Option<Rect>,
     inside: &dyn Fn(Point) -> bool,
-    model: Option<vectorcraft_color::cms::Model>,
+    model: Option<pluma_color::cms::Model>,
 ) -> std::result::Result<Paint, String> {
     let mut gp = gradient_for_edit(paint, model);
     let mut switched = false;
@@ -390,7 +390,7 @@ fn apply_gradient_edit_in_model(
         gp.angle = a;
         if let Some(g) = &mut gp.geom {
             let r = a.to_radians();
-            let dir = vectorcraft_geom::Vec2::new(r.cos(), -r.sin());
+            let dir = pluma_geom::Vec2::new(r.cos(), -r.sin());
             if gp.gradient.kind == GradientKind::Radial {
                 g.end = g.start + dir * g.length();
             } else {
@@ -518,7 +518,7 @@ fn edit_gradient(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 /// A painted stroke on a type run without a weight gets 1 pt.
-pub(crate) fn run_stroke_weight(style: &mut vectorcraft_doc::CharStyle) {
+pub(crate) fn run_stroke_weight(style: &mut pluma_doc::CharStyle) {
     if style.stroke_width == 0.0 {
         style.stroke_width = 1.0;
     }
@@ -526,7 +526,7 @@ pub(crate) fn run_stroke_weight(style: &mut vectorcraft_doc::CharStyle) {
 
 /// A type run's fill or stroke paint and the box (text space) an unplaced gradient on it fits:
 /// the layout bounds `lb`, grown by half the run's stroke weight for strokes.
-pub(crate) fn run_paint_mut(r: &mut vectorcraft_doc::TextRun, stroke: bool, lb: Rect) -> (&mut Paint, Rect) {
+pub(crate) fn run_paint_mut(r: &mut pluma_doc::TextRun, stroke: bool, lb: Rect) -> (&mut Paint, Rect) {
     if stroke {
         let b = stroke_paint_bounds(lb, r.style.stroke_width);
         (&mut r.style.stroke, b)
@@ -591,7 +591,7 @@ impl GeomEdit {
 /// `cur` with the vector, aspect and focal point of `e` (given in the document). `to_doc` maps
 /// the paint's space (text space for type runs) to the document and `bounds` (in that space) fits
 /// an unplaced gradient, so what the document shows carries over where `e` keeps it.
-fn vector_paint(cur: &Paint, e: &GeomEdit, to_doc: Affine, bounds: Option<Rect>, model: Option<vectorcraft_color::cms::Model>) -> Option<Paint> {
+fn vector_paint(cur: &Paint, e: &GeomEdit, to_doc: Affine, bounds: Option<Rect>, model: Option<pluma_color::cms::Model>) -> Option<Paint> {
     let from_doc = invert(to_doc)?;
     let mut gp = gradient_for_edit(cur, model);
     let kind = gp.gradient.kind;

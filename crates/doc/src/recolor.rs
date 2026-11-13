@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Paint};
+use pluma_color::{Color, Paint};
 
 use crate::{AppearanceItem, Node, NodeKind};
 

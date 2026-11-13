@@ -5,15 +5,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::{FilePick, Services, VectorcraftApp, dialogs, io};
+use crate::{FilePick, PlumaApp, Services, dialogs, io};
 
 type Written = Rc<RefCell<Vec<String>>>;
 
 /// An app with a document whose save panel answers `typed` and whose writer records the paths.
-fn saving_app(typed: &'static str) -> (VectorcraftApp, Written) {
+fn saving_app(typed: &'static str) -> (PlumaApp, Written) {
     let written = Written::default();
     let w = written.clone();
     let services = Services {
@@ -24,7 +24,7 @@ fn saving_app(typed: &'static str) -> (VectorcraftApp, Written) {
         pick_save: Some(Box::new(move |_: &FilePick| Some(typed.to_string()))),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     (app, written)
@@ -39,7 +39,7 @@ type Shown = Rc<RefCell<Vec<Vec<crate::FileFilter>>>>;
 
 /// An app with a document whose save panel records the file types it shows and answers the
 /// suggested name in `/tmp`.
-fn panel_app() -> (VectorcraftApp, Shown) {
+fn panel_app() -> (PlumaApp, Shown) {
     let shown = Shown::default();
     let s = shown.clone();
     let services = Services {
@@ -50,7 +50,7 @@ fn panel_app() -> (VectorcraftApp, Shown) {
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     (app, shown)
@@ -65,7 +65,7 @@ fn last_shown(s: &Shown) -> Vec<crate::FileFilter> {
 /// show the one file type they write in the save panel, as Save and Export show theirs.
 #[test]
 fn save_panels_show_the_file_type_they_write() {
-    use vectorcraft_engine::cmd::{flatten, pdfcmds, perspgrid, printpresets};
+    use pluma_engine::cmd::{flatten, pdfcmds, perspgrid, printpresets};
     let (mut app, shown) = panel_app();
     app.run("docInfo.save", json!({})).unwrap();
     assert_eq!(last_shown(&shown), FilePick::filters([("Text", &["txt"][..])]), "Document Info › Save");
@@ -100,7 +100,7 @@ fn save_panels_show_the_file_type_they_write() {
             json!({"name": "Mine", "settings": {"formats": [{"format": "svg"}]}}),
             "document.exportPresets.export",
             "Export presets",
-            vectorcraft_engine::cmd::fileio::SCREEN_EXPORT_PRESET_EXTS,
+            pluma_engine::cmd::fileio::SCREEN_EXPORT_PRESET_EXTS,
         ),
     ];
     for (save, params, export, label, exts) in presets {
@@ -114,8 +114,8 @@ fn save_panels_show_the_file_type_they_write() {
 fn saves_add_the_format_extension_to_a_bare_name() {
     let (mut app, w) = saving_app("/tmp/Untitled-1");
     app.run("file.save", json!({})).unwrap();
-    assert_eq!(last(&w), "/tmp/Untitled-1.vectorcraft");
-    assert_eq!(app.session.active().unwrap().path.as_deref(), Some("/tmp/Untitled-1.vectorcraft"));
+    assert_eq!(last(&w), "/tmp/Untitled-1.pluma");
+    assert_eq!(app.session.active().unwrap().path.as_deref(), Some("/tmp/Untitled-1.pluma"));
     let (mut app, w) = saving_app("/tmp/copy");
     app.run("file.saveCopy", json!({"format": "svg", "svg": {}})).unwrap();
     assert_eq!(last(&w), "/tmp/copy.svg");
@@ -125,10 +125,10 @@ fn saves_add_the_format_extension_to_a_bare_name() {
 }
 
 /// An app with a document whose save dialogs show off the UI thread, as on Linux.
-fn portal_app() -> (VectorcraftApp, crate::tests_picks::Shown, crate::tests_picks::Written) {
+fn portal_app() -> (PlumaApp, crate::tests_picks::Shown, crate::tests_picks::Written) {
     let mut services = Services::default();
     let (shown, written) = crate::tests_picks::off_the_ui_thread(&mut services);
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     (app, shown, written)
@@ -138,7 +138,7 @@ fn portal_app() -> (VectorcraftApp, crate::tests_picks::Shown, crate::tests_pick
 /// picked, as the Linux portal's dialog answers) → the path the save goes on with: the one written,
 /// or the one the dialog that opens next holds (the options of SVG, PDF, and of native and .ai
 /// files on Save As; the question whether to replace a file).
-fn saved_from(app: &mut VectorcraftApp, shown: &crate::tests_picks::Shown, written: &Written, cmd: &str, answer: &[&str]) -> String {
+fn saved_from(app: &mut PlumaApp, shown: &crate::tests_picks::Shown, written: &Written, cmd: &str, answer: &[&str]) -> String {
     written.borrow_mut().clear();
     assert!(app.run(cmd, json!({})).is_err(), "{cmd} waits for its dialog");
     shown.answer(answer);
@@ -157,13 +157,13 @@ fn saved_from(app: &mut VectorcraftApp, shown: &crate::tests_picks::Shown, writt
 fn the_file_type_picked_in_the_save_dialog_decides_the_format() {
     for (answer, expected) in [
         (&["/art/poster", "ai"][..], "/art/poster.ai"),
-        (&["/art/Untitled-1.vectorcraft", "ai"], "/art/Untitled-1.ai"),
+        (&["/art/Untitled-1.pluma", "ai"], "/art/Untitled-1.ai"),
         (&["/art/poster.SVG", "ai"], "/art/poster.SVG"),
         (&["/art/poster.foo", "ai"], "/art/poster.foo.ai"),
         (&["/art/poster.ai", "vectorcraft"], "/art/poster.ai"),
         (&["/art/poster", "svg"], "/art/poster.svg"),
         // A dialog that doesn't say, as on Windows and macOS: the default format's extension.
-        (&["/art/poster"], "/art/poster.vectorcraft"),
+        (&["/art/poster"], "/art/poster.pluma"),
     ] {
         let (mut app, shown, written) = portal_app();
         assert_eq!(saved_from(&mut app, &shown, &written, "file.save", answer), expected, "{answer:?}");
@@ -171,13 +171,13 @@ fn the_file_type_picked_in_the_save_dialog_decides_the_format() {
 }
 
 /// The suggested name's extension typed in another case still gets the picked type's
-/// (`Untitled-1.VECTORCRAFT` with .ai picked is saved as `Untitled-1.ai`), and the picked type's
+/// (`Untitled-1.PLUMA` with .ai picked is saved as `Untitled-1.ai`), and the picked type's
 /// own extension typed in another case stays as typed (`a.AI` with .ai picked).
 #[test]
 fn the_suggested_names_extension_in_another_case_gets_the_picked_types() {
     for (cmd, answer, expected) in [
-        ("file.save", &["/art/Untitled-1.VECTORCRAFT", "ai"][..], "/art/Untitled-1.ai"),
-        ("file.save", &["/art/Untitled-1.VectorCraft", "svg"], "/art/Untitled-1.svg"),
+        ("file.save", &["/art/Untitled-1.PLUMA", "ai"][..], "/art/Untitled-1.ai"),
+        ("file.save", &["/art/Untitled-1.Pluma", "svg"], "/art/Untitled-1.svg"),
         ("file.saveAsTemplate", &["/art/Untitled-1.VCTemplate", "ait"], "/art/Untitled-1.ait"),
     ] {
         let (mut app, shown, written) = portal_app();
@@ -190,15 +190,15 @@ fn the_suggested_names_extension_in_another_case_gets_the_picked_types() {
 }
 
 /// A name typed with the extension of a format the save does not write has it replaced, with or
-/// without a picked type: `card.ait` and `card.png` are saved as `card.vectorcraft`, not
-/// `card.ait.vectorcraft`. An extension that names no format stays part of the name.
+/// without a picked type: `card.ait` and `card.png` are saved as `card.pluma`, not
+/// `card.ait.pluma`. An extension that names no format stays part of the name.
 #[test]
 fn a_typed_extension_of_a_format_the_save_does_not_write_is_replaced() {
     for (cmd, answer, expected) in [
-        ("file.save", &["/art/card.ait"][..], "/art/card.vectorcraft"),
-        ("file.save", &["/art/card.png"], "/art/card.vectorcraft"),
-        ("file.save", &["/art/My.Card.PNG"], "/art/My.Card.vectorcraft"),
-        ("file.save", &["/art/notes.v2"], "/art/notes.v2.vectorcraft"),
+        ("file.save", &["/art/card.ait"][..], "/art/card.pluma"),
+        ("file.save", &["/art/card.png"], "/art/card.pluma"),
+        ("file.save", &["/art/My.Card.PNG"], "/art/My.Card.pluma"),
+        ("file.save", &["/art/notes.v2"], "/art/notes.v2.pluma"),
         ("file.save", &["/art/card.png", "ai"], "/art/card.ai"),
         ("file.saveCopy", &["/art/card.tif", "svg"], "/art/card.svg"),
         ("file.saveAsTemplate", &["/art/card.ai"], "/art/card.vctemplate"),
@@ -215,16 +215,16 @@ fn a_typed_extension_of_a_format_the_save_does_not_write_is_replaced() {
 #[test]
 fn a_replaced_extension_asks_before_replacing_a_file_there() {
     let (mut app, shown, written) = portal_app();
-    app.services.exists = Some(Box::new(|p: &str| p == "/art/card.vectorcraft"));
-    assert_eq!(saved_from(&mut app, &shown, &written, "file.save", &["/art/card.png"]), "/art/card.vectorcraft");
+    app.services.exists = Some(Box::new(|p: &str| p == "/art/card.pluma"));
+    assert_eq!(saved_from(&mut app, &shown, &written, "file.save", &["/art/card.png"]), "/art/card.pluma");
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.kind.as_str()), Some(dialogs::confirm::REPLACE));
     assert!(written.borrow().is_empty());
     dialogs::confirm(&mut app).unwrap();
-    assert_eq!(*written.borrow(), ["/art/card.vectorcraft"]);
+    assert_eq!(*written.borrow(), ["/art/card.pluma"]);
 }
 
 /// Save As to the type picked asks for that format's options: the .ai options (Version first),
-/// not VectorCraft's.
+/// not Pluma's.
 #[test]
 fn save_as_asks_for_the_options_of_the_file_type_picked() {
     let (mut app, shown, written) = portal_app();
@@ -233,16 +233,16 @@ fn save_as_asks_for_the_options_of_the_file_type_picked() {
     assert_eq!((d.kind.as_str(), d.str("format")), (dialogs::save_options::KIND, "ai".to_string()));
 }
 
-/// A document saved as .ai lists .ai first: VectorCraft picked with a bare name or with the
+/// A document saved as .ai lists .ai first: Pluma picked with a bare name or with the
 /// suggested name saves a native file. Save a Copy and Save as Template follow the type picked too.
 #[test]
 fn a_document_in_another_format_saves_as_the_type_picked() {
     let (mut app, shown, written) = portal_app();
     app.run("file.saveAs", json!({"path": "/art/a.ai", "options": {}})).unwrap();
     assert_eq!(*written.borrow(), ["/art/a.ai"]);
-    assert_eq!(saved_from(&mut app, &shown, &written, "file.saveAs", &["/art/poster", "vectorcraft"]), "/art/poster.vectorcraft");
+    assert_eq!(saved_from(&mut app, &shown, &written, "file.saveAs", &["/art/poster", "vectorcraft"]), "/art/poster.pluma");
     dialogs::cancel(&mut app);
-    assert_eq!(saved_from(&mut app, &shown, &written, "file.saveAs", &["/art/a.ai", "vectorcraft"]), "/art/a.vectorcraft");
+    assert_eq!(saved_from(&mut app, &shown, &written, "file.saveAs", &["/art/a.ai", "vectorcraft"]), "/art/a.pluma");
     dialogs::cancel(&mut app);
     assert_eq!(saved_from(&mut app, &shown, &written, "file.saveCopy", &["/art/copy", "svg"]), "/art/copy.svg");
     dialogs::cancel(&mut app);
@@ -277,7 +277,7 @@ fn exports_add_the_format_extension_to_a_bare_name() {
 
 /// An app with a document whose save panel answers `typed` in a folder of its own named after
 /// `tag`, where files are written and found → (the app, the folder).
-fn on_disk(tag: &str, typed: &str) -> (VectorcraftApp, std::path::PathBuf) {
+fn on_disk(tag: &str, typed: &str) -> (PlumaApp, std::path::PathBuf) {
     let dir = std::env::temp_dir().join(format!("vc-saveext-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -288,24 +288,24 @@ fn on_disk(tag: &str, typed: &str) -> (VectorcraftApp, std::path::PathBuf) {
         pick_save: Some(Box::new(move |_: &FilePick| Some(picked.clone()))),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
     (app, dir)
 }
 
-/// `card` typed in the save panel becomes `card.vectorcraft`, a file the panel did not ask about:
+/// `card` typed in the save panel becomes `card.pluma`, a file the panel did not ask about:
 /// Save asks before replacing it, Cancel leaves it as it was, and OK replaces it.
 #[test]
 fn a_name_given_its_extension_asks_before_replacing_a_file_there() {
     let (mut app, dir) = on_disk("ask", "card");
-    let card = dir.join("card.vectorcraft");
+    let card = dir.join("card.pluma");
     let path = card.to_string_lossy().into_owned();
     std::fs::write(&card, b"the old card").unwrap();
     assert!(app.run("file.save", json!({})).is_err(), "nothing is saved while it asks");
-    let d = app.ui.dialog.clone().expect("Save asks before replacing card.vectorcraft");
+    let d = app.ui.dialog.clone().expect("Save asks before replacing card.pluma");
     assert_eq!((d.kind.as_str(), d.str("path")), (dialogs::confirm::REPLACE, path.clone()));
-    assert!(d.str("message").contains("card.vectorcraft") && d.str("detail").contains("card"), "{d:?}");
+    assert!(d.str("message").contains("card.pluma") && d.str("detail").contains("card"), "{d:?}");
     dialogs::cancel(&mut app);
     assert!(app.ui.dialog.is_none());
     assert_eq!(std::fs::read(&card).unwrap(), b"the old card", "Cancel leaves the file as it was");
@@ -323,13 +323,13 @@ fn a_name_given_its_extension_asks_before_replacing_a_file_there() {
 #[test]
 fn the_enter_that_closed_the_save_panel_does_not_replace_the_file() {
     let (mut app, dir) = on_disk("enter", "card");
-    let card = dir.join("card.vectorcraft");
+    let card = dir.join("card.pluma");
     std::fs::write(&card, b"the old card").unwrap();
     assert!(app.run("file.save", json!({})).is_err());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let enter = |pressed| egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed, repeat: false, modifiers: Default::default() };
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| dialogs::show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -350,13 +350,13 @@ fn a_name_given_its_extension_writes_at_once_when_no_file_is_there() {
     let (mut app, dir) = on_disk("fresh", "fresh");
     app.run("file.save", json!({})).unwrap();
     assert!(app.ui.dialog.is_none());
-    assert!(dir.join("fresh.vectorcraft").exists());
+    assert!(dir.join("fresh.pluma").exists());
     let _ = std::fs::remove_dir_all(&dir);
-    let (mut app, dir) = on_disk("typed", "card.vectorcraft");
-    std::fs::write(dir.join("card.vectorcraft"), b"the old card").unwrap();
+    let (mut app, dir) = on_disk("typed", "card.pluma");
+    std::fs::write(dir.join("card.pluma"), b"the old card").unwrap();
     app.run("file.save", json!({})).unwrap();
     assert!(app.ui.dialog.is_none());
-    assert_ne!(std::fs::read(dir.join("card.vectorcraft")).unwrap(), b"the old card");
+    assert_ne!(std::fs::read(dir.join("card.pluma")).unwrap(), b"the old card");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -385,7 +385,7 @@ fn every_write_through_a_save_panel_asks_before_replacing() {
     app.services.exists = Some(Box::new(|_: &str| true));
     app.run("file.exportAs", json!({"format": "png"})).unwrap();
     assert!(dialogs::confirm(&mut app).is_err());
-    let open = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.str("path")));
+    let open = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.str("path")));
     assert_eq!(open(&app), Some((dialogs::confirm::REPLACE.to_string(), "/tmp/out.png".to_string())));
     dialogs::confirm(&mut app).unwrap();
     assert_eq!(open(&app), Some(("pngOptions".to_string(), "/tmp/out.png".to_string())));

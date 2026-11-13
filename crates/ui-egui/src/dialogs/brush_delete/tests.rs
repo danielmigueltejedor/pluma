@@ -1,11 +1,11 @@
 use egui::{Pos2, Rect, pos2, vec2};
+use pluma_doc::NodeId;
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
 
 use super::*;
 
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, time: f64) -> egui::FullOutput {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, time: f64) -> egui::FullOutput {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0)));
     let input = egui::RawInput { screen_rect, time: Some(time), events, ..Default::default() };
     let mut out = ctx.run_ui(input, |ui| crate::dialogs::show(app, ui.ctx()));
@@ -13,7 +13,7 @@ fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>
     out
 }
 
-fn press(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, time: f64) {
+fn press(ctx: &egui::Context, app: &mut PlumaApp, label: &str, time: f64) {
     frame(ctx, app, vec![], time);
     let out = frame(ctx, app, vec![], time + 0.1);
     let nodes = &out.platform_output.accesskit_update.as_ref().expect("dialog accessibility tree").nodes;
@@ -34,7 +34,7 @@ fn context() -> egui::Context {
 
 #[test]
 fn visible_yes_and_no_buttons_control_unused_deletion() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let name = app.run("brush.list", json!({})).unwrap()["brushes"][0]["name"].as_str().unwrap().to_string();
     let ctx = context();
@@ -52,7 +52,7 @@ fn visible_yes_and_no_buttons_control_unused_deletion() {
 
 #[test]
 fn yes_asks_again_when_a_stroke_started_using_the_brush() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let name = "10 pt. Oval";
     let ctx = context();
@@ -71,7 +71,7 @@ fn yes_asks_again_when_a_stroke_started_using_the_brush() {
 
 #[test]
 fn yes_deletes_nothing_after_another_document_became_active() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let name = app.run("brush.list", json!({})).unwrap()["brushes"][0]["name"].as_str().unwrap().to_string();
     let ctx = context();
@@ -88,7 +88,7 @@ fn yes_deletes_nothing_after_another_document_became_active() {
 #[test]
 fn visible_remove_strokes_and_cancel_buttons_control_used_deletion() {
     for choice in ["Cancel", "Remove Strokes"] {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let path = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 60, "height": 40})).unwrap()["id"].as_u64().unwrap());
         let name = "10 pt. Oval";

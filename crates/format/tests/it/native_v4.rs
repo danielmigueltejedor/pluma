@@ -1,13 +1,13 @@
-//! `.vectorcraft` v4: large data after the JSON (images, the PDF, profiles), small files still plain
+//! `.pluma` v4: large data after the JSON (images, the PDF, profiles), small files still plain
 //! JSON, older versions inline, damaged offsets refused.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_format::{BLOB_MAGIC, FormatError, INLINE_MAX, SaveOptions, load, load_file, pdf_content, save_with};
+use pluma_geom::Affine;
 use serde_json::Value;
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_format::{BLOB_MAGIC, FormatError, INLINE_MAX, SaveOptions, load, load_file, pdf_content, save_with};
-use vectorcraft_geom::Affine;
 
 /// A document showing image `key` of `len` bytes.
 fn doc_with_image(key: &str, len: usize) -> Document {
@@ -62,12 +62,12 @@ fn small_files_stay_plain_json_and_older_versions_inline() {
 #[test]
 fn json_part_is_the_json_without_the_data_after_it() {
     let big = save_with(&doc_with_image("big", INLINE_MAX + 10), &SaveOptions::default()).unwrap();
-    let json = vectorcraft_format::json_part(&big);
+    let json = pluma_format::json_part(&big);
     assert!(json.len() < big.len() - INLINE_MAX && !has_tail(json));
     let v: Value = serde_json::from_slice(json).unwrap();
     assert!(v["images"]["big"].get("blob").is_some() && v["images"]["big"].get("data").is_none(), "{}", v["images"]);
     let small = save_with(&doc_with_image("small", 100), &SaveOptions::default()).unwrap();
-    assert_eq!(vectorcraft_format::json_part(&small), &small[..]);
+    assert_eq!(pluma_format::json_part(&small), &small[..]);
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn a_damaged_preview_leaves_the_pdf_readable() {
     let mut v: Value = serde_json::from_slice(&save_with(&doc_with_image("small", 100), &o).unwrap()).unwrap();
     v["preview"] = Value::from(5);
     let damaged = serde_json::to_vec(&v).unwrap();
-    assert_eq!(vectorcraft_format::preview(&damaged), None);
+    assert_eq!(pluma_format::preview(&damaged), None);
     assert_eq!(pdf_content(&damaged), Some(pdf));
     assert!(load_file(&damaged).is_ok());
 }
@@ -153,7 +153,7 @@ fn a_file_read_back_saves_to_the_same_bytes() {
                 };
                 let first = save_with(&d, &o).unwrap();
                 if !compress {
-                    let json = vectorcraft_format::json_part(&first);
+                    let json = pluma_format::json_part(&first);
                     let env = craft_vectorcraft_format::File::<serde::de::IgnoredAny>::read(json).unwrap();
                     assert_eq!((env.version, env.images.len(), env.profiles.len()), (version, 2, 2));
                     assert!(env.preview.is_some() && env.pdf.is_some());

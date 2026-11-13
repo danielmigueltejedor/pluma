@@ -2,8 +2,8 @@
 //! commands: as the renderer draws them and as Expand Appearance bakes them, and files saved
 //! before the options existed looking the same.
 
+use pluma_doc::Node;
 use serde_json::{Value, json};
-use vectorcraft_doc::Node;
 
 use crate::*;
 
@@ -30,10 +30,10 @@ fn stroked_square(s: &mut Session) -> NodeId {
     id
 }
 
-fn render(s: &Session) -> vectorcraft_render::Rendered {
+fn render(s: &Session) -> pluma_render::Rendered {
     let doc = s.doc().unwrap().doc.clone();
-    let opts = vectorcraft_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
-    vectorcraft_render::Renderer::new().render(&doc, 200, 200, vectorcraft_geom::Affine::IDENTITY, &opts)
+    let opts = pluma_render::RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
+    pluma_render::Renderer::new().render(&doc, 200, 200, pluma_geom::Affine::IDENTITY, &opts)
 }
 
 fn dark(px: [u8; 4]) -> bool {
@@ -161,7 +161,7 @@ fn live_copies_and_their_expanded_art_paint_alike() {
     // them.
     fn pieces(n: &Node) -> usize {
         match n.children() {
-            Some(c) if !matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) => c.iter().map(|c| pieces(c)).sum(),
+            Some(c) if !matches!(n.kind, pluma_doc::NodeKind::Compound { .. }) => c.iter().map(|c| pieces(c)).sum(),
             _ => 1,
         }
     }

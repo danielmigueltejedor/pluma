@@ -10,7 +10,7 @@
 //!
 //! It also writes `WEB_FONTS`: the faces listed in `web-fonts.txt`, which web builds fetch from
 //! `fonts/<sha16>/` beside the wasm instead of embedding (`cargo xtask web-fonts` copies them
-//! there; `apps/vectorcraft-web/src/fonts.rs` fetches them). A list line the manifest lacks is left
+//! there; `apps/pluma-web/src/fonts.rs` fetches them). A list line the manifest lacks is left
 //! out with a warning, never an error, and never costs the desktop its fonts.
 
 use std::fmt::Write as _;

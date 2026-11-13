@@ -3,9 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use pluma_doc::{Document, Node, NodeId, NodeKind, RulerMode, Unit};
+use pluma_geom::{Affine, Point, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, RulerMode, Unit};
-use vectorcraft_geom::{Affine, Point, Vec2};
 
 use super::clipboard::SwatchChoices;
 use super::{
@@ -277,7 +277,7 @@ fn doc_node(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let doc = &s.doc()?.doc;
     let n = doc.node(id).ok_or(EngineError::NoNode(id))?;
-    opts.compound_member = doc.parent_of(id).and_then(|p| doc.node(p)).is_some_and(|p| matches!(p.kind, vectorcraft_doc::NodeKind::Compound { .. }));
+    opts.compound_member = doc.parent_of(id).and_then(|p| doc.node(p)).is_some_and(|p| matches!(p.kind, pluma_doc::NodeKind::Compound { .. }));
     if summary { Ok(inspect::node_summary_opts(n, opts, &doc.symbol_boxes())) } else { Ok(serde_json::to_value(n).unwrap_or(Value::Null)) }
 }
 
@@ -326,7 +326,7 @@ fn doc_find(s: &mut Session, p: &Value) -> Result<Value> {
     let rect = |key: &str| match p.get(key) {
         None | Some(Value::Null) => Ok(None),
         Some(v) => match finite_numbers::<4>(v) {
-            Some([x, y, w, h]) if w >= 0.0 && h >= 0.0 => Ok(Some(vectorcraft_geom::Rect::new(x, y, x + w, y + h))),
+            Some([x, y, w, h]) if w >= 0.0 && h >= 0.0 => Ok(Some(pluma_geom::Rect::new(x, y, x + w, y + h))),
             _ => Err(bad(C, format!("`{key}` must be [x, y, width, height]: four finite numbers, width and height not negative"))),
         },
     };
@@ -386,7 +386,7 @@ fn doc_find(s: &mut Session, p: &Value) -> Result<Value> {
 /// `document.find` with `p`.
 fn select_found(s: &mut Session, p: &Value, ids: &[NodeId]) -> Result<Value> {
     let st = s.doc()?;
-    let compound = |n: &Node| matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. });
+    let compound = |n: &Node| matches!(n.kind, pluma_doc::NodeKind::Compound { .. });
     let members = st.isolation.and_then(|i| st.doc.ancestry(i)).is_some_and(|a| a.iter().any(|i| st.doc.node(*i).is_some_and(compound)));
     let found: BTreeSet<NodeId> = ids.iter().copied().collect();
     super::select::select_where(s, "document.find", p, |d, n| {
@@ -400,7 +400,7 @@ fn select_found(s: &mut Session, p: &Value, ids: &[NodeId]) -> Result<Value> {
 /// differences (0–1), and the pixels with a channel that differs by more than `threshold`.
 #[cfg(not(target_arch = "wasm32"))]
 fn doc_compare(s: &mut Session, p: &Value) -> Result<Value> {
-    use vectorcraft_render::encode::{RasterExportOptions, RasterFormat, png};
+    use pluma_render::encode::{RasterExportOptions, RasterFormat, png};
     const C: &str = "document.compare";
     let path = str_param(p, "path").ok_or_else(|| bad(C, "missing `path`"))?;
     let diff_path = match p.get("diffPath") {
@@ -446,17 +446,17 @@ fn doc_compare(s: &mut Session, p: &Value) -> Result<Value> {
             format!("the image is {iw} × {ih} pixels and the artboard at that width is {rw} × {rh} pixels: their proportions differ"),
         ));
     }
-    vectorcraft_render::raster_size(region, scale).map_err(|e| bad(C, e))?;
-    vectorcraft_render::raster_size(vectorcraft_geom::Rect::new(0.0, 0.0, f64::from(iw), f64::from(ih)), 1.0).map_err(|e| bad(C, e))?;
+    pluma_render::raster_size(region, scale).map_err(|e| bad(C, e))?;
+    pluma_render::raster_size(pluma_geom::Rect::new(0.0, 0.0, f64::from(iw), f64::from(ih)), 1.0).map_err(|e| bad(C, e))?;
     let view = Affine::scale(scale) * Affine::translate((-region.x0, -region.y0));
     let opts = RasterExportOptions { background: Some(background), ..Default::default() }.render_options(RasterFormat::Png);
     // As a PNG export: linked images and placed documents drawn from their files, not the
     // previews saved for them.
     let (full, linked) = super::place::document::full_documents(doc);
-    let failed = vectorcraft_render::decode_failures();
-    let rendered = vectorcraft_render::Renderer::new().render(&full, iw, ih, view, &opts);
+    let failed = pluma_render::decode_failures();
+    let rendered = pluma_render::Renderer::new().render(&full, iw, ih, view, &opts);
     // A canceled render stops drawing: the picture is not whole.
-    vectorcraft_doc::cancel::check()?;
+    pluma_doc::cancel::check()?;
     // As a PNG export says, in its order: type on the artboard that doesn't fit its frame, an image
     // the renderer couldn't decode (missing from the render), type in a missing font or style (drawn
     // in another one), and linked files drawn from their previews.
@@ -478,7 +478,7 @@ fn doc_compare(s: &mut Session, p: &Value) -> Result<Value> {
     let (mut squares, mut over) = (0.0f64, 0u64);
     let mut diff = diff_path.map(|_| Vec::with_capacity(row * ih as usize));
     for (a, b) in rendered.chunks_exact(row).zip(image.as_raw().chunks_exact(row)) {
-        vectorcraft_doc::cancel::check()?;
+        pluma_doc::cancel::check()?;
         for (pa, pb) in a.as_chunks::<4>().0.iter().zip(b.as_chunks::<4>().0) {
             let (fa, fb) = (flat(pa), flat(pb));
             let d = [0, 1, 2].map(|k| fa[k].abs_diff(fb[k]));
@@ -519,7 +519,7 @@ fn compare_image(path: &str) -> Result<image::RgbaImage> {
     use image::ImageDecoder as _;
     const C: &str = "document.compare";
     let bytes = super::fileio::read_file(path)?;
-    if let Some((w, h)) = vectorcraft_doc::cmyk::oversized_tiff(&bytes) {
+    if let Some((w, h)) = pluma_doc::cmyk::oversized_tiff(&bytes) {
         return Err(bad(C, format!("an image of {w} × {h} pixels is too large to draw")));
     }
     let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|e| bad(C, format!("{path}: {e}")))?;
@@ -528,11 +528,11 @@ fn compare_image(path: &str) -> Result<image::RgbaImage> {
         return Err(bad(C, format!("{path}: not a PNG, JPEG, WebP, TIFF or BMP image")));
     }
     let mut limits = image::Limits::default();
-    limits.max_alloc = Some(vectorcraft_doc::MAX_RASTER_ALLOC);
+    limits.max_alloc = Some(pluma_doc::MAX_RASTER_ALLOC);
     reader.limits(limits);
     let decoder = reader.into_decoder().map_err(|e| bad(C, format!("{path}: {e}")))?;
     let (w, h) = decoder.dimensions();
-    if decoder.total_bytes() > vectorcraft_doc::MAX_RASTER_ALLOC || u64::from(w) * u64::from(h) * 4 > vectorcraft_doc::MAX_RASTER_ALLOC {
+    if decoder.total_bytes() > pluma_doc::MAX_RASTER_ALLOC || u64::from(w) * u64::from(h) * 4 > pluma_doc::MAX_RASTER_ALLOC {
         return Err(bad(C, format!("an image of {w} × {h} pixels is too large to draw")));
     }
     Ok(image::DynamicImage::from_decoder(decoder).map_err(|e| bad(C, format!("{path}: {e}")))?.to_rgba8())
@@ -804,11 +804,11 @@ fn new_document_from_state(s: &mut Session, p: &Value) -> Result<Value> {
     let links_from = base.relative.map(str::to_string);
     doc.drop_edit_modes();
     if doc.pattern_edit.is_some() {
-        super::patterncmds::finish_edit(&mut doc, &mut vectorcraft_doc::Selection::default())?;
+        super::patterncmds::finish_edit(&mut doc, &mut pluma_doc::Selection::default())?;
     }
     doc.puppet = None;
     doc.new_art.set(Arc::default());
-    let retired = vectorcraft_doc::RetiredArtboardId::default();
+    let retired = pluma_doc::RetiredArtboardId::default();
     retired.raise(doc.retired_artboard_id.get());
     doc.retired_artboard_id = retired;
     doc.title = s.next_untitled();
@@ -825,7 +825,7 @@ fn new_document_from_state(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 /// `selection` for an undo (redo) step, sharing that of `like`, the step beside it, when the same.
-fn shared_selection(selection: vectorcraft_doc::Selection, like: Option<&crate::HistoryEntry>) -> Arc<vectorcraft_doc::Selection> {
+fn shared_selection(selection: pluma_doc::Selection, like: Option<&crate::HistoryEntry>) -> Arc<pluma_doc::Selection> {
     match like {
         Some(l) if *l.selection == selection => l.selection.clone(),
         _ => Arc::new(selection),
@@ -900,7 +900,7 @@ fn roots_within(doc: &Document, ids: Vec<NodeId>, keep_member: impl Fn(NodeId, N
             let path = paths.get(&id);
             let parent = path.and_then(|p| p.split_last()).map(|(_, up)| up).filter(|up| !up.is_empty());
             match parent.and_then(|up| doc.node_at(up).map(|n| (up, n))) {
-                Some((up, n)) if matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. }) && !keep_member(n.id, id) => (n.id, Some(up.to_vec())),
+                Some((up, n)) if matches!(n.kind, pluma_doc::NodeKind::Compound { .. }) && !keep_member(n.id, id) => (n.id, Some(up.to_vec())),
                 _ => (id, path.cloned()),
             }
         })
@@ -973,12 +973,12 @@ fn copy(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     // Selected ruler guides come along (#3226), as canvas guides: their layer and artboard stay
     // behind.
-    let guides: Vec<vectorcraft_doc::Guide> = st
+    let guides: Vec<pluma_doc::Guide> = st
         .selection
         .guides
         .iter()
         .filter_map(|i| st.doc.guides.get(*i))
-        .map(|g| vectorcraft_doc::Guide { layer: None, artboard: None, ..g.clone() })
+        .map(|g| pluma_doc::Guide { layer: None, artboard: None, ..g.clone() })
         .collect();
     let roots = if st.selection.is_empty() && !guides.is_empty() { vec![] } else { targets };
     let mut clip = Clipboard::copy(st, &roots, direct);
@@ -1224,7 +1224,7 @@ fn paste(s: &mut Session, p: &Value, mode: PasteMode) -> Result<Value> {
 /// Place the objects of `clip` (a library graphic) into the active document centred on `center`,
 /// as one undo step: their resources come along as a paste's do, a swatch whose name the document
 /// gives another colour merged into the document's.
-pub(crate) fn place_clip(s: &mut Session, clip: &Clipboard, center: vectorcraft_geom::Point) -> Result<Value> {
+pub(crate) fn place_clip(s: &mut Session, clip: &Clipboard, center: pluma_geom::Point) -> Result<Value> {
     let choices = SwatchChoices::parse(PasteMode::Library.label(), &json!({}))?;
     paste_clip(s, &json!({ "center": [center.x, center.y] }), PasteMode::Library, clip, &choices)
 }
@@ -1331,7 +1331,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
             for (k, n) in clip.nodes.iter().enumerate() {
                 let mut c = d.reid(n);
                 imported.apply(&mut c);
-                let sc = vectorcraft_doc::Scaling { patterns: mode == PasteMode::Drag, ..Default::default() };
+                let sc = pluma_doc::Scaling { patterns: mode == PasteMode::Drag, ..Default::default() };
                 if xf != Affine::IDENTITY {
                     // A cross-document drag carries the graphic's appearance with it,
                     // including the pattern phase, independently of transform-tool settings.
@@ -1409,7 +1409,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
             }
         }
         for id in &new_ids {
-            super::object::keep_compound_aligned(d, *id, vectorcraft_doc::Scaling::default());
+            super::object::keep_compound_aligned(d, *id, pluma_doc::Scaling::default());
         }
         sel.set(new_ids.iter().copied());
         // Copied ruler guides (#3226): on the layer new art goes to, moved as the objects are (a
@@ -1422,7 +1422,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                 let pos = g.pos + if g.vertical { dv.x } else { dv.y };
                 if pos.is_finite() {
                     sel.guides.push(d.guides.len());
-                    d.guides.push(vectorcraft_doc::Guide { pos, layer: guide_layer, ..g.clone() });
+                    d.guides.push(pluma_doc::Guide { pos, layer: guide_layer, ..g.clone() });
                 }
             }
         }
@@ -1453,7 +1453,7 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
 /// the compound path (a compound path holds paths only; compound paths unpack into isolated compounds).
 fn paste_anchor(doc: &Document, id: NodeId, can_enter_compound: bool) -> NodeId {
     match doc.parent_of(id) {
-        Some(p) if !can_enter_compound && doc.node(p).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Compound { .. })) => p,
+        Some(p) if !can_enter_compound && doc.node(p).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Compound { .. })) => p,
         _ => id,
     }
 }
@@ -1481,7 +1481,7 @@ fn duplicate(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Duplicate `roots` directly above each original, transform the copies, select them
 /// ([`copy_above`]).
-pub(crate) fn duplicate_in(d: &mut Document, sel: &mut vectorcraft_doc::Selection, roots: &[NodeId], xf: Affine) -> Result<Vec<NodeId>> {
+pub(crate) fn duplicate_in(d: &mut Document, sel: &mut pluma_doc::Selection, roots: &[NodeId], xf: Affine) -> Result<Vec<NodeId>> {
     let out = copy_above(d, roots, |_, _, c| {
         c.transform(xf, true);
         super::object::keep_pixel_aligned(c, true.into());

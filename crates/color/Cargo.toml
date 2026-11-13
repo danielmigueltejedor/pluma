@@ -1,9 +1,9 @@
 [package]
-name = "vectorcraft-color"
+name = "pluma-color"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft color"
+description = "Pluma color"
 
 [lints]
 workspace = true

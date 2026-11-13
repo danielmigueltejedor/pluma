@@ -72,7 +72,7 @@ fn read_command_refuses_bad_params() {
     std::fs::write(&file, text).unwrap();
     let path = file.to_string_lossy();
     assert!(s.execute("actionSet.read", &json!({ "path": path })).is_ok());
-    let b64 = vectorcraft_format::base64_encode(text.as_bytes());
+    let b64 = pluma_format::base64_encode(text.as_bytes());
     for p in [
         json!({ "path": 5, "data": text }),
         json!({ "data": 5 }),
@@ -119,7 +119,7 @@ fn a_set_reads_from_a_path_and_from_base64() {
     let mut s = Session::new();
     let r = s.execute("actionSet.read", &json!({ "path": path.to_string_lossy() })).unwrap();
     assert_eq!((r["set"].as_str(), r["actions"][0]["name"].as_str()), (Some("Mine"), Some("A")));
-    let b64 = vectorcraft_format::base64_encode(text.as_bytes());
+    let b64 = pluma_format::base64_encode(text.as_bytes());
     assert_eq!(s.execute("actionSet.read", &json!({ "dataBase64": b64, "name": "B.aia" })).unwrap()["set"], "B");
     let _ = std::fs::remove_dir_all(dir);
 }

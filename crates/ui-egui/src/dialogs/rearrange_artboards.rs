@@ -7,12 +7,12 @@
 //! Fields: `layout` (`gridByRow` | `gridByColumn` | `row` | `column`), `order` (`leftToRight` |
 //! `rightToLeft`), `columns` (the rows of a grid by column), `spacing` (pt) and `moveArtwork`.
 
+use pluma_engine::cmd::newdoc::ArtboardLayout;
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::newdoc::ArtboardLayout;
 
 use super::{DialogSpec, form, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Rearrange All Artboards.
 pub const KIND: &str = "rearrangeArtboards";
@@ -31,7 +31,7 @@ pub fn fields() -> Value {
 }
 
 /// The fields the menu item opens with, retaining the spacing from its last confirmation.
-pub fn open_fields(app: &VectorcraftApp) -> Value {
+pub fn open_fields(app: &PlumaApp) -> Value {
     let mut fields = fields();
     if let Some(spacing) = app.ui.rearrange_artboards_spacing.as_f64() {
         fields["spacing"] = json!(spacing);
@@ -64,7 +64,7 @@ fn params(d: &Dialog) -> Value {
     })
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     let n = app.session.active().map_or(0, |doc| doc.doc.artboards.len());
     let layout = ArtboardLayout::parse(&d.str("layout")).unwrap_or_default();
@@ -118,7 +118,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let result = run_and_close(app, CMD, params(d))?;
     app.ui.rearrange_artboards_spacing = json!(d.f64("spacing", 20.0));
     Ok(result)
@@ -127,11 +127,11 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     /// A frame of the open dialog with `events` → the texts painted. The dialog measures itself on
     /// its first frame, so a fresh context needs two.
-    fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<String> {
+    fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<String> {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
         out.shapes.iter().filter_map(|s| if let egui::epaint::Shape::Text(t) = &s.shape { Some(t.galley.text().to_string()) } else { None }).collect()
@@ -143,7 +143,7 @@ mod tests {
         ctx
     }
 
-    fn origins(app: &VectorcraftApp) -> Vec<(f64, f64)> {
+    fn origins(app: &PlumaApp) -> Vec<(f64, f64)> {
         app.session.active().unwrap().doc.artboards.iter().map(|a| (a.rect.x0, a.rect.y0)).collect()
     }
 
@@ -151,7 +151,7 @@ mod tests {
     /// by column; OK lays the artboards out right to left, as one undo step.
     #[test]
     fn opens_from_the_menu_and_rearranges_by_layout_and_order() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 50, "artboards": 3})).unwrap();
         // The menu item has no params of its own: it opens this dialog, not the generic one.
         let (id, p) = crate::menus::click_target("Rearrange All Artboards…", CMD, &Value::Null);
@@ -183,7 +183,7 @@ mod tests {
     /// The spacing confirmed last is the one the dialog opens with next time (#4558).
     #[test]
     fn keeps_spacing_when_reopening_after_rearranging() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 50, "artboards": 3})).unwrap();
         app.run("ui.menuDialog", json!({"command": CMD})).unwrap();
         app.ui.dialog.as_mut().unwrap().fields.insert("spacing".into(), json!(37));
@@ -196,7 +196,7 @@ mod tests {
     /// Clicking the layout and order toggles sets the fields (the toggles' rects from the frame).
     #[test]
     fn the_toggles_set_layout_and_order() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 50, "artboards": 4})).unwrap();
         app.run("ui.menuDialog", json!({ "command": CMD })).unwrap();
         let ctx = context();

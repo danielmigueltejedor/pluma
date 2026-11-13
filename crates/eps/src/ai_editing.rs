@@ -1,5 +1,5 @@
 //! The editing copy of the art that a PDF-compatible `.ai` file carries in its pages'
-//! `PieceInfo` ([`vectorcraft_pdf::PrivateData`]): the document's layers, sublayers, groups, paths,
+//! `PieceInfo` ([`pluma_pdf::PrivateData`]): the document's layers, sublayers, groups, paths,
 //! colors, swatches and artboards in the form [`crate::import`]'s `.ai` reader reads, so that apps
 //! that open `.ai` files from that copy get them as editable objects.
 //!
@@ -112,7 +112,7 @@
 //!   of the document defined in the setup after the patterns, in a non-printing block
 //!   (`%AI14_BeginSymbol`, `(name)`, `0 A`, `0 Xw`, `0 Ae`, the art in the symbol's space with y
 //!   down, the registration point as `AI13PatternRegistrationType` 1 to 9 from the top left, row by
-//!   row (VectorCraft's numbering, in the order the scripting reference lists the points), in the
+//!   row (Pluma's numbering, in the order the scripting reference lists the points), in the
 //!   art's dictionary, `%AI10_EndSymbol`), each after those its art uses; the symbol
 //!   list after the palette (`%AI24_BeginSymbolList`, the names in the Symbols panel's order,
 //!   `%AI24_EndSymbolList`); each instance as `/SymbolInstance :`, `(name) /SymbolRef ,`, the
@@ -159,7 +159,7 @@
 //! written as outlines or brush art,
 //! instances that scale their symbol more than 100 times, instances on the layers of a large canvas
 //! and instances of
-//! symbols past 4,096 as their art (symbol art past [`vectorcraft_doc::MAX_SYMBOL_NODES`] objects
+//! symbols past 4,096 as their art (symbol art past [`pluma_doc::MAX_SYMBOL_NODES`] objects
 //! in all left out), instances of symbols the document doesn't have as empty groups, symbols' 9-slice
 //! guides, export types and dynamic type left out, live objects (placed documents included) as their art,
 //! strokes a plain line can't draw
@@ -178,9 +178,9 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
-use vectorcraft_doc::{Document, Node, Unit};
-use vectorcraft_geom::{Affine, Rect};
-use vectorcraft_pdf::PrivateData;
+use pluma_doc::{Document, Node, Unit};
+use pluma_geom::{Affine, Rect};
+use pluma_pdf::PrivateData;
 
 use crate::ps;
 
@@ -211,13 +211,13 @@ const ART_SIZE: u32 = 14400;
 const ART_FLAGS: &str = "0 0 0 1 0 0 1 0 0";
 /// `%AI5_TargetResolution` (§2.1.1).
 const TARGET_RESOLUTION: u32 = 800;
-/// The gridlines' gray: VectorCraft's default grid color (200 of 255).
+/// The gridlines' gray: Pluma's default grid color (200 of 255).
 const GRID_GRAY: f64 = 200.0 / 255.0;
 
-/// `%%Creator`: the creator line VectorCraft writes in the header of the editing data. It names
-/// VectorCraft and the format's app, and holds no version number; the version is written on its
+/// `%%Creator`: the creator line Pluma writes in the header of the editing data. It names
+/// Pluma and the format's app, and holds no version number; the version is written on its
 /// own in `%%AI8_CreatorVersion` ([`CREATOR_VERSION`]).
-const CREATOR_TEXT: &str = "VectorCraft, editing data for Illustrator"; // brand-ok: the creator line VectorCraft writes
+const CREATOR_TEXT: &str = "Pluma, editing data for Illustrator"; // brand-ok: the creator line Pluma writes
 
 /// The first line of a PostScript file (the DSC version comment).
 const PS_HEADER: &str = "%!PS-Adobe-3.0"; // brand-ok: the PostScript header comment
@@ -368,23 +368,23 @@ fn splice(text: &[u8], payloads: &[Vec<u8>]) -> Vec<u8> {
     out
 }
 
-/// `doc` with its geometry effects and group paint baked ([`vectorcraft_effects::bake_document`]),
+/// `doc` with its geometry effects and group paint baked ([`pluma_effects::bake_document`]),
 /// in its symbols' art and its patterns' tile art too (which instances and pattern fills are
 /// written as); `None` when nothing changes.
 fn baked(doc: &Document) -> Option<Document> {
-    let baked = vectorcraft_effects::bake_document(doc);
+    let baked = pluma_effects::bake_document(doc);
     let d = baked.as_ref().unwrap_or(doc);
-    let needs = vectorcraft_effects::needs_bake;
+    let needs = pluma_effects::needs_bake;
     if !d.symbols.iter().any(|s| needs(&s.art)) && !d.patterns.iter().any(|p| p.art.iter().any(|a| needs(a))) {
         return baked;
     }
     // The symbols' art, then each pattern's art, baked as the layers of a copy of the document.
     let mut art = d.clone();
     let symbols = d.symbols.iter().map(|s| Arc::new(Node::group(s.art.id, vec![s.art.clone()])));
-    let patterns = d.patterns.iter().map(|p| Arc::new(Node::group(vectorcraft_doc::NodeId(0), p.art.clone())));
+    let patterns = d.patterns.iter().map(|p| Arc::new(Node::group(pluma_doc::NodeId(0), p.art.clone())));
     art.layers = symbols.chain(patterns).collect();
     // The copy keeps what baking adds to the document (the images color adjustments make).
-    let Some(mut out) = vectorcraft_effects::bake_document(&art) else { return baked };
+    let Some(mut out) = pluma_effects::bake_document(&art) else { return baked };
     let layers = std::mem::replace(&mut out.layers, d.layers.clone());
     let mut members = layers.iter().map(|l| l.children().cloned().unwrap_or_default());
     for s in out.symbols.iter_mut() {
@@ -440,7 +440,7 @@ fn canvas_scale(doc: &Document) -> f64 {
 /// The strokes and effects of `n` and of what it holds, `k` times as large.
 fn scale_strokes(n: &mut Node, k: f64) {
     n.appearance.scale_strokes(k);
-    n.appearance.scale_effects(k, vectorcraft_effects::scale_effect);
+    n.appearance.scale_effects(k, pluma_effects::scale_effect);
     if let Some(mask) = n.extras_if_any().and_then(|e| e.mask.as_mut()) {
         scale_strokes(Arc::make_mut(&mut mask.art), k);
     }
@@ -469,7 +469,7 @@ fn header(doc: &Document, o: &AiEditingOptions, w: &Writer, art: Rect, first: Re
     let _ = writeln!(s, "%%For: {} ()", ps::bytes(doc.metadata.author.as_bytes()));
     let _ = writeln!(s, "%%Title: {}", ps::bytes(o.title.as_bytes()));
     if let Some(t) = o.created {
-        let [y, mo, d, h, mi, _] = vectorcraft_doc::metadata::civil(t);
+        let [y, mo, d, h, mi, _] = pluma_doc::metadata::civil(t);
         let _ = writeln!(s, "%%CreationDate: ({mo}/{d}/{y:04}) ({h:02}:{mi:02})");
     }
     let _ = writeln!(s, "%%Canvassize: {CANVAS_SIZE}");
@@ -504,7 +504,7 @@ fn header(doc: &Document, o: &AiEditingOptions, w: &Writer, art: Rect, first: Re
     let _ = writeln!(s, "%AI5_ArtSize: {ART_SIZE} {ART_SIZE}");
     let _ = writeln!(s, "%AI5_RulerUnits: {}", ruler_units(doc.units));
     let _ = writeln!(s, "%AI24_LargeCanvasScale: {}", ps::num(scale));
-    let model = if doc.color_mode == vectorcraft_doc::ColorMode::Cmyk { 2 } else { 1 };
+    let model = if doc.color_mode == pluma_doc::ColorMode::Cmyk { 2 } else { 1 };
     let _ = writeln!(s, "%AI9_ColorModel: {model}");
     let _ = writeln!(s, "%AI5_ArtFlags: {ART_FLAGS}");
     let _ = writeln!(s, "%AI5_TargetResolution: {TARGET_RESOLUTION}");
@@ -514,7 +514,7 @@ fn header(doc: &Document, o: &AiEditingOptions, w: &Writer, art: Rect, first: Re
     if !views.is_empty() {
         let _ = writeln!(s, "%AI5_OpenViewLayers: {views}");
     }
-    // Gridlines and subdivisions (§2.1.1, Table 6): in back, lines, in VectorCraft's grid gray.
+    // Gridlines and subdivisions (§2.1.1, Table 6): in back, lines, in Pluma's grid gray.
     let (space, subdiv) = (ps::num(doc.grid.spacing), doc.grid.subdivisions);
     let gray = ps::num(GRID_GRAY);
     let _ = writeln!(s, "%AI7_GridSettings: {space} {subdiv} {space} {subdiv} 1 0 {gray} {gray} {gray} {gray} {gray} {gray}");

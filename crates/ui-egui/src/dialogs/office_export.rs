@@ -7,7 +7,7 @@ use super::png_options::{RESOLUTION_LABELS, RESOLUTIONS};
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(crate) const KIND: &str = "saveForOffice";
 
@@ -22,13 +22,13 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Open the dialog (150 ppi on white, the first artboard).
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     app.session.active().ok_or("no document")?;
     app.ui.dialog = Some(Dialog::new(KIND, json!({"ppi": RESOLUTIONS[1], "transparent": false, "artboard": 0})));
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let label = |ui: &mut egui::Ui, text: &str| ui.label(egui::RichText::new(text).color(t.text_dim));
     let Some(doc) = app.session.active().map(|st| &st.doc) else { return true };
@@ -53,7 +53,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         }
         if let Some(a) = doc.artboards.get(board) {
             label(ui, tl!("Size:"));
-            let (w, h) = vectorcraft_render::region_pixels(a.rect, ppi / 72.0);
+            let (w, h) = pluma_render::region_pixels(a.rect, ppi / 72.0);
             ui.label(egui::RichText::new(format!("{w} × {h} px")).color(t.text));
             ui.end_row();
         }
@@ -64,7 +64,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Pick the file and write it (the command runs first: bad options keep the dialog open).
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let path = io::save_command_output(app, "document.exportForOffice", "png", form::params(d))?;
     app.ui.dialog = None;
     Ok(json!({ "path": path }))

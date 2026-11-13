@@ -1,9 +1,9 @@
 //! Knockout groups, the knockout shape and the page group (Transparency panel).
 
 use crate::*;
-use vectorcraft_color::{BlendMode as Blend, Color, Paint};
-use vectorcraft_doc::{Appearance, Knockout, Node};
-use vectorcraft_geom::shapes;
+use pluma_color::{BlendMode as Blend, Color, Paint};
+use pluma_doc::{Appearance, Knockout, Node};
+use pluma_geom::shapes;
 
 /// A 50% opaque rectangle: red at 10..60, blue at 40..90 (they overlap at 40..60).
 fn half(d: &mut Document, x: f64, rgb: (f32, f32, f32)) -> Node {
@@ -77,7 +77,7 @@ fn opacity_defines_the_knockout_shape() {
             let blue = Arc::make_mut(&mut g.children_mut().unwrap()[1]);
             blue.opacity = 1.0;
             blue.knockout_shape = shape;
-            blue.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(white, true)));
+            blue.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(white, true)));
         }));
         let want = if shape { HALF_KNOCKED } else { BLUE_OVER_WHITE };
         // A mid-grey mask is ~50% (luminance 0.5, not gamma-corrected): allow a little more slack.
@@ -257,7 +257,7 @@ fn opaque_knockout_fills_keep_pixels_without_per_element_backdrop_rasters() {
                         n.appearance = Appearance::basic(Paint::solid(Color::rgb(i as f32 / 12.0, 0.3, 0.7)), Paint::None, 0.0).into();
                         if reference {
                             let art = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 80.0, 60.0)), Appearance::default());
-                            let mut mask = vectorcraft_doc::OpacityMask::new(art, false);
+                            let mut mask = pluma_doc::OpacityMask::new(art, false);
                             mask.disabled = true;
                             n.extras_mut().mask = Some(Box::new(mask));
                         }
@@ -309,7 +309,7 @@ fn translucent_knockout_objects_and_fills_keep_their_compositing() {
                     let n = Arc::make_mut(n);
                     n.opacity = 1.0;
                     for item in &mut n.appearance.items {
-                        if let vectorcraft_doc::AppearanceItem::Fill(fill) = item {
+                        if let pluma_doc::AppearanceItem::Fill(fill) = item {
                             fill.opacity = 0.5;
                         }
                     }

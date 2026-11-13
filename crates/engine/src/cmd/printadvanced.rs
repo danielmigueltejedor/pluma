@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::marks::outset;
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect};
-use vectorcraft_pdf::{OutputMode, PrintOverprints, PrintSettings};
-use vectorcraft_render::{AntiAlias, RenderOptions};
+use pluma_doc::marks::outset;
+use pluma_doc::{Document, ImageBlob, ImageObject, LayerColor, Node, NodeKind};
+use pluma_geom::{Affine, Rect};
+use pluma_pdf::{OutputMode, PrintOverprints, PrintSettings};
+use pluma_render::{AntiAlias, RenderOptions};
 
 use super::fileio::pdf::pdf_error;
 use super::flatten::{FlattenOptions, FlattenerPreset, flatten_document};
@@ -38,7 +38,7 @@ pub(crate) fn prepare(cmd: &str, doc: &Document, set: &PrintSettings, saved: &[F
     if !bitmap && flattener.is_none() {
         return Ok(None);
     }
-    let printed = vectorcraft_pdf::printed_document(doc, set);
+    let printed = pluma_pdf::printed_document(doc, set);
     if bitmap {
         return bitmap_document(cmd, &printed, set, rich_black).map(Some);
     }
@@ -65,14 +65,14 @@ fn drop_guides(nodes: &mut Vec<Arc<Node>>) {
 /// with its bleed, or all the art), at the document's raster effects resolution; regions where
 /// nothing is drawn get none.
 fn bitmap_document(cmd: &str, doc: &Document, set: &PrintSettings, rich_black: bool) -> Result<Document> {
-    let regions = vectorcraft_pdf::print_regions(doc, set).map_err(|e| pdf_error(cmd, e))?;
+    let regions = pluma_pdf::print_regions(doc, set).map_err(|e| pdf_error(cmd, e))?;
     let bleed = set.bleed.of(doc);
     let mut art = doc.clone();
     drop_guides(&mut art.layers);
     let anti_alias = if doc.raster_effects.anti_alias { AntiAlias::Art } else { AntiAlias::None };
     let opts = RenderOptions { skip_templates: true, anti_alias, rich_black, ..Default::default() };
     let mut out = doc.clone();
-    let mut renderer = vectorcraft_render::Renderer::new();
+    let mut renderer = pluma_render::Renderer::new();
     let mut images = vec![];
     for (_, r) in regions {
         let area = outset(r, bleed);

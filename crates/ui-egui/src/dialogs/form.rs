@@ -1,10 +1,10 @@
 //! Field widgets shared by the dialogs: labelled text fields, checkboxes, the generic field grid
 //! and the typed parameter editor of the command and effect dialogs.
 
+use pluma_doc::Unit;
+use pluma_doc::color::Color;
+use pluma_plugins::{Manifest, Param, ParamSpec};
 use serde_json::{Value, json};
-use vectorcraft_doc::Unit;
-use vectorcraft_doc::color::Color;
-use vectorcraft_plugins::{Manifest, Param, ParamSpec};
 
 use crate::state::Dialog;
 use crate::theme::Tokens;
@@ -196,7 +196,7 @@ pub(super) fn text(ui: &mut egui::Ui, d: &mut Dialog, key: &str, width: f32) -> 
 
 /// A parameter value that is a color object (`{"model": "cmyk", …}`, as Document Color Mode or an
 /// imported file stores an effect's color), read as a color. `None` for any other value.
-pub(super) fn color_object(v: &Value) -> Option<vectorcraft_doc::color::Color> {
+pub(super) fn color_object(v: &Value) -> Option<pluma_doc::color::Color> {
     v.is_object().then(|| serde_json::from_value(v.clone()).ok()).flatten()
 }
 
@@ -376,7 +376,7 @@ pub(super) fn grid_then(ui: &mut egui::Ui, d: &mut Dialog, unit: Unit, more: imp
                 });
                 ui.end_row();
             } else if let Some(ends) = skew_ends(&d.kind, &k) {
-                let max = vectorcraft_geom::shapes::GRID_SKEW_MAX;
+                let max = pluma_geom::shapes::GRID_SKEW_MAX;
                 row_label(ui, tl!("Skew:"));
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| slider_field_named(ui, d, &k, tl!("Skew:"), -max..=max, "%", &|_| rail));
@@ -452,7 +452,7 @@ pub(super) fn param_fields(
                 }
                 if is_length(&k) {
                     // An effect's documented range keeps the field to the distance it applies.
-                    let range = vectorcraft_effects::length_range(&d.str("__effect"), &k);
+                    let range = pluma_effects::length_range(&d.str("__effect"), &k);
                     if spinners {
                         let bounds = range.unwrap_or(if k == "blur" { 0.0..=f64::INFINITY } else { crate::widgets::ANY });
                         let value = d.fields.contains_key(&k).then(|| d.f64(&k, 0.0));
@@ -467,7 +467,7 @@ pub(super) fn param_fields(
                 }
                 // A size in pixels of the raster effects resolution (Color Halftone's Max Radius)
                 // stays in pixels whatever the document's units, within its documented range.
-                if let Some(range) = vectorcraft_effects::raster_px_range(&d.str("__effect"), &k) {
+                if let Some(range) = pluma_effects::raster_px_range(&d.str("__effect"), &k) {
                     let x = v.as_f64().unwrap_or(*range.start());
                     if let Some(x) = crate::widgets::range_field_named(ui, ("fx-px", &k), None, x, range, &unit_suffix("px"), 2, 140.0) {
                         d.fields.insert(k.clone(), typed_number(x));
@@ -599,9 +599,9 @@ fn typed_number(x: f64) -> Value {
 /// ([`Manifest::sections`]); a parameter whose `visibleWhen` the values don't meet is left out
 /// ([`Manifest::visible`]). Returns true when a value changed. Labels, choices, groups and help are
 /// the plug-in's text, shown as they are. A plug-in may declare more parameters
-/// ([`MAX_PARAMS`](vectorcraft_plugins::manifest::MAX_PARAMS)) than the window has room for, and
+/// ([`MAX_PARAMS`](pluma_plugins::manifest::MAX_PARAMS)) than the window has room for, and
 /// the rows then scroll ([`super::modal::scrolled_rows`]).
-pub(super) fn schema_fields(app: &mut crate::VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, m: &Manifest) -> bool {
+pub(super) fn schema_fields(app: &mut crate::PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, m: &Manifest) -> bool {
     let (changed, help) = schema_rows(ui, d, m);
     // The browser is another app: a click automation sent opens nothing.
     if let Some(url) = help
@@ -741,10 +741,10 @@ fn value_field(ui: &mut egui::Ui, k: &str, label: &str, spec: &ParamSpec, cur: &
 /// picker → the color picked, as the color object the plug-in gets: the picker's display sRGB in the
 /// working RGB space, so the color shows as it was picked whatever the working profile.
 pub(crate) fn plugin_color_button(ui: &mut egui::Ui, id: impl std::hash::Hash + std::fmt::Debug, cur: &Value) -> Option<Value> {
-    let [r, g, b, _] = vectorcraft_plugins::manifest::color_value(cur).unwrap_or_default().to_rgba8(1.0);
+    let [r, g, b, _] = pluma_plugins::manifest::color_value(cur).unwrap_or_default().to_rgba8(1.0);
     let mut rgb = [r, g, b];
     let changed = ui.push_id(id, |ui| ui.color_edit_button_srgb(&mut rgb).changed()).inner;
-    let picked = || crate::screen_color::sampled(&vectorcraft_color::cms::active(), rgb.map(|v| f32::from(v) / 255.0));
+    let picked = || crate::screen_color::sampled(&pluma_color::cms::active(), rgb.map(|v| f32::from(v) / 255.0));
     changed.then(|| serde_json::to_value(picked()).unwrap_or_default())
 }
 
@@ -760,7 +760,7 @@ pub(crate) fn number_list_text(cur: &Value) -> String {
 pub(crate) fn read_number_list(text: &str, spec: &ParamSpec) -> Option<Value> {
     let ParamSpec::NumberList { min, max, min_items, max_items, .. } = spec else { return None };
     let parts = text.split([',', ';', ' ']).filter(|p| !p.trim().is_empty());
-    let list: Vec<f64> = parts.map(|p| vectorcraft_doc::parse_number(p).filter(|x| x.is_finite())).collect::<Option<_>>()?;
+    let list: Vec<f64> = parts.map(|p| pluma_doc::parse_number(p).filter(|x| x.is_finite())).collect::<Option<_>>()?;
     (*min_items..=*max_items).contains(&list.len()).then(|| json!(list.into_iter().map(|x| x.clamp(*min, *max)).collect::<Vec<f64>>()))
 }
 
@@ -971,9 +971,9 @@ pub(super) const REFUSED: &str = "__refused";
 
 /// Keeps why the command refused the dialog's values in [`REFUSED`]: a refused value's message is
 /// written for the user, so it goes without the command's id that the error's text puts before it.
-pub(super) fn note_refusal(d: &mut Dialog, e: &vectorcraft_engine::EngineError) {
+pub(super) fn note_refusal(d: &mut Dialog, e: &pluma_engine::EngineError) {
     let why = match e {
-        vectorcraft_engine::EngineError::BadParams { msg, .. } => msg.clone(),
+        pluma_engine::EngineError::BadParams { msg, .. } => msg.clone(),
         other => other.to_string(),
     };
     d.fields.insert(REFUSED.into(), json!(why));
@@ -982,20 +982,13 @@ pub(super) fn note_refusal(d: &mut Dialog, e: &vectorcraft_engine::EngineError) 
 /// The Preview checkbox of a dialog that previews `cmd` on the canvas: while it is on, `params` run
 /// again on the interaction's snapshot whenever they differ from the last preview (whether a widget
 /// or `ui.dialog.set` changed them); turning it off rolls back.
-pub(crate) fn preview(app: &mut crate::VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, label: &str, cmd: &str, params: Value) {
+pub(crate) fn preview(app: &mut crate::PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, label: &str, cmd: &str, params: Value) {
     let _ = preview_result(app, ui, d, label, cmd, params);
 }
 
 /// As [`preview`], returning the command's result only when a new preview succeeds.
 /// A dialog can retain a small summary (such as point counts) in its private fields.
-pub(super) fn preview_result(
-    app: &mut crate::VectorcraftApp,
-    ui: &mut egui::Ui,
-    d: &mut Dialog,
-    label: &str,
-    cmd: &str,
-    params: Value,
-) -> Option<Value> {
+pub(super) fn preview_result(app: &mut crate::PlumaApp, ui: &mut egui::Ui, d: &mut Dialog, label: &str, cmd: &str, params: Value) -> Option<Value> {
     ui.add_space(8.0);
     preview_check(ui, d);
     preview_or_rollback(app, d, label, cmd, params)
@@ -1012,12 +1005,12 @@ pub(crate) fn preview_check(ui: &mut egui::Ui, d: &mut Dialog) {
 
 /// [`preview`] without its checkbox, which the dialog draws itself ([`preview_check`]): the preview
 /// runs while the field is on and rolls back when it is off.
-pub(crate) fn preview_without_check(app: &mut crate::VectorcraftApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) {
+pub(crate) fn preview_without_check(app: &mut crate::PlumaApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) {
     let _ = preview_or_rollback(app, d, label, cmd, params);
 }
 
 /// [`preview_now`] while Preview is on; off, it rolls the preview back.
-fn preview_or_rollback(app: &mut crate::VectorcraftApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) -> Option<Value> {
+fn preview_or_rollback(app: &mut crate::PlumaApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) -> Option<Value> {
     if !d.bool("preview") {
         if d.fields.remove(PREVIEWED).is_some() {
             let _ = app.session.cancel_interaction();
@@ -1030,7 +1023,7 @@ fn preview_or_rollback(app: &mut crate::VectorcraftApp, d: &mut Dialog, label: &
 /// The preview of [`preview_result`] without its checkbox: `params` run again on the interaction's
 /// snapshot when they differ from the last preview. Returns the command's result only when a new
 /// preview succeeds.
-pub(super) fn preview_now(app: &mut crate::VectorcraftApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) -> Option<Value> {
+pub(super) fn preview_now(app: &mut crate::PlumaApp, d: &mut Dialog, label: &str, cmd: &str, params: Value) -> Option<Value> {
     let mut result = None;
     if d.fields.get(PREVIEWED) != Some(&params) || !app.session.in_interaction() {
         let _ = app.session.begin_interaction(label);
@@ -1052,7 +1045,7 @@ pub(super) fn preview_now(app: &mut crate::VectorcraftApp, d: &mut Dialog, label
 /// OK of a dialog using [`preview`]: keep the previewed `cmd` as one undo step (or run it when no
 /// preview runs) and close; the command's warning shows in the status bar either way. On an error
 /// the dialog stays open.
-pub(crate) fn commit_preview(app: &mut crate::VectorcraftApp, cmd: &str, params: Value) -> Result<Value, String> {
+pub(crate) fn commit_preview(app: &mut crate::PlumaApp, cmd: &str, params: Value) -> Result<Value, String> {
     let r = if app.session.in_interaction() {
         match app.session.preview(cmd, &params) {
             Ok(v) => {
@@ -1089,7 +1082,7 @@ pub(super) fn bleed_values(d: &Dialog) -> [f64; 4] {
 /// Bleed fields (Document Setup, New Document): Top, Bottom, Left and Right shown in `unit`, each
 /// `width` wide with a caption above, and a link toggle (`bleedLinked`, on by default) that keeps
 /// them equal. Values are clamped to 0–72 pt.
-pub(super) fn bleed(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit, width: f32) {
+pub(super) fn bleed(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit, width: f32) {
     let t = Tokens::get(ui.ctx());
     let mut b = bleed_values(d);
     let linked = d.fields.get("bleedLinked").and_then(Value::as_bool).unwrap_or(true);
@@ -1101,7 +1094,7 @@ pub(super) fn bleed(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Un
                 let label = ui.label(egui::RichText::new(tl!(side)).size(11.0).color(t.text_dim));
                 let v = ui.label_inputs_by(label.id, |ui| crate::widgets::num_field(ui, ("bleed", i), Some(b[i]), unit, width));
                 if let Some(v) = v {
-                    changed = Some((i, v.clamp(0.0, vectorcraft_doc::setup::MAX_BLEED)));
+                    changed = Some((i, v.clamp(0.0, pluma_doc::setup::MAX_BLEED)));
                 }
             });
         }

@@ -1,5 +1,5 @@
 # Hindi (hi). context <TAB> English source <TAB> Hindi translation.
-# Drafted from VectorCraft's English labels; shared terms reuse PhotoCraft's clean-room Hindi catalog.
+# Drafted from Pluma's English labels; shared terms reuse Lienzo's clean-room Hindi catalog.
 # Remaining drafts used the local Argos English-Hindi 1.1 model with agent terminology corrections.
 # No proprietary localization resources were consulted. Native-speaker review is pending.
 # Product names, file extensions, keyboard keys, units and placeholders stay unchanged.
@@ -92,7 +92,7 @@
 	[Press Quality]	[प्रेस गुणवत्ता]
 	[Smallest File Size]	[सबसे छोटा फ़ाइल साइज़]
 	[Unnamed]	[बिना नाम]
-	[VectorCraft Default]	[VectorCraft डिफ़ॉल्ट]
+	[Pluma Default]	[Pluma डिफ़ॉल्ट]
 	{count} of {total} artboards	{total} में से {count} आर्टबोर्ड
 	{effect} is already applied	{effect} पहले से लागू है
 	{file}, line {line}	{file}, पंक्ति {line}
@@ -185,7 +185,7 @@
 	A5	A5
 	A6	A6
 	About	परिचय
-	About VectorCraft	VectorCraft के बारे में
+	About Pluma	Pluma के बारे में
 	above	ऊपर
 	Above Text	टेक्स्ट के ऊपर
 	Absolute	निरपेक्ष
@@ -357,7 +357,7 @@ antiAlias	Sharp	शार्प
 	Appearance panel	अपीयरेंस पैनल
 	Appearance Panel	अपीयरेंस पैनल
 	Applied Filters	लागू फ़िल्टर
-	Applies the next time VectorCraft starts.	अगली बार VectorCraft शुरू होने पर लागू होगा।
+	Applies the next time Pluma starts.	अगली बार Pluma शुरू होने पर लागू होगा।
 	Applies when the linked file is relinked or updated.	लिंक्ड फ़ाइल दोबारा लिंक या अपडेट होने पर लागू होगा।
 	Apply	लागू करें
 	Apply {name}	{name} लागू करें
@@ -433,8 +433,8 @@ antiAlias	Sharp	शार्प
 	Artboard:	आर्टबोर्ड:
 	Artboards	आर्टबोर्ड्स
 	Artboards: {n}	आर्टबोर्ड: {n}
-	ArtCraft website	ArtCraft वेबसाइट
-	ArtCraft Website	ArtCraft वेबसाइट
+	Nodalia website	Nodalia वेबसाइट
+	Nodalia Website	Nodalia वेबसाइट
 	Artistic	कलात्मक
 	Artwork	आर्टवर्क
 	Artwork Cleanup	आर्टवर्क की सफ़ाई
@@ -1257,7 +1257,7 @@ antiAlias	Sharp	शार्प
 	Difference	डिफ़रेंस
 	Differences from [Default]:	[Default] से अंतर:
 	Differences from {preset}:	{preset} से अंतर:
-	Differences from VectorCraft Default:	वेक्टर क्रेफ्ट डिफ़ॉल्ट से मतभेद:
+	Differences from Pluma Default:	वेक्टर क्रेफ्ट डिफ़ॉल्ट से मतभेद:
 	Diffuse	डिफ़्यूज़
 	Diffuse Glow	डिफ़्यूज़ ग्लो
 	Diffuse Glow…	डिफ़्यूज़ ग्लो…
@@ -1448,7 +1448,7 @@ antiAlias	Sharp	शार्प
 	Dynamic Symbol	डायनामिक सिंबल
 	e.g. 1-3, 5	उदाहरण के लिए 1-3, 5
 	Each Design Represents:	प्रत्येक डिजाइन का प्रतिनिधित्व करता है:
-	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	फ़ाइल का प्रत्येक प्रविष्टि एक वेक्टर क्रेफ्ट टूल, कमांड या पैनल से मेल खाती है। मैचों की जाँच करें और जवाब दें कि क्या छोड़ दिया गया है।
+	Each entry of the file is matched to a Pluma tool, command or panel. Check the matches and answer what is left.	फ़ाइल का प्रत्येक प्रविष्टि एक वेक्टर क्रेफ्ट टूल, कमांड या पैनल से मेल खाती है। मैचों की जाँच करें और जवाब दें कि क्या छोड़ दिया गया है।
 	Each page prints as one image, at the document's raster effects resolution.	हर पेज डॉक्यूमेंट के रास्टर इफ़ेक्ट्स रिज़ॉल्यूशन पर एक इमेज के रूप में प्रिंट होता है।
 	Each run may take up to {minutes} minutes and do {times} times the work other plug-ins may. It runs in the background, and you can cancel it.	हर रन में {minutes} मिनट तक लग सकते हैं और अन्य प्लग-इन से {times} गुना काम हो सकता है। यह बैकग्राउंड में चलता है और आप इसे रद्द कर सकते हैं।
 	Earth Tones	पृथ्वी टोन
@@ -2114,7 +2114,7 @@ antiAlias	Sharp	शार्प
 	Hide Thumbnails	हिंदुस्तान
 	Hide Transparency Grid	पारदर्शिता ग्रिड छिपाएँ
 	Hide Units	इकाइयाँ छिपाएँ
-	Hide VectorCraft	VectorCraft छिपाएँ
+	Hide Pluma	Pluma छिपाएँ
 	Hide Video Rulers	वीडियो शासक
 	High	उच्च
 	High (300 ppi)	उच्च (300 ppi)
@@ -2224,7 +2224,7 @@ antiAlias	Sharp	शार्प
 	In Tangent Handles	टैंगेंट हैंडल में
 	In the File	फ़ाइल में
 	In the selected objects	सिलेक्टेड ऑब्जेक्ट्स में
-	In VectorCraft	वेक्टर क्रेफ्ट में
+	In Pluma	वेक्टर क्रेफ्ट में
 	In:	इनपुट:
 	Inches	इंच
 	Include Action Steps	एक्शन चरण शामिल करें
@@ -2324,7 +2324,7 @@ antiAlias	Sharp	शार्प
 	Join our Discord	हमारे डिसकॉर्ड में शामिल हों
 	Join Our Discord	हमारे डिसकॉर्ड में शामिल हों
 	Join Point Text	पॉइंट टेक्स्ट में शामिल हों
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Discord (discord.gg/artcraft) पर ArtCraft समुदाय में शामिल हों
+	Join the Nodalia community on Discord (discord.gg/artcraft)	Discord (discord.gg/artcraft) पर Nodalia समुदाय में शामिल हों
 	Join the lines of each paragraph	प्रत्येक पैराग्राफ की लाइनों में शामिल हों
 	Join Tool	जॉइन टूल
 	Joins	जुड़ना
@@ -2354,7 +2354,7 @@ antiAlias	Sharp	शार्प
 	Keep this row's colors (exclude)	इस पंक्ति के रंग (बाहर) रखें
 	Keep visible surfaces only when expanding	विस्तार करते समय केवल दृश्यमान सतहों को रखें
 	Keep:	ध्यान रखें:
-	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	डॉक्यूमेंट को संपादित करने में सक्षम रखता है: VectorCraft PDF को कुछ भी नहीं खो सकता है। फ़ाइलों के लिए आप फिर से संपादित करेंगे।
+	Keeps the document editable: Pluma reopens the PDF with nothing lost. For files you'll edit again.	डॉक्यूमेंट को संपादित करने में सक्षम रखता है: Pluma PDF को कुछ भी नहीं खो सकता है। फ़ाइलों के लिए आप फिर से संपादित करेंगे।
 	Kerning	कर्निंग
 	Key Color:	कुंजी रंग:
 	Keyboard Increment	कीबोर्ड इंक्रीमेंट
@@ -3105,7 +3105,7 @@ antiAlias	Sharp	शार्प
 	Open this dialog with these settings next time	अगली बार इन सेटिंग्स के साथ इस संवाद को ओपन करें
 	Open this setting's help page	इस सेटिंग की मदद पृष्ठ को ओपन करें
 	Open…	ओपन…
-	Opening it left out what VectorCraft can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	ओपन करते समय वे हिस्से छूट गए जिन्हें VectorCraft अभी पढ़ नहीं सकता ({what})। फ़ाइल रिप्लेस करने पर वे हमेशा के लिए खो जाएँगे। मूल फ़ाइल रखने के लिए दूसरे नाम से सेव करें।
+	Opening it left out what Pluma can't read yet ({what}), so replacing it loses that for good. Save under another name to keep it.	ओपन करते समय वे हिस्से छूट गए जिन्हें Pluma अभी पढ़ नहीं सकता ({what})। फ़ाइल रिप्लेस करने पर वे हमेशा के लिए खो जाएँगे। मूल फ़ाइल रखने के लिए दूसरे नाम से सेव करें।
 	Opens files in other apps	अन्य ऐप्स में फ़ाइलों को ओपन करें
 	Opens network connections	नेटवर्क कनेक्शन ओपन करें
 	OpenType Features	ओपन टाइप सुविधाएँ
@@ -3214,8 +3214,8 @@ antiAlias	Sharp	शार्प
 	Paragraph:	पैराग्राफ़:
 	Parametric Shape	पैरामीट्रिक आकार
 	Parametric Shape Tool	पैरामीट्रिक आकार टूल
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). प्रतीक: Lucide (ISC) + VectorCraft.
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft का हिस्सा। MIT OR Apache-2.0। फ़ॉन्ट: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL)। आइकन: Lucide (ISC) + VectorCraft।
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). प्रतीक: Lucide (ISC) + Pluma.
+	Part of Nodalia. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + Pluma.	Nodalia का हिस्सा। MIT OR Apache-2.0। फ़ॉन्ट: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL)। आइकन: Lucide (ISC) + Pluma।
 	Password	पासवर्ड
 	Paste	पेस्ट करें
 	Paste Design	पेस्ट डिजाइन
@@ -3510,7 +3510,7 @@ antiAlias	Sharp	शार्प
 	Quarter Space	क्वार्टर स्पेस
 	Quick Actions	क्विक एक्शन्स
 	Quickly start a new file	जल्दी से एक नई फ़ाइल शुरू करें
-	Quit VectorCraft	VectorCraft बंद करें
+	Quit Pluma	Pluma बंद करें
 	Radar Graph Tool	रडार ग्राफ टूल
 	Radial	रेडियल
 	Radial Blur	रेडियल ब्लर
@@ -4050,7 +4050,7 @@ antiAlias	Sharp	शार्प
 	Saves the current bars, toolbar and panel layout.	वर्तमान बार, टूलबार और पैनल लेआउट को बचाता है।
 	Saving	सेव किया जा रहा है
 	Saving {}	बचत {}
-	Saving Poster.vectorcraft	बचत Poster.vectorcraft
+	Saving Poster.pluma	बचत Poster.pluma
 	Saving recovery data for {}	{} के लिए रिकवरी डेटा सेव करना
 	Scale	आकार बदलें
 	Scale Artwork with Artboard	आर्टबोर्ड के साथ स्केल आर्टवर्क
@@ -4565,7 +4565,7 @@ antiAlias	Sharp	शार्प
 	Star Tool	स्टार टूल
 	Start arrowhead	आरंभिक तीरहेड
 	Start at:	शुरू करें:
-	Start from VectorCraft Defaults	वेक्टर क्रेफ्ट डिफ़ॉल्ट से शुरू
+	Start from Pluma Defaults	वेक्टर क्रेफ्ट डिफ़ॉल्ट से शुरू
 	Start Global Edit	ग्लोबल एडिट
 	Start Length	प्रारंभ लंबाई
 	Start Percent	शुरू करें प्रतिशत
@@ -4704,8 +4704,8 @@ antiAlias	Sharp	शार्प
 	System	सिस्टम
 	System Layout	सिस्टम लेआउट
 	System Title Bar	सिस्टम टाइटल बार
-	VectorCraft Title Bar on Every Desktop	हर डेस्कटॉप पर VectorCraft टाइटल बार
-	The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.	जब तक एनवायरनमेंट वेरिएबल VECTORCRAFT_TITLEBAR सेट है, टाइटल बार वही चुनता है।
+	Pluma Title Bar on Every Desktop	हर डेस्कटॉप पर Pluma टाइटल बार
+	The PLUMA_TITLEBAR environment variable chooses the title bar while it is set.	जब तक एनवायरनमेंट वेरिएबल PLUMA_TITLEBAR सेट है, टाइटल बार वही चुनता है।
 	System Title Bar takes precedence over this option while it is on.	जब तक सिस्टम टाइटल बार चालू है, उसे इस विकल्प पर प्राथमिकता मिलती है।
 	Tab	Tab
 	Tab Stops	टैब स्टॉप्स
@@ -4787,7 +4787,7 @@ antiAlias	Sharp	शार्प
 	The file is too large to read in full, so only its first part is listed.	फ़ाइल पूर्ण रूप से पढ़ने के लिए बहुत बड़ी है, इसलिए केवल इसका पहला हिस्सा सूचीबद्ध है।
 	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	फ़ाइल कोड के रूप में कुंजी और संशोधक लिखती है। प्रस्तावित अर्थों की जाँच करें और उन कोडों का उत्तर दें जो अभी तक ज्ञात नहीं हैं।
 	The key color becomes the stroke color. The other colors shift their hue by the same amount and keep their saturation and brightness.	मुख्य रंग स्ट्रोक का रंग बनता है। बाकी रंगों की ह्यू भी उतनी ही बदलती है; उनकी सैचुरेशन और ब्राइटनेस बनी रहती हैं।
-	The name in the save panel was “{typed}”; VectorCraft added the file type's extension. Replacing the file overwrites its contents.	सेव पैनल में नाम “{typed}” था; VectorCraft ने फ़ाइल टाइप का एक्सटेंशन जोड़ दिया। फ़ाइल रिप्लेस करने पर उसका पुराना डेटा ओवरराइट होगा।
+	The name in the save panel was “{typed}”; Pluma added the file type's extension. Replacing the file overwrites its contents.	सेव पैनल में नाम “{typed}” था; Pluma ने फ़ाइल टाइप का एक्सटेंशन जोड़ दिया। फ़ाइल रिप्लेस करने पर उसका पुराना डेटा ओवरराइट होगा।
 	The page as it prints	जैसा कि यह प्रिंट करता है, पेज
 	The plug-in is computing…	प्लग-इन कंप्यूटिंग है…
 	The plug-in writes the whole document.	प्लग-इन पूरे डॉक्यूमेंट को लिखते हैं।
@@ -5124,19 +5124,19 @@ antiAlias	Sharp	शार्प
 	Vector Halftone	वेक्टर हाफ़टोन
 	Vector Halftone…	वेक्टर हाफ़टोन…
 	Vector illustration — fast, open, scriptable.	वेक्टर चित्रण - तेज, खुला, स्क्रिप्टेबल।
-	VectorCraft {release} and later (version {n})	VectorCraft {release} और बाद के संस्करण (संस्करण {n})
-	VectorCraft copies the fonts to {folder}.	VectorCraft फ़ॉन्ट को {folder} में कॉपी करता है।
-	VectorCraft Default	VectorCraft डिफ़ॉल्ट
-	VectorCraft Defaults	VectorCraft डिफ़ॉल्ट
-	VectorCraft didn't quit normally last time. These documents had unsaved changes:	पिछली बार VectorCraft सामान्य तरीके से बंद नहीं हुआ था। इन डॉक्यूमेंट्स में बिना सेव किए बदलाव थे:
-	VectorCraft documents: one locked object, updated when the file changes.	VectorCraft डॉक्यूमेंट्स: एक लॉक्ड ऑब्जेक्ट, जो फ़ाइल बदलने पर अपडेट होता है।
-	VectorCraft Generic CMYK (SWOP-like)	वेक्टर क्रेफ्ट जेनेरिक CMYK (SWOP-like)
-	VectorCraft Help…	VectorCraft मदद…
-	VectorCraft on getartcraft.com	getartcraft.com पर VectorCraft
-	VectorCraft on GitHub	GitHub पर VectorCraft
-	VectorCraft read this script without running it.	VectorCraft ने इस स्क्रिप्ट को रन किए बिना पढ़ा।
-	VectorCraft Swatches (.vcswatches)	वेक्टर क्रेफ्ट Swatches (.vcswatches)
-	VectorCraft Updates	वेक्टर क्रेफ्ट अपडेट
+	Pluma {release} and later (version {n})	Pluma {release} और बाद के संस्करण (संस्करण {n})
+	Pluma copies the fonts to {folder}.	Pluma फ़ॉन्ट को {folder} में कॉपी करता है।
+	Pluma Default	Pluma डिफ़ॉल्ट
+	Pluma Defaults	Pluma डिफ़ॉल्ट
+	Pluma didn't quit normally last time. These documents had unsaved changes:	पिछली बार Pluma सामान्य तरीके से बंद नहीं हुआ था। इन डॉक्यूमेंट्स में बिना सेव किए बदलाव थे:
+	Pluma documents: one locked object, updated when the file changes.	Pluma डॉक्यूमेंट्स: एक लॉक्ड ऑब्जेक्ट, जो फ़ाइल बदलने पर अपडेट होता है।
+	Pluma Generic CMYK (SWOP-like)	वेक्टर क्रेफ्ट जेनेरिक CMYK (SWOP-like)
+	Pluma Help…	Pluma मदद…
+	Pluma on getnodalia.com	getnodalia.com पर Pluma
+	Pluma on GitHub	GitHub पर Pluma
+	Pluma read this script without running it.	Pluma ने इस स्क्रिप्ट को रन किए बिना पढ़ा।
+	Pluma Swatches (.vcswatches)	वेक्टर क्रेफ्ट Swatches (.vcswatches)
+	Pluma Updates	वेक्टर क्रेफ्ट अपडेट
 	Vectors	वेक्टर
 	Version	संस्करण
 	Version {version} — open-source vector illustration in pure Rust.	संस्करण {version} — पूरी तरह Rust में बना ओपन-सोर्स वेक्टर इलस्ट्रेशन ऐप।
@@ -5213,7 +5213,7 @@ antiAlias	Sharp	शार्प
 	WebP	WebP
 	Weight	वज़न
 	Weight:	वज़न:
-	Welcome to VectorCraft	VectorCraft में आपका स्वागत है
+	Welcome to Pluma	Pluma में आपका स्वागत है
 	When pasting text	जब टेक्स्ट चिपकाना
 	White	सफ़ेद
 	White Intensity	सफ़ेद की तीव्रता
@@ -5468,11 +5468,11 @@ antiAlias	Sharp	शार्प
 @msg	`{_1}`: {msg}	`{_1}`: {msg}
 @msg	`{area}` is no recovery area name	`{area}` कोई वसूली क्षेत्र का नाम नहीं है
 @msg	`{color}` is not a colour (#rrggbb or a preset name)	`{color}` एक रंग नहीं है (#rrggbb या एक पूर्व निर्धारित नाम)
-@msg	`{f}` belongs to a VectorCraft that is running	`{f}` एक VectorCraft से संबंधित है जो चल रहा है
+@msg	`{f}` belongs to a Pluma that is running	`{f}` एक Pluma से संबंधित है जो चल रहा है
 @msg	`{f}` is the copy of a document open now	`{f}` एक डॉक्यूमेंट की प्रतिलिपि है जो अब खुला है
 @msg	`{file}` has no art to place	`{file}` के पास कोई कला नहीं है
 @msg	`{file}` is over {_1} MB	`{file}` is over {_1} MB
-@msg	`{file}` isn't a VectorCraft document, a PDF or a PDF-compatible .ai file	`{file}` एक VectorCraft डॉक्यूमेंट नहीं है, एक PDF या एक PDF-compatible.ai फ़ाइल
+@msg	`{file}` isn't a Pluma document, a PDF or a PDF-compatible .ai file	`{file}` एक Pluma डॉक्यूमेंट नहीं है, एक PDF या एक PDF-compatible.ai फ़ाइल
 @msg	`{given}` isn't a library panel (see window.swatchLibrary)	`{given}` एक लाइब्रेरी पैनल नहीं है (देखें window.swatchLibrary)
 @msg	`{id}` has no envelope dialog	`{id}` में कोई लिफाफा संवाद नहीं है
 @msg	`{id}` is no writable format (see document.formats)	`{id}` लिखने योग्य फ़ॉर्मैट नहीं है (document.formats देखें)
@@ -5933,7 +5933,7 @@ antiAlias	Sharp	शार्प
 @msg	an image of {w} × {h} pixels is shown at reduced size	{w} × {h} पिक्सेल की इमेज को कम आकार में दिखाया गया है
 @msg	an image of {w} × {h} pixels is too large to draw	{w} × {h} पिक्सेल की इमेज बहुत बड़ी है
 @msg	an image of {width} × {height} pixels is too large to draw	{width} × {height} पिक्सल की इमेज बहुत बड़ी है, जो आकर्षित करने के लिए बहुत बड़ी है
-@msg	an image VectorCraft can't read was left out	एक इमेज VectorCraft पढ़ा नहीं जा सकता था
+@msg	an image Pluma can't read was left out	एक इमेज Pluma पढ़ा नहीं जा सकता था
 @msg	an image whose data is cut short was left out	जिस इमेज का डेटा छोटा है उसे छोड़ दिया गया था
 @msg	an index must be a whole number	एक सूचकांक होना चाहिए पूरी संख्या
 @msg	an inline graphic has no glyphs	एक इनलाइन ग्राफ़िक में कोई glyph नहीं है
@@ -6049,7 +6049,7 @@ antiAlias	Sharp	शार्प
 @msg	brightness must be dark|mediumDark|mediumLight|light	brightness को dark|mediumDark|mediumLight|light होना चाहिए
 @msg	brush must be a name or null	brush: ब्रश एक नाम या null होना चाहिए
 @msg	brushes move only within their type	ब्रश केवल उनके प्रकार के भीतर ही चलते हैं
-@msg	brushes VectorCraft can't read yet were left out of the Brushes panel ({_1})	ब्रश VectorCraft को अभी तक नहीं पढ़ा जा सकता है ब्रश पैनल ({_1}) से बाहर छोड़ दिया गया था।
+@msg	brushes Pluma can't read yet were left out of the Brushes panel ({_1})	ब्रश Pluma को अभी तक नहीं पढ़ा जा सकता है ब्रश पैनल ({_1}) से बाहर छोड़ दिया गया था।
 @msg	by must be a number	by: द्वारा एक नंबर होना चाहिए
 @msg	can't add page thumbnails: {why}	पेज थंबनेल नहीं जोड़ा जा सकता: {why}
 @msg	can't add the editing data for other apps: {why}	अन्य ऐप्स के लिए संपादन डेटा नहीं जोड़ सकते: {why}
@@ -6060,13 +6060,13 @@ antiAlias	Sharp	शार्प
 @msg	can't linearise the PDF: {why}	PDF को रैखिक नहीं कर सकता: {why}
 @msg	can't open `{_1}`: {_2}	`{_1}` नहीं खोल सकते: {_2}
 @msg	can't open `{_1}`: {e}	`{_1}` नहीं खोल सकते: {e}
-@msg	can't open `{name}`: not a format VectorCraft reads (see document.formats)	`{name}` ओपन नहीं कर सकते: VectorCraft इस फ़ॉर्मैट को पढ़ नहीं सकता (document.formats देखें)
+@msg	can't open `{name}`: not a format Pluma reads (see document.formats)	`{name}` ओपन नहीं कर सकते: Pluma इस फ़ॉर्मैट को पढ़ नहीं सकता (document.formats देखें)
 @msg	can't parse shortcut `{c}`	नहीं कर सकते हैं a shortcut `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	`{k}` के लिए शॉर्टकट `{s}` को पार नहीं कर सकता
-@msg	can't place `{name}`: not a format VectorCraft reads (see document.formats)	`{name}` प्लेस नहीं कर सकते: VectorCraft इस फ़ॉर्मैट को पढ़ नहीं सकता (document.formats देखें)
+@msg	can't place `{name}`: not a format Pluma reads (see document.formats)	`{name}` प्लेस नहीं कर सकते: Pluma इस फ़ॉर्मैट को पढ़ नहीं सकता (document.formats देखें)
 @msg	can't read back the written PDF: {e}	लिखित PDF को वापस नहीं पढ़ सकते: {e}
 @msg	can't read this Word document: {why}	इस वर्ड डॉक्यूमेंट को नहीं पढ़ सकते: {why}
-@msg	can't save version {0}: VectorCraft writes versions {MIN_VERSION} to {VERSION}	संस्करण {0} सेव नहीं सकते: VectorCraft संस्करण {MIN_VERSION} से {VERSION} तक लिखता है
+@msg	can't save version {0}: Pluma writes versions {MIN_VERSION} to {VERSION}	संस्करण {0} सेव नहीं सकते: Pluma संस्करण {MIN_VERSION} से {VERSION} तक लिखता है
 @msg	can't write .{e} images: use .png, .jpg, .gif, .webp, .tif or .bmp	.{e} इमेज नहीं लिख सकते: .png, .jpg, .gif, .webp, .tif या .bmp इस्तेमाल करें
 @msg	can't write .{ext} images	.{ext} इमेज नहीं लिख सकते
 @msg	can't write PDF layers, overprint or invisible text: {why}	PDF लेयरें, ओवरप्रिंट या अदृश्य टेक्स्ट नहीं लिख सकते: {why}
@@ -6286,7 +6286,7 @@ antiAlias	Sharp	शार्प
 @msg	expected {"objects"}	उम्मीद {"objects"}
 @msg	export `{name}`: {e}	निर्यात `{name}`: {e}
 @msg	Export cancelled	निर्यात रद्द
-@msg	Export for Screens writes png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai or vectorcraft	स्क्रीन के लिए एक्सपोर्ट png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai या vectorcraft लिखता है
+@msg	Export for Screens writes png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai or pluma	स्क्रीन के लिए एक्सपोर्ट png, png8, jpg, webp, gif, tiff, bmp, tga, psd, svg, svgz, pdf, eps, ai या pluma लिखता है
 @msg	export presets file is larger than {MAX_PRESET_FILE_BYTES} bytes	निर्यात प्रीसेट फ़ाइल {MAX_PRESET_FILE_BYTES} bytes से बड़ा है
 @msg	Exported {path}	{path} एक्सपोर्ट किया गया
 @msg	Exported {what}	निर्यात किया गया {what}
@@ -6302,7 +6302,7 @@ antiAlias	Sharp	शार्प
 @msg	features lists at most {max} tags	अधिकांश {max} टैग पर सूची
 @msg	features must be a list of tags	features: विशेषताएं टैग की एक सूची होना चाहिए
 @msg	fidelity must be 0..100	fidelity: निष्ठा 0..100 होना चाहिए
-@msg	file version {0} is newer than this VectorCraft supports ({VERSION})	फ़ाइल संस्करण {0} इस वेक्टर क्रेफ्ट समर्थन ({VERSION}) की तुलना में नया है।
+@msg	file version {0} is newer than this Pluma supports ({VERSION})	फ़ाइल संस्करण {0} इस वेक्टर क्रेफ्ट समर्थन ({VERSION}) की तुलना में नया है।
 @msg	files must be {name, dataBase64}	files: फ़ाइलों को {name, dataBase64} होना चाहिए
 @msg	finish editing the pattern first	पहले पैटर्न को संपादित करना
 @msg	First measured segment no longer exists	पहले मापा खंड अब मौजूद नहीं है
@@ -6496,12 +6496,12 @@ antiAlias	Sharp	शार्प
 @msg	invalid stroke widths	अमान्य स्ट्रोक चौड़ाई
 @msg	invalid t	अमान्य t
 @msg	invalid tolerance	अमान्य सहिष्णुता
-@msg	is not an image VectorCraft reads	एक इमेज VectorCraft पढ़ा नहीं है
+@msg	is not an image Pluma reads	एक इमेज Pluma पढ़ा नहीं है
 @msg	it decompresses to more than {_1} MB	यह {_1} MB से अधिक करने के लिए decompresses
 @msg	it ends inside a group or compound path	यह एक समूह या मिश्रित पाथ के अंदर समाप्त होता है
 @msg	it ends inside a layer	यह एक लेयर के अंदर समाप्त होता है
 @msg	it ends inside a multi-layer mask	यह एक बहुलेयर मास्क के अंदर समाप्त होता है
-@msg	it has {_1}, which VectorCraft doesn't read from it yet	इसमें {_1} है, जो VectorCraft अभी तक नहीं पढ़ता है
+@msg	it has {_1}, which Pluma doesn't read from it yet	इसमें {_1} है, जो Pluma अभी तक नहीं पढ़ता है
 @msg	it has art outside its layers	इसकी लेयर्स के बाहर कला है
 @msg	it has more than {MAX_NODES} objects	इसमें {MAX_NODES} ऑब्जेक्ट से अधिक है
 @msg	it has more than one artboard	इसमें एक से अधिक आर्टबोर्ड है
@@ -6510,8 +6510,8 @@ antiAlias	Sharp	शार्प
 @msg	it has too many text objects	इसमें बहुत सारे टेक्स्ट ऑब्जेक्ट हैं
 @msg	it has too many values in a row	यह एक पंक्ति में बहुत अधिक मूल्य है
 @msg	it has too much text	इसमें बहुत ज्यादा टेक्स्ट है
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know	यह `{at}` का उपयोग करता है, जो VectorCraft के पोस्टस्क्रिप्ट रीडर को पता नहीं है
-@msg	it uses `{at}`, which VectorCraft's PostScript reader doesn't know, in {procs}	यह `{at}` का उपयोग करता है, जो VectorCraft के पोस्टस्क्रिप्ट रीडर को पता नहीं है, {procs} में
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know	यह `{at}` का उपयोग करता है, जो Pluma के पोस्टस्क्रिप्ट रीडर को पता नहीं है
+@msg	it uses `{at}`, which Pluma's PostScript reader doesn't know, in {procs}	यह `{at}` का उपयोग करता है, जो Pluma के पोस्टस्क्रिप्ट रीडर को पता नहीं है, {procs} में
 @msg	its artboards all lie beyond the canvas (more than {_1} pt from the origin)	इसके आर्टबोर्ड सभी कैनवास से परे हैं (मूल से {_1} pt से अधिक)
 @msg	its clipping masks are nested too deeply	इसके क्लिपिंग मास्क बहुत गहराई से घोंसले होते हैं
 @msg	its editing data doesn't say where its art is	इसके संपादन डेटा का कहना नहीं है कि इसकी कला कहाँ है
@@ -6565,14 +6565,14 @@ antiAlias	Sharp	शार्प
 @msg	lineEndings `{other}`: lf or crlf	lineEndings `{other}`: lf या crlf
 @msg	linked pictures show the low-resolution preview saved in the file until their files are found: relink them in the Links panel	लिंक किए गए चित्रों से पता चलता है कि फ़ाइल में सेव किए जाने वाले निम्न-रिज़ॉल्यूशन प्रीव्यू को उनकी फ़ाइलों को मिलने तक: लिंक पैनल में उन्हें फिर से लिंक करें
 @msg	linked pictures with no preview in the file show a placeholder until their files are found: relink them in the Links panel	फ़ाइल में कोई प्रीव्यू के साथ जुड़े चित्र एक प्लेसहोल्डर दिखाते हैं जब तक कि उनकी फ़ाइलें नहीं मिलती: उन्हें लिंक पैनल में फिर से लिंक करें
-@msg	linked type areas past VectorCraft's limits were left out	संबंधित प्रकार के क्षेत्र अतीत VectorCraft की सीमाओं को छोड़ दिया गया था
+@msg	linked type areas past Pluma's limits were left out	संबंधित प्रकार के क्षेत्र अतीत Pluma की सीमाओं को छोड़ दिया गया था
 @msg	Live Paint Merge: select a Live Paint group and the paths to add	लाइव पेंट मर्ज: जोड़ने के लिए एक लाइव पेंट समूह और पाथ सिलेक्ट करें
 @msg	Live Paint takes paths and compound paths: convert type, images and other objects to paths first	लाइव पेंट पाथ और यौगिक पाथ लेता है: प्रकार, इमेज और अन्य ऑब्जेक्ट्स को पहले पाथ में परिवर्तित करें
 @msg	Live Paint: select paths or compound paths	लाइव पेंट: पाथ या यौगिक पाथ सिलेक्ट करें
 @msg	Live Paint: these paths are too degenerate to paint	लाइव पेंट: इन पाथ को पेंट करने के लिए बहुत अलग किया जाता है
 @msg	loading profiles from disk isn't available in the browser	डिस्क से लोडिंग प्रोफ़ाइल ब्राउज़र में उपलब्ध नहीं है
-@msg	Loading VectorCraft…	वेक्टर क्रेफ्ट लोड हो रहा है ...
-@msg	Lock Workspace is not available in VectorCraft	लॉक वर्कस्पेस VectorCraft में उपलब्ध नहीं है
+@msg	Loading Pluma…	वेक्टर क्रेफ्ट लोड हो रहा है ...
+@msg	Lock Workspace is not available in Pluma	लॉक वर्कस्पेस Pluma में उपलब्ध नहीं है
 @msg	Make Guides: select paths	गाइड बनाना: पाथ सिलेक्ट करें
 @msg	manifest is {_1} bytes (limit {MAX_MANIFEST_BYTES})	प्रकटन {_1} बाइट्स (limit {MAX_MANIFEST_BYTES})
 @msg	manifest is not UTF-8	manifest: प्रकट नहीं है UTF-8
@@ -6963,8 +6963,8 @@ antiAlias	Sharp	शार्प
 @msg	not a stored or deflated central record	नहीं एक संग्रहित या deflated केंद्रीय रिकॉर्ड
 @msg	not a valid plug-in module: {0}	एक वैध प्लग-इन मॉड्यूल नहीं: {0}
 @msg	not a valid SVGZ file: {e}	एक मान्य SVGZ फ़ाइल नहीं: {e}
-@msg	not a VectorCraft file: {0}	एक वेक्टर क्रेफ्ट फ़ाइल नहीं: {0}
-@msg	not a VectorCraft shortcut set (missing `overrides`)	एक VectorCraft शॉर्टकट सेट नहीं है ( `overrides`)
+@msg	not a Pluma file: {0}	एक वेक्टर क्रेफ्ट फ़ाइल नहीं: {0}
+@msg	not a Pluma shortcut set (missing `overrides`)	एक Pluma शॉर्टकट सेट नहीं है ( `overrides`)
 @msg	not a WebAssembly binary (missing \0asm header)	नहीं एक WebAssembly द्विआधारी (missing \0asm header)
 @msg	not a Word document: its compound file has no WordDocument stream	एक वर्ड डॉक्यूमेंट नहीं: इसकी यौगिक फ़ाइल में WordDocument स्ट्रीम नहीं है
 @msg	not a Word document: its main part is not a WordprocessingML document	वर्ड डॉक्यूमेंट नहीं: इसका मुख्य हिस्सा वर्डप्रोसेसिंगएमएल डॉक्यूमेंट नहीं है
@@ -6976,7 +6976,7 @@ antiAlias	Sharp	शार्प
 @msg	not an EMF or WMF file	नहीं एक EMF या WMF फ़ाइल
 @msg	not an export presets file (format `{_1}`)	नहीं निर्यात presets फ़ाइल (format `{_1}`)
 @msg	not an export presets file: {e}	एक निर्यात प्रीसेट फ़ाइल नहीं: {e}
-@msg	not an image VectorCraft reads (see document.formats)	यह ऐसी इमेज नहीं है जिसे VectorCraft पढ़ सके (document.formats देखें)
+@msg	not an image Pluma reads (see document.formats)	यह ऐसी इमेज नहीं है जिसे Pluma पढ़ सके (document.formats देखें)
 @msg	not an RTF file: it doesn't start with {\\rtf	RTF फ़ाइल नहीं: यह {\rtf के साथ शुरू नहीं होता है
 @msg	not an RTF file: it doesn't start with not an RTF file: it doesn't start with {\rtf	RTF फ़ाइल: यह एक RTF फ़ाइल के साथ शुरू नहीं होता है: यह {\rtf के साथ शुरू नहीं होता है
 @msg	not area type (text in a frame) outside perspective	नहीं क्षेत्र के प्रकार (एक फ्रेम में टेक्स्ट) बाहर पर्सपेक्टिव
@@ -7422,7 +7422,7 @@ antiAlias	Sharp	शार्प
 @msg	the action set file holds more than 1,000 actions	एक्शन सेट फ़ाइल 1,000 से अधिक कार्यों को रखती है
 @msg	the action set file is larger than 8 MiB	एक्शन सेट फ़ाइल 8 MiB से बड़ा है
 @msg	`{ID}`: the reference would be larger than {MAX_BYTES} bytes	`{ID}`: संदर्भ {MAX_BYTES} बाइट से बड़ा होगा
-@msg	the action set file needs a later version of VectorCraft	एक्शन सेट फ़ाइल को वेक्टर क्रेफ्ट के बाद के संस्करण की आवश्यकता होती है
+@msg	the action set file needs a later version of Pluma	एक्शन सेट फ़ाइल को वेक्टर क्रेफ्ट के बाद के संस्करण की आवश्यकता होती है
 @msg	the action set ids are not a list	कार्रवाई सेट ids एक सूची नहीं हैं
 @msg	the action sets changed; nothing was deleted	कार्रवाई सेट बदल गया; कुछ भी नहीं हटा दिया गया था
 @msg	the action stopped playing: its document is no longer active	कार्रवाई बंद खेल: इसका डॉक्यूमेंट अब सक्रिय नहीं है
@@ -7444,7 +7444,7 @@ antiAlias	Sharp	शार्प
 @msg	the Color Picker is not open	रंग पिकर खुला नहीं है
 @msg	the compound shape is too complex to expand	मिश्रित आकार का विस्तार करने के लिए बहुत जटिल है
 @msg	the compressed file unpacks to more than {_1} MB	संकुचित फ़ाइल {_1} MB से अधिक के लिए अनपैक
-@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	संकुचित फ़ाइल unpacks से अधिक वेक्टर क्रेफ्ट reads ({_1} MB of document, {_2} MB per image)
+@msg	the compressed file unpacks to more than Pluma reads ({_1} MB of document, {_2} MB per image)	संकुचित फ़ाइल unpacks से अधिक वेक्टर क्रेफ्ट reads ({_1} MB of document, {_2} MB per image)
 @msg	the container of the listed objects is gone	सूचीबद्ध ऑब्जेक्ट्स का कंटेनर चला गया है
 @msg	the copy `{user_id}` can't be read as a library	प्रतिलिपि `{user_id}` को लाइब्रेरी के रूप में नहीं पढ़ा जा सकता है।
 @msg	the copy would leave the canvas	प्रतिलिपि कैनवास को छोड़ देगी
@@ -7499,7 +7499,7 @@ antiAlias	Sharp	शार्प
 @msg	the graphic is empty	ग्राफिक खाली है
 @msg	the graphic's data is damaged	ग्राफिक का डेटा क्षतिग्रस्त हो जाता है
 @msg	the graphic's document has no artboard	ग्राफ़िक के डॉक्यूमेंट में कोई आर्टबोर्ड नहीं है
-@msg	The graphics processor tried first couldn't show the window, so VectorCraft started again on {summary}	ग्राफिक्स प्रोसेसर ने पहली बार विंडो नहीं दिखायी थी, इसलिए VectorCraft फिर से {summary} पर शुरू हुआ।
+@msg	The graphics processor tried first couldn't show the window, so Pluma started again on {summary}	ग्राफिक्स प्रोसेसर ने पहली बार विंडो नहीं दिखायी थी, इसलिए Pluma फिर से {summary} पर शुरू हुआ।
 @msg	The graphics were lost and couldn't be restarted.	ग्राफिक्स खो गए थे और फिर से शुरू नहीं किया जा सकता था।
 @msg	The graphics were lost and have been restarted	ग्राफिक्स खो गए थे और फिर से शुरू किया गया है
 @msg	the guide is on a hidden or locked layer	गाइड एक छिपे हुए या बंद लेयर पर है
@@ -7530,8 +7530,8 @@ antiAlias	Sharp	शार्प
 @msg	the job would print more than {MAX_PAGES} pages	इस जॉब में {MAX_PAGES} से अधिक पेज प्रिंट होंगे
 @msg	the JPEG 2000 file can't be read	JPEG 2000 फ़ाइल पढ़ा नहीं जा सकता
 @msg	the JPEG 2000 file has an unsupported color space or JPX content	JPEG 2000 फ़ाइल में एक unसमर्थित रंग स्थान या JPX सामग्री है
-@msg	The last start of VectorCraft ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	वेक्टर क्रेफ्ट की अंतिम शुरुआत अपनी विंडो दिखाई देने से पहले {name} पर समाप्त हुई, इसलिए यह {summary} पर शुरू हुआ। उस ग्राफिक्स प्रोसेसर को फिर से आज़माने के लिए, वरीयताओं को बदलें › प्रदर्शन › ग्राफिक्स प्रोसेसर या WGPU_BACKEND सेट के साथ शुरू होता है।
-@msg	The last start of VectorCraft ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	जब यह ग्राफिक्स प्रोसेसर को सूचीबद्ध करता है, तो यह केवल ओपनजीएल के साथ {summary} पर शुरू हुआ। फिर से अन्य ग्राफिक्स बैकेंड की कोशिश करने के लिए, वरीयताओं को बदलें › प्रदर्शन › ग्राफिक्स प्रोसेसर या WGPU_BACKEND सेट के साथ शुरू होता है।
+@msg	The last start of Pluma ended on {name} before its window appeared, so it started on {summary}. To try that graphics processor again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	वेक्टर क्रेफ्ट की अंतिम शुरुआत अपनी विंडो दिखाई देने से पहले {name} पर समाप्त हुई, इसलिए यह {summary} पर शुरू हुआ। उस ग्राफिक्स प्रोसेसर को फिर से आज़माने के लिए, वरीयताओं को बदलें › प्रदर्शन › ग्राफिक्स प्रोसेसर या WGPU_BACKEND सेट के साथ शुरू होता है।
+@msg	The last start of Pluma ended while it listed the graphics processors, so it started on {summary} with OpenGL alone. To try the other graphics backends again, change Preferences › Performance › Graphics Processor or start with WGPU_BACKEND set	जब यह ग्राफिक्स प्रोसेसर को सूचीबद्ध करता है, तो यह केवल ओपनजीएल के साथ {summary} पर शुरू हुआ। फिर से अन्य ग्राफिक्स बैकेंड की कोशिश करने के लिए, वरीयताओं को बदलें › प्रदर्शन › ग्राफिक्स प्रोसेसर या WGPU_BACKEND सेट के साथ शुरू होता है।
 @msg	the layer has no objects to clip by	लेयर में क्लिप करने के लिए कोई ऑब्जेक्ट नहीं है
 @msg	the layer or group is locked	लेयर या समूह को बंद कर दिया जाता है
 @msg	the layer to flatten into is hidden	लेयर में समतल करने के लिए छिपा हुआ है
@@ -7688,8 +7688,8 @@ antiAlias	Sharp	शार्प
 @msg	the Word document has too much text to place as type (at most {_1} MB)	वर्ड डॉक्यूमेंट में टाइप के रूप में बहुत अधिक टेक्स्ट होता है (अधिकांश {_1} MB)
 @msg	the Word document is encrypted or protected with a password; save it without one to place it	वर्ड डॉक्यूमेंट को एन्क्रिप्ट किया गया है या पासवर्ड के साथ संरक्षित किया गया है; इसे बिना किसी स्थान के सेव करें
 @msg	the Word document is too large to place (its {name} stream holds more than {_1} MB)	वर्ड डॉक्यूमेंट बहुत बड़ा होता है (यह {name} स्ट्रीम {_1} MB से अधिक रखता है)
-@msg	the Word document was last saved with fast save, which VectorCraft doesn't read; save it again with fast save turned off	वर्ड डॉक्यूमेंट को फास्ट सेव के साथ आखिरी सेव किया गया था, जो VectorCraft को पढ़ा नहीं जाता है; इसे फिर से फास्ट सेव के साथ सेव करना बंद हो गया
-@msg	the Word document was saved by Word 6.0 or Word 95, which VectorCraft doesn't read; save it as a Word 97-2003 document	वर्ड डॉक्यूमेंट को वर्ड 6.0 या वर्ड 95 द्वारा बचाया गया था, जो VectorCraft को पढ़ा नहीं जाता है; इसे वर्ड 97-2003 डॉक्यूमेंट के रूप में सेव करें
+@msg	the Word document was last saved with fast save, which Pluma doesn't read; save it again with fast save turned off	वर्ड डॉक्यूमेंट को फास्ट सेव के साथ आखिरी सेव किया गया था, जो Pluma को पढ़ा नहीं जाता है; इसे फिर से फास्ट सेव के साथ सेव करना बंद हो गया
+@msg	the Word document was saved by Word 6.0 or Word 95, which Pluma doesn't read; save it as a Word 97-2003 document	वर्ड डॉक्यूमेंट को वर्ड 6.0 या वर्ड 95 द्वारा बचाया गया था, जो Pluma को पढ़ा नहीं जाता है; इसे वर्ड 97-2003 डॉक्यूमेंट के रूप में सेव करें
 @msg	the Word document's text is made of more than {MAX_PIECES} pieces, too many to place	वर्ड डॉक्यूमेंट का टेक्स्ट {MAX_PIECES} टुकड़ों से भी अधिक है, बहुत से जगह
 @msg	the written PDF has no catalog	लिखित PDF में कोई कैटलॉग नहीं है
 @msg	the written PDF has no cross-reference table	लिखित PDF में कोई क्रॉस-रिफरेंस टेबल नहीं है
@@ -7716,7 +7716,7 @@ antiAlias	Sharp	शार्प
 @msg	this isn't a flat-colour logo ({_1}% of its solid areas match a few flat colours), so Flat Logo mode would turn its gradients into patches: use Color mode instead	यह एक फ्लैट रंग का लोगो नहीं है ({_1}% अपने ठोस क्षेत्रों में कुछ फ्लैट रंगों से मेल खाता है), इसलिए फ्लैट लोगो मोड अपने ग्रेडिएंट को पैच में बदल देगा: इसके बजाय कलर मोड का उपयोग करें
 @msg	this kind of brush has no options dialog yet	इस तरह के ब्रश में अभी तक कोई ऑप्शन्स संवाद नहीं है
 @msg	this PostScript file can't be read ({why}): save it as PDF or SVG in the app that made it	इस पोस्टस्क्रिप्ट फ़ाइल को पढ़ा नहीं जा सकता ({why}): इसे उस ऐप में PDF या SVG के रूप में सेव करें जिसने इसे बनाया
-@msg	This shortcut file is in a form VectorCraft can't read.	यह शॉर्टकट फ़ाइल एक फॉर्म VectorCraft में है जिसे पढ़ा नहीं जा सकता है।
+@msg	This shortcut file is in a form Pluma can't read.	यह शॉर्टकट फ़ाइल एक फॉर्म Pluma में है जिसे पढ़ा नहीं जा सकता है।
 @msg	this system has no screen color sampler	इस प्रणाली में कोई स्क्रीन रंग नमूना नहीं है
 @msg	this trace would make more than {max} anchor points, more than the document can show smoothly: raise Noise, lower Paths or Colors, or pick a lower-fidelity preset	यह निशान {max} एंकर पॉइंट से अधिक होगा, डॉक्यूमेंट की तुलना में अधिक आसानी से दिखा सकते हैं: शोर, निचले पाथ या रंग उठाना, या कम-fidelity प्रीसेट चुनना
 @msg	thumbnail: no page {n} (the file has 1)	थंबनेल: कोई पेज {n} (फ़ाइल में 1 है)
@@ -7888,10 +7888,10 @@ antiAlias	Sharp	शार्प
 @msg	vc_alloc returned 0 (out of memory)	vc_alloc 0 लौटे (मेमोरी से बाहर)
 @msg	vc_alloc returned a block outside memory	vc_alloc स्मृति के बाहर एक ब्लॉक लौटा
 @msg	vc_run returned error code {packed}	vc_run त्रुटि कोड लौटा {packed}
-@msg	VectorCraft doesn't search other apps' or the system's folders: {path}	वेक्टर क्रेफ्ट अन्य एप्लिकेशन या सिस्टम के फ़ोल्डर्स की खोज नहीं करता है: {path}
-@msg	VectorCraft doesn't search the Shared or Public folder in Users: {path}	वेक्टर क्रेफ्ट उपयोगकर्ताओं में साझा या सार्वजनिक फ़ोल्डर की खोज नहीं करता है: {path}
-@msg	VectorCraft failed to start: {e}	वेक्टर क्रेफ्ट शुरू करने में विफल रहा: {e}
-@msg	VectorCraft's Fonts folder isn't set here: the desktop app and vectorcraft-cli set it	VectorCraft के फ़ॉन्ट फ़ोल्डर यहां सेट नहीं है: डेस्कटॉप ऐप और VectorCraft-क्लाई ने इसे सेट किया
+@msg	Pluma doesn't search other apps' or the system's folders: {path}	वेक्टर क्रेफ्ट अन्य एप्लिकेशन या सिस्टम के फ़ोल्डर्स की खोज नहीं करता है: {path}
+@msg	Pluma doesn't search the Shared or Public folder in Users: {path}	वेक्टर क्रेफ्ट उपयोगकर्ताओं में साझा या सार्वजनिक फ़ोल्डर की खोज नहीं करता है: {path}
+@msg	Pluma failed to start: {e}	वेक्टर क्रेफ्ट शुरू करने में विफल रहा: {e}
+@msg	Pluma's Fonts folder isn't set here: the desktop app and pluma-cli set it	Pluma के फ़ॉन्ट फ़ोल्डर यहां सेट नहीं है: डेस्कटॉप ऐप और Pluma-क्लाई ने इसे सेट किया
 @msg	version {0} files can't be compressed: only version {COMPRESSED_SINCE} and later open compressed files	संस्करण {0} की फ़ाइलें संपीड़ित नहीं हो सकतीं: केवल संस्करण {COMPRESSED_SINCE} और बाद के संस्करण संपीड़ित फ़ाइलें खोलते हैं
 @msg	videoRulerPixelAspectRatio must be a number from 0.1 to 10	videoRulerPixelAspectRatio को 0.1 से 10 के बीच संख्या होना चाहिए
 @msg	view is required	view आवश्यक है
@@ -8043,7 +8043,7 @@ file-filter	Print presets	प्रिंट प्रीसेट्स
 file-filter	SVG Compressed	SVG संपीड़ित
 file-filter	Swatch libraries	स्वॉच लाइब्रेरीज़
 file-filter	Templates	टेम्पलेट्स
-file-filter	VectorCraft Template	वेक्टर क्राफ्ट टेम्पलेट
+file-filter	Pluma Template	वेक्टर क्राफ्ट टेम्पलेट
 font-script	Japanese	जापानी
 font-technology	Variable	चर
 gradient-kind	Radial	रेडियल
@@ -8103,14 +8103,14 @@ theme	Appearance	अपीयरेंस
 	Safe Mode	सुरक्षित मोड
 	Help › Safe Mode…	मदद › सुरक्षित मोड…
 	Enable on Re-launch	अगली बार शुरू होने पर सक्षम करें
-	The last launch of VectorCraft stopped while the plug-in {name} was loading. It may not be what stopped it.	VectorCraft का पिछला लॉन्च प्लग-इन {name} के लोड होते समय रुक गया। हो सकता है कि वह इसका कारण न हो।
+	The last launch of Pluma stopped while the plug-in {name} was loading. It may not be what stopped it.	Pluma का पिछला लॉन्च प्लग-इन {name} के लोड होते समय रुक गया। हो सकता है कि वह इसका कारण न हो।
 	Disable and Continue	अक्षम करें और जारी रखें
 	Start Normally	सामान्य रूप से शुरू करें
 	Start in Safe Mode	सुरक्षित मोड में शुरू करें
-	VectorCraft is in Safe Mode: no plug-ins load or run until it starts normally.	VectorCraft सुरक्षित मोड में है: जब तक यह सामान्य रूप से शुरू नहीं होता, कोई भी प्लग-इन लोड या चलाया नहीं जाता।
+	Pluma is in Safe Mode: no plug-ins load or run until it starts normally.	Pluma सुरक्षित मोड में है: जब तक यह सामान्य रूप से शुरू नहीं होता, कोई भी प्लग-इन लोड या चलाया नहीं जाता।
 	Disabled plug-ins	अक्षम प्लग-इन
 	No plug-ins are disabled.	कोई प्लग-इन अक्षम नहीं है।
-@msg	Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally	सुरक्षित मोड चालू है: जब तक VectorCraft सामान्य रूप से शुरू नहीं होता, प्लग-इन लोड या चलाए नहीं जाते
+@msg	Safe Mode is on: plug-ins don't load or run until Pluma starts normally	सुरक्षित मोड चालू है: जब तक Pluma सामान्य रूप से शुरू नहीं होता, प्लग-इन लोड या चलाए नहीं जाते
 @msg	give `id` or `file` (see plugin.safeMode)	`id` या `file` दें (plugin.safeMode देखें)
 @msg	that plug-in isn't disabled (see plugin.safeMode)	वह प्लग-इन अक्षम नहीं है (plugin.safeMode देखें)
 @msg	Couldn't save the disabled plug-ins for the next launch	अगली बार लॉन्च के लिए अक्षम प्लग-इन सहेजे नहीं जा सके

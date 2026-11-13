@@ -113,7 +113,7 @@ pub enum NodeKind {
     Mesh(GradientMesh),
     /// Live Repeat (radial / grid / mirror) of source art.
     Repeat(RepeatSpec),
-    /// A placed document: an artboard of another VectorCraft file, or a page of a PDF or `.ai`
+    /// A placed document: an artboard of another Pluma file, or a page of a PDF or `.ai`
     /// file, linked and locked (see [`crate::placed_document`]).
     PlacedDocument(Box<crate::placed_document::PlacedDocument>),
     /// Object › Intertwine: the objects keep their own stacking order, except where one of them
@@ -135,10 +135,10 @@ mod kind_de {
     use std::fmt;
     use std::sync::Arc;
 
+    use pluma_geom::{Affine, FillRule, PathData};
     use serde::de::value::{MapAccessDeserializer, StringDeserializer};
     use serde::de::{self, DeserializeSeed, Deserializer, EnumAccess, IntoDeserializer, MapAccess, VariantAccess, Visitor};
     use serde::{Deserialize, forward_to_deserialize_any};
-    use vectorcraft_geom::{Affine, FillRule, PathData};
 
     use super::{LayerColor, LiveShape, Node, NodeKind, yes};
     use crate::live::{BlendSpec, EnvelopeKind, GradientMesh};
@@ -247,7 +247,7 @@ mod kind_de {
 
     /// Most JSON values (each number, string, array, object…) the fields read before an object's
     /// `type` may hold together while [`with_buffered_value_budget`] runs: 32M (about 1 GB as
-    /// `serde_json::Value`s, some 32 bytes each), 4M in the web build. VectorCraft writes `type`
+    /// `serde_json::Value`s, some 32 bytes each), 4M in the web build. Pluma writes `type`
     /// first, so its files buffer nothing; a reordered file buffers what comes before it, and
     /// a crafted one could fill memory with values two bytes each in the file before any object in
     /// them is counted (#3587).

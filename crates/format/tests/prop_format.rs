@@ -1,15 +1,15 @@
-//! `.vectorcraft` format: round trips, robustness against garbage, versioning, unknown fields.
+//! `.pluma` format: round trips, robustness against garbage, versioning, unknown fields.
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeId, NodeKind};
+use pluma_format::{SaveOptions, base64_decode, base64_encode, load, load_file, pdf_content, preview, save, save_with, sniff};
+use pluma_geom::Affine;
+use pluma_testkit::fixtures;
+use pluma_testkit::invariants::{check_document, check_native_roundtrip, check_native_roundtrip_exact, doc_json, json_approx_eq};
+use pluma_testkit::strategies::arb_ops;
 use proptest::prelude::*;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeId, NodeKind};
-use vectorcraft_format::{SaveOptions, base64_decode, base64_encode, load, load_file, pdf_content, preview, save, save_with, sniff};
-use vectorcraft_geom::Affine;
-use vectorcraft_testkit::fixtures;
-use vectorcraft_testkit::invariants::{check_document, check_native_roundtrip, check_native_roundtrip_exact, doc_json, json_approx_eq};
-use vectorcraft_testkit::strategies::arb_ops;
 
 fn rich_doc() -> Document {
     (*fixtures::rich_session().doc().unwrap().doc).clone()
@@ -87,8 +87,8 @@ proptest! {
     /// and what loads saves and loads again unchanged.
     #[test]
     fn area_type_rows_and_columns_read_as_1_to_100(rows in prop_oneof![0u64..=200, any::<u64>()], columns in prop_oneof![0u64..=200, any::<u64>()]) {
-        use vectorcraft_doc::{AreaOptions, TextKind, TextObject};
-        use vectorcraft_geom::{Point, Rect, shapes};
+        use pluma_doc::{AreaOptions, TextKind, TextObject};
+        use pluma_geom::{Point, Rect, shapes};
         let count = |n: u64| usize::try_from(n).unwrap_or(usize::MAX);
         let mut t = TextObject::point(Point::ZERO, "Rows and columns", Default::default());
         t.kind = TextKind::Area { frame: shapes::rectangle(Rect::new(0.0, 0.0, 300.0, 120.0)) };
@@ -168,7 +168,7 @@ fn rich_document_roundtrips() {
     assert!(sniff(&bytes));
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["format"], "vectorcraft");
-    assert_eq!(v["version"], vectorcraft_format::VERSION);
+    assert_eq!(v["version"], pluma_format::VERSION);
 }
 
 /// A file's Path Effects are its own business: whatever their parameters hold, they load and save
@@ -179,13 +179,13 @@ fn path_effects_with_junk_params_round_trip() {
     let mut id = None;
     d.walk(|n| id = id.or(n.path_data().map(|_| n.id)));
     let id = id.unwrap();
-    let effects: Vec<vectorcraft_doc::Effect> = [
+    let effects: Vec<pluma_doc::Effect> = [
         ("addon.path.dashes", json!({"dash1": 1e308, "gap1": -1e308, "offset": "x", "alignCorners": 3})),
         ("addon.path.addAnchors", json!({"count": 1e308, "maxCount": 1e308, "distance": -1e308, "spacing": "distance", "target": []})),
         ("addon.path.extend", json!(null)),
     ]
     .into_iter()
-    .map(|(id, params)| vectorcraft_doc::Effect { id: id.into(), params, visible: true })
+    .map(|(id, params)| pluma_doc::Effect { id: id.into(), params, visible: true })
     .collect();
     d.node_mut(id).unwrap().appearance.effects = effects.clone();
     let back = load(&save(&d, true)).unwrap();
@@ -204,14 +204,14 @@ fn sniff_distinguishes_formats() {
 #[test]
 fn rejects_newer_versions_and_other_formats() {
     let mut v: Value = serde_json::from_slice(&save(&Document::new(1.0, 1.0), false)).unwrap();
-    v["version"] = json!(vectorcraft_format::VERSION + 1);
-    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(vectorcraft_format::FormatError::TooNew(_))));
-    v["version"] = json!(vectorcraft_format::VERSION);
+    v["version"] = json!(pluma_format::VERSION + 1);
+    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(pluma_format::FormatError::TooNew(_))));
+    v["version"] = json!(pluma_format::VERSION);
     v["format"] = json!("other");
-    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(vectorcraft_format::FormatError::NotVectorcraft(_))));
+    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(pluma_format::FormatError::NotPluma(_))));
     v["format"] = json!("vectorcraft");
     v["images"] = json!({"x": {"mime": "image/png", "data": "not base64!"}});
-    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(vectorcraft_format::FormatError::BadImage(_))));
+    assert!(matches!(load(&serde_json::to_vec(&v).unwrap()), Err(pluma_format::FormatError::BadImage(_))));
 }
 
 #[test]
@@ -270,8 +270,8 @@ fn saved_selections_from_a_file_are_tidied() {
     v["document"]["saved_selections"] = json!(list);
     let back = load(&serde_json::to_vec(&v).unwrap()).unwrap();
     let saved = &back.saved_selections;
-    assert_eq!(saved.len(), vectorcraft_doc::SavedSelection::MAX);
-    assert_eq!(saved[0].name, "x".repeat(vectorcraft_doc::SavedSelection::MAX_NAME));
+    assert_eq!(saved.len(), pluma_doc::SavedSelection::MAX);
+    assert_eq!(saved[0].name, "x".repeat(pluma_doc::SavedSelection::MAX_NAME));
     assert_eq!(saved[0].objects, vec![id], "a missing id is dropped, a repeated one kept once");
     assert_eq!((saved[1].name.as_str(), saved[1].objects.len()), ("Dup", 0), "blank names go, the first of a name stays");
     assert_eq!(saved[2].name, "S0");
@@ -287,8 +287,8 @@ fn saved_selections_from_a_file_are_tidied() {
 /// and a zoom the canvas can show.
 #[test]
 fn saved_views_round_trip_and_from_a_file_are_tidied() {
-    use vectorcraft_doc::SavedView;
-    use vectorcraft_geom::Point;
+    use pluma_doc::SavedView;
+    use pluma_geom::Point;
     let mut d = rich_doc();
     let mut v: Value = serde_json::from_slice(&save(&d, false)).unwrap();
     assert!(v["document"].get("views").is_none(), "nothing written when there are none");

@@ -1,6 +1,6 @@
 //! Swatch libraries (Window → Swatch Libraries, the Swatches panel's library button): read-only
 //! sets of swatches the library panel shows. The built-in libraries are computed in
-//! [`vectorcraft_color::libraries`] and the pattern libraries in [`super::patternlib`]; User
+//! [`pluma_color::libraries`] and the pattern libraries in [`super::patternlib`]; User
 //! Defined ones are the library files in the user library folder ([`Libraries`]), and Other
 //! Library… loads more from files. `swatch.library.add` copies swatches (and a pattern swatch's
 //! pattern) into the document; `swatch.library.save` writes the document's ([`palette_io`]).
@@ -9,13 +9,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use pluma_color::libraries::{BuiltinLibrary, GRADIENT_LIBRARIES, SWATCH_LIBRARIES, builtin_library};
+use pluma_color::palette_io::{self, PaletteFormat};
+use pluma_color::recolor::Palette;
+use pluma_color::swatch::REGISTRATION;
+use pluma_color::{Paint, Swatch, SwatchGroup, SwatchLibrary, default_swatches};
+use pluma_doc::pattern::pattern_paint;
 use serde_json::{Value, json};
-use vectorcraft_color::libraries::{BuiltinLibrary, GRADIENT_LIBRARIES, SWATCH_LIBRARIES, builtin_library};
-use vectorcraft_color::palette_io::{self, PaletteFormat};
-use vectorcraft_color::recolor::Palette;
-use vectorcraft_color::swatch::REGISTRATION;
-use vectorcraft_color::{Paint, Swatch, SwatchGroup, SwatchLibrary, default_swatches};
-use vectorcraft_doc::pattern::pattern_paint;
 
 use super::fileio::{create_dir, extension, read_file, write_file, write_new_file};
 use super::menucmds::squash;
@@ -76,7 +76,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Other Library…",
             ["Window", "Swatch Libraries"],
             None,
-            "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} load a .vcswatches, .gpl, .ase (swatch exchange) or .acb (color book, read only) library, or the swatches of any document VectorCraft opens (see document.formats), for the library panel (Window → Swatch Libraries lists it until the app quits; a file of the user library folder, or a file with the same extension and bytes as one there, opens as that User Defined library) → {library: id, name, count}",
+            "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} load a .vcswatches, .gpl, .ase (swatch exchange) or .acb (color book, read only) library, or the swatches of any document Pluma opens (see document.formats), for the library panel (Window → Swatch Libraries lists it until the app quits; a file of the user library folder, or a file with the same extension and bytes as one there, opens as that User Defined library) → {library: id, name, count}",
             always,
             load
         ),
@@ -85,7 +85,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Copy to User Defined",
             ["Window", "Swatch Libraries"],
             None,
-            "{library: id or name of a loaded library (category \"loaded\", swatch.library.load)} copy it into the user library folder of the desktop app, whose libraries VectorCraft lists as User Defined every time it starts (a loaded library is listed until the app quits): a library file as it is, the swatches of a document or a library loaded from data as a .vcswatches file. A name the folder already has gets a number (\"Brand 2.ase\") and no file is replaced; when the folder already holds the same file, that file is used. The library is then listed as User Defined only, and until the app quits commands given its loaded id use the copy; a User Defined library comes back as it is → {library: its User Defined id, name, count, path, copied: false when nothing was written}",
+            "{library: id or name of a loaded library (category \"loaded\", swatch.library.load)} copy it into the user library folder of the desktop app, whose libraries Pluma lists as User Defined every time it starts (a loaded library is listed until the app quits): a library file as it is, the swatches of a document or a library loaded from data as a .vcswatches file. A name the folder already has gets a number (\"Brand 2.ase\") and no file is replaced; when the folder already holds the same file, that file is used. The library is then listed as User Defined only, and until the app quits commands given its loaded id use the copy; a User Defined library comes back as it is → {library: its User Defined id, name, count, path, copied: false when nothing was written}",
             has_user_folder,
             copy_to_user
         ),
@@ -94,7 +94,7 @@ pub fn specs() -> Vec<CommandSpec> {
 
 /// The libraries beyond the built-in ones: User Defined (the library files in the user library
 /// folder, as last scanned) and loaded ones (`swatch.library.load`). Graphic style libraries use
-/// the same with [`vectorcraft_doc::StyleLibrary`] ([`super::stylelib`]).
+/// the same with [`pluma_doc::StyleLibrary`] ([`super::stylelib`]).
 #[derive(Clone, Debug, Default)]
 pub struct Libraries<L = SwatchLibrary> {
     /// The user library folder. The desktop app sets it; without one (the web, headless sessions)
@@ -111,7 +111,7 @@ pub struct Libraries<L = SwatchLibrary> {
     saved_as: HashMap<String, SavedAs>,
 }
 
-/// A User Defined file this session wrote: the library's name, and [`vectorcraft_doc::links::hash_bytes`]
+/// A User Defined file this session wrote: the library's name, and [`pluma_doc::links::hash_bytes`]
 /// of what was written, so a file replaced since then is no longer that library's.
 #[derive(Clone, Debug)]
 struct SavedAs {
@@ -183,7 +183,7 @@ impl<L: LibraryFile> Libraries<L> {
             let Some(bytes) = crate::guard::catch_panic(read).ok().flatten() else { continue };
             let id = format!("user/{file}").to_lowercase();
             // Compared before parsing, so a file that no longer reads as a library is forgotten too.
-            let hash = vectorcraft_doc::links::hash_bytes(&bytes);
+            let hash = pluma_doc::links::hash_bytes(&bytes);
             if self.saved_as.get(&id).is_some_and(|saved| saved.hash != hash) {
                 self.saved_as.remove(&id);
             }
@@ -279,7 +279,7 @@ impl<L: LibraryFile> Libraries<L> {
             // The app's own folder, under a name made safe: no root applies.
             crate::file_access::unconfined(|| create_dir(&dir).and_then(|()| write_file(&path, bytes)))?;
             self.saved_as
-                .insert(format!("user/{file}").to_lowercase(), SavedAs { name: name.to_string(), hash: vectorcraft_doc::links::hash_bytes(bytes) });
+                .insert(format!("user/{file}").to_lowercase(), SavedAs { name: name.to_string(), hash: pluma_doc::links::hash_bytes(bytes) });
             self.rescan();
             out["path"] = json!(path);
             out["library"] = json!(format!("user/{file}"));
@@ -289,7 +289,7 @@ impl<L: LibraryFile> Libraries<L> {
         } else {
             match data {
                 FileData::Text(text) => out["data"] = json!(text),
-                FileData::Binary(bytes) => out["dataBase64"] = json!(vectorcraft_format::base64_encode(&bytes)),
+                FileData::Binary(bytes) => out["dataBase64"] = json!(pluma_format::base64_encode(&bytes)),
             }
         }
         Ok(())
@@ -307,7 +307,7 @@ impl<L: LibraryFile> Libraries<L> {
         let bytes = match (path, data, data_base64) {
             (Some(path), ..) => read_file(path)?,
             (None, Some(text), _) => text.as_bytes().to_vec(),
-            (None, None, Some(b64)) => vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?,
+            (None, None, Some(b64)) => pluma_format::base64_decode(b64).ok_or_else(|| bad(cmd, "bad dataBase64"))?,
             _ => return Err(bad(cmd, "give `path`, `data` or `dataBase64`")),
         };
         let file = name.map(str::to_string).or_else(|| path.map(file_name)).unwrap_or_else(|| "Library".into());
@@ -568,7 +568,7 @@ fn list(s: &mut Session, _: &Value) -> Result<Value> {
 
 /// The document's swatches `names` (swatches or colour groups; empty: all) as a library named
 /// `name`, without None and patterns.
-fn document_library(d: &vectorcraft_doc::Document, names: &[String], name: String, cmd: &str) -> Result<SwatchLibrary> {
+fn document_library(d: &pluma_doc::Document, names: &[String], name: String, cmd: &str) -> Result<SwatchLibrary> {
     if let Some(n) = names.iter().find(|n| !d.swatch_name_taken(n)) {
         return Err(bad(cmd, format!("no swatch or colour group `{n}`")));
     }
@@ -681,12 +681,12 @@ fn picked<'a>(lib: &'a SwatchLibrary, names: &[String], cmd: &str) -> Result<Vec
 }
 
 /// Every name a swatch or colour group of `d` uses (they share one namespace, with the registration swatch).
-fn taken_names(d: &vectorcraft_doc::Document) -> HashSet<String> {
+fn taken_names(d: &pluma_doc::Document) -> HashSet<String> {
     let names = d.swatches_iter().map(|w| &w.name).chain(d.swatch_groups.iter().map(|g| &g.name));
     names.cloned().chain([REGISTRATION.to_string()]).collect()
 }
 
-/// [`vectorcraft_doc::Document::free_swatch_name`] against `taken`, which takes the name returned.
+/// [`pluma_doc::Document::free_swatch_name`] against `taken`, which takes the name returned.
 fn free_in(taken: &mut HashSet<String>, base: &str) -> String {
     let name = if taken.contains(base) {
         (2..).map(|i| format!("{base} {i}")).find(|n| !taken.contains(n)).unwrap_or_else(|| base.to_string())

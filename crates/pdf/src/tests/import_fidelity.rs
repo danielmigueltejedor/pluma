@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Knockout, LineCap, LineJoin, Node, NodeId, NodeKind, OpacityMask};
-use vectorcraft_geom::{Rect, shapes};
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf_with};
+use pluma_color::{BlendMode, Color, Gradient, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Document, Knockout, LineCap, LineJoin, Node, NodeId, NodeKind, OpacityMask};
+use pluma_geom::{Rect, shapes};
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf_with};
 
 use crate::*;
 
@@ -308,7 +308,7 @@ fn tiling_patterns_become_pattern_swatches() {
 const HELVETICA: &str =
     "/Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >>";
 
-fn texts(d: &Document) -> Vec<vectorcraft_doc::TextObject> {
+fn texts(d: &Document) -> Vec<pluma_doc::TextObject> {
     all(d).into_iter().filter_map(|n| if let NodeKind::Text(t) = n.kind { Some(*t) } else { None }).collect()
 }
 
@@ -322,7 +322,7 @@ fn text_becomes_point_type() {
     let r = open_with(&bytes, |_| {});
     let t = texts(&r.document);
     assert_eq!(t.len(), 2, "{t:?}");
-    let text = |o: &vectorcraft_doc::TextObject| o.runs.iter().map(|r| r.text.as_str()).collect::<String>();
+    let text = |o: &pluma_doc::TextObject| o.runs.iter().map(|r| r.text.as_str()).collect::<String>();
     assert_eq!(text(&t[0]), "HelloWorld");
     let st = &t[0].runs[0].style;
     assert_eq!((st.font_family.as_str(), st.font_style.as_str(), st.size), ("Helvetica", "Regular", 24.0));
@@ -373,9 +373,9 @@ fn invisible_text_becomes_type_without_paint() {
     );
     let r = open_with(&bytes, |_| {});
     let t = texts(&r.document);
-    let text = |o: &vectorcraft_doc::TextObject| o.runs.iter().map(|r| r.text.as_str()).collect::<String>();
+    let text = |o: &pluma_doc::TextObject| o.runs.iter().map(|r| r.text.as_str()).collect::<String>();
     assert_eq!(t.iter().map(text).collect::<Vec<_>>(), ["Invisible one", "Invisible two", "Visible", "Outline"], "{t:?}");
-    let unpainted = |st: &vectorcraft_doc::CharStyle| st.fill.is_none() && !st.has_stroke();
+    let unpainted = |st: &pluma_doc::CharStyle| st.fill.is_none() && !st.has_stroke();
     for o in &t[..2] {
         assert!(o.runs.iter().all(|r| unpainted(&r.style)), "{:?}", o.runs);
     }
@@ -519,7 +519,7 @@ fn a_coons_patch_mesh_becomes_a_gradient_mesh() {
     let s = first_extra(1);
     let sh = stream(COONS_MESH, &hex(&coons_patch()));
     let d = open(&one_page("/Sh0 sh", &format!("/Shading << /Sh0 {s} 0 R >>"), &[&sh]));
-    let meshes: Vec<vectorcraft_doc::live::GradientMesh> =
+    let meshes: Vec<pluma_doc::live::GradientMesh> =
         all(&d).into_iter().filter_map(|n| if let NodeKind::Mesh(m) = n.kind { Some(m) } else { None }).collect();
     let [m] = meshes.as_slice() else { panic!("one mesh: {meshes:?}") };
     assert_eq!((m.rows, m.cols), (1, 1));
@@ -881,15 +881,15 @@ fn glyphs_turned_along_a_curve_become_type_on_a_path() {
     assert_eq!(t.len(), 1, "one text object: {t:?}");
     let text: String = t[0].runs.iter().map(|r| r.text.as_str()).collect();
     assert_eq!(text, "ARCHING");
-    let vectorcraft_doc::TextKind::OnPath { path, .. } = &t[0].kind else { panic!("type on a path: {:?}", t[0].kind) };
+    let pluma_doc::TextKind::OnPath { path, .. } = &t[0].kind else { panic!("type on a path: {:?}", t[0].kind) };
     let b = path.bounds().unwrap();
     assert!(b.height() > 15.0, "the path curves: {b:?}");
     // Every glyph fits on the path, the last one too.
-    assert_eq!(vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t[0]).glyphs.len(), 7);
+    assert_eq!(pluma_text::layout(pluma_text::FontDb::global(), &t[0]).glyphs.len(), 7);
     // Straight type with a slight rotation stays one point type object.
     let straight = texts(&open(&one_page("BT /F1 18 Tf 0.98481 0.17365 -0.17365 0.98481 20 40 Tm (Straight) Tj ET", HELVETICA, &[])));
     assert_eq!(straight.len(), 1);
-    assert!(matches!(straight[0].kind, vectorcraft_doc::TextKind::Point), "{:?}", straight[0].kind);
+    assert!(matches!(straight[0].kind, pluma_doc::TextKind::Point), "{:?}", straight[0].kind);
 }
 
 /// The leaves (objects that aren't groups or clipping paths) of a document.

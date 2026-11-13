@@ -6,7 +6,7 @@
 use egui::Ui;
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::widgets;
@@ -28,7 +28,7 @@ pub(crate) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Create Swatch Legend").to_string(), body, confirm, preview: true, min_width: 300.0, ..DialogSpec::FORM };
 
 /// The colour swatches selected in the Swatches panel.
-fn selected_swatches(app: &VectorcraftApp, ctx: &egui::Context) -> Vec<String> {
+fn selected_swatches(app: &PlumaApp, ctx: &egui::Context) -> Vec<String> {
     let picked: Vec<String> = crate::panels::pstate(ctx, "swatch-selected");
     app.session
         .active()
@@ -51,7 +51,7 @@ pub(crate) fn params(d: &Dialog) -> Value {
     p
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     widgets::label_row(ui, tl!("Columns:"), LABEL_W, |ui| {
         if let Some(v) = widgets::range_field(ui, ("swatch-legend", "columns"), d.f64("columns", 4.0), 1.0..=50.0, "", 0, FIELD_W) {
@@ -85,7 +85,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: run the command (keep its preview) and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     form::commit_preview(app, COMMAND, params(d))
 }
 

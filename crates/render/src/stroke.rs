@@ -1,8 +1,8 @@
 //! Raster-only stroke fitting: preserve thin curved bands through fill flattening.
 
 use crate::effects;
-use vectorcraft_doc::StrokeLayer;
-use vectorcraft_geom::BezPath;
+use pluma_doc::StrokeLayer;
+use pluma_geom::BezPath;
 
 /// Vello flattens the two sides of a filled stroke independently at 0.25 device pixels.
 /// For strokes narrower than four times the raster tolerance, fit and preflatten the
@@ -16,6 +16,6 @@ pub(crate) fn outline(line: &BezPath, st: &StrokeLayer, width: f64, tol: f64) ->
     let outline = effects::stroke::line_outline(line, st, width, fine);
     let mut flat = BezPath::new();
     // Keep upstream's per-curve work cap for untrusted or extreme coordinates.
-    vectorcraft_geom::flatten(outline.iter(), fine, |el| flat.push(el));
+    pluma_geom::flatten(outline.iter(), fine, |el| flat.push(el));
     flat
 }

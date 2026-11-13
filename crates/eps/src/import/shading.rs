@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::live::GradientMesh;
-use vectorcraft_doc::{Node, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, Point};
+use pluma_color::{Color, Paint};
+use pluma_doc::live::GradientMesh;
+use pluma_doc::{Node, NodeId, NodeKind};
+use pluma_geom::{Affine, Point};
 
 use super::graphics::Space;
 use super::interp::{Interp, matrix_of};

@@ -8,7 +8,7 @@
 //! turned plane) are cut into triangles: each hole is joined to its outline by a bridge, then the
 //! outline is cut by ear clipping.
 
-use vectorcraft_geom::{FillRule, PathData, Rect};
+use pluma_geom::{FillRule, PathData, Rect};
 
 use crate::solid::{Face3, extrude_faces, inflate_faces, plane_faces};
 use crate::{Extrude, Inflate, Revolve, V3, View};

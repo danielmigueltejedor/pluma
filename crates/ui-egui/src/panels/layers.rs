@@ -44,15 +44,15 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
 use egui::{Color32, Sense, Stroke, StrokeKind, Ui, vec2};
+use pluma_doc::{Document, LiveShape, Node, NodeId, NodeKind};
+use pluma_engine::OpenRows;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, LiveShape, Node, NodeId, NodeKind};
-use vectorcraft_engine::OpenRows;
 
 use crate::theme::Tokens;
 use crate::thumb_worker::{Settle, ThumbWorker};
 use crate::widgets::{Live, PanelDrag};
-use crate::{VectorcraftApp, icons, widgets};
+use crate::{PlumaApp, icons, widgets};
 
 mod controls;
 mod model;
@@ -185,7 +185,7 @@ struct Out {
 pub(crate) const ROW_KEYS: &str = "ly-keys";
 
 /// The Layers panel: the layer tree with its click, drag and rename rules and the bottom buttons; Delete/Backspace after a row click delete the highlighted rows.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     show_thumbs_of(app.session.active().map(|st| st.uid));
     let Some(st) = app.session.active() else { return };
@@ -403,7 +403,7 @@ fn search_query(ctx: &egui::Context) -> String {
 /// panel's highlighted row when a row was clicked last, else the one selected object or group,
 /// else the one highlighted row, else the current layer. Several of them, or a row the panel's
 /// search, filter or Show Layers Only leaves out, is an error that opens nothing.
-pub fn rename(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn rename(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let ctx = app.ui_ctx.clone().ok_or("the Layers panel is not shown")?;
     let st = app.session.active().ok_or("no document open")?;
     let one = |ids: &[NodeId]| match ids {
@@ -445,7 +445,7 @@ pub fn rename(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
 }
 
 /// Open the layers and groups around rows `ids`.
-fn open_around(app: &mut VectorcraftApp, doc: &Document, ids: &[NodeId]) {
+fn open_around(app: &mut PlumaApp, doc: &Document, ids: &[NodeId]) {
     let around: Vec<NodeId> =
         ids.iter().flat_map(|r| doc.ancestry(*r).unwrap_or_default().split_last().map(|(_, a)| a.to_vec()).unwrap_or_default()).collect();
     if let Some(st) = app.session.active_mut() {
@@ -473,7 +473,7 @@ fn listed_when_opened(doc: &Document, open: &OpenRows, opts: &PanelOptions, quer
 }
 
 /// The active document's uid and its last selected object, the one Locate Object locates.
-fn last_selected(app: &VectorcraftApp) -> Option<(u64, Option<NodeId>)> {
+fn last_selected(app: &PlumaApp) -> Option<(u64, Option<NodeId>)> {
     app.session.active().map(|st| (st.uid, st.selection.objects.last().copied()))
 }
 
@@ -483,7 +483,7 @@ fn last_selected(app: &VectorcraftApp) -> Option<(u64, Option<NodeId>)> {
 /// or by a command is located. This function notes nothing during a drag, so a selection made on
 /// the canvas during one is located when the drag ends. When another document becomes active,
 /// nothing is located.
-fn newly_selected(app: &VectorcraftApp, ui: &Ui) -> Option<NodeId> {
+fn newly_selected(app: &PlumaApp, ui: &Ui) -> Option<NodeId> {
     let busy = app.session.active().is_some_and(|st| st.interaction.is_some()) || app.session.tool_busy();
     let now = last_selected(app).filter(|_| !busy)?;
     let was = ui.data(|d| d.get_temp::<(u64, Option<NodeId>)>(key("selected")));
@@ -494,7 +494,7 @@ fn newly_selected(app: &VectorcraftApp, ui: &Ui) -> Option<NodeId> {
 
 /// Note the selection as seen when the panel's rows, buttons or menu changed it (`before`: what
 /// [`last_selected`] gave before they ran), so Locate Selected Objects does not locate it.
-fn see_selection(app: &VectorcraftApp, ui: &Ui, before: Option<(u64, Option<NodeId>)>) {
+fn see_selection(app: &PlumaApp, ui: &Ui, before: Option<(u64, Option<NodeId>)>) {
     if let Some(now) = last_selected(app).filter(|now| Some(*now) != before) {
         ui.data_mut(|d| d.insert_temp(key("selected"), now));
     }

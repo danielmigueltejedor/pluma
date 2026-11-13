@@ -107,7 +107,7 @@ pub(super) struct Builder<'p> {
     pub(super) font_chars: HashMap<u128, Option<Arc<HashMap<u32, char>>>>,
     /// Font (cache key) → the installed face that draws its glyphs, decided from its first glyph
     /// that can be compared ([`matching_face`]); `None`: its glyphs differ, so it stays outlines.
-    pub(super) matched: HashMap<u128, Option<Arc<vectorcraft_text::FontFace>>>,
+    pub(super) matched: HashMap<u128, Option<Arc<pluma_text::FontFace>>>,
     /// (Font, glyph) → the character its outline matches in the installed face, for glyphs no
     /// mapping names ([`Builder::identified_char`]).
     pub(super) identified: HashMap<(u128, u32), Option<char>>,

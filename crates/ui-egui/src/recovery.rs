@@ -2,14 +2,14 @@
 //! Preferences → File Handling → Data Recovery interval (written in the background like Background
 //! Save, the status bar showing it), and the dialog the first frame shows when the last session
 //! left copies behind (a crash). The copies themselves are the engine's
-//! ([`vectorcraft_engine::cmd::recovery`]).
+//! ([`pluma_engine::cmd::recovery`]).
 
 use std::sync::Arc;
 
+use pluma_engine::cmd::recovery::{self, RecoveryStore};
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::recovery::{self, RecoveryStore};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::background::{self, Writer};
 use crate::state::Dialog;
 
@@ -30,7 +30,7 @@ pub struct Timer {
 
 /// Each frame: the startup question once no other dialog is open, the timer and the heartbeat
 /// (`now`: app time in seconds) → in how many seconds they want the next frame (none while Data Recovery is off).
-pub fn frame(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
+pub fn frame(app: &mut PlumaApp, now: f64) -> Option<f64> {
     // A dialog already open at launch (the Safe Mode choice) is answered first.
     if !app.recovery.checked && app.ui.dialog.is_none() {
         app.recovery.checked = true;
@@ -55,12 +55,12 @@ pub fn frame(app: &mut VectorcraftApp, now: f64) -> Option<f64> {
 
 /// Ask about the copies a crash left behind, if any (the Recover Documents dialog). → whether it
 /// asked.
-pub fn offer(app: &mut VectorcraftApp) -> bool {
+pub fn offer(app: &mut PlumaApp) -> bool {
     if recovery::store(&app.session).is_none() || app.ui.dialog.is_some() {
         return false;
     }
     let Ok(r) = app.session.execute("file.recovery.list", &json!({})) else { return false };
-    // Neither this app's own nor kept by another VectorCraft that is running.
+    // Neither this app's own nor kept by another Pluma that is running.
     let left: Vec<Value> = r["copies"].as_array().into_iter().flatten().filter(|c| c["open"] == false && c["running"] == false).cloned().collect();
     if left.is_empty() {
         return false;
@@ -71,7 +71,7 @@ pub fn offer(app: &mut VectorcraftApp) -> bool {
 
 /// Start a recovery copy of every document that needs one when the interval has passed since the
 /// last (the first call only starts the clock) → how many were started.
-pub fn tick(app: &mut VectorcraftApp, now: f64) -> usize {
+pub fn tick(app: &mut PlumaApp, now: f64) -> usize {
     let prefs = &app.session.prefs;
     let Some(store) = recovery::store(&app.session).filter(|_| prefs.autosave_recovery) else {
         app.recovery.last = None;
@@ -92,7 +92,7 @@ pub fn tick(app: &mut VectorcraftApp, now: f64) -> usize {
 
 /// Start a recovery copy of every document that needs one and `pick` picks (by uid) → how many
 /// were started.
-fn write(app: &mut VectorcraftApp, store: &Arc<dyn RecoveryStore>, pick: impl Fn(u64) -> bool) -> usize {
+fn write(app: &mut PlumaApp, store: &Arc<dyn RecoveryStore>, pick: impl Fn(u64) -> bool) -> usize {
     recovery::forget_clean(&mut app.session);
     let jobs = match recovery::jobs(&mut app.session, store) {
         // A document whose save or last copy is still being written waits for the next round.
@@ -107,7 +107,7 @@ fn write(app: &mut VectorcraftApp, store: &Arc<dyn RecoveryStore>, pick: impl Fn
         let (uid, label, title) = (job.uid, format!("Saving recovery data for {}", job.title), job.title.clone());
         let (done, store) = (job.clone(), store.clone());
         let work = move |_: Writer| job.write(store.as_ref());
-        let then = move |app: &mut VectorcraftApp, r: Result<Value, String>| {
+        let then = move |app: &mut PlumaApp, r: Result<Value, String>| {
             let r = r?;
             done.finish(&mut app.session);
             app.status(format!("Saved recovery data for {title}"));
@@ -123,7 +123,7 @@ fn write(app: &mut VectorcraftApp, store: &Arc<dyn RecoveryStore>, pick: impl Fn
 }
 
 /// The startup dialog's OK (Restore) or Discard: every copy it lists.
-pub fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+pub fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     app.ui.dialog = None;
     let id = if d.bool("discard") { "file.recovery.discard" } else { "file.recovery.restore" };
     let files: Vec<String> =

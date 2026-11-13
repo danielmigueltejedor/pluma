@@ -158,7 +158,7 @@ fn edits_copy_only_the_stories_of_threads_whose_frames_changed() {
 /// around an ellipse, with one style, a style change every 10 words and a style change at every
 /// word: 21 characters typed into the first frame, then 200 moves of a rectangle below the
 /// frames and 200 frames of a drag of it.
-/// Run with `cargo test --release -p vectorcraft-engine --lib threaded_story_edit_timing -- --ignored --nocapture`.
+/// Run with `cargo test --release -p pluma-engine --lib threaded_story_edit_timing -- --ignored --nocapture`.
 #[test]
 #[ignore = "manual timing probe; wall-clock performance depends on machine load"]
 fn threaded_story_edit_timing() {
@@ -237,7 +237,7 @@ fn threads(s: &Session) -> Vec<Vec<u64>> {
 }
 
 /// Bounds of area type `id`'s frame on the page.
-fn frame_box(s: &Session, id: u64) -> vectorcraft_geom::Rect {
+fn frame_box(s: &Session, id: u64) -> pluma_geom::Rect {
     let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(id)) else { panic!("not area type") };
     let TextKind::Area { frame } = &t.kind else { panic!("not area type") };
     t.xf.transform_rect_bbox(frame.bounds().unwrap())
@@ -258,9 +258,9 @@ fn add_threads_into_a_path_a_frame_at_a_point_and_a_rectangle() {
     assert!(matches!(s.doc().unwrap().doc.node(NodeId(b)).unwrap().kind, NodeKind::Path { .. }), "undo gives the path back");
 
     let c = new_id(s.execute("text.thread.add", &json!({"from": a, "at": [400, 200]})).unwrap());
-    assert_eq!(frame_box(&s, c), vectorcraft_geom::Rect::new(400.0, 200.0, 550.0, 260.0), "the first frame's size, its top-left at the click");
+    assert_eq!(frame_box(&s, c), pluma_geom::Rect::new(400.0, 200.0, 550.0, 260.0), "the first frame's size, its top-left at the click");
     let d = new_id(s.execute("text.thread.add", &json!({"from": c, "rect": [10, 100, 300, 150]})).unwrap());
-    assert_eq!(frame_box(&s, d), vectorcraft_geom::Rect::new(10.0, 100.0, 310.0, 250.0));
+    assert_eq!(frame_box(&s, d), pluma_geom::Rect::new(10.0, 100.0, 310.0, 250.0));
     assert_eq!(threads(&s), [[a, c, d]], "each new frame comes after the one it was threaded from");
     assert_eq!(format!("{}{}{}", text(&s, a), text(&s, c), text(&s, d)), TEXT.repeat(4));
     assert!(!text(&s, d).is_empty());
@@ -280,7 +280,7 @@ fn add_before_threads_the_story_from_the_new_frame_into_the_clicked_one() {
     let (mut s, a, b) = setup();
     let c = new_id(s.execute("text.thread.add", &json!({"from": a, "at": [400, 200], "before": true})).unwrap());
     assert_eq!(threads(&s), [[c, a]]);
-    assert_eq!(frame_box(&s, c), vectorcraft_geom::Rect::new(400.0, 200.0, 550.0, 260.0), "the clicked frame's size at the click");
+    assert_eq!(frame_box(&s, c), pluma_geom::Rect::new(400.0, 200.0, 550.0, 260.0), "the clicked frame's size at the click");
     assert!(TEXT.repeat(4).starts_with(&text(&s, c)) && !text(&s, c).is_empty(), "the story starts in the new frame: {:?}", text(&s, c));
     assert_eq!(format!("{}{}", text(&s, c), text(&s, a)), TEXT.repeat(4));
     assert_eq!(s.doc().unwrap().selection.objects, [NodeId(a), NodeId(c)]);
@@ -641,7 +641,7 @@ fn flattened_frames_leave_their_thread_with_their_text() {
     let shown = [a, b, c].map(|id| text(&s, id));
     let laid = {
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)) else { panic!("not area type") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t)
+        pluma_text::layout(pluma_text::FontDb::global(), t)
     };
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
@@ -699,7 +699,7 @@ fn outlining_the_last_frame_keeps_the_text_it_has_no_room_for() {
     let shown = [a, b, c].map(|id| text(&s, id));
     let laid = {
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)) else { panic!("not area type") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t)
+        pluma_text::layout(pluma_text::FontDb::global(), t)
     };
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
@@ -745,7 +745,7 @@ fn rasterized_frames_leave_their_thread_with_their_text() {
     let shown = [a, b, c].map(|id| text(&s, id));
     let laid = {
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)) else { panic!("not area type") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t)
+        pluma_text::layout(pluma_text::FontDb::global(), t)
     };
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
@@ -762,7 +762,7 @@ fn rasterized_frames_leave_their_thread_with_their_text() {
 fn first_line(s: &Session, id: u64) -> (bool, f64, usize) {
     let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(id)) else { panic!("not area type") };
     let TextKind::Area { frame } = &t.kind else { panic!("not area type") };
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
     let l = &lay.lines[0];
     let x = lay.glyphs[l.glyph_start..l.glyph_end].iter().find(|g| g.len > 0).map_or(f64::NAN, |g| g.origin.x);
     let markers = lay.markers.iter().filter(|m| lay.glyphs[m.glyphs.start].line == 0).count();
@@ -786,14 +786,14 @@ fn a_paragraph_continued_into_the_next_frame_starts_it_without_its_first_line_in
     s.execute("text.editRange", &json!({"id": a, "start": 0, "end": 0, "insert": "NEW "})).unwrap();
     assert_eq!(first_line(&s, b), (true, 0.0, 0));
     // Saved and opened: a native file re-flows its threads, a restored document keeps its text.
-    for name in ["thread.vectorcraft", "thread.eps"] {
+    for name in ["thread.pluma", "thread.eps"] {
         let bytes = if name.ends_with(".eps") {
             let r = s.execute("document.exportEps", &json!({})).unwrap();
-            vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
+            pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
         } else {
-            vectorcraft_format::save(&s.doc().unwrap().doc, false)
+            pluma_format::save(&s.doc().unwrap().doc, false)
         };
-        let r = s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+        let r = s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
         assert_eq!(r["restored"], name.ends_with(".eps"), "{r}");
         assert_eq!(threads(&s), [[a, b]], "{name}");
         assert_eq!((first_line(&s, a), first_line(&s, b)), ((false, 24.0, 0), (true, 0.0, 0)), "{name}");
@@ -875,7 +875,7 @@ fn a_paragraph_continued_into_the_next_frame_starts_it_without_its_first_line_in
     assert!(!continues(&s, b));
     {
         let NodeKind::Text(t) = &s.doc().unwrap().doc.node(NodeId(b)).unwrap().kind else { panic!("not text") };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         let g = lay.glyphs.iter().find(|g| g.len > 0).unwrap();
         let x = (t.xf * g.origin).x - left;
         assert!((x - 24.0).abs() < 1e-6, "{x}");
@@ -940,7 +940,7 @@ fn outlining_a_continued_last_frame_keeps_only_the_text_it_has_no_room_for() {
     let shown = [a, b, c].map(|id| text(&s, id));
     let laid = {
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)) else { panic!("not area type") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t)
+        pluma_text::layout(pluma_text::FontDb::global(), t)
     };
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
@@ -969,11 +969,11 @@ fn outlining_a_numbered_last_frame_keeps_only_the_text_it_has_no_room_for() {
     assert!(shown[0].ends_with("Item 7\n") && shown[1].starts_with("The quick"), "{shown:?}");
     let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)).cloned() else { panic!("not area type") };
     assert_eq!(t.list_count, 7);
-    let laid = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let laid = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert_eq!(laid.markers.first().map(|m| m.text.as_str()), Some("VIII."));
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
-    let from_one = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &TextObject { list_count: 0, ..t });
+    let from_one = pluma_text::layout(pluma_text::FontDb::global(), &TextObject { list_count: 0, ..t });
     assert_ne!(from_one.lines.last().map_or(0, |l| l.end), end, "counted from 1, the frame would show other text");
     let hidden = shown[1][end..].trim_start_matches(' ');
     s.execute("select.set", &json!({"ids": [c]})).unwrap();
@@ -997,11 +997,11 @@ fn outlining_a_last_frame_numbered_at_a_deeper_level_keeps_only_the_text_it_has_
     assert!(shown[0].ends_with("Item 7\n") && shown[1].starts_with("The quick"), "{shown:?}");
     let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)).cloned() else { panic!("not area type") };
     assert_eq!((t.list_count, t.list_level_counts.as_slice()), (0, &[7][..]));
-    let laid = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+    let laid = pluma_text::layout(pluma_text::FontDb::global(), &t);
     assert_eq!(laid.markers.first().map(|m| m.text.as_str()), Some("VIII."));
     assert!(laid.overflow, "the last frame has more text than it shows");
     let end = laid.lines.last().map_or(0, |l| l.end);
-    let from_one = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
+    let from_one = pluma_text::layout(pluma_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
     assert_ne!(from_one.lines.last().map_or(0, |l| l.end), end, "counted from 1, the frame would show other text");
     let hidden = shown[1][end..].trim_start_matches(' ');
     s.execute("select.set", &json!({"ids": [c]})).unwrap();
@@ -1027,10 +1027,10 @@ fn a_symbol_of_a_last_frame_numbered_at_a_deeper_level_holds_the_text_it_shows()
         let shown = [a, c].map(|id| text(&s, id));
         assert!(shown[0].ends_with("Item 7\n") && shown[1].starts_with("The quick"), "{command}: {shown:?}");
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)).cloned() else { panic!("not area type") };
-        let laid = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let laid = pluma_text::layout(pluma_text::FontDb::global(), &t);
         assert!(laid.overflow, "{command}: the last frame has more text than it shows");
         let end = laid.lines.last().map_or(0, |l| l.end);
-        let from_one = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
+        let from_one = pluma_text::layout(pluma_text::FontDb::global(), &TextObject { list_level_counts: vec![], ..t });
         assert_ne!(from_one.lines.last().map_or(0, |l| l.end), end, "{command}: counted from 1, the frame would show other text");
         let hidden = shown[1][end..].trim_start_matches(' ');
         let name = if command == "symbol.update" {
@@ -1139,7 +1139,7 @@ fn a_thread_takes_its_first_frames_optical_margin_alignment() {
 /// different methods on the frames of a thread.
 #[test]
 fn the_anti_aliasing_method_is_set_for_each_frame_of_a_thread() {
-    use vectorcraft_doc::text::TypeAntiAlias::{self, Crisp, None as Hard, Sharp, Strong};
+    use pluma_doc::text::TypeAntiAlias::{self, Crisp, None as Hard, Sharp, Strong};
     let method = |s: &Session, id: u64| text_of(&s.doc().unwrap().doc, NodeId(id)).map(|t| t.anti_alias);
     let saved = |s: &Session, id: u64| serde_json::to_value(text_of(&s.doc().unwrap().doc, NodeId(id)).unwrap()).unwrap().get("antiAlias").cloned();
     let (mut s, a, b) = quoted_thread();
@@ -1174,7 +1174,7 @@ fn the_anti_aliasing_method_is_set_for_each_frame_of_a_thread() {
     joined.execute("text.thread.remove", &json!({})).unwrap();
     assert_eq!((method(&joined, first_id), method(&joined, second_id)), (Some(Crisp), Some(Strong)), "unthreading keeps both methods");
     let first: [TypeAntiAlias; 2] = [Crisp, Hard];
-    for (one, name) in [(first, "old.vectorcraft"), ([Hard, Crisp], "old.vectorcraft"), (first, "old.eps"), ([Hard, Crisp], "old.eps")] {
+    for (one, name) in [(first, "old.pluma"), ([Hard, Crisp], "old.pluma"), (first, "old.eps"), ([Hard, Crisp], "old.eps")] {
         for (id, m) in [(a, one[0]), (b, one[1])] {
             let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
             let Some(NodeKind::Text(t)) = doc.node_mut(NodeId(id)).map(|n| &mut n.kind) else { panic!("not text") };
@@ -1182,11 +1182,11 @@ fn the_anti_aliasing_method_is_set_for_each_frame_of_a_thread() {
         }
         let bytes = if name.ends_with(".eps") {
             let r = s.execute("document.exportEps", &json!({})).unwrap();
-            vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
+            pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
         } else {
-            vectorcraft_format::save(&s.doc().unwrap().doc, false)
+            pluma_format::save(&s.doc().unwrap().doc, false)
         };
-        let r = s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+        let r = s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
         assert_eq!(r["restored"], name.ends_with(".eps"), "{r}");
         assert_eq!(threads(&s), [[a, b]], "{name}");
         assert_eq!((method(&s, a), method(&s, b)), (Some(one[0]), Some(one[1])), "{name}, frame methods");
@@ -1198,7 +1198,7 @@ fn the_anti_aliasing_method_is_set_for_each_frame_of_a_thread() {
 #[test]
 fn a_thread_saved_with_differing_frames_opens_with_the_first_frames_setting() {
     let (mut s, a, b) = quoted_thread();
-    for (first, name) in [(true, "old.vectorcraft"), (false, "old.vectorcraft"), (true, "old.eps"), (false, "old.eps")] {
+    for (first, name) in [(true, "old.pluma"), (false, "old.pluma"), (true, "old.eps"), (false, "old.eps")] {
         for (id, on) in [(a, first), (b, !first)] {
             let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
             let Some(NodeKind::Text(t)) = doc.node_mut(NodeId(id)).map(|n| &mut n.kind) else { panic!("not text") };
@@ -1206,11 +1206,11 @@ fn a_thread_saved_with_differing_frames_opens_with_the_first_frames_setting() {
         }
         let bytes = if name.ends_with(".eps") {
             let r = s.execute("document.exportEps", &json!({})).unwrap();
-            vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
+            pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
         } else {
-            vectorcraft_format::save(&s.doc().unwrap().doc, false)
+            pluma_format::save(&s.doc().unwrap().doc, false)
         };
-        let r = s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+        let r = s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
         assert_eq!(r["restored"], name.ends_with(".eps"), "{r}");
         assert_eq!(threads(&s), [[a, b]], "{name}");
         assert_eq!((optical(&s, a), optical(&s, b)), ((first, first), (first, first)), "{name}, first frame {first}");
@@ -1226,14 +1226,14 @@ fn vertical<const N: usize>(s: &Session, ids: [u64; N]) -> [bool; N] {
 }
 
 /// Whether each frame of the thread `ids` holds the part of the story that its layout, in its
-/// writing direction, has room for: the parts that [`vectorcraft_text::thread::distribute`]
+/// writing direction, has room for: the parts that [`pluma_text::thread::distribute`]
 /// gives the frames as they are now.
 fn flows_as_laid_out(s: &Session, ids: &[u64]) -> bool {
     let d = &s.doc().unwrap().doc;
     let frames: Vec<&TextObject> = ids.iter().map(|id| text_of(d, NodeId(*id)).unwrap()).collect();
-    let story = vectorcraft_text::thread::story(&frames);
-    let paras = vectorcraft_text::thread::story_paras(&frames, &[]);
-    let parts = vectorcraft_text::thread::distribute(vectorcraft_text::FontDb::global(), &frames, &story, &paras);
+    let story = pluma_text::thread::story(&frames);
+    let paras = pluma_text::thread::story_paras(&frames, &[]);
+    let parts = pluma_text::thread::distribute(pluma_text::FontDb::global(), &frames, &story, &paras);
     let texts = |runs: &[TextRun]| runs.iter().map(|r| r.text.as_str()).collect::<String>();
     parts.iter().zip(&frames).all(|(part, f)| texts(&part.runs) == f.plain_text())
 }
@@ -1314,7 +1314,7 @@ fn a_thread_takes_its_first_frames_type_orientation() {
 fn a_thread_saved_with_differing_orientations_opens_with_the_first_frames() {
     let (mut s, a, b) = setup();
     s.execute("text.thread.create", &json!({})).unwrap();
-    for (first, name) in [(true, "old.vectorcraft"), (false, "old.vectorcraft"), (true, "old.eps"), (false, "old.eps")] {
+    for (first, name) in [(true, "old.pluma"), (false, "old.pluma"), (true, "old.eps"), (false, "old.eps")] {
         for (id, on) in [(a, first), (b, !first)] {
             let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
             let Some(NodeKind::Text(t)) = doc.node_mut(NodeId(id)).map(|n| &mut n.kind) else { panic!("not text") };
@@ -1323,11 +1323,11 @@ fn a_thread_saved_with_differing_orientations_opens_with_the_first_frames() {
         }
         let bytes = if name.ends_with(".eps") {
             let r = s.execute("document.exportEps", &json!({})).unwrap();
-            vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
+            pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap()
         } else {
-            vectorcraft_format::save(&s.doc().unwrap().doc, false)
+            pluma_format::save(&s.doc().unwrap().doc, false)
         };
-        let r = s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+        let r = s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
         assert_eq!(r["restored"], name.ends_with(".eps"), "{r}");
         assert_eq!(threads(&s), [[a, b]], "{name}");
         assert_eq!(vertical(&s, [a, b]), [first, first], "{name}, first frame vertical: {first}");
@@ -1350,8 +1350,8 @@ fn a_restored_thread_in_one_direction_keeps_its_text_as_saved() {
         refresh_bounds(t);
     }
     let r = s.execute("document.exportEps", &json!({})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
-    let r = s.execute("document.open", &json!({"name": "saved.eps", "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    let bytes = pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
+    let r = s.execute("document.open", &json!({"name": "saved.eps", "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
     assert_eq!(r["restored"], true, "{r}");
     assert_eq!((text(&s, a), text(&s, b)), (story[..10].to_string(), story[10..].to_string()));
 }
@@ -1369,14 +1369,14 @@ fn a_restored_threaded_frame_with_auto_size_keeps_its_size_when_it_turns_horizon
             let Some(NodeKind::Text(t)) = doc.node_mut(NodeId(id)).map(|n| &mut n.kind) else { panic!("not text") };
             t.vertical = on;
             if id == b {
-                t.area.fit = vectorcraft_doc::AreaFit::AutoHeight;
+                t.area.fit = pluma_doc::AreaFit::AutoHeight;
             }
             refresh_bounds(t);
         }
         let saved = frame_box(&s, b);
         let r = s.execute("document.exportEps", &json!({})).unwrap();
-        let bytes = vectorcraft_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
-        let r = s.execute("document.open", &json!({"name": "saved.eps", "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+        let bytes = pluma_format::base64_decode(r["dataBase64"].as_str().unwrap()).unwrap();
+        let r = s.execute("document.open", &json!({"name": "saved.eps", "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
         assert_eq!(r["restored"], true, "{r}");
         if first_vertical {
             s.execute("select.set", &json!({"ids": [a]})).unwrap();
@@ -1404,7 +1404,7 @@ fn numbered_list_paragraphs_count_on_through_a_thread() {
     s.execute("text.setFormat", &json!({"ids": [a, b], "list": "number"})).unwrap();
     let numbers = |s: &Session, id: u64| {
         let Some(NodeKind::Text(t)) = s.doc().unwrap().doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
-        vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
+        pluma_text::layout(pluma_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>()
     };
     let all = |from: usize| (from..=10).map(|n| format!("{n}.")).collect::<Vec<_>>();
     let first = numbers(&s, a);
@@ -1414,9 +1414,9 @@ fn numbered_list_paragraphs_count_on_through_a_thread() {
     s.execute("text.editRange", &json!({"id": a, "start": 0, "end": 0, "insert": "Item 0\n"})).unwrap();
     assert_eq!([numbers(&s, a), numbers(&s, b)].concat(), [vec!["1.".to_string()], all(2), vec!["11.".to_string()]].concat());
     s.execute("edit.undo", &json!({})).unwrap();
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(b)).map(|n| &n.kind) else { panic!("text") };
-    let after: Vec<String> = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), back).markers.iter().map(|m| m.text.clone()).collect();
+    let after: Vec<String> = pluma_text::layout(pluma_text::FontDb::global(), back).markers.iter().map(|m| m.text.clone()).collect();
     assert_eq!(after, all(first.len() + 1), "reopened");
     // A pasted copy of the second frame is in no thread.
     s.execute("select.set", &json!({"ids": [b]})).unwrap();
@@ -1466,15 +1466,14 @@ fn list_levels_count_on_through_a_thread() {
     s.execute("text.setFormat", &json!({"ids": [a, b], "list": "number", "listLevel": 2})).unwrap();
     s.execute("text.setFormat", &json!({"ids": [a], "listLevel": 1, "start": 0, "end": 0})).unwrap();
     let frame = |s: &Session, id: u64| text_of(&s.doc().unwrap().doc, NodeId(id)).cloned().unwrap();
-    let numbers =
-        |t: &TextObject| vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>();
+    let numbers = |t: &TextObject| pluma_text::layout(pluma_text::FontDb::global(), t).markers.iter().map(|m| m.text.clone()).collect::<Vec<_>>();
     let first = numbers(&frame(&s, a));
     assert!((2..10).contains(&first.len()), "both frames hold items: {first:?}");
     let expected: Vec<String> = std::iter::once("1.".to_string()).chain((1..=9).map(|n| format!("{n}."))).collect();
     assert_eq!([first.clone(), numbers(&frame(&s, b))].concat(), expected);
     let b_counts = frame(&s, b).list_counts();
     assert_eq!(b_counts.parts(), (1, vec![first.len() as u32 - 1]));
-    let reopened = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let reopened = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     let Some(NodeKind::Text(back)) = reopened.node(NodeId(b)).map(|n| &n.kind) else { panic!("text") };
     assert_eq!((back.list_counts(), numbers(back)), (b_counts, numbers(&frame(&s, b))), "reopened");
     s.execute("select.set", &json!({"ids": [b]})).unwrap();
@@ -1583,7 +1582,7 @@ fn frames_made_into_a_symbol_leave_their_thread_with_their_text() {
         let shown = [a, b, c].map(|id| text(&s, id));
         let laid = {
             let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(c)) else { panic!("not area type") };
-            vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t)
+            pluma_text::layout(pluma_text::FontDb::global(), t)
         };
         assert!(laid.overflow, "the last frame has more text than it shows");
         let end = laid.lines.last().map_or(0, |l| l.end);
@@ -1653,7 +1652,7 @@ fn a_duplicated_frame_numbers_from_1_with_its_own_bounds() {
     let copy = s.execute("edit.duplicate", &json!({"dx": 200})).unwrap()["ids"][0].as_u64().unwrap();
     let laid = |s: &Session, id: u64| {
         let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(id)) else { panic!("area type") };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         (lay.markers[0].text.clone(), lay.lines.len(), lay.bounds, t.cached_bounds.unwrap())
     };
     let (number, lines, _, _) = laid(&s, b);
@@ -1675,7 +1674,7 @@ fn the_frame_a_release_leaves_alone_has_the_bounds_of_the_whole_story() {
     assert!(threads(&s).is_empty());
     assert_eq!(text(&s, b), TEXT.repeat(4));
     let Some(t) = text_of(&s.doc().unwrap().doc, NodeId(b)) else { panic!("area type") };
-    let bounds = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).bounds;
+    let bounds = pluma_text::layout(pluma_text::FontDb::global(), t).bounds;
     let cached = t.cached_bounds.unwrap();
     assert!((cached.y0 - bounds.y0).abs() < 1e-6 && (cached.y1 - bounds.y1).abs() < 1e-6, "{cached:?} {bounds:?}");
 }

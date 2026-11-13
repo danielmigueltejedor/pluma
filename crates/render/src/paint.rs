@@ -1,7 +1,7 @@
 //! Paint conversion (solid, gradients, patterns) and image decoding.
 
-use vectorcraft_color::{GradientKind, Paint};
-use vectorcraft_geom::{Rect, Vec2};
+use pluma_color::{GradientKind, Paint};
+use pluma_geom::{Rect, Vec2};
 use vello_cpu::RenderContext;
 use vello_cpu::peniko::{self, ColorStop};
 
@@ -521,8 +521,8 @@ pub(crate) fn fill_rule(r: FillRule) -> peniko::Fill {
     }
 }
 
-pub(crate) fn blend_mode(b: vectorcraft_color::BlendMode) -> BlendMode {
-    use vectorcraft_color::BlendMode as B;
+pub(crate) fn blend_mode(b: pluma_color::BlendMode) -> BlendMode {
+    use pluma_color::BlendMode as B;
     let mix = match b {
         B::Normal => Mix::Normal,
         B::Darken => Mix::Darken,

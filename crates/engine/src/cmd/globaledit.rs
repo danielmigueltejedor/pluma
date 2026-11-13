@@ -47,7 +47,7 @@
 //!   or removed at once), takes the model's whole list of fills and strokes.
 //!
 //! Members that are hidden or locked at the time are left as they are. An edit that would take any
-//! member past the canvas (beyond [`vectorcraft_doc::MAX_COORD`]) is refused whole, as one that
+//! member past the canvas (beyond [`pluma_doc::MAX_COORD`]) is refused whole, as one that
 //! takes the selection there is. Whenever the document is put back (Undo, Redo, a cancelled drag
 //! or scrub, an edit that failed), the members it lacks (or no longer supports) leave the Global
 //! Edit, and it ends when fewer than two are left ([`follow_history`]), so that an object made
@@ -69,10 +69,10 @@
 //! deselects it as before), Global Edit ends when fewer than two members are left, and leaving
 //! one out is not an undo step. Rotated copies are not covered.
 
+use pluma_doc::{Appearance, AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Scaling, Shared, StrokeLayer};
+use pluma_geom::{Affine, BezPath, PathData, Point, Rect, Shape};
 use serde::Serialize;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, FillLayer, Node, NodeId, NodeKind, Scaling, Shared, StrokeLayer};
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Rect, Shape};
 
 use super::wand::{fill_of, stroke_of};
 use super::{CommandSpec, Result, Session, bad, bool_or, checked_id, cmd, has_doc};
@@ -148,7 +148,7 @@ impl Options {
             None | Some(Value::Null) => {}
             Some(Value::String(s)) if s.trim().is_empty() || s.trim().eq_ignore_ascii_case("all") => o.artboards = None,
             Some(Value::String(s)) => {
-                vectorcraft_doc::range::parse_range(s, d.artboards.len()).map_err(|e| bad(cmd, e))?;
+                pluma_doc::range::parse_range(s, d.artboards.len()).map_err(|e| bad(cmd, e))?;
                 o.artboards = Some(s.trim().to_string());
             }
             Some(v) => return Err(bad(cmd, format!("`artboards`: all or a range such as 1, 3-5, not {v}"))),
@@ -209,7 +209,7 @@ impl Form {
 
     /// Add `n`, `depth` groups down from the selected object; `None` when it isn't supported.
     fn add(&mut self, n: &Node, depth: usize) -> Option<()> {
-        let rule = |r: vectorcraft_geom::FillRule| u64::from(r == vectorcraft_geom::FillRule::EvenOdd);
+        let rule = |r: pluma_geom::FillRule| u64::from(r == pluma_geom::FillRule::EvenOdd);
         match &n.kind {
             // A clipping path only as part of a (clip) group.
             NodeKind::Path { path, rule: r, clipping, guide: false, .. } if !*clipping || depth > 0 => {
@@ -228,7 +228,7 @@ impl Form {
                 self.points.extend([*xf * Point::ZERO, *xf * Point::new(1.0, 0.0), *xf * Point::new(0.0, 1.0)]);
             }
             // Documents are never deeper than `MAX_DEPTH`: the check only bounds the recursion.
-            NodeKind::Group { children, clip } if plain_group(n) && depth < vectorcraft_doc::MAX_DEPTH => {
+            NodeKind::Group { children, clip } if plain_group(n) && depth < pluma_doc::MAX_DEPTH => {
                 self.tag.extend([3, u64::from(*clip), children.len() as u64]);
                 for c in children {
                     if c.extras().mask.is_some() {
@@ -291,7 +291,7 @@ fn form_box(n: &Node, depth: usize, b: &mut Option<Rect>) -> Option<()> {
                 grow(b, p);
             }
         }
-        NodeKind::Group { children, .. } if plain_group(n) && depth < vectorcraft_doc::MAX_DEPTH => {
+        NodeKind::Group { children, .. } if plain_group(n) && depth < pluma_doc::MAX_DEPTH => {
             for c in children {
                 if c.extras().mask.is_some() {
                     return None;
@@ -373,14 +373,14 @@ fn matches(s: &Session, o: &Options) -> Result<Vec<(NodeId, Affine)>> {
     let boards: Option<Vec<Rect>> = match &o.artboards {
         None => None,
         Some(r) => Some(
-            vectorcraft_doc::range::parse_range(r, d.artboards.len())
+            pluma_doc::range::parse_range(r, d.artboards.len())
                 .map_err(|e| bad(C, e))?
                 .into_iter()
                 .filter_map(|i| d.artboards.get(i).map(|a| a.rect))
                 .collect(),
         ),
     };
-    let on = |r: Rect, b: Rect| b.intersect(r).area() > 0.0 || vectorcraft_doc::artboard_holds(r, b.center());
+    let on = |r: Rect, b: Rect| b.intersect(r).area() > 0.0 || pluma_doc::artboard_holds(r, b.center());
     let in_scope = |n: &Node| {
         let Some(b) = n.geometric_bounds_with(&symbols) else { return false };
         if !d.artboards.iter().any(|a| on(a.rect, b)) {
@@ -812,9 +812,9 @@ pub fn highlights(s: &Session) -> Outlines {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pluma_doc::OpacityMask;
+    use pluma_geom::{Anchor, SubPath};
     use std::sync::Arc;
-    use vectorcraft_doc::OpacityMask;
-    use vectorcraft_geom::{Anchor, SubPath};
 
     /// Global Edit's support as it was decided by building the form.
     fn by_form(n: &Node) -> bool {
@@ -900,7 +900,7 @@ mod tests {
                         _ => Arc::new(Node::path(d.alloc_id(), path_data(r), Appearance::default())),
                     })
                     .collect();
-                Node::new(d.alloc_id(), NodeKind::Compound { children, rule: vectorcraft_geom::FillRule::NonZero })
+                Node::new(d.alloc_id(), NodeKind::Compound { children, rule: pluma_geom::FillRule::NonZero })
             }
             5 => {
                 let children = (0..r.below(3)).map(|_| Arc::new(object(r, d, text, depth + 1))).collect();
@@ -986,7 +986,7 @@ mod tests {
         ];
         // A group as deep as the walk goes, and one level deeper.
         let mut deep = path(&mut d, vec![SubPath::new(vec![corner(0.0, 0.0), corner(10.0, 10.0)], false)]);
-        for _ in 0..=vectorcraft_doc::MAX_DEPTH {
+        for _ in 0..=pluma_doc::MAX_DEPTH {
             deep = Node::group(d.alloc_id(), vec![Arc::new(deep)]);
             cases.push(deep.clone());
         }

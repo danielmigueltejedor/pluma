@@ -8,7 +8,7 @@
 //! preference that offers Q and Ha, and no field reads it yet) are application preferences. Typed values with a unit
 //! ("5 mm", "12 pt", "13 Q") work in any unit.
 
-use vectorcraft_doc::Unit;
+use pluma_doc::Unit;
 
 use crate::{Result, Session};
 

@@ -12,7 +12,7 @@ pub mod nearest;
 use egui::Ui;
 use serde_json::{Map, Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::panels::{empty_state, pstate, set_pstate};
 use crate::widgets;
@@ -80,7 +80,7 @@ fn print_fixes() -> (&'static str, &'static str, Value) {
 
 /// Duotone's menu item: its label, and its effect's dialog.
 fn duotone() -> (&'static str, &'static str, Value) {
-    ("Duotone…", "effect.dialog", json!({ "effect": vectorcraft_effects::addons::duotone::DUOTONE }))
+    ("Duotone…", "effect.dialog", json!({ "effect": pluma_effects::addons::duotone::DUOTONE }))
 }
 
 /// Adjustment `i` of [`ADJUSTMENTS`] (the first past the end).
@@ -144,7 +144,7 @@ impl Picked {
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     if app.session.active().is_none_or(|d| d.selection.is_empty()) {
         empty_state(ui, "sun", tl!("No selection"), tl!("Select objects to adjust their colors."));
         return;
@@ -173,7 +173,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.add_space(4.0);
     let (id, params) = st.params();
     ui.horizontal(|ui| {
-        let run = |app: &mut VectorcraftApp, cmd: &str| {
+        let run = |app: &mut PlumaApp, cmd: &str| {
             if let Err(e) = app.run(cmd, json!({ "effect": id, "params": params })) {
                 app.status(e);
             }

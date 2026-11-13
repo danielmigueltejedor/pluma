@@ -6,7 +6,7 @@ pinned at commit `5684c0f51c0b81133db2efbe60a408b4155a3ff5`.
 
 Hindi, Marathi, Gujarati, Bengali, Punjabi (Gurmukhi), Tamil, Telugu, Kannada,
 Malayalam, Odia and Assamese: copyright (C) 2016 Santhosh Thottingal.
-VectorCraft uses these under their **MIT** license option; the full copyright
+Pluma uses these under their **MIT** license option; the full copyright
 and permission notice is preserved at the top of each file. The alternative
 LGPL/GPL licenses are not selected.
 

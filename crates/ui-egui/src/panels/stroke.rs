@@ -2,15 +2,15 @@
 //! with three dash/gap pairs, arrowheads with rendered previews, arrow scale, width profiles.
 
 use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, Unit, WidthProfile};
+use pluma_engine::inspect::StrokeMixed;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ArrowAlign, Arrowhead, Dash, Document, LineCap, LineJoin, Node, StrokeAlign, StrokeLayer, Unit, WidthProfile};
-use vectorcraft_engine::inspect::StrokeMixed;
 
 use super::{character, current_stroke, pstate, set_pstate, stroke_mixed};
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 /// Stroke weight dropdown presets in points, from the ladder of `unit` (Units > Stroke): each
 /// unit has its own ladder of round values in that unit, so the dropdown reads `0.25 mm`, not the
@@ -106,7 +106,7 @@ fn arrow_label(a: Option<Arrowhead>) -> &'static str {
 
 /// Apply Stroke panel options (`stroke.set` params): while the Type tool edits text, to the
 /// selected characters' stroke.
-fn set(app: &mut VectorcraftApp, p: Value) {
+fn set(app: &mut PlumaApp, p: Value) {
     if character::text_editing(app).is_some() {
         character::range_style(app, json!({ "strokeOptions": p }));
     } else {
@@ -115,7 +115,7 @@ fn set(app: &mut VectorcraftApp, p: Value) {
 }
 
 /// A mixed selection starts a new shared pattern instead of copying one object's hidden tail.
-fn set_dash_fields(app: &mut VectorcraftApp, fields: &[Option<f64>; 6], previous: &[f64], mixed: bool) {
+fn set_dash_fields(app: &mut PlumaApp, fields: &[Option<f64>; 6], previous: &[f64], mixed: bool) {
     let previous = if mixed { &[][..] } else { previous };
     // The command keeps each stroke's dash offset and alignment.
     set(app, json!({"dash": edited_dash_pattern(fields, previous)}));
@@ -123,13 +123,13 @@ fn set_dash_fields(app: &mut VectorcraftApp, fields: &[Option<f64>; 6], previous
 
 /// The weight the Stroke panel, Control bar and Properties panel show: blank where the selected
 /// objects differ, the default for new art without a stroke.
-pub(crate) fn shown_weight(app: &VectorcraftApp, st: Option<&StrokeLayer>, mixed: &StrokeMixed) -> Option<f64> {
+pub(crate) fn shown_weight(app: &PlumaApp, st: Option<&StrokeLayer>, mixed: &StrokeMixed) -> Option<f64> {
     (!mixed.weight).then(|| st.map_or(app.session.paint.stroke_width, |s| s.width))
 }
 
 /// The weight spinner (Stroke panel, Control bar, Properties panel): Units > Stroke, presets, blank
 /// when mixed. A plain step stops at each preset: 0.52 pt goes down to 0.5 pt, not to 0 pt.
-pub(crate) fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, weight: Option<f64>, width: f32) {
+pub(crate) fn weight_field(app: &mut PlumaApp, ui: &mut Ui, id: &str, weight: Option<f64>, width: f32) {
     let unit = app.session.stroke_unit();
     if let Some(w) = widgets::spin_field_stops_named(ui, id, Some(tl!("Weight:")), weight, unit, width, 1.0, 0.0, &weight_presets(unit)) {
         set(app, json!({"weight": w}));
@@ -139,7 +139,7 @@ pub(crate) fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, id: &str, weig
 /// The underlined Stroke link (`label`: the Control bar's "Stroke:", the Properties panel's
 /// "Stroke"): a click toggles the Stroke panel in a popover under it, and a drag scrubs the weight
 /// field after it ([`crate::scrub`]).
-pub(crate) fn link(app: &mut VectorcraftApp, ui: &mut Ui, label: &str) {
+pub(crate) fn link(app: &mut PlumaApp, ui: &mut Ui, label: &str) {
     let t = Tokens::get(ui.ctx());
     // A drag on it scrubs the weight field after it (#4088).
     let resp = crate::scrub::link_label(ui, egui::RichText::new(label).size(12.0).color(t.text).underline()).on_hover_text(tl!("Stroke options"));
@@ -149,7 +149,7 @@ pub(crate) fn link(app: &mut VectorcraftApp, ui: &mut Ui, label: &str) {
     });
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let st = current_stroke(app);
     let mixed = stroke_mixed(app, ui.ctx());
@@ -350,11 +350,11 @@ pub(super) fn arrow_doc(a: Option<Arrowhead>, start: bool, w: f64, h: f64) -> Op
     } else {
         st.end_arrow = a
     }
-    let mut bp = vectorcraft_geom::BezPath::new();
+    let mut bp = pluma_geom::BezPath::new();
     bp.move_to((3.0, h / 2.0));
     bp.line_to((w - 3.0, h / 2.0));
     let (id, l) = (doc.alloc_id(), doc.layers[0].id);
-    doc.insert(Some(l), 0, Node::path(id, vectorcraft_geom::PathData::from_bezpath(&bp), ap)).ok()?;
+    doc.insert(Some(l), 0, Node::path(id, pluma_geom::PathData::from_bezpath(&bp), ap)).ok()?;
     Some(doc)
 }
 
@@ -437,7 +437,7 @@ pub fn paint_profile(ui: &Ui, r: Rect, points: Option<&[(f64, f64, f64)]>, color
 /// The Profile dropdown (Stroke panel, Control bar): the stroke's own silhouette on the button
 /// (a custom profile too), the built-in profiles and then the saved ones in the list. Returns the
 /// id or name picked.
-pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&WidthProfile>) -> Option<String> {
+pub(crate) fn profile_dropdown(app: &PlumaApp, ui: &mut Ui, cur: Option<&WidthProfile>) -> Option<String> {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(100.0, 24.0), Sense::click());
     ui.painter().rect_filled(r, 2, t.input);
@@ -480,7 +480,7 @@ pub(crate) fn profile_dropdown(app: &VectorcraftApp, ui: &mut Ui, cur: Option<&W
     out
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let hidden: bool = pstate(ui.ctx(), "stroke-hide-options");
     if menu_item(ui, if hidden { tl!("Show Options") } else { tl!("Hide Options") }, true, false) {
         set_pstate(ui.ctx(), "stroke-hide-options", !hidden);
@@ -563,8 +563,8 @@ mod tests {
 
     #[test]
     fn editing_an_extended_dash_keeps_other_stroke_options_and_is_undoable() {
-        use vectorcraft_engine::Session;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        use pluma_engine::Session;
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.execute("shape.line", &json!({"x1": 10, "y1": 50, "x2": 90, "y2": 50})).unwrap();
         set(&mut app, json!({"dash": [0, 6, 0, 7, 0, 8, 0, 9], "dashOffset": 3, "alignDashes": true, "cap": "round"}));
@@ -587,9 +587,9 @@ mod tests {
 
     #[test]
     fn mixed_dashes_stay_mixed_until_an_edit_replaces_the_shared_fields() {
-        use vectorcraft_doc::NodeId;
-        use vectorcraft_engine::Session;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        use pluma_doc::NodeId;
+        use pluma_engine::Session;
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         let mut ids = vec![];
         let mut before = vec![];
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn arrow_align_buttons_need_a_head() {
-        let mut st = StrokeLayer::new(vectorcraft_color::Paint::None, 1.0);
+        let mut st = StrokeLayer::new(pluma_color::Paint::None, 1.0);
         assert_eq!(arrow_align_state(None), (ArrowAlign::Extend, false));
         assert_eq!(arrow_align_state(Some(&st)), (ArrowAlign::Extend, false));
         st.start_arrow = Some(Arrowhead::Bar);
@@ -664,7 +664,7 @@ mod tests {
     }
 
     /// Run the panel and its ≡ menu for one headless frame.
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             show(app, ui);
@@ -675,9 +675,9 @@ mod tests {
 
     #[test]
     fn panel_draws_for_lines_with_and_without_heads() {
-        use vectorcraft_engine::Session;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
-        let r = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+        use pluma_engine::Session;
+        let mut app = PlumaApp::new(Session::new(), Default::default());
+        let r = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
         r(&mut app, "file.new", json!({"width": 100, "height": 100}));
         frame(&mut app);
         r(&mut app, "shape.line", json!({"x1": 10, "y1": 50, "x2": 90, "y2": 50}));
@@ -693,10 +693,10 @@ mod tests {
 
     #[test]
     fn while_typing_the_panel_strokes_the_selected_characters() {
-        use vectorcraft_doc::NodeKind;
-        use vectorcraft_engine::{Session, ViewInfo};
-        use vectorcraft_tools::{PointerEvent, PointerKind};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        use pluma_doc::NodeKind;
+        use pluma_engine::{Session, ViewInfo};
+        use pluma_tools::{PointerEvent, PointerKind};
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         let v = ViewInfo::default();
         app.session.select_tool("type", v).unwrap();
@@ -720,8 +720,8 @@ mod tests {
     #[test]
     fn the_wheel_stops_weight_at_zero_and_limit_at_one() {
         use egui::{Event, Modifiers, MouseWheelUnit, PointerButton, Pos2};
-        use vectorcraft_engine::Session;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        use pluma_engine::Session;
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 80})).unwrap();
         app.run("stroke.set", json!({"weight": 1, "join": "miter", "miterLimit": 2})).unwrap();
@@ -729,7 +729,7 @@ mod tests {
         crate::theme::install_fonts(&ctx);
         let mut time = 0.0;
         // One frame of the panel → the texts painted, with their rects.
-        let mut frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+        let mut frame = |app: &mut PlumaApp, events: Vec<Event>| {
             time += 0.05;
             let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 600.0)));
             let raw = egui::RawInput { events, time: Some(time), screen_rect, focused: true, ..Default::default() };
@@ -744,7 +744,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         // The weight and the limit.
-        let stroke = |app: &VectorcraftApp| current_stroke(app).map(|s| [s.width, s.miter_limit]).unwrap();
+        let stroke = |app: &PlumaApp| current_stroke(app).map(|s| [s.width, s.miter_limit]).unwrap();
         // A weight steps through the presets below 1 pt: one step above 0 pt is 0.25 pt.
         for (shown, after, which, low, back) in [("1 pt", "0 pt", 0, 0.0, "0.25 pt"), ("2 x", "1 x", 1, 1.0, "2 x")] {
             let texts = frame(&mut app, vec![]);
@@ -780,15 +780,15 @@ mod tests {
     #[test]
     fn the_arrows_step_a_weight_to_the_next_listed_weight() {
         use egui::{Event, Key, Modifiers, PointerButton, Pos2};
-        use vectorcraft_engine::Session;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        use pluma_engine::Session;
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 80})).unwrap();
         app.run("stroke.set", json!({"weight": 1})).unwrap();
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut time = 0.0;
-        let mut frame = |app: &mut VectorcraftApp, events: Vec<Event>| {
+        let mut frame = |app: &mut PlumaApp, events: Vec<Event>| {
             time += 0.05;
             let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 600.0)));
             let raw = egui::RawInput { events, time: Some(time), screen_rect, focused: true, ..Default::default() };

@@ -1,4 +1,4 @@
-//! The module defines VectorCraft's built-in add-on menus and panels. Object › Plug-ins lists their tools and commands.
+//! The module defines Pluma's built-in add-on menus and panels. Object › Plug-ins lists their tools and commands.
 
 pub mod arrange;
 pub mod cleanup;

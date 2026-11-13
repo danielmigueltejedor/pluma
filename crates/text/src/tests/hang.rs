@@ -5,8 +5,8 @@
 
 use crate::*;
 use kurbo::{Affine, Shape};
-use vectorcraft_doc::{CharStyle, Composer, Justify, TextKind};
-use vectorcraft_geom::PathData;
+use pluma_doc::{CharStyle, Composer, Justify, TextKind};
+use pluma_geom::PathData;
 
 /// The bundled fonts only: what these tests measure doesn't change with the fonts installed.
 fn db() -> &'static FontDb {
@@ -213,7 +213,7 @@ fn right_to_left_runs_in_a_left_to_right_paragraph_stay_inside() {
 /// start stands on the edge.
 #[test]
 fn glyph_scaling_and_letter_spacing_keep_the_hung_edges() {
-    use vectorcraft_doc::JustificationOptions;
+    use pluma_doc::JustificationOptions;
     for composer in [Composer::SingleLine, Composer::EveryLine] {
         let mut t = area(TEXT, 12.0, Rect::new(0.0, 0.0, 160.0, 4000.0), Justify::JustifyAll);
         t.para.composer = composer;
@@ -242,7 +242,7 @@ fn glyph_scaling_and_letter_spacing_keep_the_hung_edges() {
 /// line on its hung edges (a Japanese bracket isn't Roman punctuation and doesn't hang).
 #[test]
 fn mojikumi_and_roman_hanging_agree() {
-    use vectorcraft_doc::Mojikumi;
+    use pluma_doc::Mojikumi;
     let text = format!("{TEXT} \u{300C}\u{4E00}\u{4E8C}\u{300D} \u{201C}words\u{201D} {TEXT}");
     for composer in [Composer::SingleLine, Composer::EveryLine] {
         let mut t = area(&text, 12.0, Rect::new(0.0, 0.0, 150.0, 4000.0), Justify::JustifyLeft);
@@ -269,7 +269,7 @@ fn mojikumi_and_roman_hanging_agree() {
 /// Needs a font with full-width Japanese punctuation (skipped without one).
 #[test]
 fn burasagari_counts_the_hung_start() {
-    use vectorcraft_doc::Burasagari;
+    use pluma_doc::Burasagari;
     let lay = |text: &str, roman: bool| {
         let mut t = area(text, 20.0, Rect::new(0.0, 0.0, 100.0, 200.0), Justify::JustifyLeft);
         t.para.burasagari = Burasagari::Standard;

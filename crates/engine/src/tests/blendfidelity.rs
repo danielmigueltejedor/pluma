@@ -2,10 +2,10 @@
 //! and symbols interpolating, knockout on the canvas, and Expand / Release keeping what the
 //! blend carries.
 
+use pluma_color::Paint;
+use pluma_doc::{Knockout, Node, NodeKind};
+use pluma_geom::{Point, Rect};
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{Knockout, Node, NodeKind};
-use vectorcraft_geom::{Point, Rect};
 
 use crate::*;
 
@@ -28,7 +28,7 @@ fn node(s: &Session, id: NodeId) -> Node {
 }
 
 fn steps(s: &Session, g: NodeId) -> Vec<Node> {
-    vectorcraft_doc::live::expand_live(&node(s, g))
+    pluma_doc::live::expand_live(&node(s, g))
 }
 
 fn make(s: &mut Session, ids: &[NodeId], steps: u32) -> NodeId {
@@ -59,7 +59,7 @@ fn dashes_caps_and_width_profiles_interpolate() {
     let (first, last) = (stroke(&st[1]), stroke(&st[3]));
     assert_eq!(first.dash.as_ref().unwrap().pattern, vec![12.5, 7.5], "the gaps close towards the solid key");
     assert!(last.dash.as_ref().unwrap().pattern[1] < first.dash.as_ref().unwrap().pattern[1]);
-    assert_eq!((first.cap, last.cap), (vectorcraft_doc::LineCap::Butt, vectorcraft_doc::LineCap::Round), "caps switch halfway");
+    assert_eq!((first.cap, last.cap), (pluma_doc::LineCap::Butt, pluma_doc::LineCap::Round), "caps switch halfway");
     assert_eq!(stroke(&st[2]).profile.unwrap().at(0.0), (0.5, 0.5), "the lens profile comes in gradually");
 }
 
@@ -142,9 +142,8 @@ fn knockout_blends_draw_as_they_export() {
     }
     let g = make(&mut s, &[a, b], 3);
     assert_eq!(node(&s, g).knockout, Knockout::On, "blends knock out by default");
-    let px = |s: &Session| {
-        vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 60.0, 40.0), 1.0, true).pixel(30, 20)
-    };
+    let px =
+        |s: &Session| pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 60.0, 40.0), 1.0, true).pixel(30, 20);
     let on = px(&s);
     assert!((i32::from(on[1]) - 128).abs() <= 3, "one layer of 50 % red over white: {on:?}");
     s.execute("object.setProps", &json!({"ids": [g.0], "knockout": "off"})).unwrap();
@@ -154,7 +153,7 @@ fn knockout_blends_draw_as_they_export() {
     let mut t = session();
     let (c, d) = (rect(&mut t, 0.0, 0.0, 10.0, 10.0), rect(&mut t, 100.0, 0.0, 10.0, 10.0));
     let h = make(&mut t, &[c, d], 3);
-    assert_eq!(vectorcraft_doc::live::expanded_group(&node(&t, h), None).knockout, Knockout::Off);
+    assert_eq!(pluma_doc::live::expanded_group(&node(&t, h), None).knockout, Knockout::Off);
 }
 
 #[test]
@@ -164,8 +163,8 @@ fn expand_and_release_keep_what_the_blend_carries() {
     let g = make(&mut s, &[a, b], 2);
     s.execute("object.setProps", &json!({"ids": [g.0], "name": "Fade", "opacity": 40, "isolate": true})).unwrap();
     s.edit("mask", |d, _| {
-        let art = Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 10.0)), Default::default());
-        let mask = vectorcraft_doc::OpacityMask::new(art, false);
+        let art = Node::path(d.alloc_id(), pluma_geom::shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 10.0)), Default::default());
+        let mask = pluma_doc::OpacityMask::new(art, false);
         d.node_mut(g).unwrap().extras_mut().mask = Some(Box::new(mask));
         Ok(())
     })

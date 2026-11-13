@@ -46,7 +46,7 @@ fn guides_are_selected_on_their_own() {
 /// or locks it, or one around it, or makes a layer around it a template, drops the pick.
 #[test]
 fn a_picked_symbol_part_is_dropped_once_it_cannot_be_edited() {
-    let rect = || vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
+    let rect = || pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 10.0, 10.0));
     let mut d = Document::new(100.0, 100.0);
     let l = d.layers[0].id;
     let leaf = Node::path(d.alloc_id(), rect(), crate::Appearance::default_art());
@@ -55,7 +55,7 @@ fn a_picked_symbol_part_is_dropped_once_it_cannot_be_edited() {
     let root = Node::group(d.alloc_id(), vec![Arc::new(group), Arc::new(layer)]);
     d.symbols.push(crate::Symbol { dynamic: true, name: "Parts".into(), art: Arc::new(root.clone()) });
     let inst = d.alloc_id();
-    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Parts".into(), xf: vectorcraft_geom::Affine::IDENTITY })).unwrap();
+    d.insert(Some(l), 0, Node::new(inst, NodeKind::SymbolInstance { symbol: "Parts".into(), xf: pluma_geom::Affine::IDENTITY })).unwrap();
     // The layer in the art holds a path too.
     let in_layer = Node::path(d.alloc_id(), rect(), crate::Appearance::default_art());
     let mut art = root;

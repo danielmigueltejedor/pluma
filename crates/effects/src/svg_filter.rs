@@ -7,11 +7,11 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+use pluma_doc::SvgFilter;
+use pluma_geom::{Affine, Rect, Vec2};
 use resvg::{tiny_skia, usvg};
 use serde_json::Value;
 use usvg::roxmltree;
-use vectorcraft_doc::SvgFilter;
-use vectorcraft_geom::{Affine, Rect, Vec2};
 
 use crate::pixel::PixelSpace;
 use crate::util::{num, text};
@@ -773,7 +773,7 @@ fn checked_form(xml: &str) -> Result<(String, String), String> {
 
 /// Can SVG output keep the SVG filter of `effects` (an object's own) as a filter: is it the last
 /// visible effect? When other effects follow it, SVG output draws it as an image.
-pub fn writes_live(effects: &[vectorcraft_doc::Effect]) -> bool {
+pub fn writes_live(effects: &[pluma_doc::Effect]) -> bool {
     effects.iter().rfind(|e| e.visible).is_some_and(|e| e.id == SVG_FILTER)
 }
 

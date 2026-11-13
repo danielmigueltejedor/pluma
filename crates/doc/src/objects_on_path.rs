@@ -16,8 +16,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use pluma_geom::{Affine, PathData, Point};
 use serde::{Deserialize, Serialize};
-use vectorcraft_geom::{Affine, PathData, Point};
 
 use crate::blend::Spine;
 use crate::symbols::SymbolBoxes;
@@ -360,7 +360,7 @@ fn placed_frame(n: &Node, symbols: &SymbolBoxes, m: &Member, pivot: u8, at: Poin
     }
     let mut local = n.clone();
     local.transform(m.frame.inverse(), false);
-    let q = vectorcraft_geom::reference_point(local.geometric_bounds_with(symbols)?, usize::from(pivot.min(8)));
+    let q = pluma_geom::reference_point(local.geometric_bounds_with(symbols)?, usize::from(pivot.min(8)));
     let [a0, a1, a2, a3, _, _] = m.frame.as_coeffs();
     let shape = Affine::rotate(-m.angle) * Affine::new([a0, a1, a2, a3, 0.0, 0.0]);
     Some(Affine::translate(at.to_vec2()) * Affine::rotate(angle) * shape * Affine::translate(-q.to_vec2()))
@@ -419,7 +419,7 @@ pub fn place(g: &mut Node, symbols: &SymbolBoxes) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_geom::{Rect, shapes};
+    use pluma_geom::{Rect, shapes};
 
     fn rect(id: u64, r: Rect) -> Node {
         Node::path(NodeId(id), shapes::rectangle(r), Default::default())
@@ -527,7 +527,7 @@ mod tests {
     fn a_stretch_keeps_the_first_and_last_objects_where_it_takes_them() {
         // 100 pt to the right, then 100 pt down; twice as wide, the first part is 200 pt long.
         let points = [Point::new(0.0, 0.0), Point::new(100.0, 0.0), Point::new(100.0, 100.0)];
-        let corner = PathData::single(vectorcraft_geom::SubPath::polyline(&points, false));
+        let corner = PathData::single(pluma_geom::SubPath::polyline(&points, false));
         let stretch = Affine::scale_non_uniform(2.0, 1.0);
         let wide = corner.transformed(stretch);
         let (a, b) = (rect(2, Rect::new(0.0, 0.0, 10.0, 10.0)), rect(3, Rect::new(20.0, 0.0, 30.0, 10.0)));
@@ -583,7 +583,7 @@ mod tests {
     fn length_near_measures_along_the_path_and_past_its_ends() {
         // An L: 400 pt to the right, then 300 pt up.
         let points = [Point::new(0.0, 300.0), Point::new(400.0, 300.0), Point::new(400.0, 0.0)];
-        let l = PathData::single(vectorcraft_geom::SubPath::polyline(&points, false));
+        let l = PathData::single(pluma_geom::SubPath::polyline(&points, false));
         let spine = Spine::new(&l).unwrap();
         assert!((spine.length_near(Point::new(300.0, 320.0), None) - 300.0).abs() < 1e-9);
         assert!((spine.length_near(Point::new(420.0, 100.0), None) - 600.0).abs() < 1e-9);
@@ -592,7 +592,7 @@ mod tests {
         // A path that turns back near its start: beyond its end, the pointer is nearer the first
         // segment than the last one, but on the line of the last one.
         let hook = [Point::new(0.0, 0.0), Point::new(200.0, 0.0), Point::new(200.0, 10.0), Point::new(100.0, 10.0)];
-        let hook = Spine::new(&PathData::single(vectorcraft_geom::SubPath::polyline(&hook, false))).unwrap();
+        let hook = Spine::new(&PathData::single(pluma_geom::SubPath::polyline(&hook, false))).unwrap();
         assert!((hook.length_near(Point::new(80.0, 10.0), None) - 330.0).abs() < 1e-9);
         assert!((hook.length_near(Point::new(50.0, 10.0), None) - 360.0).abs() < 1e-9);
         let closed = Spine::new(&shapes::rectangle(Rect::new(0.0, 0.0, 100.0, 100.0))).unwrap();
@@ -603,7 +603,7 @@ mod tests {
     fn length_near_a_point_followed_stays_on_that_part_of_the_path() {
         // A narrow U, open on the left: its ends are 20 pt apart, 620 pt from each other along it.
         let u = [Point::new(0.0, 0.0), Point::new(300.0, 0.0), Point::new(300.0, 20.0), Point::new(0.0, 20.0)];
-        let u = Spine::new(&PathData::single(vectorcraft_geom::SubPath::polyline(&u, false))).unwrap();
+        let u = Spine::new(&PathData::single(pluma_geom::SubPath::polyline(&u, false))).unwrap();
         assert!((u.length_near(Point::new(-26.0, 20.0), None) - 646.0).abs() < 1e-9, "beyond the end");
         // Nearer the first segment's line, the pointer stays beyond the end it was following.
         assert!((u.length_near(Point::new(-26.0, 8.0), None) + 26.0).abs() < 1e-9);

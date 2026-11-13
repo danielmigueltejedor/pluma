@@ -4,7 +4,7 @@
 use std::collections::BTreeSet;
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveArclen};
-use vectorcraft_geom::{Anchor, AnchorKind, SubPath};
+use pluma_geom::{Anchor, AnchorKind, SubPath};
 
 use super::{ACCURACY, TINY};
 

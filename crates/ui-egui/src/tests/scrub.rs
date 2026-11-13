@@ -4,11 +4,11 @@
 use std::cell::Cell;
 
 use egui::{CursorIcon, Event, Key, Modifiers, PointerButton, Pos2, Rect, vec2};
+use pluma_doc::Unit;
+use pluma_engine::{DocState, Session};
 use serde_json::json;
-use vectorcraft_doc::Unit;
-use vectorcraft_engine::{DocState, Session};
 
-use crate::{VectorcraftApp, scrub, widgets};
+use crate::{PlumaApp, scrub, widgets};
 
 /// Headless frames of one labelled field: where its label and its box were last drawn.
 struct Row {
@@ -207,7 +207,7 @@ fn escape_puts_the_value_back_and_the_preference_turns_scrubbing_off() {
 // ---------- in the app ----------
 
 /// One frame of the whole window with `events`. → The rect of the first text drawn as `text`.
-fn app_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, text: &str) -> Option<Rect> {
+fn app_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>, text: &str) -> Option<Rect> {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(1600.0, 900.0)));
     let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
         app.logic(ui.ctx());
@@ -224,18 +224,18 @@ fn app_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<Event>, 
     out.shapes.iter().find_map(|s| find(&s.shape, text))
 }
 
-fn app_with_rect() -> (VectorcraftApp, egui::Context) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_with_rect() -> (PlumaApp, egui::Context) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 100, "height": 50})).unwrap();
     (app, egui::Context::default())
 }
 
-fn width(app: &VectorcraftApp) -> f64 {
+fn width(app: &PlumaApp) -> f64 {
     app.session.transform_box(&app.session.doc().unwrap().selection.objects).unwrap().rect.width()
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
@@ -244,7 +244,7 @@ fn objects(doc: &DocState) -> usize {
 }
 
 /// Drag the W label by `dx` in four moves (`escape`: Escape before the release).
-fn drag_w(app: &mut VectorcraftApp, ctx: &egui::Context, dx: f32, escape: bool) {
+fn drag_w(app: &mut PlumaApp, ctx: &egui::Context, dx: f32, escape: bool) {
     let mut w = None;
     for _ in 0..4 {
         w = app_frame(app, ctx, vec![], "W:");
@@ -289,7 +289,7 @@ fn scrubbing_w_in_the_app_is_one_undo_step() {
 /// its edits, when Escape ends the drag and when the drag is released.
 #[test]
 fn a_scrub_leaves_another_documents_undo_group_open() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     // The second document exists before the group begins, so no group opens in it.
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
@@ -299,7 +299,7 @@ fn a_scrub_leaves_another_documents_undo_group_open() {
     app.session.execute("document.activate", &json!({"index": 1})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 100, "height": 50})).unwrap();
     let ctx = egui::Context::default();
-    let other = |app: &VectorcraftApp| (app.session.documents()[0].undo_group.is_some(), objects(&app.session.documents()[0]));
+    let other = |app: &PlumaApp| (app.session.documents()[0].undo_group.is_some(), objects(&app.session.documents()[0]));
     drag_w(&mut app, &ctx, 40.0, true);
     assert!((width(&app) - 100.0).abs() < 1e-6, "Escape: {}", width(&app));
     assert_eq!(other(&app), (true, 1), "Escape");
@@ -336,7 +336,7 @@ fn a_scrub_inside_an_open_undo_group_joins_its_step() {
 /// active during the drag (as `document.activate` does), and leaves that document's group open.
 #[test]
 fn a_scrub_closes_its_group_in_its_own_document_after_a_switch() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     // The second document exists before the group begins, so no group opens in it.
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
@@ -367,7 +367,7 @@ fn a_scrub_closes_its_group_in_its_own_document_after_a_switch() {
 }
 
 /// Press at `at`, move by `dx` in four frames and release, in the app.
-fn drag_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2, dx: f32) {
+fn drag_at(app: &mut PlumaApp, ctx: &egui::Context, at: Pos2, dx: f32) {
     let button = |pos, pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
     app_frame(app, ctx, vec![Event::PointerMoved(at)], "");
     app_frame(app, ctx, vec![button(at, true)], "");
@@ -385,9 +385,9 @@ fn drag_at(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2, dx: f32) {
 fn the_control_bars_stroke_and_opacity_links_scrub_their_fields() {
     let (mut app, ctx) = app_with_rect();
     app.ui.control_bar = true;
-    let opacity = |app: &VectorcraftApp| crate::panels::current_transparency(app).unwrap().0;
-    let weight = |app: &VectorcraftApp| crate::panels::current_stroke(app).unwrap().width;
-    let find = |app: &mut VectorcraftApp, text: &str| {
+    let opacity = |app: &PlumaApp| crate::panels::current_transparency(app).unwrap().0;
+    let weight = |app: &PlumaApp| crate::panels::current_stroke(app).unwrap().width;
+    let find = |app: &mut PlumaApp, text: &str| {
         let mut at = None;
         for _ in 0..4 {
             at = app_frame(app, &ctx, vec![], text);

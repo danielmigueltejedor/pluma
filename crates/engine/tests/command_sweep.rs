@@ -4,23 +4,23 @@
 // Integration tests: unwrapping and panicking on failure is fine here, unlike in shipped code (AGENTS.md › Robustness).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use pluma_engine::{Session, command_specs};
+use pluma_testkit::catch_quiet;
+use pluma_testkit::fixtures::Fixture;
+use pluma_testkit::invariants::{check_all, check_session, doc_json};
+use pluma_testkit::strategies::{junk_params, junk_values, param_keys};
 use serde_json::{Value, json};
-use vectorcraft_engine::{Session, command_specs};
-use vectorcraft_testkit::catch_quiet;
-use vectorcraft_testkit::fixtures::Fixture;
-use vectorcraft_testkit::invariants::{check_all, check_session, doc_json};
-use vectorcraft_testkit::strategies::{junk_params, junk_values, param_keys};
 
 /// Commands that replace/close the active document or touch the filesystem are fine to call, but a
 /// few need their paths redirected into a temp dir (handled by `junk_params`).
 fn safe_path() -> String {
-    vectorcraft_testkit::temp_dir("sweep").join("out.bin").to_string_lossy().to_string()
+    pluma_testkit::temp_dir("sweep").join("out.bin").to_string_lossy().to_string()
 }
 
 /// `r`, after failing the case if the command panicked. The engine's guard reports a panic as
 /// `EngineError::Internal`.
-fn no_panic(r: Result<Value, vectorcraft_engine::EngineError>) -> Result<Value, vectorcraft_engine::EngineError> {
-    if let Err(vectorcraft_engine::EngineError::Internal { cmd, msg }) = &r {
+fn no_panic(r: Result<Value, pluma_engine::EngineError>) -> Result<Value, pluma_engine::EngineError> {
+    if let Err(pluma_engine::EngineError::Internal { cmd, msg }) = &r {
         panic!("{cmd} panicked: {msg}");
     }
     r
@@ -80,7 +80,7 @@ fn every_command_without_a_document() {
         match catch_quiet(|| no_panic(s.execute(c.id, &json!({})))) {
             Err(p) => failures.push(format!("PANIC {} with no document: {p}", c.id)),
             // Anything that needs a document must say so via enablement, not fail later.
-            Ok(Err(vectorcraft_engine::EngineError::NoDocument)) => failures.push(format!("{}: enabled without a document but needs one", c.id)),
+            Ok(Err(pluma_engine::EngineError::NoDocument)) => failures.push(format!("{}: enabled without a document but needs one", c.id)),
             Ok(_) => {}
         }
         if s.in_interaction() {
@@ -116,7 +116,7 @@ fn bug_huge_transform_makes_document_unloadable() {
     ] {
         let mut s = Fixture::Multi.session();
         if no_panic(s.execute(id, &p)).is_ok() {
-            vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{id} {p}: {e}"));
+            pluma_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{id} {p}: {e}"));
         }
     }
 }
@@ -132,7 +132,7 @@ fn distribute_with_a_huge_spacing_from_the_key_object() {
             s.execute("select.key", &json!({"id": id.0})).unwrap();
             if no_panic(s.execute("object.distribute", &p)).is_ok() {
                 check_session(&s).unwrap_or_else(|e| panic!("key {key}, {p}: {e}"));
-                vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("key {key}, {p}: {e}"));
+                pluma_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("key {key}, {p}: {e}"));
             }
         }
     }
@@ -148,7 +148,7 @@ fn distribute_with_a_huge_spacing_from_a_key_guide() {
             s.execute("select.key", &json!({"guide": 0})).unwrap();
             if no_panic(s.execute("object.distribute", &p)).is_ok() {
                 check_session(&s).unwrap_or_else(|e| panic!("guide at {pos}, {p}: {e}"));
-                vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("guide at {pos}, {p}: {e}"));
+                pluma_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("guide at {pos}, {p}: {e}"));
             }
         }
     }
@@ -168,7 +168,7 @@ fn distribute_guides_selected_alone_with_a_huge_spacing() {
         s.execute("guide.select", &json!({"indexes": [0, 1, 2, 3, 4]})).unwrap();
         if no_panic(s.execute(cmd, &p)).is_ok() {
             check_session(&s).unwrap_or_else(|e| panic!("{cmd} {p}: {e}"));
-            vectorcraft_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{cmd} {p}: {e}"));
+            pluma_testkit::invariants::check_native_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{cmd} {p}: {e}"));
         }
     }
 }
@@ -179,7 +179,7 @@ fn bug_artboard_huge_props_break_svg() {
         let mut s = Fixture::Single.session();
         let p = json!({"index": 0, key: 1e308});
         if no_panic(s.execute("artboard.setProps", &p)).is_ok() {
-            vectorcraft_testkit::invariants::check_svg_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{p}: {}", &e[..e.len().min(200)]));
+            pluma_testkit::invariants::check_svg_roundtrip(&s.doc().unwrap().doc).unwrap_or_else(|e| panic!("{p}: {}", &e[..e.len().min(200)]));
         }
     }
 }
@@ -220,7 +220,7 @@ fn every_command_with_junk_params() {
 }
 
 /// Each document's uid, revision and selected ids, the active document and the current paint.
-type ToolEditState = (Vec<(u64, u64, Vec<u64>)>, Option<usize>, vectorcraft_tools::PaintDefaults);
+type ToolEditState = (Vec<(u64, u64, Vec<u64>)>, Option<usize>, pluma_tools::PaintDefaults);
 
 /// What a command that runs while the active tool computes an edit on another thread must leave
 /// as it was: every document's revision and selection, which document is active, and the current
@@ -240,7 +240,7 @@ fn commands_that_do_not_wait_for_a_tool_edit_change_no_document() {
     let path = safe_path();
     let mut failures = vec![];
     for fx in [Fixture::Single, Fixture::Multi] {
-        for c in command_specs().iter().filter(|c| !vectorcraft_engine::waits_for_tool_edit(c.id)) {
+        for c in command_specs().iter().filter(|c| !pluma_engine::waits_for_tool_edit(c.id)) {
             let mut cases = junk_params(c.params, &path);
             if heavy(c.id) {
                 cases.truncate(12);
@@ -617,7 +617,7 @@ fn structured_junk() {
         ("document.open", json!({"name": "x.svg", "dataBase64": "!!!"})),
         ("document.open", json!({"name": "x.svg", "dataBase64": "PHN2Zz4="})),
         ("document.open", json!({"name": "x.pdf", "dataBase64": "JVBERi0xLjQK"})),
-        ("document.open", json!({"name": "x.vectorcraft", "dataBase64": "e30="})),
+        ("document.open", json!({"name": "x.pluma", "dataBase64": "e30="})),
         ("document.activate", json!({"index": 99})),
         ("document.move", json!({"from": 99, "to": 0})),
         ("document.move", json!({"from": 0, "to": u64::MAX})),
@@ -811,7 +811,7 @@ fn cleanup_text_tools_with_junk_editing_ranges() {
         let mut texts = vec![];
         for l in &fx.session().doc().unwrap().doc.layers {
             l.walk(&mut |n| {
-                if matches!(n.kind, vectorcraft_doc::NodeKind::Text(_)) {
+                if matches!(n.kind, pluma_doc::NodeKind::Text(_)) {
                     texts.push(n.id.0);
                 }
             });
@@ -1013,7 +1013,7 @@ fn every_command_undoes_exactly() {
             let _ = no_panic(s.execute("edit.undo", &json!({})));
             let after = doc_json(&s.doc().unwrap().doc);
             if after != before {
-                failures.push(format!("{}: {}", c.id, vectorcraft_testkit::invariants::first_diff(&before, &after, "$")));
+                failures.push(format!("{}: {}", c.id, pluma_testkit::invariants::first_diff(&before, &after, "$")));
             }
         } else if doc_json(&s.doc().unwrap().doc) != before && !c.params.contains("View state: not an undo step") {
             failures.push(format!("{}: changed the document without an undo step", c.id));
@@ -1026,19 +1026,19 @@ fn every_command_undoes_exactly() {
 /// params never panic.
 #[test]
 fn recovery_commands_with_a_damaged_store_and_junk_params() {
+    use pluma_engine::cmd::recovery::{MemoryStore, RecoveryStore};
     use std::sync::Arc;
-    use vectorcraft_engine::cmd::recovery::{MemoryStore, RecoveryStore};
     let store = Arc::new(MemoryStore::default());
     for (name, bytes) in [
-        ("1-1/bad-1.vectorcraft", &b"{not json"[..]),
+        ("1-1/bad-1.pluma", &b"{not json"[..]),
         ("1-1/bad-1.json", b"[1, 2"),
-        ("1-1/gz-1.vectorcraft", &[0x1f, 0x8b, 0, 1, 2][..]),
+        ("1-1/gz-1.pluma", &[0x1f, 0x8b, 0, 1, 2][..]),
         ("1-1/meta-only.json", br#"{"title": 5, "path": [], "saved": "x"}"#),
         ("2-1/heartbeat", b"not a number"),
-        ("2-1/x.vectorcraft", b"{}"),
-        ("../escape.vectorcraft", b"{}"),
-        ("no-area.vectorcraft", b"{}"),
-        ("/.vectorcraft", b"{}"),
+        ("2-1/x.pluma", b"{}"),
+        ("../escape.pluma", b"{}"),
+        ("no-area.pluma", b"{}"),
+        ("/.pluma", b"{}"),
     ] {
         store.write(name, bytes).unwrap();
     }
@@ -1107,7 +1107,7 @@ fn envelope_commands_with_junk_params_on_envelopes() {
 /// round-trips and exports.
 #[test]
 fn text_commands_with_junk_params_on_inline_graphics() {
-    use vectorcraft_testkit::fixtures::{ellipse, exec, id_of, select};
+    use pluma_testkit::fixtures::{ellipse, exec, id_of, select};
     let path = safe_path();
     let setup = || {
         let mut s = Fixture::Multi.session();
@@ -1183,8 +1183,8 @@ fn text_commands_with_junk_params_on_inline_graphics() {
 /// transform) with junk rows and columns: never a panic or a broken tree.
 #[test]
 fn gradient_mesh_from_images_with_junk_params() {
-    use vectorcraft_doc::{ImageBlob, ImageObject, LinkInfo, Node, NodeKind};
-    use vectorcraft_geom::Affine;
+    use pluma_doc::{ImageBlob, ImageObject, LinkInfo, Node, NodeKind};
+    use pluma_geom::Affine;
     let img = image::RgbaImage::from_fn(5, 3, |x, y| image::Rgba([x as u8 * 50, y as u8 * 90, 7, if x == 2 { 0 } else { 255 }]));
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();

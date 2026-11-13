@@ -1,10 +1,10 @@
 //! Compound appearance and fill-rule edits from a directly selected member (#1197).
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_geom::{Affine, FillRule, PathData};
+use pluma_render::{RenderOptions, Renderer};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::{Affine, FillRule, PathData};
-use vectorcraft_render::{RenderOptions, Renderer};
 
 fn run(s: &mut Session, command: &str, params: Value) -> Value {
     s.execute(command, &params).unwrap()

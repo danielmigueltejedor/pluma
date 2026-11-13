@@ -60,10 +60,10 @@ fn quadrants_open_and_place_as_their_pixels() {
     assert_quadrants(&decoded(QUADRANTS), 32, "quadrants.heic");
     for name in ["photo.heic", "photo.heif", "unknown.bin"] {
         let mut s = Session::new();
-        let encoded = vectorcraft_format::base64_encode(QUADRANTS);
+        let encoded = pluma_format::base64_encode(QUADRANTS);
         let opened = s.execute("document.open", &json!({"name": name, "dataBase64": encoded})).unwrap();
         assert_eq!(opened["format"], "heif", "{name}");
-        assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), vectorcraft_geom::Size::new(32.0, 32.0));
+        assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), pluma_geom::Size::new(32.0, 32.0));
         let blob = s.doc().unwrap().doc.images.values().next().unwrap();
         assert_quadrants(&image::load_from_memory(&blob.bytes).unwrap().to_rgba8(), 32, name);
         s.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
@@ -160,8 +160,8 @@ fn the_containers_rotation_is_applied() {
     assert!(close(img.get_pixel(8, 4).0, [255, 0, 0, 255], 8), "{:?}", img.get_pixel(8, 4));
     assert!(close(img.get_pixel(8, 27).0, [0, 0, 255, 255], 8), "{:?}", img.get_pixel(8, 27));
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": vectorcraft_format::base64_encode(ROTATED)})).unwrap();
-    assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), vectorcraft_geom::Size::new(16.0, 32.0));
+    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": pluma_format::base64_encode(ROTATED)})).unwrap();
+    assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), pluma_geom::Size::new(16.0, 32.0));
 }
 
 #[cfg(feature = "heif")]
@@ -202,7 +202,7 @@ fn exif_resolution_sizes_the_image_and_72_ppi_without_it() {
     assert!((got.0 - 300.0).abs() < 0.01 && (got.1 - 300.0).abs() < 0.01, "{got:?}");
     assert_eq!(ppi::resolution(QUADRANTS), None);
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": vectorcraft_format::base64_encode(PPI300)})).unwrap();
+    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": pluma_format::base64_encode(PPI300)})).unwrap();
     let size = s.doc().unwrap().doc.artboards[0].rect.size();
     assert!((size.width - 7.68).abs() < 0.001 && (size.height - 7.68).abs() < 0.001, "{size:?}");
     let blob = s.doc().unwrap().doc.images.values().next().unwrap();
@@ -214,7 +214,7 @@ fn exif_resolution_sizes_the_image_and_72_ppi_without_it() {
     let img = load::raster_image(ROTATED_300X150).unwrap();
     assert_eq!((img.width, img.height, img.ppi), (16, 32, Some((150.0, 300.0))));
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": vectorcraft_format::base64_encode(ROTATED_300X150)})).unwrap();
+    s.execute("document.open", &json!({"name": "a.heic", "dataBase64": pluma_format::base64_encode(ROTATED_300X150)})).unwrap();
     let size = s.doc().unwrap().doc.artboards[0].rect.size();
     assert!((size.width - 7.68).abs() < 0.001 && (size.height - 7.68).abs() < 0.001, "{size:?}");
 }
@@ -222,7 +222,7 @@ fn exif_resolution_sizes_the_image_and_72_ppi_without_it() {
 #[cfg(feature = "heif")]
 #[test]
 fn display_p3_images_are_converted_to_srgb() {
-    use vectorcraft_color::cms::{DISPLAY_P3, Intent, icc::builtin_rgb};
+    use pluma_color::cms::{DISPLAY_P3, Intent, icc::builtin_rgb};
     let p3 = builtin_rgb(DISPLAY_P3).unwrap();
     let plain = decoded(TONES);
     // The ICC-only file's samples are full-range BT.601, which only its HEVC stream says.

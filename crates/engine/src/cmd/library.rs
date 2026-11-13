@@ -15,10 +15,10 @@
 
 use std::collections::{HashMap, HashSet};
 
+use pluma_color::{Color, GradientPaint, Paint};
+use pluma_doc::{Appearance, Node, NodeId, TextStyleDef};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use vectorcraft_color::{Color, GradientPaint, Paint};
-use vectorcraft_doc::{Appearance, Node, NodeId, TextStyleDef};
 
 use super::clipboard::SwatchChoices;
 use super::{CommandSpec, EngineError, Result, Session, always, bad, cmd, color_value, has_doc, ids_param, index, ok, point_param, str_param};
@@ -507,7 +507,7 @@ fn thumbnail_ok(b64: &str) -> bool {
     }
     // 32 base64 characters: 24 bytes, the signature then the IHDR chunk's length, type, width and
     // height.
-    let Some(head) = b64.get(..32).filter(|_| b64.len() <= MAX_THUMBNAIL).and_then(vectorcraft_format::base64_decode) else { return false };
+    let Some(head) = b64.get(..32).filter(|_| b64.len() <= MAX_THUMBNAIL).and_then(pluma_format::base64_decode) else { return false };
     let side = |at: usize| {
         head.get(at..at + 4).and_then(|b| <[u8; 4]>::try_from(b).ok()).map(u32::from_be_bytes).is_some_and(|v| (1..=MAX_THUMBNAIL_SIDE).contains(&v))
     };
@@ -989,8 +989,8 @@ fn graphic_of(s: &Session, p: &Value, cmd: &str) -> Result<LibraryGraphic> {
         _ => String::new(),
     };
     let name = if name.trim().is_empty() || name.starts_with('<') { "Graphic".to_string() } else { name };
-    let thumbnail = super::fileio::preview_png(&doc)?.map(|b| vectorcraft_format::base64_encode(&b)).unwrap_or_default();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&doc, false));
+    let thumbnail = super::fileio::preview_png(&doc)?.map(|b| pluma_format::base64_encode(&b)).unwrap_or_default();
+    let data = pluma_format::base64_encode(&pluma_format::save(&doc, false));
     Ok(LibraryGraphic { id: String::new(), name, width: bounds.width(), height: bounds.height(), data, thumbnail })
 }
 
@@ -1045,7 +1045,7 @@ fn selected_paint(s: &Session, p: &Value, stroke: bool, cmd: &str) -> Result<Pai
         // Type's characters paint in its own space: a gradient there takes its placement in the
         // document, so that it keeps the direction it shows.
         match paint {
-            Paint::Gradient(g) if to_doc != vectorcraft_geom::Affine::IDENTITY => {
+            Paint::Gradient(g) if to_doc != pluma_geom::Affine::IDENTITY => {
                 let mut geom = g.resolve(bounds);
                 geom.transform(to_doc, g.gradient.kind);
                 Some(Paint::Gradient(Box::new(GradientPaint { geom: Some(geom), ..(**g).clone() })))
@@ -1101,17 +1101,17 @@ fn pattern_of(s: &Session, p: &Value, stroke: bool, cmd: &str) -> Result<Library
     };
     let def = d.pattern(&name).ok_or_else(|| bad(cmd, format!("no pattern swatch `{name}`")))?;
     let (w, h) = def.period();
-    let r = vectorcraft_geom::Rect::from_origin_size((0.0, 0.0), (w, h));
-    let paint = vectorcraft_doc::pattern::pattern_paint(&name);
-    let node = Node::path(NodeId(1), vectorcraft_geom::shapes::rectangle(r), Appearance::basic(paint, Paint::None, 0.0));
+    let r = pluma_geom::Rect::from_origin_size((0.0, 0.0), (w, h));
+    let paint = pluma_doc::pattern::pattern_paint(&name);
+    let node = Node::path(NodeId(1), pluma_geom::shapes::rectangle(r), Appearance::basic(paint, Paint::None, 0.0));
     let mut doc = Clipboard::gather(d, vec![node]).to_document();
     doc.artboards.truncate(1);
     match doc.artboards.first_mut() {
         Some(a) => a.rect = r,
         None => return Err(bad(cmd, "the graphic's document has no artboard")),
     }
-    let thumbnail = super::fileio::preview_png(&doc)?.map(|b| vectorcraft_format::base64_encode(&b)).unwrap_or_default();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&doc, false));
+    let thumbnail = super::fileio::preview_png(&doc)?.map(|b| pluma_format::base64_encode(&b)).unwrap_or_default();
+    let data = pluma_format::base64_encode(&pluma_format::save(&doc, false));
     Ok(LibraryPattern { name: name.clone(), pattern: name, data, thumbnail })
 }
 
@@ -1182,9 +1182,9 @@ fn use_item(s: &mut Session, p: &Value) -> Result<Value> {
             let bytes = data
                 .get("data")
                 .and_then(Value::as_str)
-                .and_then(vectorcraft_format::base64_decode)
+                .and_then(pluma_format::base64_decode)
                 .ok_or_else(|| bad(C, "the graphic's data is damaged"))?;
-            let doc = vectorcraft_format::load(&bytes).map_err(|e| bad(C, format!("the graphic can't be read: {e}")))?;
+            let doc = pluma_format::load(&bytes).map_err(|e| bad(C, format!("the graphic can't be read: {e}")))?;
             let clip = Clipboard::from_document(&doc);
             if clip.is_empty() {
                 return Err(bad(C, "the graphic is empty"));
@@ -1291,12 +1291,12 @@ fn to_stroke(p: &Value, kind: Kind) -> Result<bool> {
 fn use_pattern(s: &mut Session, data: &Value, stroke: bool) -> Result<String> {
     const C: &str = "library.use";
     let damaged = || bad(C, "the library item is damaged");
-    let bytes = data.get("data").and_then(Value::as_str).and_then(vectorcraft_format::base64_decode).ok_or_else(damaged)?;
-    let doc = vectorcraft_format::load(&bytes).map_err(|_| damaged())?;
+    let bytes = data.get("data").and_then(Value::as_str).and_then(pluma_format::base64_decode).ok_or_else(damaged)?;
+    let doc = pluma_format::load(&bytes).map_err(|_| damaged())?;
     let name = data.get("pattern").and_then(Value::as_str).filter(|n| doc.pattern(n).is_some()).ok_or_else(damaged)?.to_string();
     // Only what paints with the pattern is brought along.
     let clip = Clipboard::from_document(&doc);
-    let clip = Clipboard::gather(&doc, clip.nodes.into_iter().filter(|n| vectorcraft_doc::pattern::uses_pattern(n, Some(&name))).collect());
+    let clip = Clipboard::gather(&doc, clip.nodes.into_iter().filter(|n| pluma_doc::pattern::uses_pattern(n, Some(&name))).collect());
     if clip.nodes.is_empty() {
         return Err(damaged());
     }
@@ -1306,10 +1306,9 @@ fn use_pattern(s: &mut Session, data: &Value, stroke: bool) -> Result<String> {
     let imported = clip.import_into(&mut probe, &choices, false);
     let renamed = imported.renamed.iter().find(|r| r["kind"] == "pattern" && r["from"] == name.as_str()).and_then(|r| r["to"].as_str());
     let target = renamed.unwrap_or(&name).to_string();
-    let paint = vectorcraft_doc::pattern::pattern_paint(&target);
+    let paint = pluma_doc::pattern::pattern_paint(&target);
     // A pattern the document holds without a swatch (an imported SVG's) gets one.
-    let has_swatch =
-        |d: &vectorcraft_doc::Document| d.swatches_iter().any(|w| matches!(&w.paint, Paint::Pattern { pattern, .. } if *pattern == target));
+    let has_swatch = |d: &pluma_doc::Document| d.swatches_iter().any(|w| matches!(&w.paint, Paint::Pattern { pattern, .. } if *pattern == target));
     let added = imported.added > 0 || !has_swatch(&probe);
     drop(probe);
     in_one_step(s, |s| {
@@ -1318,7 +1317,7 @@ fn use_pattern(s: &mut Session, data: &Value, stroke: bool) -> Result<String> {
                 clip.import_into(d, &choices, false);
                 if !has_swatch(d) {
                     let swatch = d.free_swatch_name(&target);
-                    d.swatches.push(vectorcraft_color::Swatch { name: swatch, paint: paint.clone(), global: false, spot: false });
+                    d.swatches.push(pluma_color::Swatch { name: swatch, paint: paint.clone(), global: false, spot: false });
                 }
                 Ok(())
             })?;
@@ -1531,7 +1530,7 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
             super::fileio::read_file(path)?.into()
         }
         (None, Some(text), _) => text.as_bytes().into(),
-        (None, None, Some(b64)) => vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(C, "bad dataBase64"))?.into(),
+        (None, None, Some(b64)) => pluma_format::base64_decode(b64).ok_or_else(|| bad(C, "bad dataBase64"))?.into(),
         _ => return Err(bad(C, "give `path`, `data` or `dataBase64`")),
     };
     if bytes.len() as u64 > MAX_FILE {

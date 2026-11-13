@@ -3,8 +3,8 @@
 //! move, copy and reparent with validation; and the panel menu's operations (merge, flatten,
 //! release to layers, reverse, template, others/all) are single undo steps.
 
+use pluma_doc::{LayerColor, Node, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_doc::{LayerColor, Node, NodeId, NodeKind};
 
 use crate::*;
 
@@ -70,7 +70,7 @@ fn art_in_a_sublayer_is_selected_as_objects_not_the_sublayer() {
     let sel = s.doc().unwrap().selection.objects.clone();
     assert!(sel.contains(&a) && sel.contains(&g) && sel.contains(&c) && !sel.contains(&sub), "{sel:?}");
     // The Selection tool's click takes the object in the sublayer.
-    let h = vectorcraft_doc::hit::hit_test(&s.doc().unwrap().doc, vectorcraft_geom::Point::new(10.0, 10.0), Default::default()).unwrap();
+    let h = pluma_doc::hit::hit_test(&s.doc().unwrap().doc, pluma_geom::Point::new(10.0, 10.0), Default::default()).unwrap();
     assert_eq!(h.top_object(None), a);
     // Deleting it works (layers were skipped by Clear before).
     run(&mut s, "select.set", json!({"ids": [a.0]}));

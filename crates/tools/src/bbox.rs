@@ -1,6 +1,6 @@
 //! Bounding-box handle geometry shared by the Selection tool and the UI.
 
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
+use pluma_geom::{Affine, Point, Rect, Vec2};
 
 /// The 8 handles, clockwise from top-left.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -124,7 +124,7 @@ pub fn rotate_for_drag(center: Point, from: Point, to: Point, snap: bool) -> (Af
 /// and y axes and their diagonals.
 pub fn move_delta(from: Point, to: Point, shift: bool, base: f64) -> Vec2 {
     let d = to - from;
-    if shift { vectorcraft_geom::constrain_angle_from(d, 45.0, base) } else { d }
+    if shift { pluma_geom::constrain_angle_from(d, 45.0, base) } else { d }
 }
 
 #[cfg(test)]
@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(hit_handle(R, Point::new(99.0, 24.0), 3.0), Some(Handle::Right));
         assert_eq!(hit_handle(R, Point::new(50.0, 25.0), 3.0), None);
         for h in Handle::ALL {
-            assert_eq!(vectorcraft_geom::reference_point(R, h.reference()), h.pos(R), "{h:?}");
+            assert_eq!(pluma_geom::reference_point(R, h.reference()), h.pos(R), "{h:?}");
         }
     }
 

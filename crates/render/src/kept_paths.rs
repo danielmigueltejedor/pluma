@@ -9,10 +9,10 @@
 
 use std::sync::Arc;
 
-use vectorcraft_doc::{LineJoin, Node, NodeKind, StrokeLayer};
-use vectorcraft_geom::bez::has_length;
-use vectorcraft_geom::path::segment_bounds;
-use vectorcraft_geom::{Anchor, BezPath, PathData, PathEl, PathSeg, Point, Rect, SubPath};
+use pluma_doc::{LineJoin, Node, NodeKind, StrokeLayer};
+use pluma_geom::bez::has_length;
+use pluma_geom::path::segment_bounds;
+use pluma_geom::{Anchor, BezPath, PathData, PathEl, PathSeg, Point, Rect, SubPath};
 
 /// Paths and compound paths with at least this many anchors are kept ([`KeptPath`]).
 pub(crate) const KEPT_ANCHORS: usize = 1024;
@@ -164,9 +164,9 @@ impl Sub {
     fn seg(&self, els: &[PathEl], i: usize) -> Option<PathSeg> {
         let p0 = end(els.get(self.start + i)?)?;
         Some(match *els.get(self.start + 1 + i)? {
-            PathEl::LineTo(p) => PathSeg::Line(vectorcraft_geom::Line::new(p0, p)),
-            PathEl::QuadTo(a, p) => PathSeg::Quad(vectorcraft_geom::kurbo::QuadBez::new(p0, a, p)),
-            PathEl::CurveTo(a, b, p) => PathSeg::Cubic(vectorcraft_geom::CubicBez::new(p0, a, b, p)),
+            PathEl::LineTo(p) => PathSeg::Line(pluma_geom::Line::new(p0, p)),
+            PathEl::QuadTo(a, p) => PathSeg::Quad(pluma_geom::kurbo::QuadBez::new(p0, a, p)),
+            PathEl::CurveTo(a, b, p) => PathSeg::Cubic(pluma_geom::CubicBez::new(p0, a, b, p)),
             PathEl::MoveTo(_) | PathEl::ClosePath => return None,
         })
     }
@@ -598,7 +598,7 @@ impl KeptPath {
                 1 => subs.iter().find(|s| s.anchors == 1).and_then(|s| els.get(s.start)).and_then(end).map(|p| Rect::from_points(p, p)),
                 _ => Some(subs.iter().flat_map(|s| s.boxes.iter().flatten()).copied().reduce(|a, b| a.union(b)).unwrap_or_default()),
             };
-            vectorcraft_geom::union_opt(acc, b)
+            pluma_geom::union_opt(acc, b)
         })
     }
 

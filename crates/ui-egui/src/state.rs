@@ -1,8 +1,8 @@
 //! Serializable UI state (read and driven by the control channel).
 
+use pluma_geom::Point;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vectorcraft_geom::Point;
 
 use crate::theme::Brightness;
 
@@ -35,9 +35,9 @@ impl Default for View {
 
 impl View {
     /// The view a document opens at: the one it was saved with, else fitted on first display, on
-    /// the artboard the opened file names as its active one ([`vectorcraft_doc::Document::opened_artboard`]),
+    /// the artboard the opened file names as its active one ([`pluma_doc::Document::opened_artboard`]),
     /// else the first.
-    pub fn of(st: &vectorcraft_engine::DocState) -> Self {
+    pub fn of(st: &pluma_engine::DocState) -> Self {
         let artboard = st.doc.opened_artboard.and_then(|id| st.doc.artboards.iter().position(|a| a.id == id)).unwrap_or(0);
         Self { artboard, ..st.view.as_ref().and_then(Self::saved).unwrap_or_default() }
     }
@@ -45,7 +45,7 @@ impl View {
     /// The view `v` saved (the one a document was saved with, or a View → New View… one), within
     /// the zoom range; `None` when the canvas can't show it (a zoom or centre that isn't finite, a
     /// zoom of 0 or less).
-    pub fn saved(v: &vectorcraft_engine::doc::SavedView) -> Option<Self> {
+    pub fn saved(v: &pluma_engine::doc::SavedView) -> Option<Self> {
         v.is_usable().then(|| Self {
             zoom: v.zoom.clamp(0.0313, 640.0),
             center: v.center,
@@ -318,7 +318,7 @@ impl Dialog {
     pub fn f64(&self, k: &str, d: f64) -> f64 {
         match self.fields.get(k) {
             Some(Value::Number(n)) => n.as_f64().unwrap_or(d),
-            Some(Value::String(s)) => vectorcraft_doc::Unit::Points.parse(s).unwrap_or(d),
+            Some(Value::String(s)) => pluma_doc::Unit::Points.parse(s).unwrap_or(d),
             _ => d,
         }
     }
@@ -354,7 +354,7 @@ pub struct ContextSpelling {
     /// The document's `uid`.
     pub uid: u64,
     /// The type object.
-    pub id: vectorcraft_doc::NodeId,
+    pub id: pluma_doc::NodeId,
     /// The word's bytes in the object's plain text, which `text.editRange` replaces.
     pub start: usize,
     pub end: usize,
@@ -418,14 +418,14 @@ pub struct UiState {
     /// document's `uid`: the context menu's Unlock submenu lists them while the menu is open. Not
     /// saved.
     #[serde(skip)]
-    pub context_locked: Option<(u64, Vec<vectorcraft_doc::NodeId>)>,
+    pub context_locked: Option<(u64, Vec<pluma_doc::NodeId>)>,
     /// What the last right-click on the canvas with the Intertwine tool arranges, with the
     /// document's `uid`: the Intertwine group, the point and the object nearest to it where three
-    /// or more objects overlap ([`vectorcraft_tools::intertwine::menu_target`]). The context menu
+    /// or more objects overlap ([`pluma_tools::intertwine::menu_target`]). The context menu
     /// lists Bring to Front, Bring Forward, Send Backward and Send to Back for that object while it
     /// is open. Not saved.
     #[serde(skip)]
-    pub context_intertwine: Option<(u64, vectorcraft_doc::NodeId, vectorcraft_geom::Point, vectorcraft_doc::NodeId)>,
+    pub context_intertwine: Option<(u64, pluma_doc::NodeId, pluma_geom::Point, pluma_doc::NodeId)>,
     /// What the last right-click on the canvas with the Artboard tool measured, for the context menu
     /// while it is open ([`crate::panels::artboards::MenuFacts`]). Not saved.
     #[serde(skip)]
@@ -611,7 +611,7 @@ pub struct UiState {
     pub engine_prefs: Value,
     /// Color Guide panel: variation kind, steps and amount (Color Guide Options).
     #[serde(default)]
-    pub color_guide: vectorcraft_color::harmony::GuideOptions,
+    pub color_guide: pluma_color::harmony::GuideOptions,
     /// The library panels' settings (Window → Swatch Libraries, Graphic Style Libraries): of each
     /// library opened, and of the persistent ones, which reopen at startup, also once closed
     /// ([`crate::panels::library_panel`], `ui.libraryPanel`).
@@ -628,7 +628,7 @@ pub struct UiState {
     /// panel or the Color Picker and by the panel's base chip (none: the current color). Not
     /// saved.
     #[serde(skip)]
-    pub color_guide_base: Option<vectorcraft_color::Color>,
+    pub color_guide_base: Option<pluma_color::Color>,
     /// Align panel: the Align To choice, Selection or Artboard, which Object → Align and the align
     /// buttons follow ([`crate::panels::align::with_align_to`]).
     #[serde(default, deserialize_with = "crate::panels::align::deserialize_align_to")]
@@ -725,9 +725,9 @@ pub struct UiState {
     #[serde(skip)]
     pub home: Option<(Option<u64>, usize)>,
     /// The Image Trace objects the canvas draws with the Source Image view while the Image Trace
-    /// panel's eye button is held down ([`vectorcraft_render::RenderOptions::trace_source`]).
+    /// panel's eye button is held down ([`pluma_render::RenderOptions::trace_source`]).
     #[serde(skip)]
-    pub trace_hold_source: Option<std::sync::Arc<Vec<vectorcraft_doc::NodeId>>>,
+    pub trace_hold_source: Option<std::sync::Arc<Vec<pluma_doc::NodeId>>>,
     /// Layers panel › Panel Options… (row size, thumbnails, Show Layers Only, Locate Selected Objects).
     #[serde(default)]
     pub layers_panel: crate::panels::layers::PanelOptions,
@@ -783,7 +783,7 @@ impl FloatingFlyout {
     pub fn sanitize(strips: &mut Vec<FloatingFlyout>) {
         let mut seen = std::collections::BTreeSet::new();
         strips.retain_mut(|f| {
-            f.tools.retain(|id| vectorcraft_tools::tool_info(id).is_some());
+            f.tools.retain(|id| pluma_tools::tool_info(id).is_some());
             f.tools.first().is_some_and(|k| seen.insert(k.clone()))
         });
     }
@@ -961,7 +961,7 @@ impl UiState {
         self.status.clear();
         self.about = false;
         self.open_panel = None;
-        if self.group_tool.len() != vectorcraft_tools::TOOL_GROUPS.len() {
+        if self.group_tool.len() != pluma_tools::TOOL_GROUPS.len() {
             self.group_tool = UiState::default().group_tool;
         }
         FloatingFlyout::sanitize(&mut self.floating_flyouts);
@@ -1050,7 +1050,7 @@ impl Default for UiState {
             told: vec![],
             answering_control: false,
             flyout: None,
-            group_tool: vectorcraft_tools::TOOL_GROUPS.iter().map(|g| g[0].id.to_string()).collect(),
+            group_tool: pluma_tools::TOOL_GROUPS.iter().map(|g| g[0].id.to_string()).collect(),
             status: String::new(),
             replace_font_warning: None,
             palette_open: false,
@@ -1231,7 +1231,7 @@ pub(crate) const SCREENSHOT_TIMEOUT_MS: f64 = 8000.0;
 pub(crate) const SCREENSHOT_TIMEOUT_ERROR: &str =
     "no frame was presented (screen locked, window minimized or fully covered); ui.render still renders the artboard";
 
-/// Seconds between two looks at the system clipboard for [`VectorcraftApp::system_paste`].
+/// Seconds between two looks at the system clipboard for [`PlumaApp::system_paste`].
 pub(crate) const SYSTEM_CLIPBOARD_POLL: f64 = 0.25;
 
 /// Seconds between looks for fonts a font manager activated while the app stays in front (#2576).
@@ -1264,13 +1264,13 @@ mod tests {
 
     #[test]
     fn a_document_opens_on_the_artboard_its_file_names_as_active() {
-        let mut doc = vectorcraft_doc::Document::new(100.0, 100.0);
+        let mut doc = pluma_doc::Document::new(100.0, 100.0);
         let first = doc.artboards[0].clone();
         for id in [2, 3] {
             let x0 = f64::from(id - 1) * 150.0;
-            doc.artboards.push(vectorcraft_doc::Artboard { id, rect: vectorcraft_geom::Rect::new(x0, 0.0, x0 + 100.0, 100.0), ..first.clone() });
+            doc.artboards.push(pluma_doc::Artboard { id, rect: pluma_geom::Rect::new(x0, 0.0, x0 + 100.0, 100.0), ..first.clone() });
         }
-        let mut app = crate::VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = crate::PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         for (opened, active) in [(Some(3), 2), (None, 0), (Some(9), 0)] {
             let mut d = doc.clone();
             d.opened_artboard = opened;
@@ -1280,7 +1280,7 @@ mod tests {
         }
         // With the view the document was saved with too.
         doc.opened_artboard = Some(2);
-        doc.last_view = Some(vectorcraft_doc::SavedView { name: String::new(), center: Point::new(400.0, 50.0), zoom: 2.0, rotation: 0.0 });
+        doc.last_view = Some(pluma_doc::SavedView { name: String::new(), center: Point::new(400.0, 50.0), zoom: 2.0, rotation: 0.0 });
         app.session.add_document(doc, None);
         app.sync_views();
         assert_eq!(app.view().map(|v| (v.artboard, v.zoom)), Some((1, 2.0)));

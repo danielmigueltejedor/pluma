@@ -276,7 +276,7 @@ fn xmp_date(s: &str) -> Option<i64> {
 }
 
 /// `[year, month, day, hour, minute, second]` at a UTC offset of `offset` minutes → Unix seconds
-/// (the inverse of [`vectorcraft_doc::metadata::civil`]). The date has already passed [`in_month`],
+/// (the inverse of [`pluma_doc::metadata::civil`]). The date has already passed [`in_month`],
 /// so it is a real day; an impossible one reads as the epoch rather than panicking.
 fn unix([year, month, day, hour, minute, second]: [i64; 6], offset: i64) -> i64 {
     let days = i32::try_from(year)

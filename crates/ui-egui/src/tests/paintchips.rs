@@ -2,13 +2,13 @@
 //! popovers, the Recolor quick action and the panel shortcuts (M3.51).
 
 use egui::{Color32, Event, Modifiers, PointerButton, Pos2, Rect, Shape, vec2};
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, chrome, panels, shortcut_editor, shortcuts, toolbar};
+use crate::{PlumaApp, chrome, panels, shortcut_editor, shortcuts, toolbar};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app
 }
@@ -20,13 +20,7 @@ fn context() -> egui::Context {
 }
 
 /// One headless frame of `draw` with `events` (and `modifiers` held); returns the painted shapes.
-fn frame(
-    app: &mut VectorcraftApp,
-    ctx: &egui::Context,
-    events: Vec<Event>,
-    modifiers: Modifiers,
-    draw: fn(&mut VectorcraftApp, &mut egui::Ui),
-) -> Vec<Shape> {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<Event>, modifiers: Modifiers, draw: fn(&mut PlumaApp, &mut egui::Ui)) -> Vec<Shape> {
     let events = std::iter::once(Event::ModifiersChanged(modifiers)).chain(events).collect();
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 1000.0)));
     let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| draw(app, ui));
@@ -35,7 +29,7 @@ fn frame(
 }
 
 /// Click at `at` with `modifiers` held (press and release in two frames), then settle a frame.
-fn click(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2, modifiers: Modifiers, draw: fn(&mut VectorcraftApp, &mut egui::Ui)) {
+fn click(app: &mut PlumaApp, ctx: &egui::Context, at: Pos2, modifiers: Modifiers, draw: fn(&mut PlumaApp, &mut egui::Ui)) {
     let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers };
     frame(app, ctx, vec![Event::PointerMoved(at), button(true)], modifiers, draw);
     frame(app, ctx, vec![button(false)], modifiers, draw);
@@ -61,11 +55,11 @@ fn chips(ctx: &egui::Context) -> (Rect, Rect) {
     (r[0], r[1])
 }
 
-fn control_bar(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
+fn control_bar(app: &mut PlumaApp, ui: &mut egui::Ui) {
     chrome::control_bar(app, ui);
 }
 
-fn fill_hex(app: &VectorcraftApp) -> String {
+fn fill_hex(app: &PlumaApp) -> String {
     panels::current_paints(app).0.color().map(|c| c.to_hex()).unwrap_or_default()
 }
 
@@ -87,7 +81,7 @@ fn the_chips_show_a_question_mark_for_mixed_fills() {
     app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
     let b = app.run("shape.rectangle", json!({"x": 100, "y": 10, "width": 50, "height": 50})).unwrap()["id"].clone();
     app.run("paint.setFill", json!({"color": "#00ff00"})).unwrap();
-    let text = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, control_bar);
+    let text = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, control_bar);
     assert!(!text(&mut app).lines().any(|l| l == "?"));
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
     assert!(text(&mut app).lines().any(|l| l == "?"), "the Fill chip shows ?");
@@ -163,7 +157,7 @@ fn recolor_is_a_quick_action_for_multicolour_selections() {
     let mut app = app();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     app.run("paint.setStroke", json!({"none": true})).unwrap();
-    let text = |app: &mut VectorcraftApp| crate::tests_labels::painted_text(app, panels::properties::show);
+    let text = |app: &mut PlumaApp| crate::tests_labels::painted_text(app, panels::properties::show);
     assert!(!text(&mut app).contains("Recolor"), "one colour");
     app.run("paint.setStroke", json!({"color": "#ff0000"})).unwrap();
     assert!(text(&mut app).contains("Recolor"), "white and red");
@@ -181,7 +175,7 @@ fn the_shortcut_table_maps_f6_to_color() {
     let ctx = context();
     let key =
         |key, modifiers| vec![Event::ModifiersChanged(modifiers), Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }];
-    let press = |app: &mut VectorcraftApp, k, m| {
+    let press = |app: &mut PlumaApp, k, m| {
         let mut out = ctx.run_ui(egui::RawInput { events: key(k, m), ..Default::default() }, |ui| shortcuts::handle(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -203,7 +197,7 @@ fn the_shortcut_table_maps_f6_to_color() {
 fn the_window_menu_panel_keys() {
     let mut app = app();
     let ctx = context();
-    let press = |app: &mut VectorcraftApp, key, modifiers| {
+    let press = |app: &mut PlumaApp, key, modifiers| {
         let events = vec![Event::ModifiersChanged(modifiers), Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }];
         ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| shortcuts::handle(app, ui.ctx())).textures_delta.clear();
     };
@@ -353,5 +347,5 @@ fn the_mixer_popover_has_the_color_panels_menu() {
     let cmyk = menu_item_rect(&shapes, "CMYK").expect("CMYK in the mixer's menu");
     click(&mut app, &ctx, cmyk.center(), Modifiers::NONE, control_bar);
     let fill = panels::current_paints(&app).0.color();
-    assert!(matches!(fill, Some(vectorcraft_color::Color::Cmyk { .. })), "the fill is CMYK now: {fill:?}");
+    assert!(matches!(fill, Some(pluma_color::Color::Cmyk { .. })), "the fill is CMYK now: {fill:?}");
 }

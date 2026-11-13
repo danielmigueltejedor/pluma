@@ -12,12 +12,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use pluma_color::Color;
+use pluma_color::cms::{self, Cms};
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_color::cms::{self, Cms};
 
 use crate::menus::opt_bool;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// What the sampler answers: the picked color's display sRGB components (0 to 1), `None` when the
 /// person canceled it, or an error.
@@ -51,24 +51,24 @@ pub(crate) fn picker_id() -> u64 {
 pub struct Waiting {
     answer: Receiver<Answer>,
     target: Target,
-    /// The document active when it was shown ([`vectorcraft_engine::DocState::uid`]).
+    /// The document active when it was shown ([`pluma_engine::DocState::uid`]).
     doc: Option<u64>,
 }
 
 /// The host can show a color sampler.
-pub fn available(app: &VectorcraftApp) -> bool {
+pub fn available(app: &PlumaApp) -> bool {
     app.services.screen_color.is_some()
 }
 
 /// The open Color Picker dialog, as [`Target::Picker`] names it.
-fn open_picker(app: &VectorcraftApp) -> Option<Target> {
+fn open_picker(app: &PlumaApp) -> Option<Target> {
     let d = app.ui.dialog.as_ref().filter(|d| crate::dialogs::DialogKind::of(&d.kind) == Some(crate::dialogs::DialogKind::ColorPicker))?;
     d.fields.get(PICKER_ID).and_then(Value::as_u64).map(Target::Picker)
 }
 
 /// `ui.sampleScreenColor {stroke?, picker?}`: show the sampler for the fill, the stroke (default:
 /// the proxy in front) or, with `picker`, the open Color Picker.
-pub fn start(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn start(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     let stroke = opt_bool(p, "stroke")?.unwrap_or(!app.session.fill_active);
     let target = if opt_bool(p, "picker")?.unwrap_or(false) {
         open_picker(app).ok_or("the Color Picker is not open")?
@@ -104,7 +104,7 @@ pub fn srgb_from_hex(hex: &str) -> Option<[f32; 3]> {
 }
 
 /// Each frame: take the sampler's answer when it has arrived.
-pub(crate) fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(crate) fn poll(app: &mut PlumaApp, ctx: &egui::Context) {
     let Some(w) = &app.screen_sampler else { return };
     let answer = match w.answer.try_recv() {
         Ok(answer) => answer,
@@ -147,7 +147,7 @@ pub(crate) fn poll(app: &mut VectorcraftApp, ctx: &egui::Context) {
 }
 
 /// The eyedropper button that starts the sampler (gray without one). Returns true when clicked.
-pub(crate) fn button(app: &VectorcraftApp, ui: &mut egui::Ui) -> bool {
+pub(crate) fn button(app: &PlumaApp, ui: &mut egui::Ui) -> bool {
     let on = available(app);
     let tip = if on { tl!("Sample Color from Screen") } else { tl!("This system has no screen color sampler") };
     widgets::icon_button_enabled(ui, "pipette", tip, app.screen_sampler.is_some(), on, 24.0).clicked()

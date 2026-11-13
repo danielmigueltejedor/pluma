@@ -3,7 +3,7 @@
 //! A dithered linear or radial gradient is drawn as pixels: the gradient sampled on a grid over
 //! the painted box with a cell per device pixel or finer (in quarter-octave steps, so a pan reuses
 //! the grid and a zoom rarely misses), each colour channel given fine noise of up to a level
-//! ([`vectorcraft_color::gradient::dither_noise`]) before it is rounded, and drawn as an image
+//! ([`pluma_color::gradient::dither_noise`]) before it is rounded, and drawn as an image
 //! paint that the fill clips. Past [`MAX_CELLS`] a side (a box larger than that on screen), cells
 //! grow beyond a pixel and are mixed bilinearly, so the gradient stays smooth. Only the cells the
 //! render target can show are sampled ([`window`]), so a large box mostly off-screen costs what
@@ -14,9 +14,9 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
 
-use vectorcraft_color::GradientPaint;
-use vectorcraft_color::freeform::painted_box;
-use vectorcraft_geom::{Affine, Rect};
+use pluma_color::GradientPaint;
+use pluma_color::freeform::painted_box;
+use pluma_geom::{Affine, Rect};
 use vello_cpu::peniko::{Extend, ImageQuality, ImageSampler};
 use vello_cpu::{Pixmap, RenderContext};
 
@@ -66,7 +66,7 @@ fn key(g: &GradientPaint, b: Rect, cols: u16, rows: u16, win: &[Range<u16>; 2], 
     geom.focal.map(|f| (f.x.to_bits(), f.y.to_bits())).hash(&mut h);
     (b.x0.to_bits(), b.y0.to_bits(), b.x1.to_bits(), b.y1.to_bits(), cols, rows).hash(&mut h);
     win.hash(&mut h);
-    (Arc::as_ptr(&vectorcraft_color::cms::active()) as usize, ink).hash(&mut h);
+    (Arc::as_ptr(&pluma_color::cms::active()) as usize, ink).hash(&mut h);
     h.finish()
 }
 

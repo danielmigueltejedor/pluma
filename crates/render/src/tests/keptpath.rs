@@ -2,9 +2,9 @@
 //! the renderer changes only the parts of the path that the edit moved, and draws and culls the
 //! object as a renderer that makes its path again does.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer};
-use vectorcraft_geom::{Anchor, PathData, Point, SubPath, Vec2};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, LineCap, LineJoin, Node, NodeId, NodeKind, StrokeLayer};
+use pluma_geom::{Anchor, PathData, Point, SubPath, Vec2};
 
 use crate::*;
 

@@ -1,10 +1,10 @@
 use super::{
-    MAX_PENDING_SCREENSHOTS, MAX_SCREENSHOT_BYTES, MAX_SCREENSHOT_TOTAL_BYTES, PendingScreenshot, QueuedScreenshot, SCREENSHOT_TIMEOUT_MS,
-    VectorcraftApp, canvas, file_access, json, now_ms,
+    MAX_PENDING_SCREENSHOTS, MAX_SCREENSHOT_BYTES, MAX_SCREENSHOT_TOTAL_BYTES, PendingScreenshot, PlumaApp, QueuedScreenshot, SCREENSHOT_TIMEOUT_MS,
+    canvas, file_access, json, now_ms,
 };
 use crate::control;
 
-impl VectorcraftApp {
+impl PlumaApp {
     pub(crate) fn drain_control(&mut self, ctx: &egui::Context) {
         let Some(rx) = self.control_rx.take() else { return };
         let mut handled = 0;
@@ -43,7 +43,7 @@ impl VectorcraftApp {
             // Guarded per request: a panic must not drop the channel (taken out of `self` above).
             let roots = self.automation_roots.clone();
             self.ui.answering_control = true;
-            let answer = file_access::confine(roots.as_ref(), || vectorcraft_engine::guard::catch_panic(|| control::handle(self, ctx, &req)));
+            let answer = file_access::confine(roots.as_ref(), || pluma_engine::guard::catch_panic(|| control::handle(self, ctx, &req)));
             self.ui.answering_control = false;
             let outcome = match answer {
                 Ok(outcome) => outcome,

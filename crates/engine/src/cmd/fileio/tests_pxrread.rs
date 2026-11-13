@@ -216,7 +216,7 @@ fn version_2_headers_read_like_version_0() {
 #[test]
 fn pxr_files_open_place_and_paste() {
     use crate::cmd::clipboard::{PASTE_ORDER, file_flavour};
-    let b64 = vectorcraft_format::base64_encode;
+    let b64 = pluma_format::base64_encode;
     let f = one(head(2, 1, RGB, 2), &[10, 20, 30, 40, 50, 60]);
     // The header has no resolution: the image takes the default for images without one.
     assert_eq!(ppi::resolution(&f), None);
@@ -230,7 +230,7 @@ fn pxr_files_open_place_and_paste() {
     let r = s.execute("file.place", &json!({"name": "ART.PXR", "dataBase64": b64(&f)})).unwrap();
     assert_eq!((&r["format"], r["ids"].as_array().map(Vec::len)), (&json!("pxr"), Some(1)), "{r}");
     // Placed from a path, linked and embedded: both show the file's pixels at its pixel size.
-    let dir = std::env::temp_dir().join(format!("vectorcraft-pxr-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-pxr-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("art.pxr");
     std::fs::write(&path, &f).unwrap();
@@ -238,8 +238,8 @@ fn pxr_files_open_place_and_paste() {
         let r = s.execute("file.place", &json!({"path": path.to_string_lossy(), "link": link})).unwrap();
         assert_eq!((&r["format"], r["ids"].as_array().map(Vec::len)), (&json!("pxr"), Some(1)), "link {link}: {r}");
         let doc = &s.doc().unwrap().doc;
-        let node = doc.node(vectorcraft_doc::NodeId(r["ids"][0].as_u64().unwrap())).unwrap();
-        let vectorcraft_doc::NodeKind::Image(im) = &node.kind else { panic!("link {link}: an image, got {:?}", node.kind) };
+        let node = doc.node(pluma_doc::NodeId(r["ids"][0].as_u64().unwrap())).unwrap();
+        let pluma_doc::NodeKind::Image(im) = &node.kind else { panic!("link {link}: an image, got {:?}", node.kind) };
         assert_eq!((im.link.is_some(), im.width, im.height), (link, 2, 1), "link {link}");
         let shown = image::load_from_memory(&doc.images[&im.key].bytes).unwrap().to_rgba8();
         assert_eq!(shown.pixels().map(|p| p.0).collect::<Vec<_>>(), pixels(&f), "link {link}");
@@ -289,7 +289,7 @@ fn damaged_files_are_refused_with_a_message() {
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 100, "height": 50})).unwrap();
     let before = s.doc().unwrap().doc.artboards[0].rect.size();
-    let e = s.execute("document.open", &json!({"name": "a.pxr", "dataBase64": vectorcraft_format::base64_encode(&rgb[..516])}));
+    let e = s.execute("document.open", &json!({"name": "a.pxr", "dataBase64": pluma_format::base64_encode(&rgb[..516])}));
     assert!(e.expect_err("refused").to_string().contains(short));
     assert_eq!(s.doc().unwrap().doc.artboards[0].rect.size(), before);
 

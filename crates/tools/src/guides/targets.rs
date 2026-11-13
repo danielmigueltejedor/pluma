@@ -146,7 +146,7 @@ pub(super) fn object_boxes(doc: &Document, moving: &[NodeId]) -> Vec<Rect> {
 /// the box of its outline in its own frame (font units), through `g.xf`, so it turns, slants and
 /// scales with the glyph. `bb` is the outline's box in text space, used as it is for a glyph bent
 /// along a path or with a frame that can't be undone.
-fn glyph_box(g: &vectorcraft_text::PositionedGlyph, bb: &Rect) -> [Point; 4] {
+fn glyph_box(g: &pluma_text::PositionedGlyph, bb: &Rect) -> [Point; 4] {
     let corners = |r: Rect| [Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)];
     let det = g.xf.determinant();
     if g.bend.is_some() || !(det.is_finite() && det.abs() > 1e-12) {
@@ -601,11 +601,11 @@ impl Targets {
     }
 
     /// The gridlines (one every `step` from the page's origin, as
-    /// [`vectorcraft_geom::snap::snap_to_grid`] places them) at and either side of the nearest one
+    /// [`pluma_geom::snap::snap_to_grid`] places them) at and either side of the nearest one
     /// to each of `points`, as lines to line up with.
     pub(super) fn grid_lines(points: impl IntoIterator<Item = Point>, step: f64) -> Self {
         let mut t = Targets::default();
-        let line = |v: f64, k: i32| vectorcraft_geom::snap::snap_to_grid(v, step, 0.0) + f64::from(k) * step;
+        let line = |v: f64, k: i32| pluma_geom::snap::snap_to_grid(v, step, 0.0) + f64::from(k) * step;
         for p in points {
             for k in -1..=1 {
                 let (x, y) = (line(p.x, k), line(p.y, k));

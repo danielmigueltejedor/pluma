@@ -5,7 +5,7 @@
 //! glyphs are hand-made charstrings (Adobe Type 1 Font Format, chapter 6), Type 2 glyphs come
 //! from the bundled Source Sans 3.
 
-use vectorcraft_doc::NodeKind;
+use pluma_doc::NodeKind;
 
 use super::tests::{all, bounds, check};
 use super::tests_composite::{glyph, sfnts};
@@ -101,7 +101,7 @@ fn program(hex_data: bool, body: &str) -> Vec<u8> {
     [head, cid_font(hex_data), CMAP.as_bytes().to_vec(), format!("{body}\nshowpage\n%%EOF\n").into_bytes()].concat()
 }
 
-fn paths(r: &crate::Imported) -> Vec<vectorcraft_geom::Rect> {
+fn paths(r: &crate::Imported) -> Vec<pluma_geom::Rect> {
     all(&r.document).iter().filter(|n| matches!(n.kind, NodeKind::Path { .. })).map(|n| bounds(n)).collect()
 }
 
@@ -382,7 +382,7 @@ fn cmaps_map_codes_to_base_fonts_codes_and_glyph_names() {
 /// whether found as `CIDFont-CMap` or composed.
 #[test]
 fn named_cidfonts_over_unicode_cmaps_set_their_characters_as_type() {
-    let texts = |r: &crate::Imported| -> Vec<vectorcraft_doc::TextObject> {
+    let texts = |r: &crate::Imported| -> Vec<pluma_doc::TextObject> {
         all(&r.document)
             .iter()
             .filter_map(|n| match &n.kind {

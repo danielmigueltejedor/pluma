@@ -2,14 +2,14 @@
 
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-11-10 · **Change:** minor (Effect Gallery: a thumbnail for each filter and an in-dialog preview on an original drawing; the 1–2 h for those is done; Extrude & Bevel, Inflate and Rotate merge contours that cross, touch or overlap, as type often draws a glyph, before building a solid; previously: Extrude & Bevel, Inflate and Rotate apply to groups and layers, their objects turning about one shared axis (#4506); the Transform effect's copies of a path with a fill and a stroke (or several fills and strokes, an even-odd fill, or a partly transparent one) are drawn each above the one before, as Expand Appearance makes them (#5920); Expand Appearance makes each copy of a path's Transform effect an object of its own (#5612); previously: Pixelate › Color Halftone: Max Radius in pixels of the Document Raster Effects resolution, 4–127 px, with older documents converted on opening and radii written back in points for older app versions (#3260); Effect dialogs clamp bounded length inputs immediately on commit and flash rejection on invalid input (#4638); previously: Drop Shadow Darkness uses fixed RGB subtraction and CMYK black addition; scores unchanged; Pathfinder › Trap: the Pathfinder panel's Trap… and Effect › Pathfinder › Trap… add an overprinting strip of the lighter colour where two solid colours meet; recounted with Hard Mix (#3061) and Soft Mix already in the catalogue: Pathfinder 13/13, Illustrator effects 49/50) · **Target:** Adobe Illustrator 2026 (30.x)
 
-Every entry of Illustrator's Effect menu, by its public feature name, against VectorCraft's effects catalogue
+Every entry of Illustrator's Effect menu, by its public feature name, against Pluma's effects catalogue
 (`effect_catalog()` in `crates/effects/src/lib.rs`) and the Effect menu built from it
 (`crates/ui-egui/src/menus.rs`). Counts are **measured** from the catalogue; "depth" notes are estimated.
 Part of [target-app-parity.md](target-app-parity.md); open work is in [gaps.md](gaps.md).
 
 ## Summary
 
-| Group | Illustrator | VectorCraft | % | Remaining (h) |
+| Group | Illustrator | Pluma | % | Remaining (h) |
 |---|---:|---:|---:|---:|
 | Illustrator effects (vector and stylize) | 50 | 50 | 100% | — |
 | Photoshop effects (raster, Effect Gallery) | 57 | 57 | 100% | — |
@@ -24,10 +24,10 @@ Part of [target-app-parity.md](target-app-parity.md); open work is in [gaps.md](
 | Crop Marks | Crop Marks | 1/1 | — |
 | Distort & Transform | Free Distort, Pucker & Bloat, Roughen, Transform, Tweak, Twist, Zig Zag | 7/7 | Free Distort's dialog has a handle on each corner of the object's bounds, moved by dragging or with the arrow keys; Zig Zag's ridges are evenly spaced along each segment (#1558), and Smooth points make a continuous wave whose peaks and valleys have handles along the path (#2343); Roughen with Smooth keeps turn-backs smooth instead of cusps that draw as spikes (#1646); Expand Appearance of a path whose Transform effect makes copies gives a group of one object per copy, each painted as the path, and a second Transform effect's copies nest in a group per copy of the first (#5612); drawn, each copy of a path with a fill and a stroke (or several, an even-odd fill or a partly transparent one) paints below the one before, the fills above covering the strokes of the copies below, instead of one path of every copy (#5920), and a group's copies each hold all its members except guides, the original group on top (#6316); a clipping group, a group with a fill or stroke of its own, a group whose type is kept as type, and a group with a member that carries a geometry, Pathfinder or 3D effect copy each member in its place |
 | Path | Offset Path, Outline Object, Outline Stroke | 3/3 | With Use Preview Bounds on, Align, Distribute and the Transform panel still measure type that carries Outline Object by its layout box (preview bounds leave out effects) |
-| Pathfinder | Add, Intersect, Exclude, Subtract, Minus Back, Divide, Trim, Merge, Crop, Outline, Hard Mix, Soft Mix, Trap | 13/13 | Trap traps only solid fills (gradients and patterns hide what is below them but don't trap) and spreads each colour's visible area as a whole; the public page gives no default values, so Trap's 0.25 pt, 100% and 40% are VectorCraft's own |
+| Pathfinder | Add, Intersect, Exclude, Subtract, Minus Back, Divide, Trim, Merge, Crop, Outline, Hard Mix, Soft Mix, Trap | 13/13 | Trap traps only solid fills (gradients and patterns hide what is below them but don't trap) and spreads each colour's visible area as a whole; the public page gives no default values, so Trap's 0.25 pt, 100% and 40% are Pluma's own |
 | Rasterize | Rasterize… (as a live effect) | 1/1 | — |
 | Stylize | Drop Shadow, Feather, Inner Glow, Outer Glow, Round Corners, Scribble | 6/6 | Scribble Options' Settings presets |
-| SVG Filters | Apply SVG Filter… and the filter list | 1/1 | The submenu lists the document's own filters: VectorCraft ships no default filters. A filter that is the object's last effect is written to SVG as a `<filter>` element; otherwise SVG export draws the object as an image. A filter on a turned or skewed object in an imported SVG is left out with a warning |
+| SVG Filters | Apply SVG Filter… and the filter list | 1/1 | The submenu lists the document's own filters: Pluma ships no default filters. A filter that is the object's last effect is written to SVG as a `<filter>` element; otherwise SVG export draws the object as an image. A filter on a turned or skewed object in an imported SVG is left out with a warning |
 | Warp | Arc, Arc Lower, Arc Upper, Arch, Bulge, Shell Lower, Shell Upper, Flag, Wave, Fish, Rise, Fisheye, Inflate, Squeeze, Twist | 15/15 | warp point editing in envelopes; Arc is a circular arc in the object's own proportions (#1578) |
 
 Document Raster Effects Settings exists. When the 64 million pixel cap on an effect image lowers
@@ -50,7 +50,7 @@ its resolution, PDF export warns once per object with the requested and the lowe
 | Video | De-Interlace, NTSC Colors | 2/2 | — |
 | Effect Gallery | the combined browser and stack dialog | 1/1 (Effect › Effect Gallery…, #2883: six categories, per-filter settings, ordered stack with add/reorder/hide/remove, live canvas preview, one undo step; a thumbnail for each filter and a preview area inside the dialog, both an original landscape drawing passed through the filter, [Filter Gallery overview](https://helpx.adobe.com/photoshop/desktop/effects-filters/get-started-with-filters/filter-gallery.html); `dialogs::effect_gallery::tests::stack_ok_is_one_undo_step`, `stack_preview_is_one_interaction`, `gallery_shows_thumbnails_and_an_in_dialog_preview`) | — |
 
-The pixel-filter pipeline (`vectorcraft_effects::pixel`) is in place: each new filter is one function, a
+The pixel-filter pipeline (`pluma_effects::pixel`) is in place: each new filter is one function, a
 catalogue row, a menu entry and translations. Measured throughput: 0.7–1.2 agent hours per filter
 (see [calibration](target-app-parity.md#calibration)). Every Photoshop-style filter is in the catalogue, and the Effect
 Gallery dialog shipped (#2883), with a thumbnail for each filter and a preview area inside the dialog. Both use an original landscape drawing passed through the filter; the canvas preview and the one-undo OK are unchanged.
@@ -67,7 +67,7 @@ quieter highlight grain. Grain strength stays even across shadows and midtones a
 mid-grey to a quarter-strength floor at full Intensity before highlight headroom; cream retains
 soft grain, black takes light speckles and white stays clean. The tonal curve and endpoint behaviour
 are interpretations, not verified proprietary behaviour. Saturated colour channels may clip. The parameter
-ranges and defaults are chosen for VectorCraft, not asserted as measured proprietary defaults.
+ranges and defaults are chosen for Pluma, not asserted as measured proprietary defaults.
 
 Cutout, Neon Glow and Poster Edges (`artistic.cutout`, `artistic.neonGlow`, `artistic.posterEdges`)
 follow the same two public references, with original algorithms. Cutout softens the object's colours (Edge Simplicity, less with Edge
@@ -80,7 +80,7 @@ from its light areas (positive Glow Size) or its dark ones (negative), spread by
 strong as Glow Brightness; with no foreground and background colours in Illustrator's model, the
 glow colour is the effect's own parameter. All three keep coverage, work in document units at any
 Document Raster Effects resolution, and use the generic effect dialog with live preview. Ranges and
-defaults are chosen for VectorCraft. Evidence: `crates/effects/src/pixel/artistic.rs`, the
+defaults are chosen for Pluma. Evidence: `crates/effects/src/pixel/artistic.rs`, the
 `artistic_*`, `cutout_*`, `poster_edges_*` and `neon_glow_*` tests in `crates/effects/src/pixel/tests.rs`,
 and `artistic_settings_survive_a_save_and_open` in `crates/engine/src/tests/rasterfilters.rs`.
 Smudge Stick (`artistic.smudgeStick`), Sponge (`artistic.sponge`) and Watercolor (`artistic.watercolor`),
@@ -89,7 +89,7 @@ Effect › Artistic, are original visual approximations from the public descript
 [public Artistic filters guide](https://helpx.adobe.com/photoshop-elements/using/artistic-filters.html), not
 pixel-identical copies. Each has live preview, appearance editing, document-unit patterns that follow the
 object, bounded work per pixel and kept coverage (they paint nothing outside the object), and bakes to an
-image in SVG and PDF. Ranges and defaults are chosen for VectorCraft, not asserted as measured.
+image in SVG and PDF. Ranges and defaults are chosen for Pluma, not asserted as measured.
 - Smudge Stick (Stroke Length 0–10, Highlight Area 0–20, Intensity 0–10): dark areas smudged along short
   diagonal strokes; light areas smudged with strokes twice as long and lightened towards white.
 - Sponge (Brush Size 0–10, Definition 0–25, Smoothness 1–15): the object softened, then lighter and darker
@@ -120,7 +120,7 @@ Effect › Artistic, are original visual approximations from the public descript
 [public Artistic filters guide](https://helpx.adobe.com/photoshop-elements/using/artistic-filters.html), not
 pixel-identical copies. Each has live preview, appearance editing, document-unit patterns that follow the
 object, bounded work per pixel and kept coverage (they paint nothing outside the object), and bakes to an
-image in SVG and PDF. Ranges and defaults are chosen for VectorCraft, not asserted as measured.
+image in SVG and PDF. Ranges and defaults are chosen for Pluma, not asserted as measured.
 - Smudge Stick (Stroke Length 0–10, Highlight Area 0–20, Intensity 0–10): dark areas smudged along short
   diagonal strokes; light areas smudged with strokes twice as long and lightened towards white.
 - Sponge (Brush Size 0–10, Definition 0–25, Smoothness 1–15): the object softened, then lighter and darker
@@ -145,16 +145,16 @@ live. Behaviour is an original visual approximation based on
 [Illustrator's public effects reference](https://helpx.adobe.com/illustrator/using/summary-effects.html)
 and the [public Sketch filters guide](https://helpx.adobe.com/photoshop-elements/using/sketch-filters.html),
 not a pixel-identical proprietary implementation; the parameter ranges and defaults are chosen for
-VectorCraft, not asserted as measured proprietary defaults. Tests: `pixel::tests_sketch::*`,
+Pluma, not asserted as measured proprietary defaults. Tests: `pixel::tests_sketch::*`,
 `tests_rasterfilters`, `command_sweep`, `dialogs::tests::raster_filter_dialogs_preview_and_apply` and
 `tests_labels::effect_menu_lists_the_sketch_filters_*`.
 
 Effect › Sketch › Halftone Pattern and Note Paper (`sketch.halftonePattern`, `sketch.notePaper`) are
 original black-and-white filters guided by [Illustrator's public Sketch effects summary](https://helpx.adobe.com/illustrator/using/summary-effects.html)
 and [effects overview](https://helpx.adobe.com/illustrator/using/effects.html) (Halftone Size in points at any Document Raster Effects resolution).
-The public help pages name each control but publish no numeric defaults or slider limits; VectorCraft's ranges
+The public help pages name each control but publish no numeric defaults or slider limits; Pluma's ranges
 follow those control names and the emboss/halftone behaviour described there, while dialog defaults are chosen
-for VectorCraft and are not verified against proprietary defaults. Evidence: `crates/effects/src/pixel/sketch.rs`,
+for Pluma and are not verified against proprietary defaults. Evidence: `crates/effects/src/pixel/sketch.rs`,
 `halftone_*` and `note_paper_*` in `crates/effects/src/pixel/tests.rs`, `SKETCH` and
 `halftone_pattern_settings_survive_a_save_and_open` in `crates/engine/src/tests/rasterfilters.rs`, and
 `tests_labels::effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize`.
@@ -169,7 +169,7 @@ black crayon where it is dark and a pure white crayon where it is light, on mid-
 each crayon reaches into the midtones; Texture (Brick, Burlap, Canvas, Sandstone, the surfaces Texturizer
 draws), Scaling, Relief, Light Direction and Invert make the paper's tooth, which breaks the diagonal crayon
 strokes, and its relief. The public pages publish no slider ranges or defaults, so those are unverified
-VectorCraft choices; an original approximation, never compared with another application's output. Tests:
+Pluma choices; an original approximation, never compared with another application's output. Tests:
 `pixel::tests_sketch::conte_crayon_*`, `tests_rasterfilters`, `command_sweep`,
 `dialogs::tests::raster_filter_dialogs_preview_and_apply` and
 `tests_labels::effect_menu_lists_the_sketch_filters_between_sharpen_and_stylize`.
@@ -198,16 +198,16 @@ angular cut caps, exact visibility, the rest of 3D Classic (Revolve, Rotate, Map
 | 2026-11-06 | minor | Extrude & Bevel, Inflate and Rotate apply to a group or layer: a solid for every path, compound path and type in it, all turned about one shared axis as the public documentation describes for groups ([three-d.md](three-d.md#groups), #4506); scores and estimates unchanged |
 | 2026-11-06 | minor | The Transform effect's copies of a path or compound path whose fills and strokes stack (a fill and a stroke, several of either, an even-odd fill, or a partly transparent or blended one) are drawn each as an object of its own above the one before, as Expand Appearance makes them, instead of one path of every copy whose fill lay under every copy's stroke (#5920). A single opaque stroke or nonzero fill still draws as one path. Counts unchanged. |
 | 2026-11-04 | minor | Expand Appearance of a path or compound path whose Transform effect makes copies gives a group of one object per copy, each with the path's fills and strokes, instead of one compound path of every copy; copies of copies nest (#5612). Counts unchanged. |
-| 2026-10-30 | minor | Pixelate › Color Halftone: Max Radius is in pixels of the Document Raster Effects resolution, 4–127 px, as the [filter effects reference](https://helpx.adobe.com/photoshop/using/filter-effects-reference.html) gives it, instead of points (#3260): fine screens are possible at print resolutions (4 px at 300 ppi ≈ 0.96 pt). The dialog and the Appearance panel show it in px whatever the document units; documents saved before (document versions 1 and 2) open with each radius converted, so their dots stay the same size, and a file saved for an older app version (native versions before today's) holds them in points again. Scores unchanged. Tests: `vectorcraft_effects` `color_halftone_sizes_its_dots_in_pixels_of_the_raster_effects_resolution` and `color_halftones_radius_is_in_raster_pixels_not_a_distance`, `vectorcraft_doc` `halftone_radii::tests`, `vectorcraft_format` `halftone_radii_of_older_documents_open_in_pixels`, `vectorcraft_engine` `a_preserve_editing_pdf_opens_with_its_halftone_radius_in_pixels`, `dialogs::tests::color_halftones_max_radius_stays_in_pixels_whatever_the_units`. |
+| 2026-10-30 | minor | Pixelate › Color Halftone: Max Radius is in pixels of the Document Raster Effects resolution, 4–127 px, as the [filter effects reference](https://helpx.adobe.com/photoshop/using/filter-effects-reference.html) gives it, instead of points (#3260): fine screens are possible at print resolutions (4 px at 300 ppi ≈ 0.96 pt). The dialog and the Appearance panel show it in px whatever the document units; documents saved before (document versions 1 and 2) open with each radius converted, so their dots stay the same size, and a file saved for an older app version (native versions before today's) holds them in points again. Scores unchanged. Tests: `pluma_effects` `color_halftone_sizes_its_dots_in_pixels_of_the_raster_effects_resolution` and `color_halftones_radius_is_in_raster_pixels_not_a_distance`, `pluma_doc` `halftone_radii::tests`, `pluma_format` `halftone_radii_of_older_documents_open_in_pixels`, `pluma_engine` `a_preserve_editing_pdf_opens_with_its_halftone_radius_in_pixels`, `dialogs::tests::color_halftones_max_radius_stays_in_pixels_whatever_the_units`. |
 | 2026-10-30 | minor | Effect dialogs: bounded length fields (Color Halftone Max Radius) clamp on commit and visibly reject invalid input (#4638); scores unchanged. |
-| 2026-10-23 | minor | Pathfinder › Trap ([trapping](https://helpx.adobe.com/illustrator/using/trapping.html)): the Pathfinder panel's Trap… (`object.pathfinder.trap`, one undo step, the traps grouped above the topmost selected object and selected) and Effect › Pathfinder › Trap… (`pathfinder.trap`, live on groups) add an overprinting strip of the lighter colour inside the darker one where two solid colours meet (Reverse Traps: the darker into the lighter, but not a rich black), with Thickness, Height/Width, Tint Reduction and Traps with Process Color; the effect also has Precision and Remove Redundant Points. Recounted: Hard Mix (#3061) and Soft Mix had shipped, so Pathfinder 11/13 → 13/13 and Illustrator effects 46/50 → 49/50 (SVG Filters remains); remaining 6–10 → 4–8 h. Tests: `vectorcraft_pathops` `trap::tests`, `vectorcraft_effects` `trap::tests` and `group::tests::trap_effect_adds_an_overprinting_strip_above_the_members`, `vectorcraft_engine` `tests_trap`, `panels::pathfinder::tests::trap_opens_its_options_and_ok_traps_the_selection`. |
+| 2026-10-23 | minor | Pathfinder › Trap ([trapping](https://helpx.adobe.com/illustrator/using/trapping.html)): the Pathfinder panel's Trap… (`object.pathfinder.trap`, one undo step, the traps grouped above the topmost selected object and selected) and Effect › Pathfinder › Trap… (`pathfinder.trap`, live on groups) add an overprinting strip of the lighter colour inside the darker one where two solid colours meet (Reverse Traps: the darker into the lighter, but not a rich black), with Thickness, Height/Width, Tint Reduction and Traps with Process Color; the effect also has Precision and Remove Redundant Points. Recounted: Hard Mix (#3061) and Soft Mix had shipped, so Pathfinder 11/13 → 13/13 and Illustrator effects 46/50 → 49/50 (SVG Filters remains); remaining 6–10 → 4–8 h. Tests: `pluma_pathops` `trap::tests`, `pluma_effects` `trap::tests` and `group::tests::trap_effect_adds_an_overprinting_strip_above_the_members`, `pluma_engine` `tests_trap`, `panels::pathfinder::tests::trap_opens_its_options_and_ok_traps_the_selection`. |
 | 2026-10-22 | minor | The Transform effect has Transform Objects, Transform Patterns and Scale Strokes & Effects, with visible checkboxes (#885); on a fill's or stroke's own Transform effect the last two are still missing. Counts unchanged. |
 | 2026-10-22 | minor | G2: the Effect Gallery shipped (#2883): Effect › Effect Gallery… browses the Artistic, Brush Strokes, Distort, Sketch, Stylize and Texture filters, edits each filter's settings, builds an ordered stack (add, reorder, hide, remove) with a live canvas preview, and OK applies it as separate appearance effects in one undo step; remaining: filter thumbnails and a preview area inside the dialog; G2 estimate 4–6 → 1–2 h; Raster effects 82% → 85% (power-user view 49% → 52%), estimated, a modest move because the named missing dialog landed without thumbnails or an in-dialog preview. |
 | 2026-10-22 | minor | Stacked geometry effects make at most 2 million anchors of a path (of a type, symbol or image art's paths together) and about 8 million lines to draw: Roughen spaces its points further apart, Zig Zag makes fewer ridges a segment, Free Distort, Twist and the warps split into longer pieces, a result drawn with too many lines is built again with fewer points, and an effect that would still pass either is left out (#3578). Scores unchanged (estimated) |
-| 2026-10-22 | minor | G2: Effect › Sketch › Conté Crayon (Foreground Level, Background Level, Texture, Scaling, Relief, Light Direction, Invert; a black crayon in the dark areas and a white one in the light areas on textured mid-grey paper; ranges and defaults unverified VectorCraft choices); measured Photoshop-style filters 57/57, the Effect Gallery remains (4–6 h); Sketch 14/14. |
+| 2026-10-22 | minor | G2: Effect › Sketch › Conté Crayon (Foreground Level, Background Level, Texture, Scaling, Relief, Light Direction, Invert; a black crayon in the dark areas and a white one in the light areas on textured mid-grey paper; ranges and defaults unverified Pluma choices); measured Photoshop-style filters 57/57, the Effect Gallery remains (4–6 h); Sketch 14/14. |
 | 2026-10-21 | minor | 3D: original Standard, Diffuse, Top Left and Right lighting presets; command access, effective-setting recognition and preview/history; scores and estimates unchanged |
 | 2026-10-20 | minor | G2: Effect › Sketch › Water Paper (Fiber Length, Brightness, Contrast; colours flow on damp fibrous paper, defaults unverified, #2955); measured Photoshop filters 47/57, Sketch 12/14. |
-| 2026-10-20 | minor | G2: Effect › Sketch › Note Paper (Image Balance, Graininess, Relief; embossed tones on fibrous paper); Halftone Pattern and Note Paper parameter ranges follow public control names, numeric defaults are unverified VectorCraft choices (public help gives no numbers); measured Photoshop filters 46/57, Sketch 11/14. |
+| 2026-10-20 | minor | G2: Effect › Sketch › Note Paper (Image Balance, Graininess, Relief; embossed tones on fibrous paper); Halftone Pattern and Note Paper parameter ranges follow public control names, numeric defaults are unverified Pluma choices (public help gives no numbers); measured Photoshop filters 46/57, Sketch 11/14. |
 | 2026-10-19 | minor | Sketch › Chalk & Charcoal, Graphic Pen and Reticulation and Artistic › Plastic Wrap landed (#2972, #2967, #2976, #3034): 36/57 Photoshop effects (estimated; defaults unverified) |
 | 2026-10-16 | minor | Zig Zag with Smooth points draws a continuous wave: every peak and valley is a smooth point with handles along the path, a third of the way to the next ridge, so each span follows a half cosine through the path instead of a straight diagonal with rounded tips, also at the ends of open paths and for ridges much taller than they are apart (#2343); score unchanged (estimated) |
 | 2026-10-16 | minor | G2: Effect › Artistic › Smudge Stick, Sponge and Watercolor (live, with their documented options; original approximations); measured Photoshop filters 36/57 with Cutout, Neon Glow and Poster Edges, 21 remaining (19–31 h). |

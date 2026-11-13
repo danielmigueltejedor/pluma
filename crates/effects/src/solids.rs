@@ -2,14 +2,14 @@
 //! shared by the canvas and every exporter. Like Revolve, the source path stays editable and the effect draws its 3D faces.
 use std::sync::Arc;
 
+use pluma_doc::color::{BlendMode, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
+use pluma_geom::{FillRule, PathData, Rect};
+use pluma_three_d::{Bevel, BevelShape, Extrude, Facet, Inflate, Mesh, View};
 use serde_json::Value;
-use vectorcraft_doc::color::{BlendMode, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Effect, Node, NodeKind, StrokeLayer};
-use vectorcraft_geom::{FillRule, PathData, Rect};
-use vectorcraft_three_d::{Bevel, BevelShape, Extrude, Facet, Inflate, Mesh, View};
 
 #[cfg(test)]
-use vectorcraft_doc::color::Color;
+use pluma_doc::color::Color;
 
 use crate::util::{flag, num, text};
 use crate::{GeomContext, apply_geometry_with, is_geometry};
@@ -94,8 +94,8 @@ pub fn view_options(p: &Value) -> View {
         rotation_y: num(p, "rotationY", ROTATION_PRESETS[6].1[1]),
         rotation_z: num(p, "rotationZ", ROTATION_PRESETS[6].1[2]),
         perspective: num(p, "perspectiveAngle", 0.0),
-        light_rotation: num(p, "lightRotation", vectorcraft_three_d::DEFAULT_LIGHT.0),
-        light_height: num(p, "lightHeight", vectorcraft_three_d::DEFAULT_LIGHT.1),
+        light_rotation: num(p, "lightRotation", pluma_three_d::DEFAULT_LIGHT.0),
+        light_height: num(p, "lightHeight", pluma_three_d::DEFAULT_LIGHT.1),
         light_behind: flag(p, "lightBehind", false),
         light_color: crate::lighting::light_color(p),
         lights: crate::lighting::lights(p),
@@ -175,10 +175,10 @@ pub(crate) fn solid_paints(n: &Node) -> Vec<AppearanceItem> {
 fn facets(id: &str, path: &PathData, rule: FillRule, bounds: Rect, p: &Value) -> Result<Vec<Facet>, String> {
     let view = view_options(p);
     match id {
-        EXTRUDE => vectorcraft_three_d::extrude(path, rule, bounds, extrude_options(p), view),
-        CLASSIC_EXTRUDE => vectorcraft_three_d::extrude(path, rule, bounds, classic_extrude_options(p), view),
-        INFLATE => vectorcraft_three_d::inflate(path, rule, bounds, inflate_options(p), view),
-        _ => vectorcraft_three_d::plane(path, rule, bounds, view),
+        EXTRUDE => pluma_three_d::extrude(path, rule, bounds, extrude_options(p), view),
+        CLASSIC_EXTRUDE => pluma_three_d::extrude(path, rule, bounds, classic_extrude_options(p), view),
+        INFLATE => pluma_three_d::inflate(path, rule, bounds, inflate_options(p), view),
+        _ => pluma_three_d::plane(path, rule, bounds, view),
     }
 }
 
@@ -374,7 +374,7 @@ fn surface(n: &Node, facets: Vec<Facet>, paint: &Paint, opacity: f32, blend: Ble
                     let AppearanceItem::Fill(fill) = &item else { return vec![item] };
                     let mut edge = StrokeLayer::new(fill.paint.clone(), seam);
                     if colored {
-                        edge.join = vectorcraft_doc::LineJoin::Round;
+                        edge.join = pluma_doc::LineJoin::Round;
                     }
                     edge.opacity = fill.opacity;
                     vec![item, AppearanceItem::Stroke(edge)]
@@ -388,8 +388,8 @@ fn surface(n: &Node, facets: Vec<Facet>, paint: &Paint, opacity: f32, blend: Ble
     group.blend = blend;
     if let Some(mask) = mask {
         let bounds = group.visual_bounds().unwrap_or(Rect::ZERO).inflate(1.0, 1.0);
-        let coverage = Node::path(n.id, vectorcraft_geom::shapes::rectangle(bounds), Appearance::basic(mask, Paint::None, 0.0));
-        group.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(coverage, true)));
+        let coverage = Node::path(n.id, pluma_geom::shapes::rectangle(bounds), Appearance::basic(mask, Paint::None, 0.0));
+        group.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(coverage, true)));
     }
     group
 }
@@ -473,7 +473,7 @@ fn art_for(n: &Node, fx: &Effect, shapes: &[Profile]) -> Option<Vec<Arc<Node>>> 
     let built = if fx.id == INFLATE {
         // One eye for every puff, as far away as the highest needs.
         let shapes: Vec<(&PathData, FillRule)> = parts.iter().map(|(_, _, area, rule)| (area, *rule)).collect();
-        vectorcraft_three_d::inflate_together(&shapes, bounds, inflate_options(&p), view_options(&p))
+        pluma_three_d::inflate_together(&shapes, bounds, inflate_options(&p), view_options(&p))
     } else {
         parts.iter().map(|(_, _, area, rule)| facets(&fx.id, area, *rule, bounds, &p)).collect()
     };
@@ -651,7 +651,7 @@ fn meshes_for(fx: &Effect, shapes: &[Profile], total: &mut usize, limit: usize) 
             for item in &s.items {
                 let (paint, opacity, _) = paint_of(item, s.opacity);
                 let (area, rule) = region(&s.path, s.rule, item);
-                keep(&mut out, vectorcraft_three_d::plane_mesh(&area, rule, b, view)?, mesh_color(&paint, opacity))?;
+                keep(&mut out, pluma_three_d::plane_mesh(&area, rule, b, view)?, mesh_color(&paint, opacity))?;
             }
         }
         return Ok(out);
@@ -661,14 +661,14 @@ fn meshes_for(fx: &Effect, shapes: &[Profile], total: &mut usize, limit: usize) 
     // solid and its mesh are built as the loop reaches them.
     let mut inflated = (fx.id == INFLATE).then(|| {
         let shapes: Vec<(&PathData, FillRule)> = parts.iter().map(|(_, _, area, rule)| (area, *rule)).collect();
-        vectorcraft_three_d::inflate_meshes(&shapes, bounds, inflate_options(&p), view)
+        pluma_three_d::inflate_meshes(&shapes, bounds, inflate_options(&p), view)
     });
     let extrude = extrude_options(&p);
     for (item, member, area, rule) in &parts {
         let item: &AppearanceItem = item;
         let mesh = match inflated.as_mut() {
             Some(built) => built.next().unwrap_or_else(|| Ok(Mesh::default())),
-            None => vectorcraft_three_d::extrude_mesh(area, *rule, bounds, extrude, view),
+            None => pluma_three_d::extrude_mesh(area, *rule, bounds, extrude, view),
         };
         match mesh {
             Ok(mesh) => {

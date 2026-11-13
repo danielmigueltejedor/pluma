@@ -3,8 +3,8 @@
 //! document is never changed. Escape during a drag cancels it: the result of the drag before
 //! comes back.
 
+use pluma_geom::{Point, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_geom::{Point, Vec2};
 
 use super::CYAN;
 use crate::guides::DrawSnap;
@@ -37,7 +37,7 @@ pub(crate) fn end_point(cx: &ToolContext, snap: &mut DrawSnap, a: Point, p: Poin
     if !shift {
         return snap.measure(cx, p, None);
     }
-    let d = vectorcraft_geom::constrain_angle_from(p - a, 45.0, cx.constrain_angle);
+    let d = pluma_geom::constrain_angle_from(p - a, 45.0, cx.constrain_angle);
     let len = d.hypot();
     if len < 1e-12 {
         return a;
@@ -124,10 +124,10 @@ mod tests {
     use super::*;
     use crate::testutil::*;
     use crate::{GlyphSnap, ScreenFrame};
-    use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, Selection, TextObject};
-    use vectorcraft_geom::kurbo::{ParamCurve, Shape};
-    use vectorcraft_geom::{Affine, Rect};
-    use vectorcraft_text::{FontDb, layout as layout_text};
+    use pluma_doc::{CharStyle, Document, Node, NodeKind, Selection, TextObject};
+    use pluma_geom::kurbo::{ParamCurve, Shape};
+    use pluma_geom::{Affine, Rect};
+    use pluma_text::{FontDb, layout as layout_text};
 
     #[test]
     fn horizontal_drag_reports_positive_zero_angle() {
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn shift_drag_meets_a_ruler_guide() {
         let (mut d, _) = doc_with_rect();
-        d.guides.push(vectorcraft_doc::Guide::new(true, 50.0));
+        d.guides.push(pluma_doc::Guide::new(true, 50.0));
         let s = Selection::default();
         let p = paint();
         let mut cx = cx(&d, &s, &p);
@@ -520,7 +520,7 @@ mod tests {
         let end = |c: &ToolContext| measured(&mut MeasureTool::default(), c, start, to, false).1;
         assert_eq!(end(&on), Point::new(to.x, base));
         let grid = ToolContext { snap_to_grid: true, ..on };
-        assert_eq!(end(&grid), vectorcraft_geom::snap::snap_point_to_grid(to, grid.grid_step()));
+        assert_eq!(end(&grid), pluma_geom::snap::snap_point_to_grid(to, grid.grid_step()));
         assert_eq!(end(&ToolContext { snap_to_pixel: true, ..on }), Point::new(to.x.round(), to.y.round()));
         assert_eq!(end(&ToolContext { smart_guides: false, snap_to_point: true, ..on }), to);
         assert_eq!(end(&ToolContext { alignment_guides: false, ..on }), to);

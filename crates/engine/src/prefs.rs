@@ -14,8 +14,8 @@ pub enum DrawMode {
 /// no longer has reads as the default.
 fn language_tag<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<String, D::Error> {
     let saved = <String as serde::Deserialize>::deserialize(d)?;
-    let tag = vectorcraft_doc::setup::char_language(&saved).ok().flatten();
-    Ok(tag.or_else(|| vectorcraft_doc::setup::LANGUAGES.first().map(|(_, t, _)| *t)).unwrap_or_default().to_string())
+    let tag = pluma_doc::setup::char_language(&saved).ok().flatten();
+    Ok(tag.or_else(|| pluma_doc::setup::LANGUAGES.first().map(|(_, t, _)| *t)).unwrap_or_default().to_string())
 }
 
 /// Application preferences (Edit → Preferences). Every field is reachable through `prefs.get` /
@@ -150,7 +150,7 @@ pub struct Prefs {
     pub slice_line_color: String,
     // Hyphenation
     /// Default Language: the BCP 47 tag of the language new type takes when its document's language
-    /// is the default ([`vectorcraft_doc::setup::LANGUAGES`]).
+    /// is the default ([`pluma_doc::setup::LANGUAGES`]).
     #[serde(deserialize_with = "language_tag")]
     pub hyphenation_language: String,
     pub hyphenation_exceptions: String,
@@ -186,7 +186,7 @@ pub struct Prefs {
     pub system_title_bar: bool,
     /// Linux and the BSDs: draw the app bar as the title bar in sessions where the desktop draws
     /// the frame (X11, Wayland compositors with server-side decorations, XWayland), as on GNOME.
-    /// Read when the app starts; System Title Bar and `VECTORCRAFT_TITLEBAR` set to `app`, `system` or `desktop` take precedence over it.
+    /// Read when the app starts; System Title Bar and `PLUMA_TITLEBAR` set to `app`, `system` or `desktop` take precedence over it.
     pub app_title_bar: bool,
     // Performance
     pub gpu_performance: bool,
@@ -248,7 +248,7 @@ pub struct Prefs {
     pub pathfinder: PathfinderOptions,
     /// Character panel › Show Snap to Glyph Options: which guides View › Snap to Glyph gives
     /// (`view.snapToGlyph.options`; a preference group, see [`cmd::prefscmds::PREF_GROUPS`]).
-    pub glyph_snap: vectorcraft_tools::GlyphSnap,
+    pub glyph_snap: pluma_tools::GlyphSnap,
     /// Edit → Transparency Flattener Presets: the user's presets (the built-in ones aren't stored).
     /// Not a `prefs.set` key or group (resetting the preferences keeps them): `flattener.presets.*`
     /// edit it.
@@ -267,7 +267,7 @@ pub struct Prefs {
     /// Width profiles saved to the Stroke panel's Profile list (`stroke.widthProfile.*`). Not a
     /// Preferences dialog field, so it has no [`cmd::prefscmds::PREF_SPECS`] row.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub width_profiles: Vec<vectorcraft_doc::SavedProfile>,
+    pub width_profiles: Vec<pluma_doc::SavedProfile>,
     /// General → Use Japanese Crop Marks: the style of Create Trim Marks and Effect → Crop Marks.
     pub japanese_crop_marks: bool,
     /// Appearance panel → New Art Has Basic Appearance (on): new art takes one fill and stroke;
@@ -287,17 +287,17 @@ pub struct Prefs {
     /// Edit → PDF Presets: the user's presets (the built-in ones aren't stored). A local library,
     /// not a Preferences dialog field: resetting the preferences keeps it; `pdf.preset.*` edit it.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub pdf_presets: Vec<vectorcraft_pdf::PdfPreset>,
+    pub pdf_presets: Vec<pluma_pdf::PdfPreset>,
     /// File → Export for Screens: the user's batch export presets (`document.exportPresets.*`;
     /// the built-in ones aren't stored). A local library, not a Preferences dialog field.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub screen_export_presets: Vec<cmd::fileio::ScreenExportPreset>,
     // File Handling (continued)
-    /// Where Save as Template and New from Template start ("" = `Documents/VectorCraft Templates`).
+    /// Where Save as Template and New from Template start ("" = `Documents/Pluma Templates`).
     pub templates_folder: String,
     /// File Handling → Use System Defaults for Edit Original (#5236): Links panel › Edit Original
     /// opens a linked file in the system's default app for it; off, in the app that made it
-    /// (PhotoCraft for a raster image, where it is installed; the system's app otherwise).
+    /// (Lienzo for a raster image, where it is installed; the system's app otherwise).
     pub edit_original_system_defaults: bool,
     /// Open older native files as "<name> [Converted]" so Save asks for a new name.
     pub append_converted: bool,
@@ -308,7 +308,7 @@ pub struct Prefs {
     /// Preferences dialog field: resetting the preferences keeps it; `webExport.presets.*` edit it.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub web_export_presets: Vec<cmd::webexport::WebPreset>,
-    /// The VectorCraft Options a native Save or Save As used last (Preview, Embed ICC Profiles,
+    /// The Pluma Options a native Save or Save As used last (Preview, Embed ICC Profiles,
     /// Create PDF-Compatible File…; not the artboards it picked, nor Use Compression, which its
     /// preference decides): `file.formatOptions` offers them for a document not yet saved as a
     /// native file. Not a Preferences dialog field.
@@ -338,7 +338,7 @@ pub struct Prefs {
     /// from its symbol's registration point instead of the reference point.
     pub use_registration_point_for_symbol: bool,
     /// The tools' persistent options by store (a tool id, or a store a family shares: `liquify`
-    /// holds the Liquify tools' Global Brush Dimensions), see [`vectorcraft_tools::settings`]:
+    /// holds the Liquify tools' Global Brush Dimensions), see [`pluma_tools::settings`]:
     /// kept across tool switches and saved with the preferences. Not a Preferences dialog field:
     /// resetting the preferences keeps them; `tool.setOption` edits them.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -347,16 +347,16 @@ pub struct Prefs {
     /// library, not a Preferences dialog field: resetting the preferences keeps it;
     /// `perspective.presets.*` edit it.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub perspective_presets: Vec<vectorcraft_tools::distort::perspective::GridDefinition>,
+    pub perspective_presets: Vec<pluma_tools::distort::perspective::GridDefinition>,
     /// Blend Options set with no blend selected: what new blends start with
     /// (`object.blend.options`; none: Smooth Color, Align to Page). A tool setting, not a
     /// Preferences dialog field: it has no [`cmd::prefscmds::PREF_SPECS`] row and resetting the
     /// preferences keeps it.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blend_options: Option<vectorcraft_doc::live::BlendDefaults>,
+    pub blend_options: Option<pluma_doc::live::BlendDefaults>,
     /// Perspective Grid Options (double-click the Perspective Grid tool): whether the Plane
     /// Switching Widget shows and where (`perspective.widget.options`).
-    pub perspective_widget: vectorcraft_tools::distort::perspective::widget::WidgetOptions,
+    pub perspective_widget: pluma_tools::distort::perspective::widget::WidgetOptions,
     /// What names and codes in other apps' shortcut sets stand for, as the user confirmed them on
     /// import (`importMatches.*`). A local library, not a Preferences dialog field: resetting the
     /// preferences keeps it.
@@ -445,7 +445,7 @@ impl Default for Prefs {
             object_highlighting: true,
             transform_tools_guides: true,
             construction_guides: true,
-            construction_angles: s(vectorcraft_tools::guides::DEFAULT_CONSTRUCTION_ANGLES),
+            construction_angles: s(pluma_tools::guides::DEFAULT_CONSTRUCTION_ANGLES),
             anchor_path_labels: true,
             measurement_labels: true,
             spacing_guides: true,
@@ -503,7 +503,7 @@ impl Default for Prefs {
             touch_gestures: true,
             override_char_color: true,
             pattern_tile_edge_color: {
-                let [r, g, b] = vectorcraft_doc::LAYER_COLORS[0].1;
+                let [r, g, b] = pluma_doc::LAYER_COLORS[0].1;
                 Color::rgb8(r, g, b).to_hex()
             },
             eyedropper: Default::default(),

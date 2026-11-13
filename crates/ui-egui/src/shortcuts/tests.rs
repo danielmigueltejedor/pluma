@@ -33,7 +33,7 @@ fn edit_function_keys_dispatch_outside_text_editing_only() {
     if crate::keymap::platform().is_mac() {
         return;
     }
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let shape = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [shape]})).unwrap();
@@ -47,7 +47,7 @@ fn edit_function_keys_dispatch_outside_text_editing_only() {
 
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     for key in [Key::F2, Key::F3, Key::F4] {
         frame(&mut app, press(key, Modifiers::NONE));
@@ -97,7 +97,7 @@ fn rebound_layers_chord_toggles_and_plain_panel_command_reveals() {
     assert_eq!(hit.id, "window.panel");
     assert_eq!(hit.params["panel"], "layers");
 
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("window.panel", json!({"panel": "layers"})).unwrap();
     let ctx = egui::Context::default();
@@ -110,7 +110,7 @@ fn rebound_layers_chord_toggles_and_plain_panel_command_reveals() {
 }
 
 /// One headless frame delivering `events` to the shortcut handler.
-fn frame(app: &mut VectorcraftApp, events: Vec<egui::Event>) -> egui::FullOutput {
+fn frame(app: &mut PlumaApp, events: Vec<egui::Event>) -> egui::FullOutput {
     let ctx = egui::Context::default();
     let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
         // The production path: `logic` takes this host iteration's input once through
@@ -145,7 +145,7 @@ fn ctrl_alt_press(key: Key, typed: Option<&str>) -> Vec<egui::Event> {
 }
 
 /// The text of the type object `id`, and the document's layer count.
-fn text_and_layers(app: &mut VectorcraftApp, id: u64) -> (String, usize) {
+fn text_and_layers(app: &mut PlumaApp, id: u64) -> (String, usize) {
     let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
     let text = r["runs"].as_array().unwrap().iter().filter_map(|run| run["text"].as_str()).collect();
     (text, app.session.active().unwrap().doc.layers.len())
@@ -159,17 +159,17 @@ fn text_and_layers(app: &mut VectorcraftApp, id: u64) -> (String, usize) {
 fn altgr_characters_typed_in_text_run_no_command() {
     let mut wrong = vec![];
     for (key, typed) in [(Key::L, "ł"), (Key::Q, "@"), (Key::E, "€"), (Key::A, "ą"), (Key::Z, "ż")] {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
         app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
         let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
         app.session.execute("text.setRangeStyle", &json!({"id": id, "tracking": 200, "kerning": -40})).unwrap();
         app.select_tool("type");
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         app.session.set_tool_option("select", &json!({"start": 2, "end": 2}));
         assert!(app.session.tool_wants_text());
         let layers = text_and_layers(&mut app, id).1;
-        let selected = |app: &VectorcraftApp| app.session.active().unwrap().selection.objects.len();
+        let selected = |app: &PlumaApp| app.session.active().unwrap().selection.objects.len();
         let before = selected(&app);
         frame(&mut app, ctrl_alt_press(key, Some(typed)));
         let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
@@ -195,21 +195,21 @@ fn command_key() -> Modifiers {
 /// Layer Options for a new layer.
 #[test]
 fn ctrl_alt_chords_without_typed_text_still_run() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     let layers = text_and_layers(&mut app, id).1;
     let new_layer_options =
-        |app: &VectorcraftApp| app.ui.dialog.as_ref().is_some_and(|d| d.kind == "layerOptions" && d.fields.get("mode") == Some(&json!("new")));
+        |app: &PlumaApp| app.ui.dialog.as_ref().is_some_and(|d| d.kind == "layerOptions" && d.fields.get("mode") == Some(&json!("new")));
     let m = command_key();
     frame(&mut app, press(Key::L, m));
     assert_eq!(text_and_layers(&mut app, id), ("Hi".into(), layers + 1), "Ctrl+L while editing: New Layer");
     assert!(app.ui.dialog.is_none(), "Ctrl+L opens no dialog");
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     frame(&mut app, press(Key::L, m | Modifiers::ALT));
     assert!(new_layer_options(&app), "Ctrl+Alt+L with no text typed while editing: New Layer Options…");
@@ -282,7 +282,7 @@ fn a_shortcut_runs_what_its_menu_item_runs() {
         egui::Event::Key { key: Key::F9, physical_key: None, pressed: true, repeat: false, modifiers: cmd() | Modifiers::ALT | Modifiers::SHIFT },
     ];
     for id in ["object.path.cleanUp", "addon.color.printFixes", "edit.findReplace"] {
-        let mut app = VectorcraftApp::new(vectorcraft_testkit::fixtures::Fixture::Single.session(), Default::default());
+        let mut app = PlumaApp::new(pluma_testkit::fixtures::Fixture::Single.session(), Default::default());
         crate::keymap::set_override(&mut app.ui.shortcut_overrides, id, "Cmd+Alt+Shift+F9");
         app.ui.status.clear();
         frame(&mut app, chord.clone());
@@ -296,18 +296,18 @@ fn a_shortcut_runs_what_its_menu_item_runs() {
 /// tool's Shift+O), with the Selection tool or while the Type tool edits the text.
 #[test]
 fn cmd_shift_o_creates_outlines() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     assert_eq!(crate::menus::shortcut_of("type.createOutlines"), Some("Cmd+Shift+O"));
     let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
     let chord = egui::Event::Key { key: Key::O, physical_key: None, pressed: true, repeat: false, modifiers: cmd_shift };
-    let is_text = |app: &VectorcraftApp, id: u64| {
-        matches!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).map(|n| &n.kind), Some(vectorcraft_doc::NodeKind::Text(_)))
+    let is_text = |app: &PlumaApp, id: u64| {
+        matches!(app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).map(|n| &n.kind), Some(pluma_doc::NodeKind::Text(_)))
     };
-    let group_kids = |app: &VectorcraftApp| -> usize {
+    let group_kids = |app: &PlumaApp| -> usize {
         let id = app.session.active().unwrap().selection.objects.first().copied().unwrap();
         match &app.session.doc().unwrap().doc.node(id).unwrap().kind {
-            vectorcraft_doc::NodeKind::Group { children, .. } => children.len(),
+            pluma_doc::NodeKind::Group { children, .. } => children.len(),
             _ => 0,
         }
     };
@@ -321,7 +321,7 @@ fn cmd_shift_o_creates_outlines() {
     // While the Type tool edits, the same chord outlines; a Text event with Cmd held must not type.
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 80, "text": "Yo"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     frame(&mut app, vec![egui::Event::ModifiersChanged(cmd_shift), chord, egui::Event::Text("o".into())]);
     assert!(!is_text(&app, id), "Type tool: the chord outlines the text being edited");
@@ -334,15 +334,15 @@ fn cmd_shift_o_creates_outlines() {
 /// the shortcut hides unselected members of the isolated group.
 #[test]
 fn cmd_alt_shift_3_hides_unselected_artwork() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     assert_eq!(crate::menus::shortcut_of("object.hide.unselected"), Some("Cmd+Alt+Shift+3"));
-    let rect = |app: &mut VectorcraftApp, x: f64| {
+    let rect = |app: &mut PlumaApp, x: f64| {
         let r = app.session.execute("shape.rectangle", &json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap();
-        vectorcraft_doc::NodeId(r["id"].as_u64().unwrap())
+        pluma_doc::NodeId(r["id"].as_u64().unwrap())
     };
     let (a, b) = (rect(&mut app, 10.0), rect(&mut app, 50.0));
-    let shown = |app: &VectorcraftApp| [a, b].map(|id| app.session.doc().unwrap().doc.node(id).unwrap().visible);
+    let shown = |app: &PlumaApp| [a, b].map(|id| app.session.doc().unwrap().doc.node(id).unwrap().visible);
     let three = |modifiers| egui::Event::Key { key: Key::Num3, physical_key: None, pressed: true, repeat: false, modifiers };
     app.session.execute("select.set", &json!({"ids": [a.0]})).unwrap();
     frame(&mut app, vec![three(Modifiers::COMMAND | Modifiers::ALT | Modifiers::SHIFT)]);
@@ -368,10 +368,10 @@ fn cmd_alt_shift_3_hides_unselected_artwork() {
 /// again on the choice confirmed last.
 #[test]
 fn cmd_alt_shift_j_opens_average_and_join() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     assert_eq!(crate::menus::shortcut_of("path.averageJoin"), Some("Cmd+Alt+Shift+J"));
-    let line = |app: &mut VectorcraftApp, x1: f64, x2: f64| {
+    let line = |app: &mut PlumaApp, x1: f64, x2: f64| {
         app.session.execute("shape.line", &json!({"x1": x1, "y1": 10, "x2": x2, "y2": 10})).unwrap()["id"].as_u64().unwrap()
     };
     let (a, b) = (line(&mut app, 10.0, 50.0), line(&mut app, 60.0, 100.0));
@@ -395,8 +395,8 @@ fn cmd_alt_shift_j_opens_average_and_join() {
     crate::dialogs::confirm(&mut app).unwrap();
     assert!(app.ui.dialog.is_none());
     let doc = &app.session.doc().unwrap().doc;
-    assert!(doc.node(vectorcraft_doc::NodeId(b)).is_none(), "joined into one path");
-    let path = doc.node(vectorcraft_doc::NodeId(a)).unwrap().path_data().unwrap();
+    assert!(doc.node(pluma_doc::NodeId(b)).is_none(), "joined into one path");
+    let path = doc.node(pluma_doc::NodeId(a)).unwrap().path_data().unwrap();
     let pts: Vec<(f64, f64)> = path.subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect();
     assert_eq!(pts, [(10.0, 10.0), (55.0, 10.0), (100.0, 10.0)]);
     frame(&mut app, vec![j()]);
@@ -406,19 +406,19 @@ fn cmd_alt_shift_j_opens_average_and_join() {
 /// Cmd+Alt+Shift+2 locks unselected artwork, including inside an isolated group.
 #[test]
 fn cmd_alt_shift_2_locks_unselected_artwork() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     assert_eq!(crate::menus::shortcut_of("object.lock.unselected"), Some("Cmd+Alt+Shift+2"));
     assert_eq!(crate::menus::shortcut_of("object.hide.unselected"), Some("Cmd+Alt+Shift+3"));
     assert!(!crate::menus::menu_tree_named(true).iter().any(|(_, items)| format!("{items:?}").contains("object.lock.unselected")));
-    let rect = |app: &mut VectorcraftApp, x: f64| {
+    let rect = |app: &mut PlumaApp, x: f64| {
         let r = app.session.execute("shape.rectangle", &json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap();
-        vectorcraft_doc::NodeId(r["id"].as_u64().unwrap())
+        pluma_doc::NodeId(r["id"].as_u64().unwrap())
     };
     let (a, b) = (rect(&mut app, 10.0), rect(&mut app, 50.0));
     app.session.execute("select.none", &json!({})).unwrap();
     assert!(!crate::menus::enabled(&app, "object.lock.unselected"), "nothing selected");
-    let locked = |app: &VectorcraftApp| [a, b].map(|id| app.session.doc().unwrap().doc.node(id).unwrap().locked);
+    let locked = |app: &PlumaApp| [a, b].map(|id| app.session.doc().unwrap().doc.node(id).unwrap().locked);
     let two = |modifiers| egui::Event::Key { key: Key::Num2, physical_key: None, pressed: true, repeat: false, modifiers };
     app.session.execute("select.set", &json!({"ids": [a.0]})).unwrap();
     assert!(crate::menus::enabled(&app, "object.lock.unselected"), "selection present");
@@ -443,12 +443,12 @@ fn cmd_alt_shift_2_locks_unselected_artwork() {
 /// Cmd+Shift+B while the Type tool edits text is Type › Bold, not Hide Bounding Box (#724).
 #[test]
 fn cmd_shift_b_while_typing_is_bold_not_the_bounding_box() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     app.select_tool("type");
     let view = app.view_info();
-    for kind in [vectorcraft_tools::PointerKind::Down, vectorcraft_tools::PointerKind::Up] {
-        app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
+    for kind in [pluma_tools::PointerKind::Down, pluma_tools::PointerKind::Up] {
+        app.session.pointer(&pluma_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
     }
     frame(&mut app, vec![egui::Event::Text("Bold".into())]);
     assert!(app.session.tool_wants_text());
@@ -468,13 +468,13 @@ fn cmd_shift_b_while_typing_is_bold_not_the_bounding_box() {
 /// or while the Type tool edits text, those its selection touches.
 #[test]
 fn cmd_shift_letters_align_paragraphs() {
-    use vectorcraft_doc::Justify;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_doc::Justify;
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One\nTwo"})).unwrap()["id"].as_u64().unwrap();
     let chord = |key| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND | Modifiers::SHIFT };
-    let paras = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(t) => (0..t.paragraph_count()).map(|i| t.para_at(i).justify).collect::<Vec<_>>(),
+    let paras = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
+        pluma_doc::NodeKind::Text(t) => (0..t.paragraph_count()).map(|i| t.para_at(i).justify).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -486,7 +486,7 @@ fn cmd_shift_letters_align_paragraphs() {
     }
     // With the Type tool, only the paragraph its selection touches.
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 5, "end": 6}));
     assert!(app.session.tool_wants_text());
     frame(&mut app, vec![chord(Key::R)]);
@@ -501,11 +501,11 @@ fn cmd_shift_letters_align_paragraphs() {
 /// and of the Type tool's selected text while it edits.
 #[test]
 fn cmd_alt_q_resets_tracking_and_kerning() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two"})).unwrap()["id"].as_u64().unwrap();
-    let spaced = |app: &mut VectorcraftApp| app.session.execute("text.setRangeStyle", &json!({"id": id, "tracking": 200, "kerning": -40})).unwrap();
-    let spacing = |app: &mut VectorcraftApp| {
+    let spaced = |app: &mut PlumaApp| app.session.execute("text.setRangeStyle", &json!({"id": id, "tracking": 200, "kerning": -40})).unwrap();
+    let spacing = |app: &mut PlumaApp| {
         let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
         r["runs"]
             .as_array()
@@ -522,7 +522,7 @@ fn cmd_alt_q_resets_tracking_and_kerning() {
     // While the Type tool edits: only its selection.
     spaced(&mut app);
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 7}));
     assert!(app.session.tool_wants_text());
     frame(&mut app, vec![chord]);
@@ -535,7 +535,7 @@ fn cmd_alt_q_resets_tracking_and_kerning() {
 #[test]
 fn cmd_alt_k_and_cmd_alt_shift_f_highlight_the_character_fields() {
     use crate::panels::character::Field;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two"})).unwrap()["id"].as_u64().unwrap();
     let chord = |key, m| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: m };
@@ -549,7 +549,7 @@ fn cmd_alt_k_and_cmd_alt_shift_f_highlight_the_character_fields() {
     // While the Type tool edits text.
     app.character_focus = None;
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 7}));
     assert!(app.session.tool_wants_text());
     frame(&mut app, vec![chord(Key::K, Modifiers::COMMAND | Modifiers::ALT)]);
@@ -567,11 +567,11 @@ fn cmd_alt_k_and_cmd_alt_shift_f_highlight_the_character_fields() {
 /// the type object is not cut.
 #[test]
 fn cmd_shift_x_resets_horizontal_scale() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two"})).unwrap()["id"].as_u64().unwrap();
-    let stretched = |app: &mut VectorcraftApp| app.session.execute("text.setRangeStyle", &json!({"id": id, "hScale": 150})).unwrap();
-    let scales = |app: &mut VectorcraftApp| {
+    let stretched = |app: &mut PlumaApp| app.session.execute("text.setRangeStyle", &json!({"id": id, "hScale": 150})).unwrap();
+    let scales = |app: &mut PlumaApp| {
         let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
         r["runs"].as_array().unwrap().iter().map(|run| (run["text"].clone(), run["style"]["h_scale"].clone())).collect::<Vec<_>>()
     };
@@ -583,7 +583,7 @@ fn cmd_shift_x_resets_horizontal_scale() {
     // While the Type tool edits: only its selection, and the text stays.
     stretched(&mut app);
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 7}));
     assert!(app.session.tool_wants_text());
     frame(&mut app, chord);
@@ -597,16 +597,16 @@ fn cmd_shift_x_resets_horizontal_scale() {
 /// Artboards (Cmd+Shift+H) stay as they are.
 #[test]
 fn cmd_shift_u_and_cmd_alt_shift_c_and_h_toggle_type_formats() {
-    use vectorcraft_doc::Composer;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_doc::Composer;
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One\nTwo"})).unwrap()["id"].as_u64().unwrap();
-    let underlines = |app: &mut VectorcraftApp| {
+    let underlines = |app: &mut PlumaApp| {
         let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
         r["runs"].as_array().unwrap().iter().map(|run| (run["text"].clone(), run["style"]["underline"].clone())).collect::<Vec<_>>()
     };
-    let paras = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(t) => (0..t.paragraph_count()).map(|i| (t.para_at(i).composer, t.para_at(i).hyphenate)).collect::<Vec<_>>(),
+    let paras = |app: &PlumaApp| match &app.session.active().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().kind {
+        pluma_doc::NodeKind::Text(t) => (0..t.paragraph_count()).map(|i| (t.para_at(i).composer, t.para_at(i).hyphenate)).collect::<Vec<_>>(),
         _ => panic!("text"),
     };
     let chord =
@@ -631,7 +631,7 @@ fn cmd_shift_u_and_cmd_alt_shift_c_and_h_toggle_type_formats() {
     assert_eq!((app.ui.view.smart_guides, app.ui.view.artboards, app.session.clipboard.is_empty()), (guides, artboards, true));
     // While the Type tool edits: its selected text, and the paragraph that text is in.
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 7}));
     assert!(app.session.tool_wants_text());
     for (key, m) in [(Key::U, shift), (Key::C, alt_shift), (Key::H, alt_shift)] {
@@ -659,11 +659,11 @@ fn cmd_shift_u_and_cmd_alt_shift_c_and_h_toggle_type_formats() {
 /// work.
 #[test]
 fn tab_leaves_the_keyboard_to_the_shortcuts_and_the_type_tool() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 850.0));
-    let run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: Some(screen), ..Default::default() }, |ui| {
             app.logic(ui.ctx());
             app.ui(ui);
@@ -686,8 +686,8 @@ fn tab_leaves_the_keyboard_to_the_shortcuts_and_the_type_tool() {
     // The Type tool: a, Tab, b is one text.
     app.select_tool("type");
     let view = app.view_info();
-    for kind in [vectorcraft_tools::PointerKind::Down, vectorcraft_tools::PointerKind::Up] {
-        app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
+    for kind in [pluma_tools::PointerKind::Down, pluma_tools::PointerKind::Up] {
+        app.session.pointer(&pluma_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
     }
     run(&mut app, vec![egui::Event::Text("a".into())]);
     run(&mut app, vec![press(Key::Tab)]);
@@ -700,11 +700,11 @@ fn tab_leaves_the_keyboard_to_the_shortcuts_and_the_type_tool() {
 /// one must take its shortcut, not lose the second to a dedupe key that omits the viewport.
 #[test]
 fn two_viewports_on_the_same_frame_number_each_take_their_shortcut() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
-    let aux = egui::ViewportId::from_hash_of("vectorcraft-shortcuts-aux");
+    let aux = egui::ViewportId::from_hash_of("pluma-shortcuts-aux");
     let tab = egui::Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE };
     let mut frames = vec![];
     // The auxiliary viewport goes first so the root one has not advanced past frame 0.
@@ -726,11 +726,11 @@ fn two_viewports_on_the_same_frame_number_each_take_their_shortcut() {
 /// In a focused field neither key shows or hides anything.
 #[test]
 fn shift_tab_hides_the_panels_but_not_the_toolbar_or_the_control_bar() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 850.0));
-    let run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: Some(screen), ..Default::default() }, |ui| {
             app.logic(ui.ctx());
             app.ui(ui);
@@ -738,7 +738,7 @@ fn shift_tab_hides_the_panels_but_not_the_toolbar_or_the_control_bar() {
         out.textures_delta.clear();
     };
     let press = |modifiers| egui::Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers };
-    let shown = |app: &VectorcraftApp| (app.ui.dock, app.ui.toolbar, app.ui.control_bar);
+    let shown = |app: &PlumaApp| (app.ui.dock, app.ui.toolbar, app.ui.control_bar);
     app.ui.control_bar = true;
     for _ in 0..3 {
         run(&mut app, vec![]);
@@ -789,11 +789,11 @@ fn shift_tab_hides_the_panels_but_not_the_toolbar_or_the_control_bar() {
 /// After a switch of workspace, Tab hides and shows that workspace's bars.
 #[test]
 fn tab_shows_again_only_the_bars_it_hid() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 850.0));
-    let run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: Some(screen), ..Default::default() }, |ui| {
             app.logic(ui.ctx());
             app.ui(ui);
@@ -801,7 +801,7 @@ fn tab_shows_again_only_the_bars_it_hid() {
         out.textures_delta.clear();
     };
     let press = |modifiers| egui::Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers };
-    let tab = |app: &mut VectorcraftApp, modifiers| {
+    let tab = |app: &mut PlumaApp, modifiers| {
         run(app, vec![press(modifiers)]);
         run(app, vec![]);
         (app.ui.dock, app.ui.toolbar, app.ui.control_bar)
@@ -858,7 +858,7 @@ fn tab_shows_again_only_the_bars_it_hid() {
 
 #[test]
 fn copy_and_paste_events_use_the_system_clipboard() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -887,13 +887,13 @@ fn copy_and_paste_events_use_the_system_clipboard() {
 /// While a grid is dragged out, ↑/↓ change its rows and ←/→ its columns.
 #[test]
 fn arrows_while_dragging_a_grid_change_its_rows_and_columns() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.select_tool("rectangularGrid");
     let view = app.view_info();
     // Drag a grid out, pressing `keys` on the way: its (horizontal, vertical) dividers.
-    let grid = |app: &mut VectorcraftApp, keys: &[Key]| {
+    let grid = |app: &mut PlumaApp, keys: &[Key]| {
         app.session.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 80.0), view).unwrap();
         app.session.pointer(&PointerEvent::new(PointerKind::Drag, 300.0, 220.0), view).unwrap();
         for &key in keys {
@@ -903,7 +903,7 @@ fn arrows_while_dragging_a_grid_change_its_rows_and_columns() {
         app.session.pointer(&PointerEvent::new(PointerKind::Up, 300.0, 220.0), view).unwrap();
         let d = &app.session.doc().unwrap().doc;
         let g = d.layers[0].children().unwrap().last().unwrap().clone();
-        let vectorcraft_doc::NodeKind::Group { children, .. } = &g.kind else { panic!("not a grid: {:?}", g.kind) };
+        let pluma_doc::NodeKind::Group { children, .. } = &g.kind else { panic!("not a grid: {:?}", g.kind) };
         let bounds: Vec<_> = children.iter().filter_map(|c| c.geometric_bounds()).collect();
         (bounds.iter().filter(|b| b.height() < 0.5).count(), bounds.iter().filter(|b| b.width() < 0.5).count())
     };
@@ -916,14 +916,14 @@ fn arrows_while_dragging_a_grid_change_its_rows_and_columns() {
 /// with Shift; with Alt, Ctrl or Cmd they do not reach the grid.
 #[test]
 fn grid_drag_letters_take_plain_and_shift_presses() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.select_tool("polarGrid");
     let view = app.view_info();
     app.session.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 80.0), view).unwrap();
     app.session.pointer(&PointerEvent::new(PointerKind::Drag, 300.0, 220.0), view).unwrap();
-    let skews = |app: &VectorcraftApp| (app.session.tool_options()["radialSkew"].clone(), app.session.tool_options()["concentricSkew"].clone());
+    let skews = |app: &PlumaApp| (app.session.tool_options()["radialSkew"].clone(), app.session.tool_options()["concentricSkew"].clone());
     frame(&mut app, press(Key::V, Modifiers::NONE));
     assert_eq!(skews(&app), (json!(10.0), json!(0.0)));
     frame(&mut app, press(Key::F, Modifiers::SHIFT));
@@ -951,14 +951,14 @@ fn press(key: Key, m: Modifiers) -> Vec<egui::Event> {
 
 #[test]
 fn enclosing_lasso_escape_cancels_and_q_returns_to_anchor_lasso() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
 
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     crate::shortcut_editor::sync(&app.ui);
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
-    app.select_tool(vectorcraft_tools::addons::enclosing_lasso::ID);
+    app.select_tool(pluma_tools::addons::enclosing_lasso::ID);
     let view = app.view_info();
     app.session.pointer(&PointerEvent::new(PointerKind::Down, 90.0, 90.0), view).unwrap();
     app.session.pointer(&PointerEvent::new(PointerKind::Drag, 210.0, 90.0), view).unwrap();
@@ -966,7 +966,7 @@ fn enclosing_lasso_escape_cancels_and_q_returns_to_anchor_lasso() {
     frame(&mut app, press(Key::Escape, Modifiers::NONE));
     assert!(!app.session.tool_busy());
     app.session.pointer(&PointerEvent::new(PointerKind::Up, 90.0, 210.0), view).unwrap();
-    assert_eq!(app.session.active().unwrap().selection.objects, vec![vectorcraft_doc::NodeId(id)]);
+    assert_eq!(app.session.active().unwrap().selection.objects, vec![pluma_doc::NodeId(id)]);
     let mut keys = press(Key::Q, Modifiers::NONE);
     keys.push(egui::Event::Text("q".into()));
     frame(&mut app, keys);
@@ -974,7 +974,7 @@ fn enclosing_lasso_escape_cancels_and_q_returns_to_anchor_lasso() {
 }
 
 /// Binds Show Grid to `chord`, or with `None` leaves every command its default shortcut.
-fn bind_grid(app: &mut VectorcraftApp, chord: Option<&str>) {
+fn bind_grid(app: &mut PlumaApp, chord: Option<&str>) {
     app.ui.shortcut_overrides.clear();
     if let Some(c) = chord {
         app.ui.shortcut_overrides.insert("view.grid", vec![c.to_string()]);
@@ -983,8 +983,8 @@ fn bind_grid(app: &mut VectorcraftApp, chord: Option<&str>) {
 }
 
 /// Clicks the active tool at (`x`, 200) and returns how many objects the first layer holds.
-fn click_at(app: &mut VectorcraftApp, x: f64) -> usize {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+fn click_at(app: &mut PlumaApp, x: f64) -> usize {
+    use pluma_tools::{PointerEvent, PointerKind};
     let view = app.view_info();
     for kind in [PointerKind::Down, PointerKind::Up] {
         app.session.pointer(&PointerEvent::new(kind, x, 200.0), view).unwrap();
@@ -997,10 +997,10 @@ fn click_at(app: &mut VectorcraftApp, x: f64) -> usize {
 /// nothing bound to it, Cmd+Enter goes to the tool as Enter does.
 #[test]
 fn a_command_on_cmd_enter_runs_without_the_tools_enter() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 30})).unwrap()["id"].clone();
-    let kind = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
+    let kind = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
     let grid = app.ui.view.grid;
     app.select_tool("selection");
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -1015,7 +1015,7 @@ fn a_command_on_cmd_enter_runs_without_the_tools_enter() {
     app.ui.dialog = None;
     let text = app.session.execute("text.create", &json!({"x": 20, "y": 250, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     frame(&mut app, press(Key::Enter, Modifiers::COMMAND));
     let typed = text_and_layers(&mut app, text).0;
@@ -1037,7 +1037,7 @@ fn a_command_on_cmd_enter_runs_without_the_tools_enter() {
 /// for the Start menu, so no command can be bound to it there and it goes to the tool.
 #[test]
 fn a_command_on_cmd_escape_runs_without_the_tools_escape() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 30})).unwrap()["id"].clone();
     let grid = app.ui.view.grid;
@@ -1054,10 +1054,10 @@ fn a_command_on_cmd_escape_runs_without_the_tools_escape() {
         assert_eq!((click_at(&mut app, 200.0), app.ui.view.grid), (objects + 1, grid), "Windows: Cmd+Escape stays unbound and ends the path");
     }
     let text = app.session.execute("text.create", &json!({"x": 20, "y": 250, "text": "Hi"})).unwrap()["id"].clone();
-    let edit = |app: &mut VectorcraftApp| {
+    let edit = |app: &mut PlumaApp| {
         app.session.execute("select.set", &json!({"ids": [text]})).unwrap();
         app.select_tool("type");
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         assert!(app.session.tool_wants_text());
     };
     if bindable {
@@ -1067,7 +1067,7 @@ fn a_command_on_cmd_escape_runs_without_the_tools_escape() {
     }
     app.select_tool("selection");
     app.session.execute("object.isolate", &json!({"id": id})).unwrap();
-    let isolated = |app: &VectorcraftApp| app.session.active().unwrap().isolation.is_some();
+    let isolated = |app: &PlumaApp| app.session.active().unwrap().isolation.is_some();
     if bindable {
         frame(&mut app, cmd_escape());
         assert_eq!((isolated(&app), app.ui.view.grid), (true, !grid), "Cmd+Escape runs Show Grid and isolation mode stays on");
@@ -1089,7 +1089,7 @@ fn a_command_on_cmd_escape_runs_without_the_tools_escape() {
 /// the editing layer is removed, nothing is isolated, and the masked object is selected.
 #[test]
 fn escape_while_an_opacity_mask_is_edited_leaves_mask_editing() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let obj = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 200, "height": 100})).unwrap()["id"].as_u64().unwrap();
     let m = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 100, "height": 100})).unwrap()["id"].clone();
@@ -1101,20 +1101,20 @@ fn escape_while_an_opacity_mask_is_edited_leaves_mask_editing() {
     let st = app.session.active().unwrap();
     assert!(st.doc.mask_edit.is_none() && st.isolation.is_none(), "Escape leaves mask editing");
     assert_eq!(st.doc.layers.len(), 1, "the editing layer is removed");
-    assert_eq!(st.selection.objects, vec![vectorcraft_doc::NodeId(obj)]);
+    assert_eq!(st.selection.objects, vec![pluma_doc::NodeId(obj)]);
 }
 
 /// Enter opens the tool's dialog: the Move dialog for the selection tools, the tool's own for
 /// Rotate, Scale, Reflect and Shear. The Enter that opens it isn't also its OK.
 #[test]
 fn enter_opens_the_tools_dialog_and_leaves_it_open() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     let key = |pressed| egui::Event::Key { key: Key::Enter, physical_key: None, pressed, repeat: false, modifiers: Modifiers::NONE };
     let enter = || vec![key(true), key(false)];
     // A whole app frame: the shortcuts first, then the UI, where a dialog takes its Enter.
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
         let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -1122,9 +1122,9 @@ fn enter_opens_the_tools_dialog_and_leaves_it_open() {
         });
         out.textures_delta.clear();
     };
-    let kind = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
+    let kind = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
     // The undo steps and the journal entries (the dialog's OK runs its command, which the journal records).
-    let steps = |app: &VectorcraftApp| (app.session.active().unwrap().history.undo.len(), app.session.journal.len());
+    let steps = |app: &PlumaApp| (app.session.active().unwrap().history.undo.len(), app.session.journal.len());
     app.select_tool("selection");
     frame(&mut app, enter());
     assert_eq!(kind(&app), None, "nothing is selected");
@@ -1169,7 +1169,7 @@ impl HeldKey {
         Self { ctx: egui::Context::default(), key, modifiers }
     }
 
-    fn frame(&self, app: &mut VectorcraftApp, mut events: Vec<egui::Event>) {
+    fn frame(&self, app: &mut PlumaApp, mut events: Vec<egui::Event>) {
         events.insert(0, egui::Event::ModifiersChanged(self.modifiers));
         let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
         let mut out = self.ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
@@ -1179,29 +1179,29 @@ impl HeldKey {
         out.textures_delta.clear();
     }
 
-    fn key(&self, app: &mut VectorcraftApp, pressed: bool) {
+    fn key(&self, app: &mut PlumaApp, pressed: bool) {
         let event = egui::Event::Key { key: self.key, physical_key: None, pressed, repeat: false, modifiers: self.modifiers };
         self.frame(app, vec![event]);
     }
 
     /// The press, or while the key is down, one repeat.
-    fn press(&self, app: &mut VectorcraftApp) {
+    fn press(&self, app: &mut PlumaApp) {
         self.key(app, true);
     }
 
-    fn release(&self, app: &mut VectorcraftApp) {
+    fn release(&self, app: &mut PlumaApp) {
         self.key(app, false);
     }
 }
 
-fn app_with_a_selected_rectangle() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn app_with_a_selected_rectangle() -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 30})).unwrap();
     app
 }
 
-fn open_dialog(app: &VectorcraftApp) -> Option<String> {
+fn open_dialog(app: &PlumaApp) -> Option<String> {
     app.ui.dialog.as_ref().map(|d| d.kind.clone())
 }
 
@@ -1210,7 +1210,7 @@ fn open_dialog(app: &VectorcraftApp) -> Option<String> {
 fn hold_enter_on_a_selection(modifiers: Modifiers) {
     let mut app = app_with_a_selected_rectangle();
     let held = HeldKey::new(Key::Enter, modifiers);
-    let steps = |app: &VectorcraftApp| (app.session.active().unwrap().history.undo.len(), app.session.journal.len());
+    let steps = |app: &PlumaApp| (app.session.active().unwrap().history.undo.len(), app.session.journal.len());
     app.select_tool("selection");
     let before = steps(&app);
     for repeat in 0..8 {
@@ -1245,9 +1245,9 @@ fn holding_shift_enter_opens_the_move_dialog_once_and_a_new_press_confirms_it() 
 /// After a drag Move opens on the drag's offset, and holding Enter leaves the object where it is.
 #[test]
 fn holding_enter_after_a_drag_does_not_move_the_object_again() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
+    use pluma_tools::{PointerEvent, PointerKind};
     let mut app = app_with_a_selected_rectangle();
-    let left = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap().x0;
+    let left = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().unwrap()[0].geometric_bounds().unwrap().x0;
     app.select_tool("selection");
     let view = app.view_info();
     for (kind, x) in [(PointerKind::Down, 35.0), (PointerKind::Drag, 55.0), (PointerKind::Drag, 75.0), (PointerKind::Up, 75.0)] {
@@ -1316,7 +1316,7 @@ fn holding_the_enter_that_confirms_a_dialog_types_no_line_break() {
     let mut app = app_with_a_selected_rectangle();
     let text = app.session.execute("text.create", &json!({"x": 20, "y": 250, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     crate::menus::invoke(&mut app, "object.move", json!({}));
     assert_eq!(open_dialog(&app).as_deref(), Some("move"));
@@ -1342,7 +1342,7 @@ fn holding_cmd_enter_ends_text_editing_once() {
     let mut app = app_with_a_selected_rectangle();
     let text = app.session.execute("text.create", &json!({"x": 20, "y": 250, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     assert!(app.session.tool_wants_text());
     let held = HeldKey::new(Key::Enter, Modifiers::COMMAND);
     held.frame(&mut app, vec![]);
@@ -1380,14 +1380,14 @@ fn a_lost_release_costs_one_press_of_enter() {
 /// for a new press. That covers the dialogs that draw their own window too.
 #[test]
 fn a_dialog_that_opens_while_enter_is_down_waits_for_a_new_press() {
-    fn open_move(app: &mut VectorcraftApp) {
+    fn open_move(app: &mut PlumaApp) {
         let _ = crate::toolbar::open_options(app, "selection");
     }
-    fn open_simplify(app: &mut VectorcraftApp) {
+    fn open_simplify(app: &mut PlumaApp) {
         crate::menus::invoke(app, "object.path.simplify", json!({}));
     }
     let new_document = crate::dialogs::open_new_document;
-    for (name, open) in [("Move", open_move as fn(&mut VectorcraftApp)), ("New Document", new_document), ("Simplify", open_simplify)] {
+    for (name, open) in [("Move", open_move as fn(&mut PlumaApp)), ("New Document", new_document), ("Simplify", open_simplify)] {
         let mut app = app_with_a_selected_rectangle();
         let documents = app.session.documents().len();
         let held = HeldKey::new(Key::Enter, Modifiers::NONE);
@@ -1446,7 +1446,7 @@ fn holding_enter_in_the_type_tool_repeats_line_breaks() {
         let mut app = app_with_a_selected_rectangle();
         let text = app.session.execute("text.create", &json!({"x": 20, "y": 250, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
         app.select_tool("type");
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         assert!(app.session.tool_wants_text());
         let held = HeldKey::new(Key::Enter, modifiers);
         for _ in 0..4 {
@@ -1463,14 +1463,14 @@ fn holding_enter_in_the_type_tool_repeats_line_breaks() {
 /// the same spacing.
 #[test]
 fn enter_after_a_drag_repeats_its_offset() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 800, "height": 300})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap();
     let ctx = egui::Context::default();
     let key = |pressed| egui::Event::Key { key: Key::Enter, physical_key: None, pressed, repeat: false, modifiers: Modifiers::NONE };
     let enter = || vec![key(true), key(false)];
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let screen_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)));
         let mut out = ctx.run_ui(egui::RawInput { events, screen_rect, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -1478,7 +1478,7 @@ fn enter_after_a_drag_repeats_its_offset() {
         });
         out.textures_delta.clear();
     };
-    let lefts = |app: &VectorcraftApp| {
+    let lefts = |app: &PlumaApp| {
         let kids = app.session.doc().unwrap().doc.layers[0].children().unwrap();
         kids.iter().map(|n| n.geometric_bounds().unwrap().x0.round()).collect::<Vec<_>>()
     };
@@ -1525,10 +1525,10 @@ fn enter_after_a_drag_repeats_its_offset() {
 /// alone.
 #[test]
 fn brackets_size_the_blob_brush_and_the_eraser() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     app.session.execute("stroke.set", &json!({"weight": 3})).unwrap();
-    let size = |app: &mut VectorcraftApp| app.session.tool_options()["size"].as_f64().unwrap();
+    let size = |app: &mut PlumaApp| app.session.tool_options()["size"].as_f64().unwrap();
     let text = |t: &str| egui::Event::Text(t.into());
     for tool in ["blobBrush", "eraser"] {
         app.select_tool(tool);
@@ -1547,8 +1547,8 @@ fn brackets_size_the_blob_brush_and_the_eraser() {
     assert_eq!(app.session.paint.stroke_width, 3.0);
 }
 
-fn remembered_paint_app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn remembered_paint_app() -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     app.session.execute("paint.setFill", &json!({"gradient": {"kind": "linear"}})).unwrap();
@@ -1559,7 +1559,7 @@ fn remembered_paint_app() -> VectorcraftApp {
 #[test]
 fn plain_and_shifted_paint_keys_run_once_on_us_and_german_like_input() {
     let mut app = remembered_paint_app();
-    let paint = |app: &VectorcraftApp| crate::panels::current_paints(app).0;
+    let paint = |app: &PlumaApp| crate::panels::current_paints(app).0;
     let press = |key, physical_key, modifiers, typed: &str| {
         vec![
             egui::Event::ModifiersChanged(modifiers),
@@ -1574,7 +1574,7 @@ fn plain_and_shifted_paint_keys_run_once_on_us_and_german_like_input() {
     ] {
         let before = app.session.active().unwrap().history.undo.len();
         frame(&mut app, press(key, physical_key, modifiers, typed));
-        assert!(matches!(paint(&app), vectorcraft_color::Paint::Gradient(_)), "{typed} applies gradient");
+        assert!(matches!(paint(&app), pluma_color::Paint::Gradient(_)), "{typed} applies gradient");
         assert_eq!(app.session.active().unwrap().history.undo.len(), before + 1, "{typed} runs once");
         app.session.execute("paint.setFill", &json!({"color": "#336699"})).unwrap();
     }
@@ -1597,12 +1597,12 @@ fn plain_and_shifted_paint_keys_run_once_on_us_and_german_like_input() {
 
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi"})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 2, "end": 2}));
     assert!(app.session.tool_wants_text());
     app.session.execute("paint.setFill", &json!({"gradient": {"kind": "linear"}})).unwrap();
     let paints_before = crate::panels::current_paints(&app);
-    assert!(matches!(paints_before.0, vectorcraft_color::Paint::Gradient(_)));
+    assert!(matches!(paints_before.0, pluma_color::Paint::Gradient(_)));
     for (key, physical_key, mods, typed) in [
         (Key::Comma, Key::Comma, Modifiers::NONE, ","),
         (Key::Period, Key::Period, Modifiers::NONE, "."),
@@ -1624,7 +1624,7 @@ fn plain_and_shifted_paint_keys_run_once_on_us_and_german_like_input() {
 
 #[test]
 fn modified_german_like_punctuation_keeps_text_size() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "Hi", "size": 12})).unwrap()["id"].as_u64().unwrap();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -1655,7 +1655,7 @@ fn explicit_logical_shifted_binding_wins_over_position_alias() {
             egui::Event::Text(";".into()),
         ],
     );
-    assert!(matches!(crate::panels::current_paints(&app).0, vectorcraft_color::Paint::Gradient(_)));
+    assert!(matches!(crate::panels::current_paints(&app).0, pluma_color::Paint::Gradient(_)));
     assert_eq!(app.session.active().unwrap().history.undo.len(), before + 1);
 }
 
@@ -1713,7 +1713,7 @@ fn user_shifted_punctuation_binding_runs_once() {
             egui::Event::Text(":".into()),
         ],
     );
-    assert!(matches!(crate::panels::current_paints(&app).0, vectorcraft_color::Paint::Gradient(_)));
+    assert!(matches!(crate::panels::current_paints(&app).0, pluma_color::Paint::Gradient(_)));
     assert_eq!(app.session.active().unwrap().history.undo.len(), undo_before + 1);
 }
 
@@ -1729,7 +1729,7 @@ fn saved_plain_paint_override_runs_its_new_command() {
         ]
     };
     frame(&mut app, press(Key::Comma, ","));
-    assert!(matches!(crate::panels::current_paints(&app).0, vectorcraft_color::Paint::Gradient(_)));
+    assert!(matches!(crate::panels::current_paints(&app).0, pluma_color::Paint::Gradient(_)));
     frame(&mut app, press(Key::Period, "."));
     assert_eq!(crate::panels::current_paints(&app).0.color().map(|c| c.to_hex()), Some("#336699".into()));
     crate::shortcut_editor::reset_one(&mut app.ui.shortcut_overrides, "paint.lastGradient");
@@ -1741,17 +1741,17 @@ fn saved_plain_paint_override_runs_its_new_command() {
             egui::Event::Text(">".into()),
         ],
     );
-    assert!(matches!(crate::panels::current_paints(&app).0, vectorcraft_color::Paint::Gradient(_)), "reset restores the extra default");
+    assert!(matches!(crate::panels::current_paints(&app).0, pluma_color::Paint::Gradient(_)), "reset restores the extra default");
 }
 
 #[test]
 fn shifted_punctuation_shortcuts_work_as_typed() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let a = app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap()["id"].clone();
     let b = app.session.execute("shape.ellipse", &json!({"x": 20, "y": 20, "width": 50, "height": 50})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [a]})).unwrap();
-    let order = |app: &VectorcraftApp| -> Vec<u64> { app.session.doc().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.id.0).collect() };
+    let order = |app: &PlumaApp| -> Vec<u64> { app.session.doc().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.id.0).collect() };
     let (a, b) = (a.as_u64().unwrap(), b.as_u64().unwrap());
     assert_eq!(order(&app), [a, b]);
     let press = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
@@ -1778,10 +1778,10 @@ fn shifted_punctuation_shortcuts_work_as_typed() {
 /// command.
 #[test]
 fn cmd_alt_shift_period_and_comma_step_the_font_size_by_five() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two", "size": 12})).unwrap()["id"].as_u64().unwrap();
-    let sizes = |app: &mut VectorcraftApp| {
+    let sizes = |app: &mut PlumaApp| {
         let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
         r["runs"].as_array().unwrap().iter().map(|run| (run["text"].clone(), run["style"]["size"].clone())).collect::<Vec<_>>()
     };
@@ -1796,7 +1796,7 @@ fn cmd_alt_shift_period_and_comma_step_the_font_size_by_five() {
     assert_eq!(sizes(&mut app), [(json!("One Two"), json!(14.0))]);
     // While the Type tool edits: only its selection.
     app.select_tool("type");
-    app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+    app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
     app.session.set_tool_option("select", &json!({"start": 4, "end": 7}));
     assert!(app.session.tool_wants_text());
     frame(&mut app, vec![press(Key::Period, five)]);
@@ -1806,7 +1806,7 @@ fn cmd_alt_shift_period_and_comma_step_the_font_size_by_five() {
 /// Spacing arrow keys change tracking, leading, and baseline shift for a selected vertical text object.
 #[test]
 fn alt_arrows_rotate_for_selected_vertical_type() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let vertical = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two", "size": 20, "vertical": true})).unwrap()["id"]
         .as_u64()
@@ -1828,7 +1828,7 @@ fn alt_arrows_rotate_for_selected_vertical_type() {
         frame(&mut app, vec![egui::Event::ModifiersChanged(modifiers), press(key, modifiers)]);
         let range = app.session.execute("text.getRange", &json!({"id": vertical})).unwrap();
         assert_eq!(range["runs"][0]["style"][field], json!(value), "{key:?}");
-        assert_eq!(app.session.active().unwrap().selection.objects, [vectorcraft_doc::NodeId(vertical)]);
+        assert_eq!(app.session.active().unwrap().selection.objects, [pluma_doc::NodeId(vertical)]);
     }
 }
 
@@ -1836,7 +1836,7 @@ fn alt_arrows_rotate_for_selected_vertical_type() {
 fn mixed_type_objects_take_horizontal_spacing_chords_in_both_orders() {
     let press = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
     for vertical_first in [true, false] {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
         let vertical = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One", "size": 20, "vertical": true})).unwrap()["id"]
             .as_u64()
@@ -1875,7 +1875,7 @@ fn mixed_type_objects_take_horizontal_spacing_chords_in_both_orders() {
 
 #[test]
 fn selected_vertical_area_and_path_type_use_vertical_spacing_chords() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 300, "height": 300})).unwrap();
     let area_frame = app.session.execute("path.create", &json!({"d": "M10 10 L100 10 L100 100 L10 100 Z"})).unwrap()["id"].as_u64().unwrap();
     let path = app.session.execute("path.create", &json!({"d": "M150 10 L250 10"})).unwrap()["id"].as_u64().unwrap();
@@ -1904,7 +1904,7 @@ fn selected_vertical_area_and_path_type_use_vertical_spacing_chords() {
 /// #3786: Alt+arrows step a selected text object's spacing instead of copying and nudging it.
 #[test]
 fn alt_arrows_step_selected_type_object() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One Two", "size": 20})).unwrap()["id"].as_u64().unwrap();
     app.select_tool("selection");
@@ -1914,7 +1914,7 @@ fn alt_arrows_step_selected_type_object() {
     frame(&mut app, vec![egui::Event::ModifiersChanged(Modifiers::ALT), press(Key::ArrowRight, Modifiers::ALT)]);
     let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
     assert_eq!(r["runs"][0]["style"]["tracking"], json!(20.0));
-    assert_eq!(app.session.active().unwrap().selection.objects, [vectorcraft_doc::NodeId(id)]);
+    assert_eq!(app.session.active().unwrap().selection.objects, [pluma_doc::NodeId(id)]);
 
     frame(&mut app, vec![egui::Event::ModifiersChanged(Modifiers::ALT), press(Key::ArrowDown, Modifiers::ALT)]);
     let r = app.session.execute("text.getRange", &json!({"id": id})).unwrap();
@@ -1929,7 +1929,7 @@ fn alt_arrows_step_selected_type_object() {
     // falling through to Alt+arrow's copy-and-nudge behaviour.
     for key in [Key::ArrowLeft, Key::ArrowRight] {
         frame(&mut app, vec![egui::Event::ModifiersChanged(alt_shift), press(key, alt_shift)]);
-        assert_eq!(app.session.active().unwrap().selection.objects, [vectorcraft_doc::NodeId(id)]);
+        assert_eq!(app.session.active().unwrap().selection.objects, [pluma_doc::NodeId(id)]);
     }
 
     // Other objects keep Alt+arrow's copy-and-nudge shortcut.
@@ -1938,7 +1938,7 @@ fn alt_arrows_step_selected_type_object() {
     frame(&mut app, vec![egui::Event::ModifiersChanged(Modifiers::ALT), press(Key::ArrowRight, Modifiers::ALT)]);
     let selected = &app.session.active().unwrap().selection.objects;
     assert_eq!(selected.len(), 1);
-    assert_ne!(selected[0], vectorcraft_doc::NodeId(rect), "a non-type object is still copied by Alt+arrow");
+    assert_ne!(selected[0], pluma_doc::NodeId(rect), "a non-type object is still copied by Alt+arrow");
 }
 
 /// #793: with a layout without Latin letters the one-key shortcuts go by the key's position:
@@ -1946,7 +1946,7 @@ fn alt_arrows_step_selected_type_object() {
 /// tool. A Latin layout keeps the letter typed: AZERTY's A (the Q key's place) is A.
 #[test]
 fn one_key_shortcuts_follow_the_key_on_layouts_without_latin_letters() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let typed = |key, physical, text: &str| {
         vec![
@@ -1967,7 +1967,7 @@ fn one_key_shortcuts_follow_the_key_on_layouts_without_latin_letters() {
 /// frame each use their own key, in either order.
 #[test]
 fn one_key_shortcuts_use_the_key_of_the_same_keystroke_in_either_order() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let press = |key| egui::Event::Key { key, physical_key: Some(key), pressed: true, repeat: false, modifiers: Modifiers::NONE };
     let text = |t: &str| egui::Event::Text(t.into());
@@ -1998,9 +1998,9 @@ fn one_key_shortcuts_use_the_key_of_the_same_keystroke_in_either_order() {
 fn plus_typed_any_way_zooms_in() {
     assert_eq!(parse("Cmd++"), parse("Cmd+="), "`+` and `=` are one chord key");
     assert_eq!(crate::shortcut_editor::chord_from_event(Key::Plus, Modifiers::COMMAND).as_deref(), Some("Cmd+="), "a recorded `+` too");
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
-    let zoom = |app: &mut VectorcraftApp| app.view_mut().unwrap().zoom;
+    let zoom = |app: &mut PlumaApp| app.view_mut().unwrap().zoom;
     let press = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
     let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
     // `=`, Shift+`=` (reported as `=` or as `+`), and the numpad `+` / a layout's own `+` key.
@@ -2020,7 +2020,7 @@ fn plus_typed_any_way_zooms_in() {
 fn plus_selects_the_add_anchor_point_tool() {
     assert_eq!(parse("+"), parse("="), "a bare `+` is the `=` key");
     assert_eq!(crate::shortcut_editor::tool_for_key("+"), Some("addAnchor"));
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     for m in [Modifiers::SHIFT, Modifiers::NONE] {
         app.select_tool("selection");
@@ -2033,15 +2033,15 @@ fn plus_selects_the_add_anchor_point_tool() {
 
 #[test]
 fn digit_keys_reach_a_dragging_tool_once_per_press() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
     app.session.execute("perspective.grid.preset", &json!({"kind": 2})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 450, "y": 380, "width": 60, "height": 60})).unwrap()["id"].clone();
     app.session.execute("perspective.attach", &json!({"ids": [id], "plane": "right"})).unwrap();
     app.select_tool("perspectiveSelection");
     let v = app.view_info();
-    let c = app.session.doc().unwrap().doc.node(vectorcraft_engine::doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap().center();
+    let c = app.session.doc().unwrap().doc.node(pluma_engine::doc::NodeId(id.as_u64().unwrap())).unwrap().geometric_bounds().unwrap().center();
     app.session.pointer(&PointerEvent::new(PointerKind::Down, c.x, c.y), v).unwrap();
     app.session.pointer(&PointerEvent::new(PointerKind::Drag, c.x + 30.0, c.y), v).unwrap();
     let key = |repeat| egui::Event::Key { key: Key::Num5, physical_key: None, pressed: true, repeat, modifiers: Modifiers::NONE };
@@ -2058,8 +2058,8 @@ fn digit_keys_reach_a_dragging_tool_once_per_press() {
 /// letters.
 #[test]
 fn e_reaches_a_dragged_marquee_once_per_press() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
     let inside = app.session.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 100, "height": 100})).unwrap()["id"].clone();
     let touched = app.session.execute("shape.rectangle", &json!({"x": 300, "y": 100, "width": 100, "height": 100})).unwrap()["id"].clone();
@@ -2094,14 +2094,14 @@ fn e_reaches_a_dragged_marquee_once_per_press() {
 /// shortcut does nothing while the pick is held.
 #[test]
 fn the_blend_tool_shortcut_finishes_the_blend() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 600, "height": 300})).unwrap();
     for x in [0, 200] {
         app.session.execute("shape.rectangle", &json!({"x": x, "y": 0, "width": 40, "height": 40})).unwrap();
     }
     app.select_tool("blend");
-    let click = |app: &mut VectorcraftApp, x: f64| {
+    let click = |app: &mut PlumaApp, x: f64| {
         let v = app.view_info();
         app.session.pointer(&PointerEvent::new(PointerKind::Down, x, 20.0), v).unwrap();
         app.session.pointer(&PointerEvent::new(PointerKind::Up, x, 20.0), v).unwrap();
@@ -2125,8 +2125,8 @@ fn the_blend_tool_shortcut_finishes_the_blend() {
 /// while another tool's shifted shortcut does not.
 #[test]
 fn a_text_only_blend_shortcut_finishes_the_blend() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     crate::keymap::set_override(&mut app.ui.shortcut_overrides, "tool:curvature", "");
     crate::keymap::set_override(&mut app.ui.shortcut_overrides, "tool:blend", "Shift+~");
     app.session.execute("file.new", &json!({"width": 600, "height": 300})).unwrap();
@@ -2176,12 +2176,12 @@ fn a_repeated_keys_text_is_no_shortcut_press() {
 /// is that key's.
 #[test]
 fn a_shortcut_on_the_backtick_key_runs_on_every_layout() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let recorded = crate::shortcut_editor::chord_from_event(Key::Backtick, Modifiers::NONE).unwrap();
     assert_eq!(recorded, "~");
     crate::keymap::set_override(&mut app.ui.shortcut_overrides, "edit.clear", "~");
-    let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
     let press = egui::Event::Key { key: Key::Backtick, physical_key: Some(Key::Backtick), pressed: true, repeat: false, modifiers: Modifiers::NONE };
     for typed in ["\"", "`"] {
         let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
@@ -2202,7 +2202,7 @@ fn a_shortcut_on_the_backtick_key_runs_on_every_layout() {
 /// `IntlBackslash`) records, saves and runs its shortcut, apart from the `\` key (#4559).
 #[test]
 fn a_shortcut_on_the_iso_key_next_to_left_shift_records_and_runs() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let recorded = crate::shortcut_editor::chord_from_event(Key::IntlBackslash, Modifiers::NONE).unwrap();
     assert_eq!(recorded, "IntlBackslash");
@@ -2211,7 +2211,7 @@ fn a_shortcut_on_the_iso_key_next_to_left_shift_records_and_runs() {
     for text in ["Cmd+IntlBackslash", "Shift+IntlBackslash", "Cmd+Alt+Shift+IntlBackslash"] {
         assert_eq!(crate::shortcut_editor::normalize(text).as_deref(), Some(text));
     }
-    let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
     let backslash =
@@ -2233,12 +2233,12 @@ fn a_shortcut_on_the_iso_key_next_to_left_shift_records_and_runs() {
 /// the `"` it typed is read when no press comes right before it.
 #[test]
 fn a_shortcut_on_the_backtick_key_runs_when_its_text_comes_first() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     crate::keymap::set_override(&mut app.ui.shortcut_overrides, "edit.clear", "~");
-    let count = |app: &VectorcraftApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let count = |app: &PlumaApp| app.session.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
     let press = egui::Event::Key { key: Key::Backtick, physical_key: Some(Key::Backtick), pressed: true, repeat: false, modifiers: Modifiers::NONE };
-    let select_new = |app: &mut VectorcraftApp| {
+    let select_new = |app: &mut PlumaApp| {
         let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
         app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
     };
@@ -2255,7 +2255,7 @@ fn a_shortcut_on_the_backtick_key_runs_when_its_text_comes_first() {
 /// and a held Cmd+= keeps zooming in.
 #[test]
 fn shortcuts_run_tools_panels_and_commands() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 20, "y": 0, "width": 10, "height": 10})).unwrap();
@@ -2270,7 +2270,7 @@ fn shortcuts_run_tools_panels_and_commands() {
     assert_eq!(app.ui.open_panel.as_deref(), Some("align"));
     frame(&mut app, vec![press(Key::A, Modifiers::COMMAND, false)]);
     assert_eq!(app.session.active().unwrap().selection.objects.len(), 2, "Select All");
-    let zoom = |app: &mut VectorcraftApp| app.view_mut().unwrap().zoom;
+    let zoom = |app: &mut PlumaApp| app.view_mut().unwrap().zoom;
     frame(&mut app, vec![press(Key::Equals, Modifiers::COMMAND, false)]);
     let once = zoom(&mut app);
     frame(&mut app, vec![press(Key::Equals, Modifiers::COMMAND, true)]);
@@ -2281,11 +2281,11 @@ fn shortcuts_run_tools_panels_and_commands() {
 /// chord a shortcut already has.
 #[test]
 fn cmd_comma_opens_settings_on_a_mac() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     app.session.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     let press = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
-    let on = |app: &mut VectorcraftApp, os, events| {
+    let on = |app: &mut PlumaApp, os, events| {
         app.ui.dialog = None;
         app.session.execute("select.set", &json!({"ids": []})).unwrap();
         let ctx = egui::Context::default();
@@ -2321,10 +2321,10 @@ fn parses() {
 /// the events are never typed as characters.
 #[test]
 fn ime_delete_surrounding_bytes_edits_the_type_tool_once() {
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
-    let v = vectorcraft_engine::ViewInfo::default();
+    let v = pluma_engine::ViewInfo::default();
     app.session.select_tool("type", v).unwrap();
     app.session.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 100.0), v).unwrap();
     app.session.pointer(&PointerEvent::new(PointerKind::Up, 100.0, 100.0), v).unwrap();
@@ -2344,7 +2344,7 @@ fn ime_delete_surrounding_bytes_edits_the_type_tool_once() {
     let mut text = String::new();
     if let Some(st) = app.session.active() {
         st.doc.walk(|node| {
-            if let vectorcraft_doc::NodeKind::Text(t) = &node.kind {
+            if let pluma_doc::NodeKind::Text(t) = &node.kind {
                 text = t.plain_text();
             }
         });
@@ -2358,7 +2358,7 @@ fn ime_delete_surrounding_bytes_edits_the_type_tool_once() {
 /// focus). Deleting it here made PRIMARY paste dead outside dialogs.
 #[test]
 fn middle_click_paste_reaches_an_unfocused_text_field() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     let ctx = egui::Context::default();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(320.0, 200.0));
     let id = egui::Id::unique("middle-click-paste-test");
@@ -2382,8 +2382,8 @@ fn middle_click_paste_reaches_an_unfocused_text_field() {
 /// input is new, not a rerun of the old context's frame 0.
 #[test]
 fn a_new_context_takes_its_own_frame_zero() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let press = |app: &mut VectorcraftApp| {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let press = |app: &mut PlumaApp| {
         let ctx = egui::Context::default();
         let ev = egui::Event::Key { key: Key::N, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND | Modifiers::ALT };
         let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| handle(app, ui.ctx()));
@@ -2397,7 +2397,7 @@ fn a_new_context_takes_its_own_frame_zero() {
 
 #[test]
 fn all_registered_shortcuts_parse() {
-    for c in vectorcraft_engine::command_specs() {
+    for c in pluma_engine::command_specs() {
         if let Some(s) = c.shortcut
             && s != "D"
             && s != "X"
@@ -2422,7 +2422,7 @@ fn an_effect_menu_item_takes_a_shortcut_of_its_own() {
     let entry = crate::shortcut_editor::entry("effect:distort.transform").expect("Transform is listed");
     assert_eq!(entry.group, "Effect › Distort & Transform");
     assert_eq!(crate::keymap::command_of("effect:distort.transform").id, "effect.dialog");
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -2441,7 +2441,7 @@ fn an_effect_menu_item_takes_a_shortcut_of_its_own() {
 /// Enter first and open its Move dialog.
 #[test]
 fn cmd_enter_bound_to_an_effect_runs_the_effect_not_the_tool() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.select_tool("selection");
@@ -2467,20 +2467,19 @@ fn cmd_enter_bound_to_an_effect_runs_the_effect_not_the_tool() {
 /// options it has.
 #[test]
 fn a_live_effect_plugin_installed_later_takes_a_shortcut_of_its_own() {
-    use vectorcraft_plugins::wat as tpl;
+    use pluma_plugins::wat as tpl;
     let (plugin, effect, key) = ("test.ui.keyedfx", "plugin.test.ui.keyedfx", "effect:plugin.test.ui.keyedfx");
     let install = |params: &str| {
         let src = tpl::module(&tpl::manifest(plugin, "effect", params), tpl::ECHO, "", 1);
-        vectorcraft_plugins::registry::install_bytes(&wat::parse_str(src).unwrap()).unwrap();
+        pluma_plugins::registry::install_bytes(&wat::parse_str(src).unwrap()).unwrap();
     };
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let node = vectorcraft_doc::NodeId(id.as_u64().unwrap());
-    let effects =
-        |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(node).unwrap().appearance.effects.iter().filter(|e| e.id == effect).count();
-    let shown = |app: &mut VectorcraftApp| {
+    let node = pluma_doc::NodeId(id.as_u64().unwrap());
+    let effects = |app: &PlumaApp| app.session.doc().unwrap().doc.node(node).unwrap().appearance.effects.iter().filter(|e| e.id == effect).count();
+    let shown = |app: &mut PlumaApp| {
         let list = crate::shortcut_editor::run_command(app, "shortcuts.list", &json!({ "query": effect })).unwrap().unwrap();
         list.as_array().unwrap().iter().map(|e| (e["id"].as_str().unwrap_or_default().to_string(), e["shortcut"].clone())).collect::<Vec<_>>()
     };
@@ -2501,7 +2500,7 @@ fn a_live_effect_plugin_installed_later_takes_a_shortcut_of_its_own() {
     frame(&mut app, f6());
     assert_eq!(effects(&app), 1, "the key applies the effect");
     // Removed: no row, and no key is bound to the effect; the saved shortcut stays.
-    vectorcraft_plugins::registry::remove(plugin);
+    pluma_plugins::registry::remove(plugin);
     assert!(crate::shortcut_editor::entry(key).is_none());
     assert_eq!(shown(&mut app), vec![]);
     assert!(crate::shortcuts::all_shortcuts().iter().all(|(_, _, p)| p["effect"] != effect), "no key is bound to the removed effect");
@@ -2514,7 +2513,7 @@ fn a_live_effect_plugin_installed_later_takes_a_shortcut_of_its_own() {
     frame(&mut app, f6());
     let d = app.ui.dialog.as_ref().expect("the effect's dialog opens");
     assert_eq!(d.fields.get("__effect").and_then(serde_json::Value::as_str), Some(effect), "{:?}", d.kind);
-    vectorcraft_plugins::registry::remove(plugin);
+    pluma_plugins::registry::remove(plugin);
     crate::shortcut_editor::sync(&crate::state::UiState::default());
 }
 
@@ -2525,19 +2524,19 @@ fn a_live_effect_plugin_installed_later_takes_a_shortcut_of_its_own() {
 /// back, now running it at once since it has no parameters.
 #[test]
 fn each_filter_plugin_takes_a_shortcut_of_its_own() {
+    use pluma_plugins::wat as tpl;
     use serde_json::Value;
-    use vectorcraft_plugins::wat as tpl;
     let (one, two) = ("test.UI.key_filter-one", "test.UI.key_filter-two");
     let (key_one, key_two) = (format!("plugin:{one}"), format!("plugin:{two}"));
     let install = |id: &str, name: &str, params: &str| {
         let manifest = format!(r#"{{"id":"{id}","name":"{name}","version":"1","kind":"filter","params":{params}}}"#);
-        vectorcraft_plugins::registry::install_bytes(&wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap()).unwrap();
+        pluma_plugins::registry::install_bytes(&wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap()).unwrap();
     };
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
-    let shown = |app: &mut VectorcraftApp| {
+    let shown = |app: &mut PlumaApp| {
         let list = crate::shortcut_editor::run_command(app, "shortcuts.list", &json!({ "query": "test.ui.key_filter-" })).unwrap().unwrap();
         list.as_array().unwrap().iter().map(|e| (e["id"].as_str().unwrap_or_default().to_string(), e["shortcut"].clone())).collect::<Vec<_>>()
     };
@@ -2575,12 +2574,12 @@ fn each_filter_plugin_takes_a_shortcut_of_its_own() {
     frame(&mut app, f7());
     let d = app.ui.dialog.take().expect("the filter's dialog opens");
     assert_eq!((d.kind.as_str(), d.str("__plugin")), ("plugin", two.to_string()));
-    let bound = |app: &VectorcraftApp| {
+    let bound = |app: &PlumaApp| {
         crate::keymap::vc_chord(chord).and_then(|c| crate::keymap::lookup(&crate::keymap::keymap_with(&app.ui.shortcut_overrides), &c))
     };
     assert_eq!(bound(&app).map(|c| crate::keymap::entry_key(&c)), Some(key_two.clone()));
     // Removed: no row, and no key is bound to the filter; the saved shortcut stays.
-    vectorcraft_plugins::registry::remove(two);
+    pluma_plugins::registry::remove(two);
     assert_eq!(bound(&app), None, "the key runs nothing");
     assert!(crate::shortcut_editor::entry(&key_two).is_none());
     assert_eq!(shown(&mut app), vec![(key_one.clone(), Value::Null)]);
@@ -2594,8 +2593,8 @@ fn each_filter_plugin_takes_a_shortcut_of_its_own() {
     frame(&mut app, f7());
     assert!(app.ui.dialog.is_none(), "no dialog: {:?}", app.ui.dialog.as_ref().map(|d| &d.kind));
     assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "the filter ran as one undo step");
-    vectorcraft_plugins::registry::remove(one);
-    vectorcraft_plugins::registry::remove(two);
+    pluma_plugins::registry::remove(one);
+    pluma_plugins::registry::remove(two);
     crate::shortcut_editor::sync(&crate::state::UiState::default());
 }
 
@@ -2604,7 +2603,7 @@ fn each_filter_plugin_takes_a_shortcut_of_its_own() {
 /// as the dimmed menu item does.
 #[test]
 fn a_filter_plugin_keeps_its_shortcut_when_replaced_or_reloaded() {
-    use vectorcraft_plugins::wat as tpl;
+    use pluma_plugins::wat as tpl;
     let id = "test.UI.replaced_filter";
     let key = format!("plugin:{id}");
     let wasm = |name: &str, params: &str| {
@@ -2614,18 +2613,18 @@ fn a_filter_plugin_keeps_its_shortcut_when_replaced_or_reloaded() {
     let with_params = r#"{"wiggle":{"type":"bool"}}"#;
     let chord = "Cmd+Alt+Shift+F6";
     let f6 = || press(Key::F6, cmd() | Modifiers::ALT | Modifiers::SHIFT);
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
-    vectorcraft_plugins::registry::install_bytes(&wasm("Original", "{}")).unwrap();
+    pluma_plugins::registry::install_bytes(&wasm("Original", "{}")).unwrap();
     crate::shortcut_editor::run_command(&mut app, "shortcuts.set", &json!({"id": key, "shortcut": chord})).unwrap().unwrap();
 
-    vectorcraft_plugins::registry::install_bytes(&wasm("Replaced", with_params)).unwrap();
+    pluma_plugins::registry::install_bytes(&wasm("Replaced", with_params)).unwrap();
     assert_eq!(crate::shortcut_editor::entry(&key).map(|e| e.label), Some("Replaced…".into()));
     assert_eq!(crate::menus::item_shortcut("plugin.dialog", &json!({ "id": id })), Some(chord));
     frame(&mut app, f6());
     assert_eq!(app.ui.dialog.take().expect("the replaced filter has parameters").str("__plugin"), id);
 
-    let folder = std::env::temp_dir().join(format!("vectorcraft-ui-filter-shortcut-{}", std::process::id()));
+    let folder = std::env::temp_dir().join(format!("pluma-ui-filter-shortcut-{}", std::process::id()));
     std::fs::create_dir_all(&folder).unwrap();
     std::fs::write(folder.join("filter.wasm"), wasm("Reloaded", with_params)).unwrap();
     app.run("plugin.reload", json!({ "path": folder.display().to_string() })).unwrap();
@@ -2633,11 +2632,11 @@ fn a_filter_plugin_keeps_its_shortcut_when_replaced_or_reloaded() {
     assert_eq!(crate::shortcut_editor::entry(&key).map(|e| e.label), Some("Reloaded…".into()));
     assert_eq!(crate::menus::item_shortcut("plugin.dialog", &json!({ "id": id })), Some(chord));
 
-    let mut empty = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut empty = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     empty.ui.shortcut_overrides = app.ui.shortcut_overrides.clone();
     frame(&mut empty, f6());
     assert!(empty.ui.dialog.is_none(), "no document: no dialog");
-    vectorcraft_plugins::registry::remove(id);
+    pluma_plugins::registry::remove(id);
     crate::shortcut_editor::sync(&crate::state::UiState::default());
 }
 
@@ -2645,15 +2644,15 @@ fn a_filter_plugin_keeps_its_shortcut_when_replaced_or_reloaded() {
 /// the background, and one with parameters opens its dialog, which has no Preview.
 #[test]
 fn a_heavy_filter_plugin_runs_from_its_shortcut_as_from_its_menu_item() {
-    use vectorcraft_plugins::wat as tpl;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_plugins::wat as tpl;
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.allow_plugin_grants_from_requests();
     app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
     let (at_once, asks) = ("test.UI.heavy_filter-at-once", "test.UI.heavy_filter-asks");
     for (id, params, chord) in [(at_once, "{}", "Cmd+Alt+Shift+F7"), (asks, r#"{"wiggle":{"type":"bool"}}"#, "Cmd+Alt+Shift+F8")] {
         let manifest = format!(r#"{{"id":"{id}","name":"Heavy {id}","version":"1","kind":"filter","budget":"heavy","params":{params}}}"#);
         let wasm = wat::parse_str(tpl::spinning(&manifest, 1 << 40, r#"{"objects":[]}"#)).unwrap();
-        app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wasm), "allowHeavy": true})).unwrap();
+        app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wasm), "allowHeavy": true})).unwrap();
         crate::shortcut_editor::run_command(&mut app, "shortcuts.set", &json!({"id": format!("plugin:{id}"), "shortcut": chord})).unwrap().unwrap();
     }
 
@@ -2667,8 +2666,8 @@ fn a_heavy_filter_plugin_runs_from_its_shortcut_as_from_its_menu_item() {
     assert!(d.fields.get("preview").is_none(), "no Preview");
 
     assert_eq!(app.run("plugin.cancelRuns", json!({})).unwrap()["cancelled"], 1);
-    vectorcraft_plugins::registry::remove(at_once);
-    vectorcraft_plugins::registry::remove(asks);
+    pluma_plugins::registry::remove(at_once);
+    pluma_plugins::registry::remove(asks);
     crate::shortcut_editor::sync(&crate::state::UiState::default());
 }
 
@@ -2693,16 +2692,16 @@ fn a_filter_plugin_row_translates_its_path_and_not_its_name() {
 /// one pressed, Up steps the kind and the rectangle stays where it is.
 #[test]
 fn a_plain_up_nudges_unless_a_corner_widget_is_pressed() {
-    use vectorcraft_doc::{LiveShape, NodeId, NodeKind};
-    use vectorcraft_geom::shapes::CornerKind;
-    use vectorcraft_tools::{PointerEvent, PointerKind};
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    use pluma_doc::{LiveShape, NodeId, NodeKind};
+    use pluma_geom::shapes::CornerKind;
+    use pluma_tools::{PointerEvent, PointerKind};
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.session.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let id = app.session.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 120, "height": 80})).unwrap()["id"].as_u64().unwrap();
     let id = NodeId(id);
     app.select_tool("selection");
     app.session.execute("select.set", &json!({"ids": [id.0]})).unwrap();
-    let state = |app: &VectorcraftApp| {
+    let state = |app: &PlumaApp| {
         let st = app.session.active().unwrap();
         let b = st.doc.bounds_of(&[id], false).unwrap();
         let NodeKind::Path { live: Some(l), .. } = &st.doc.node(id).unwrap().kind else { panic!("not live") };
@@ -2718,7 +2717,7 @@ fn a_plain_up_nudges_unless_a_corner_widget_is_pressed() {
     // Press a corner widget: now Up steps the corner kind and the rectangle stays put.
     let view = app.view_info();
     let st = app.session.active().unwrap();
-    let w = vectorcraft_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, view.zoom, false, true, 180.0).expect("corner widgets show");
+    let w = pluma_tools::corners::CornerWidgets::showing(&st.doc, &st.selection, view.zoom, false, true, 180.0).expect("corner widgets show");
     let at = w.visible().next().expect("a widget");
     app.session.pointer(&PointerEvent::new(PointerKind::Down, at.x, at.y), view).unwrap();
     frame(&mut app, press(Key::ArrowUp, Modifiers::NONE));
@@ -2733,14 +2732,14 @@ fn a_plain_up_nudges_unless_a_corner_widget_is_pressed() {
 /// here) and step through the artboards from the keyboard.
 #[test]
 fn artboard_navigation_commands_can_be_given_keys() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
     for id in ["view.firstArtboard", "view.previousArtboard", "view.nextArtboard", "view.lastArtboard"] {
         let list = app.run("shortcuts.list", json!({ "query": id })).unwrap();
         assert!(list.as_array().unwrap().iter().any(|e| e["id"] == id), "{id} is listed: {list}");
         assert_eq!(crate::shortcut_editor::default_command_shortcut(id), None, "{id} has no default key");
     }
-    let at = |app: &VectorcraftApp| app.view().unwrap().artboard;
+    let at = |app: &PlumaApp| app.view().unwrap().artboard;
     assert_eq!(app.run("view.lastArtboard", json!({})), Ok(json!({"index": 2})));
     assert_eq!(app.run("view.nextArtboard", json!({})), Ok(json!({"index": 2})), "the last artboard stays");
     assert_eq!(app.run("view.firstArtboard", json!({})), Ok(json!({"index": 0})));

@@ -5,7 +5,7 @@ use super::{AppearanceItem, Arc, BTreeSet, BlendMode, Document, Node, NodeId, No
 pub(super) const TEXT_LEFT_OUT: &str = "text objects on hidden layers or hidden objects couldn't be read, so they are left out";
 
 /// The same for a file without a page to take shown type from.
-pub(super) const TYPE_LEFT_OUT: &str = "text objects of kinds VectorCraft doesn't read from the file's text document yet are left out";
+pub(super) const TYPE_LEFT_OUT: &str = "text objects of kinds Pluma doesn't read from the file's text document yet are left out";
 
 pub(super) const ART_LEFT_OUT: &str = "hidden layers have art this can't read";
 
@@ -560,7 +560,7 @@ pub(super) fn join_pieces(parts: &mut Vec<Arc<Node>>, lines: &[(String, Point)])
     }
     let mut gone: BTreeSet<usize> = BTreeSet::new();
     for (first, rest, gaps) in &joins {
-        let mut runs: Vec<Vec<vectorcraft_doc::TextRun>> = [first]
+        let mut runs: Vec<Vec<pluma_doc::TextRun>> = [first]
             .into_iter()
             .chain(rest)
             .filter_map(|j| parts.get(*j))
@@ -655,10 +655,10 @@ mod tests {
         let mut doc = Document::new(100.0, 100.0);
         let mut slot = Node::group(doc.alloc_id(), vec![]);
         slot.name = Some("\u{0}text0:0".into());
-        let wrap = vectorcraft_doc::TextWrap { offset: 3.0, invert: true };
+        let wrap = pluma_doc::TextWrap { offset: 3.0, invert: true };
         slot.extras_mut().wrap = Some(wrap);
         let part = |doc: &mut Document, x: f64| {
-            let t = vectorcraft_doc::TextObject::point(Point::new(x, 50.0), "Part", Default::default());
+            let t = pluma_doc::TextObject::point(Point::new(x, 50.0), "Part", Default::default());
             Arc::new(Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t))))
         };
         let parts = vec![part(&mut doc, 10.0), part(&mut doc, 60.0)];
@@ -683,7 +683,7 @@ mod tests {
         let mut doc = Document::new(100.0, 100.0);
         let mut slot = Node::group(doc.alloc_id(), vec![]);
         slot.name = Some("\u{0}text0:0".into());
-        let t = vectorcraft_doc::TextObject::point(Point::new(10.0, 50.0), "Part", Default::default());
+        let t = pluma_doc::TextObject::point(Point::new(10.0, 50.0), "Part", Default::default());
         let text = Arc::new(Node::new(doc.alloc_id(), NodeKind::Text(Box::new(t))));
         let group = Arc::new(Node::group(doc.alloc_id(), vec![text]));
         let stroke = Arc::new(Node::path(doc.alloc_id(), PathData::default(), Default::default()));

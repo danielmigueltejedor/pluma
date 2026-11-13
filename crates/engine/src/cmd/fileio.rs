@@ -86,6 +86,10 @@ pub use naming::{NameParts as FileNameParts, parse_date as parse_file_date, rend
 pub(crate) use native::preview_png;
 pub use native::with_compression_pref;
 pub use pdfimport::{LoadOptions, page_document};
+/// Atomic file writes (a temporary file renamed over the target: a failed write never damages the
+/// file it replaces), for the apps' own writers too.
+#[cfg(not(target_arch = "wasm32"))]
+pub use pluma_format::write_atomic;
 pub(crate) use save::job_for;
 pub(crate) use save::save as save_document;
 pub use save::{
@@ -105,10 +109,6 @@ pub use screens::{
     preset_rows as screen_preset_rows,
 };
 pub use svg::options_map as svg_options;
-/// Atomic file writes (a temporary file renamed over the target: a failed write never damages the
-/// file it replaces), for the apps' own writers too.
-#[cfg(not(target_arch = "wasm32"))]
-pub use vectorcraft_format::write_atomic;
 
 use super::{CommandSpec, Result, Session, always, bad, cmd, has_doc, has_selection};
 use crate::EngineError;

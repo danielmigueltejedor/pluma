@@ -2,10 +2,10 @@
 //! Center) and turns from the rotate zone just outside a corner of its box, as the Selection
 //! tool's do, through the whole engine (#5477).
 
+use pluma_doc::{LiveShape, NodeKind};
+use pluma_geom::{Point, Rect, Vec2};
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::json;
-use vectorcraft_doc::{LiveShape, NodeKind};
-use vectorcraft_geom::{Point, Rect, Vec2};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 

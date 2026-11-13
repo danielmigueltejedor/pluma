@@ -17,13 +17,13 @@ use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
-use serde_json::{Map, Value, json};
-use vectorcraft_brush::Brush;
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::{
+use pluma_brush::Brush;
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::{
     Appearance, AppearanceItem, Document, GraphicStyle, Node, NodeKind, PatternDef, Symbol, SymbolExportType, SymbolNineSlice, SymbolRegistration,
     TextStyleDef,
 };
+use serde_json::{Map, Value, json};
 
 use super::super::brushsym::{set_natural_size, stored_natural_size};
 
@@ -190,7 +190,7 @@ fn named<'l, T>(index: &OnceCell<NameIndex>, list: &'l [T], name_of: impl Fn(&T)
 }
 
 /// The brushes references lead to: a document's library, read the first time a brush is used
-/// (`vectorcraft_brush::library` parses it), or the clipboard's own.
+/// (`pluma_brush::library` parses it), or the clipboard's own.
 enum Brushes<'a> {
     Lazy(&'a Document, &'a OnceCell<Vec<Brush>>),
     Ready(&'a [Brush]),
@@ -199,7 +199,7 @@ enum Brushes<'a> {
 impl<'a> Brushes<'a> {
     fn get(&self) -> &'a [Brush] {
         match *self {
-            Brushes::Lazy(d, cell) => cell.get_or_init(|| vectorcraft_brush::library(d)),
+            Brushes::Lazy(d, cell) => cell.get_or_init(|| pluma_brush::library(d)),
             Brushes::Ready(list) => list,
         }
     }
@@ -1133,11 +1133,11 @@ impl Clipboard {
                     out.placed(Res::Pattern, &def.name, &p);
                 }
                 Def::Brush(b) => {
-                    let lib = library.get_or_insert_with(|| vectorcraft_brush::library(d));
+                    let lib = library.get_or_insert_with(|| pluma_brush::library(d));
                     let r = &out.relink;
                     let p = place(lib, b, same_doc, |ours, theirs| !fresh && same_brush(r, ours, theirs));
                     if let Some(name) = p.new_name(&b.name) {
-                        vectorcraft_brush::store(d, lib);
+                        pluma_brush::store(d, lib);
                         added_brushes.insert(name);
                     }
                     out.placed(Res::Brush, &b.name, &p);
@@ -1164,11 +1164,11 @@ impl Clipboard {
             }
         }
         if !added_brushes.is_empty() {
-            let mut lib = vectorcraft_brush::library(d);
+            let mut lib = pluma_brush::library(d);
             for b in lib.iter_mut().filter(|b| added_brushes.contains(&b.name)) {
                 b.art_mut().into_iter().for_each(|a| out.relink.node(a));
             }
-            vectorcraft_brush::store(d, &lib);
+            pluma_brush::store(d, &lib);
         }
         out.relinks = !(out.relink.renames.is_empty() && out.relink.styles.is_empty() && out.relink.colors.is_empty() && used.styles.is_empty());
         out
@@ -1194,7 +1194,7 @@ impl Clipboard {
         if brushes.is_empty() {
             return vec![];
         }
-        let mut lib = vectorcraft_brush::library(d);
+        let mut lib = pluma_brush::library(d);
         let mut added = vec![];
         for b in brushes {
             let r = &out.relink;
@@ -1203,7 +1203,7 @@ impl Clipboard {
             out.placed(Res::Brush, &b.name, &p);
         }
         if !added.is_empty() {
-            vectorcraft_brush::store(d, &lib);
+            pluma_brush::store(d, &lib);
         }
         added
     }

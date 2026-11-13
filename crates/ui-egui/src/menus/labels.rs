@@ -2,10 +2,10 @@ use super::slots::{perspective_grid, recent_slot, saved_selection_name, saved_se
 use super::state::{hidden_when_disabled, shortcut_of};
 use super::tree::menu_tree;
 use super::ui_commands::UI_COMMANDS;
-use super::{Item, Value, VectorcraftApp};
+use super::{Item, PlumaApp, Value};
 
 /// Label for toggles whose text flips (Outline/Preview, Hide/Show …).
-pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
+pub fn dynamic_label(app: &PlumaApp, id: &str, label: &str) -> String {
     view_toggle_label(app, id)
         .or_else(|| window_toggle_label(app, id))
         .or_else(|| slot_label(app, id))
@@ -14,7 +14,7 @@ pub fn dynamic_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
 }
 
 /// The View menu items that flip between Hide and Show (edges, template, threads, …).
-fn view_toggle_label(app: &VectorcraftApp, id: &str) -> Option<String> {
+fn view_toggle_label(app: &PlumaApp, id: &str) -> Option<String> {
     let v = &app.ui.view;
     let text: String = match id {
         "view.outline" => if app.outline_view() { "Preview" } else { "Outline" }.into(),
@@ -32,13 +32,13 @@ fn view_toggle_label(app: &VectorcraftApp, id: &str) -> Option<String> {
 }
 
 /// The rulers, guides, grid and print tiling items that flip between Hide and Show.
-fn window_toggle_label(app: &VectorcraftApp, id: &str) -> Option<String> {
+fn window_toggle_label(app: &PlumaApp, id: &str) -> Option<String> {
     let v = &app.ui.view;
     let text: String = match id {
         "view.artboards" => if v.artboards { "Hide Artboards" } else { "Show Artboards" }.into(),
         "view.rulers" => if v.rulers { "Hide Rulers" } else { "Show Rulers" }.into(),
         "view.videoRulers" => if v.video_rulers && v.rulers { "Hide Video Rulers" } else { "Show Video Rulers" }.into(),
-        "view.globalRulers" => if app.session.active().is_some_and(|d| d.doc.rulers == vectorcraft_doc::RulerMode::Global) {
+        "view.globalRulers" => if app.session.active().is_some_and(|d| d.doc.rulers == pluma_doc::RulerMode::Global) {
             "Change to Artboard Rulers"
         } else {
             "Change to Global Rulers"
@@ -59,7 +59,7 @@ fn window_toggle_label(app: &VectorcraftApp, id: &str) -> Option<String> {
 }
 
 /// The menu slots that show a name: recent fonts, saved views and selections, recent files, libraries and presets.
-fn slot_label(app: &VectorcraftApp, id: &str) -> Option<String> {
+fn slot_label(app: &PlumaApp, id: &str) -> Option<String> {
     let text: String = match id {
         id if id.starts_with("type.recentFont") => {
             let n: usize = id["type.recentFont".len()..].parse().unwrap_or(0);
@@ -91,10 +91,10 @@ fn slot_label(app: &VectorcraftApp, id: &str) -> Option<String> {
 }
 
 /// The labels that follow the last effect, the envelope being edited, the history and the perspective grid.
-fn command_label(app: &VectorcraftApp, id: &str, label: &str) -> Option<String> {
+fn command_label(app: &PlumaApp, id: &str, label: &str) -> Option<String> {
     let text: String = match id {
         "effect.last" => match &app.last_effect {
-            Some((e, _)) => format!("Last Effect: {}", vectorcraft_effects::effect_info(e).map(|i| i.label).unwrap_or(e.as_str())),
+            Some((e, _)) => format!("Last Effect: {}", pluma_effects::effect_info(e).map(|i| i.label).unwrap_or(e.as_str())),
             None => label.into(),
         },
         // Edit Contents reads Edit Envelope while an envelope's contents are being edited.
@@ -103,8 +103,8 @@ fn command_label(app: &VectorcraftApp, id: &str, label: &str) -> Option<String> 
                 st.selection
                     .objects
                     .first()
-                    .and_then(|id| vectorcraft_doc::live::envelope_of(&st.doc, *id))
-                    .is_some_and(|e| matches!(e.kind, vectorcraft_doc::NodeKind::Envelope { editing: true, .. }))
+                    .and_then(|id| pluma_doc::live::envelope_of(&st.doc, *id))
+                    .is_some_and(|e| matches!(e.kind, pluma_doc::NodeKind::Envelope { editing: true, .. }))
             });
             if editing { "Edit Envelope" } else { "Edit Contents" }.into()
         }
@@ -139,9 +139,9 @@ pub(super) fn shows_a_name(id: &str, label: &str) -> bool {
     SLOTS.iter().any(|s| id.starts_with(s))
         || saved_selection_slot(id).is_some()
         || matches!(id, "text.setStyle" | "plugin.dialog" | "file.openWith" | "window.toolbar.custom" | "svgFilter.apply")
-        || vectorcraft_engine::cmd::plugin::is_command_id(id)
+        || pluma_engine::cmd::plugin::is_command_id(id)
         || (id == "window.workspace" && !crate::workspaces::is_builtin(label))
-        || (matches!(id, "effect.apply" | "effect.dialog") && vectorcraft_effects::plugin_effects().iter().any(|e| e.label == label))
+        || (matches!(id, "effect.apply" | "effect.dialog") && pluma_effects::plugin_effects().iter().any(|e| e.label == label))
 }
 
 /// Does the menu item `id` with `params` list an installed plug-in (an Object › Plug-ins filter, an
@@ -149,15 +149,15 @@ pub(super) fn shows_a_name(id: &str, label: &str) -> bool {
 /// own text? Told by the item itself, so it holds while another thread installs or removes plug-ins.
 pub(crate) fn lists_plugin(id: &str, params: &Value) -> bool {
     matches!(id, "plugin.dialog" | "file.openWith")
-        || vectorcraft_engine::cmd::plugin::is_command_id(id)
-        || params.get("effect").and_then(Value::as_str).and_then(vectorcraft_plugins::effect::plugin_id).is_some()
+        || pluma_engine::cmd::plugin::is_command_id(id)
+        || params.get("effect").and_then(Value::as_str).and_then(pluma_plugins::effect::plugin_id).is_some()
 }
 
 /// The label of a menu item as drawn: [`dynamic_label`] in the UI language. Labels assembled
 /// around a name (Undo *Move*, Reset *Essentials*, Last Effect: *Drop Shadow*) are translated as
 /// templates so the name can move; names that are user data (files, views, fonts, custom
 /// workspaces, plug-ins: [`shows_a_name`]) pass through.
-pub fn display_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
+pub fn display_label(app: &PlumaApp, id: &str, label: &str) -> String {
     let lang = crate::i18n::current();
     let fmt = crate::i18n::fmt;
     match id {
@@ -177,7 +177,7 @@ pub fn display_label(app: &VectorcraftApp, id: &str, label: &str) -> String {
         }
         "effect.last" => match &app.last_effect {
             Some((e, _)) => {
-                let name = vectorcraft_effects::effect_info(e).map(|i| i.label).unwrap_or(e.as_str());
+                let name = pluma_effects::effect_info(e).map(|i| i.label).unwrap_or(e.as_str());
                 fmt(tl!("Last Effect: {name}"), &[("name", crate::i18n::tr_id(lang, e, name))])
             }
             None => crate::i18n::tr_id(lang, id, label).to_string(),
@@ -205,12 +205,12 @@ pub(super) fn effect_item_label(id: &str, p: &Value) -> Option<String> {
 /// The label of an item of the canvas context menu's Unlock submenu (`layer.setProps` with one id
 /// and `locked: false`): the object's name as the Layers panel shows it in `lang`
 /// ([`crate::panels::layers::shown_name`]). `None` for any other item, or when the object is gone.
-pub(super) fn unlock_item_label(app: &VectorcraftApp, id: &str, p: &Value, lang: crate::i18n::Lang) -> Option<String> {
+pub(super) fn unlock_item_label(app: &PlumaApp, id: &str, p: &Value, lang: crate::i18n::Lang) -> Option<String> {
     if id != "layer.setProps" || p.get("locked") != Some(&Value::Bool(false)) {
         return None;
     }
     let [one] = p.get("ids")?.as_array()?.as_slice() else { return None };
-    let n = app.session.active()?.doc.node(vectorcraft_doc::NodeId(one.as_u64()?))?;
+    let n = app.session.active()?.doc.node(pluma_doc::NodeId(one.as_u64()?))?;
     Some(crate::panels::layers::shown_name(app, n, lang))
 }
 
@@ -323,7 +323,7 @@ pub const DYNAMIC_LABELS: &[&str] = &[
 
 /// Is `children` a plug-in's submenu: does it hold a command the plug-in declares?
 pub(crate) fn holds_plugin_commands(children: &[Item]) -> bool {
-    children.iter().any(|c| matches!(c, Item::Cmd(_, id, _) if vectorcraft_engine::cmd::plugin::is_command_id(id)))
+    children.iter().any(|c| matches!(c, Item::Cmd(_, id, _) if pluma_engine::cmd::plugin::is_command_id(id)))
 }
 
 /// Every English string the menus, the command palette, the panel registry, the toolbar and the
@@ -345,7 +345,7 @@ pub fn menu_strings() -> std::collections::BTreeSet<String> {
                         .strip_suffix('°')
                         .map(|n| n.strip_prefix('-').unwrap_or(n))
                         .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-                    // VectorCraft › Language lists each language by its own name.
+                    // Pluma › Language lists each language by its own name.
                     let language_name = *id == "app.language" && crate::i18n::Lang::all().any(|lang| lang.name() == *l);
                     if !user_data(id, params) && !size && !angle && !language_name && *l != "—" {
                         out.insert(l.to_string());
@@ -376,22 +376,22 @@ pub fn menu_strings() -> std::collections::BTreeSet<String> {
     out.extend(DYNAMIC_LABELS.iter().map(|s| s.to_string()));
     out.extend(CONTEXT_LABELS.iter().map(|s| s.to_string()));
     out.extend(UI_COMMANDS.iter().map(|c| c.1.to_string()));
-    for c in vectorcraft_engine::cmd::command_specs() {
+    for c in pluma_engine::cmd::command_specs() {
         out.insert(c.label.to_string());
         out.extend(c.menu.iter().map(|m| m.to_string()));
     }
     out.extend(crate::state::all_panels().map(|(_, label)| label.to_string()));
-    out.extend(vectorcraft_tools::catalog::all_tools().map(|t| t.label.to_string()));
+    out.extend(pluma_tools::catalog::all_tools().map(|t| t.label.to_string()));
     out.extend(crate::toolbar::BASIC.iter().map(|c| c.0.to_string()));
-    out.extend(vectorcraft_color::BlendMode::ALL.iter().map(|m| m.label().to_string()));
-    out.extend(vectorcraft_effects::effect_catalog().iter().map(|e| e.label.to_string()));
-    out.extend(vectorcraft_engine::cmd::prefscmds::PREF_CATEGORIES.iter().map(|c| c.to_string()));
-    for sp in vectorcraft_engine::cmd::prefscmds::PREF_SPECS {
+    out.extend(pluma_color::BlendMode::ALL.iter().map(|m| m.label().to_string()));
+    out.extend(pluma_effects::effect_catalog().iter().map(|e| e.label.to_string()));
+    out.extend(pluma_engine::cmd::prefscmds::PREF_CATEGORIES.iter().map(|c| c.to_string()));
+    for sp in pluma_engine::cmd::prefscmds::PREF_SPECS {
         out.insert(sp.label.to_string());
         if !sp.section.is_empty() {
             out.insert(sp.section.to_string());
         }
-        if let vectorcraft_engine::cmd::prefscmds::PrefKind::Choice(opts) = sp.kind {
+        if let pluma_engine::cmd::prefscmds::PrefKind::Choice(opts) = sp.kind {
             out.extend(opts.iter().map(|o| o.1.to_string()));
         }
     }

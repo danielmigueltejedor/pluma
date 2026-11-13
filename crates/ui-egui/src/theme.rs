@@ -503,7 +503,7 @@ pub fn mono(size: f32) -> FontId {
 /// ([`FONT_UI`], [`FONT_UI_SEMIBOLD`], [`FONT_MONO`]). egui 0.37 only bundles its own faces when
 /// its `default_fonts` feature is on (this crate enables it); without any face a family lays out
 /// tofu, and the `egui_kittest` harness alone panics on a missing glyph. Every context that shows
-/// these families needs this once: [`crate::VectorcraftApp::ui`] calls it on its first pass, and
+/// these families needs this once: [`crate::PlumaApp::ui`] calls it on its first pass, and
 /// an embedder that draws the panels or dialogs without it calls it when it makes the context. It
 /// replaces the context's font definitions: add other fonts after it, or keep these families in
 /// definitions of one's own. Without the `interface-fonts` feature the families are egui's built-in
@@ -513,7 +513,7 @@ pub fn install_fonts(ctx: &egui::Context) {
     ctx.set_fonts(interface_fonts());
 }
 
-/// The definitions [`install_fonts`] installs. [`crate::VectorcraftApp::ui`] keeps them to tell
+/// The definitions [`install_fonts`] installs. [`crate::PlumaApp::ui`] keeps them to tell
 /// whether egui applied them at once or deferred them to the next pass (it must not take input
 /// or draw with fallback metrics while they are pending).
 pub fn interface_fonts() -> FontDefinitions {
@@ -559,7 +559,7 @@ fn interface_faces(_fonts: &mut FontDefinitions) -> (Vec<&'static str>, Vec<&'st
 }
 
 /// The egui name of a craft-fonts face.
-pub(crate) fn craft_font_name(f: &vectorcraft_text::CraftFont) -> String {
+pub(crate) fn craft_font_name(f: &pluma_text::CraftFont) -> String {
     format!("craft-fonts {} {}", f.family, f.style)
 }
 
@@ -571,7 +571,7 @@ pub(crate) fn craft_font_name(f: &vectorcraft_text::CraftFont) -> String {
 fn add_craft_fonts(fonts: &mut FontDefinitions) {
     // The name of each face's copy in each family.
     let mut copies: std::collections::HashMap<(FontFamily, String), String> = std::collections::HashMap::new();
-    for f in vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese() || f.is_georgian() || f.scripts.contains(&"Deva")) {
+    for f in pluma_text::CRAFT_FONTS.iter().filter(|f| f.is_japanese() || f.is_georgian() || f.scripts.contains(&"Deva")) {
         let name = craft_font_name(f);
         for (copy, data, families) in crate::ui_fonts::baseline_copies(fonts, &name, &FontData::from_static(f.bytes)) {
             for family in families {
@@ -582,13 +582,13 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
     }
     for (family, stack) in fonts.families.iter_mut() {
         let bold = *family == FontFamily::Name(FONT_UI_SEMIBOLD.into());
-        let copy = |f: &vectorcraft_text::CraftFont| {
+        let copy = |f: &pluma_text::CraftFont| {
             let name = craft_font_name(f);
             copies.get(&(family.clone(), name.clone())).cloned().unwrap_or(name)
         };
-        stack.extend(vectorcraft_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(copy));
-        stack.extend(vectorcraft_text::craft_fonts::georgian_ui_fonts().into_iter().map(copy));
-        stack.extend(vectorcraft_text::CRAFT_FONTS.iter().filter(|f| f.scripts.contains(&"Deva")).map(copy));
+        stack.extend(pluma_text::craft_fonts::japanese_ui_fonts(bold).into_iter().map(copy));
+        stack.extend(pluma_text::craft_fonts::georgian_ui_fonts().into_iter().map(copy));
+        stack.extend(pluma_text::CRAFT_FONTS.iter().filter(|f| f.scripts.contains(&"Deva")).map(copy));
     }
 }
 

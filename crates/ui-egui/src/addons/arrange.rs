@@ -6,7 +6,7 @@
 use egui::Ui;
 use serde_json::{Value, json};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::dialogs::{DialogSpec, form};
 use crate::menus::Item;
 use crate::state::Dialog;
@@ -54,7 +54,7 @@ pub fn menu() -> Vec<Item> {
 
 /// The dialog (kind, fields) the menu item of command `id` opens; `None` for other commands and
 /// without a document.
-pub(crate) fn dialog(app: &VectorcraftApp, id: &str) -> Option<(&'static str, Value)> {
+pub(crate) fn dialog(app: &PlumaApp, id: &str) -> Option<(&'static str, Value)> {
     let &(kind, ..) = DIALOGS.iter().find(|(_, cmd, _)| *cmd == id)?;
     let st = app.session.active()?;
     let strokes = app.session.prefs.scale_strokes;
@@ -117,7 +117,7 @@ fn params(d: &Dialog) -> Value {
     p
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     let widths = (LABEL_W, 150.0);
     match d.kind.as_str() {
@@ -212,13 +212,13 @@ fn body(app: &mut VectorcraftApp, ui: &mut Ui, d: &mut Dialog) -> bool {
 }
 
 /// OK: run the command (keep its preview) and close.
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     form::commit_preview(app, command(d).0, params(d))
 }
 
 /// Zoom to Selection: the active view zooms and centres so the selection's bounds fill the
 /// window, with a margin. An error with nothing selected.
-pub(crate) fn zoom(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub(crate) fn zoom(app: &mut PlumaApp) -> Result<Value, String> {
     if app.session.active().is_none_or(|st| st.selection.objects.is_empty()) {
         return Err("nothing selected".into());
     }

@@ -15,7 +15,7 @@ use krilla::geom::PathBuilder;
 use krilla::graphic::Graphic;
 use std::sync::Arc;
 
-use vectorcraft_doc::{Document, Node, NodeKind};
+use pluma_doc::{Document, Node, NodeKind};
 
 use crate::encrypt::{Lexer, Obj, StreamSpans, Tok, int, stream_spans};
 use crate::output::{deflate, text_string};
@@ -86,7 +86,7 @@ pub(crate) fn form(s: &mut Surface, mark: Mark, draw: impl FnOnce(&mut Surface))
 /// layer's. The mark's other two points are the corners of `paper` (the page's paper in the
 /// form's drawing space), rounded outwards to whole units: [`finish`] gives the form a box that
 /// covers the paper and the art.
-pub(crate) fn layer_form(s: &mut Surface, i: usize, paper: vectorcraft_geom::Rect, draw: impl FnOnce(&mut Surface)) {
+pub(crate) fn layer_form(s: &mut Surface, i: usize, paper: pluma_geom::Rect, draw: impl FnOnce(&mut Surface)) {
     // The art and its box move into page space together; keeping the old local paper here
     // would clip layers on translated artboards or give the importer a spurious clipping group.
     let paper = affine(s.group_transform()).transform_rect_bbox(paper);

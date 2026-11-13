@@ -1,17 +1,17 @@
 use super::bar::render_items;
 use super::state::enabled;
 use super::tree::{arrange_items, transform_items};
-use super::{Item, Sep, Value, VectorcraftApp, c, cp, json, sub, widgets};
+use super::{Item, PlumaApp, Sep, Value, c, cp, json, sub, widgets};
 
 /// The canvas context menu (right-click): what applies to the selection, or to the view when
 /// nothing is selected. Commands that can't run now are left out rather than greyed out.
-pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
-    use vectorcraft_doc::NodeKind;
+pub fn context_items(app: &PlumaApp) -> Vec<Item> {
+    use pluma_doc::NodeKind;
     let Some(st) = app.session.active() else { return vec![] };
     if app.session.tool_id() == "artboard" {
         return prune(app, artboard_items(app));
     }
-    let roots: Vec<&vectorcraft_doc::Node> = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)).collect();
+    let roots: Vec<&pluma_doc::Node> = st.selection.objects.iter().filter_map(|id| st.doc.node(*id)).collect();
     let any = |f: fn(&NodeKind) -> bool| roots.iter().any(|n| f(&n.kind));
     let several = roots.len() >= 2;
     let mut v = spelling_items(app);
@@ -119,11 +119,11 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
 /// (`text.spelling.ignoreAll`) and Add to Dictionary (`text.spelling.addWord`), as the public
 /// [Check and correct spelling](https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/check-and-correct-spelling.html)
 /// page lists them. Nothing for another right-click, or after the document or the word changed.
-fn spelling_items(app: &VectorcraftApp) -> Vec<Item> {
+fn spelling_items(app: &PlumaApp) -> Vec<Item> {
     let Some(st) = app.session.active() else { return vec![] };
     let Some(w) = app.ui.context_spelling.as_ref().filter(|w| w.uid == st.uid) else { return vec![] };
     let still = match st.doc.node(w.id).map(|n| &n.kind) {
-        Some(vectorcraft_doc::NodeKind::Text(t)) => t.plain_text().get(w.start..w.end) == Some(w.word.as_str()),
+        Some(pluma_doc::NodeKind::Text(t)) => t.plain_text().get(w.start..w.end) == Some(w.word.as_str()),
         _ => false,
     };
     if !still {
@@ -148,7 +148,7 @@ fn spelling_items(app: &VectorcraftApp) -> Vec<Item> {
 
 /// The locked objects under the pointer at the right-click, each unlocked as the Layers panel's
 /// lock column does. `unlock_item_label` shows each object's name.
-fn unlock_items(app: &VectorcraftApp) -> Vec<Item> {
+fn unlock_items(app: &PlumaApp) -> Vec<Item> {
     let Some(st) = app.session.active() else { return vec![] };
     app.ui
         .context_locked
@@ -165,7 +165,7 @@ fn unlock_items(app: &VectorcraftApp) -> Vec<Item> {
 /// page, with the page's Lock Artboards submenu as two, Lock Artboards and Unlock Artboards. `docs/mcp.md`
 /// names the entries that act on the artboards the tool has selected. Exit Isolation Mode and the
 /// Unlock submenu for locked objects under the pointer follow them.
-fn artboard_items(app: &VectorcraftApp) -> Vec<Item> {
+fn artboard_items(app: &PlumaApp) -> Vec<Item> {
     use crate::panels::artboards as boards;
     let Some(st) = app.session.active() else { return vec![] };
     let all = &st.doc.artboards;
@@ -242,7 +242,7 @@ fn artboard_items(app: &VectorcraftApp) -> Vec<Item> {
 
 /// `items` without the commands that can't run now (Undo and Redo stay, greyed out), submenus
 /// left empty, and separators that no longer separate anything.
-fn prune(app: &VectorcraftApp, items: Vec<Item>) -> Vec<Item> {
+fn prune(app: &PlumaApp, items: Vec<Item>) -> Vec<Item> {
     let mut out: Vec<Item> = Vec::with_capacity(items.len());
     for it in items {
         let it = match it {
@@ -266,7 +266,7 @@ fn prune(app: &VectorcraftApp, items: Vec<Item>) -> Vec<Item> {
 }
 
 /// The canvas context menu's popup; the item clicked goes in `clicked`, for [`invoke`].
-pub fn context_menu_body(app: &VectorcraftApp, ui: &mut egui::Ui, clicked: &mut Option<(String, Value)>) {
+pub fn context_menu_body(app: &PlumaApp, ui: &mut egui::Ui, clicked: &mut Option<(String, Value)>) {
     widgets::menu_scroll(ui, |ui| {
         ui.set_min_width(200.0);
         // Its toggles already say what they do (Show Rulers, Hide Guides): no check-mark gutter,
@@ -278,12 +278,12 @@ pub fn context_menu_body(app: &VectorcraftApp, ui: &mut egui::Ui, clicked: &mut 
 /// The document units a right-click on a ruler offers: each runs `document.setUnits`, exactly as
 /// Preferences ▸ Units ▸ General does, with the current one checked ([`checked`]).
 pub fn ruler_unit_items() -> Vec<Item> {
-    vectorcraft_engine::doc::Unit::ALL.iter().map(|u| cp(u.label(), "document.setUnits", json!({ "units": u.label() }))).collect()
+    pluma_engine::doc::Unit::ALL.iter().map(|u| cp(u.label(), "document.setUnits", json!({ "units": u.label() }))).collect()
 }
 
 /// The ruler context menu's popup (right-click a ruler or the origin box); the unit clicked goes in
 /// `clicked`, for [`invoke`].
-pub fn ruler_menu_body(app: &VectorcraftApp, ui: &mut egui::Ui, clicked: &mut Option<(String, Value)>) {
+pub fn ruler_menu_body(app: &PlumaApp, ui: &mut egui::Ui, clicked: &mut Option<(String, Value)>) {
     widgets::menu_scroll(ui, |ui| {
         ui.set_min_width(160.0);
         render_items(app, ui, &ruler_unit_items(), true, clicked);

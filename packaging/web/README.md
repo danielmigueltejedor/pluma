@@ -1,22 +1,22 @@
-# Hosting VectorCraft for the web
+# Hosting Pluma for the web
 
-`vectorcraft-web-<version>.zip` (from the GitHub release, or `packaging/web/package.sh`) holds a
-static site in `vectorcraft-web-<version>/`:
+`pluma-web-<version>.zip` (from the GitHub release, or `packaging/web/package.sh`) holds a
+static site in `pluma-web-<version>/`:
 
 | File | What it is |
 |---|---|
 | `index.html` | The page. It loads everything through relative URLs. |
-| `vectorcraft-web-<hash>.js` | wasm-bindgen glue (generated, ES module) |
-| `vectorcraft-web-<hash>_bg.wasm` | The app, about 13 MB, or 5 MB with compression |
+| `pluma-web-<hash>.js` | wasm-bindgen glue (generated, ES module) |
+| `pluma-web-<hash>_bg.wasm` | The app, about 13 MB, or 5 MB with compression |
 | `_headers`, `.htaccess` | Sample header rules for Netlify/Cloudflare Pages and Apache |
 
 There is no server-side code. Upload the folder's contents anywhere that serves static files.
 
 ## Any path works
 
-All URLs in `index.html` are relative (`public_url = "./"` in `apps/vectorcraft-web/Trunk.toml`),
+All URLs in `index.html` are relative (`public_url = "./"` in `apps/pluma-web/Trunk.toml`),
 so the site works at a domain root (`https://example.com/`), under a prefix
-(`https://example.com/tools/vectorcraft/`) and from a CDN bucket. The asset names carry a content
+(`https://example.com/tools/pluma/`) and from a CDN bucket. The asset names carry a content
 hash, so they can be cached forever. Only `index.html` needs revalidation.
 
 ## Required server settings
@@ -31,7 +31,7 @@ hash, so they can be cached forever. Only `index.html` needs revalidation.
   `.js` files, and `no-cache` on `index.html`.
 - **HTTPS:** WebGPU (and the clipboard) only work in a secure context, which means `https://`
   or `http://localhost`. Over plain HTTP elsewhere, the app falls back to WebGL2.
-- **No special isolation headers:** VectorCraft doesn't use `SharedArrayBuffer`, so it doesn't
+- **No special isolation headers:** Pluma doesn't use `SharedArrayBuffer`, so it doesn't
   need `Cross-Origin-Opener-Policy` or `Cross-Origin-Embedder-Policy`. If your site already sends
   COEP `require-corp`, also send `Cross-Origin-Resource-Policy: same-origin` (or `cross-origin`
   when the files live on a CDN) on the app's files.
@@ -39,7 +39,7 @@ hash, so they can be cached forever. Only `index.html` needs revalidation.
 nginx example:
 
 ```nginx
-location /vectorcraft/ {
+location /pluma/ {
     types { application/wasm wasm; text/javascript js; text/html html; }
     gzip on;
     gzip_types application/wasm text/javascript text/html;
@@ -63,7 +63,7 @@ The wasm is built with WebAssembly SIMD (`-C target-feature=+simd128`, `.cargo/c
 
 Source: caniuse `wasm-simd` and the WebAssembly feature table (webassembly.org/features). An older
 browser can't compile the module. There is no fallback build and no message: the page stays on
-"Loading VectorCraft..." and the console shows a WebAssembly compile error. The app also needs
+"Loading Pluma..." and the console shows a WebAssembly compile error. The app also needs
 WebGPU or WebGL2 (see "Renderer selection" below). If you must serve older browsers, put a
 version check in front of the app on your own page.
 
@@ -84,8 +84,8 @@ the other families load in the background and appear in the font menus as they a
 
 ```html
 <iframe
-  src="https://example.com/vectorcraft/"
-  title="VectorCraft vector illustration app"
+  src="https://example.com/pluma/"
+  title="Pluma vector illustration app"
   style="width: 100%; height: 720px; border: 0;"
   allow="fullscreen; clipboard-read; clipboard-write"
   allowfullscreen>
@@ -105,7 +105,7 @@ the other families load in the background and appear in the font menus as they a
 
 ## Renderer selection and fallback flags
 
-VectorCraft renders with wgpu. It uses **WebGPU** when the browser has it and falls back to
+Pluma renders with wgpu. It uses **WebGPU** when the browser has it and falls back to
 **WebGL2** on its own. URL query flags override this, and they work on the iframe `src` too:
 
 | Flag | Effect |
@@ -114,6 +114,6 @@ VectorCraft renders with wgpu. It uses **WebGPU** when the browser has it and fa
 | `?webgl` | Force the WebGL2 backend (useful when a WebGPU driver misbehaves) |
 | `?cpu` | Force the CPU canvas path (slowest, most compatible) |
 
-For example: `<iframe src="https://example.com/vectorcraft/?webgl" ...>`.
+For example: `<iframe src="https://example.com/pluma/?webgl" ...>`.
 
 A browser with neither WebGPU nor WebGL2 gets a message in place of the app.

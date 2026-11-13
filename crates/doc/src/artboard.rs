@@ -38,7 +38,7 @@ pub struct Artboard {
     /// without one the paper is white, or the Simulate Colored Paper color. Exports and print draw
     /// it behind the art ([`super::Document::with_artboard_fills`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub color: Option<vectorcraft_color::Color>,
+    pub color: Option<pluma_color::Color>,
 }
 
 /// The Video Ruler Pixel Aspect Ratios an artboard takes (Artboard Options): from a pixel ten times
@@ -83,7 +83,7 @@ impl super::Document {
     /// (in the color's own model), on a layer of their own (Artboard Fill) below the
     /// others. `None` when none of them has a color.
     pub fn with_artboard_fills(&self, indices: impl IntoIterator<Item = usize>) -> Option<Self> {
-        let fills: Vec<(Rect, vectorcraft_color::Color)> = indices
+        let fills: Vec<(Rect, pluma_color::Color)> = indices
             .into_iter()
             .filter_map(|i| {
                 let a = self.artboards.get(i)?;
@@ -98,8 +98,8 @@ impl super::Document {
         let paths: Vec<Arc<Node>> = fills
             .into_iter()
             .map(|(r, c)| {
-                let look = super::Appearance::basic(vectorcraft_color::Paint::solid(c), vectorcraft_color::Paint::None, 0.0);
-                Arc::new(Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(r), look))
+                let look = super::Appearance::basic(pluma_color::Paint::solid(c), pluma_color::Paint::None, 0.0);
+                Arc::new(Node::path(d.alloc_id(), pluma_geom::shapes::rectangle(r), look))
             })
             .collect();
         *layer.children_mut()? = paths;
@@ -120,7 +120,7 @@ impl super::Document {
     }
 }
 
-/// The space between an artboard and one added or duplicated beside it (VectorCraft's own value,
+/// The space between an artboard and one added or duplicated beside it (Pluma's own value,
 /// the space New Artboard and Duplicate Artboards leave right of the last artboard).
 pub const ARTBOARD_GAP: f64 = 20.0;
 
@@ -151,13 +151,13 @@ impl ArtboardSide {
     }
 
     /// How far a copy of `r` moves to sit on this side of it, [`ARTBOARD_GAP`] away (y down).
-    pub fn offset(self, r: Rect) -> vectorcraft_geom::Vec2 {
+    pub fn offset(self, r: Rect) -> pluma_geom::Vec2 {
         let (w, h) = (r.width() + ARTBOARD_GAP, r.height() + ARTBOARD_GAP);
         match self {
-            Self::Left => vectorcraft_geom::Vec2::new(-w, 0.0),
-            Self::Right => vectorcraft_geom::Vec2::new(w, 0.0),
-            Self::Top => vectorcraft_geom::Vec2::new(0.0, -h),
-            Self::Bottom => vectorcraft_geom::Vec2::new(0.0, h),
+            Self::Left => pluma_geom::Vec2::new(-w, 0.0),
+            Self::Right => pluma_geom::Vec2::new(w, 0.0),
+            Self::Top => pluma_geom::Vec2::new(0.0, -h),
+            Self::Bottom => pluma_geom::Vec2::new(0.0, h),
         }
     }
 }

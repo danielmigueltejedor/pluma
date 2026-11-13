@@ -8,10 +8,10 @@
 
 use std::sync::{Arc, OnceLock};
 
+use pluma_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
+use pluma_geom::Point;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use vectorcraft_color::{BlendMode, Color, Gradient, GradientGeom, GradientKind, GradientPaint, GradientStop, Paint};
-use vectorcraft_geom::Point;
 
 use crate::{
     Appearance, AppearanceItem, Arrowhead, Dash, Document, Effect, FillLayer, GraphicStyle, Knockout, LineCap, LineJoin, PatternDef, StrokeAlign,

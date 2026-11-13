@@ -1,10 +1,10 @@
 //! OpenType SVG glyphs: `glyph_art` makes a glyph's art of its SVG document, as the importer opens
 //! SVG files, in font units.
 
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::{Node, NodeKind};
+use pluma_svg::glyph_art;
 use proptest::prelude::*;
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_svg::glyph_art;
 
 const BLUE: Color = Color::Rgb { r: 0.0, g: 0.0, b: 1.0 };
 
@@ -94,11 +94,11 @@ fn text_and_scripts_are_left_out() {
 #[test]
 fn gzipped_documents_are_read_and_malformed_ones_are_no_art() {
     let doc = r##"<svg xmlns="http://www.w3.org/2000/svg"><g id="glyph4"><path fill="#000" d="M0 0h10v-10z"/></g></svg>"##;
-    assert!(glyph_art(&vectorcraft_svg::compress(doc), 4, 1000.0, Color::BLACK, None).is_some(), "gzipped");
+    assert!(glyph_art(&pluma_svg::compress(doc), 4, 1000.0, Color::BLACK, None).is_some(), "gzipped");
     assert!(art("not xml <", 4).is_none());
     // A document that unpacks past the glyph cap (a bomb).
     let huge = format!("<svg xmlns=\"http://www.w3.org/2000/svg\"><g id=\"glyph4\"><!--{}--></g></svg>", "x".repeat(4 << 20));
-    assert!(glyph_art(&vectorcraft_svg::compress(&huge), 4, 1000.0, Color::BLACK, None).is_none());
+    assert!(glyph_art(&pluma_svg::compress(&huge), 4, 1000.0, Color::BLACK, None).is_none());
 }
 
 proptest! {
@@ -187,13 +187,13 @@ fn a_nested_glyph_keeps_the_namespaces_its_parents_declare() {
 /// keep them in), named by their content; one whose pixels don't read is left out.
 #[test]
 fn images_are_in_the_art_with_their_pixels() {
-    let png = vectorcraft_text::test_fonts::solid_png(4, [0, 0, 255, 255]);
+    let png = pluma_text::test_fonts::solid_png(4, [0, 0, 255, 255]);
     let doc = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="glyph1">
       <image x="0" y="-500" width="500" height="500" xlink:href="data:image/png;base64,{}"/>
       <image width="10" height="10" xlink:href="missing.png"/>
     </g></svg>"##,
-        vectorcraft_svg::base64_encode(&png)
+        pluma_svg::base64_encode(&png)
     );
     let art = art(&doc, 1).unwrap();
     let mut images = vec![];
@@ -223,10 +223,10 @@ fn svg_images_are_left_out() {
       <image width="500" height="500" href="data:text/plain;base64,{}"/>
       <image width="500" height="500" href="data:;base64,{}"/>
     </g></svg>"##,
-        vectorcraft_svg::base64_encode(inner.as_bytes()),
-        vectorcraft_svg::xml_escape(&inner.replace('#', "%23")),
-        vectorcraft_svg::base64_encode(inner.as_bytes()),
-        vectorcraft_svg::base64_encode(inner.as_bytes())
+        pluma_svg::base64_encode(inner.as_bytes()),
+        pluma_svg::xml_escape(&inner.replace('#', "%23")),
+        pluma_svg::base64_encode(inner.as_bytes()),
+        pluma_svg::base64_encode(inner.as_bytes())
     );
     let fills = fills(&art(&doc, 1).unwrap());
     assert!(fills.contains(&Paint::solid(Color::rgb8(0, 0, 255))), "the glyph's own art");
@@ -237,8 +237,8 @@ fn svg_images_are_left_out() {
 /// whose `href` is a PNG stays, whatever its `xlink:href`; one whose `href` is a document goes.
 #[test]
 fn an_images_plain_href_decides_whether_it_is_an_svg_image() {
-    let png = vectorcraft_svg::base64_encode(&vectorcraft_text::test_fonts::solid_png(4, [0, 0, 255, 255]));
-    let svg = vectorcraft_svg::base64_encode(
+    let png = pluma_svg::base64_encode(&pluma_text::test_fonts::solid_png(4, [0, 0, 255, 255]));
+    let svg = pluma_svg::base64_encode(
         br##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#f00"/></svg>"##,
     );
     let image = |href: &str, xlink: &str| {

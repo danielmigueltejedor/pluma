@@ -1,11 +1,11 @@
 //! Vector Halftone's live art: drawn as dots, following its settings, kept while the art doesn't
 //! change, and refused past the caps.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Effect, Node};
+use pluma_effects::addons::halftone::HALFTONE;
+use pluma_geom::{Affine, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Effect, Node};
-use vectorcraft_effects::addons::halftone::HALFTONE;
-use vectorcraft_geom::{Affine, Rect, shapes};
 
 use super::{SAMPLED, art};
 use crate::{RenderOptions, Renderer};

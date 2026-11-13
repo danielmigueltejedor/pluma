@@ -37,14 +37,14 @@ fn local_affinity_documents_render_like_their_thumbnails() {
     for path in paths {
         let name = path.file_name().unwrap().to_string_lossy().to_string();
         let bytes = std::fs::read(&path).unwrap();
-        let loaded = vectorcraft_engine::cmd::fileio::load(&name, &bytes).unwrap();
+        let loaded = pluma_engine::cmd::fileio::load(&name, &bytes).unwrap();
         assert!(!loaded.preview_only, "{name}: {:?}", loaded.warnings);
         let d = &loaded.doc;
         eprintln!("{name}: {} artboards, {} layers", d.artboards.len(), d.layers.len());
         for w in &loaded.warnings {
             eprintln!("  {w}");
         }
-        let Ok(preview) = vectorcraft_affinity::preview(&bytes) else { continue };
+        let Ok(preview) = pluma_affinity::preview(&bytes) else { continue };
         let thumb = image::load_from_memory(preview.png).unwrap().to_rgba8();
         let union = d.artboards.iter().map(|a| a.rect).reduce(|a, b| a.union(b)).unwrap();
         let scale = f64::from(thumb.width()) / union.width();
@@ -56,7 +56,7 @@ fn local_affinity_documents_render_like_their_thumbnails() {
             let (w, h) = (crop(r.width()).min(thumb.width() - x).max(1), crop(r.height()).min(thumb.height() - y).max(1));
             let expected = image::imageops::crop_imm(&thumb, x, y, w, h).to_image();
             let k = (512.0 / r.width().max(r.height())).max(scale);
-            let rendered = vectorcraft_render::Renderer::new().render_region(d, r, k, false);
+            let rendered = pluma_render::Renderer::new().render_region(d, r, k, false);
             let big = image::RgbaImage::from_raw(rendered.width, rendered.height, rendered.to_straight()).unwrap();
             let got = image::imageops::resize(&big, w, h, image::imageops::FilterType::Triangle);
             let (mut sum, mut n) = (0.0, 0usize);

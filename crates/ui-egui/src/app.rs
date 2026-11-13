@@ -9,7 +9,7 @@ use super::state::{
     QueuedScreenshot, SCREENSHOT_SETTLE_FRAMES, SCREENSHOT_TIMEOUT_ERROR, SCREENSHOT_TIMEOUT_MS, SYSTEM_CLIPBOARD_POLL, take_frame_once,
 };
 use super::{
-    Arc, AutomationRoots, ControlRequest, Ordering, Receiver, Session, UiState, Value, VectorcraftApp, View, ViewInfo, background, canvas, chrome,
+    Arc, AutomationRoots, ControlRequest, Ordering, PlumaApp, Receiver, Session, UiState, Value, View, ViewInfo, background, canvas, chrome,
     clipboard_probe, dialogs, export_progress, file_access, fileio, font_menu, graphics, i18n, io, json, menus, native_menu, opening, palette,
     panel_docking, panels, picks, place, placing, plugin_runs, prefs_dialog, recovery, screen_color, scrub, shortcut_editor, shortcuts, theme,
     titlebar, toolbar, tools_float, trace_runs, unsaved, updates_ui, widgets,
@@ -30,7 +30,7 @@ mod view;
 
 pub use fonts::MAX_RECENT_FONTS;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Takes the host's Caps Lock state, which gives the drawing tools the crosshair while it is on
     /// without changing the saved Use Precise Cursors preference.
     pub fn set_caps_lock(&mut self, on: bool) {
@@ -46,7 +46,7 @@ impl VectorcraftApp {
     /// Data Recovery the host's store and makes a view for each open document.
     pub fn new(mut session: Session, services: Services) -> Self {
         // The font menus and the first file opened need the installed fonts: catalog them now.
-        vectorcraft_text::FontDb::global().scan_in_background();
+        pluma_text::FontDb::global().scan_in_background();
         if let Some(store) = &services.recovery_store {
             session.recovery.set_store(store.clone());
         }
@@ -65,7 +65,7 @@ impl VectorcraftApp {
             view_uids,
             services,
             canvas: CanvasCache {
-                renderer: vectorcraft_render::Renderer::new(),
+                renderer: pluma_render::Renderer::new(),
                 texture: None,
                 key: None,
                 shown: None,
@@ -234,7 +234,7 @@ impl VectorcraftApp {
 
 /// eframe isn't a dependency of this crate (the host owns the event loop); these entry points are
 /// called from the host's `eframe::App` impl.
-impl VectorcraftApp {
+impl PlumaApp {
     /// Applies the work that finished off the UI thread. It stays pending while a script runs, since
     /// every change to the documents ends in a busy error until the script ends.
     pub(crate) fn poll_finished_work(&mut self) {
@@ -277,7 +277,7 @@ impl VectorcraftApp {
     /// unsaved work.
     pub fn tick(&mut self, ctx: &egui::Context) {
         let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
-        if let Err(msg) = file_access::confine(confined.as_ref(), || vectorcraft_engine::guard::catch_panic(|| self.tick_frame(ctx))) {
+        if let Err(msg) = file_access::confine(confined.as_ref(), || pluma_engine::guard::catch_panic(|| self.tick_frame(ctx))) {
             self.picks.recover();
             self.session.set_replaying(false);
             self.status(format!("Internal error: {msg} (please report this bug)"));
@@ -382,7 +382,7 @@ impl VectorcraftApp {
                 }
             } else {
                 // Quitting with nothing unsaved: no copies to leave behind.
-                vectorcraft_engine::cmd::recovery::forget_all(&mut self.session);
+                pluma_engine::cmd::recovery::forget_all(&mut self.session);
             }
         }
         if let Some(wait) = recovery::frame(self, now) {
@@ -444,7 +444,7 @@ impl VectorcraftApp {
         {
             let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
             let _ = file_access::confine(confined.as_ref(), || {
-                vectorcraft_engine::guard::catch_panic(|| {
+                pluma_engine::guard::catch_panic(|| {
                     self.ui_setup(ctx);
                     self.handle_input_once(ctx);
                 })
@@ -521,7 +521,7 @@ impl VectorcraftApp {
         crate::ime::begin_ui(self, &ctx);
         let confined = self.synthetic_frame.then(|| self.automation_roots.clone()).flatten();
         if let Err(msg) = file_access::confine(confined.as_ref(), || {
-            vectorcraft_engine::guard::catch_panic(|| {
+            pluma_engine::guard::catch_panic(|| {
                 self.ui_setup(&ctx);
                 self.handle_input_once(&ctx);
                 self.ui_frame(ui);

@@ -3,11 +3,11 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
+use pluma_color::Paint;
+use pluma_doc::{ColorMode, Document, Node, NodeId, NodeKind, RepeatKind, RepeatSpec};
+use pluma_geom::{Affine, Rect};
+use pluma_text::embed::Embedding;
 use serde_json::{Value, json};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{ColorMode, Document, Node, NodeId, NodeKind, RepeatKind, RepeatSpec};
-use vectorcraft_geom::{Affine, Rect};
-use vectorcraft_text::embed::Embedding;
 
 use super::{CommandSpec, Result, Session, bad, bool_or, cmd, has_doc, has_selection, str_param, targets};
 
@@ -187,7 +187,7 @@ fn sections(
                 "symbols" => names("symbols"),
                 "fonts" => fonts.iter().map(|f| (super::fonts::font_label(f), String::new())).collect(),
                 "fontDetails" => {
-                    let db = vectorcraft_text::FontDb::global();
+                    let db = pluma_text::FontDb::global();
                     fonts
                         .iter()
                         .map(|used| {
@@ -197,11 +197,11 @@ fn sections(
                             let resolved =
                                 db.resolve(family, style).map(|(f, m)| (db.face_version(family, style, version.as_deref()).unwrap_or(f), m));
                             let detail = match resolved {
-                                Some((f, m)) if m != vectorcraft_text::FontMatch::Missing => {
+                                Some((f, m)) if m != pluma_text::FontMatch::Missing => {
                                     let file =
                                         f.path().and_then(|p| p.file_name()).map_or_else(|| "built in".into(), |n| n.to_string_lossy().into_owned());
                                     let found = format!("{file}; {}", embedding_label(f.fs_type()));
-                                    if m == vectorcraft_text::FontMatch::Style {
+                                    if m == pluma_text::FontMatch::Style {
                                         format!("substituted: shown in {} {} ({found})", f.family, f.style)
                                     } else {
                                         found
@@ -259,21 +259,21 @@ pub fn report(s: &mut Session, selection_only: bool) -> Result<String> {
 /// line breaks draw no outline. A type object's characters carry their own fill and stroke, and the
 /// type object's own fills and strokes paint on its characters, so only those runs paint. The type
 /// is laid out with its inline graphics' bounds resolved from `d`'s symbols, as the renderer lays it out.
-fn painted_runs<'a>(d: &Document, n: &'a Node) -> Option<(&'a vectorcraft_doc::TextObject, BTreeSet<usize>)> {
+fn painted_runs<'a>(d: &Document, n: &'a Node) -> Option<(&'a pluma_doc::TextObject, BTreeSet<usize>)> {
     let NodeKind::Text(t) = &n.kind else { return None };
     let is_pattern = |p: &Paint| matches!(p, Paint::Pattern { .. });
     let own = n.appearance.items.iter().any(|i| match i {
-        vectorcraft_doc::AppearanceItem::Fill(f) => is_pattern(&f.paint),
-        vectorcraft_doc::AppearanceItem::Stroke(s) => is_pattern(&s.paint),
+        pluma_doc::AppearanceItem::Fill(f) => is_pattern(&f.paint),
+        pluma_doc::AppearanceItem::Stroke(s) => is_pattern(&s.paint),
     });
     if !own && !t.runs.iter().any(|r| is_pattern(&r.style.fill) || is_pattern(&r.style.stroke)) {
         return None;
     }
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     let resolved = d.inline_resolved(t);
-    let lay = vectorcraft_text::layout(db, &resolved);
+    let lay = pluma_text::layout(db, &resolved);
     let mut painted: BTreeSet<usize> = lay.glyphs.iter().chain(&lay.ruby).filter(|g| !g.outline.elements().is_empty()).map(|g| g.run).collect();
-    painted.extend(vectorcraft_text::decorations(&lay, db, &resolved).into_iter().map(|(run, _)| run));
+    painted.extend(pluma_text::decorations(&lay, db, &resolved).into_iter().map(|(run, _)| run));
     Some((t, painted))
 }
 
@@ -286,7 +286,7 @@ fn own_patterns<'a>(
     d: &Document,
     n: &'a Node,
     members: &HashSet<*const Node>,
-    painted_runs: Option<&(&vectorcraft_doc::TextObject, BTreeSet<usize>)>,
+    painted_runs: Option<&(&pluma_doc::TextObject, BTreeSet<usize>)>,
 ) -> Vec<&'a str> {
     if matches!(n.kind, NodeKind::Path { guide: true, .. })
         || members.contains(&std::ptr::from_ref(n))
@@ -297,7 +297,7 @@ fn own_patterns<'a>(
     // The patterns an image's shaped fills and strokes paint (their effects can transform the
     // pattern, so they are matched by name).
     let shaped: Option<Vec<String>> = matches!(n.kind, NodeKind::Image(_)).then(|| {
-        vectorcraft_render::effects::image_paint(Some(d), n)
+        pluma_render::effects::image_paint(Some(d), n)
             .into_iter()
             .filter_map(|(_, _, item)| match item.paint() {
                 Paint::Pattern { pattern, .. } => Some(pattern.clone()),
@@ -309,7 +309,7 @@ fn own_patterns<'a>(
     for item in &n.appearance.items {
         let Paint::Pattern { pattern, .. } = item.paint() else { continue };
         let paints = item.visible()
-            && !matches!(item, vectorcraft_doc::AppearanceItem::Stroke(s) if s.width <= 0.0)
+            && !matches!(item, pluma_doc::AppearanceItem::Stroke(s) if s.width <= 0.0)
             && shaped.as_ref().is_none_or(|s| s.contains(pattern));
         if paints && !out.contains(&pattern.as_str()) {
             out.push(pattern);
@@ -347,7 +347,7 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
     let mut spot = BTreeSet::new();
     let mut styles: Vec<&str> = if selection_only { vec![] } else { d.graphic_styles.iter().map(|g| g.name.as_str()).collect() };
     // `brushes` holds the Brushes panel's brushes, or with selectionOnly it holds the brushes that the selected objects' strokes use.
-    let mut brushes: Vec<String> = if selection_only { vec![] } else { vectorcraft_brush::library(d).into_iter().map(|b| b.name).collect() };
+    let mut brushes: Vec<String> = if selection_only { vec![] } else { pluma_brush::library(d).into_iter().map(|b| b.name).collect() };
     // `repeats` and `repeat_rows` hold the `repeatObjects` entries and the rows of the Repeat objects that the walk visits, in walk order.
     let mut repeats: Vec<Value> = vec![];
     let mut repeat_rows: Vec<(String, String)> = vec![];
@@ -471,7 +471,7 @@ fn info(s: &mut Session, p: &Value) -> Result<Value> {
             }
             if selection_only {
                 for item in &n.appearance.items {
-                    if let vectorcraft_doc::AppearanceItem::Stroke(st) = item
+                    if let pluma_doc::AppearanceItem::Stroke(st) = item
                         && let Some(b) = &st.brush
                         && !brushes.contains(b)
                     {
@@ -552,11 +552,11 @@ fn pixel_perfect(s: &mut Session, p: &Value) -> Result<Value> {
             // Whole-pixel stroke weights; odd ones centre on half pixels.
             let mut odd = false;
             for item in &mut node.appearance.items {
-                if let vectorcraft_doc::AppearanceItem::Stroke(st) = item
+                if let pluma_doc::AppearanceItem::Stroke(st) = item
                     && st.width > 0.0
                 {
                     st.width = st.width.round().max(1.0);
-                    odd |= st.width as i64 % 2 == 1 && st.align == vectorcraft_doc::StrokeAlign::Center;
+                    odd |= st.width as i64 % 2 == 1 && st.align == pluma_doc::StrokeAlign::Center;
                 }
             }
             if let Some(b) = node.geometric_bounds() {
@@ -779,7 +779,7 @@ mod tests {
         let compound = s.execute("object.compoundPath.make", &json!({})).unwrap()["id"].clone();
         s.execute("paint.setFill", &json!({"ids": [compound], "color": "#000000"})).unwrap();
         s.execute("paint.setStroke", &json!({"ids": [compound], "none": true})).unwrap();
-        let node = |s: &Session, id: &Value| s.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id.as_u64().unwrap())).unwrap().clone();
+        let node = |s: &Session, id: &Value| s.doc().unwrap().doc.node(pluma_doc::NodeId(id.as_u64().unwrap())).unwrap().clone();
         let (member, paint) = (node(&s, &compound).children().unwrap()[0].id, node(&s, &a).appearance);
         // Nor does an image's pattern fill without an effect that gives it a shape.
         let pic = square(&mut s, 360.0);

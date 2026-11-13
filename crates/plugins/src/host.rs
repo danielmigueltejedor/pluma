@@ -30,7 +30,7 @@ use crate::{Error, Result};
 pub const MODULE: &str = "env";
 
 /// What the host passes as the step's description with a plug-in's progress
-/// ([`vectorcraft_doc::cancel::progress`]), so a progress window shows a share rather than a count
+/// ([`pluma_doc::cancel::progress`]), so a progress window shows a share rather than a count
 /// of artboards or files.
 pub const PROGRESS_STEP: &str = "plug-in";
 
@@ -272,7 +272,7 @@ impl Deadline {
 pub(crate) struct Run {
     /// The plug-in's id, which its log lines carry.
     id: String,
-    /// Are its progress reports passed on ([`vectorcraft_doc::cancel::progress`])? A live
+    /// Are its progress reports passed on ([`pluma_doc::cancel::progress`])? A live
     /// effect's are not: it is drawn as part of something else, such as an export.
     forward: bool,
     /// Are its log lines written to the app's log? Not while the module is being loaded.
@@ -430,11 +430,11 @@ impl Run {
         self.skipped = 0;
         self.last = Some(key);
         self.reports += 1;
-        vectorcraft_doc::cancel::progress(done, total, PROGRESS_STEP);
+        pluma_doc::cancel::progress(done, total, PROGRESS_STEP);
     }
 
     fn cancelled(&self) -> i32 {
-        i32::from(vectorcraft_doc::cancel::is_cancelled() || self.deadline.passed())
+        i32::from(pluma_doc::cancel::is_cancelled() || self.deadline.passed())
     }
 
     /// Writes the `len` bytes at `ptr` in `memory` as a line of `level` → what `vc_log` returns.
@@ -477,7 +477,7 @@ impl Run {
 
     fn write(&mut self, level: LogLevel, text: String) {
         if self.logged {
-            log::log!(target: "vectorcraft_plugins", level.log_level(), "{}: {text}", self.id);
+            log::log!(target: "pluma_plugins", level.log_level(), "{}: {text}", self.id);
         }
         self.report.lines.push(LogLine { level, text });
     }
@@ -604,13 +604,13 @@ mod tests {
         use std::cell::RefCell;
         use std::rc::Rc;
         let seen = Rc::new(RefCell::new(Vec::new()));
-        let sink: vectorcraft_doc::cancel::ProgressSink = {
+        let sink: pluma_doc::cancel::ProgressSink = {
             let seen = seen.clone();
             Rc::new(move |d, t, w| seen.borrow_mut().push((d, t, w.to_string())))
         };
-        let token = vectorcraft_doc::cancel::CancelToken::new();
+        let token = pluma_doc::cancel::CancelToken::new();
         let mut r = run();
-        vectorcraft_doc::cancel::scope(&token, Some(sink), || {
+        pluma_doc::cancel::scope(&token, Some(sink), || {
             for done in 0..=1_000_000 {
                 r.progress(done, 1_000_000);
             }
@@ -620,11 +620,11 @@ mod tests {
         assert_eq!(seen.last(), Some(&(1_000_000, 1_000_000, PROGRESS_STEP.to_string())));
         let mut unknown = run();
         let later = Rc::new(RefCell::new(Vec::new()));
-        let sink: vectorcraft_doc::cancel::ProgressSink = {
+        let sink: pluma_doc::cancel::ProgressSink = {
             let later = later.clone();
             Rc::new(move |d, t, _| later.borrow_mut().push((d, t)))
         };
-        vectorcraft_doc::cancel::scope(&token, Some(sink), || {
+        pluma_doc::cancel::scope(&token, Some(sink), || {
             for done in 0..10_000 {
                 unknown.progress(done, 0);
             }
@@ -643,11 +643,11 @@ mod tests {
         // A new total at the same tenth of a percent is not a new step.
         let mut retotalled = run();
         let steps = Rc::new(RefCell::new(Vec::new()));
-        let sink: vectorcraft_doc::cancel::ProgressSink = {
+        let sink: pluma_doc::cancel::ProgressSink = {
             let steps = steps.clone();
             Rc::new(move |d, t, _| steps.borrow_mut().push((d, t)))
         };
-        vectorcraft_doc::cancel::scope(&token, Some(sink), || {
+        pluma_doc::cancel::scope(&token, Some(sink), || {
             for total in 10..2_010 {
                 retotalled.progress(total / 10, total - total % 10);
             }

@@ -11,15 +11,15 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use pluma_engine::EngineError;
 use serde_json::{Value, json};
-use vectorcraft_engine::EngineError;
 
 use super::confirm::ask;
 use super::{DialogSpec, form};
 use crate::background::{self, Writer};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(super) const KIND: &str = "package";
 const LABEL: f32 = 90.0;
@@ -43,12 +43,12 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Is there no file system to write a folder to (the web downloads a zip)?
-fn downloads(app: &VectorcraftApp) -> bool {
+fn downloads(app: &PlumaApp) -> bool {
     app.services.download.is_some()
 }
 
 /// Open the dialog for the active document; one never saved is offered Save As first.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document")?;
     let Some(path) = st.path.clone() else {
         ask(
@@ -71,7 +71,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     if !downloads(app) {
         widgets::label_row(ui, tl!("Location:"), LABEL, |ui| {
@@ -100,7 +100,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut params = Value::Object(d.fields.clone());
     let web = downloads(app);
     if web {
@@ -110,7 +110,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
     // The package holds the document as saved.
     if app.session.active().is_some_and(|st| st.is_dirty()) {
-        let r = io::save(app, vectorcraft_engine::cmd::fileio::SaveMode::Save, &json!({}), false)?;
+        let r = io::save(app, pluma_engine::cmd::fileio::SaveMode::Save, &json!({}), false)?;
         // The save asks first (it would replace a file that loses what opening it left out).
         if r.get("pending").is_some() {
             return Ok(r);
@@ -145,7 +145,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 /// Report the package `r` (`file.package`'s reply): the status bar, the web's download, and the
 /// offer to show the package folder. `later`: it was written in the background, after the dialog
 /// closed, and a dialog open now is another one, which stays (the status bar names the folder).
-fn packaged(app: &mut VectorcraftApp, r: Result<Value, String>, web: bool, later: bool) -> Result<Value, String> {
+fn packaged(app: &mut PlumaApp, r: Result<Value, String>, web: bool, later: bool) -> Result<Value, String> {
     let r = r.inspect_err(|e| app.ui.status = e.clone())?;
     if !later {
         app.ui.dialog = None;
@@ -157,7 +157,7 @@ fn packaged(app: &mut VectorcraftApp, r: Result<Value, String>, web: bool, later
     let n = n as u64;
     if web {
         let (name, data) = (r["name"].as_str().unwrap_or("package.zip"), r["dataBase64"].as_str().unwrap_or_default());
-        let bytes = vectorcraft_format::base64_decode(data).ok_or("the package came back damaged")?;
+        let bytes = pluma_format::base64_decode(data).ok_or("the package came back damaged")?;
         io::write_named(app, None, name, &bytes)?;
         // The web shows no dialog, so the status line names every font left out.
         app.status(package_status(n, None, &package_status_note(missing, &fonts)));
@@ -248,7 +248,7 @@ fn join_notes(missing: Option<String>, fonts: Option<String>) -> String {
 }
 
 /// `file.showPackage {folder}`: show a package folder in the file manager.
-pub fn show_package(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn show_package(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     app.refuse_automation("file.showPackage")?;
     let folder = p.get("folder").and_then(Value::as_str).ok_or("missing `folder`")?.to_string();
     // A package is a folder: an executable, shortcut or app bundle would run, not be shown.

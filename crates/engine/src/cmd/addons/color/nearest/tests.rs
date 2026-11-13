@@ -1,8 +1,8 @@
 //! Find Nearest Swatch.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::NodeId;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::NodeId;
 
 use crate::Session;
 

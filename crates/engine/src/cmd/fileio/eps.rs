@@ -6,11 +6,11 @@
 
 use std::borrow::Cow;
 
+use pluma_doc::Document;
+use pluma_eps::{EpsOptions, Level, Overprint, Preview, Raster};
+use pluma_geom::{Point, Rect};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use vectorcraft_doc::Document;
-use vectorcraft_eps::{EpsOptions, Level, Overprint, Preview, Raster};
-use vectorcraft_geom::{Point, Rect};
 
 use super::super::flatten::{FlattenOptions, expand_transparent_tile_images, flatten_expanded};
 use super::super::{CommandSpec, EngineError, Result, Session, bad, bool_or, cmd, has_doc, str_param};
@@ -218,14 +218,14 @@ fn pages(doc: &Document, set: &Settings) -> Result<Vec<(Option<usize>, Rect, Poi
     let art = |art: Rect| (None, art, doc.artboards.first().map_or(corner(art), |a| corner(a.rect)));
     match boards {
         Some(boards) => {
-            let central = (boards.len() > 1).then(|| vectorcraft_render::encode::art_bounds(doc).map(art)).flatten();
+            let central = (boards.len() > 1).then(|| pluma_render::encode::art_bounds(doc).map(art)).flatten();
             let each = boards
                 .into_iter()
                 .map(|b| doc.artboards.get(b).map(|a| (Some(b), a.rect, corner(a.rect))).ok_or_else(|| bad(C, format!("no artboard {}", b + 1))));
             central.map(Ok).into_iter().chain(each).collect()
         }
         None => {
-            let bounds = vectorcraft_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
+            let bounds = pluma_render::encode::art_bounds(doc).ok_or_else(|| bad(C, "nothing to export: the document has no visible art"))?;
             Ok(vec![art(bounds)])
         }
     }
@@ -233,10 +233,10 @@ fn pages(doc: &Document, set: &Settings) -> Result<Vec<(Option<usize>, Rect, Poi
 
 /// `rect` of `doc` drawn at a pixel a point (fewer when larger than `max` a side), straight RGBA,
 /// transparent or on white.
-fn render(r: &mut vectorcraft_render::Renderer, doc: &Document, rect: Rect, max: f64, transparent: bool) -> Result<Raster> {
+fn render(r: &mut pluma_render::Renderer, doc: &Document, rect: Rect, max: f64, transparent: bool) -> Result<Raster> {
     let long = rect.width().max(rect.height());
     let scale = if long > max { max / long } else { 1.0 };
-    vectorcraft_render::raster_size(rect, scale).map_err(|e| bad(C, e))?;
+    pluma_render::raster_size(rect, scale).map_err(|e| bad(C, e))?;
     let img = r.render_region(doc, rect, scale, !transparent);
     Ok(Raster { width: img.width, height: img.height, rgba: img.to_straight() })
 }
@@ -246,7 +246,7 @@ fn render(r: &mut vectorcraft_render::Renderer, doc: &Document, rect: Rect, max:
 fn native(doc: &Document, board: Option<usize>, include_linked: bool) -> Vec<u8> {
     let several = board.filter(|_| doc.artboards.len() > 1);
     if several.is_none() && !include_linked {
-        return vectorcraft_format::save(doc, false);
+        return pluma_format::save(doc, false);
     }
     let mut d = doc.clone();
     if let Some(a) = several.and_then(|b| doc.artboards.get(b)) {
@@ -258,7 +258,7 @@ fn native(doc: &Document, board: Option<usize>, include_linked: bool) -> Vec<u8>
             blob.proxy = None;
         }
     }
-    vectorcraft_format::save(&d, false)
+    pluma_format::save(&d, false)
 }
 
 /// Encode `doc` as EPS: one file of the visible art, or with Use Artboards one per chosen
@@ -314,10 +314,10 @@ fn encode_document(doc: &Document, p: &Value, saving: bool) -> Result<Encoded> {
         enc.warnings.push("transparency is flattened into opaque art and images (EPS has none): see the flattener preset".into());
     }
     let preview_limit = if saving { SAVE_PREVIEW } else { MAX_PREVIEW };
-    let created = vectorcraft_doc::metadata::output_time();
-    let mut renderer = vectorcraft_render::Renderer::new();
+    let created = pluma_doc::metadata::output_time();
+    let mut renderer = pluma_render::Renderer::new();
     for (board, region, origin) in pages {
-        let rect = vectorcraft_eps::preview_rect(region, origin);
+        let rect = pluma_eps::preview_rect(region, origin);
         let preview = match set.eps.preview {
             Preview::None => None,
             kind => Some(render(&mut renderer, doc, rect, preview_limit, set.eps.transparent_preview && kind == Preview::TiffColor)?),
@@ -331,7 +331,7 @@ fn encode_document(doc: &Document, p: &Value, saving: bool) -> Result<Encoded> {
             native: Some(native(&editing, if saving { None } else { board }, set.include_linked)),
             ..set.eps.clone()
         };
-        let out = vectorcraft_eps::export(drawn, &o, preview.as_ref(), thumbnail.as_ref()).map_err(|e| bad(C, e))?;
+        let out = pluma_eps::export(drawn, &o, preview.as_ref(), thumbnail.as_ref()).map_err(|e| bad(C, e))?;
         enc.files.push((board, out.bytes));
         for w in out.warnings {
             if !enc.warnings.contains(&w) {

@@ -348,12 +348,12 @@ const fn reader(id: &'static str, label: &'static str, extensions: &'static [&'s
     Format { id, label, extensions, mime, read: true, write: false, raster, options: &[] }
 }
 
-/// Every format VectorCraft reads or writes. Append-only: new formats go at the end.
+/// Every format Pluma reads or writes. Append-only: new formats go at the end.
 pub const FORMATS: &[Format] = &[
     Format {
         id: "vectorcraft",
-        label: "VectorCraft",
-        extensions: &[vectorcraft_format::EXTENSION, vectorcraft_format::LEGACY_EXTENSION],
+        label: "Pluma",
+        extensions: &[pluma_format::EXTENSION, pluma_format::LEGACY_EXTENSION],
         mime: "application/json",
         read: true,
         write: true,
@@ -456,7 +456,7 @@ pub const FORMATS: &[Format] = &[
     Format { id: "bmp", label: "BMP", extensions: &["bmp"], mime: "image/bmp", read: true, write: true, raster: true, options: BMP_OPTIONS },
     Format {
         id: "template",
-        label: "VectorCraft Template",
+        label: "Pluma Template",
         extensions: &["vctemplate"],
         mime: "application/json",
         read: true,
@@ -563,7 +563,7 @@ pub const OPEN_EXTS: &[&str] = &[
 /// raster editors, so Finder and file managers don't offer a vector app for them, and there is no
 /// `.epsf`, `.ps`, Targa, PCX, Pixar, JPEG 2000, HEIC/HEIF or JPEG XL type, nor one for the `.pns`, `.dib` and `.rle` names of
 /// PNG and BMP files (File › Open and Place still read them all). On Linux the desktop entry's EPS
-/// type (shared-mime-info's) also covers `.epsf`, so file managers offer VectorCraft for it.
+/// type (shared-mime-info's) also covers `.epsf`, so file managers offer Pluma for it.
 pub const UNASSOCIATED_EXTS: &[&str] = &[
     "psd", "pdd", "psb", "epsf", "ps", "pns", "dib", "rle", "tga", "vda", "icb", "vst", "pcx", "pxr", "jpf", "jpx", "jp2", "j2k", "j2c", "jpc",
     "heic", "heif", "jxl",
@@ -685,7 +685,7 @@ fn format_filters() -> impl Iterator<Item = (&'static str, &'static [&'static st
 /// its extension and File › Place does not read that extension.
 pub fn opens_with_importer(name: &str) -> bool {
     let ext = extension(name);
-    !ext.is_empty() && !PLACE_EXTS.contains(&ext.as_str()) && !vectorcraft_plugins::import::for_extension(&ext).is_empty()
+    !ext.is_empty() && !PLACE_EXTS.contains(&ext.as_str()) && !pluma_plugins::import::for_extension(&ext).is_empty()
 }
 
 /// Whether File › Open opens a file of extension `ext` (lower case) as something other than a
@@ -705,7 +705,7 @@ pub fn opens_as_other(ext: &str) -> bool {
         crate::cmd::compositefonts::EXTS,
         crate::cmd::library::LIBRARY_EXTS,
         crate::cmd::swatchlib::LIBRARY_EXTS,
-        std::slice::from_ref(&vectorcraft_doc::style_libs::STYLES_EXT),
+        std::slice::from_ref(&pluma_doc::style_libs::STYLES_EXT),
     ]
     .iter()
     .any(|exts| exts.contains(&ext))
@@ -721,7 +721,7 @@ type ImporterPart = (&'static [&'static str], Vec<(&'static str, &'static [&'sta
 /// else ([`opens_as_other`]). Made once for each set of installed plug-ins, so it lives as long as
 /// the dialogs that hold it.
 fn importer_open_part() -> ImporterPart {
-    use vectorcraft_plugins::registry;
+    use pluma_plugins::registry;
     static MADE: std::sync::Mutex<Option<(u64, ImporterPart)>> = std::sync::Mutex::new(None);
     let mut made = MADE.lock().unwrap_or_else(|e| e.into_inner());
     let revision = registry::revision();
@@ -835,13 +835,13 @@ fn builtin(k: &str) -> Option<&'static Format> {
     FORMATS.iter().find(|f| f.id == k).or_else(|| FORMATS.iter().find(|f| f.extensions.contains(&k)))
 }
 
-/// The formats the installed exporter and importer plug-ins add ([`vectorcraft_plugins::export`],
-/// [`vectorcraft_plugins::import`]), by plug-in id: an exporter's write only and an importer's read
+/// The formats the installed exporter and importer plug-ins add ([`pluma_plugins::export`],
+/// [`pluma_plugins::import`]), by plug-in id: an exporter's write only and an importer's read
 /// only, with the plug-in's name as the label and its extensions. Each is made once for each
 /// installation of its plug-in, its strings interned, so formats live as long as the catalogues
 /// that hold them.
 pub fn plugin_formats() -> Vec<&'static Format> {
-    use vectorcraft_plugins::{Kind, export, registry};
+    use pluma_plugins::{Kind, export, registry};
     static MADE: std::sync::Mutex<Vec<(u64, &'static Format)>> = std::sync::Mutex::new(Vec::new());
     let mut made = MADE.lock().unwrap_or_else(|e| e.into_inner());
     registry::list()
@@ -907,11 +907,11 @@ pub(crate) fn import_name(base: &str, taken: impl Fn(&str) -> bool) -> String {
 /// document that only has the Untitled-N name New gave it is titled after its file, as its tab is
 /// (the title PDF, PNG and SVG metadata carry). A title of its own stays, and native files keep
 /// the stored title.
-pub fn has_own_title(doc: &vectorcraft_doc::Document) -> bool {
+pub fn has_own_title(doc: &pluma_doc::Document) -> bool {
     !doc.title.trim().is_empty() && !doc.title.strip_prefix("Untitled-").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
-pub fn titled_for_export(doc: &vectorcraft_doc::Document, path: Option<&str>, format: &str) -> Option<vectorcraft_doc::Document> {
+pub fn titled_for_export(doc: &pluma_doc::Document, path: Option<&str>, format: &str) -> Option<pluma_doc::Document> {
     let path = path.filter(|_| !has_own_title(doc) && !matches!(format, "vectorcraft" | "template" | "ai"))?;
     let mut d = doc.clone();
     d.title = file_stem(path);
@@ -953,7 +953,7 @@ pub(super) fn formats(_: &mut Session, _: &Value) -> Result<Value> {
     let ids = |pick: fn(&Format) -> bool| all().filter(|f| pick(f)).map(|f| f.id).collect::<Vec<_>>();
     let listed = |f: &Format| {
         let mut v = f.to_json();
-        if let Some(id) = vectorcraft_plugins::export::plugin_id(f.id) {
+        if let Some(id) = pluma_plugins::export::plugin_id(f.id) {
             v["plugin"] = json!(id);
         }
         v

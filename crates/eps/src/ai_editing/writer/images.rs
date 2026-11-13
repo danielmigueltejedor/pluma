@@ -3,9 +3,9 @@
 
 use std::fmt::Write;
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{FillLayer, ImageBlob, ImageObject, LinkInfo};
-use vectorcraft_geom::{Affine, FillRule, PathData, Rect, Shape};
+use pluma_color::{Color, Paint};
+use pluma_doc::{FillLayer, ImageBlob, ImageObject, LinkInfo};
+use pluma_geom::{Affine, FillRule, PathData, Rect, Shape};
 
 use super::{Writer, Xy};
 use crate::ps;

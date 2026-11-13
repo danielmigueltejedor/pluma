@@ -11,7 +11,7 @@
 //!   codes follow the order of the Brush Options menu: 0 Fixed, 1 Random, 2 Pressure, 3 Stylus
 //!   Wheel, 4 Tilt, 5 Bearing, 6 Rotation. A user's 6D Art Pen brushes (#372) vary the diameter
 //!   with 2, the roundness with 5 and the angle with 6, the angle over a whole turn, as the barrel
-//!   rotation turns the nib. VectorCraft reads no stylus wheel: 3 is read as Random when the value
+//!   rotation turns the nib. Pluma reads no stylus wheel: 3 is read as Random when the value
 //!   varies, as an unknown code is.
 //! - A path with a Calligraphic brush is a stroke in its art style ([`super::style`]): the filter
 //!   `(Adobe Calligraphic Brush Tool)`, its stroke's paint and weight (the weight scales the brush:
@@ -25,7 +25,7 @@
 //!   `MinScaling` and `MaxScaling` (the width as a factor), `Colorization`, `Proportional`,
 //!   `Segmented` with `StartSegmentLength` and `EndSegmentLength`, `UpsideDown`, `Counterclockwise`,
 //!   `ScaleYDependsOn`, `Spacing`, `Adjustment` and `FoldAdjustment` (1 is
-//!   [`vectorcraft_brush::ArtBrush`]'s `overlap: false`).
+//!   [`pluma_brush::ArtBrush`]'s `overlap: false`).
 //! - A Scatter, Art or Pattern brush's parameters are fields split by `/`: a number, the art's
 //!   section names (one for Scatter, five for Art and Pattern, empty where there is none, each
 //!   after a space for Art and Pattern), more fields, and last 15 numbers. Older files write
@@ -52,9 +52,9 @@
 use std::collections::{HashMap, HashSet};
 
 use kurbo::Affine;
-use vectorcraft_brush::{ArtBrush, Bristle, Brush, BrushKind, Calligraphic, Colorization, Scatter, Variation};
-use vectorcraft_color::Paint;
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind};
+use pluma_brush::{ArtBrush, Bristle, Brush, BrushKind, Calligraphic, Colorization, Scatter, Variation};
+use pluma_color::Paint;
+use pluma_doc::{AppearanceItem, Node, NodeKind};
 
 use super::lex::{Lexer, Tok};
 use super::obj::Names;
@@ -245,7 +245,7 @@ pub(super) fn art_bends(art: &Node) -> bool {
             && n.extras().mask.is_none()
             && n.appearance.effects.is_empty()
             && n.appearance.items.iter().all(|i| i.effects().is_empty() && !matches!(i, AppearanceItem::Stroke(s) if !s.paint.is_none()))
-            && vectorcraft_doc::swatches::node_paints(n).all(|p| matches!(p, Paint::Solid { .. } | Paint::None));
+            && pluma_doc::swatches::node_paints(n).all(|p| matches!(p, Paint::Solid { .. } | Paint::None));
     });
     bends
 }
@@ -485,7 +485,7 @@ pub(super) fn finish_brushes_within(
 
 /// The note for brushes [`finish_brushes`] left out.
 pub(super) fn left_out_note(n: usize) -> String {
-    format!("brushes VectorCraft can't read yet were left out of the Brushes panel ({n})")
+    format!("brushes Pluma can't read yet were left out of the Brushes panel ({n})")
 }
 
 /// Is `n` a frame: an unnamed, unpainted rectangle with nothing of its own (shown, unlocked, at full
@@ -510,13 +510,13 @@ fn unpainted_rectangle(n: &Node) -> bool {
             _ => false,
         });
     n.name.is_none()
-        && *n.extras() == vectorcraft_doc::NodeExtras::default()
+        && *n.extras() == pluma_doc::NodeExtras::default()
         && n.visible
         && !n.locked
         && n.opacity >= 1.0
-        && n.blend == vectorcraft_color::BlendMode::Normal
+        && n.blend == pluma_color::BlendMode::Normal
         && !n.isolate
-        && n.knockout == vectorcraft_doc::Knockout::Neutral
+        && n.knockout == pluma_doc::Knockout::Neutral
         && !n.knockout_shape
         && n.appearance.effects.is_empty()
         && n.appearance.items.iter().all(|i| i.paint().is_none())
@@ -547,11 +547,11 @@ pub(super) fn without_frame(art: Node) -> Node {
         && art.visible
         && !art.locked
         && !art.isolate
-        && art.knockout == vectorcraft_doc::Knockout::Neutral
+        && art.knockout == pluma_doc::Knockout::Neutral
         && !art.knockout_shape
-        && art.blend == vectorcraft_color::BlendMode::Normal
+        && art.blend == pluma_color::BlendMode::Normal
         && art.name.is_none()
-        && *art.extras() == vectorcraft_doc::NodeExtras::default()
+        && *art.extras() == pluma_doc::NodeExtras::default()
         && art.appearance.effects.is_empty()
         && art.appearance.items.is_empty();
     if let ([only], true) = (rest, plain) {

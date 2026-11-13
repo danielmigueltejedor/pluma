@@ -5,14 +5,14 @@ use std::sync::Arc;
 use serde_json::json;
 
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// Everything the palette searches: (label, command id or `tool:<id>`, shortcut).
 pub fn items() -> Vec<(String, String, String)> {
     let mut items = vec![];
     // Aliases kept for older scripts run a command that is listed already.
-    let plugin_commands = vectorcraft_engine::cmd::plugin::command_specs();
-    for c in vectorcraft_engine::command_specs().iter().filter(|c| !vectorcraft_engine::cmd::is_alias(c.id)).chain(plugin_commands) {
+    let plugin_commands = pluma_engine::cmd::plugin::command_specs();
+    for c in pluma_engine::command_specs().iter().filter(|c| !pluma_engine::cmd::is_alias(c.id)).chain(plugin_commands) {
         let path = c.menu.join(" › ");
         let label = if path.is_empty() { c.label.to_string() } else { format!("{path} › {}", c.label) };
         items.push((label, c.id.to_string(), menus::shortcut_of(c.id).unwrap_or("").to_string()));
@@ -21,7 +21,7 @@ pub fn items() -> Vec<(String, String, String)> {
     for c in menus::UI_COMMANDS.iter().filter(|c| c.0 != "plugin.dialog") {
         items.push((c.1.to_string(), c.0.to_string(), menus::shortcut_of(c.0).unwrap_or("").to_string()));
     }
-    for tool in vectorcraft_tools::catalog::all_tools() {
+    for tool in pluma_tools::catalog::all_tools() {
         items.push((tool.label.to_string(), format!("tool:{}", tool.id), crate::shortcut_editor::tool_shortcut(tool.id).unwrap_or("").to_string()));
     }
     items
@@ -91,7 +91,7 @@ fn build(lang: crate::i18n::Lang) -> Vec<Entry> {
 
 /// Runs the palette result `id`: selects a tool, or invokes a command with the params its entry
 /// stands for.
-pub(crate) fn run_pick(app: &mut VectorcraftApp, id: &str) {
+pub(crate) fn run_pick(app: &mut PlumaApp, id: &str) {
     if let Some(tool) = id.strip_prefix("tool:") {
         app.select_tool(tool);
     } else if id.starts_with("plugin:") {
@@ -102,7 +102,7 @@ pub(crate) fn run_pick(app: &mut VectorcraftApp, id: &str) {
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     if !app.ui.palette_open {
         return;
     }
@@ -213,7 +213,7 @@ mod tests {
         assert!(matches.iter().any(|e| e.id == "view.preciseCursors"), "preference toggle appears for its name");
         assert!(entries.iter().filter(|e| e.id == "view.capsLock").all(|e| e.shown != "Use Precise Cursors"));
 
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         let before = app.session.prefs.use_precise_cursors;
         let first = matches.first().expect("query has a result");
         menus::invoke(&mut app, &first.id, json!({}));
@@ -227,7 +227,7 @@ mod tests {
         let items = items();
         let ids: Vec<&str> = items.iter().filter(|(label, ..)| label == "Cancel Key Object").map(|(_, id, _)| id.as_str()).collect();
         assert_eq!(ids, ["select.key"]);
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         let commands = crate::control::all_commands(&app);
         let key = commands.as_array().unwrap().iter().find(|c| c["id"] == "select.key").unwrap();
         assert_eq!(key["label"], "Cancel Key Object");
@@ -250,7 +250,7 @@ mod tests {
         let ids = ["assets.export", "assets.remove", "assets.rename", "assets.settings.set", "assets.export3D", "assets.set3DFormat"];
         for id in ids {
             assert!(items().iter().any(|(_, item, _)| item == id), "{id} is in the palette");
-            let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+            let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
             app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
             app.ui.status.clear();
             assert!(!crate::panel_docking::showing(&app.ui, crate::panels::asset_export::ID), "{id}");
@@ -272,12 +272,12 @@ mod tests {
     /// from the first again.
     #[test]
     fn arrow_keys_move_the_highlighted_result() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         app.ui.palette_open = true;
         app.ui.palette_query = "zoom".into();
         let ctx = egui::Context::default();
         let key = |k| egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx())).textures_delta.clear();
             ctx.data(|d| d.get_temp::<(usize, String)>(egui::Id::unique("palette-selected"))).unwrap().0
         };
@@ -295,12 +295,12 @@ mod tests {
     /// nothing with no document open).
     #[test]
     fn each_filter_plugin_is_a_result_of_its_own() {
-        use vectorcraft_plugins::wat as tpl;
+        use pluma_plugins::wat as tpl;
         let (one, two) = ("test.UI.palette_filter-one", "test.UI.palette_filter-two");
         let (key_one, key_two) = (format!("plugin:{one}"), format!("plugin:{two}"));
         let install = |id: &str, params: &str| {
             let manifest = format!(r#"{{"id":"{id}","name":"Group","version":"1","kind":"filter","params":{params}}}"#);
-            vectorcraft_plugins::registry::install_bytes(&wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap()).unwrap();
+            pluma_plugins::registry::install_bytes(&wat::parse_str(tpl::returning(&manifest, r#"{"objects":[]}"#)).unwrap()).unwrap();
         };
         install(one, "{}");
         install(two, r#"{"wiggle":{"type":"bool"}}"#);
@@ -314,14 +314,14 @@ mod tests {
         assert_eq!(of(&key_one)[0].shown, format!("{path} › Group"));
         assert!(of(&key_two)[0].haystack.contains("object › plug-ins › group…"));
 
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
         run_pick(&mut app, &key_two);
         assert!(app.ui.dialog.is_none(), "no document: the dimmed item's pick does nothing");
         app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
         run_pick(&mut app, &key_two);
         let d = app.ui.dialog.take().expect("the filter's dialog opens");
         assert_eq!((d.kind.as_str(), d.str("__plugin")), ("plugin", two.to_string()));
-        vectorcraft_plugins::registry::remove(one);
-        vectorcraft_plugins::registry::remove(two);
+        pluma_plugins::registry::remove(one);
+        pluma_plugins::registry::remove(two);
     }
 }

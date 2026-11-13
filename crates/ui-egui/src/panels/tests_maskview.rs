@@ -2,20 +2,20 @@
 //! mask (and edits it), Alt-click again shows the artwork. In isolation mode neither a click nor an
 //! Alt-click edits the mask.
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::*;
 
 /// One frame of the Transparency panel with `events`, `modifiers` held.
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, modifiers: egui::Modifiers) {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, modifiers: egui::Modifiers) {
     let events = std::iter::once(egui::Event::ModifiersChanged(modifiers)).chain(events).collect();
     let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| transparency::show(app, ui));
     out.textures_delta.clear();
 }
 
 /// Click the mask thumbnail with `modifiers` held.
-fn click_mask(ctx: &egui::Context, app: &mut VectorcraftApp, modifiers: egui::Modifiers) {
+fn click_mask(ctx: &egui::Context, app: &mut PlumaApp, modifiers: egui::Modifiers) {
     frame(ctx, app, vec![], egui::Modifiers::NONE);
     let at = ctx.read_response(egui::Id::unique(transparency::MASK_THUMB)).expect("the mask thumbnail is drawn").rect.center();
     let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers };
@@ -29,8 +29,8 @@ fn click_mask(ctx: &egui::Context, app: &mut VectorcraftApp, modifiers: egui::Mo
 /// mask.
 #[test]
 fn the_mask_thumbnail_does_not_edit_the_mask_in_pattern_editing_mode() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50}))["id"].as_u64().unwrap();
     let b = run(&mut app, "shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20}))["id"].clone();
@@ -58,15 +58,15 @@ fn the_mask_thumbnail_does_not_edit_the_mask_in_pattern_editing_mode() {
 
 #[test]
 fn alt_clicking_the_mask_thumbnail_views_only_the_mask() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50}))["id"].as_u64().unwrap();
     let b = run(&mut app, "shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20}))["id"].clone();
     run(&mut app, "select.set", json!({"ids": [a, b]}));
     run(&mut app, "transparency.makeOpacityMask", json!({}));
     let ctx = egui::Context::default();
-    let viewed = |app: &VectorcraftApp| app.session.active().unwrap().shown_mask().map(|n| n.0);
+    let viewed = |app: &PlumaApp| app.session.active().unwrap().shown_mask().map(|n| n.0);
     click_mask(&ctx, &mut app, egui::Modifiers::ALT);
     assert_eq!(viewed(&app), Some(a));
     assert!(app.session.active().unwrap().doc.mask_edit.is_some(), "viewing the mask edits it");
@@ -81,7 +81,7 @@ fn alt_clicking_the_mask_thumbnail_views_only_the_mask() {
 }
 
 /// Where the panel painted `label`, in a frame of it.
-fn label_at(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) -> egui::Pos2 {
+fn label_at(ctx: &egui::Context, app: &mut PlumaApp, label: &str) -> egui::Pos2 {
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| transparency::show(app, ui));
     out.textures_delta.clear();
     let at = out.shapes.iter().find_map(|c| match &c.shape {
@@ -96,8 +96,8 @@ fn label_at(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) -> egui:
 /// take into mask editing. After Exit Isolation Mode a click edits the mask.
 #[test]
 fn the_mask_thumbnail_does_not_edit_the_mask_in_isolation_mode() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 50, "height": 50}))["id"].as_u64().unwrap();
     let b = run(&mut app, "shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20}))["id"].clone();
@@ -125,7 +125,7 @@ fn the_mask_thumbnail_does_not_edit_the_mask_in_isolation_mode() {
     let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
     frame(&ctx, &mut app, vec![egui::Event::PointerMoved(at), button(true), button(false)], egui::Modifiers::NONE);
     let st = app.session.active().unwrap();
-    let id = vectorcraft_doc::NodeId(c.as_u64().unwrap());
+    let id = pluma_doc::NodeId(c.as_u64().unwrap());
     assert!(st.doc.node(id).unwrap().extras().mask.is_none() && st.doc.mask_edit.is_none());
     assert_eq!(app.ui.status, "", "the button is off");
     run(&mut app, "object.exitIsolation", json!({}));

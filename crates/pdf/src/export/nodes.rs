@@ -21,7 +21,7 @@ std::thread_local! {
 impl Exporter<'_> {
     /// Opacity mask → luminosity soft mask. Outside the art the backdrop is black (clip) or white;
     /// invert is a white Difference rect on top (luminance is linear, so luma(1 − c) = 1 − luma(c)).
-    fn soft_mask(&mut self, s: &mut Surface, m: &vectorcraft_doc::OpacityMask, page: Rect) -> Option<krilla::mask::Mask> {
+    fn soft_mask(&mut self, s: &mut Surface, m: &pluma_doc::OpacityMask, page: Rect) -> Option<krilla::mask::Mask> {
         let transform = s.group_transform();
         let mut sb = s.stream_builder();
         let mut ms = Surface::stream(sb.surface());
@@ -220,7 +220,7 @@ impl Exporter<'_> {
                 // The region every output clips to; nothing to clip by hides the clipped art. The
                 // clipping path's fill paints behind the clipped art and its stroke over it, unclipped.
                 if let Some((clip, rest)) = children.split_first()
-                    && let Some((p, r)) = vectorcraft_effects::clip_outline(clip).and_then(|(bp, r)| to_path(s, &bp).map(|p| (p, r)))
+                    && let Some((p, r)) = pluma_effects::clip_outline(clip).and_then(|(bp, r)| to_path(s, &bp).map(|p| (p, r)))
                 {
                     let paint = clip.clip_paint();
                     s.push_clip_path(&p, &rule(r));
@@ -250,7 +250,7 @@ impl Exporter<'_> {
             }
             NodeKind::Text(t) => self.text(s, n, t, page),
             NodeKind::Image(im) => match n.extras().colorize.as_deref() {
-                Some(p @ Paint::Solid { .. }) if self.doc.image_blob(im).is_none_or(vectorcraft_doc::ImageBlob::takes_colorize) => {
+                Some(p @ Paint::Solid { .. }) if self.doc.image_blob(im).is_none_or(pluma_doc::ImageBlob::takes_colorize) => {
                     if writable(s, im.xf, Rect::new(0.0, 0.0, im.width.max(1).into(), im.height.max(1).into())) {
                         if let Some(colorized) = self.colorized_image(im, p, !n.extras().pixelated) {
                             self.image(s, im, Some(colorized), n.extras().pixelated);
@@ -277,7 +277,7 @@ impl Exporter<'_> {
                     let art: &Node = if n.extras().symbol_overrides.is_empty() {
                         &sym.art
                     } else {
-                        changed = vectorcraft_doc::symbol_overrides::dynamic_art(&sym.art, n);
+                        changed = pluma_doc::symbol_overrides::dynamic_art(&sym.art, n);
                         &changed
                     };
                     let count = art.count() as u64;
@@ -285,7 +285,7 @@ impl Exporter<'_> {
                     let most = map.map_or(count, |m| m.most_placed(art, doc));
                     let within = self.symbol_nodes.saturating_add(most) <= self.symbol_limit;
                     let placed = within.then(|| {
-                        vectorcraft_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
+                        pluma_doc::charge_symbol_art(&mut self.symbol_nodes, most, || {
                             let art = match map {
                                 Some(m) => m.place(art, doc),
                                 None => {
@@ -313,7 +313,7 @@ impl Exporter<'_> {
             | NodeKind::Repeat(_)
             | NodeKind::PlacedDocument(_)
             | NodeKind::Intertwine { .. } => {
-                let g = vectorcraft_effects::expand_live_deep(Some(self.doc), n);
+                let g = pluma_effects::expand_live_deep(Some(self.doc), n);
                 for c in g.children().into_iter().flatten() {
                     self.node(s, c, page, false);
                 }
@@ -335,7 +335,7 @@ impl Exporter<'_> {
     /// That is a mesh with see-through points (their opacities would be a soft mask of another
     /// patch shading, which a common viewer, Poppler, draws with gaps and too opaque; the quads
     /// carry their own opacity), an invalid mesh, or one beyond the coordinates a file holds.
-    fn mesh(&mut self, s: &mut Surface, m: &vectorcraft_doc::live::GradientMesh) -> bool {
+    fn mesh(&mut self, s: &mut Surface, m: &pluma_doc::live::GradientMesh) -> bool {
         if !m.is_valid() || !m.points.iter().all(|p| p.opacity >= 1.0) {
             return false;
         }
@@ -344,12 +344,12 @@ impl Exporter<'_> {
             return false;
         }
         let Some(path) = to_path(s, &m.outline().to_bezpath()) else { return false };
-        let page: Vec<vectorcraft_color::Color> = m.points.iter().map(|p| self.page_color(&p.color)).collect();
+        let page: Vec<pluma_color::Color> = m.points.iter().map(|p| self.page_color(&p.color)).collect();
         let mixed = page.windows(2).any(|w| w[0].model() != w[1].model());
-        let rgb = page.iter().any(|c| matches!(c, vectorcraft_color::Color::Rgb { .. } | vectorcraft_color::Color::Lab { .. }));
+        let rgb = page.iter().any(|c| matches!(c, pluma_color::Color::Rgb { .. } | pluma_color::Color::Lab { .. }));
         let colors: Vec<krilla::color::Color> =
-            page.iter().map(|c| if mixed && rgb { color(&c.in_model(vectorcraft_color::cms::Model::Rgb)) } else { color(c) }).collect();
-        let pt = |p: vectorcraft_geom::Point| (p.x as f32, p.y as f32);
+            page.iter().map(|c| if mixed && rgb { color(&c.in_model(pluma_color::cms::Model::Rgb)) } else { color(c) }).collect();
+        let pt = |p: pluma_geom::Point| (p.x as f32, p.y as f32);
         let mut patches = Vec::with_capacity(m.rows as usize * m.cols as usize);
         for r in 0..m.rows as usize {
             for c in 0..m.cols as usize {
@@ -419,7 +419,7 @@ impl Exporter<'_> {
     /// `overprints`, paints and overprints are kept (but not a white one with Discard White
     /// Overprint).
     pub(super) fn overprinting(&mut self, s: &mut Surface, overprints: bool, paint: &Paint, draw: impl FnOnce(&mut Self, &mut Surface)) {
-        let white = || self.doc.setup.discard_white_overprint && vectorcraft_doc::overprint::is_white(paint);
+        let white = || self.doc.setup.discard_white_overprint && pluma_doc::overprint::is_white(paint);
         if overprints && self.overprint && !paint.is_none() && !white() {
             self.overprinted = true;
             crate::forms::form(s, Mark::Overprint, |s| draw(self, s));
@@ -430,7 +430,7 @@ impl Exporter<'_> {
 
     /// Is `p` a paint PDF has no paint for when it paints a fill (`fill`) or a stroke, which
     /// [`Self::area`] draws as art: a pattern swatch or a gradient drawn as pixels
-    /// ([`vectorcraft_color::GradientPaint::draws_as_pixels`]), but not a Perceptual one of spot
+    /// ([`pluma_color::GradientPaint::draws_as_pixels`]), but not a Perceptual one of spot
     /// inks ([`Self::perceptual_spot`])?
     pub(super) fn area_paint(&self, p: &Paint, fill: bool) -> bool {
         match p {
@@ -513,7 +513,7 @@ impl Exporter<'_> {
             // The area the stroke paints (dashes, caps, joins, profile, arrowheads, alignment), as
             // Outline Stroke makes it, painted with the pattern's tiles or the gradient's image (a
             // gradient along or across the stroke is written as slices below).
-            let region = stroke::outline_region(&vectorcraft_geom::PathData::from_bezpath(bp), r, st).to_bezpath();
+            let region = stroke::outline_region(&pluma_geom::PathData::from_bezpath(bp), r, st).to_bezpath();
             if let Some(clip) = to_path(s, &region) {
                 let area = region.bounding_box();
                 self.area(s, &clip, krilla::paint::FillRule::NonZero, &st.paint, (st.opacity, st.blend), st.paint_bounds(bounds), area, false);
@@ -633,9 +633,9 @@ impl Exporter<'_> {
     /// over all of it). False when it has no known brush.
     fn brush_art(&mut self, s: &mut Surface, bp: &BezPath, st: &StrokeLayer, page: Rect) -> bool {
         let doc = self.doc;
-        let brushes = self.brushes.get_or_insert_with(|| vectorcraft_brush::library(doc));
+        let brushes = self.brushes.get_or_insert_with(|| pluma_brush::library(doc));
         let Some(b) = st.brush.as_deref().and_then(|name| brushes.iter().find(|b| b.name == name)) else { return false };
-        let art = vectorcraft_brush::stroke_pieces(doc, b, bp, st);
+        let art = pluma_brush::stroke_pieces(doc, b, bp, st);
         let mut pushes = 0;
         if st.blend != BlendMode::Normal {
             s.push_blend_mode(blend(st.blend));

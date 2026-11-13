@@ -57,7 +57,7 @@ pub struct NodeExtras {
     /// A grayscale or 1-bit image's fill color (`paint.setFill` on the image): a solid paint that
     /// colorizes it. Each pixel is drawn in this color, as opaque as the pixel is dark, so white
     /// pixels are transparent. `None`: the image shows its own pixels.
-    pub colorize: Option<Box<vectorcraft_color::Paint>>,
+    pub colorize: Option<Box<pluma_color::Paint>>,
     /// Pathfinder panel › Make Compound Shape: this group is a compound shape
     /// ([`Node::is_compound_shape`], [`crate::compound_shape`]).
     pub compound_shape: bool,

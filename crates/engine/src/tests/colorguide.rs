@@ -1,7 +1,7 @@
 //! The Color Guide: `color.harmony` and saving several colours as swatches at once.
 
+use pluma_color::Color;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
 
 use crate::*;
 
@@ -38,7 +38,7 @@ fn harmony_query_returns_the_group_and_its_grid() {
     assert_eq!(r2["rule"], "splitComplementary");
     assert_eq!(r2["grid"][0].as_array().unwrap().len(), 9, "4 steps by default");
     // Every rule answers, base first.
-    for h in vectorcraft_color::harmony::Harmony::ALL {
+    for h in pluma_color::harmony::Harmony::ALL {
         let r = s.execute("color.harmony", &json!({"color": "#3366cc", "rule": h.id()})).unwrap();
         assert_eq!(r["colors"][0], "#3366cc", "{}", h.label());
     }

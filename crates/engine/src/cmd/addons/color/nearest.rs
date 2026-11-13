@@ -3,11 +3,11 @@
 //! user loaded or the document closest to each colour of the selection (CIEDE2000), and the
 //! colours replaced by them as one undo step (#4923).
 
+use pluma_color::cms::{Lab, delta_e2000};
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::swatches::color_name;
+use pluma_doc::{Document, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{Lab, delta_e2000};
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::swatches::color_name;
-use vectorcraft_doc::{Document, NodeId, NodeKind};
 
 use super::super::super::colorcmds::recolor_links;
 use super::super::super::menucmds::squash;

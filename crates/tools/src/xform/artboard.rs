@@ -24,15 +24,15 @@
 //!
 //! While one artboard is selected and nothing is being dragged, a button with a plus sits just
 //! outside the middle of each of its edges where an artboard of the same size fits on that side
-//! ([`vectorcraft_doc::Document::room_beside_artboard`]: within the canvas, 20 pt away, overlapping
+//! ([`pluma_doc::Document::room_beside_artboard`]: within the canvas, 20 pt away, overlapping
 //! no other artboard). Clicking one adds an empty artboard there (`artboard.new {beside, side}`);
 //! Alt-clicking duplicates the artboard with its art there (`artboard.duplicate {index, side}`),
 //! except on a locked artboard, where an Alt-click does nothing. Each is one undo step, and the new
 //! artboard becomes the active one.
 
+use pluma_doc::ArtboardSide;
+use pluma_geom::{Affine, Point, Rect, Vec2};
 use serde_json::{Value, json};
-use vectorcraft_doc::ArtboardSide;
-use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 
 use super::{BLUE, polygon, rect_corners};
 use crate::bbox::{Handle, hit_handle, scale_for_drag};
@@ -213,7 +213,7 @@ impl ArtboardTool {
             return Point::new(p.x.round(), p.y.round());
         }
         if cx.snap_to_grid {
-            return vectorcraft_geom::snap::snap_point_to_grid(p, cx.grid_step());
+            return pluma_geom::snap::snap_point_to_grid(p, cx.grid_step());
         }
         let Some(t) = &self.targets else { return p };
         let offsets: &[Vec2] = if bleed == Vec2::ZERO { &[] } else { &[bleed] };
@@ -231,7 +231,7 @@ impl ArtboardTool {
             return Vec2::new((tl.x + d.x).round() - tl.x, (tl.y + d.y).round() - tl.y);
         }
         if cx.snap_to_grid {
-            return vectorcraft_geom::snap::snap_point_to_grid(tl + d, cx.grid_step()) - tl;
+            return pluma_geom::snap::snap_point_to_grid(tl + d, cx.grid_step()) - tl;
         }
         let Some(t) = (if copy { &self.copy_targets } else { &self.targets }) else { return d };
         let moved = rect + d;
@@ -268,7 +268,7 @@ fn create_artboard(r: Rect) -> Vec<Action> {
 
 /// The visible bounds of the topmost object under `p`, when they are large enough to be an artboard.
 fn fittable_bounds(cx: &ToolContext, p: Point) -> Option<Rect> {
-    vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options())
+    pluma_doc::hit::hit_test(cx.doc, p, cx.hit_options())
         .and_then(|h| cx.doc.bounds_of(&[h.top_object(cx.isolation)], true))
         .filter(|r| r.width() >= MIN_SIDE && r.height() >= MIN_SIDE && [r.x0, r.y0, r.x1, r.y1].iter().all(|n| n.is_finite()))
 }
@@ -300,7 +300,7 @@ const EDGE_BUTTON_RADIUS: f64 = 7.0;
 impl ArtboardTool {
     /// The add buttons on the active artboard's edges, each with its side and center: shown while
     /// it is the only one selected and nothing is being dragged, and only on the sides with room
-    /// for an artboard of the same size ([`vectorcraft_doc::Document::room_beside_artboard`]).
+    /// for an artboard of the same size ([`pluma_doc::Document::room_beside_artboard`]).
     fn edge_buttons(&self, cx: &ToolContext) -> Vec<(ArtboardSide, Point)> {
         let Some(r) = self.active_rect(cx) else { return vec![] };
         if self.drag.is_some() || self.selected(cx).len() != 1 {

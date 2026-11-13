@@ -3,10 +3,10 @@
 //! blur, or any blur zoomed in) draws its raster from the last frame. A cropped raster made again
 //! after a pan is kept while later pans stay within the margin it is made with.
 
+use pluma_doc::color::{Color, Paint};
+use pluma_doc::{Appearance, Document, Effect, ImageBlob, ImageObject, Node, NodeId, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
 use serde_json::json;
-use vectorcraft_doc::color::{Color, Paint};
-use vectorcraft_doc::{Appearance, Document, Effect, ImageBlob, ImageObject, Node, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
 
 use crate::{RenderOptions, Renderer};
 
@@ -191,7 +191,7 @@ fn a_frame_counts_the_art_it_draws_by_its_size() {
     let effect = |id: &str, params: serde_json::Value| backdrop(&[(id, params)]).0;
     let mesh = |side: f64| {
         let mut d = Document::new(595.0, 842.0);
-        let m = vectorcraft_doc::GradientMesh::from_surface(2, 2, &|u, v| vectorcraft_geom::Point::new(u * side, v * side), &|u, v| {
+        let m = pluma_doc::GradientMesh::from_surface(2, 2, &|u, v| pluma_geom::Point::new(u * side, v * side), &|u, v| {
             Color::rgb(u as f32, v as f32, 0.5)
         });
         let layer = d.layers[0].id;
@@ -210,7 +210,7 @@ fn a_frame_counts_the_art_it_draws_by_its_size() {
         let wide = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 595.0, 842.0)), basic(Color::rgb(0.9, 0.8, 0.3)));
         let mut child = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(200.0, 200.0, 330.0, 500.0)), basic(Color::rgb(0.1, 0.3, 0.9)));
         child.appearance.effects = vec![Effect { id: "stylize.innerGlow".into(), params: json!({"blur": 40}), visible: true }];
-        child.blend = vectorcraft_doc::color::BlendMode::Multiply;
+        child.blend = pluma_doc::color::BlendMode::Multiply;
         let mut group = Node::group(d.alloc_id(), vec![std::sync::Arc::new(wide), std::sync::Arc::new(child)]);
         group.isolate = true;
         let layer = d.layers[0].id;
@@ -384,7 +384,7 @@ fn a_shadow_over_a_cropped_shadow_keeps_to_the_earlier_ones_margin() {
 /// before a drag, the next eight as a drag's frames (`interacting` and `dragging`, as the canvas
 /// renders them), then the frame after the drag. The hashes of that frame and of a fresh renderer's
 /// frame compare builds.
-/// Run with `cargo test --release -p vectorcraft-render backdrop_drag_perf -- --ignored --nocapture`.
+/// Run with `cargo test --release -p pluma-render backdrop_drag_perf -- --ignored --nocapture`.
 #[test]
 #[ignore = "manual timing probe; wall-clock performance depends on machine load"]
 fn backdrop_drag_perf() {

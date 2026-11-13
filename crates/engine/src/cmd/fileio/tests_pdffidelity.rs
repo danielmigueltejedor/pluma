@@ -1,14 +1,14 @@
 //! `document.open` PDF options `textAs` and `layers`.
 
+use pluma_doc::NodeKind;
+use pluma_pdf::TextAs;
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf, pdf_with_catalog};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
-use vectorcraft_pdf::TextAs;
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf, pdf_with_catalog};
 
 use super::*;
 
 fn open(s: &mut Session, bytes: &[u8], extra: Value) -> crate::Result<Value> {
-    let mut p = json!({"name": "art.pdf", "dataBase64": vectorcraft_format::base64_encode(bytes)});
+    let mut p = json!({"name": "art.pdf", "dataBase64": pluma_format::base64_encode(bytes)});
     if let (Some(o), Value::Object(e)) = (p.as_object_mut(), extra) {
         o.extend(e);
     }
@@ -59,10 +59,10 @@ fn live_texts(s: &Session) -> Vec<String> {
 #[test]
 fn pdf_place_keeps_live_text_from_bytes_and_unlinked_paths() {
     let bytes = live_text_pdf();
-    let dir = vectorcraft_testkit::temp_dir("pdf-place-live-text");
+    let dir = pluma_testkit::temp_dir("pdf-place-live-text");
     let path = dir.join("text.pdf");
     std::fs::write(&path, &bytes).unwrap();
-    for source in [json!({"name": "text.pdf", "dataBase64": vectorcraft_format::base64_encode(&bytes)}), json!({"path": path, "link": false})] {
+    for source in [json!({"name": "text.pdf", "dataBase64": pluma_format::base64_encode(&bytes)}), json!({"path": path, "link": false})] {
         let mut s = Session::new();
         s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         let mut p = source;
@@ -79,7 +79,7 @@ fn pdf_clipboard_paste_keeps_live_text_on_the_selected_page() {
     let bytes = live_text_pdf();
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
-    let r = s.execute("clipboard.importPdf", &json!({"dataBase64": vectorcraft_format::base64_encode(&bytes), "page": 2})).unwrap();
+    let r = s.execute("clipboard.importPdf", &json!({"dataBase64": pluma_format::base64_encode(&bytes), "page": 2})).unwrap();
     s.execute("edit.paste", &json!({})).unwrap();
     assert_eq!(live_texts(&s), ["Second page"], "{r}");
     assert!(!r["warnings"].to_string().contains("outlines"), "{r}");
@@ -90,8 +90,7 @@ fn pdf_place_honors_explicit_text_outlines() {
     let bytes = live_text_pdf();
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
-    let r =
-        s.execute("file.place", &json!({"name": "text.pdf", "dataBase64": vectorcraft_format::base64_encode(&bytes), "textAs": "outlines"})).unwrap();
+    let r = s.execute("file.place", &json!({"name": "text.pdf", "dataBase64": pluma_format::base64_encode(&bytes), "textAs": "outlines"})).unwrap();
     assert!(live_texts(&s).is_empty());
     assert!(r["warnings"].to_string().contains("outlines"), "{r}");
 }
@@ -129,7 +128,7 @@ fn ai_layer_names_are_read_as_pdf_doc_encoding() {
     };
     let bytes = pdf_with_catalog(&[page], &[r"<< /Type /OCG /Name (Art\205final) >>", "<< /Type /OCG /Name (Notes) >>"], &catalog, None);
     let mut s = Session::new();
-    s.execute("document.open", &json!({"name": "art.ai", "dataBase64": vectorcraft_format::base64_encode(&bytes)})).unwrap();
+    s.execute("document.open", &json!({"name": "art.ai", "dataBase64": pluma_format::base64_encode(&bytes)})).unwrap();
     let names: Vec<String> = s.active().unwrap().doc.layers.iter().map(|l| l.name.clone().unwrap_or_default()).collect();
     assert_eq!(names, ["Art\u{2013}final", "Notes"]);
 }
@@ -159,7 +158,7 @@ fn exports_that_draw_type_in_a_missing_font_say_it_is_the_fallback_font() {
     assert!(r["warnings"].to_string().contains(&family), "opening lists it: {r}");
     let warned = |s: &mut Session, p: Value| {
         let w = s.execute("document.serialize", &p).unwrap()["warnings"].to_string();
-        w.contains(&family) && w.contains(vectorcraft_text::FALLBACK_FAMILY)
+        w.contains(&family) && w.contains(pluma_text::FALLBACK_FAMILY)
     };
     for p in [
         json!({"format": "pdf"}),

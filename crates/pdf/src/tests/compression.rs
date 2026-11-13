@@ -6,9 +6,9 @@
 use std::io::Cursor;
 
 use image::{DynamicImage, ImageFormat};
+use pluma_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::Affine;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::Affine;
 
 use crate::*;
 

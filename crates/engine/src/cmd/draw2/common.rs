@@ -2,7 +2,7 @@ use super::{
     AngleProfile, Appearance, Arc, Beside, Cap, Color, Document, EngineError, FillRule, Join, Node, NodeId, NodeKind, Paint, PathData, Point,
     PressureProfile, Rect, Result, Selection, Session, SubPath, Value, Vec2, bad, index, json, number_or, po,
 };
-use vectorcraft_doc::{LineCap, LineJoin, StrokeLayer, WidthProfile};
+use pluma_doc::{LineCap, LineJoin, StrokeLayer, WidthProfile};
 
 // ---------- helpers ----------
 
@@ -204,14 +204,14 @@ pub(super) fn size_pressure(p: &Value, samples: &[Sample], cmd: &str) -> Result<
 }
 
 /// The area a stroke along `spine` covers with Size set to Pressure: as wide at each point as
-/// [`vectorcraft_tools::draw2::pressure_size`] gives for the pressure `prof` records there, with
+/// [`pluma_tools::draw2::pressure_size`] gives for the pressure `prof` records there, with
 /// round ends and joins, its overlaps united into one outline.
 pub(super) fn pressure_region(spine: &PathData, size: f64, variation: f64, prof: &PressureProfile) -> Result<PathData> {
     let widest = size + variation;
-    let width = |t: f64| vectorcraft_tools::draw2::pressure_size(size, variation, prof.at(t)) / widest;
+    let width = |t: f64| pluma_tools::draw2::pressure_size(size, variation, prof.at(t)) / widest;
     let profile = WidthProfile { points: prof.points.iter().map(|&(t, _)| (t, width(t), width(t))).collect() };
     let round = StrokeLayer { cap: LineCap::Round, join: LineJoin::Round, ..StrokeLayer::new(Paint::None, widest) };
-    let outline = PathData::from_bezpath(&vectorcraft_render::width_outline(&spine.to_bezpath(), widest, &profile, &round, 0.05));
+    let outline = PathData::from_bezpath(&pluma_render::width_outline(&spine.to_bezpath(), widest, &profile, &round, 0.05));
     po::try_unite_all(&[(&outline, FillRule::NonZero)]).map_err(|e| EngineError::Other(e.to_string()))
 }
 

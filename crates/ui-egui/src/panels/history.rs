@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::theme::Tokens;
 use crate::widgets::{self, menu_item};
-use crate::{VectorcraftApp, icons};
+use crate::{PlumaApp, icons};
 
 /// Undo (negative) / redo (positive) steps to reach row `target` when `current` is the current
 /// row (row 0 = the document as opened).
@@ -25,11 +25,11 @@ pub fn step_name(lang: crate::i18n::Lang, label: &str) -> Option<String> {
 }
 
 /// A step's name in `lang`. A name made from a template (`Apply {name}`,
-/// [`vectorcraft_engine::HistoryEntry::named`]) takes the template's plain row with the name in its
-/// placeholder. A name VectorCraft gives is shown in `lang`, and any other name is shown as the
+/// [`pluma_engine::HistoryEntry::named`]) takes the template's plain row with the name in its
+/// placeholder. A name Pluma gives is shown in `lang`, and any other name is shown as the
 /// document holds it. It returns `None` when the catalog has no row for the template. Any other step
 /// takes [`step_name`] of its label.
-pub fn entry_name(lang: crate::i18n::Lang, h: &vectorcraft_engine::HistoryEntry) -> Option<String> {
+pub fn entry_name(lang: crate::i18n::Lang, h: &pluma_engine::HistoryEntry) -> Option<String> {
     use crate::i18n::{fmt, has, label_or_name, tr};
     match h.named() {
         Some(n) => has(lang, n.template).then(|| fmt(tr(lang, n.template), &[("name", label_or_name(lang, &n.name, n.built_in))])),
@@ -39,11 +39,11 @@ pub fn entry_name(lang: crate::i18n::Lang, h: &vectorcraft_engine::HistoryEntry)
 
 /// A step's name as the panel lists it: in the UI language, else as recorded. Edit › Undo and Redo
 /// name the step the same way.
-pub(crate) fn shown(h: &vectorcraft_engine::HistoryEntry) -> String {
+pub(crate) fn shown(h: &pluma_engine::HistoryEntry) -> String {
     entry_name(crate::i18n::current(), h).unwrap_or_else(|| h.label.clone())
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
         super::empty_state(ui, "history", tl!("No document"), tl!("Open a document to see its history."));
@@ -98,7 +98,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     for (label, cmd) in [(tl!("Step Backward"), "edit.undo"), (tl!("Step Forward"), "edit.redo")] {
         if menu_item(ui, label, crate::menus::enabled(app, cmd), false) {
             crate::menus::invoke(app, cmd, json!({}));
@@ -127,7 +127,7 @@ mod tests {
 
     /// The step names the panel paints, top to bottom. The SVG loaders are installed so each row's
     /// icon draws as an image instead of egui's ⚠ placeholder.
-    fn listed(app: &mut VectorcraftApp) -> Vec<String> {
+    fn listed(app: &mut PlumaApp) -> Vec<String> {
         let ctx = egui::Context::default();
         egui_extras::install_image_loaders(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
@@ -147,7 +147,7 @@ mod tests {
     /// translated as the Character Styles panel shows it. Undone steps keep their names.
     #[test]
     fn steps_named_after_a_style_list_the_template_around_the_name() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         let mut run = |id: &str, p: serde_json::Value| app.session.execute(id, &p).unwrap_or_else(|e| panic!("{id} {p}: {e}"));
         run("file.new", json!({"width": 200, "height": 150}));
         let rect = run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20}))["id"].clone();
@@ -197,8 +197,8 @@ mod tests {
         assert_eq!(step_name(ja, "No Such Step"), None);
     }
 
-    fn app_with_two_rectangles() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn app_with_two_rectangles() -> PlumaApp {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 200, "height": 150})).unwrap();
         for x in [10, 60] {
             app.session.execute("shape.rectangle", &json!({"x": x, "y": 10, "width": 20, "height": 20})).unwrap();
@@ -207,16 +207,16 @@ mod tests {
     }
 
     /// Returns the number of steps to undo and to redo.
-    fn depth(app: &VectorcraftApp) -> (usize, usize) {
+    fn depth(app: &PlumaApp) -> (usize, usize) {
         let h = &app.session.active().unwrap().history;
         (h.undo.len(), h.redo.len())
     }
 
     /// Clicks the panel menu's item labeled `label`.
-    fn click(app: &mut VectorcraftApp, label: &str) {
+    fn click(app: &mut PlumaApp, label: &str) {
         let ctx = egui::Context::default();
         let screen = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(240.0, 400.0)));
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: screen, ..Default::default() }, |ui| menu(app, ui));
             out.textures_delta.clear();
             out.shapes
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn the_panel_menu_steps_backward_and_forward() {
         let mut app = app_with_two_rectangles();
-        let objects = |app: &VectorcraftApp| app.session.active().unwrap().doc.layers[0].children().unwrap().len();
+        let objects = |app: &PlumaApp| app.session.active().unwrap().doc.layers[0].children().unwrap().len();
         assert_eq!((depth(&app), objects(&app)), ((2, 0), 2));
         click(&mut app, "Step Backward");
         assert_eq!((depth(&app), objects(&app)), ((1, 1), 1));
@@ -252,13 +252,13 @@ mod tests {
     #[test]
     fn the_step_items_are_disabled_with_nothing_to_undo_or_redo() {
         use crate::widgets::accessibility_tests::tree;
-        let disabled = |app: &mut VectorcraftApp| {
+        let disabled = |app: &mut PlumaApp| {
             let tree = tree(|ui| menu(app, ui));
             let off =
                 |label: &str| tree.iter().find(|n| n.label().map(str::trim) == Some(label)).unwrap_or_else(|| panic!("no `{label}`")).is_disabled();
             (off("Step Backward"), off("Step Forward"))
         };
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         assert_eq!(disabled(&mut app), (true, true), "no document");
         app.session.execute("file.new", &json!({"width": 200, "height": 150})).unwrap();
         assert_eq!(disabled(&mut app), (true, true), "a new document");
@@ -273,7 +273,7 @@ mod tests {
     }
 
     /// Returns whether the panel menu's item labeled `label` is disabled.
-    fn disabled(app: &mut VectorcraftApp, label: &str) -> bool {
+    fn disabled(app: &mut PlumaApp, label: &str) -> bool {
         let tree = crate::widgets::accessibility_tests::tree(|ui| menu(app, ui));
         tree.iter().find(|n| n.label().map(str::trim) == Some(label)).unwrap_or_else(|| panic!("no `{label}`")).is_disabled()
     }
@@ -296,7 +296,7 @@ mod tests {
     /// then changes nothing.
     #[test]
     fn clear_history_is_disabled_with_no_step_to_clear() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         assert!(disabled(&mut app, "Clear History"), "no document");
         app.session.execute("file.new", &json!({"width": 200, "height": 150})).unwrap();
         assert!(disabled(&mut app, "Clear History"), "a new document");
@@ -323,7 +323,7 @@ mod tests {
         ctx.enable_accesskit();
         egui_extras::install_image_loaders(&ctx);
         let screen = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(240.0, 400.0)));
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let mut out = ctx.run_ui(egui::RawInput { events, screen_rect: screen, ..Default::default() }, |ui| show(app, ui));
             out.textures_delta.clear();
             out.platform_output.accesskit_update.map(|u| u.nodes).unwrap_or_default()

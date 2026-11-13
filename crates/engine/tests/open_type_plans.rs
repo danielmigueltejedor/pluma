@@ -6,14 +6,14 @@
 
 use std::sync::{Mutex, MutexGuard, Once};
 
+use pluma_doc::{CharStyle, Document, Node, NodeKind, TextObject, TextRun};
+use pluma_engine::Session;
+use pluma_engine::cmd::fileio;
+use pluma_geom::{Affine, Point};
+use pluma_render::{RenderOptions, Renderer};
+use pluma_text::FontDb;
+use pluma_text::test_fonts::{VARIABLE_FAMILY, keep_shape_plans, variable_font};
 use serde_json::Value;
-use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, TextObject, TextRun};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_geom::{Affine, Point};
-use vectorcraft_render::{RenderOptions, Renderer};
-use vectorcraft_text::FontDb;
-use vectorcraft_text::test_fonts::{VARIABLE_FAMILY, keep_shape_plans, variable_font};
 
 const WIDTH: u32 = 900;
 const HEIGHT: u32 = 1300;
@@ -66,12 +66,12 @@ fn file() -> Vec<u8> {
         let id = doc.alloc_id();
         doc.insert(Some(layer), usize::MAX, Node::new(id, NodeKind::Text(Box::new(t)))).unwrap();
     }
-    vectorcraft_format::save_file(&doc)
+    pluma_format::save_file(&doc)
 }
 
 /// The session `bytes` opened in, as `document.open` reads a file and then opens it.
 fn open(bytes: &[u8]) -> Session {
-    let name = "plans.vectorcraft";
+    let name = "plans.pluma";
     let mut s = Session::new();
     let read = fileio::read_for_open(name, bytes, Some(name.into()), &Value::Null, false, false).unwrap();
     fileio::open_read(&mut s, read).unwrap();

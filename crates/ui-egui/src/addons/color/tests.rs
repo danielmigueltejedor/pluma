@@ -1,14 +1,14 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::{ADJUSTMENTS, ID, Picked, STATE, show};
 use crate::panels::set_pstate;
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// An app with a selected red rectangle.
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap();
     app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
@@ -36,8 +36,8 @@ fn the_menus_list_the_effects_and_open_the_panel() {
 #[test]
 fn every_adjustment_offered_is_a_colour_adjustment_with_its_defaults() {
     for (i, (id, _, fields)) in ADJUSTMENTS.iter().enumerate() {
-        assert!(vectorcraft_effects::is_adjustment(id), "{id}");
-        let defaults = vectorcraft_effects::effect_info(id).unwrap().defaults;
+        assert!(pluma_effects::is_adjustment(id), "{id}");
+        let defaults = pluma_effects::effect_info(id).unwrap().defaults;
         let (picked, params) = Picked { index: i, ..Picked::default() }.params();
         assert_eq!(picked, *id);
         for (key, ..) in fields.iter() {
@@ -64,7 +64,7 @@ fn the_panel_shows_the_values_and_its_buttons() {
 #[test]
 fn the_halftone_effect_dialog_has_the_command_fields_and_edits_the_effect() {
     let mut app = app();
-    let text = |app: &mut VectorcraftApp| painted_text(app, |app, ui| crate::dialogs::show(app, ui.ctx()));
+    let text = |app: &mut PlumaApp| painted_text(app, |app, ui| crate::dialogs::show(app, ui.ctx()));
     app.run("effect.dialog", json!({"effect": "addon.color.halftone"})).unwrap();
     let shown = text(&mut app);
     for s in ["Vector Halftone", "Shape", "Frequency", "Angle", "Screens", "Dot Color from Art", "Color", "Invert", "Clip to Art", "Preview"] {
@@ -87,7 +87,7 @@ fn the_halftone_effect_dialog_has_the_command_fields_and_edits_the_effect() {
 #[test]
 fn the_duotone_dialog_has_a_row_per_tone_and_the_curve_of_one() {
     let mut app = app();
-    let text = |app: &mut VectorcraftApp| painted_text(app, |app, ui| crate::dialogs::show(app, ui.ctx()));
+    let text = |app: &mut PlumaApp| painted_text(app, |app, ui| crate::dialogs::show(app, ui.ctx()));
     app.run("swatch.new", json!({"name": "Ink", "color": "#e07020", "spot": true})).unwrap();
     app.run("effect.dialog", json!({"effect": "addon.color.duotone"})).unwrap();
     let shown = text(&mut app);
@@ -133,5 +133,5 @@ fn print_ink_fixes_opens_its_options_and_runs_on_ok() {
     crate::dialogs::confirm(&mut app).unwrap();
     let st = app.session.active().unwrap();
     let fill = st.doc.node(st.selection.objects[0]).unwrap().appearance.fill_paint().color().unwrap();
-    assert_eq!(fill, vectorcraft_color::Color::cmyk(0.75, 0.75, 0.75, 0.75), "scaled to 300 %");
+    assert_eq!(fill, pluma_color::Color::cmyk(0.75, 0.75, 0.75, 0.75), "scaled to 300 %");
 }

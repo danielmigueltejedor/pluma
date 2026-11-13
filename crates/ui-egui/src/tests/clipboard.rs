@@ -1,40 +1,40 @@
 //! Paste in the app: the Swatch Conflict dialog, pasting at the view centre, the Paste menu items
 //! enabled by SVG on the system clipboard, and the Layers panel's Paste Remembers Layers.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::NodeId;
+use pluma_engine::Session;
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
-use vectorcraft_geom::Point;
 
-use crate::{Services, VectorcraftApp, dialogs, menus};
+use crate::{PlumaApp, Services, dialogs, menus};
 
-fn run(app: &mut VectorcraftApp, id: &str, p: Value) -> Value {
+fn run(app: &mut PlumaApp, id: &str, p: Value) -> Value {
     app.run(id, p).unwrap_or_else(|e| panic!("{id}: {e}"))
 }
 
-fn rect(app: &mut VectorcraftApp) -> NodeId {
+fn rect(app: &mut PlumaApp) -> NodeId {
     NodeId(run(app, "shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 20}))["id"].as_u64().unwrap())
 }
 
-fn copy(app: &mut VectorcraftApp, id: NodeId) {
+fn copy(app: &mut PlumaApp, id: NodeId) {
     run(app, "select.set", json!({"ids": [id.0]}));
     run(app, "edit.copy", json!({}));
 }
 
 /// Objects on the active document's first layer.
-fn objects(app: &VectorcraftApp) -> Vec<NodeId> {
+fn objects(app: &PlumaApp) -> Vec<NodeId> {
     app.session.active().unwrap().doc.layers[0].children().unwrap().iter().map(|n| n.id).collect()
 }
 
-fn swatch(app: &mut VectorcraftApp, name: &str, hex: &str) {
+fn swatch(app: &mut PlumaApp, name: &str, hex: &str) {
     run(app, "swatch.new", json!({"name": name, "color": hex, "global": true}));
 }
 
 /// A rectangle filled with global swatch Brand (red) and stroked with Ink (black) copied from one
 /// document, and a second document (active) whose Brand is blue and Ink green.
-fn conflicting() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn conflicting() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     swatch(&mut app, "Brand", "#ff0000");
     swatch(&mut app, "Ink", "#000000");
@@ -48,7 +48,7 @@ fn conflicting() -> VectorcraftApp {
     app
 }
 
-fn paints(app: &VectorcraftApp) -> (Paint, Paint) {
+fn paints(app: &PlumaApp) -> (Paint, Paint) {
     let st = app.session.active().unwrap();
     let n = st.doc.node(objects(app)[0]).unwrap();
     (n.appearance.fill_paint(), n.appearance.stroke().unwrap().paint.clone())
@@ -58,7 +58,7 @@ fn linked(hex: &str, name: &str) -> Paint {
     Paint::Solid { color: Color::from_hex(hex).unwrap(), swatch: Some(name.into()), tint: 1.0 }
 }
 
-fn set(app: &mut VectorcraftApp, k: &str, v: Value) {
+fn set(app: &mut PlumaApp, k: &str, v: Value) {
     app.ui.dialog.as_mut().unwrap().fields.insert(k.into(), v);
 }
 
@@ -106,7 +106,7 @@ fn apply_to_all_answers_the_rest_and_cancel_pastes_nothing() {
 
 #[test]
 fn paste_goes_to_the_centre_of_the_view() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 400, "height": 300}));
     let r = rect(&mut app);
     copy(&mut app, r);
@@ -120,9 +120,9 @@ fn paste_goes_to_the_centre_of_the_view() {
 const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="5" height="5"/><circle cx="15" cy="5" r="5"/></svg>"##;
 
 /// An app whose system clipboard holds `text`, with a document, after one frame.
-fn with_system_clipboard(text: &'static str) -> VectorcraftApp {
+fn with_system_clipboard(text: &'static str) -> PlumaApp {
     let services = Services { clipboard_read: Some(Box::new(move || Some(text.to_string()))), ..Default::default() };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     assert!(!menus::enabled(&app, "edit.paste"), "not checked before a frame");
     let ctx = egui::Context::default();
@@ -150,11 +150,11 @@ fn paste_menu_items_are_enabled_by_svg_on_the_system_clipboard() {
 
 #[test]
 fn the_layers_panel_menu_toggles_paste_remembers_layers() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| crate::panels::layers::menu(app, ui));
         out.textures_delta.clear();
         let mut texts = vec![];
@@ -182,7 +182,7 @@ static TEST_CLIP_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 #[test]
 fn copying_text_carries_formatting_across_documents() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     // Document 1
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let id1 = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Styled Text", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
@@ -197,22 +197,18 @@ fn copying_text_carries_formatting_across_documents() {
     app.session.select_tool("type", v).unwrap();
     app.session.set_tool_option("textSelection", &json!({"id": id2, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
-    let t2 = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id2)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
+    let t2 = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id2)).unwrap();
+    let pluma_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
     assert_eq!(t2.plain_text(), "OtherStyled");
     let pasted_run = &t2.runs[1];
     assert_eq!(pasted_run.style.size, 36.0, "pasted text keeps 36 pt size in document 2");
-    assert_eq!(
-        pasted_run.style.fill,
-        vectorcraft_doc::color::Paint::solid(vectorcraft_doc::color::Color::rgb8(255, 0, 0)),
-        "pasted text keeps red fill"
-    );
+    assert_eq!(pasted_run.style.fill, pluma_doc::color::Paint::solid(pluma_doc::color::Color::rgb8(255, 0, 0)), "pasted text keeps red fill");
 }
 
 #[test]
 fn paste_without_formatting_takes_surrounding_style() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let id1 = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Big Red", "size": 48, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let v = app.view_info();
@@ -226,8 +222,8 @@ fn paste_without_formatting_takes_surrounding_style() {
     app.session.select_tool("type", v).unwrap();
     app.session.set_tool_option("textSelection", &json!({"id": id2, "start": 7, "end": 7}));
     crate::panels::character::intercept_text_command(&mut app, "edit.pasteWithoutFormatting");
-    let t2 = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id2)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
+    let t2 = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id2)).unwrap();
+    let pluma_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
     assert_eq!(t2.plain_text(), "Small: Big Red");
     assert!(t2.runs.iter().all(|r| r.style.size == 10.0), "all runs take 10 pt size: {:?}", t2.runs);
 }
@@ -249,12 +245,12 @@ fn external_plain_text_matching_an_old_copy_uses_destination_style() {
     app.session.set_tool_option("textSelection", &json!({"id": own_destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(own_destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: Hello");
     assert_eq!(t.runs.last().unwrap().style.size, 36.0, "our copy keeps its style");
 
     // Another app later copies the same characters as plain text. Their style is unrelated.
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Hello".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Hello".to_vec())]);
     let destination =
         run(&mut app, "text.create", json!({"x": 20, "y": 80, "text": "Before ", "size": 12, "color": "#000000"}))["id"].as_u64().unwrap();
     app.session.select_tool("type", v).unwrap();
@@ -268,7 +264,7 @@ fn external_plain_text_matching_an_old_copy_uses_destination_style() {
     assert!(crate::panels::character::intercept_text_command(&mut app, "edit.paste").is_some());
 
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Before HelloHello");
     assert!(t.runs.iter().all(|run| run.style.size == 12.0 && run.style.fill == Paint::solid(Color::rgb8(0, 0, 0))));
 }
@@ -277,7 +273,7 @@ fn external_plain_text_matching_an_old_copy_uses_destination_style() {
 fn type_paste_keeps_a_copy_the_system_clipboard_refused_until_another_app_copies() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
     let (mut app, board) = super::sysclip::app();
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
     super::sysclip::lock(&board, true);
     let source = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let v = app.view_info();
@@ -294,7 +290,7 @@ fn type_paste_keeps_a_copy_the_system_clipboard_refused_until_another_app_copies
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: Hello");
     assert_eq!(t.runs.last().unwrap().style.size, 36.0, "our copy keeps its style");
 
@@ -304,17 +300,17 @@ fn type_paste_keeps_a_copy_the_system_clipboard_refused_until_another_app_copies
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 10, "end": 10}));
     super::sysclip::frame(&mut app, vec![egui::Event::Paste("Old".into())]);
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: HelloHello");
 
     // Another app copies, even the same text: Paste takes it, in the destination's style.
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
     app.session.select_tool("selection", v).unwrap();
     app.session.select_tool("type", v).unwrap();
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: OldHelloHello");
     let old = t.runs.iter().find(|run| run.text.contains("Old")).unwrap();
     assert_eq!(old.style.size, 12.0, "another app's text takes the destination's style");
@@ -325,7 +321,7 @@ fn type_paste_keeps_a_copy_the_system_clipboard_refused_until_another_app_copies
 fn uncounted_refused_copy(
     held: (&'static str, Vec<u8>),
     before_copy: impl FnOnce(&std::rc::Rc<std::cell::RefCell<super::sysclip::Board>>),
-) -> (VectorcraftApp, std::rc::Rc<std::cell::RefCell<super::sysclip::Board>>, impl Fn(&mut VectorcraftApp, usize) -> String) {
+) -> (PlumaApp, std::rc::Rc<std::cell::RefCell<super::sysclip::Board>>, impl Fn(&mut PlumaApp, usize) -> String) {
     let (mut app, board) = super::sysclip::app();
     super::sysclip::without_change_count(&board);
     super::sysclip::copy_elsewhere(&board, vec![held]);
@@ -339,13 +335,13 @@ fn uncounted_refused_copy(
 
     let destination =
         run(&mut app, "text.create", json!({"x": 20, "y": 60, "text": "Own: ", "size": 12, "color": "#000000"}))["id"].as_u64().unwrap();
-    let paste_at = move |app: &mut VectorcraftApp, at: usize| {
+    let paste_at = move |app: &mut PlumaApp, at: usize| {
         app.session.select_tool("selection", v).unwrap();
         app.session.select_tool("type", v).unwrap();
         app.session.set_tool_option("textSelection", &json!({"id": destination, "start": at, "end": at}));
         crate::panels::character::intercept_text_command(app, "edit.paste");
         let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-        let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+        let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
         t.plain_text()
     };
     (app, board, paste_at)
@@ -353,7 +349,7 @@ fn uncounted_refused_copy(
 
 #[test]
 fn type_paste_without_a_change_count_keeps_a_refused_copy_while_the_text_is_unchanged() {
-    use vectorcraft_engine::cmd::clipboard::TEXT;
+    use pluma_engine::cmd::clipboard::TEXT;
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
     let (mut app, board, paste_at) = uncounted_refused_copy((TEXT, b"Old".to_vec()), |b| super::sysclip::refuse_writes(b, true));
     assert_eq!(paste_at(&mut app, 5), "Own: Hello");
@@ -363,7 +359,7 @@ fn type_paste_without_a_change_count_keeps_a_refused_copy_while_the_text_is_unch
 
 #[test]
 fn type_paste_without_a_change_count_drops_a_refused_copy_it_cannot_track() {
-    use vectorcraft_engine::cmd::clipboard::{PNG, TEXT};
+    use pluma_engine::cmd::clipboard::{PNG, TEXT};
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
     // The clipboard can't be read when the write fails: its text read later may be another app's.
     let (mut app, board, paste_at) = uncounted_refused_copy((TEXT, b"Old".to_vec()), |b| super::sysclip::lock(b, true));
@@ -385,7 +381,7 @@ fn a_paste_event_waiting_on_a_refused_copy_pastes_that_copy() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
     // Another copy's formats hold the worker, so this Copy's formats wait.
     let (mut app, board, hold) = super::sysclip::app_with_busy_worker("");
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
     let source = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let destination =
         run(&mut app, "text.create", json!({"x": 20, "y": 60, "text": "Own: ", "size": 12, "color": "#000000"}))["id"].as_u64().unwrap();
@@ -403,7 +399,7 @@ fn a_paste_event_waiting_on_a_refused_copy_pastes_that_copy() {
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     super::sysclip::frame(&mut app, vec![egui::Event::Paste("Old".into())]);
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: Hello");
 }
 
@@ -421,7 +417,7 @@ fn a_copy_elsewhere_before_a_refused_write_wins_the_type_paste() {
     assert!(app.clipboard_publishing.is_pending());
 
     // Another app copies while the formats wait, and keeps the clipboard open for the write.
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"New".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"New".to_vec())]);
     super::sysclip::lock(&board, true);
     drop(hold);
     crate::background::wait_all(&mut app);
@@ -432,7 +428,7 @@ fn a_copy_elsewhere_before_a_refused_write_wins_the_type_paste() {
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     assert_eq!(t.plain_text(), "Own: New");
 }
 
@@ -448,7 +444,7 @@ fn type_paste_keeps_a_copy_whose_write_failed_after_emptying_the_clipboard() {
 /// after writing the formats other than text), then paste into "Own: ".
 fn paste_after_a_write_that_failed_after_emptying(keep_others: bool) -> String {
     let (mut app, board) = super::sysclip::app();
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
     super::sysclip::fail_writes_after_emptying(&board, keep_others);
     let source = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let destination =
@@ -464,14 +460,14 @@ fn paste_after_a_write_that_failed_after_emptying(keep_others: bool) -> String {
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     t.plain_text()
 }
 
 #[test]
 fn a_copy_elsewhere_during_a_refused_write_wins_the_type_paste() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
-    use vectorcraft_engine::cmd::clipboard::{PNG, TEXT};
+    use pluma_engine::cmd::clipboard::{PNG, TEXT};
     assert_eq!(paste_after_a_copy_during_a_refused_write(TEXT, b"Race".to_vec(), false), "Own: Race");
     // Its other formats may match this copy's; its text still differs.
     assert_eq!(paste_after_a_copy_during_a_refused_write(TEXT, b"Race".to_vec(), true), "Own: Race");
@@ -483,7 +479,7 @@ fn a_copy_elsewhere_during_a_refused_write_wins_the_type_paste() {
 /// the copy's formats other than text) and the write fails, then paste into "Own: ".
 fn paste_after_a_copy_during_a_refused_write(mime: &'static str, data: Vec<u8>, our_formats: bool) -> String {
     let (mut app, board) = super::sysclip::app();
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Old".to_vec())]);
     super::sysclip::copy_during_next_write(&board, mime, data, our_formats);
     let source = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let destination =
@@ -499,7 +495,7 @@ fn paste_after_a_copy_during_a_refused_write(mime: &'static str, data: Vec<u8>, 
     app.session.set_tool_option("textSelection", &json!({"id": destination, "start": 5, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     let node = app.session.doc().unwrap().doc.node(NodeId(destination)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!() };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!() };
     t.plain_text()
 }
 
@@ -507,7 +503,7 @@ fn paste_after_a_copy_during_a_refused_write(mime: &'static str, data: Vec<u8>, 
 #[test]
 fn copying_single_character_carries_formatting_across_documents() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let id1 = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "X", "size": 36, "color": "#ff0000"}))["id"].as_u64().unwrap();
     let v = app.view_info();
@@ -521,8 +517,8 @@ fn copying_single_character_carries_formatting_across_documents() {
     app.session.select_tool("type", v).unwrap();
     app.session.set_tool_option("textSelection", &json!({"id": id2, "start": 1, "end": 1}));
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
-    let t2 = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id2)).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
+    let t2 = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id2)).unwrap();
+    let pluma_doc::NodeKind::Text(t2) = &t2.kind else { panic!() };
     assert_eq!(t2.plain_text(), "AX");
     assert_eq!(t2.runs[1].style.size, 36.0, "single character pasted carries styled size");
 }
@@ -530,7 +526,7 @@ fn copying_single_character_carries_formatting_across_documents() {
 #[test]
 fn copying_text_and_pasting_on_canvas_in_another_document() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     run(&mut app, "file.new", json!({"width": 200, "height": 200}));
     let id1 = run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "size": 28, "color": "#00ff00"}))["id"].as_u64().unwrap();
     let v = app.view_info();
@@ -544,7 +540,7 @@ fn copying_text_and_pasting_on_canvas_in_another_document() {
     let pasted_nodes = objects(&app);
     assert_eq!(pasted_nodes.len(), 1);
     let node = app.session.doc().unwrap().doc.node(pasted_nodes[0]).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!("not text") };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!("not text") };
     assert_eq!(t.plain_text(), "Hello");
     assert_eq!(t.runs[0].style.size, 28.0);
 }
@@ -555,7 +551,7 @@ fn copying_text_and_pasting_on_canvas_in_another_document() {
 fn type_range_copy_stays_styled_when_pasted_as_art() {
     let _guard = TEST_CLIP_LOCK.lock().unwrap();
     let (mut app, board) = super::sysclip::app();
-    super::sysclip::copy_elsewhere(&board, vec![(vectorcraft_engine::cmd::clipboard::TEXT, b"Older plain text".to_vec())]);
+    super::sysclip::copy_elsewhere(&board, vec![(pluma_engine::cmd::clipboard::TEXT, b"Older plain text".to_vec())]);
     let source =
         run(&mut app, "text.create", json!({"x": 20, "y": 40, "text": "Hello", "font": "Source Serif 4", "size": 28, "color": "#00ff00"}))["id"]
             .as_u64()
@@ -567,14 +563,14 @@ fn type_range_copy_stays_styled_when_pasted_as_art() {
     app.session.set_tool_option("textSelection", &json!({"id": source, "start": 0, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.copy");
     crate::background::wait_all(&mut app);
-    assert!(super::sysclip::written(&board).contains(&vectorcraft_engine::cmd::clipboard::SVG), "desktop Copy publishes rich art");
+    assert!(super::sysclip::written(&board).contains(&pluma_engine::cmd::clipboard::SVG), "desktop Copy publishes rich art");
     assert!(app.session.clipboard.char_styles.iter().any(|style| style.name == "Emphasis"), "rich Copy includes the referenced character style");
 
     app.session.select_tool("selection", view).unwrap();
     run(&mut app, "edit.paste", json!({}));
     let id = app.session.active().unwrap().selection.objects[0];
     let node = app.session.active().unwrap().doc.node(id).unwrap();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!("Paste did not create text art") };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!("Paste did not create text art") };
     assert_eq!(t.plain_text(), "Hello");
     assert_eq!(t.runs[0].style.font_family, "Source Serif 4");
     assert_eq!(t.runs[0].style.size, 28.0);
@@ -601,12 +597,12 @@ fn a_type_range_paste_into_new_point_type_keeps_its_formatting() {
     app.session.set_tool_option("textSelection", &json!({"id": source, "start": 0, "end": 5}));
     crate::panels::character::intercept_text_command(&mut app, "edit.copy");
     crate::background::wait_all(&mut app);
-    assert!(super::sysclip::written(&board).contains(&vectorcraft_engine::cmd::clipboard::TEXT));
+    assert!(super::sysclip::written(&board).contains(&pluma_engine::cmd::clipboard::TEXT));
     // The first click ends editing the source; the second places new point type with its
     // placeholder text selected.
     for _ in 0..2 {
-        for kind in [vectorcraft_tools::PointerKind::Down, vectorcraft_tools::PointerKind::Up] {
-            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, 300.0, 250.0), view).unwrap();
+        for kind in [pluma_tools::PointerKind::Down, pluma_tools::PointerKind::Up] {
+            app.session.pointer(&pluma_tools::PointerEvent::new(kind, 300.0, 250.0), view).unwrap();
         }
     }
     let fresh = app.session.tool_options()["editing"].as_u64().expect("editing new point type");
@@ -614,7 +610,7 @@ fn a_type_range_paste_into_new_point_type_keeps_its_formatting() {
     crate::panels::character::intercept_text_command(&mut app, "edit.paste");
     app.session.select_tool("selection", view).unwrap();
     let node = app.session.active().unwrap().doc.node(NodeId(fresh)).unwrap().clone();
-    let vectorcraft_doc::NodeKind::Text(t) = &node.kind else { panic!("not text") };
+    let pluma_doc::NodeKind::Text(t) = &node.kind else { panic!("not text") };
     assert_eq!(t.plain_text(), "Hello", "the paste replaces the placeholder");
     assert_eq!(t.runs[0].style.font_family, "Source Serif 4");
     assert_eq!(t.runs[0].style.size, 28.0);

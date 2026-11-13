@@ -1,12 +1,12 @@
 //! `edit.findReplace` keeps per-paragraph styles lined up with the text when a find or replace
 //! string holds a line break, as `text.editRange` does.
 
+use pluma_doc::{Justify, NodeId, NodeKind};
+use pluma_testkit::fixtures::{self, exec, id_of};
 use serde_json::json;
-use vectorcraft_doc::{Justify, NodeId, NodeKind};
-use vectorcraft_testkit::fixtures::{self, exec, id_of};
 
 /// "A\nB\nC" with B centred and C right-aligned.
-fn setup() -> (vectorcraft_engine::Session, NodeId) {
+fn setup() -> (pluma_engine::Session, NodeId) {
     let mut s = fixtures::session_with(400.0, 300.0);
     let id = id_of(&exec(&mut s, "text.create", json!({"x": 20, "y": 100, "text": "A\nB\nC", "size": 20})));
     exec(&mut s, "text.setStyle", json!({"id": id.0, "start": 2, "end": 3, "justify": "center"}));
@@ -15,7 +15,7 @@ fn setup() -> (vectorcraft_engine::Session, NodeId) {
     (s, id)
 }
 
-fn state(s: &vectorcraft_engine::Session, id: NodeId) -> (String, Vec<Justify>) {
+fn state(s: &pluma_engine::Session, id: NodeId) -> (String, Vec<Justify>) {
     match &s.doc().unwrap().doc.node(id).unwrap().kind {
         NodeKind::Text(t) => (t.plain_text(), t.paragraph_styles().iter().map(|p| p.justify).collect()),
         _ => panic!("not text"),

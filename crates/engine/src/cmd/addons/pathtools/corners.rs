@@ -3,10 +3,10 @@
 
 use std::collections::BTreeSet;
 
+use pluma_doc::{LiveCorners, NodeId, NodeKind};
+use pluma_geom::shapes::CornerKind;
+use pluma_tools::addons::corner_tool::MAX_RADIUS;
 use serde_json::{Value, json};
-use vectorcraft_doc::{LiveCorners, NodeId, NodeKind};
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_tools::addons::corner_tool::MAX_RADIUS;
 
 use super::super::super::object::recut;
 use super::super::super::{CommandSpec, bad, checked_id, checked_ids_or_selection, cmd, has_doc, number_or};

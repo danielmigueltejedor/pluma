@@ -1,10 +1,10 @@
 use super::*;
-use vectorcraft_engine::Session;
-use vectorcraft_tools::{PointerEvent, PointerKind};
+use pluma_engine::Session;
+use pluma_tools::{PointerEvent, PointerKind};
 
 /// A 10 pt line from (100, 150) to (300, 150) with a 4 + 4 pt width point in the middle.
-fn app() -> (VectorcraftApp, u64) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> (PlumaApp, u64) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let id = app.run("shape.line", json!({"x1": 100, "y1": 150, "x2": 300, "y2": 150})).unwrap()["id"].as_u64().unwrap();
     app.run("stroke.set", json!({"ids": [id], "weight": 10})).unwrap();
@@ -12,13 +12,13 @@ fn app() -> (VectorcraftApp, u64) {
     (app, id)
 }
 
-fn points(app: &VectorcraftApp, id: u64) -> Vec<(f64, f64, f64)> {
+fn points(app: &PlumaApp, id: u64) -> Vec<(f64, f64, f64)> {
     let st = app.session.active().unwrap().doc.node(NodeId(id)).unwrap().appearance.stroke().unwrap().clone();
     let round = |v: f64| (v * 1e9).round() / 1e9;
     st.profile.map(|p| p.points.into_iter().map(|(t, l, r)| (round(t), round(l), round(r))).collect()).unwrap_or_default()
 }
 
-fn frame(app: &mut VectorcraftApp) -> Vec<String> {
+fn frame(app: &mut PlumaApp) -> Vec<String> {
     fn texts(s: &egui::Shape, out: &mut Vec<String>) {
         match s {
             egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -108,7 +108,7 @@ fn it_does_not_stretch_to_the_screen() {
     assert!((short - tall).abs() < 1.0 && short < 400.0, "{short} vs {tall}");
 }
 
-fn creation_app() -> (VectorcraftApp, u64) {
+fn creation_app() -> (PlumaApp, u64) {
     let (mut app, id) = app();
     app.run("stroke.set", json!({"ids": [id], "profile": "uniform"})).unwrap();
     app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 30, "height": 40})).unwrap();
@@ -117,14 +117,14 @@ fn creation_app() -> (VectorcraftApp, u64) {
     (app, id)
 }
 
-fn creation_history(app: &VectorcraftApp) -> (usize, usize, bool) {
+fn creation_history(app: &PlumaApp) -> (usize, usize, bool) {
     let st = app.session.doc().unwrap();
     (st.history.undo.len(), st.history.redo.len(), st.is_dirty())
 }
 
 /// The actual tool-event sequence from two stationary canvas clicks. No profile or dialog
 /// is installed by the fixture after either click; DoubleClick must open the pending point.
-fn creation_double_click(app: &mut VectorcraftApp, x: f64, y: f64) {
+fn creation_double_click(app: &mut PlumaApp, x: f64, y: f64) {
     let before = app.session.doc().unwrap().doc.clone();
     let history = creation_history(app);
     let view = app.view_info();
@@ -170,7 +170,7 @@ fn new_width_point_double_click_creates_with_history() {
     let after = app.session.doc().unwrap().doc.clone();
     assert_eq!(after.node(NodeId(id)).unwrap().kind, before.node(NodeId(id)).unwrap().kind, "path geometry remains unchanged");
     before.walk(|node| {
-        if node.id != NodeId(id) && matches!(node.kind, vectorcraft_engine::doc::NodeKind::Path { .. }) {
+        if node.id != NodeId(id) && matches!(node.kind, pluma_engine::doc::NodeKind::Path { .. }) {
             assert_eq!(after.node(node.id), Some(node), "other artwork remains unchanged");
         }
     });
@@ -299,7 +299,7 @@ fn new_width_point_invalid_command_keeps_document() {
     }
 }
 
-fn creation_dialog_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
+fn creation_dialog_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, egui::Rect)> {
     fn collect(shape: &egui::Shape, clip: egui::Rect, texts: &mut Vec<(String, egui::Rect)>) {
         match shape {
             egui::Shape::Text(t) if clip.contains_rect(t.visual_bounding_rect()) => {
@@ -317,7 +317,7 @@ fn creation_dialog_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: 
     texts
 }
 
-fn creation_dialog_click(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn creation_dialog_click(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     for _ in 0..4 {
         creation_dialog_frame(app, ctx, vec![]);
     }
@@ -372,7 +372,7 @@ fn creation_adjoining_checkbox(adjust: bool) {
     let after = app.session.doc().unwrap().doc.clone();
     assert_eq!(after.node(NodeId(id)).unwrap().kind, before.node(NodeId(id)).unwrap().kind);
     before.walk(|node| {
-        if node.id != NodeId(id) && matches!(node.kind, vectorcraft_engine::doc::NodeKind::Path { .. }) {
+        if node.id != NodeId(id) && matches!(node.kind, pluma_engine::doc::NodeKind::Path { .. }) {
             assert_eq!(after.node(node.id), Some(node), "other artwork remains unchanged");
         }
     });

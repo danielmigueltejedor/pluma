@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use egui::{Event, Key, Pos2, Rect, ViewportCommand, ViewportId, pos2, vec2};
-use vectorcraft_engine::Session;
+use pluma_engine::Session;
 
 use super::*;
 
@@ -192,7 +192,7 @@ impl Host {
 }
 
 struct Harness {
-    app: VectorcraftApp,
+    app: PlumaApp,
     ctx: egui::Context,
     host: Rc<RefCell<Host>>,
     root_overlay: Option<Rect>,
@@ -219,7 +219,7 @@ impl Harness {
         egui::Context::set_immediate_viewport_renderer(move |ctx, viewport| Host::render(&shared, ctx, viewport));
         let ctx = egui::Context::default();
         ctx.set_embed_viewports(false);
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         let mut h = Self { app, ctx, host, root_overlay: None };
         h.frames(3);
@@ -320,7 +320,7 @@ fn a_floated_panel_opens_its_own_os_window_where_the_backend_has_viewports() {
 
     // Embedded viewports (the web) draw it in the app window.
     let ctx = egui::Context::default();
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("window.panel.float", json!({"panel": "swatches", "x": 200, "y": 200})).unwrap();
     for _ in 0..3 {
         let input = egui::RawInput { screen_rect: Some(SCREEN), ..Default::default() };
@@ -934,7 +934,7 @@ fn button(pos: Pos2, pressed: bool) -> Event {
 fn art_dragged_from_the_canvas_onto_a_native_panel_window_drops_there() {
     let mut h = Harness::new();
     let id = h.app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap();
-    let id = vectorcraft_doc::NodeId(id);
+    let id = pluma_doc::NodeId(id);
     let viewport = h.float("graphicStyles");
     h.host.borrow_mut().focus = ViewportId::ROOT;
     h.frames(2);
@@ -942,7 +942,7 @@ fn art_dragged_from_the_canvas_onto_a_native_panel_window_drops_there() {
     let art = |h: &Harness| format!("{:?}", h.app.session.active().unwrap().doc.node(id).map(|n| &n.kind));
     let before = art(&h);
     let xf = crate::canvas::Xf::new(h.app.canvas_rect.unwrap(), h.app.view().unwrap());
-    let from = xf.to_screen(vectorcraft_geom::Point::new(35.0, 30.0));
+    let from = xf.to_screen(pluma_geom::Point::new(35.0, 30.0));
     let window = h.host.borrow().windows.get(&viewport).map(|w| w.rect).unwrap();
     let to = window.min + vec2(60.0, 120.0) - ORIGIN.to_vec2();
     assert!(h.app.canvas_rect.unwrap().contains(to), "the window lies over the canvas");

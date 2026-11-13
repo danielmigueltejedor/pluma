@@ -2,11 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+use pluma_color::{Color, Gradient, GradientKind, GradientMethod, GradientStop, Paint, Swatch, SwatchGroup, tint_percent};
+use pluma_doc::pattern::pattern_paint;
+use pluma_doc::swatches::{LinkFn, color_name, map_node_solid_paints, node_colors};
+use pluma_doc::{Document, NodeId};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Gradient, GradientKind, GradientMethod, GradientStop, Paint, Swatch, SwatchGroup, tint_percent};
-use vectorcraft_doc::pattern::pattern_paint;
-use vectorcraft_doc::swatches::{LinkFn, color_name, map_node_solid_paints, node_colors};
-use vectorcraft_doc::{Document, NodeId};
 
 use super::paint::paint_from;
 use super::{CommandSpec, Result, Session, bad, bool_or, check_numbers, check_switches, cmd, color_value, has_doc, index, ok, str_param, switch_or};
@@ -189,7 +189,7 @@ fn swatch_new(s: &mut Session, p: &Value) -> Result<Value> {
             _ if spot || mode.is_some() || group.is_some() => Err(bad(C, "spot, mode and group apply to solid colours only")),
             // The swatch holds the gradient itself, not a link to the swatch it may have come from.
             // It keeps `geom`, which holds the aspect the swatch is applied with.
-            Paint::Gradient(g) => Ok(Paint::Gradient(Box::new(vectorcraft_color::GradientPaint { swatch: None, ..*g }))),
+            Paint::Gradient(g) => Ok(Paint::Gradient(Box::new(pluma_color::GradientPaint { swatch: None, ..*g }))),
             // The swatch holds the pattern untransformed, not the placement of the art it came from.
             Paint::Pattern { pattern, .. } => Ok(pattern_paint(&pattern)),
         })
@@ -300,7 +300,7 @@ fn artwork_colors(d: &Document, ids: &[NodeId], tints: bool, swatches: &mut Vec<
 /// built-in Registration swatch when no swatch has its name.
 fn swatches_by_name(d: &Document) -> HashMap<&str, &Swatch> {
     let mut by_name = HashMap::new();
-    for w in d.swatches_iter().chain([vectorcraft_color::swatch::registration()]) {
+    for w in d.swatches_iter().chain([pluma_color::swatch::registration()]) {
         by_name.entry(w.name.as_str()).or_insert(w);
     }
     by_name
@@ -371,7 +371,7 @@ fn link_colors(d: &mut Document, ids: &[NodeId], links: &[(Color, String)]) -> u
     if links.is_empty() {
         return 0;
     }
-    let live: HashSet<String> = d.swatches_iter().chain([vectorcraft_color::swatch::registration()]).map(|w| w.name.clone()).collect();
+    let live: HashSet<String> = d.swatches_iter().chain([pluma_color::swatch::registration()]).map(|w| w.name.clone()).collect();
     let mut by_color: HashMap<ColorKey, &String> = HashMap::new();
     for (c, n) in links {
         if let Some(k) = color_key(c) {
@@ -543,8 +543,8 @@ fn name_param(p: &Value, key: &str) -> Option<String> {
 /// `c` converted to a Swatch Options colour mode through the colour settings (HSB is an RGB view;
 /// Web snaps each channel to a multiple of 0x33).
 fn convert_to_mode(c: Color, mode: &str, cmd: &str) -> Result<Color> {
-    use vectorcraft_color::cms::Model;
-    let cms = vectorcraft_color::cms::active();
+    use pluma_color::cms::Model;
+    let cms = pluma_color::cms::active();
     let to = |m: Model| cms.convert(&c, m, cms.settings().intent);
     Ok(match mode.to_ascii_lowercase().as_str() {
         "gray" | "grayscale" => to(Model::Gray),
@@ -627,15 +627,13 @@ pub(super) fn map_default_paints(s: &mut Session, f: &mut LinkFn) {
 /// paint changed is merged into its entry ([`merge_stored`]), so fields the brush definition does
 /// not read are kept at every level.
 pub(super) fn map_swatch_links(d: &mut Document, f: &mut LinkFn) -> usize {
-    use vectorcraft_brush::{Brush, BrushKind, Colorization};
+    use pluma_brush::{Brush, BrushKind, Colorization};
     let mut n = d.map_solid_paints(f);
     // Each stored entry, its brush when it parses, the brush as written before the edit (only
     // when its paint changed), and whether its paint changed.
-    let mut lib: Vec<(Value, Option<Brush>, Value, bool)> = match d.unknown.get(vectorcraft_brush::DOC_KEY) {
+    let mut lib: Vec<(Value, Option<Brush>, Value, bool)> = match d.unknown.get(pluma_brush::DOC_KEY) {
         Some(v) => v.as_array().into_iter().flatten().map(|e| (e.clone(), Brush::from_json(e.clone()).ok(), Value::Null, false)).collect(),
-        None => {
-            vectorcraft_brush::library(d).into_iter().map(|b| (serde_json::to_value(&b).unwrap_or_default(), Some(b), Value::Null, false)).collect()
-        }
+        None => pluma_brush::library(d).into_iter().map(|b| (serde_json::to_value(&b).unwrap_or_default(), Some(b), Value::Null, false)).collect(),
     };
     let mut in_brushes = 0;
     for (_, b, base, changed) in lib.iter_mut() {
@@ -678,7 +676,7 @@ pub(super) fn map_swatch_links(d: &mut Document, f: &mut LinkFn) -> usize {
                 None => raw,
             })
             .collect();
-        d.unknown.insert(vectorcraft_brush::DOC_KEY.into(), Value::Array(lib));
+        d.unknown.insert(pluma_brush::DOC_KEY.into(), Value::Array(lib));
         n += in_brushes;
     }
     n
@@ -716,18 +714,18 @@ pub(super) fn merge_stored(raw: Value, base: &Value, new: Value) -> Value {
 }
 
 /// The solid colors of the fills and strokes under `nodes` (type runs' fills and strokes included,
-/// opacity masks left out), in tree order and with repeats, the paints [`vectorcraft_brush::art_colors`]
+/// opacity masks left out), in tree order and with repeats, the paints [`pluma_brush::art_colors`]
 /// counts.
-fn art_paint_colors(nodes: Vec<&vectorcraft_doc::Node>) -> Vec<Color> {
-    fn walk(n: &vectorcraft_doc::Node, out: &mut Vec<Color>) {
+fn art_paint_colors(nodes: Vec<&pluma_doc::Node>) -> Vec<Color> {
+    fn walk(n: &pluma_doc::Node, out: &mut Vec<Color>) {
         for it in &n.appearance.items {
             let (visible, paint) = match it {
-                vectorcraft_doc::AppearanceItem::Fill(f) => (f.visible, &f.paint),
-                vectorcraft_doc::AppearanceItem::Stroke(s) => (s.visible, &s.paint),
+                pluma_doc::AppearanceItem::Fill(f) => (f.visible, &f.paint),
+                pluma_doc::AppearanceItem::Stroke(s) => (s.visible, &s.paint),
             };
             out.extend(paint.color().filter(|_| visible));
         }
-        if let vectorcraft_doc::NodeKind::Text(t) = &n.kind {
+        if let pluma_doc::NodeKind::Text(t) = &n.kind {
             for r in &t.runs {
                 let stroke = (r.style.stroke_width > 0.0).then_some(&r.style.stroke);
                 out.extend([Some(&r.style.fill), stroke].into_iter().flatten().filter_map(Paint::color));
@@ -772,7 +770,7 @@ fn swatch_edit(s: &mut Session, p: &Value) -> Result<Value> {
         Some(v) => match (if given("mode") { paint_from(s, &keeping_model(v))? } else { paint_from(s, v)? }, &sw.paint) {
             (Some(Paint::Solid { color, .. }), Paint::Solid { .. }) => Some(Paint::solid(color)),
             (Some(Paint::Gradient(g)), Paint::Gradient(_)) => {
-                Some(Paint::Gradient(Box::new(vectorcraft_color::GradientPaint { geom: None, swatch: None, ..*g })))
+                Some(Paint::Gradient(Box::new(pluma_color::GradientPaint { geom: None, swatch: None, ..*g })))
             }
             (Some(new @ Paint::Pattern { .. }), Paint::Pattern { .. }) => Some(new),
             _ => return Err(bad(C, format!("`{name}` takes a paint of its own kind (colour, gradient or pattern)"))),
@@ -851,7 +849,7 @@ fn swatch_list(s: &mut Session, p: &Value) -> Result<Value> {
     // The built-in Registration swatch lists after None, as the panel shows it.
     let none = d.swatches.iter().take_while(|w| w.paint.is_none()).count();
     let (specials, rest) = d.swatches.split_at(none);
-    let all = specials.iter().chain([vectorcraft_color::swatch::registration()]).chain(rest);
+    let all = specials.iter().chain([pluma_color::swatch::registration()]).chain(rest);
     let ungrouped = all.filter(|_| only.is_none()).map(|w| swatch_json(w, None));
     let grouped = groups.iter().flat_map(|g| g.swatches.iter().map(|w| swatch_json(w, Some(&g.name))));
     let swatches: Vec<Value> = ungrouped.chain(grouped).collect();

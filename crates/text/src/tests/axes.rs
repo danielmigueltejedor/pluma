@@ -4,10 +4,10 @@
 use std::collections::BTreeMap;
 
 use kurbo::{Point, Shape};
+use pluma_doc::CharStyle;
 use skrifa::MetadataProvider;
 use skrifa::instance::{LocationRef, Size};
 use skrifa::raw::TableProvider;
-use vectorcraft_doc::CharStyle;
 
 use crate::test_fonts::{TWO_AXIS_FAMILY as FAMILY, TWO_AXIS_NARROW, VARIABLE_CHARS, VARIABLE_WIDEN, two_axis_font};
 use crate::*;

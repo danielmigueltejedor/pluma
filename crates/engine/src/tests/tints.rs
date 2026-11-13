@@ -1,9 +1,9 @@
 //! Tints of global and spot colours: applying a swatch at a tint, tints following swatch edits,
 //! tint swatches, spot tints on their plate and in PDF, Adjust Color Balance's Global mode.
 
+use pluma_color::{Color, Paint};
+use pluma_render::proof;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_render::proof;
 
 use crate::*;
 
@@ -17,7 +17,7 @@ fn run(s: &mut Session, id: &str, p: Value) -> Value {
     s.execute(id, &p).unwrap_or_else(|e| panic!("{id} {p}: {e}"))
 }
 
-fn doc(s: &Session) -> &vectorcraft_doc::Document {
+fn doc(s: &Session) -> &pluma_doc::Document {
     &s.doc().unwrap().doc
 }
 
@@ -113,14 +113,14 @@ fn spot_tints_print_their_percentage_of_the_plate() {
     rect(&mut s);
     run(&mut s, "paint.setFill", json!({"swatch": "Ink", "tint": 40}));
     let d = doc(&s);
-    let c = vectorcraft_color::cms::active();
+    let c = pluma_color::cms::active();
     let Paint::Solid { color, .. } = fill(&s, s.doc().unwrap().selection.objects[0]) else { panic!() };
     let ink = proof::inks(d, &c, &color, Some(("Ink", 0.4)), proof::Intent::RelativeColorimetric);
     assert_eq!((ink.cmyk, ink.spot), ([0.0; 4], Some(("Ink".to_string(), 0.4))));
     // A process colour linked to a global swatch separates into process inks.
     assert!(proof::inks(d, &c, &color, Some(("Brand", 0.4)), proof::Intent::RelativeColorimetric).spot.is_none());
     // PDF: the Separation value is the tint (102 / 255 = 0.4).
-    let bytes = vectorcraft_pdf::export(d, &vectorcraft_pdf::PdfOptions { created: Some(0), ..vectorcraft_pdf::PdfOptions::uncompressed() }).unwrap();
+    let bytes = pluma_pdf::export(d, &pluma_pdf::PdfOptions { created: Some(0), ..pluma_pdf::PdfOptions::uncompressed() }).unwrap();
     let pdf = String::from_utf8_lossy(&bytes);
     assert!(pdf.contains("/Separation/Ink/DeviceCMYK"), "a spot tint is a Separation");
     assert!(pdf.contains("cs 0.4 scn"), "the tint is the Separation value");
@@ -164,7 +164,7 @@ fn tints_round_trip_through_the_native_format() {
     run(&mut s, "paint.setFill", json!({"swatch": "Ink", "tint": 35}));
     run(&mut s, "swatch.new", json!({}));
     let d = doc(&s).clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&d, false)).unwrap();
     let id = s.doc().unwrap().selection.objects[0];
     assert_eq!(back.node(id).unwrap().appearance.fill_paint(), fill(&s, id));
     assert_eq!(back.swatch("Ink 35%"), d.swatch("Ink 35%"));

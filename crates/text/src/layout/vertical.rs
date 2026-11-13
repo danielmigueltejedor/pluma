@@ -204,8 +204,8 @@ pub(super) fn glyph_em(g: &SGlyph) -> f64 {
 /// An inline graphic has its run's em (whatever its scale): it counts as one of the line's
 /// largest characters only when its run's size is, and moves with the text of its run (its art
 /// stays centred on that text's cap height).
-pub(super) fn align_shift(g: &SGlyph, a: vectorcraft_doc::CharAlign, line_em: f64, vertical: bool) -> f64 {
-    use vectorcraft_doc::CharAlign;
+pub(super) fn align_shift(g: &SGlyph, a: pluma_doc::CharAlign, line_em: f64, vertical: bool) -> f64 {
+    use pluma_doc::CharAlign;
     let icf = || g.face.icf_margins();
     let k = match a {
         CharAlign::RomanBaseline => return 0.0,

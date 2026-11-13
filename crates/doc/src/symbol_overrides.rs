@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
+use pluma_color::{BlendMode, Paint};
 use serde::{Deserialize, Serialize};
-use vectorcraft_color::{BlendMode, Paint};
 
 use crate::{Node, NodeKind};
 
@@ -159,8 +159,8 @@ pub fn retain_parts(overrides: &mut Vec<SymbolOverride>, art: &Node) {
 mod tests {
     use super::*;
     use crate::{Appearance, NodeId};
-    use vectorcraft_color::Color;
-    use vectorcraft_geom::{Rect, shapes};
+    use pluma_color::Color;
+    use pluma_geom::{Rect, shapes};
 
     fn square(id: u64) -> Arc<Node> {
         Arc::new(Node::path(NodeId(id), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::default_art()))
@@ -203,7 +203,7 @@ mod tests {
     fn a_stroke_on_type_without_a_weight_gets_one_point() {
         let red = Paint::solid(Color::rgb(1.0, 0.0, 0.0));
         let style = crate::CharStyle { stroke: Paint::None, stroke_width: 0.0, ..crate::CharStyle::default() };
-        let text = Node::new(NodeId(2), NodeKind::Text(Box::new(crate::TextObject::point(vectorcraft_geom::Point::ZERO, "Hi", style))));
+        let text = Node::new(NodeId(2), NodeKind::Text(Box::new(crate::TextObject::point(pluma_geom::Point::ZERO, "Hi", style))));
         let mut a = Node::group(NodeId(1), vec![Arc::new(text)]);
         apply(&mut a, &[SymbolOverride { path: vec![0], stroke: Some(red.clone()), ..Default::default() }]);
         let Some(NodeKind::Text(t)) = part(&a, &[0]).map(|n| &n.kind) else { panic!("type") };

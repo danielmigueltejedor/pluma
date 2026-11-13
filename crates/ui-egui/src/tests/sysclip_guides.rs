@@ -5,20 +5,20 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use pluma_doc::NodeKind;
+use pluma_engine::Session;
+use pluma_engine::cmd::clipboard::{PNG, TEXT};
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::clipboard::{PNG, TEXT};
 
 use crate::tests_sysclip::{app, app_with_busy_worker, copy_elsewhere, copy_rect, count, frame, pasted, run, written};
-use crate::{Services, VectorcraftApp, background};
+use crate::{PlumaApp, Services, background};
 
-fn guides(app: &VectorcraftApp) -> usize {
+fn guides(app: &PlumaApp) -> usize {
     app.session.active().unwrap().doc.guides.len()
 }
 
 /// Add a vertical guide at `pos`, select only it and copy it.
-fn copy_guide(app: &mut VectorcraftApp, pos: f64) {
+fn copy_guide(app: &mut PlumaApp, pos: f64) {
     run(app, "guide.add", json!({"vertical": true, "pos": pos}));
     let last = guides(app) - 1;
     run(app, "select.none", json!({}));
@@ -88,7 +88,7 @@ fn on_the_web_a_guides_only_copy_empties_the_clipboard_text() {
     let browser = Rc::new(RefCell::new(r#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="9" height="9"/></svg>"#.to_string()));
     let read = browser.clone();
     let services = Services { clipboard_read: Some(Box::new(move || Some(read.borrow().clone()))), ..Default::default() };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     run(&mut app, "file.new", json!({"width": 400, "height": 300}));
     copy_guide(&mut app, 120.0);
     let out = frame(&mut app, vec![]);

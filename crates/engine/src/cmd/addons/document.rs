@@ -11,8 +11,8 @@ mod tests;
 
 use std::sync::Arc;
 
+use pluma_doc::{Node, NodeId, NodeKind, SymbolRegistration};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeId, NodeKind, SymbolRegistration};
 
 use super::super::brushsym::{instance_in_place, normalize, place_xf, store_symbol};
 use super::super::fileio::{self, SaveMode};
@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Save a Timestamped Copy",
             ["Object", "Plug-ins", "Document Tools"],
             None,
-            "{folder? (default: the document's own folder; needed for a document never saved), format?: vectorcraft|pdf|svg|svgz|ai|eps (default: the document's own, else vectorcraft), time?: Unix seconds (default: now)} write a copy of the document named <name>_YYYY-MM-DD_HH-MM.<ext> (the date and time in UTC; -2, -3… added when that name is taken) as File › Save a Copy writes it: the document keeps its path, title and modified state, and no undo step is made. Off where there is no clock (the web) → {path, format, bytes, warnings}",
+            "{folder? (default: the document's own folder; needed for a document never saved), format?: pluma|pdf|svg|svgz|ai|eps (default: the document's own, else pluma), time?: Unix seconds (default: now)} write a copy of the document named <name>_YYYY-MM-DD_HH-MM.<ext> (the date and time in UTC; -2, -3… added when that name is taken) as File › Save a Copy writes it: the document keeps its path, title and modified state, and no undo step is made. Off where there is no clock (the web) → {path, format, bytes, warnings}",
             has_clock,
             save_timestamped_copy
         ),
@@ -38,7 +38,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Export All Open Documents",
             ["Object", "Plug-ins", "Document Tools"],
             None,
-            "{folder, format?: vectorcraft|pdf|svg|svgz|ai|eps (default: pdf)} write a copy of every open document, in tab order, to `folder` as File › Save a Copy writes it, each named after its document (<name>.<ext>; -2, -3… added when that name is taken, so no file is replaced), one self-contained file each with all of its art (images embedded or included, every artboard; no remembered save options apply): every document keeps its path, title and modified state, and no undo step is made. A document that can't be written is listed in `failed` and the others are still written; the active document stays active → {files: [{title, path, warnings}], failed: [{title, error}], format}",
+            "{folder, format?: pluma|pdf|svg|svgz|ai|eps (default: pdf)} write a copy of every open document, in tab order, to `folder` as File › Save a Copy writes it, each named after its document (<name>.<ext>; -2, -3… added when that name is taken, so no file is replaced), one self-contained file each with all of its art (images embedded or included, every artboard; no remembered save options apply): every document keeps its path, title and modified state, and no undo step is made. A document that can't be written is listed in `failed` and the others are still written; the active document stays active → {files: [{title, path, warnings}], failed: [{title, error}], format}",
             has_doc,
             export_all_open
         ),
@@ -47,7 +47,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Batch Trace Folder",
             ["Object", "Plug-ins", "Document Tools"],
             None,
-            "{folder, destinationFolder, preset?: name (imageTrace.presets; default: Default), expand?: false (true: trace and expand, as Make and Expand), format?: vectorcraft (default)|svg|pdf|ai|eps, includeSubdirs?: false} open each image in folder (png, jpg, tif, bmp, gif, webp, psd), select it, trace it with the preset, save it into destinationFolder as <name>.<ext> (-2, -3… added when that name is taken, so no file is replaced) and close it again, whether it traced or not; the document that was active stays active. Optional settings use their defaults only when omitted; null and values of the wrong type return an error before any image is opened. Caps: 500 images, 8 folder levels; a folder with more than 1,000 entries is refused. Not on the web (no file system) → {traced: [{path, output}], failed: [{path, error}], format} (#4921)",
+            "{folder, destinationFolder, preset?: name (imageTrace.presets; default: Default), expand?: false (true: trace and expand, as Make and Expand), format?: pluma (default)|svg|pdf|ai|eps, includeSubdirs?: false} open each image in folder (png, jpg, tif, bmp, gif, webp, psd), select it, trace it with the preset, save it into destinationFolder as <name>.<ext> (-2, -3… added when that name is taken, so no file is replaced) and close it again, whether it traced or not; the document that was active stays active. Optional settings use their defaults only when omitted; null and values of the wrong type return an error before any image is opened. Caps: 500 images, 8 folder levels; a folder with more than 1,000 entries is refused. Not on the web (no file system) → {traced: [{path, output}], failed: [{path, error}], format} (#4921)",
             always,
             batch_trace::batch_trace_folder
         ),
@@ -66,7 +66,7 @@ pub fn specs() -> Vec<CommandSpec> {
 /// A document is open and the time can be told.
 fn has_clock(s: &Session) -> std::result::Result<(), String> {
     has_doc(s)?;
-    vectorcraft_doc::metadata::output_time().map(|_| ()).ok_or_else(|| "there is no clock here".into())
+    pluma_doc::metadata::output_time().map(|_| ()).ok_or_else(|| "there is no clock here".into())
 }
 
 /// `<base>.<ext>`, then `<base>-2.<ext>`… in `folder`: the first that `taken` doesn't hold.
@@ -101,7 +101,7 @@ fn save_timestamped_copy(s: &mut Session, p: &Value) -> Result<Value> {
     let stem = fileio::file_stem(st.path.as_deref().unwrap_or(&st.doc.title));
     let given = date_param(p, "time", C)?;
     let t = clock_date(s, "time", given).ok_or_else(|| bad(C, "there is no clock here: give `time` (Unix seconds)"))?;
-    let [y, mo, d, h, mi, _] = vectorcraft_doc::metadata::civil(t);
+    let [y, mo, d, h, mi, _] = pluma_doc::metadata::civil(t);
     let base = format!("{stem}_{y:04}-{mo:02}-{d:02}_{h:02}-{mi:02}");
     // Only whether something is there: the write itself goes through the automation roots.
     let path = free_name(&folder, &base, format.extensions[0], |p| std::path::Path::new(p).exists())

@@ -13,7 +13,7 @@ pub enum PanelDrag {
     Paint { paint: Paint, params: serde_json::Value, rows: Option<SwatchRows>, library: Option<(String, String)> },
     /// The Appearance panel's thumbnail: art it is dropped on takes object `0`'s appearance
     /// (`appearance.copyFrom`); the Graphic Styles panel makes a style of it.
-    Appearance(vectorcraft_doc::NodeId),
+    Appearance(pluma_doc::NodeId),
     /// A Graphic Styles panel style: art it is dropped on takes it (`graphicStyle.apply` with its
     /// `ids`); the panel moves it to where it is dropped.
     GraphicStyle(String),
@@ -21,7 +21,7 @@ pub enum PanelDrag {
     /// makes a style of the first object (`graphicStyle.new`), the Symbols panel a symbol of it all
     /// (`symbol.new`), the Swatches panel a pattern swatch of a copy (`object.pattern.make`) and the
     /// Brushes panel an Art brush (`brush.new`).
-    Art(Vec<vectorcraft_doc::NodeId>),
+    Art(Vec<pluma_doc::NodeId>),
     /// A Symbols panel symbol: the canvas places an instance of it centred where it is dropped
     /// (`symbol.place`).
     Symbol(String),
@@ -40,7 +40,7 @@ pub enum PanelDrag {
     LibraryGraphic { library: String, item: String },
     /// A Libraries panel text style (`item`: its name in `library`), which the panel moves to where
     /// it is dropped.
-    LibraryItem { library: String, kind: vectorcraft_engine::cmd::library::ItemKind, item: String },
+    LibraryItem { library: String, kind: pluma_engine::cmd::library::ItemKind, item: String },
     /// A Libraries panel group, by its header, which the panel moves to where it is dropped.
     LibraryGroup { library: String, group: String },
 }
@@ -78,7 +78,7 @@ impl PanelDrag {
         Self::Paint { params: crate::panels::paint_params(&paint), paint, rows: None, library: None }
     }
     /// The dragged colour (a solid paint's), which the Gradient panel's ramp takes.
-    pub fn color(&self) -> Option<vectorcraft_color::Color> {
+    pub fn color(&self) -> Option<pluma_color::Color> {
         match self {
             Self::Paint { paint, .. } => paint.color(),
             _ => None,
@@ -186,11 +186,11 @@ pub fn drop_target_outline(ui: &Ui, rect: Rect) {
 /// A small document rendered to a texture at the screen's pixel density (stroke previews: brushes,
 /// arrowheads), transparent where nothing paints. `build` makes the `w`×`h` pt document only when
 /// the texture for `key` at this size isn't cached yet.
-pub fn doc_preview(ui: &Ui, key: &str, size: Vec2, build: impl FnOnce(f64, f64) -> Option<vectorcraft_doc::Document>) -> Option<egui::TextureHandle> {
+pub fn doc_preview(ui: &Ui, key: &str, size: Vec2, build: impl FnOnce(f64, f64) -> Option<pluma_doc::Document>) -> Option<egui::TextureHandle> {
     use std::cell::RefCell;
     use std::collections::HashMap;
     thread_local! {
-        static RENDERER: RefCell<vectorcraft_render::Renderer> = RefCell::new(vectorcraft_render::Renderer::new());
+        static RENDERER: RefCell<pluma_render::Renderer> = RefCell::new(pluma_render::Renderer::new());
         static CACHE: crate::graphics::TexCache<HashMap<String, egui::TextureHandle>> = crate::graphics::TexCache::default();
     }
     let ppp = ui.ctx().pixels_per_point() as f64;
@@ -200,7 +200,7 @@ pub fn doc_preview(ui: &Ui, key: &str, size: Vec2, build: impl FnOnce(f64, f64) 
         return Some(t);
     }
     let doc = build(w, h)?;
-    let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, vectorcraft_geom::Rect::new(0.0, 0.0, w, h), ppp, false));
+    let img = RENDERER.with(|r| r.borrow_mut().render_region(&doc, pluma_geom::Rect::new(0.0, 0.0, w, h), ppp, false));
     let color = crate::canvas::color_image(&img);
     let tex = ui.ctx().load_texture(format!("preview-{key}"), color, egui::TextureOptions::LINEAR);
     CACHE.with(|c| {

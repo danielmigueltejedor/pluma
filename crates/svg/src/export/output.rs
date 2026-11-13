@@ -87,7 +87,7 @@ pub(super) fn entity_value(decl: &str) -> String {
 fn dublin_core(doc: &Document) -> Vec<(&'static str, String)> {
     let info = &doc.metadata;
     let mut terms = vec![("format", "image/svg+xml".to_string())];
-    let created = info.created.map(vectorcraft_doc::metadata::iso8601).unwrap_or_default();
+    let created = info.created.map(pluma_doc::metadata::iso8601).unwrap_or_default();
     let fields = [("title", doc.title.as_str()), ("creator", info.author.as_str()), ("description", info.description.as_str())];
     let rights = [("rights", info.copyright_notice.as_str()), ("rights", info.copyright_url.as_str()), ("date", created.as_str())];
     let keywords = info.keywords.iter().map(|k| ("subject", k.as_str()));
@@ -382,13 +382,7 @@ impl Writer<'_> {
             line(2, "</rdf:RDF>");
         }
         if let Some((bytes, hash)) = native {
-            line(
-                2,
-                &format!(
-                    "<vectorcraft:document xmlns:vectorcraft=\"{EDITING_NS}\" hash=\"{hash}\"><![CDATA[{}]]></vectorcraft:document>",
-                    base64_encode(bytes)
-                ),
-            );
+            line(2, &format!("<pluma:document xmlns:pluma=\"{EDITING_NS}\" hash=\"{hash}\"><![CDATA[{}]]></pluma:document>", base64_encode(bytes)));
         }
         line(1, "</metadata>");
     }

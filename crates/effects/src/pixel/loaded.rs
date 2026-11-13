@@ -10,7 +10,7 @@ use std::io::Cursor;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use vectorcraft_geom::Point;
+use pluma_geom::Point;
 
 use super::texture::luma;
 
@@ -29,7 +29,7 @@ const KEEP: usize = 4;
 
 /// Most bytes of gray levels the loaded textures alive at once may hold, wherever they are kept
 /// (the effects of every drawing hold theirs): a texture that would pass it isn't decoded. Each
-/// one is decoded within [`vectorcraft_doc::MAX_RASTER_ALLOC`], but a document's many Glass
+/// one is decoded within [`pluma_doc::MAX_RASTER_ALLOC`], but a document's many Glass
 /// effects each kept their own.
 const MAX_LIVE: usize = 512 << 20;
 
@@ -91,14 +91,14 @@ impl LoadedTexture {
         Some(base64_encode(&png))
     }
 
-    /// The texture of a PNG's gray levels, decoded within [`vectorcraft_doc::MAX_RASTER_ALLOC`];
+    /// The texture of a PNG's gray levels, decoded within [`pluma_doc::MAX_RASTER_ALLOC`];
     /// `None` when `png` isn't a PNG or holds no pixels.
     /// `None` too when its gray levels would take the live textures past [`MAX_LIVE`].
     fn from_png(png: &[u8]) -> Option<Self> {
         let reader = || {
             let mut reader = image::ImageReader::with_format(Cursor::new(png), image::ImageFormat::Png);
             let mut limits = image::Limits::default();
-            limits.max_alloc = Some(vectorcraft_doc::MAX_RASTER_ALLOC);
+            limits.max_alloc = Some(pluma_doc::MAX_RASTER_ALLOC);
             reader.limits(limits);
             reader
         };
@@ -155,7 +155,7 @@ pub fn texture(stored: &str) -> Option<Arc<LoadedTexture>> {
 
 const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/// Standard base64 (RFC 4648, with padding), written as `vectorcraft_format::base64_encode`
+/// Standard base64 (RFC 4648, with padding), written as `pluma_format::base64_encode`
 /// writes it.
 fn base64_encode(data: &[u8]) -> String {
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
@@ -170,7 +170,7 @@ fn base64_encode(data: &[u8]) -> String {
 }
 
 /// Standard base64 (RFC 4648, with padding; whitespace skipped), read as
-/// `vectorcraft_format::base64_decode` reads it; `None` when it isn't base64.
+/// `pluma_format::base64_decode` reads it; `None` when it isn't base64.
 fn base64_decode(s: &str) -> Option<Vec<u8>> {
     let val = |c: u8| B64.iter().position(|&b| b == c).map(|p| p as u32);
     let clean: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace()).collect();

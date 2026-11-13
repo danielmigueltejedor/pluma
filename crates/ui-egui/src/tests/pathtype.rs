@@ -3,14 +3,14 @@
 //! Preview shows them on the canvas while it is open (#5360). The Selection tool draws no brackets
 //! on a huge selection.
 
+use pluma_doc::{NodeId, NodeKind, TextKind};
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind, TextKind};
-use vectorcraft_engine::Session;
 
-use crate::{VectorcraftApp, dialogs, menus};
+use crate::{PlumaApp, dialogs, menus};
 
 /// The start and end brackets of type on a path `id`.
-fn brackets(app: &VectorcraftApp, id: NodeId) -> (f64, Option<f64>) {
+fn brackets(app: &PlumaApp, id: NodeId) -> (f64, Option<f64>) {
     match app.session.doc().unwrap().doc.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => match t.kind {
             TextKind::OnPath { start, end, .. } => (start, end),
@@ -21,7 +21,7 @@ fn brackets(app: &VectorcraftApp, id: NodeId) -> (f64, Option<f64>) {
 }
 
 /// Open Type on a Path Options… from its menu item.
-fn open_options(app: &mut VectorcraftApp) {
+fn open_options(app: &mut PlumaApp) {
     let entry = menus::menu_entries(app).into_iter().find(|e| e.label == "Type on a Path Options…").expect("menu item");
     assert_eq!(entry.path, ["Type", "Type on a Path"]);
     assert!(entry.enabled);
@@ -32,7 +32,7 @@ fn open_options(app: &mut VectorcraftApp) {
 /// Two headless canvas frames → the vertices of the second one's tessellated mesh, which the GPU
 /// takes in one buffer, without the art's raster: the render worker's frame can land in either
 /// frame of a comparison.
-fn canvas_vertices(app: &mut VectorcraftApp, ctx: &egui::Context) -> usize {
+fn canvas_vertices(app: &mut PlumaApp, ctx: &egui::Context) -> usize {
     let raw = || egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0))), ..Default::default() };
     ctx.run_ui(raw(), |ui| crate::canvas::show(app, ui)).textures_delta.clear();
     let mut out = ctx.run_ui(raw(), |ui| crate::canvas::show(app, ui));
@@ -47,7 +47,7 @@ fn canvas_vertices(app: &mut VectorcraftApp, ctx: &egui::Context) -> usize {
 
 #[test]
 fn type_on_a_path_options_keep_the_type_where_it_is() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
     let path = app.run("path.create", json!({"d": "M100 200 L500 200"})).unwrap()["id"].as_u64().unwrap();
     let r = app.run("text.createInPath", json!({"path": path, "mode": "onPath", "text": "Along", "at": [300, 210]})).unwrap();
@@ -87,7 +87,7 @@ fn type_on_a_path_options_keep_the_type_where_it_is() {
 }
 
 /// The effect, alignment and spacing of type on a path `id`.
-fn options(app: &VectorcraftApp, id: NodeId) -> (&'static str, &'static str, f64) {
+fn options(app: &PlumaApp, id: NodeId) -> (&'static str, &'static str, f64) {
     match app.session.doc().unwrap().doc.node(id).map(|n| &n.kind) {
         Some(NodeKind::Text(t)) => (t.path_effect.id(), t.path_align.id(), t.path_spacing),
         k => panic!("not text: {k:?}"),
@@ -95,7 +95,7 @@ fn options(app: &VectorcraftApp, id: NodeId) -> (&'static str, &'static str, f64
 }
 
 /// One headless frame of the open dialog.
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(egui::RawInput::default(), |ui| dialogs::show(app, ui.ctx()));
@@ -108,15 +108,15 @@ fn frame(app: &mut VectorcraftApp) {
 /// step of history; OK keeps what was previewed as one step, and none when nothing changed.
 #[test]
 fn type_on_a_path_options_preview_on_the_canvas() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 600, "height": 400})).unwrap();
     let path = app.run("path.create", json!({"d": "M100 200 L500 200"})).unwrap()["id"].as_u64().unwrap();
     let r = app.run("text.createInPath", json!({"path": path, "mode": "onPath", "text": "Along", "at": [300, 210]})).unwrap();
     let id = NodeId(r["id"].as_u64().unwrap());
     app.run("select.set", json!({"ids": [id.0]})).unwrap();
     let original = (brackets(&app, id), options(&app, id));
-    let state = |app: &VectorcraftApp| (brackets(app, id), options(app, id));
-    let steps = |app: &VectorcraftApp| app.session.doc().unwrap().history.undo.len();
+    let state = |app: &PlumaApp| (brackets(app, id), options(app, id));
+    let steps = |app: &PlumaApp| app.session.doc().unwrap().history.undo.len();
     let before = steps(&app);
 
     open_options(&mut app);
@@ -182,7 +182,7 @@ fn type_on_a_path_options_preview_on_the_canvas() {
 /// mesh. On 32,768 (an opened PDF can hold as many curved text lines) they add none.
 #[test]
 fn a_huge_selection_of_type_on_a_path_draws_no_brackets() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let path = app.run("path.create", json!({"d": "M20 100 L380 100"})).unwrap()["id"].clone();
     app.run("text.createInPath", json!({"path": path, "mode": "onPath", "text": "Along"})).unwrap();
@@ -191,7 +191,7 @@ fn a_huge_selection_of_type_on_a_path_draws_no_brackets() {
     let ctx = egui::Context::default();
     // The vertices that the Selection tool adds over the Rectangle tool, which draws nothing of its
     // own, with everything selected.
-    let brackets = |app: &mut VectorcraftApp| {
+    let brackets = |app: &mut PlumaApp| {
         app.run("select.all", json!({})).unwrap();
         app.select_tool("rectangle");
         let rectangle = canvas_vertices(app, &ctx);

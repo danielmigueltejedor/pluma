@@ -3,12 +3,12 @@
 //! characters.
 
 use egui::Ui;
+use pluma_doc::{CharStyle, NodeKind};
+use pluma_text::{EXTRA_FEATURES, FontDb, OtFeatures, StylisticSet};
 use serde_json::json;
-use vectorcraft_doc::{CharStyle, NodeKind};
-use vectorcraft_text::{EXTRA_FEATURES, FontDb, OtFeatures, StylisticSet};
 
 use super::character::{shared, text_editing, text_style};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::widgets::{self, menu_item};
 
 /// The feature a checkbox row toggles: a named flag, or a tag of [`EXTRA_FEATURES`].
@@ -105,7 +105,7 @@ fn set_position(f: &mut OtFeatures, i: usize) {
 
 /// The Position menu entry for the characters the panel acts on, or `None` when they differ or
 /// one of them turns on more than one position.
-fn shown_position(app: &VectorcraftApp) -> Option<usize> {
+fn shown_position(app: &PlumaApp) -> Option<usize> {
     shared(app, |s| position(&OtFeatures::from_tags(s.features.iter().map(String::as_str)))).flatten()
 }
 
@@ -138,7 +138,7 @@ impl Change {
 /// Make `change` to the features of each character the panel acts on, from the character's own
 /// features (`featureChanges`), unless it changes none of them. At a Type tool caret the
 /// command styles all the text, so every character of the text is checked.
-fn edit(app: &mut VectorcraftApp, change: Change) {
+fn edit(app: &mut PlumaApp, change: Change) {
     let same = |s: &CharStyle| {
         let before = OtFeatures::from_tags(s.features.iter().map(String::as_str));
         let mut after = before;
@@ -158,13 +158,13 @@ fn edit(app: &mut VectorcraftApp, change: Change) {
 }
 
 /// Apply `f` to the selection's features (the Type tool range, or whole objects).
-fn set(app: &mut VectorcraftApp, f: OtFeatures) {
+fn set(app: &mut PlumaApp, f: OtFeatures) {
     run_features(app, "features", f.to_tags());
 }
 
 /// Send `tags` as the `key` param (`features` or `featureChanges`) for the Type tool's range or
 /// caret, or else for the selected type.
-fn run_features(app: &mut VectorcraftApp, key: &str, tags: Vec<String>) {
+fn run_features(app: &mut PlumaApp, key: &str, tags: Vec<String>) {
     // After Select All in threaded text: every frame of the story.
     let story = super::character::text_story(app).and_then(|story| story.first().copied());
     let (cmd, mut p) = match (text_editing(app), story) {
@@ -179,7 +179,7 @@ fn run_features(app: &mut VectorcraftApp, key: &str, tags: Vec<String>) {
     }
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let Some((st, _)) = text_style(app) else {
         widgets::dim_label(ui, tl!("Select text to set its OpenType features."));
         return;
@@ -228,7 +228,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             });
         });
     });
-    if cur.ligatures && vectorcraft_text::ligatures_suppressed_by(st.tracking) && !vectorcraft_text::explicit_ligatures(&st.features) {
+    if cur.ligatures && pluma_text::ligatures_suppressed_by(st.tracking) && !pluma_text::explicit_ligatures(&st.features) {
         widgets::dim_label(ui, tl!("Ligatures are off while the text is tracked."));
     }
     if let Some(c) = change {
@@ -238,7 +238,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 
 /// The stylistic sets of the font `st` names. A font that is not available offers none, rather than
 /// the sets of the face drawn in its place.
-fn offered_sets(st: &vectorcraft_doc::CharStyle) -> Vec<StylisticSet> {
+fn offered_sets(st: &pluma_doc::CharStyle) -> Vec<StylisticSet> {
     let db = FontDb::global();
     let (family, _) = db.canonical(&st.font_family, &st.font_style);
     if !db.has_family(&family) {
@@ -271,7 +271,7 @@ fn rows() -> [Toggle; 9] {
     ]
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     if menu_item(ui, tl!("Reset OpenType Features"), text_style(app).is_some(), false) {
         set(app, OtFeatures::default());
     }
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn toggles_reach_the_text() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         let id = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "fi 1/2"})).unwrap()["id"].clone();
         app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
@@ -299,15 +299,15 @@ mod tests {
         assert_eq!(text_style(&app).unwrap().0.features, ["-liga", "frac"]);
     }
 
-    fn selected_text() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    fn selected_text() -> PlumaApp {
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         let id = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "Ag 12"})).unwrap()["id"].clone();
         app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
         app
     }
 
-    fn features(app: &VectorcraftApp) -> OtFeatures {
+    fn features(app: &PlumaApp) -> OtFeatures {
         OtFeatures::from_tags(text_style(app).unwrap().0.features.iter().map(String::as_str))
     }
 
@@ -364,12 +364,12 @@ mod tests {
     /// some.
     #[test]
     fn a_missing_font_offers_no_stylistic_sets() {
-        let fallback = vectorcraft_doc::CharStyle { font_family: vectorcraft_text::FALLBACK_FAMILY.into(), ..Default::default() };
+        let fallback = pluma_doc::CharStyle { font_family: pluma_text::FALLBACK_FAMILY.into(), ..Default::default() };
         // Builds without the bundled fonts have no fallback face to draw in a missing font's place.
-        if FontDb::global().has_family(vectorcraft_text::FALLBACK_FAMILY) {
+        if FontDb::global().has_family(pluma_text::FALLBACK_FAMILY) {
             assert!(!offered_sets(&fallback).is_empty(), "the fallback face lists its sets");
         }
-        let missing = vectorcraft_doc::CharStyle { font_family: "No Such Family Zq".into(), ..fallback };
+        let missing = pluma_doc::CharStyle { font_family: "No Such Family Zq".into(), ..fallback };
         assert!(offered_sets(&missing).is_empty());
     }
 
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(shown_position(&app), Some(0));
     }
 
-    fn undo_steps(app: &VectorcraftApp) -> usize {
+    fn undo_steps(app: &PlumaApp) -> usize {
         app.session.active().unwrap().history.undo.len()
     }
 
@@ -458,7 +458,7 @@ mod tests {
     /// step, and each keeps its other features.
     #[test]
     fn mixed_positions_show_mixed_and_take_the_choice() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         let a = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "x2"})).unwrap()["id"].clone();
         let b = app.session.execute("text.create", &json!({"x": 10, "y": 80, "text": "y2"})).unwrap()["id"].clone();
@@ -496,7 +496,7 @@ mod tests {
     }
 
     /// The runs of `id`'s characters `0..end`, each as its text and its features.
-    fn run_features(app: &mut VectorcraftApp, id: &Value, end: usize) -> Vec<(String, Value)> {
+    fn run_features(app: &mut PlumaApp, id: &Value, end: usize) -> Vec<(String, Value)> {
         let runs = app.session.execute("text.getRange", &json!({"id": id, "start": 0, "end": end})).unwrap()["runs"].clone();
         runs.as_array().unwrap().iter().map(|r| (r["text"].as_str().unwrap_or("").to_string(), r["style"]["features"].clone())).collect()
     }
@@ -506,13 +506,13 @@ mod tests {
     /// Figure menu and the checkboxes also keep each run's other features.
     #[test]
     fn mixed_range_takes_the_choice() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.select_tool("type", Default::default()).unwrap();
         let id = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "1/23"})).unwrap()["id"].clone();
         app.session.execute("text.setRangeStyle", &json!({"id": id, "start": 0, "end": 1, "features": ["numr"]})).unwrap();
         app.session.execute("text.setRangeStyle", &json!({"id": id, "start": 1, "end": 3, "features": ["smcp"]})).unwrap();
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         app.session.set_tool_option("select", &json!({"start": 0, "end": 3}));
         assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((0, 3)));
         assert_eq!(shown_position(&app), None);
@@ -542,12 +542,12 @@ mod tests {
     /// every character has it, it adds no undo step.
     #[test]
     fn caret_with_the_same_position_still_applies_it() {
-        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
         app.session.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
         app.session.select_tool("type", Default::default()).unwrap();
         let id = app.session.execute("text.create", &json!({"x": 10, "y": 40, "text": "1/23"})).unwrap()["id"].clone();
         app.session.execute("text.setRangeStyle", &json!({"id": id, "start": 0, "end": 1, "features": ["dnom"]})).unwrap();
-        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.apply_actions(vec![pluma_tools::Action::Notify("text.editNew".into())]).unwrap();
         app.session.set_tool_option("select", &json!({"start": 1, "end": 1}));
         assert_eq!(text_editing(&app).map(|(_, a, b)| (a, b)), Some((1, 1)));
         assert_eq!(shown_position(&app), Some(4));

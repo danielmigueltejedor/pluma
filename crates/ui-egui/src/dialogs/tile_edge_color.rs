@@ -4,14 +4,14 @@
 //!
 //! Fields: `color` (`#rrggbb`, or a preset's name such as "Light Blue").
 
+use pluma_color::Color;
+use pluma_doc::LAYER_COLORS;
 use serde_json::{Value, json};
-use vectorcraft_color::Color;
-use vectorcraft_doc::LAYER_COLORS;
 
 use super::swatch_options::{grid, label};
 use super::{DialogSpec, run_and_close};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Tile Edge Color.
 pub const KIND: &str = "tileEdgeColor";
@@ -19,7 +19,7 @@ pub const KIND: &str = "tileEdgeColor";
 pub(super) const SPEC: DialogSpec = DialogSpec { heading: |_| tl!("Tile Edge Color").into(), body, confirm, min_width: 300.0, ..DialogSpec::FORM };
 
 /// Open Tile Edge Color on the current preference.
-pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp) -> Result<Value, String> {
     app.ui.dialog = Some(Dialog::new(KIND, json!({ "color": app.session.prefs.pattern_tile_edge_color })));
     Ok(Value::Null)
 }
@@ -49,7 +49,7 @@ pub(super) fn checked(color: &str) -> Result<Color, String> {
     resolve(color).ok_or_else(refused)
 }
 
-fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let color = resolve(&d.str("color")).unwrap_or(Color::BLACK);
     let [r, g, b, _] = color.to_rgba8(1.0);
     let preset = LAYER_COLORS.iter().position(|(_, c)| *c == [r, g, b]);
@@ -73,7 +73,7 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     false
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let color = d.str("color");
     let hex = checked(&color)?.to_hex();
     run_and_close(app, "prefs.set", json!({ "key": "patternTileEdgeColor", "value": hex }))
@@ -82,11 +82,11 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     #[test]
     fn presets_or_custom_colours_set_the_preference() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("ui.tileEdgeColor", json!({})).unwrap();
         assert_eq!(app.ui.dialog.as_ref().unwrap().str("color"), app.session.prefs.pattern_tile_edge_color);
         // Drawn headlessly in the shared frame: the preset's name shows.
@@ -94,7 +94,7 @@ mod tests {
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(Default::default(), |ui| super::super::show(&mut app, ui.ctx()));
         out.textures_delta.clear();
-        let set = |app: &mut VectorcraftApp, v: &str| {
+        let set = |app: &mut PlumaApp, v: &str| {
             app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!(v));
             super::super::confirm(app)
         };
@@ -112,7 +112,7 @@ mod tests {
     /// still sets it.
     #[test]
     fn a_color_with_an_alpha_part_is_refused() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("ui.tileEdgeColor", json!({})).unwrap();
         let before = app.session.prefs.pattern_tile_edge_color.clone();
         app.ui.dialog.as_mut().unwrap().fields.insert("color".into(), json!("#ff000080"));

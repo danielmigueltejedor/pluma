@@ -11,7 +11,7 @@ use std::collections::HashSet;
 
 use kurbo::{BezPath, CubicBez, PathSeg, Point, Shape as _};
 use linesweeper::topology::{ContourIdx, Contours, Topology, WindingNumber};
-use vectorcraft_geom::{Anchor, FillRule, PathData, SubPath};
+use pluma_geom::{Anchor, FillRule, PathData, SubPath};
 
 use crate::PathOpsError;
 use crate::fit::{end_tangent, fit_single, is_straight, sample, start_tangent};
@@ -1384,11 +1384,8 @@ mod tests {
     }
 
     fn square(x: f64, y: f64, size: f64) -> PathData {
-        PathData::single(vectorcraft_geom::SubPath::new(
-            [(x, y), (x + size, y), (x + size, y + size), (x, y + size)]
-                .iter()
-                .map(|&(x, y)| vectorcraft_geom::Anchor::corner(Point::new(x, y)))
-                .collect(),
+        PathData::single(pluma_geom::SubPath::new(
+            [(x, y), (x + size, y), (x + size, y + size), (x, y + size)].iter().map(|&(x, y)| pluma_geom::Anchor::corner(Point::new(x, y))).collect(),
             true,
         ))
     }
@@ -1509,13 +1506,13 @@ mod tests {
         let mut pts: Vec<Point> = (0..=n).map(|i| Point::new(i as f64 * 4.0, if i % 2 == 0 { 0.0 } else { -10.0 - (i * 37 % 11) as f64 })).collect();
         pts.push(Point::new(n as f64 * 4.0, 20.0));
         pts.push(Point::new(0.0, 20.0));
-        PathData::single(vectorcraft_geom::SubPath::polyline(&pts, true))
+        PathData::single(pluma_geom::SubPath::polyline(&pts, true))
     }
 
     /// A sweep can leave segments within its tolerance apart where a second sweep joins them.
     #[test]
     fn a_lone_input_with_segments_within_the_tolerance_is_swept_again() {
-        use vectorcraft_geom::SubPath;
+        use pluma_geom::SubPath;
         let triangles = |gap: f64, lift: f64| {
             PathData::new(vec![
                 SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(10.0, 0.0), Point::new(0.0, 10.0)], true),
@@ -1550,7 +1547,7 @@ mod tests {
 
     #[test]
     fn a_lone_part_beside_a_refused_input_keeps_its_union() {
-        use vectorcraft_geom::SubPath;
+        use pluma_geom::SubPath;
         let polygon = |pts: &[(f64, f64)]| PathData::single(SubPath::polyline(&pts.iter().map(|p| Point::new(p.0, p.1)).collect::<Vec<_>>(), true));
         let square = polygon(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
         let refused = polygon(&[(f64::NAN, 0.0), (1.0, 1.0), (0.0, 1.0)]);

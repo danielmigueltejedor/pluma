@@ -1,6 +1,6 @@
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::{Appearance, AppearanceItem, Document, FillLayer, StrokeLayer};
 use serde_json::json;
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, FillLayer, StrokeLayer};
 
 use super::*;
 

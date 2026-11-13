@@ -1,13 +1,13 @@
 //! Character panel › Anti-aliasing Method: type drawn as pixels with None, Sharp, Crisp or Strong
 //! edges.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::pattern::{PatternDef, PatternEdit};
+use pluma_doc::text::{CharStyle, InlineArt, TextObject, TextRun, TypeAntiAlias};
+use pluma_doc::{Appearance, AppearanceItem, Effect, FillLayer, Node, NodeKind, TextKind};
+use pluma_geom::Point;
+use pluma_geom::shapes::rectangle;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::pattern::{PatternDef, PatternEdit};
-use vectorcraft_doc::text::{CharStyle, InlineArt, TextObject, TextRun, TypeAntiAlias};
-use vectorcraft_doc::{Appearance, AppearanceItem, Effect, FillLayer, Node, NodeKind, TextKind};
-use vectorcraft_geom::Point;
-use vectorcraft_geom::shapes::rectangle;
 
 use crate::options::MAX_CONTEXT_SIDE;
 use crate::*;
@@ -341,7 +341,7 @@ fn the_methods_keep_precise_compositing() {
 /// still multiplies with that art.
 #[test]
 fn type_with_a_blended_fill_is_drawn_as_sharp() {
-    let multiply = FillLayer { blend: vectorcraft_color::BlendMode::Multiply, ..FillLayer::new(Paint::solid(Color::rgb(0.0, 0.0, 1.0))) };
+    let multiply = FillLayer { blend: pluma_color::BlendMode::Multiply, ..FillLayer::new(Paint::solid(Color::rgb(0.0, 0.0, 1.0))) };
     let on_orange = |m: TypeAntiAlias| {
         let mut d = page(m, Some(multiply.clone()));
         let orange = Appearance::basic(Paint::solid(Color::rgb(1.0, 0.5, 0.0)), Paint::None, 0.0);
@@ -366,8 +366,8 @@ fn type_with_an_inline_graphic_is_drawn_as_sharp() {
         let back = Node::path(d.alloc_id(), rectangle(Rect::new(0.0, 0.0, f64::from(W), f64::from(H))), orange);
         let blue = Appearance::basic(Paint::solid(Color::rgb(0.0, 0.0, 1.0)), Paint::None, 0.0);
         let mut art = Node::path(d.alloc_id(), rectangle(Rect::new(0.0, -30.0, 30.0, 0.0)), blue);
-        art.blend = vectorcraft_color::BlendMode::Multiply;
-        d.symbols.push(vectorcraft_doc::Symbol { dynamic: false, name: "S".into(), art: Arc::new(art) });
+        art.blend = pluma_color::BlendMode::Multiply;
+        d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "S".into(), art: Arc::new(art) });
         let style = CharStyle { size: 40.0, ..Default::default() };
         let mut t = TextObject::point(Point::new(10.3, 60.4), "I", style.clone());
         t.runs.push(TextRun::inline(InlineArt::new("S"), style));
@@ -389,7 +389,7 @@ fn type_with_an_inline_graphic_is_drawn_as_sharp() {
 /// Sharp draws it, so the glyph's own opacity is kept.
 #[test]
 fn type_with_a_color_glyph_is_drawn_as_sharp() {
-    use vectorcraft_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font, colr_family, colr_font};
+    use pluma_text::test_fonts::{COLOUR_CHAR, colour_bitmap_family, colour_bitmap_font, colr_family, colr_font};
     let _adding = crate::tests_fontchange::adding_fonts();
     let fonts = [
         (colour_bitmap_family(true), colour_bitmap_font(true)),
@@ -399,7 +399,7 @@ fn type_with_a_color_glyph_is_drawn_as_sharp() {
     ];
     for (family, font) in fonts {
         let Some(font) = font else { panic!("{family}: the test font is built") };
-        vectorcraft_text::FontDb::global().add_font(font);
+        pluma_text::FontDb::global().add_font(font);
         let draw = |m: TypeAntiAlias| {
             let mut d = Document::new(160.0, 160.0);
             let style = CharStyle { font_family: family.into(), size: 100.0, ..Default::default() };
@@ -430,7 +430,7 @@ fn type_in_an_offscreen_group_keeps_the_exports_pixels() {
         let text = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
         let black = Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0);
         let mut square = Node::path(d.alloc_id(), rectangle(Rect::new(220.0, 10.0, 250.0, 30.0)), black);
-        square.blend = vectorcraft_color::BlendMode::Multiply;
+        square.blend = pluma_color::BlendMode::Multiply;
         let mut group = Node::group(d.alloc_id(), vec![Arc::new(square), Arc::new(text)]);
         group.isolate = true;
         let l = d.layers[0].id;
@@ -454,11 +454,11 @@ fn type_in_an_offscreen_layer_keeps_the_exports_pixels() {
         let text = Node::new(d.alloc_id(), NodeKind::Text(Box::new(t)));
         let black = Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0);
         let mut square = Node::path(d.alloc_id(), rectangle(Rect::new(220.0, 10.0, 250.0, 30.0)), black);
-        square.blend = vectorcraft_color::BlendMode::Multiply;
+        square.blend = pluma_color::BlendMode::Multiply;
         let l = d.layers[0].id;
         d.insert(Some(l), 0, square).unwrap();
         d.insert(Some(l), 1, text).unwrap();
-        Arc::make_mut(&mut d.layers[0]).blend = vectorcraft_color::BlendMode::Multiply;
+        Arc::make_mut(&mut d.layers[0]).blend = pluma_color::BlendMode::Multiply;
         let a = alphas(&d, &opts);
         assert!(a.iter().filter(|v| **v == 255).count() > 1000, "x {x}");
         assert_eq!(partial(&a), 0, "x {x}: None type has hard edges");
@@ -470,7 +470,7 @@ fn type_in_an_offscreen_layer_keeps_the_exports_pixels() {
 /// share of it `edge_coverage` defines, and in a supersampled export None type has hard edges.
 #[test]
 fn type_in_a_placed_document_takes_the_pages_pixels() {
-    use vectorcraft_doc::{ImageBlob, LinkInfo, PlacedDocument};
+    use pluma_doc::{ImageBlob, LinkInfo, PlacedDocument};
     // A page showing a file that holds "Hamburg" at 40 / `k` pt drawn with `m`, placed at `k` times
     // its size, so the type is 40 pt on the page.
     let placing = |m: TypeAntiAlias, k: f64| {
@@ -482,7 +482,7 @@ fn type_in_a_placed_document_takes_the_pages_pixels() {
         let key = format!("typeedges-{m:?}-{k}");
         let blob = ImageBlob::new("application/json", key.clone().into_bytes());
         let p = PlacedDocument {
-            link: LinkInfo::new("/art/type.vectorcraft"),
+            link: LinkInfo::new("/art/type.pluma"),
             key: key.clone(),
             bounding: false,
             page_box: Default::default(),
@@ -492,7 +492,7 @@ fn type_in_a_placed_document_takes_the_pages_pixels() {
             placement: Default::default(),
         };
         // The file as read, kept for the object, so drawing it needs no loader.
-        vectorcraft_doc::placed_document::prime(&p, blob.bytes.clone(), (Document::new(frame.width(), frame.height()), art, frame));
+        pluma_doc::placed_document::prime(&p, blob.bytes.clone(), (Document::new(frame.width(), frame.height()), art, frame));
         let mut d = Document::new(f64::from(W), f64::from(H));
         d.images.insert(key, blob);
         let n = Node::new(d.alloc_id(), NodeKind::PlacedDocument(Box::new(p)));
@@ -631,7 +631,7 @@ fn type_with_a_brush_stroke_is_drawn_as_sharp() {
         let mut d = page(m, None);
         let id = d.layers[0].children().and_then(|c| c.first()).map(|n| n.id).unwrap();
         let n = d.node_mut(id).unwrap();
-        let mut st = vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::rgb(0.0, 0.0, 1.0)), 2.0);
+        let mut st = pluma_doc::StrokeLayer::new(Paint::solid(Color::rgb(0.0, 0.0, 1.0)), 2.0);
         st.brush = Some("Charcoal".into());
         n.appearance.items.push(AppearanceItem::Stroke(st));
         alphas(&d, &RenderOptions::default())
@@ -647,20 +647,20 @@ fn type_with_a_brush_stroke_is_drawn_as_sharp() {
 /// reshapes the edges by is drawn without the path's opacity.
 #[test]
 fn type_in_a_translucent_scatter_brush_stroke_keeps_its_opacity() {
-    use vectorcraft_brush::{Brush, BrushKind, Scatter};
+    use pluma_brush::{Brush, BrushKind, Scatter};
     let draw = |m: TypeAntiAlias, opacity: f32| {
         let mut d = Document::new(f64::from(W), f64::from(H));
         let mut t = TextObject::point(Point::new(0.0, 0.0), "H", CharStyle { size: 40.0, ..Default::default() });
         t.anti_alias = m;
-        let art = Node::new(vectorcraft_doc::NodeId(0), NodeKind::Text(Box::new(t)));
-        let mut lib = vectorcraft_brush::library(&d);
+        let art = Node::new(pluma_doc::NodeId(0), NodeKind::Text(Box::new(t)));
+        let mut lib = pluma_brush::library(&d);
         lib.push(Brush { name: "Letters".into(), kind: BrushKind::Scatter(Scatter { art, spacing: (200.0, 200.0), ..Default::default() }) });
-        vectorcraft_brush::store(&mut d, &lib);
+        pluma_brush::store(&mut d, &lib);
         let mut ap = Appearance::basic(Paint::None, Paint::solid(Color::BLACK), 1.0);
         if let Some(st) = ap.stroke_mut() {
             st.brush = Some("Letters".into());
         }
-        let line = vectorcraft_geom::shapes::line(Point::new(20.0, 45.0), Point::new(240.0, 45.0));
+        let line = pluma_geom::shapes::line(Point::new(20.0, 45.0), Point::new(240.0, 45.0));
         let mut n = Node::path(d.alloc_id(), line, ap);
         n.opacity = opacity;
         let l = d.layers[0].id;
@@ -701,8 +701,8 @@ fn type_with_a_substitution_highlight_is_drawn_as_sharp() {
 /// Alternate Glyphs is on, and with its method while it is off.
 #[test]
 fn type_with_an_alternate_glyph_highlight_is_drawn_as_sharp() {
-    // Source Serif 4 (bundled with vectorcraft-text's `bundled-fonts`) ligates "fi".
-    if vectorcraft_text::FontDb::global().face("Source Serif 4", "Regular").is_none() {
+    // Source Serif 4 (bundled with pluma-text's `bundled-fonts`) ligates "fi".
+    if pluma_text::FontDb::global().face("Source Serif 4", "Regular").is_none() {
         eprintln!("SKIPPED: type_with_an_alternate_glyph_highlight_is_drawn_as_sharp; no Source Serif 4");
         return;
     }
@@ -784,7 +784,7 @@ fn the_offscreen_drawing_takes_in_the_strokes_reach() {
     let style = CharStyle {
         stroke: Paint::solid(Color::BLACK),
         stroke_width: 4.0,
-        stroke_join: vectorcraft_doc::LineJoin::Miter,
+        stroke_join: pluma_doc::LineJoin::Miter,
         stroke_miter_limit: 10.0,
         ..Default::default()
     };
@@ -802,7 +802,7 @@ fn the_offscreen_drawing_takes_in_the_strokes_reach() {
     assert!(near(past(&n(&t), &t), (200.0, 2.0)), "stretched with the type: {:?}", past(&n(&t), &t));
     t.xf = Affine::scale(2.0);
     let mut own = n(&t);
-    let mut st = vectorcraft_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 10.0);
+    let mut st = pluma_doc::StrokeLayer::new(Paint::solid(Color::BLACK), 10.0);
     st.miter_limit = 10.0;
     own.appearance.items.push(AppearanceItem::Stroke(st));
     assert!(near(past(&own, &t), (90.0, 90.0)), "the object's own stroke after the characters': {:?}", past(&own, &t));
@@ -859,7 +859,7 @@ fn type_outside_its_frame_is_drawn() {
 fn a_pan_draws_the_type_from_the_kept_pixels() {
     let _fonts = crate::tests_fontchange::fonts_steady();
     let opts = RenderOptions::default();
-    let fonts = || vectorcraft_text::FontDb::global().generation();
+    let fonts = || pluma_text::FontDb::global().generation();
     // How many type objects a renderer drew offscreen for `b` in `second` after drawing `a` in
     // `first`. The second frame's pixels are a new renderer's, each channel within `near`. The
     // frames are drawn again while the fonts change between them (other tests load fonts, and the

@@ -2,14 +2,14 @@ use super::save::{
     ask_before_losing, export_path, is_web, remember_active_artboard, report_saved, report_write_error, saved_status, target_path,
     target_path_keeping, view_file, write_encoded, write_named, write_reporting,
 };
-use super::{EngineError, Progress, Value, VectorcraftApp, Writer, background, cancel, fileio, json, progress};
+use super::{EngineError, PlumaApp, Progress, Value, Writer, background, cancel, fileio, json, progress};
 
 /// The status once an export was cancelled.
 pub const EXPORT_CANCELLED: &str = "Export cancelled";
 
 /// File → Cancel Export (the progress dialog's Cancel): every export running in the background
 /// stops and writes nothing more → `{cancelled: n}`.
-pub fn cancel_exports(app: &mut VectorcraftApp) -> Value {
+pub fn cancel_exports(app: &mut PlumaApp) -> Value {
     let n = app.background.cancel_exports();
     if n > 0 {
         app.status(EXPORT_CANCELLED);
@@ -19,7 +19,7 @@ pub fn cancel_exports(app: &mut VectorcraftApp) -> Value {
 
 /// The progress dialog's Continue in Background: the exports go on, shown in the status bar only
 /// → `{hidden: n}`.
-pub fn hide_exports(app: &mut VectorcraftApp) -> Value {
+pub fn hide_exports(app: &mut PlumaApp) -> Value {
     json!({ "hidden": app.background.hide_exports() })
 }
 
@@ -28,7 +28,7 @@ pub fn hide_exports(app: &mut VectorcraftApp) -> Value {
 /// options…): every file it writes (one per artboard, linked images) goes next to `path`. The
 /// document keeps its path. → `{path, warnings, files?}` (`files`: every file when there are
 /// several).
-pub fn export(app: &mut VectorcraftApp, format: Option<&str>, path: Option<String>, params: &Value) -> Result<Value, String> {
+pub fn export(app: &mut PlumaApp, format: Option<&str>, path: Option<String>, params: &Value) -> Result<Value, String> {
     // Options given as anything but an object are none: the path and format still reach the
     // encoder (an exporter plug-in is told the file it writes).
     let params = &if params.is_object() { params.clone() } else { json!({}) };
@@ -116,7 +116,7 @@ pub(crate) fn exported_with_notes(what: &str, n: usize, first: &str) -> String {
 /// Run an engine command that returns `{dataBase64}` and write the bytes to a picked path
 /// (Export Selection, Save for Office Documents, Text Export Options and the presets dialogs'
 /// Export…), reported with the first of the command's warnings ([`report_saved`]).
-pub fn save_command_output(app: &mut VectorcraftApp, id: &str, ext: &str, params: Value) -> Result<String, String> {
+pub fn save_command_output(app: &mut PlumaApp, id: &str, ext: &str, params: Value) -> Result<String, String> {
     let (path, v) = run_to_file(app, id, ext, params)?;
     report_saved(app, &path, &v);
     Ok(path)
@@ -125,7 +125,7 @@ pub fn save_command_output(app: &mut VectorcraftApp, id: &str, ext: &str, params
 /// Run an engine command that returns `{data}` or `{dataBase64}` and write the bytes to a file
 /// picked with file name `name` suggested next to the document (the web downloads them as `name`)
 /// → where they went.
-pub(crate) fn save_command_output_named(app: &mut VectorcraftApp, id: &str, name: &str, params: Value) -> Result<String, String> {
+pub(crate) fn save_command_output_named(app: &mut PlumaApp, id: &str, name: &str, params: Value) -> Result<String, String> {
     let mut v = app.session.execute(id, &params).map_err(|e| e.to_string())?;
     let bytes = take_output(&mut v)?;
     let path = write_named(app, None, name, &bytes)?;
@@ -138,7 +138,7 @@ pub(crate) fn save_command_output_named(app: &mut VectorcraftApp, id: &str, name
 fn take_output(v: &mut Value) -> Result<Vec<u8>, String> {
     let o = v.as_object_mut().ok_or("no data")?;
     let bytes = match (o.remove("dataBase64"), o.remove("data")) {
-        (Some(Value::String(b64)), _) => vectorcraft_format::base64_decode(&b64),
+        (Some(Value::String(b64)), _) => pluma_format::base64_decode(&b64),
         (_, Some(Value::String(text))) => Some(text.into_bytes()),
         _ => None,
     };
@@ -150,7 +150,7 @@ fn take_output(v: &mut Value) -> Result<Vec<u8>, String> {
 /// The command runs before a path is asked for, so bad params never open a save dialog, except
 /// for Export Selection without a `format`, which takes it from the picked path. Export Selection
 /// with a `format` picks a file with that format's extension in place of `ext`.
-pub(crate) fn run_to_file(app: &mut VectorcraftApp, id: &str, ext: &str, mut params: Value) -> Result<(String, Value), String> {
+pub(crate) fn run_to_file(app: &mut PlumaApp, id: &str, ext: &str, mut params: Value) -> Result<(String, Value), String> {
     let mut path = params.as_object_mut().and_then(|o| o.remove("path")).and_then(|p| p.as_str().map(str::to_string));
     let selection = id == "document.exportSelection";
     let given = params.get("format").and_then(Value::as_str).and_then(fileio::format).filter(|_| selection);
@@ -178,7 +178,7 @@ pub(crate) fn run_to_file(app: &mut VectorcraftApp, id: &str, ext: &str, mut par
 /// to `path` (else a picked or suggested name) → `{path, bytes, warnings}`. With
 /// `viewAfterSaving`, the written file opens in the system viewer (not on the web, which
 /// downloads it).
-pub fn export_pdf(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub fn export_pdf(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let view = params.get("viewAfterSaving").and_then(Value::as_bool).unwrap_or(false);
     let (path, mut v) = run_to_file(app, "document.exportPdf", "pdf", params)?;
     if view {
@@ -206,31 +206,31 @@ pub(crate) fn file_url(path: &str) -> String {
 }
 
 /// File → Show in Folder: the document's file in the system file manager.
-pub fn reveal(app: &mut VectorcraftApp) -> Result<Value, String> {
+pub fn reveal(app: &mut PlumaApp) -> Result<Value, String> {
     let path = app.session.active().and_then(|d| d.path.clone()).ok_or("the document has never been saved")?;
     reveal_path(app, &path)?;
     Ok(json!({ "path": path }))
 }
 
 /// Show the file at `path` in the system file manager (desktop).
-pub(crate) fn reveal_path(app: &mut VectorcraftApp, path: &str) -> Result<(), String> {
+pub(crate) fn reveal_path(app: &mut PlumaApp, path: &str) -> Result<(), String> {
     app.services.reveal.as_mut().ok_or("no file manager here")?(path)
 }
 
 /// Open `path` (a file or a folder) in the system's default app for it (desktop).
-pub(crate) fn open_in_app(app: &mut VectorcraftApp, path: &str) -> Result<(), String> {
+pub(crate) fn open_in_app(app: &mut PlumaApp, path: &str) -> Result<(), String> {
     app.services.open_file.as_mut().ok_or("no app to open files here")?(path)
 }
 
 /// Edit Original: open `path` in the system's default app for it, or with Preferences › File
-/// Handling › Use System Defaults for Edit Original off, in the app that made it (#5236): PhotoCraft
-/// for a raster image where it is installed. Any other file, or no PhotoCraft, uses the system's app.
-pub(crate) fn open_original(app: &mut VectorcraftApp, path: &str) -> Result<(), String> {
+/// Handling › Use System Defaults for Edit Original off, in the app that made it (#5236): Lienzo
+/// for a raster image where it is installed. Any other file, or no Lienzo, uses the system's app.
+pub(crate) fn open_original(app: &mut PlumaApp, path: &str) -> Result<(), String> {
     let ext = std::path::Path::new(path).extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
-    let raster = vectorcraft_engine::cmd::fileio::readable_format(&ext).is_some_and(|f| f.raster);
+    let raster = pluma_engine::cmd::fileio::readable_format(&ext).is_some_and(|f| f.raster);
     if !app.session.prefs.edit_original_system_defaults
         && raster
-        && let Some(open) = app.services.open_in_photocraft.as_mut()
+        && let Some(open) = app.services.open_in_lienzo.as_mut()
         && open(path)?
     {
         return Ok(());
@@ -243,7 +243,7 @@ pub(crate) fn open_original(app: &mut VectorcraftApp, path: &str) -> Result<(), 
 /// back as base64. With `openLocation`, the file manager shows the first file written. When an
 /// export into a folder or a download has warnings, the status bar shows the first as
 /// [`report_saved`] shows a save's notes: "Saved <folder, ZIP or first download> with n notes: …".
-pub fn export_for_screens(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub fn export_for_screens(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     export_files(app, "document.exportForScreens", params)
 }
 
@@ -253,7 +253,7 @@ pub fn export_for_screens(app: &mut VectorcraftApp, params: Value) -> Result<Val
 /// prepared from the document as it is now, and the files are encoded and written on the
 /// background thread ([`background`]): this returns `{background: true, status}` at once, with the
 /// progress dialog's Cancel, and the status bar reports the files once they are written.
-pub(crate) fn export_files(app: &mut VectorcraftApp, id: &str, params: Value) -> Result<Value, String> {
+pub(crate) fn export_files(app: &mut PlumaApp, id: &str, params: Value) -> Result<Value, String> {
     let open_location = params.get("openLocation").and_then(Value::as_bool).unwrap_or(false);
     let folder = params.get("folder").and_then(Value::as_str).unwrap_or_default().to_string();
     // Without a folder the files come back in the reply, which the caller waits for.
@@ -290,7 +290,7 @@ pub(crate) fn export_files(app: &mut VectorcraftApp, id: &str, params: Value) ->
 /// Report the files `r` (the reply of `document.exportForScreens`) in the status bar: the count
 /// written into `folder`, else the ZIP or the files downloaded (the web); with `open_location`,
 /// the file manager shows the first file written.
-fn report_exported(app: &mut VectorcraftApp, r: Value, folder: &str, open_location: bool) -> Result<Value, String> {
+fn report_exported(app: &mut PlumaApp, r: Value, folder: &str, open_location: bool) -> Result<Value, String> {
     let count = r["files"].as_array().map_or(0, Vec::len);
     let warned = r["warnings"].as_array().is_some_and(|w| !w.is_empty());
     // Files that came back as bytes: (name, base64).
@@ -317,7 +317,7 @@ fn report_exported(app: &mut VectorcraftApp, r: Value, folder: &str, open_locati
         // A browser download has no folders: a file from a sub-folder (`2x/Logo@2x.png`) is named alone.
         let returned: Vec<(&str, &str)> = returned.iter().map(|(name, data)| (name.rsplit('/').next().unwrap_or(name), *data)).collect();
         for (name, data) in &returned {
-            let bytes = vectorcraft_format::base64_decode(data).ok_or("the export returned unreadable data")?;
+            let bytes = pluma_format::base64_decode(data).ok_or("the export returned unreadable data")?;
             download(name, &bytes)?;
         }
         let what = match returned.as_slice() {

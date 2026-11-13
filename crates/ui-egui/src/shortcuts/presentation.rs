@@ -1,4 +1,4 @@
-use super::{Key, VectorcraftApp, json};
+use super::{Key, PlumaApp, json};
 
 /// Does this Escape reset the view's rotation? The caller has checked that nothing earlier took
 /// the press. It does when the view is rotated; no popup, modal window (a progress window, About)
@@ -6,7 +6,7 @@ use super::{Key, VectorcraftApp, json};
 /// the focus away on Escape before this runs); no pointer button is held or let go in this frame
 /// (a tab or panel drag takes the Escape, in its release frame too); and neither a ruler-origin
 /// drag nor a floating Tools move is ending.
-pub(super) fn escape_resets_rotation(app: &VectorcraftApp, ctx: &egui::Context) -> bool {
+pub(super) fn escape_resets_rotation(app: &PlumaApp, ctx: &egui::Context) -> bool {
     app.view().is_some_and(|v| v.rotation != 0.0)
         && !egui::Popup::is_any_open(ctx)
         && !crate::panel_docking::modal_open(app, ctx)
@@ -21,7 +21,7 @@ pub(super) fn escape_resets_rotation(app: &VectorcraftApp, ctx: &egui::Context) 
 /// the previous and the next artboard ([`presentation_step`]). Every other key press, the text it
 /// types and the clipboard keys are removed from the input, so no shortcut, tool or field acts on
 /// them. The macOS menu bar's key equivalents arrive as key presses too ([`crate::native_menu`]).
-pub(super) fn presentation_keys(app: &mut VectorcraftApp, ctx: &egui::Context) {
+pub(super) fn presentation_keys(app: &mut PlumaApp, ctx: &egui::Context) {
     let (mut leave, mut steps) = (false, vec![]);
     ctx.input_mut(|i| {
         i.events.retain(|e| match e {
@@ -60,7 +60,7 @@ pub(super) fn presentation_keys(app: &mut VectorcraftApp, ctx: &egui::Context) {
 /// navigator's Next and Previous buttons do, for the arrow keys and a click in Presentation Mode.
 /// On the last artboard a step forward leaves the view as it is, and so does a step back on the
 /// first.
-pub(crate) fn presentation_step(app: &mut VectorcraftApp, next: bool) {
+pub(crate) fn presentation_step(app: &mut PlumaApp, next: bool) {
     let n = app.session.active().map_or(0, |d| d.doc.artboards.len());
     let at = crate::panels::artboards::selected(app, n);
     let to = if next { (at + 1 < n).then_some("next") } else { (at > 0).then_some("previous") };

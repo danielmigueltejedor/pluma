@@ -8,10 +8,10 @@
 
 use std::collections::BTreeSet;
 
+use pluma_doc::hit::hit_test;
+use pluma_doc::{AnchorRef, NodeId, NodeKind};
+use pluma_geom::Point;
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::hit_test;
-use vectorcraft_doc::{AnchorRef, NodeId, NodeKind};
-use vectorcraft_geom::Point;
 
 use super::paint_owner;
 use crate::meshedit::{MeshEdit, grid_of};
@@ -175,7 +175,7 @@ impl Tool for LassoTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::Selection;
+    use pluma_doc::Selection;
 
     #[test]
     fn magic_wand_emits_the_engine_command() {
@@ -248,10 +248,10 @@ mod tests {
     /// anchor there, besides picking the envelope's grid point (#5351).
     #[test]
     fn lasso_keeps_picking_the_anchors_of_an_envelopes_path() {
+        use pluma_doc::Node;
+        use pluma_doc::live::{EnvelopeKind, EnvelopeOptions, grid_points};
+        use pluma_geom::{Affine, Rect};
         use std::sync::Arc;
-        use vectorcraft_doc::Node;
-        use vectorcraft_doc::live::{EnvelopeKind, EnvelopeOptions, grid_points};
-        use vectorcraft_geom::{Affine, Rect};
         let (mut d, a) = doc_with_rect();
         let rect = d.node(a).cloned().unwrap();
         let kind = EnvelopeKind::Mesh { rows: 1, cols: 1, points: grid_points(Rect::new(100.0, 100.0, 200.0, 200.0), 1, 1), handles: vec![] };

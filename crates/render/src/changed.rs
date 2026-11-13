@@ -4,8 +4,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind, SymbolBoxes};
-use vectorcraft_geom::{Affine, Rect};
+use pluma_doc::{Document, Node, NodeId, NodeKind, SymbolBoxes};
+use pluma_geom::{Affine, Rect};
 
 /// What may draw differently in a document than in its version before an edit ([`changed`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -42,7 +42,7 @@ pub fn placed_area(doc: &Document, files: &HashSet<String>) -> Changed {
         doc.symbols.iter().map(|s| &s.art).chain(doc.graph_designs.iter().map(|g| &g.art)).chain(doc.patterns.iter().flat_map(|p| &p.art));
     if doc.pattern_edit.is_some()
         || elsewhere.any(|n| shows(n, files))
-        || vectorcraft_brush::library(doc).iter().any(|b| b.art().into_iter().any(|n| shows(n, files)))
+        || pluma_brush::library(doc).iter().any(|b| b.art().into_iter().any(|n| shows(n, files)))
     {
         return Changed::Everything;
     }
@@ -71,7 +71,7 @@ fn add_placed(symbols: &SymbolBoxes, n: &Node, files: &HashSet<String>, area: &m
                 add_placed(symbols, c, files, area);
             }
         }
-        _ if shows(n, files) => *area = vectorcraft_geom::union_opt(*area, crate::brush_fx::cull_bounds(symbols, n)),
+        _ if shows(n, files) => *area = pluma_geom::union_opt(*area, crate::brush_fx::cull_bounds(symbols, n)),
         _ => {}
     }
 }
@@ -193,7 +193,7 @@ impl Diff<'_, '_> {
             } else {
                 // The object's box before and after holds every pixel that changed too, and so
                 // does where the two overlap.
-                let whole = vectorcraft_geom::union_opt(self.bounds(Side::Old, old), self.bounds(Side::New, new));
+                let whole = pluma_geom::union_opt(self.bounds(Side::Old, old), self.bounds(Side::New, new));
                 self.add(area.zip(whole).map(|(a, w)| a.intersect(w)));
             }
         } else {
@@ -241,7 +241,7 @@ impl Diff<'_, '_> {
     }
 
     fn add(&mut self, r: Option<Rect>) {
-        self.area = vectorcraft_geom::union_opt(self.area, r);
+        self.area = pluma_geom::union_opt(self.area, r);
     }
 }
 
@@ -311,7 +311,7 @@ fn moved_anchors(old: &Node, new: &Node) -> Option<(Option<Rect>, usize, usize)>
                 match (&x.kind, &y.kind) {
                     (NodeKind::Path { path: p, .. }, NodeKind::Path { path: q, .. }) if same_but_anchors(x, y) => {
                         let (a, m, n) = moved_in(p, q)?;
-                        (area, moved, anchors) = (vectorcraft_geom::union_opt(area, a), moved + m, anchors + n);
+                        (area, moved, anchors) = (pluma_geom::union_opt(area, a), moved + m, anchors + n);
                     }
                     _ => return None,
                 }
@@ -342,7 +342,7 @@ fn same_but_anchors(a: &Node, b: &Node) -> bool {
         }
         _ => false,
     };
-    let none = vectorcraft_doc::Extras::default();
+    let none = pluma_doc::Extras::default();
     kinds
         && *id == b.id
         && *name == b.name
@@ -363,8 +363,8 @@ fn same_but_anchors(a: &Node, b: &Node) -> bool {
 /// stroke a solid color, and no stroke with dashes, a width profile, pressure, tilt, bearing or
 /// rotation, arrowheads, a brush or effects?
 fn local_paint(n: &Node) -> bool {
-    use vectorcraft_doc::AppearanceItem;
-    let solid = |p: &vectorcraft_color::Paint| matches!(p, vectorcraft_color::Paint::Solid { .. } | vectorcraft_color::Paint::None);
+    use pluma_doc::AppearanceItem;
+    let solid = |p: &pluma_color::Paint| matches!(p, pluma_color::Paint::Solid { .. } | pluma_color::Paint::None);
     n.appearance.effects.is_empty()
         && !crate::fx::has_fx(n)
         && !crate::fx::has_object_fx(n)
@@ -391,7 +391,7 @@ fn local_paint(n: &Node) -> bool {
 /// the line that closes the fill of an open subpath at a moved end, in both (`None` when none
 /// moved), how many moved and how many anchors `b` has. None when one of those coordinates is not
 /// finite or larger in size than [`MOVED_LIMIT`].
-fn moved_in(a: &vectorcraft_geom::PathData, b: &vectorcraft_geom::PathData) -> Option<(Option<Rect>, usize, usize)> {
+fn moved_in(a: &pluma_geom::PathData, b: &pluma_geom::PathData) -> Option<(Option<Rect>, usize, usize)> {
     let (mut area, mut moved, mut anchors): (Option<Rect>, usize, usize) = (None, 0, 0);
     for (x, y) in a.subpaths.iter().zip(&b.subpaths) {
         let n = x.anchors.len();

@@ -22,8 +22,8 @@ use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use pluma_engine::cancel::CancelToken;
 use serde_json::{Value, json};
-use vectorcraft_engine::cancel::CancelToken;
 
 use crate::server::{INVALID_REQUEST, MAX_LINE_BYTES, PARSE_ERROR, SERVER_BUSY, error, error_with, read_line_capped};
 

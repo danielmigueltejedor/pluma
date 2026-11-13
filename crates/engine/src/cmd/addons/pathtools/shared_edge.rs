@@ -4,11 +4,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use pluma_doc::{AnchorRef, Document, NodeId, NodeKind};
+use pluma_geom::{PathData, Point, Vec2};
+use pluma_pathops::addons::pathtools as pt;
+use pluma_tools::addons::shared_edge::{DIAMETER, DIAMETER_RANGE, ID};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{AnchorRef, Document, NodeId, NodeKind};
-use vectorcraft_geom::{PathData, Point, Vec2};
-use vectorcraft_pathops::addons::pathtools as pt;
-use vectorcraft_tools::addons::shared_edge::{DIAMETER, DIAMETER_RANGE, ID};
 
 use super::super::super::{CommandSpec, always, bad, checked_id, cmd, finite_numbers, has_doc, number_or, switch_or, text_param};
 use super::{edit_whole, set_path};

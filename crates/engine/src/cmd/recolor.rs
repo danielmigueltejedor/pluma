@@ -6,11 +6,11 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use pluma_color::recolor::{ColorKey, GlobalAdjust, Method, Preserve, Rng, RowMap, cluster, same_ink};
+use pluma_color::{Color, Paint, Swatch};
+use pluma_doc::swatches::{node_colors, node_paints, override_paints};
+use pluma_doc::{Document, Node, NodeId, NodeKind};
 use serde_json::{Value, json};
-use vectorcraft_color::recolor::{ColorKey, GlobalAdjust, Method, Preserve, Rng, RowMap, cluster, same_ink};
-use vectorcraft_color::{Color, Paint, Swatch};
-use vectorcraft_doc::swatches::{node_colors, node_paints, override_paints};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
 
 use super::colorcmds::{NotChanged, Recolor, Scope, left_out};
 use super::{

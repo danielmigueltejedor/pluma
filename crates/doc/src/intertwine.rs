@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use vectorcraft_geom::hit::fill_contains;
-use vectorcraft_geom::{FillRule, PathData, Point};
+use pluma_geom::hit::fill_contains;
+use pluma_geom::{FillRule, PathData, Point};
 
 use crate::{Node, NodeId, NodeKind};
 
@@ -75,7 +75,7 @@ fn zero_ids(n: &mut Node) {
 
 #[cfg(test)]
 mod tests {
-    use vectorcraft_geom::{Rect, shapes};
+    use pluma_geom::{Rect, shapes};
 
     use super::*;
 

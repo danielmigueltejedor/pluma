@@ -5,9 +5,9 @@
 
 use std::time::{Duration, Instant};
 
+use pluma_plugins::storage::{Meter, Storage, StorageError};
+use pluma_plugins::{Error, HEAVY_FUEL, HEAVY_WALL_TIME_MS, Kind, Limits, Plugin, Report, heavy_terms, registry, wat as tpl};
 use serde_json::{Value, json};
-use vectorcraft_plugins::storage::{Meter, Storage, StorageError};
-use vectorcraft_plugins::{Error, HEAVY_FUEL, HEAVY_WALL_TIME_MS, Kind, Limits, Plugin, Report, heavy_terms, registry, wat as tpl};
 
 /// The example Desaturate plug-in, built from `crates/plugins/example`.
 const DESATURATE: &[u8] = include_bytes!("fixtures/desaturate.wasm");
@@ -40,7 +40,7 @@ fn run_err(bytes: &[u8], limits: Limits) -> (Error, Duration) {
 fn example_desaturate_loads_and_reports_its_manifest() {
     let p = Plugin::load(DESATURATE, Limits::default()).unwrap();
     let m = p.manifest();
-    assert_eq!(m.id, "org.vectorcraft.example.desaturate");
+    assert_eq!(m.id, "org.pluma.example.desaturate");
     assert_eq!(m.name, "Desaturate");
     assert_eq!(m.kind, Kind::Filter);
     assert_eq!(m.params_doc(), "{amount: 0..100 (100)}");
@@ -69,7 +69,7 @@ fn example_desaturate_moves_every_colour_model_to_grey() {
     assert!((half["objects"][0]["fills"][0]["color"]["r"].as_f64().unwrap() - 0.6063).abs() < 1e-9);
     // Nothing to work on: the plug-in's own message.
     let none = p.run(INPUT.as_bytes(), b"{}").unwrap();
-    assert!(matches!(vectorcraft_plugins::objects::decode(&none), Err(Error::Failed(m)) if m.contains("Select some paths")));
+    assert!(matches!(pluma_plugins::objects::decode(&none), Err(Error::Failed(m)) if m.contains("Select some paths")));
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn bulk_module(op: &str, endless: bool) -> Vec<u8> {
     build(&tpl::module(MANIFEST, &run, "", 130))
 }
 
-fn bulk_run(op: &str, endless: bool, fuel_base: u64) -> vectorcraft_plugins::Result<Vec<u8>> {
+fn bulk_run(op: &str, endless: bool, fuel_base: u64) -> pluma_plugins::Result<Vec<u8>> {
     let p = Plugin::load(&bulk_module(op, endless), Limits { fuel_base, fuel_per_byte: 0, ..Limits::default() })?;
     p.run(INPUT.as_bytes(), b"{}")
 }
@@ -211,10 +211,10 @@ fn wall_clock_budget_stops_runaway_plugins() {
 fn cancelling_stops_a_run_between_two_slices_of_its_budget() {
     let spin = ok_module("(loop $l (br $l)) (i64.const 0)");
     let p = Plugin::load(&spin, Limits { fuel_base: u64::MAX / 4, ..Limits::default() }).unwrap();
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
     let t = Instant::now();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || p.run(INPUT.as_bytes(), b"{}"));
+    let r = pluma_doc::cancel::scope(&token, None, || p.run(INPUT.as_bytes(), b"{}"));
     assert_eq!(r, Err(Error::Cancelled));
     assert!(t.elapsed() < Duration::from_secs(3), "{:?}", t.elapsed());
     // Outside a cancelled scope the same module still runs to its budget.
@@ -261,7 +261,7 @@ fn a_heavy_filter_finishes_what_a_light_one_cannot() {
 
 #[test]
 fn an_exporter_returns_its_file_with_an_export_s_budget() {
-    use vectorcraft_plugins::export::{self, Target};
+    use pluma_plugins::export::{self, Target};
     let target = Target { extension: "tst", name: "Poster" };
     let manifest = tpl::exporter("test.exporter", r#"["tst"]"#, r#"{"level":{"type":"int","min":1,"max":3,"default":2}}"#);
     let p = Plugin::load(&build(&tpl::returning(&manifest, r#"{"dataBase64":"SGk=","warnings":["note"]}"#)), Limits::default()).unwrap();
@@ -285,8 +285,8 @@ fn an_exporter_returns_its_file_with_an_export_s_budget() {
 /// and a run that needs more than `export_fuel` ends there, however large `fuel_base` is.
 #[test]
 fn an_importer_runs_on_an_import_s_budget() {
-    use vectorcraft_plugins::export;
-    use vectorcraft_plugins::import::{self, Source};
+    use pluma_plugins::export;
+    use pluma_plugins::import::{self, Source};
     let run = format!(
         "(local $n i32) (local.set $n (i32.const 100000)) \
          (loop $work (local.set $n (i32.sub (local.get $n) (i32.const 1))) (br_if $work (local.get $n))) {}",
@@ -319,7 +319,7 @@ fn an_importer_runs_on_an_import_s_budget() {
 /// its input, or its parameters, byte for byte, whatever their length modulo three.
 #[test]
 fn the_echo_exporter_writes_what_it_is_given() {
-    use vectorcraft_plugins::export::{self, Target};
+    use pluma_plugins::export::{self, Target};
     let manifest = tpl::exporter("test.echo", r#"["txt"]"#, "{}");
     let input = Plugin::load(&build(&tpl::echo_exporter(&manifest, tpl::Echo::Input)), Limits::default()).unwrap();
     let params = Plugin::load(&build(&tpl::echo_exporter(&manifest, tpl::Echo::Params)), Limits::default()).unwrap();
@@ -373,13 +373,13 @@ fn registry_install_list_remove() {
 
 #[test]
 fn folder_loading_skips_bad_files() {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-plugins-test-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-plugins-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("a-desaturate.wasm"), DESATURATE).unwrap();
     std::fs::write(dir.join("b-broken.wasm"), b"\0asm junk").unwrap();
     std::fs::write(dir.join("notes.txt"), b"ignored").unwrap();
     let r = registry::load_folder(&dir).unwrap();
-    assert_eq!(r.loaded, ["org.vectorcraft.example.desaturate"]);
+    assert_eq!(r.loaded, ["org.pluma.example.desaturate"]);
     assert_eq!(r.failed.len(), 1);
     assert!(r.failed[0].0.ends_with("b-broken.wasm"));
     assert!(registry::load_folder(&dir.join("missing")).is_err());
@@ -430,25 +430,25 @@ fn progress_reports_are_clamped_and_reach_the_caller() {
     let first = "(call $vc_progress (i64.const 50) (i64.const 10)) (call $vc_progress (i64.const -3) (i64.const 8)) (call $vc_progress (i64.const 3) (i64.const 8))";
     let p = Plugin::load(&build(&tpl::reporting(LEVEL2, first, INPUT)), Limits::default()).unwrap();
     let seen = Rc::new(RefCell::new(Vec::new()));
-    let sink: vectorcraft_doc::cancel::ProgressSink = {
+    let sink: pluma_doc::cancel::ProgressSink = {
         let seen = seen.clone();
         Rc::new(move |d, t, w| seen.borrow_mut().push((d, t, w.to_string())))
     };
-    let token = vectorcraft_doc::cancel::CancelToken::new();
-    let (out, report) = vectorcraft_doc::cancel::scope(&token, Some(sink), || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
+    let token = pluma_doc::cancel::CancelToken::new();
+    let (out, report) = pluma_doc::cancel::scope(&token, Some(sink), || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
     assert_eq!(out.unwrap(), INPUT.as_bytes());
     assert_eq!(report.progress, Some((3, 8)));
-    let step = vectorcraft_plugins::host::PROGRESS_STEP.to_string();
+    let step = pluma_plugins::host::PROGRESS_STEP.to_string();
     assert_eq!(*seen.borrow(), [(10, 10, step.clone()), (0, 8, step.clone()), (3, 8, step)]);
     // A live effect's progress stays its own: it is drawn as part of something else.
     let effect = r#"{"id":"test.level2.effect","name":"E","kind":"effect","api":2,"permissions":["doc.read","effect.render","progress"]}"#;
     let e = Plugin::load(&build(&tpl::reporting(effect, first, INPUT)), Limits::default()).unwrap();
     let quiet = Rc::new(RefCell::new(0));
-    let sink: vectorcraft_doc::cancel::ProgressSink = {
+    let sink: pluma_doc::cancel::ProgressSink = {
         let quiet = quiet.clone();
         Rc::new(move |_, _, _| *quiet.borrow_mut() += 1)
     };
-    let (_, report) = vectorcraft_doc::cancel::scope(&token, Some(sink), || e.run_reporting(INPUT.as_bytes(), b"{}", e.limits()));
+    let (_, report) = pluma_doc::cancel::scope(&token, Some(sink), || e.run_reporting(INPUT.as_bytes(), b"{}", e.limits()));
     assert_eq!((report.progress, *quiet.borrow()), (Some((3, 8)), 0));
 }
 
@@ -460,9 +460,9 @@ fn cancel_reaches_a_cooperating_plugin_and_a_budget_ends_one_that_ignores_it() {
     let p =
         Plugin::load(&build(&tpl::cooperating(LEVEL2, 1 << 40, r#"{"stopped":1}"#, INPUT)), Limits { fuel_base: u64::MAX / 4, ..Limits::default() })
             .unwrap();
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
-    let (out, report) = vectorcraft_doc::cancel::scope(&token, None, || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
+    let (out, report) = pluma_doc::cancel::scope(&token, None, || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
     assert_eq!(out, Err(Error::Cancelled), "what it returned after the Cancel is discarded");
     assert_eq!(report.progress, Some((0, 1 << 40)), "it saw the Cancel on its first step");
     // Not cancelled: it runs all its steps.
@@ -477,7 +477,7 @@ fn cancel_reaches_a_cooperating_plugin_and_a_budget_ends_one_that_ignores_it() {
     // One that never checks ends at its budget, cancelled or not.
     let ignoring = build(&tpl::reporting(LEVEL2, "(loop $l (br $l))", INPUT));
     let p = Plugin::load(&ignoring, Limits { fuel_base: 1_000_000, ..Limits::default() }).unwrap();
-    let r = vectorcraft_doc::cancel::scope(&token, None, || p.run(INPUT.as_bytes(), b"{}"));
+    let r = pluma_doc::cancel::scope(&token, None, || p.run(INPUT.as_bytes(), b"{}"));
     assert_eq!(r, Err(Error::Limit("instruction budget".into())));
 }
 
@@ -486,7 +486,7 @@ fn cancel_reaches_a_cooperating_plugin_and_a_budget_ends_one_that_ignores_it() {
 /// plug-in sees, never a panic.
 #[test]
 fn log_lines_are_capped_and_bad_text_is_an_error_the_plugin_sees() {
-    use vectorcraft_plugins::host::{self, LOG_BAD_LEVEL, LOG_NOT_UTF8, LOG_OUTSIDE_MEMORY, MAX_LOG_LINE, MAX_LOG_LINES};
+    use pluma_plugins::host::{self, LOG_BAD_LEVEL, LOG_NOT_UTF8, LOG_OUTSIDE_MEMORY, MAX_LOG_LINE, MAX_LOG_LINES};
     // `$text` at 0x2000 holds "hi", then 0xff, then 2000 bytes of "x".
     let expect = |level: i32, ptr: &str, len: &str, want: i32| {
         format!("(if (i32.ne (call $vc_log (i32.const {level}) {ptr} {len}) (i32.const {want})) (then unreachable))")
@@ -507,7 +507,7 @@ fn log_lines_are_capped_and_bad_text_is_an_error_the_plugin_sees() {
     let (out, report) = p.run_reporting(INPUT.as_bytes(), b"{}", p.limits());
     assert_eq!(out.unwrap(), INPUT.as_bytes(), "every call returned what it should");
     assert_eq!(report.lines.len(), 2);
-    assert_eq!(report.lines[0], vectorcraft_plugins::LogLine { level: vectorcraft_plugins::LogLevel::Info, text: "hi".into() });
+    assert_eq!(report.lines[0], pluma_plugins::LogLine { level: pluma_plugins::LogLevel::Info, text: "hi".into() });
     assert_eq!(report.lines[1].text, format!("{}…", "x".repeat(MAX_LOG_LINE - 2)), "cut at the cap, ellipsis included");
     // Past the budget: dropped, with one line that says so.
     let flood = format!(
@@ -534,11 +534,11 @@ fn what_a_start_function_reports_before_it_fails_is_kept() {
   (start $start)"#;
     let imports = format!("{} {start}", tpl::HOST_IMPORTS);
     let p = Plugin::load(&build(&tpl::with_imports(LEVEL2, &imports, "", INPUT)), Limits::default()).unwrap();
-    let token = vectorcraft_doc::cancel::CancelToken::new();
+    let token = pluma_doc::cancel::CancelToken::new();
     token.cancel();
-    let (out, report) = vectorcraft_doc::cancel::scope(&token, None, || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
+    let (out, report) = pluma_doc::cancel::scope(&token, None, || p.run_reporting(INPUT.as_bytes(), b"{}", p.limits()));
     assert!(out.is_err(), "{out:?}");
-    assert_eq!(report.lines, [vectorcraft_plugins::LogLine { level: vectorcraft_plugins::LogLevel::Info, text: "hi".into() }]);
+    assert_eq!(report.lines, [pluma_plugins::LogLine { level: pluma_plugins::LogLevel::Info, text: "hi".into() }]);
     assert_eq!(report.progress, Some((1, 4)));
 }
 
@@ -640,7 +640,7 @@ fn storage_imports_need_their_own_permission() {
 /// outside its memory, a key that isn't a plain name and a value over its cap are errors it sees.
 #[test]
 fn storage_imports_read_and_write_the_plugins_own_storage() {
-    use vectorcraft_plugins::host::{STORAGE_BAD_NAME, STORAGE_DONE, STORAGE_FULL, STORAGE_NOT_FOUND, STORAGE_OUTSIDE_MEMORY};
+    use pluma_plugins::host::{STORAGE_BAD_NAME, STORAGE_DONE, STORAGE_FULL, STORAGE_NOT_FOUND, STORAGE_OUTSIDE_MEMORY};
     let id = "test.storage.own";
     let kept = std::sync::Arc::new(Kept::default());
     registry::set_storage(id, Some(kept.clone()));
@@ -668,10 +668,7 @@ fn storage_imports_read_and_write_the_plugins_own_storage() {
         expect(&format!("(call $vc_settings_set {zoom} (i32.const 0x2100) (i32.const -1))"), STORAGE_OUTSIDE_MEMORY),
         expect(&format!("(call $vc_cache_read {zoom} (i32.mul (memory.size) (i32.const 65536)) (i32.const 1))"), STORAGE_OUTSIDE_MEMORY),
         // A setting over its cap changes nothing.
-        expect(
-            &format!("(call $vc_settings_set {zoom} (i32.const 0) (i32.const {}))", vectorcraft_plugins::storage::MAX_SETTING_BYTES + 1),
-            STORAGE_FULL,
-        ),
+        expect(&format!("(call $vc_settings_set {zoom} (i32.const 0) (i32.const {}))", pluma_plugins::storage::MAX_SETTING_BYTES + 1), STORAGE_FULL),
         expect(&format!("(call $vc_settings_get {zoom} (i32.const 0x3000) (i32.const 16))"), 5),
     ]
     .concat();
@@ -698,8 +695,8 @@ fn storage_imports_read_and_write_the_plugins_own_storage() {
 /// `STORAGE_BUDGET`.
 #[test]
 fn a_read_into_too_small_a_buffer_still_counts_its_bytes() {
-    use vectorcraft_plugins::host::{MAX_STORAGE_BYTES, STORAGE_BUDGET};
-    use vectorcraft_plugins::storage::MAX_CACHE_ENTRY;
+    use pluma_plugins::host::{MAX_STORAGE_BYTES, STORAGE_BUDGET};
+    use pluma_plugins::storage::MAX_CACHE_ENTRY;
     let id = "test.storage.budget";
     let kept = std::sync::Arc::new(Kept::default());
     kept.cache.lock().unwrap().insert("zoom".into(), vec![0; MAX_CACHE_ENTRY]);
@@ -716,7 +713,7 @@ fn a_read_into_too_small_a_buffer_still_counts_its_bytes() {
 /// plug-in store, as on the web) gets `STORAGE_UNAVAILABLE`.
 #[test]
 fn a_plugin_reaches_only_its_own_storage() {
-    use vectorcraft_plugins::host::{STORAGE_DONE, STORAGE_NOT_FOUND, STORAGE_UNAVAILABLE};
+    use pluma_plugins::host::{STORAGE_DONE, STORAGE_NOT_FOUND, STORAGE_UNAVAILABLE};
     let (mine, theirs) = (std::sync::Arc::new(Kept::default()), std::sync::Arc::new(Kept::default()));
     registry::set_storage("test.storage.mine", Some(mine.clone()));
     registry::set_storage("test.storage.theirs", Some(theirs.clone()));
@@ -746,7 +743,7 @@ fn a_plugin_reaches_only_its_own_storage() {
 /// and reported.
 #[test]
 fn folder_loading_skips_heavy_filters() {
-    let dir = std::env::temp_dir().join(format!("vectorcraft-plugins-heavy-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pluma-plugins-heavy-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let manifest = r#"{"id":"test.folder.heavy","name":"Heavy","kind":"filter","budget":"heavy"}"#;
     std::fs::write(dir.join("heavy.wasm"), build(&tpl::spinning(manifest, 1, INPUT))).unwrap();

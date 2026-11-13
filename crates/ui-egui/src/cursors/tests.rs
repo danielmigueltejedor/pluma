@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use super::*;
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 
 /// The straight RGBA of pixel (x, y).
 fn pixel(img: &CustomCursorImage, x: usize, y: usize) -> [u8; 4] {
@@ -305,7 +305,7 @@ fn each_bitmap_is_made_once_so_the_os_cursor_is_kept() {
 }
 
 /// One headless 800×600 frame of the whole window, a tenth of a second after the last.
-fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
+fn frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
     let time = Some(ctx.input(|i| i.time) + 0.1);
     let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), time, events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| {
@@ -318,7 +318,7 @@ fn frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>
 
 /// One [`frame`] with `focused` set: true for a window that has the focus, false while another app
 /// or a sheet has it.
-fn focus_frame(app: &mut VectorcraftApp, ctx: &egui::Context, focused: bool, events: Vec<egui::Event>) -> egui::FullOutput {
+fn focus_frame(app: &mut PlumaApp, ctx: &egui::Context, focused: bool, events: Vec<egui::Event>) -> egui::FullOutput {
     let time = Some(ctx.input(|i| i.time) + 0.1);
     let screen_rect = Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0)));
     let raw = egui::RawInput { screen_rect, time, focused, events, ..Default::default() };
@@ -332,7 +332,7 @@ fn focus_frame(app: &mut VectorcraftApp, ctx: &egui::Context, focused: bool, eve
 
 #[test]
 fn the_canvas_hands_the_tool_cursor_to_the_os_and_idles_while_the_pointer_rests() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     // Every frame renders on this thread, however long it takes: a frame finished by the render
     // worker during the idle frames asks for a repaint.
@@ -375,7 +375,7 @@ fn the_canvas_hands_the_tool_cursor_to_the_os_and_idles_while_the_pointer_rests(
 /// On Wayland the glyph is painted and the pointer hidden over the canvas, on every build (#1645).
 #[test]
 fn a_wayland_window_paints_the_tool_cursor() {
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services { wayland: true, ..Default::default() });
+    let mut app = PlumaApp::new(Session::new(), crate::Services { wayland: true, ..Default::default() });
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     for _ in 0..3 {
@@ -390,7 +390,7 @@ fn a_wayland_window_paints_the_tool_cursor() {
 /// Without a cursor theme the canvas keeps the system pointer visible (#2450).
 #[test]
 fn no_cursor_theme_keeps_the_system_pointer() {
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services { wayland: true, no_cursor_theme: true, ..Default::default() });
+    let mut app = PlumaApp::new(Session::new(), crate::Services { wayland: true, no_cursor_theme: true, ..Default::default() });
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let ctx = egui::Context::default();
     for _ in 0..3 {
@@ -407,7 +407,7 @@ fn no_cursor_theme_keeps_the_system_pointer() {
 #[test]
 fn a_window_without_the_focus_shows_the_system_cursor_alone_on_macos() {
     // Wayland: every desktop build paints the glyphs.
-    let mut app = VectorcraftApp::new(Session::new(), crate::Services { wayland: true, ..Default::default() });
+    let mut app = PlumaApp::new(Session::new(), crate::Services { wayland: true, ..Default::default() });
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("tool.select", json!({"tool": "rectangle"})).unwrap();
     let ctx = egui::Context::default();
@@ -431,7 +431,7 @@ fn a_window_without_the_focus_shows_the_system_cursor_alone_on_macos() {
 /// size whatever the UI Scaling; on, they grow with it.
 #[test]
 fn tool_cursors_scale_with_the_ui_only_when_asked() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("prefs.set", json!({"key": "uiScaling", "value": 2.0})).unwrap();
     let ctx = egui::Context::default();
@@ -440,8 +440,7 @@ fn tool_cursors_scale_with_the_ui_only_when_asked() {
     }
     assert_eq!(ctx.zoom_factor(), 2.0);
     let over = app.canvas_rect.unwrap().center();
-    let shown =
-        |app: &mut VectorcraftApp, d: f32| frame(app, &ctx, vec![egui::Event::PointerMoved(over + vec2(d, 0.0))]).platform_output.cursor_image;
+    let shown = |app: &mut PlumaApp, d: f32| frame(app, &ctx, vec![egui::Event::PointerMoved(over + vec2(d, 0.0))]).platform_output.cursor_image;
     if OS_CURSORS {
         assert_eq!(shown(&mut app, 0.0).unwrap(), app.canvas.cursors.get(Cursor::Arrow, 1.0).unwrap(), "off: its own size");
         app.run("prefs.set", json!({"key": "scaleCursorWithUi", "value": true})).unwrap();

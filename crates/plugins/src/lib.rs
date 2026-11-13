@@ -1,6 +1,6 @@
-//! Sandboxed WebAssembly plug-ins for VectorCraft.
+//! Sandboxed WebAssembly plug-ins for Pluma.
 //!
-//! A plug-in is a WebAssembly module that implements the VectorCraft plug-in ABI (v1, documented
+//! A plug-in is a WebAssembly module that implements the Pluma plug-in ABI (v1, documented
 //! in `docs/plugins.md`). It runs in [`wasmi`], a pure-Rust interpreter, with:
 //!
 //! - **no host imports but those of API level 2** ([`host`]: progress, Cancel and log lines with
@@ -78,12 +78,12 @@ pub enum Error {
     Failed(String),
     #[error("no plug-in {0:?} is installed")]
     NotFound(String),
-    /// The caller asked the run to stop ([`vectorcraft_doc::cancel`]), between two slices of
+    /// The caller asked the run to stop ([`pluma_doc::cancel`]), between two slices of
     /// its instruction budget.
     #[error("cancelled")]
     Cancelled,
     /// Safe Mode is on ([`safe_mode`]): no plug-in loads or runs.
-    #[error("Safe Mode is on: plug-ins don't load or run until VectorCraft starts normally")]
+    #[error("Safe Mode is on: plug-ins don't load or run until Pluma starts normally")]
     SafeMode,
     #[error("{0}")]
     Io(String),

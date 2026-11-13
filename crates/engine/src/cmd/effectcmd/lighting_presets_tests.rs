@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
+use pluma_doc::NodeId;
+use pluma_render::effects::{LIGHTING_PRESETS, matching_lighting_preset};
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeId;
-use vectorcraft_render::effects::{LIGHTING_PRESETS, matching_lighting_preset};
 
 use crate::Session;
 
@@ -42,7 +42,7 @@ fn lighting_presets_preserve_source_and_view_and_round_trip_in_one_undo_step() {
             assert_eq!(actual["rotationX"], 13);
             assert_eq!(actual["shade"], false);
             assert_eq!(s.doc().unwrap().history.undo.len(), history + 1);
-            let reopened = vectorcraft_format::load(&vectorcraft_format::save(&after, false)).unwrap();
+            let reopened = pluma_format::load(&pluma_format::save(&after, false)).unwrap();
             assert_eq!(reopened.node(id).unwrap().appearance.effects[0].params, *actual);
             s.execute("edit.undo", &json!({})).unwrap();
             assert_eq!(s.doc().unwrap().doc, before);

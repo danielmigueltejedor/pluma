@@ -3,12 +3,12 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Gradient, GradientPaint, Paint};
+use pluma_doc::live::EnvelopeOptions;
+use pluma_doc::{AppearanceItem, Node, NodeKind, PatternDef, Symbol};
+use pluma_geom::{Affine, Point, Rect, shapes};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Gradient, GradientPaint, Paint};
-use vectorcraft_doc::live::EnvelopeOptions;
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind, PatternDef, Symbol};
-use vectorcraft_geom::{Affine, Point, Rect, shapes};
-use vectorcraft_render::effects;
 
 use crate::*;
 
@@ -34,7 +34,7 @@ fn sel(s: &mut Session, ids: &[NodeId]) {
 fn rect(s: &mut Session) -> NodeId {
     let a = id_of(&s.execute("shape.rectangle", &json!({"x": 100, "y": 100, "width": 200, "height": 100})).unwrap());
     s.edit("red", |d, _| {
-        d.node_mut(a).unwrap().appearance = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0).into();
+        d.node_mut(a).unwrap().appearance = pluma_doc::Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0).into();
         Ok(())
     })
     .unwrap();
@@ -105,7 +105,7 @@ fn the_frame_round_trips_natively() {
     let e = arch(&mut s, 50.0, json!({}));
     s.execute("object.rotate", &json!({"angle": 30})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     assert_eq!(back.node(e), d.node(e));
     let mut old = serde_json::to_value(node(&s, e)).unwrap();
     old["kind"].as_object_mut().unwrap().remove("frame");
@@ -119,10 +119,10 @@ fn red_image(s: &mut Session) -> NodeId {
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     s.edit("Place", |d, sel| {
-        d.images.insert("pic".into(), vectorcraft_doc::ImageBlob::png(png));
+        d.images.insert("pic".into(), pluma_doc::ImageBlob::png(png));
         let id = d.alloc_id();
         let xf = Affine::translate((100.0, 100.0)) * Affine::scale(10.0);
-        let im = vectorcraft_doc::ImageObject { key: "pic".into(), width: 4, height: 4, xf, link: None, placement: Default::default(), pixels: None };
+        let im = pluma_doc::ImageObject { key: "pic".into(), width: 4, height: 4, xf, link: None, placement: Default::default(), pixels: None };
         d.insert(d.default_layer(), 0, Node::new(id, NodeKind::Image(Box::new(im))))?;
         sel.set([id]);
         Ok(id)
@@ -141,7 +141,7 @@ fn images_bend_as_a_raster_mesh_warp() {
     out[0].walk(&mut |c| pieces += matches!(c.kind, NodeKind::Image(_)) as usize);
     assert!(pieces >= 32, "{pieces} pieces");
     // The arch lifts the image's middle above its top edge, not its corners.
-    let img = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 200.0), 1.0, true);
+    let img = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(0.0, 0.0, 200.0, 200.0), 1.0, true);
     let b = node(&s, e).geometric_bounds().unwrap();
     assert!(b.y0 < 95.0, "{b:?}");
     let mid = img.pixel(120, 97);
@@ -149,7 +149,7 @@ fn images_bend_as_a_raster_mesh_warp() {
     assert!(img.pixel(101, 95)[1] > 200, "the corner stayed: {:?}", img.pixel(101, 95));
     // The pieces export as clipped images, bent in the SVG too.
     let svg = s.execute("document.export", &json!({"format": "svg"})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-    let svg = String::from_utf8(vectorcraft_format::base64_decode(&svg).unwrap()).unwrap();
+    let svg = String::from_utf8(pluma_format::base64_decode(&svg).unwrap()).unwrap();
     assert!(svg.matches("<use").count() >= 32 && svg.contains("clip"), "{}", &svg[..svg.len().min(400)]);
     assert_eq!(svg.matches("<image").count(), 1, "the pieces share the image's pixels");
 }
@@ -160,10 +160,10 @@ fn two_color_image(s: &mut Session) -> NodeId {
     let mut png = vec![];
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
     s.edit("Place", |d, sel| {
-        d.images.insert("two".into(), vectorcraft_doc::ImageBlob::png(png));
+        d.images.insert("two".into(), pluma_doc::ImageBlob::png(png));
         let id = d.alloc_id();
         let xf = Affine::translate((100.0, 100.0)) * Affine::scale(40.0);
-        let im = vectorcraft_doc::ImageObject { key: "two".into(), width: 2, height: 2, xf, link: None, placement: Default::default(), pixels: None };
+        let im = pluma_doc::ImageObject { key: "two".into(), width: 2, height: 2, xf, link: None, placement: Default::default(), pixels: None };
         d.insert(d.default_layer(), 0, Node::new(id, NodeKind::Image(Box::new(im))))?;
         sel.set([id]);
         Ok(id)
@@ -174,7 +174,7 @@ fn two_color_image(s: &mut Session) -> NodeId {
 /// The pixels well inside the image's frame (the clip edges left out) that are a mix of its red
 /// and blue rather than one of them.
 fn mixed_pixels(s: &Session) -> usize {
-    let img = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(110.0, 110.0, 170.0, 170.0), 2.0, true);
+    let img = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, Rect::new(110.0, 110.0, 170.0, 170.0), 2.0, true);
     let mut mixed = 0;
     for y in 0..img.height {
         for x in 0..img.width {
@@ -204,7 +204,7 @@ fn anti_alias_off_draws_distorted_images_without_smoothing() {
     // The SVG asks viewers not to smooth the pieces either.
     let svg = |s: &mut Session| {
         let b64 = s.execute("document.export", &json!({"format": "svg"})).unwrap()["dataBase64"].as_str().unwrap().to_string();
-        String::from_utf8(vectorcraft_format::base64_decode(&b64).unwrap()).unwrap()
+        String::from_utf8(pluma_format::base64_decode(&b64).unwrap()).unwrap()
     };
     assert!(svg(&mut s).matches("image-rendering").count() >= 32);
     s.execute("object.envelope.options", &json!({"antiAlias": true})).unwrap();
@@ -213,7 +213,7 @@ fn anti_alias_off_draws_distorted_images_without_smoothing() {
     // Expanded, the pieces keep it through a native save.
     s.execute("object.envelope.expand", &json!({})).unwrap();
     let d = &s.doc().unwrap().doc;
-    let back = vectorcraft_format::load(&vectorcraft_format::save(d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(d, false)).unwrap();
     let mut kept = 0;
     back.walk(|c| kept += (matches!(c.kind, NodeKind::Image(_)) && c.extras().pixelated) as usize);
     assert_eq!(kept, pieces);
@@ -234,7 +234,7 @@ fn transparency_masks_distorted_images_instead_of_clipping_them() {
     sel(&mut s, &[im]);
     let e = arch(&mut s, 80.0, json!({}));
     let region = Rect::new(80.0, 60.0, 160.0, 160.0);
-    let clipped = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 2.0, true);
+    let clipped = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 2.0, true);
     assert!(clip_groups_in(&evaluated(&s, e)) >= 32);
     s.execute("object.envelope.options", &json!({"preserveShape": "transparency"})).unwrap();
     let out = evaluated(&s, e);
@@ -250,7 +250,7 @@ fn transparency_masks_distorted_images_instead_of_clipping_them() {
     }
     assert!(images >= 32 && masked == images, "{masked} of {images} pieces masked");
     // It draws as the clipping masks did.
-    let alpha = vectorcraft_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 2.0, true);
+    let alpha = pluma_render::Renderer::new().render_region(&s.doc().unwrap().doc, region, 2.0, true);
     let (mut sum, mut n) = (0u64, 0u64);
     for y in 0..clipped.height {
         for x in 0..clipped.width {
@@ -272,7 +272,7 @@ fn symbols_bend_with_the_envelope() {
             let art = Node::path(
                 NodeId(0),
                 shapes::rectangle(Rect::new(-10.0, -10.0, 10.0, 10.0)),
-                vectorcraft_doc::Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
+                pluma_doc::Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
             );
             d.symbols.push(Symbol { dynamic: false, name: "Box".into(), art: Arc::new(art) });
             let id = d.alloc_id();
@@ -287,7 +287,7 @@ fn symbols_bend_with_the_envelope() {
     let pts = anchors(&evaluated(&s, e));
     assert!(pts.iter().any(|p| p.y < 90.0), "the symbol's art rose in the middle");
     // Editing the symbol redraws the envelope (the renderer's cache follows the symbol's art).
-    let mut r = vectorcraft_render::Renderer::new();
+    let mut r = pluma_render::Renderer::new();
     let region = Rect::new(0.0, 0.0, 400.0, 300.0);
     assert!(r.render_region(&s.doc().unwrap().doc, region, 1.0, true).pixel(200, 150)[1] < 60);
     s.edit("edit symbol", |d, _| {
@@ -332,7 +332,7 @@ fn distort_appearance_bends_strokes_and_effects_with_the_art() {
     assert!(anchors(&out).len() > anchors(&[node(&s, a)]).len());
 }
 
-fn gradient_geom(nodes: &[Node]) -> Option<vectorcraft_color::GradientGeom> {
+fn gradient_geom(nodes: &[Node]) -> Option<pluma_color::GradientGeom> {
     let mut g = None;
     for n in nodes {
         n.walk(&mut |c| {
@@ -373,12 +373,12 @@ fn pattern_fills_bend_when_asked() {
         let dot = Node::path(
             NodeId(0),
             shapes::rectangle(Rect::new(0.0, 0.0, 5.0, 5.0)),
-            vectorcraft_doc::Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
+            pluma_doc::Appearance::basic(Paint::solid(Color::BLACK), Paint::None, 0.0),
         );
         let mut def = PatternDef::new("Dots", vec![Arc::new(dot)]);
         def.tile = Rect::new(0.0, 0.0, 20.0, 20.0);
         d.patterns.push(def);
-        d.node_mut(a).unwrap().appearance.set_fill(vectorcraft_doc::pattern::pattern_paint("Dots"));
+        d.node_mut(a).unwrap().appearance.set_fill(pluma_doc::pattern::pattern_paint("Dots"));
         Ok(())
     })
     .unwrap();

@@ -18,14 +18,14 @@
 //! Behavior reference (public documentation):
 //! <https://web.archive.org/web/20260417034638/https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/create-bulleted-or-numbered-lists.html>.
 
+use pluma_doc::text::{LIST_HANGING_INDENT, LIST_LEVELS, NumberStyle, ParaList};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::text::{LIST_HANGING_INDENT, LIST_LEVELS, NumberStyle, ParaList};
 
 use super::swatch_options::label;
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Bullets and Numbering.
 pub const KIND: &str = "bulletsAndNumbering";
@@ -75,7 +75,7 @@ fn kind(list: Option<ParaList>) -> &'static str {
 
 /// Open Bullets and Numbering on the paragraph attributes the Paragraph panel shows, on tab `tab`
 /// (`bullets` or `numbers`; without it, Numbers when the paragraphs are a numbered list).
-pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     use crate::panels::paragraph::{shared_para, shared_para_field};
     let key = "tab";
     let tab = match p.get(key) {
@@ -123,7 +123,7 @@ pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let unit = app.session.general_unit();
     let numbers = d.str("tab") == "numbers";
     if let Some(tab) = widgets::tab_bar(ui, &[tl!("Bullets"), tl!("Numbers")], usize::from(numbers)).and_then(|i| TABS.get(i)) {
@@ -305,7 +305,7 @@ fn pick(d: &mut Dialog, list: &str, key: Option<&str>) {
 }
 
 /// The Position group: Alignment, Left Indent and First Line Indent.
-fn position(ui: &mut egui::Ui, d: &mut Dialog, unit: vectorcraft_doc::Unit) {
+fn position(ui: &mut egui::Ui, d: &mut Dialog, unit: pluma_doc::Unit) {
     widgets::section_header(ui, tl!("Position"));
     egui::Grid::new("bullets-numbering-position").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
         label(ui, tl!("Alignment:"));
@@ -389,7 +389,7 @@ fn changes(p: &Map<String, Value>) -> bool {
     p.keys().any(|k| !matches!(k.as_str(), "ids" | "start" | "end"))
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let p = params(d);
     if !changes(&p) {
         if app.session.in_interaction() {
@@ -404,13 +404,13 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_doc::text::{Bullet, ListAlign};
-    use vectorcraft_engine::Session;
-    use vectorcraft_engine::doc::{NodeId, NodeKind, ParaStyle};
+    use pluma_doc::text::{Bullet, ListAlign};
+    use pluma_engine::Session;
+    use pluma_engine::doc::{NodeId, NodeKind, ParaStyle};
 
     /// A selected area type object with two paragraphs.
-    fn app() -> (VectorcraftApp, u64) {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn app() -> (PlumaApp, u64) {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
         let id = app.run("text.create", json!({"x": 10, "y": 10, "text": "One\nTwo", "area": {"width": 200, "height": 100}})).unwrap()["id"]
             .as_u64()
@@ -419,7 +419,7 @@ mod tests {
         (app, id)
     }
 
-    fn paras(app: &VectorcraftApp, id: u64) -> (ParaStyle, ParaStyle) {
+    fn paras(app: &PlumaApp, id: u64) -> (ParaStyle, ParaStyle) {
         match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
             NodeKind::Text(t) => (t.para_at(0).clone(), t.para_at(1).clone()),
             _ => panic!("not text"),
@@ -427,23 +427,23 @@ mod tests {
     }
 
     /// The first paragraph's list and indents.
-    fn first(app: &VectorcraftApp, id: u64) -> (Option<ParaList>, f64, f64) {
+    fn first(app: &PlumaApp, id: u64) -> (Option<ParaList>, f64, f64) {
         let p = paras(app, id).0;
         (p.list, p.left_indent, p.first_line_indent)
     }
 
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
     }
 
-    fn set(app: &mut VectorcraftApp, key: &str, v: Value) {
+    fn set(app: &mut PlumaApp, key: &str, v: Value) {
         app.ui.dialog.as_mut().unwrap().fields.insert(key.into(), v);
     }
 
-    fn pick_preset(app: &mut VectorcraftApp, list: &str, key: Option<&str>) {
+    fn pick_preset(app: &mut PlumaApp, list: &str, key: Option<&str>) {
         pick(app.ui.dialog.as_mut().unwrap(), list, key);
     }
 
@@ -634,7 +634,7 @@ mod tests {
         crate::theme::install_fonts(&ctx);
         let key = |k| egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
         // Each frame returns where the label `find` was drawn.
-        let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>, find: &str| {
+        let frame = |app: &mut PlumaApp, events: Vec<egui::Event>, find: &str| {
             let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| super::super::show(app, ui.ctx()));
             out.textures_delta.clear();
             out.shapes.iter().find_map(|s| match &s.shape {
@@ -649,7 +649,7 @@ mod tests {
         // Click the field beside the label `name` (unless `click` is false, as for a field the Tab
         // before it reached, which has the keyboard focus with its text selected), type `text` over
         // it and Tab to commit it.
-        let type_into = |app: &mut VectorcraftApp, name: &str, text: &str, click: bool| {
+        let type_into = |app: &mut PlumaApp, name: &str, text: &str, click: bool| {
             let label = frame(app, vec![], name).unwrap_or_else(|| panic!("{name} is drawn"));
             let at = egui::pos2(x, label.center().y);
             let press =

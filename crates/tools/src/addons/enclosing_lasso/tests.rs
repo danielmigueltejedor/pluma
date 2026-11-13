@@ -1,7 +1,7 @@
 use super::*;
 use crate::testutil::*;
-use vectorcraft_doc::{Appearance, Document, NodeId, Selection};
-use vectorcraft_geom::{Rect, shapes};
+use pluma_doc::{Appearance, Document, NodeId, Selection};
+use pluma_geom::{Rect, shapes};
 
 fn gesture(d: &Document, s: &Selection, points: &[(f64, f64)], mods: Mods, isolation: Option<NodeId>) -> Vec<Action> {
     let p = paint();
@@ -125,7 +125,7 @@ fn enclosing_lasso_degenerate_loop_does_not_select_a_boundary_line() {
     line.line_to((200.0, 200.0));
     let n = d.node_mut(id).unwrap();
     *n.path_data_mut().unwrap() = PathData::from_bezpath(&line);
-    n.appearance.set_fill(vectorcraft_color::Paint::None);
+    n.appearance.set_fill(pluma_color::Paint::None);
     let points = &[(90.0, 90.0), (150.0, 150.0), (210.0, 210.0)];
     assert_eq!(gesture(&d, &Selection::default(), points, Mods::default(), None), vec![Action::Exec("select.set".into(), json!({"ids": []}))]);
 }
@@ -209,12 +209,12 @@ fn enclosing_lasso_accepts_a_figure_eight_with_zero_signed_area() {
 #[test]
 fn enclosing_lasso_checks_nonpath_box_interiors_as_well_as_edges() {
     let (d, _) = doc_with_rect();
-    let mut n = Node::new(NodeId(900), NodeKind::SymbolInstance { symbol: "missing".into(), xf: vectorcraft_geom::Affine::IDENTITY });
+    let mut n = Node::new(NodeId(900), NodeKind::SymbolInstance { symbol: "missing".into(), xf: pluma_geom::Affine::IDENTITY });
     // Place the missing-symbol fallback box exactly inside the outer loop.
     let b = n.geometric_bounds().unwrap();
-    let xf = vectorcraft_geom::Affine::translate((2.0, 2.0))
-        * vectorcraft_geom::Affine::scale_non_uniform(6.0 / b.width(), 6.0 / b.height())
-        * vectorcraft_geom::Affine::translate((-b.x0, -b.y0));
+    let xf = pluma_geom::Affine::translate((2.0, 2.0))
+        * pluma_geom::Affine::scale_non_uniform(6.0 / b.width(), 6.0 / b.height())
+        * pluma_geom::Affine::translate((-b.x0, -b.y0));
     n.kind = NodeKind::SymbolInstance { symbol: "missing".into(), xf };
     let region = Region::new(loop_with_hole()).unwrap();
     assert!(!node_inside(&n, &d.symbol_boxes(), &region));
@@ -337,7 +337,7 @@ fn enclosing_lasso_considers_the_geometry_a_visible_compound_paints() {
     d.insert(Some(d.layers[0].id), 1, object).unwrap();
     let s = Selection::default();
     assert_eq!(
-        vectorcraft_doc::hit::marquee(&d, Rect::new(90.0, 90.0, 210.0, 210.0), None, true),
+        pluma_doc::hit::marquee(&d, Rect::new(90.0, 90.0, 210.0, 210.0), None, true),
         vec![rect],
         "the existing rectangular marquee rule is unchanged"
     );

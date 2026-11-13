@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use super::{DialogSpec, form};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub const KIND: &str = "actionBatch";
 const LABEL: f32 = 130.0;
@@ -15,7 +15,7 @@ pub(super) const SPEC: DialogSpec =
     DialogSpec { heading: |_| tl!("Batch").into(), body, confirm, ok: Some("OK"), min_width: 420.0, max_width: Some(460.0), ..DialogSpec::FORM };
 
 /// Open the Batch dialog for the selected action (`set`, `action` indexes into `action_sets`).
-pub fn open(app: &mut VectorcraftApp, set: usize, action: usize) -> Result<Value, String> {
+pub fn open(app: &mut PlumaApp, set: usize, action: usize) -> Result<Value, String> {
     let a = app.ui.action_sets.get(set).and_then(|s| s.actions.get(action)).ok_or("no such action")?;
     if a.steps.is_empty() {
         return Err("the action has no steps".into());
@@ -49,7 +49,7 @@ fn initial_fields(set: usize, action: usize, name: &str) -> Value {
     })
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(d.str("actionName")).color(t.text_strong));
     ui.add_space(8.0);
@@ -100,16 +100,16 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Whether the batch the dialog would run saves every data set over the same file
-/// ([`vectorcraft_engine::cmd::fileio::batch_overwrites_one_file`]).
-fn overwrites_one_file(app: &VectorcraftApp, d: &Dialog) -> bool {
+/// ([`pluma_engine::cmd::fileio::batch_overwrites_one_file`]).
+fn overwrites_one_file(app: &PlumaApp, d: &Dialog) -> bool {
     let set = d.fields.get("set").and_then(Value::as_u64).unwrap_or(0) as usize;
     let action = d.fields.get("action").and_then(Value::as_u64).unwrap_or(0) as usize;
     let steps = app.ui.action_sets.get(set).and_then(|s| s.actions.get(action)).map_or(&[][..], |a| &a.steps[..]);
     let commands = steps.iter().map(|(c, p)| json!({"command": c, "params": p})).collect();
-    vectorcraft_engine::cmd::fileio::batch_overwrites_one_file(&app.session, &params(d, "", commands))
+    pluma_engine::cmd::fileio::batch_overwrites_one_file(&app.session, &params(d, "", commands))
 }
 
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let set = d.fields.get("set").and_then(Value::as_u64).unwrap_or(0) as usize;
     let action = d.fields.get("action").and_then(Value::as_u64).unwrap_or(0) as usize;
     let a = app.ui.action_sets.get(set).and_then(|s| s.actions.get(action)).ok_or("no such action")?.clone();
@@ -172,7 +172,7 @@ fn params(d: &Dialog, action_name: &str, commands: Vec<Value>) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
     fn shown(source: &str) -> Vec<String> {
         let mut d = Dialog::new(KIND, initial_fields(0, 0, "Test"));
@@ -182,11 +182,11 @@ mod tests {
 
     /// Draws `d` once and returns the texts it shows.
     fn render(d: &mut Dialog) -> Vec<String> {
-        render_in(&mut VectorcraftApp::new(Session::new(), Default::default()), d)
+        render_in(&mut PlumaApp::new(Session::new(), Default::default()), d)
     }
 
     /// Draws `d` once over `app` and returns the texts it shows.
-    fn render_in(app: &mut VectorcraftApp, d: &mut Dialog) -> Vec<String> {
+    fn render_in(app: &mut PlumaApp, d: &mut Dialog) -> Vec<String> {
         fn collect(shape: &egui::Shape, out: &mut Vec<String>) {
             match shape {
                 egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn an_action_with_a_key_no_longer_read_still_plays_in_a_batch() {
         use crate::panels::actions::{Action, ActionSet};
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("dataset.new", json!({"name": "a"})).unwrap();
         let old = json!({"x": 10, "y": 10, "width": 20, "height": 20, "cornerStyle": "round"});
@@ -264,8 +264,8 @@ mod tests {
 
     #[test]
     fn data_sets_warn_about_a_recorded_save_left_in_place() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
-        app.ui.action_sets[0].actions[0].steps.push(("document.save".into(), json!({"path": "/x/a.vectorcraft"})));
+        let mut app = PlumaApp::new(Session::new(), Default::default());
+        app.ui.action_sets[0].actions[0].steps.push(("document.save".into(), json!({"path": "/x/a.pluma"})));
         let mut d = Dialog::new(KIND, initial_fields(0, 0, "Test"));
         d.fields["source"] = json!("datasets");
         d.fields["destinationFolder"] = json!("/out");

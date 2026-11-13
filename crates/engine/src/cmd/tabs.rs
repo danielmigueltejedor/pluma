@@ -1,7 +1,7 @@
 //! Window → Type → Tabs: tab stops of the selected text objects' paragraphs.
 
+use pluma_doc::{NodeKind, TabAlign, TabStop};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, TabAlign, TabStop};
 
 use super::typecmd::{TextRange, para_span, refresh_bounds, text_targets};
 use super::{CommandSpec, Result, Session, bad, cmd, has_selection};
@@ -185,7 +185,7 @@ mod tests {
     /// typing session: the typing is its own undo step, as when the stops change.
     #[test]
     fn setting_the_same_stops_ends_the_typing() {
-        use vectorcraft_tools::{PointerEvent, PointerKind};
+        use pluma_tools::{PointerEvent, PointerKind};
 
         use crate::ViewInfo;
         let mut s = Session::new();
@@ -195,7 +195,7 @@ mod tests {
         s.execute("text.tabs.set", &stops).unwrap();
         let v = ViewInfo::default();
         s.select_tool("type", v).unwrap();
-        let b = s.doc().unwrap().doc.bounds_of(&[vectorcraft_doc::NodeId(id)], false).unwrap();
+        let b = s.doc().unwrap().doc.bounds_of(&[pluma_doc::NodeId(id)], false).unwrap();
         for kind in [PointerKind::Down, PointerKind::Up] {
             s.pointer(&PointerEvent::new(kind, b.x1 - 1.0, b.center().y), v).unwrap();
         }
@@ -216,8 +216,8 @@ mod tests {
         let id = s.execute("text.create", &json!({"x": 10, "y": 20, "text": "AAA\t20", "size": 12})).unwrap()["id"].as_u64().unwrap();
         s.execute("text.tabs.set", &json!({"stops": [{"position": 200, "align": "left", "leader": ".", "alignOn": "."}]})).unwrap();
         let st = s.doc().unwrap();
-        let Some(vectorcraft_doc::NodeKind::Text(t)) = st.doc.node(vectorcraft_doc::NodeId(id)).map(|n| &n.kind) else { panic!() };
-        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+        let Some(pluma_doc::NodeKind::Text(t)) = st.doc.node(pluma_doc::NodeId(id)).map(|n| &n.kind) else { panic!() };
+        let lay = pluma_text::layout(pluma_text::FontDb::global(), t);
         let x_of = |b: usize| lay.glyphs.iter().find(|g| g.byte == b).unwrap().origin.x;
         let (from, to) = (x_of(3), x_of(4));
         assert!(to - from > 150.0, "{from}..{to}");

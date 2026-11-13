@@ -2,7 +2,7 @@ use super::kind::NodeKind;
 use super::{BezPath, FillRule, Node, Outliner, Rect, shapes};
 
 /// Unites filled regions (each under its own fill rule) into one path filled non-zero. Booleans
-/// live above this crate (`vectorcraft-pathops`), so callers supply it.
+/// live above this crate (`pluma-pathops`), so callers supply it.
 pub type Uniter<'a> = &'a dyn Fn(&[(BezPath, FillRule)]) -> BezPath;
 
 impl Node {
@@ -100,7 +100,7 @@ impl Node {
                 }
                 if let NodeKind::Text(t) = &mut n.kind {
                     for r in &mut t.runs {
-                        *(if fill { &mut r.style.stroke } else { &mut r.style.fill }) = vectorcraft_color::Paint::None;
+                        *(if fill { &mut r.style.stroke } else { &mut r.style.fill }) = pluma_color::Paint::None;
                     }
                 }
                 n

@@ -3,7 +3,7 @@ use super::dnd::{TileEvents, apply_drop, click_selection, highlighted, selection
 use super::tiles::{
     draw_folder, draw_registration, folder_tile, global_mark, list_icons, list_row, list_row_name, pattern_thumb, tile_grid, tile_id,
 };
-use super::{Entry, Kind, Paint, Sense, Ui, VectorcraftApp, View, active_paint, apply, entries, json, pstate, set_pstate, swatch_tile, widgets};
+use super::{Entry, Kind, Paint, PlumaApp, Sense, Ui, View, active_paint, apply, entries, json, pstate, set_pstate, swatch_tile, widgets};
 
 /// The id of the find field's text (shown with the panel menu's Show Find Field).
 pub(super) fn find_id() -> egui::Id {
@@ -11,7 +11,7 @@ pub(super) fn find_id() -> egui::Id {
 }
 
 /// The panel's body; `salt` keys its tiles (see [`tile_id`]).
-pub(super) fn body(app: &mut VectorcraftApp, ui: &mut Ui, salt: &'static str) {
+pub(super) fn body(app: &mut PlumaApp, ui: &mut Ui, salt: &'static str) {
     if app.session.active().is_none() {
         crate::panels::empty_state(ui, "swatch-book", tl!("No document"), tl!("Open a document to see its swatches."));
         return;
@@ -130,7 +130,7 @@ type SelectedArt = (u64, Vec<u64>);
 /// art is deselected, still that swatch, until another document shows or the paints for new art
 /// change (a swatch or colour picked with nothing selected). Deselecting doesn't jump to the
 /// swatch of the paint new art gets (White).
-pub(super) fn kept_swatch(app: &VectorcraftApp, ui: &Ui, active: Option<String>) -> Option<String> {
+pub(super) fn kept_swatch(app: &PlumaApp, ui: &Ui, active: Option<String>) -> Option<String> {
     let Some(st) = app.session.active() else { return active };
     let p = &app.session.paint;
     // The document, and the paints new art gets, which picking with nothing selected changes.
@@ -152,7 +152,7 @@ pub(super) fn kept_swatch(app: &VectorcraftApp, ui: &Ui, active: Option<String>)
 /// The swatch the tiles scroll to this frame, once: the active paint's swatch when it changed, or
 /// when other art was selected. Selecting other art also clears the panel's own selection, so its
 /// swatch is the one highlighted.
-pub(super) fn focus_swatch(app: &VectorcraftApp, ui: &Ui, active: Option<&str>) -> Option<String> {
+pub(super) fn focus_swatch(app: &PlumaApp, ui: &Ui, active: Option<&str>) -> Option<String> {
     let art: Option<SelectedArt> = app.session.active().map(|st| (st.uid, st.selection.objects.iter().map(|id| id.0).collect()));
     // (None the first time the panel shows.)
     let (last_art, last_swatch): (Option<Option<SelectedArt>>, Option<String>) = pstate(ui.ctx(), "swatch-focus");
@@ -170,11 +170,11 @@ pub(super) fn focus_swatch(app: &VectorcraftApp, ui: &Ui, active: Option<&str>) 
 /// when there is one), a process colour's swatch of that colour (a colour no swatch has: none, so
 /// text in a colour of its own highlights nothing), a gradient's gradient swatch, or None; nothing
 /// for selected images.
-pub(super) fn active_swatch(app: &VectorcraftApp) -> Option<String> {
+pub(super) fn active_swatch(app: &PlumaApp) -> Option<String> {
     // Images and placed files have no fill or stroke: no swatch (not None).
     let st = app.session.active()?;
-    let unpainted = |id: &vectorcraft_doc::NodeId| {
-        st.doc.node(*id).is_some_and(|n| matches!(n.kind, vectorcraft_doc::NodeKind::Image(_) | vectorcraft_doc::NodeKind::PlacedDocument(_)))
+    let unpainted = |id: &pluma_doc::NodeId| {
+        st.doc.node(*id).is_some_and(|n| matches!(n.kind, pluma_doc::NodeKind::Image(_) | pluma_doc::NodeKind::PlacedDocument(_)))
     };
     if !st.selection.objects.is_empty() && st.selection.objects.iter().all(unpainted) {
         return None;

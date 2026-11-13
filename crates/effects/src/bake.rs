@@ -20,9 +20,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vectorcraft_doc::color::Paint;
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, Knockout, Node, NodeKind, StrokeLayer};
-use vectorcraft_geom::{Affine, FillRule, PathData, Rect, Vec2};
+use pluma_doc::color::Paint;
+use pluma_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, Knockout, Node, NodeKind, StrokeLayer};
+use pluma_geom::{Affine, FillRule, PathData, Rect, Vec2};
 
 use crate::distort::{transform_move, transform_offsets};
 use crate::group::{has_own_paint, paints};
@@ -32,7 +32,7 @@ use crate::{
     has_item_geometry, has_pathfinder, is_geometry, is_pathfinder, merged_params, needs_outline, outline_text, reshape,
 };
 
-fn item_effects(item: &AppearanceItem) -> &[vectorcraft_doc::Effect] {
+fn item_effects(item: &AppearanceItem) -> &[pluma_doc::Effect] {
     match item {
         AppearanceItem::Fill(f) => &f.effects,
         AppearanceItem::Stroke(s) => &s.effects,
@@ -73,11 +73,11 @@ fn geometry(n: &Node) -> Option<(PathData, FillRule)> {
 
 /// `path` with the geometry effects of `effects` applied, and how gradients follow them
 /// ([`crate::Carry`]).
-fn apply(effects: &[vectorcraft_doc::Effect], path: &PathData, ctx: &GeomContext) -> (PathData, crate::Carry) {
+fn apply(effects: &[pluma_doc::Effect], path: &PathData, ctx: &GeomContext) -> (PathData, crate::Carry) {
     if !has_geometry(effects) || path.is_empty() {
         return (path.clone(), crate::Carry::default());
     }
-    let b = vectorcraft_geom::Shape::bounding_box(&path.to_bezpath());
+    let b = pluma_geom::Shape::bounding_box(&path.to_bezpath());
     apply_geometry_carrying(effects, path, b, ctx)
 }
 
@@ -107,7 +107,7 @@ fn path_kind(d: &mut Document, path: PathData, rule: FillRule) -> NodeKind {
 /// `n` with its geometry effects evaluated (`None` = unchanged).
 fn bake_node(d: &mut Document, n: &Node) -> Option<Node> {
     // A cancelled export leaves the rest of the document as it is: the caller drops the result.
-    if !needs_bake(n) || vectorcraft_doc::cancel::is_cancelled() {
+    if !needs_bake(n) || pluma_doc::cancel::is_cancelled() {
         return None;
     }
     // Colour adjustments: the object recoloured (inside it too), then baked as it is.
@@ -138,7 +138,7 @@ fn bake_node(d: &mut Document, n: &Node) -> Option<Node> {
         }
         let symbol = match &n.kind {
             NodeKind::SymbolInstance { symbol, .. } => {
-                d.symbols.iter().find(|s| s.name == *symbol).map(|s| vectorcraft_doc::symbol_overrides::dynamic_art(&s.art, n))
+                d.symbols.iter().find(|s| s.name == *symbol).map(|s| pluma_doc::symbol_overrides::dynamic_art(&s.art, n))
             }
             _ => None,
         };
@@ -198,7 +198,7 @@ fn bake_pieces(d: &mut Document, mut m: Node) -> Node {
 
 /// Give `n` and its descendants a new id wherever one was already `seen` (the pieces evaluated art
 /// copies from its source keep ids of their own).
-pub fn fresh_ids(d: &mut Document, n: &mut Node, seen: &mut std::collections::HashSet<vectorcraft_doc::NodeId>) {
+pub fn fresh_ids(d: &mut Document, n: &mut Node, seen: &mut std::collections::HashSet<pluma_doc::NodeId>) {
     if !seen.insert(n.id) {
         n.id = d.alloc_id();
         seen.insert(n.id);

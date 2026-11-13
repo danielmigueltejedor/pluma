@@ -1,7 +1,7 @@
-//! Affinity → VectorCraft mapping of pages, master pages, tables, paragraph formats, text scale,
+//! Affinity → Pluma mapping of pages, master pages, tables, paragraph formats, text scale,
 //! layer effects and embedded documents, on original synthetic documents built with the reader's
 //! `synth` feature (no Affinity software or files were used). The fixtures follow DesignCraft's
-//! Affinity import tests, whose reader VectorCraft shares.
+//! Affinity import tests, whose reader Pluma shares.
 
 use crate::affinity_docs;
 use crate::text_fixture;
@@ -11,13 +11,13 @@ use std::sync::Arc;
 use affinity_docs::*;
 
 use kurbo::Rect;
+use pluma_affinity::synth::{F, tag};
+use pluma_color::{Color, Paint};
+use pluma_doc::appearance::{AppearanceItem, StrokeAlign};
+use pluma_doc::text::{TextKind, TextObject, VerticalAlign};
+use pluma_doc::{Document, Node, NodeKind};
+use pluma_engine::cmd::fileio::{Loaded, load};
 use text_fixture::{array_f64, array_i32, attrs, block, run, utf8};
-use vectorcraft_affinity::synth::{F, tag};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::appearance::{AppearanceItem, StrokeAlign};
-use vectorcraft_doc::text::{TextKind, TextObject, VerticalAlign};
-use vectorcraft_doc::{Document, Node, NodeKind};
-use vectorcraft_engine::cmd::fileio::{Loaded, load};
 
 fn near(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-6
@@ -108,7 +108,7 @@ fn every_page_of_every_spread_is_an_artboard() {
     let boxes: Vec<Rect> = all(&d).into_iter().filter(|n| n.name.as_deref() == Some("Magenta box")).map(|n| n.geometric_bounds().unwrap()).collect();
     assert_eq!(boxes.len(), 2);
     assert!(d.artboards[2].rect.contains(boxes[1].center()), "{boxes:?} {:?}", d.artboards[2]);
-    let reopened = vectorcraft_format::load_file(&vectorcraft_format::save_file(&d)).unwrap();
+    let reopened = pluma_format::load_file(&pluma_format::save_file(&d)).unwrap();
     assert_eq!(reopened.doc.artboards, d.artboards);
 }
 
@@ -148,13 +148,13 @@ fn artistic_text_keeps_its_paragraphs_size_and_leading() {
     assert_eq!(content(t), "Hello\nWorld", "paragraph marks become paragraphs; the final one goes");
     assert!(near(t.runs[0].style.size, 100.0 * PT));
     assert_eq!(t.runs[0].style.font_style, "Bold");
-    assert_eq!(t.para.justify, vectorcraft_doc::text::Justify::Center);
+    assert_eq!(t.para.justify, pluma_doc::text::Justify::Center);
     assert!(matches!(t.kind, TextKind::Point));
     // Centred on the anchor (x = 1000 + 200), first baseline 80 px below the frame top (y = 500).
     let origin = t.xf * kurbo::Point::ZERO;
     assert!(near(origin.x, 1200.0 * PT) && near(origin.y, 580.0 * PT), "{origin:?}");
-    // Lines are the font size plus the font's line gap apart (VectorCraft's default is 120 %).
-    let face = vectorcraft_text::FontDb::global().face(&t.runs[0].style.font_family, &t.runs[0].style.font_style).unwrap();
+    // Lines are the font size plus the font's line gap apart (Pluma's default is 120 %).
+    let face = pluma_text::FontDb::global().face(&t.runs[0].style.font_family, &t.runs[0].style.font_style).unwrap();
     let expected = 100.0 * (1.0 + face.line_gap() / face.units_per_em());
     assert!(near(t.para.justification.auto_leading, expected), "{} vs {expected}", t.para.justification.auto_leading);
 }
@@ -191,12 +191,12 @@ fn tables_become_cell_text_and_edge_lines() {
 /// Where a cell's text goes in the document: its first line's capitals' tops and its last
 /// baseline (y).
 fn cap_to_last_baseline(t: &TextObject) -> (f64, f64) {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     // Hung from the frame's top by its cap height, the first baseline is that far down.
     let mut top = t.clone();
     top.area.vertical_align = VerticalAlign::Top;
-    let cap = vectorcraft_text::layout(db, &top).lines[0].baseline;
-    let lines = vectorcraft_text::layout(db, t).lines;
+    let cap = pluma_text::layout(db, &top).lines[0].baseline;
+    let lines = pluma_text::layout(db, t).lines;
     let y = t.xf.translation().y;
     (y + lines[0].baseline - cap, y + lines.last().unwrap().baseline)
 }
@@ -208,7 +208,7 @@ fn cell_text_taller_than_its_cell_is_centred_on_it_and_shows() {
     assert!(!loaded.warnings.iter().any(|w| w.contains("don't fit")), "{:?}", loaded.warnings);
     let a = texts(&loaded.doc)[0];
     assert_eq!(content(a), "A\na");
-    let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), a);
+    let lay = pluma_text::layout(pluma_text::FontDb::global(), a);
     assert_eq!(lay.lines.len(), 2, "both lines show");
     assert!(!lay.overflow);
     assert!(frame(a).height() > 36.0 * PT, "the frame grew: {:?}", frame(a));
@@ -304,7 +304,7 @@ fn each_paragraph_keeps_its_alignment_indents_and_spacing() {
     assert_eq!(content(t), "One\nTwo");
     assert_eq!(t.paras.len(), 2, "{:?}", t.paras);
     let p = &t.paras;
-    use vectorcraft_doc::text::Justify;
+    use pluma_doc::text::Justify;
     assert_eq!((p[0].justify, p[1].justify), (Justify::Left, Justify::Right));
     assert!(near(p[0].left_indent, 40.0 * PT) && near(p[0].first_line_indent, -15.0 * PT) && near(p[0].right_indent, 3.0 * PT), "{:?}", p[0]);
     assert!(near(p[0].space_before, 9.0 * PT) && near(p[0].space_after, 17.0 * PT));
@@ -375,12 +375,12 @@ fn embedded_documents_nest_only_so_deep() {
 /// document it is embedded in they would show that document's masters.
 #[test]
 fn master_pages_of_embedded_documents_are_left_out() {
-    use vectorcraft_affinity::model::{Kind, Node as AfNode};
+    use pluma_affinity::model::{Kind, Node as AfNode};
     fn instances(nodes: &[AfNode]) -> usize {
         nodes.iter().map(|n| usize::from(matches!(n.kind, Kind::MasterInstance { .. })) + instances(&n.children)).sum()
     }
     let outer = canvas_with(vec![embedded_node(20)], Some(&with_master(1)));
-    let d = vectorcraft_affinity::read(&outer, vectorcraft_affinity::Limits::default()).unwrap();
+    let d = pluma_affinity::read(&outer, pluma_affinity::Limits::default()).unwrap();
     assert_eq!(instances(&d.spreads[0].nodes), 0);
     assert!(d.warnings.iter().any(|w| w.contains("master pages of embedded documents")), "{:?}", d.warnings);
     // Its own objects still come in.
@@ -391,10 +391,10 @@ fn master_pages_of_embedded_documents_are_left_out() {
 /// A dash pattern has a few lengths; a crafted one of thousands would be copied with every stroke.
 #[test]
 fn dash_patterns_of_more_than_64_lengths_import_as_solid_lines() {
-    use vectorcraft_affinity::model::Kind;
+    use pluma_affinity::model::Kind;
     for (lengths, dashed) in [(64, true), (65, false)] {
         let dash: Vec<f64> = (0..lengths).map(|i| 1.0 + f64::from(i)).collect();
-        let d = vectorcraft_affinity::read(&canvas_with(vec![stroked(10, 2, &dash)], None), vectorcraft_affinity::Limits::default()).unwrap();
+        let d = pluma_affinity::read(&canvas_with(vec![stroked(10, 2, &dash)], None), pluma_affinity::Limits::default()).unwrap();
         let Kind::Shape { strokes, .. } = &d.spreads[0].nodes[0].kind else { panic!("{:?}", d.spreads[0].nodes[0].kind) };
         assert_eq!(strokes[0].dash.as_ref().map(|(d, _)| d.len()), dashed.then_some(64));
         assert_eq!(d.warnings.iter().any(|w| w.contains("dash patterns of more than 64")), !dashed, "{:?}", d.warnings);
@@ -432,7 +432,7 @@ fn a_master_page_shows_on_every_page_it_covers() {
 }
 
 fn pixel(d: &Document, x: usize, y: usize) -> [u8; 4] {
-    let img = vectorcraft_render::Renderer::new().render_region(d, d.artboards[0].rect, 1.0, false);
+    let img = pluma_render::Renderer::new().render_region(d, d.artboards[0].rect, 1.0, false);
     img.to_straight()[(y * img.width as usize + x) * 4..][..4].try_into().unwrap()
 }
 
@@ -566,7 +566,7 @@ fn artistic_text_aligns_its_lines_within_the_longest() {
         let d = open("mixed.af", &canvas_with(vec![mixed_alignment(first, second)], None)).doc;
         let t = texts(&d)[0];
         assert!(matches!(t.kind, TextKind::Point));
-        let lines = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).lines;
+        let lines = pluma_text::layout(pluma_text::FontDb::global(), t).lines;
         let (wide, mid) = (&lines[0], &lines[1]);
         let w = wide.x1 - wide.x0;
         assert!(w > 0.0);
@@ -576,7 +576,7 @@ fn artistic_text_aligns_its_lines_within_the_longest() {
         let expected = wide.x0 + (w - (mid.x1 - mid.x0)) * at;
         assert!((mid.x0 - expected).abs() < 1e-6, "{first}/{second}: {} vs {expected}", mid.x0);
         // Each paragraph keeps its own alignment.
-        use vectorcraft_doc::text::Justify;
+        use pluma_doc::text::Justify;
         let j = |a: i32| [Justify::Left, Justify::Center, Justify::Right][a as usize];
         assert_eq!((t.paras[0].justify, t.paras[1].justify), (j(first), j(second)));
     }
@@ -587,16 +587,16 @@ fn artistic_text_aligns_its_lines_within_the_longest() {
 
 #[test]
 fn frame_text_hangs_from_cap_height_and_shows_lines_whose_baseline_fits() {
-    use vectorcraft_doc::text::FirstBaseline;
-    let db = vectorcraft_text::FontDb::global();
+    use pluma_doc::text::FirstBaseline;
+    let db = pluma_text::FontDb::global();
     // Room for both lines: where they go.
     let loaded = open("tall.af", &canvas_with(vec![two_line_frame(1000.0)], None));
     let t = texts(&loaded.doc)[0];
     assert_eq!(t.area.first_baseline, FirstBaseline::CapHeight);
-    let lines = vectorcraft_text::layout(db, t).lines;
+    let lines = pluma_text::layout(db, t).lines;
     assert_eq!(lines.len(), 2);
-    // Higher than VectorCraft's default, the font's ascent.
-    let ascent = vectorcraft_text::layout(db, &TextObject { area: Default::default(), ..t.clone() }).lines[0].baseline;
+    // Higher than Pluma's default, the font's ascent.
+    let ascent = pluma_text::layout(db, &TextObject { area: Default::default(), ..t.clone() }).lines[0].baseline;
     assert!(lines[0].baseline < ascent - 1.0, "first baseline {} vs ascent {ascent}", lines[0].baseline);
     let (baseline, bottom) = (lines[1].baseline, lines[1].baseline + lines[1].descent);
     // A frame the second line's baseline fits in but not its descenders: Affinity shows the line.
@@ -604,14 +604,14 @@ fn frame_text_hangs_from_cap_height_and_shows_lines_whose_baseline_fits() {
     let loaded = open("short.af", &canvas_with(vec![two_line_frame(height)], None));
     assert!(loaded.warnings.iter().any(|w| w.contains("made taller so the lines show")), "{:?}", loaded.warnings);
     let t = texts(&loaded.doc)[0];
-    let lay = vectorcraft_text::layout(db, t);
+    let lay = pluma_text::layout(db, t);
     assert_eq!(lay.lines.len(), 2);
     assert!(!lay.overflow);
     assert!(frame(t).height() > height && frame(t).height() < bottom + 1.0, "{:?}", frame(t));
     // One whose second baseline is outside it too: that line stays out, as in Affinity.
     let loaded = open("shorter.af", &canvas_with(vec![two_line_frame(baseline - 5.0)], None));
     let t = texts(&loaded.doc)[0];
-    assert_eq!(vectorcraft_text::layout(db, t).lines.len(), 1);
+    assert_eq!(pluma_text::layout(db, t).lines.len(), 1);
     assert!((frame(t).height() - (baseline - 5.0)).abs() < 1e-6);
 }
 
@@ -655,14 +655,14 @@ fn underlined_and_struck_through_characters_stay_so() {
 }
 
 /// The image of the node named "Photo", and the blob it shows.
-fn photo(d: &Document) -> &vectorcraft_doc::ImageBlob {
+fn photo(d: &Document) -> &pluma_doc::ImageBlob {
     let NodeKind::Image(img) = &named(d, "Photo").kind else { panic!("an image") };
     &d.images[&img.key]
 }
 
 #[test]
 fn cmyk_pixel_layers_show_through_the_documents_cmyk_profile() {
-    use vectorcraft_color::cms::{self, IccProfile, Intent};
+    use pluma_color::cms::{self, IccProfile, Intent};
     // A CMYK profile written from a built-in space, embedded as the document's.
     let icc = cms::icc_bytes(cms::GENERIC_CMYK).unwrap();
     let loaded = open("photo.af", &cmyk_layer(false, Some(&icc)));
@@ -709,7 +709,7 @@ fn test_af_g_symbol_fill_is_white() {
     let Ok(bytes) = std::fs::read(&path) else {
         return;
     };
-    let loaded = vectorcraft_engine::cmd::fileio::load("test.af", &bytes).unwrap();
+    let loaded = pluma_engine::cmd::fileio::load("test.af", &bytes).unwrap();
     assert!(!loaded.preview_only, "{:?}", loaded.warnings);
     let d = &loaded.doc;
     // The visible "g41" group holds the "g" symbol (path43).

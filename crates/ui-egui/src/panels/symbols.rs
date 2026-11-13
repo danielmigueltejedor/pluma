@@ -8,17 +8,17 @@ use std::rc::Rc;
 use std::sync::{Arc, Weak};
 
 use egui::{Sense, Stroke, StrokeKind, Ui, vec2};
+use pluma_doc::{Document, Node, NodeKind};
+use pluma_engine::DocState;
+use pluma_engine::cmd::clipboard::{ArtResources, art_resources};
+use pluma_engine::cmd::swatchlib::LibraryInfo;
+use pluma_engine::cmd::symbollib::{self, SymbolLibrary};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, Node, NodeKind};
-use vectorcraft_engine::DocState;
-use vectorcraft_engine::cmd::clipboard::{ArtResources, art_resources};
-use vectorcraft_engine::cmd::swatchlib::LibraryInfo;
-use vectorcraft_engine::cmd::symbollib::{self, SymbolLibrary};
 
 use super::library_panel::{self, LibraryKind, LibraryRef, Row};
 use super::memo::Memo;
 use super::{pstate, set_pstate};
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::menus::Item;
 use crate::theme::Tokens;
 use crate::widgets::{self, PanelDrag, menu_item};
@@ -27,7 +27,7 @@ use crate::widgets::{self, PanelDrag, menu_item};
 /// ([`Thumbs`]).
 fn thumb(ui: &Ui, doc: &Document, keys: &Thumbs, name: &str, size: f32) -> Option<egui::TextureHandle> {
     thread_local! {
-        static RENDERER: RefCell<vectorcraft_render::Renderer> = RefCell::new(vectorcraft_render::Renderer::new());
+        static RENDERER: RefCell<pluma_render::Renderer> = RefCell::new(pluma_render::Renderer::new());
         static CACHE: crate::graphics::TexCache<HashMap<(u64, u32), egui::TextureHandle>> = crate::graphics::TexCache::default();
     }
     let px = (size * ui.ctx().pixels_per_point()).round().max(8.0) as u32;
@@ -113,13 +113,13 @@ pub(crate) mod counters {
 /// Symbol `name` of `doc` rendered `px` pixels wide: an instance at its natural size, alone on a
 /// copy of `doc` that keeps its resources (the symbols it nests, patterns, images, swatches,
 /// brushes, graphic styles) but none of its art.
-fn render_thumb(r: &mut vectorcraft_render::Renderer, doc: &Document, name: &str, px: u32) -> Option<vectorcraft_render::Rendered> {
+fn render_thumb(r: &mut pluma_render::Renderer, doc: &Document, name: &str, px: u32) -> Option<pluma_render::Rendered> {
     let (w, h) = symbol_size(doc, name);
     let mut d = doc.clone();
     let layer = d.alloc_id();
-    d.layers = vec![Arc::new(Node::layer(layer, "Preview", vectorcraft_doc::LayerColor::Preset(0)))];
+    d.layers = vec![Arc::new(Node::layer(layer, "Preview", pluma_doc::LayerColor::Preset(0)))];
     let id = d.alloc_id();
-    let xf = vectorcraft_geom::Affine::scale_non_uniform(w / 20.0, h / 20.0);
+    let xf = pluma_geom::Affine::scale_non_uniform(w / 20.0, h / 20.0);
     d.insert(Some(layer), 0, Node::new(id, NodeKind::SymbolInstance { symbol: name.into(), xf })).ok()?;
     r.render_thumbnail(&d, id, px)
 }
@@ -133,12 +133,12 @@ pub(crate) fn chip(ui: &Ui, doc: &Document, keys: &Thumbs, r: egui::Rect, name: 
     }
 }
 
-fn current(app: &mut VectorcraftApp) -> Option<String> {
+fn current(app: &mut PlumaApp) -> Option<String> {
     app.run("symbol.list", json!({})).ok().and_then(|v| v["current"].as_str().map(str::to_string))
 }
 
 /// Does the selection hold (in it or in its groups) a symbol instance that `wanted` takes?
-fn instance_selected(app: &VectorcraftApp, wanted: impl Fn(&Node) -> bool) -> bool {
+fn instance_selected(app: &PlumaApp, wanted: impl Fn(&Node) -> bool) -> bool {
     app.session.active().is_some_and(|st| {
         st.selection.objects.iter().any(|id| {
             let mut any = false;
@@ -150,25 +150,25 @@ fn instance_selected(app: &VectorcraftApp, wanted: impl Fn(&Node) -> bool) -> bo
     })
 }
 
-fn has_instances_selected(app: &VectorcraftApp) -> bool {
+fn has_instances_selected(app: &PlumaApp) -> bool {
     instance_selected(app, |_| true)
 }
 
 /// Does the selection hold a symbol instance with appearance changes of its own (a dynamic
 /// symbol's), which Reset drops?
-pub(crate) fn changed_instances_selected(app: &VectorcraftApp) -> bool {
+pub(crate) fn changed_instances_selected(app: &PlumaApp) -> bool {
     instance_selected(app, |c| !c.extras().symbol_overrides.is_empty())
 }
 
 /// Does the selection hold a symbol instance whose scale, rotation or shear differs from its
 /// symbol's, which Reset Transformation restores?
-fn transformed_instances_selected(app: &VectorcraftApp) -> bool {
+fn transformed_instances_selected(app: &PlumaApp) -> bool {
     let Some(doc) = app.session.active().map(|st| st.doc.clone()) else { return false };
-    instance_selected(app, |c| vectorcraft_engine::cmd::reset_transformation_changes(&doc, c))
+    instance_selected(app, |c| pluma_engine::cmd::reset_transformation_changes(&doc, c))
 }
 
 /// The symbols of the selected objects when every one is a symbol instance; `None` otherwise.
-fn selected_instance_symbols(app: &VectorcraftApp) -> Option<Vec<String>> {
+fn selected_instance_symbols(app: &PlumaApp) -> Option<Vec<String>> {
     let st = app.session.active()?;
     let symbols: Option<Vec<String>> = st
         .selection
@@ -188,7 +188,7 @@ fn selected_instance_symbols(app: &VectorcraftApp) -> Option<Vec<String>> {
 /// (<https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/edit-symbols.html>),
 /// and the Reset button, which gives them their symbol's scale, rotation and shear again
 /// (<https://helpx.adobe.com/illustrator/desktop/manage-objects/traces-mockups-symbols/transform-symbols.html>).
-pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub(crate) fn control_bar(app: &mut PlumaApp, ui: &mut Ui) {
     let Some(symbols) = selected_instance_symbols(app) else { return };
     let Some(st) = app.session.active() else { return };
     let names: Vec<String> = st.doc.symbols.iter().map(|s| s.name.clone()).collect();
@@ -219,7 +219,7 @@ pub(crate) fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     ui.add_space(4.0);
 }
 
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let Some((doc, keys)) = app.session.active().map(|d| (d.doc.clone(), document_symbols(d))) else { return };
     let names: Vec<String> = doc.symbols.iter().map(|s| s.name.clone()).collect();
@@ -323,7 +323,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let sel = current(app);
     let names: Vec<String> = app.session.active().map(|d| d.doc.symbols.iter().map(|s| s.name.clone()).collect()).unwrap_or_default();
     let uid = app.session.active().map(|d| d.uid);
@@ -405,7 +405,7 @@ fn marked(ctx: &egui::Context, uid: Option<u64>, names: &[String]) -> Vec<String
 
 /// Delete Symbol: the symbols Select All Unused picked (`marked`) when there are any, asked about
 /// once unless `now` (Alt), else the current symbol `sel`.
-fn delete(app: &mut VectorcraftApp, marked: &[String], sel: Option<&str>, now: bool) {
+fn delete(app: &mut PlumaApp, marked: &[String], sel: Option<&str>, now: bool) {
     match (marked, sel) {
         ([], Some(n)) => crate::dialogs::symbol_delete::ask(app, n, now),
         ([], None) => {}
@@ -415,7 +415,7 @@ fn delete(app: &mut VectorcraftApp, marked: &[String], sel: Option<&str>, now: b
 }
 
 /// Save Symbol Library… for the document's symbols (`names`: the one selected in the panel).
-fn save_library(app: &mut VectorcraftApp, names: Vec<String>) {
+fn save_library(app: &mut PlumaApp, names: Vec<String>) {
     if let Err(e) = app.run("ui.saveSymbolLibrary", json!({ "names": names })) {
         app.status(e);
     }
@@ -450,19 +450,19 @@ impl LibraryKind for SymbolLibraries {
     type Lib = Arc<Vec<LibSymbol>>;
     type Item = LibSymbol;
 
-    fn list(app: &VectorcraftApp) -> Vec<LibraryRef> {
+    fn list(app: &PlumaApp) -> Vec<LibraryRef> {
         let libs = symbollib::libraries(&app.session).into_iter();
         libs.map(|l| LibraryRef { submenu: library_panel::submenu(l.category), id: l.id, name: l.name }).collect()
     }
-    fn get(app: &VectorcraftApp, id: &str) -> Option<(String, Self::Lib)> {
+    fn get(app: &PlumaApp, id: &str) -> Option<(String, Self::Lib)> {
         let (info, lib) = symbollib::library(&app.session, id)?;
         let shown = (0..lib.len()).map(|index| LibSymbol { lib: lib.clone(), index }).collect();
         Some((info.name, Arc::new(shown)))
     }
-    fn find(app: &VectorcraftApp, key: &str) -> library_panel::Found {
+    fn find(app: &PlumaApp, key: &str) -> library_panel::Found {
         symbollib::library(&app.session, key).map(|(info, lib)| (info.id, info.name, lib.len()))
     }
-    fn path(app: &VectorcraftApp, id: &str) -> Option<String> {
+    fn path(app: &PlumaApp, id: &str) -> Option<String> {
         app.session.symbol_libraries.path(id).map(str::to_string)
     }
     fn rows<'a>(lib: &'a Self::Lib, query: &str) -> Vec<Row<'a, LibSymbol>> {
@@ -470,7 +470,7 @@ impl LibraryKind for SymbolLibraries {
         lib.iter().filter(|s| found(s.name())).map(|s| Row { name: s.name(), item: Some(s) }).collect()
     }
     /// The symbol's art on white, as the Symbols panel shows it.
-    fn draw(_: &VectorcraftApp, ui: &Ui, r: egui::Rect, s: &LibSymbol, selected: bool, hovered: bool) {
+    fn draw(_: &PlumaApp, ui: &Ui, r: egui::Rect, s: &LibSymbol, selected: bool, hovered: bool) {
         chip(ui, &s.lib.doc, &library_symbols(&s.lib), r, s.name());
         super::graphic_styles::outline(ui, r, selected, hovered);
     }
@@ -482,17 +482,17 @@ impl LibraryKind for SymbolLibraries {
         crate::i18n::fmt(tl!("{w} × {h} pt"), &[("w", &num(w)), ("h", &num(h))])
     }
     /// Adds the symbol to the document's Symbols, as the current symbol.
-    fn click(app: &mut VectorcraftApp, _: &Ui, id: &str, name: &str) {
+    fn click(app: &mut PlumaApp, _: &Ui, id: &str, name: &str) {
         add(app, json!({"library": id, "name": name}));
     }
-    fn add(app: &mut VectorcraftApp, id: &str, names: Vec<String>) {
+    fn add(app: &mut PlumaApp, id: &str, names: Vec<String>) {
         add(app, json!({"library": id, "names": names}));
     }
     /// Dragged onto the canvas, the symbol is added and an instance placed where it is dropped.
     fn drag(id: &str, name: &str) -> Option<PanelDrag> {
         Some(PanelDrag::LibrarySymbol { library: id.to_string(), name: name.to_string() })
     }
-    fn menu_tail(app: &mut VectorcraftApp, ui: &mut Ui) {
+    fn menu_tail(app: &mut PlumaApp, ui: &mut Ui) {
         ui.separator();
         // As a command, so its file dialog, shown off the UI thread, loads the library when it
         // answers.
@@ -510,7 +510,7 @@ impl LibraryKind for SymbolLibraries {
 }
 
 /// Run `symbol.addFromLibrary` with `p`; a failure goes to the status bar.
-fn add(app: &mut VectorcraftApp, p: Value) {
+fn add(app: &mut PlumaApp, p: Value) {
     if let Err(e) = app.run("symbol.addFromLibrary", p) {
         app.status(e);
     }
@@ -518,26 +518,25 @@ fn add(app: &mut VectorcraftApp, p: Value) {
 
 /// Symbol `name`'s natural size in `doc`.
 fn symbol_size(doc: &Document, name: &str) -> (f64, f64) {
-    let size = doc.unknown.get(vectorcraft_doc::SYMBOL_SIZES).and_then(|m| m.get(name));
-    size.and_then(|v| Some((v.get(0)?.as_f64()?, v.get(1)?.as_f64()?)))
-        .unwrap_or((2.0 * vectorcraft_doc::SYMBOL_HALF, 2.0 * vectorcraft_doc::SYMBOL_HALF))
+    let size = doc.unknown.get(pluma_doc::SYMBOL_SIZES).and_then(|m| m.get(name));
+    size.and_then(|v| Some((v.get(0)?.as_f64()?, v.get(1)?.as_f64()?))).unwrap_or((2.0 * pluma_doc::SYMBOL_HALF, 2.0 * pluma_doc::SYMBOL_HALF))
 }
 
 /// `window.symbolLibrary {library}`: open a symbol library in its own panel (`library` null closes
 /// every symbol library panel).
-pub(crate) fn open_library(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+pub(crate) fn open_library(app: &mut PlumaApp, p: &Value) -> Result<Value, String> {
     library_panel::open_command::<SymbolLibraries>(app, p)
 }
 
 /// `symbol.loadLibrary` params, then open the library in its panel.
-pub(crate) fn load_library(app: &mut VectorcraftApp, params: Value) -> Result<Value, String> {
+pub(crate) fn load_library(app: &mut PlumaApp, params: Value) -> Result<Value, String> {
     let r = app.run("symbol.loadLibrary", params)?;
     open_library(app, &json!({ "library": r["library"] }))
 }
 
 /// Other Library…: load the symbols of the document at `path`, else of one picked in an open
 /// dialog.
-pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> Result<Value, String> {
+pub(crate) fn other_library(app: &mut PlumaApp, path: Option<String>) -> Result<Value, String> {
     match library_panel::pick_library_file(app, path, library_panel::library_pick_filters(SymbolLibraries::KIND))? {
         Some(path) => load_library(app, json!({ "path": path })),
         None => Ok(Value::Null),
@@ -548,7 +547,7 @@ pub(crate) fn other_library(app: &mut VectorcraftApp, path: Option<String>) -> R
 pub(crate) const USER_SLOT: &str = "window.userSymbolLibrary";
 
 /// The User Defined library slot `id` (`window.userSymbolLibrary3`) stands for.
-pub(crate) fn user_library(app: &VectorcraftApp, id: &str) -> Option<LibraryInfo> {
+pub(crate) fn user_library(app: &PlumaApp, id: &str) -> Option<LibraryInfo> {
     library_panel::user_slot(id, USER_SLOT, symbollib::libraries(&app.session))
 }
 
@@ -581,13 +580,13 @@ pub(crate) fn window_menu() -> Vec<Item> {
 #[cfg(test)]
 mod tests {
     use egui::{Pos2, Rect, pos2};
-    use vectorcraft_doc::NodeId;
-    use vectorcraft_engine::Session;
+    use pluma_doc::NodeId;
+    use pluma_engine::Session;
 
     use super::*;
 
     /// One headless frame of the panel, 236 pt wide as in the dock.
-    fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) {
+    fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 400.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| show(app, ui));
         out.textures_delta.clear();
@@ -597,13 +596,13 @@ mod tests {
         egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() }
     }
 
-    fn symbols(app: &mut VectorcraftApp) -> Vec<String> {
+    fn symbols(app: &mut PlumaApp) -> Vec<String> {
         let list = app.run("symbol.list", json!({})).unwrap();
         list["symbols"].as_array().unwrap().iter().map(|s| s["name"].as_str().unwrap_or_default().to_string()).collect()
     }
 
     /// Pixels of `img` that something paints opaquely, and those of them that are red.
-    fn painted(img: &vectorcraft_render::Rendered) -> (usize, usize) {
+    fn painted(img: &pluma_render::Rendered) -> (usize, usize) {
         let painted: Vec<&[u8; 4]> = img.pixels.as_chunks::<4>().0.iter().filter(|p| p[3] > 200).collect();
         let red = painted.iter().filter(|p| p[0] > 150 && p[1] < 80 && p[2] < 80).count();
         (painted.len(), red)
@@ -624,8 +623,8 @@ mod tests {
         // Other art of the document stays out of the preview.
         s.execute("shape.ellipse", &json!({"x": 0, "y": 0, "width": 200, "height": 200})).unwrap();
         s.execute("paint.setFill", &json!({"color": "#0000ff"})).unwrap();
-        let lib = vectorcraft_engine::cmd::symbollib::SymbolLibrary::from_document(&s.doc().unwrap().doc, &["Badge".into()], "Kit".into()).unwrap();
-        let mut r = vectorcraft_render::Renderer::new();
+        let lib = pluma_engine::cmd::symbollib::SymbolLibrary::from_document(&s.doc().unwrap().doc, &["Badge".into()], "Kit".into()).unwrap();
+        let mut r = pluma_render::Renderer::new();
         for doc in [&*s.doc().unwrap().doc, &lib.doc] {
             let img = render_thumb(&mut r, doc, "Badge", 32).expect("a thumbnail");
             let (painted, red) = painted(&img);
@@ -635,7 +634,7 @@ mod tests {
 
     #[test]
     fn art_dropped_on_the_panel_becomes_a_symbol_and_a_symbol_drags_out() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap()["id"].as_u64().unwrap();
         // Selected, as art dragged off the canvas is.
@@ -660,7 +659,7 @@ mod tests {
     }
 
     /// One headless frame of the panel menu; returns its painted labels.
-    fn menu_frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+    fn menu_frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 400.0))), events, ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
         out.textures_delta.clear();
@@ -668,7 +667,7 @@ mod tests {
     }
 
     /// Clicks the menu item labelled `label`.
-    fn click_menu(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str) {
+    fn click_menu(ctx: &egui::Context, app: &mut PlumaApp, label: &str) {
         let labels = menu_frame(ctx, app, vec![]);
         let item = labels.iter().find(|(t, _)| t.trim() == label).map(|(_, r)| r.center()).unwrap_or_else(|| panic!("{label} in the menu"));
         menu_frame(ctx, app, vec![egui::Event::PointerMoved(item), button(item, true)]);
@@ -679,7 +678,7 @@ mod tests {
     /// deletes them all in one undo step, and a click on a symbol picks one again.
     #[test]
     fn select_all_unused_picks_the_unused_symbols_and_delete_deletes_them() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         for (i, name) in ["A", "B", "C"].into_iter().enumerate() {
             app.run("shape.rectangle", json!({"x": 10.0 + 40.0 * i as f64, "y": 10, "width": 30, "height": 20})).unwrap();
@@ -717,7 +716,7 @@ mod tests {
         assert!(marked(&ctx, uid(&app), &symbols(&mut app)).is_empty());
     }
 
-    fn uid(app: &VectorcraftApp) -> Option<u64> {
+    fn uid(app: &PlumaApp) -> Option<u64> {
         app.session.active().map(|d| d.uid)
     }
 
@@ -725,8 +724,8 @@ mod tests {
     /// picked symbol that gained a use since (here in a brush's art) isn't deleted (#4918 review).
     #[test]
     fn picked_symbols_stay_with_their_document_and_are_rechecked_before_deleting() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
-        let make = |app: &mut VectorcraftApp| {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
+        let make = |app: &mut PlumaApp| {
             app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
             app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
             let id = app.run("symbol.new", json!({"name": "A"})).unwrap()["id"].as_u64().unwrap();
@@ -753,7 +752,7 @@ mod tests {
 
     #[test]
     fn new_symbol_asks_for_symbol_options_before_making_the_symbol() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
         let ctx = egui::Context::default();
@@ -822,7 +821,7 @@ mod tests {
         let chord = crate::shortcuts::parse("F8").expect("parses");
         assert_eq!((chord.modifiers, chord.logical_key), (egui::Modifiers::NONE, egui::Key::F8));
         assert_eq!(crate::menus::pretty_shortcut("F8"), "F8");
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         let listed = app.run("shortcuts.list", json!({"query": "ui.symbolOptions"})).unwrap();
         let rows: Vec<_> = listed.as_array().expect("rows").iter().map(|r| (r["label"].clone(), r["default"].clone())).collect();
         assert_eq!(rows, [(json!("Symbol Options…"), json!("F8"))], "Keyboard Shortcuts lists it");
@@ -836,21 +835,21 @@ mod tests {
     /// status bar says that nothing is selected.
     #[test]
     fn f8_opens_symbol_options_for_a_new_symbol_as_new_symbol_does() {
-        fn press(app: &mut VectorcraftApp) {
+        fn press(app: &mut PlumaApp) {
             let ctx = egui::Context::default();
             let ev = egui::Event::Key { key: egui::Key::F8, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
             let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(app, ui.ctx()));
             out.textures_delta.clear();
         }
         /// A document with one selected rectangle.
-        fn one_rect() -> VectorcraftApp {
-            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        fn one_rect() -> PlumaApp {
+            let mut app = PlumaApp::new(Session::new(), Default::default());
             app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
             app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap();
             app
         }
         /// Click the panel menu's New Symbol… item.
-        fn click_new_symbol(app: &mut VectorcraftApp) {
+        fn click_new_symbol(app: &mut PlumaApp) {
             let ctx = egui::Context::default();
             crate::theme::install_fonts(&ctx);
             let labels = menu_frame(&ctx, app, vec![]);
@@ -858,7 +857,7 @@ mod tests {
             menu_frame(&ctx, app, vec![egui::Event::PointerMoved(item), button(item, true)]);
             menu_frame(&ctx, app, vec![button(item, false)]);
         }
-        let dialog = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone()));
+        let dialog = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| (d.kind.clone(), d.fields.clone()));
         let mut keyed = one_rect();
         press(&mut keyed);
         let mut clicked = one_rect();
@@ -903,8 +902,8 @@ mod tests {
     fn an_imported_symbols_thumbnail_frames_its_whole_art() {
         // The symbol of the SVG import tests: an orange 20 × 20 square from (0, 0) with a white dot.
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120"><defs><symbol id="Star" data-name="Gold Star"><path d="M0 0H20V20H0Z" fill="#e0a000"/><circle cx="10" cy="10" r="4" fill="#fff"/></symbol></defs><use href="#Star" x="20" y="30"/></svg>"##;
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
-        app.run("document.open", json!({"name": "star.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())})).unwrap();
+        let mut app = PlumaApp::new(Session::new(), Default::default());
+        app.run("document.open", json!({"name": "star.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes())})).unwrap();
         let ctx = egui::Context::default();
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 400.0))), ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| show(&mut app, ui));
@@ -926,8 +925,8 @@ mod tests {
 
     /// A document with symbol "Leaf", whose instance stands where its rectangle was, and symbol
     /// "Dot", which no instance uses; "Dot" is current.
-    fn leaf_and_dot() -> VectorcraftApp {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    fn leaf_and_dot() -> PlumaApp {
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         for (name, x) in [("Leaf", 10), ("Dot", 150)] {
             app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 30, "height": 30})).unwrap();
@@ -940,7 +939,7 @@ mod tests {
     }
 
     /// The instances of symbol `name` in the active document, and the ordinary paths in it.
-    fn art(app: &VectorcraftApp, name: &str) -> (usize, usize) {
+    fn art(app: &PlumaApp, name: &str) -> (usize, usize) {
         let (mut instances, mut paths) = (0, 0);
         for l in &app.session.active().unwrap().doc.layers {
             l.walk(&mut |n| match &n.kind {
@@ -953,7 +952,7 @@ mod tests {
     }
 
     /// The bounds of the art on the symbol editing layer, rounded to 0.001 pt.
-    fn editing_art(app: &VectorcraftApp) -> Option<[f64; 4]> {
+    fn editing_art(app: &PlumaApp) -> Option<[f64; 4]> {
         let d = &app.session.active()?.doc;
         let layer = d.node(d.symbol_edit.as_ref()?.layer)?;
         let ids: Vec<NodeId> = layer.children()?.iter().map(|n| n.id).collect();
@@ -975,7 +974,7 @@ mod tests {
         std::sync::Arc::make_mut(&mut app.session.active_mut().unwrap().doc).artboards.clear();
         // A view with no artboard to fit to is never fitted.
         if let Some(v) = app.view_mut() {
-            (v.fitted, v.center) = (false, vectorcraft_geom::Point::new(1000.0, 1000.0));
+            (v.fitted, v.center) = (false, pluma_geom::Point::new(1000.0, 1000.0));
         }
         app.run("symbol.edit", json!({"name": "Dot"})).unwrap();
         assert_eq!(editing_art(&app), Some([985.0, 985.0, 1015.0, 1015.0]));
@@ -998,12 +997,12 @@ mod tests {
     }
 
     /// The symbol in symbol editing mode, if any.
-    fn editing(app: &VectorcraftApp) -> Option<String> {
+    fn editing(app: &PlumaApp) -> Option<String> {
         app.session.active()?.doc.symbol_edit.as_ref().map(|e| e.symbol.clone())
     }
 
     /// The first instance of symbol `name` in the active document.
-    fn instance_of(app: &VectorcraftApp, name: &str) -> Option<NodeId> {
+    fn instance_of(app: &PlumaApp, name: &str) -> Option<NodeId> {
         let mut found = None;
         for l in &app.session.active()?.doc.layers {
             l.walk(&mut |n| {
@@ -1082,7 +1081,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         ctx.enable_accesskit();
-        let bar = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let bar = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 400.0))), events, ..Default::default() };
             let mut out = ctx.run_ui(raw, |ui| {
                 ui.horizontal(|ui| control_bar(app, ui));
@@ -1097,12 +1096,12 @@ mod tests {
         assert_eq!(instance_of(&app, "Leaf"), Some(leaf), "the instance keeps its link");
     }
 
-    fn dialog_kind(app: &VectorcraftApp) -> Option<&str> {
+    fn dialog_kind(app: &PlumaApp) -> Option<&str> {
         app.ui.dialog.as_ref().map(|d| d.kind.as_str())
     }
 
     /// One frame of the panel with `modifiers` held, its output kept.
-    fn frame_held(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> egui::FullOutput {
+    fn frame_held(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>, modifiers: egui::Modifiers) -> egui::FullOutput {
         let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 400.0)));
         let events = std::iter::once(egui::Event::ModifiersChanged(modifiers)).chain(events).collect();
         let mut out = ctx.run_ui(egui::RawInput { screen_rect, events, ..Default::default() }, |ui| show(app, ui));
@@ -1124,7 +1123,7 @@ mod tests {
     }
 
     /// Clicks the panel's Delete Symbol button with `modifiers` held.
-    fn click_delete(app: &mut VectorcraftApp, modifiers: egui::Modifiers) {
+    fn click_delete(app: &mut PlumaApp, modifiers: egui::Modifiers) {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let out = frame_held(&ctx, app, vec![], modifiers);
@@ -1134,7 +1133,7 @@ mod tests {
     }
 
     /// Clicks the panel menu's Delete Symbol item.
-    fn menu_delete(app: &mut VectorcraftApp) {
+    fn menu_delete(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let labels = menu_frame(&ctx, app, vec![]);
@@ -1151,7 +1150,7 @@ mod tests {
     fn delete_symbol_asks_first_and_alt_click_deletes_an_unused_symbol_at_once() {
         let mut app = leaf_and_dot();
         let before = app.session.active().unwrap().doc.clone();
-        let unchanged = |app: &VectorcraftApp| Arc::ptr_eq(&before, &app.session.active().unwrap().doc);
+        let unchanged = |app: &PlumaApp| Arc::ptr_eq(&before, &app.session.active().unwrap().doc);
         click_delete(&mut app, egui::Modifiers::NONE);
         assert_eq!(dialog_kind(&app), Some(crate::dialogs::symbol_delete::KIND));
         assert!(unchanged(&app), "nothing changes while it asks");
@@ -1262,7 +1261,7 @@ mod tests {
     /// symbols and shows the instance's own; picking another replaces it.
     #[test]
     fn the_control_bar_replace_menu_swaps_the_selected_instances_symbol() {
-        fn bar(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<egui::Shape> {
+        fn bar(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<egui::Shape> {
             let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 400.0))), events, ..Default::default() };
             let mut out = ctx.run_ui(raw, |ui| {
                 ui.horizontal(|ui| control_bar(app, ui));
@@ -1277,17 +1276,17 @@ mod tests {
                 _ => None,
             })
         }
-        fn click(app: &mut VectorcraftApp, ctx: &egui::Context, at: Pos2) {
+        fn click(app: &mut PlumaApp, ctx: &egui::Context, at: Pos2) {
             bar(app, ctx, vec![egui::Event::PointerMoved(at), button(at, true)]);
             bar(app, ctx, vec![button(at, false)]);
         }
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 200})).unwrap();
         for (name, x) in [("Leaf", 10), ("Star", 150)] {
             app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 30, "height": 30})).unwrap();
             app.run("symbol.new", json!({"name": name})).unwrap();
         }
-        let instance_of = |app: &VectorcraftApp, name: &str| {
+        let instance_of = |app: &PlumaApp, name: &str| {
             let mut found = None;
             for l in &app.session.active().unwrap().doc.layers {
                 l.walk(&mut |n| {
@@ -1327,7 +1326,7 @@ mod tests {
         let mut app = leaf_and_dot();
         let leaf = instance_of(&app, "Leaf").expect("a Leaf instance");
         app.run("select.set", json!({"ids": [leaf.0]})).unwrap();
-        let xf = |app: &VectorcraftApp| match app.session.active().unwrap().doc.node(leaf).map(|n| &n.kind) {
+        let xf = |app: &PlumaApp| match app.session.active().unwrap().doc.node(leaf).map(|n| &n.kind) {
             Some(NodeKind::SymbolInstance { xf, .. }) => *xf,
             _ => panic!("the Leaf instance"),
         };
@@ -1335,7 +1334,7 @@ mod tests {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         ctx.enable_accesskit();
-        let item_disabled = |app: &mut VectorcraftApp| {
+        let item_disabled = |app: &mut PlumaApp| {
             let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 400.0))), ..Default::default() };
             let mut out = ctx.run_ui(raw, |ui| menu(app, ui));
             out.textures_delta.clear();
@@ -1354,11 +1353,10 @@ mod tests {
         app.run("object.rotate", json!({"angle": 30})).unwrap();
         assert!(!item_disabled(&mut app), "a turned instance enables it");
         click_menu(&ctx, &mut app, "Reset Transformation");
-        let close =
-            |a: vectorcraft_geom::Affine, b: vectorcraft_geom::Affine| a.as_coeffs().iter().zip(b.as_coeffs()).all(|(x, y)| (x - y).abs() < 1e-9);
+        let close = |a: pluma_geom::Affine, b: pluma_geom::Affine| a.as_coeffs().iter().zip(b.as_coeffs()).all(|(x, y)| (x - y).abs() < 1e-9);
         assert!(close(xf(&app), master), "the menu item resets the instance: {:?} vs {master:?}", xf(&app));
         // The Control bar's Reset.
-        let bar = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+        let bar = |app: &mut PlumaApp, events: Vec<egui::Event>| {
             let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 400.0))), events, ..Default::default() };
             let mut out = ctx.run_ui(raw, |ui| {
                 ui.horizontal(|ui| control_bar(app, ui));

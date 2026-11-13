@@ -1,4 +1,4 @@
-# vectorcraft-affinity
+# pluma-affinity
 
 An independent, bounded Rust reader for native Affinity documents: `.af` from Affinity 3 and
 `.afdesign`, `.afphoto` and `.afpub` from Affinity 1 and 2 (container versions 8 to 12). It reads
@@ -8,7 +8,7 @@ Affinity files.
 
 ## What is imported
 
-| Affinity | VectorCraft |
+| Affinity | Pluma |
 |---|---|
 | Pages, Publisher spreads (one or two pages) | artboards, spreads side by side |
 | Master pages (`MpCh`) shown on pages through master page instances (`MPIN`: master, page offset, master page, count) | a locked "Master A, B…" layer at the bottom holding each master page's objects on the pages that show it |
@@ -26,12 +26,12 @@ Affinity files.
 | A stroke's pressure curve (`LDeP`: position along the path against width) | the stroke's width profile, the curve sampled at 2 to 8 points per segment (256 segments at most), widths up to the full weight |
 | Fill layers (`FRst`) | filled rectangles |
 | Artistic and frame text: Unicode scalar-indexed runs, stored fallback font, family/weight/style, boolean OpenType features, all caps, underline, strikethrough, size, tracking, horizontal scale, fixed leading, colour, outlined characters, first baseline; each paragraph's alignment, indents, space before and after, fixed and automatic leading; frame text sized by its text scale (`FTxS`), not its frame's transform | point type and area type, one paragraph style per paragraph; artistic text whose paragraphs align differently keeps them aligned within its longest line (by indents), as Affinity draws it; a frame's first line hangs from its capitals' tops, and a frame whose last lines' descenders hang out of it is made just tall enough to show them; line breaks inside a paragraph become paragraphs without spacing between them; table cells place their text as Affinity does (centred from the capitals' tops to the last baseline, reaching out of a cell too short for it) |
-| Tables (`TxtT`): grid, cell text, merged cells, cell insets and vertical alignment, the line on every cell edge | a group of area type per cell and a stroked line per edge (VectorCraft has no tables) |
+| Tables (`TxtT`): grid, cell text, merged cells, cell insets and vertical alignment, the line on every cell edge | a group of area type per cell and a stroked line per edge (Pluma has no tables) |
 | Placed images (`ImgN`): the original JPEG/PNG embedded in the file | embedded images |
 | Pixel layers (`Rstr`): RGBA 8/16-bit and CMYK 8-bit tiles, cropped to their content; source-backed RGBA8 JPEG/PNG tiles with matching dimensions and zero origin; the document's CMYK colour profile (`CMYP`) | embedded PNG images; CMYK layers through the document's profile (relative colorimetric, black-point compensation, as Affinity converts them), or, without one, CMYK images that keep their inks |
 | Embedded Affinity documents (`EmbN` with an `EmDc` entry), four deep at most | their first page's content, editable (their artboards only clip, they don't become artboards; their master pages are left out); other embedded documents and symbols as the picture Affinity cached of them |
 | Layer effects: drop shadows, outer glows, inner shadows; outlines; colour and gradient overlays in any blend mode | Stylize › Drop Shadow and Outer Glow, Inner Glow at the edge (approximated); one more stroke on shapes (around their own stroke), the characters' stroke on text; overlays baked into fill, stroke, text colours and pixels (a group's over its children's) |
-| Opacity, visibility, lock, names, the blend modes VectorCraft has | the same |
+| Opacity, visibility, lock, names, the blend modes Pluma has | the same |
 
 Everything else is reported in the import warnings, one line per kind with a count, never
 dropped silently: bevel, blur and other layer effects, adjustment layers and live filters, brush strokes, pressure curves that can't be read or that go past the million points one document may hold,
@@ -40,7 +40,7 @@ special shapes (cloud, heart, cog, callouts, arrows…, imported as their boundi
 types other than round or straight, stars with rounded points, several fills or strokes on one object (the
 active one is used), skewed or flipped text, characters of different transparency in one text, text fields such as page numbers, text threading, frames with
 columns or a curved outline, table cell fills, unsupported font selectors, grey/Lab/32-bit pixels, CMYK pixels with transparency in a document
-without a CMYK profile (converted through VectorCraft's working CMYK profile) and Affinity-only blend modes (Add, Linear Light… as Normal).
+without a CMYK profile (converted through Pluma's working CMYK profile) and Affinity-only blend modes (Add, Linear Light… as Normal).
 
 When the native document can't be read at all, the engine opens the embedded PNG preview instead,
 with a warning that names the reason; that preview can't be placed, used as a template or mined
@@ -49,7 +49,7 @@ for swatches and styles. Save never writes back over the Affinity file.
 ## Provenance and clean-room
 
 Affinity has no published file-format specification, so this reader is built only from a public
-description of the format and from public files, never from Affinity itself. This is how the sibling app PhotoCraft already treats formats that
+description of the format and from public files, never from Affinity itself. This is how the sibling app Lienzo already treats formats that
 are only partly documented:
 its PSD reader fills the gaps in Adobe's specification from the MIT-licensed psd-tools and
 ag-psd, and its camera raw decoder recovered Nikon's compression tables by black-box analysis
@@ -82,7 +82,7 @@ of CC0 sample files.
 * **Read-only.** Nothing is written in Affinity's format; export waits until someone can check
   written files in Affinity itself.
 
-The reader also has independent copies in PhotoCraft's `photocraft-affinity` and DesignCraft's
+The reader also has independent copies in Lienzo's `lienzo-affinity` and DesignCraft's
 `designcraft-affinity`. Tables, paragraph formats, text scale, master pages, layer effects,
 overlays, embedded documents, large pixel layers and HEIC photos were added in DesignCraft
 ([storytold/designcraft#291](https://github.com/storytold/designcraft/pull/291)) and brought back
@@ -110,10 +110,10 @@ text-frame fixture.
 * `tests/it/real_files.rs` parses every file and freezes the modeled features of all 33 current
   `.af` files. Native raster tests compare decoded pixels with independent embedded images;
   text tests assert Unicode run boundaries, fallback fonts and feature retention.
-* `engine/tests/affinity_corpus.rs` requires editable native import, exact `.vectorcraft`
+* `engine/tests/affinity_corpus.rs` requires editable native import, exact `.pluma`
   save/reload, and SVG/PDF/PSD export of every board in all 33 current files. It checks SVG/PDF
   dimensions and reimport, and independently decodes PSD merged pixels using the published
-  specification. These are VectorCraft consistency checks, not independent Affinity PSD oracles.
+  specification. These are Pluma consistency checks, not independent Affinity PSD oracles.
   Saved-thumbnail comparisons cover the existing 22 documents plus nine new representative
   fixtures, checking every board; unsupported effects and text layout are not claimed visually
   faithful. The Affinity corpus workflow requires the files, so missing fixtures cannot silently
@@ -135,7 +135,7 @@ text-frame fixture.
   ```
 
 The source audit, licensing decisions and remaining complex-document/font cases are recorded in
-[affinity-validation.md](../../docs/affinity-validation.md). Reopening VectorCraft's exports in
+[affinity-validation.md](../../docs/affinity-validation.md). Reopening Pluma's exports in
 Affinity remains an independent validation step that hasn't been done.
 
 What has not been verified: files from Affinity builds or platforms outside the public set, files
@@ -167,7 +167,7 @@ allocation, with a cumulative 16 MiB budget for owned font names (256 bytes at m
 features and gradient stops; paragraph formats are matched to runs by binary search. Exhaustion
 warns and uses default attributes for remaining text, preserving its characters. Colour and
 gradient overlays share one work budget per import (`overlay::MAX_WORK`: the nodes and pixels
-each is baked into); past it they are left out, and said. In VectorCraft, master pages are
+each is baked into); past it they are left out, and said. In Pluma, master pages are
 copied onto at most as many objects, characters and pixels as a document may hold, a few times
 over, and objects beyond `MAX_COORD` of the origin are left out.
 Every archive entry's CRC-32 and size must match. Malformed input returns an `Error`; the

@@ -3,7 +3,7 @@ use super::invoke::click_target;
 use super::labels::{display_label, dynamic_label, effect_item_label, item_shortcut, spelling_item_label, unlock_item_label};
 use super::state::{shortcut_of, shown_state};
 use super::tree::menu_tree_named;
-use super::{Entry, Item, Serialize, Value, VectorcraftApp};
+use super::{Entry, Item, PlumaApp, Serialize, Value};
 
 /// A menu item as it shows now ([`entry`]).
 pub struct Row<'a> {
@@ -28,7 +28,7 @@ impl Row<'_> {
 }
 
 /// Item `it` as the menus show it now, or `None` while they leave it out ([`shown_state`]).
-pub fn entry<'a>(app: &VectorcraftApp, it: &'a Item) -> Option<Entry<'a>> {
+pub fn entry<'a>(app: &PlumaApp, it: &'a Item) -> Option<Entry<'a>> {
     use crate::i18n::t;
     Some(match it {
         Item::Sep => Entry::Sep,
@@ -108,7 +108,7 @@ pub struct MenuEntry {
 }
 
 /// Flattened menu for `ui.menu.list`.
-pub fn menu_entries(app: &VectorcraftApp) -> Vec<MenuEntry> {
+pub fn menu_entries(app: &PlumaApp) -> Vec<MenuEntry> {
     let mut out = vec![];
     for (title, items) in menu_tree_named(app.session.prefs.font_names_in_english) {
         flatten(app, vec![title.to_string()], &items, &mut out);
@@ -117,13 +117,13 @@ pub fn menu_entries(app: &VectorcraftApp) -> Vec<MenuEntry> {
 }
 
 /// Flattened canvas context menu for `ui.contextMenu.list` (paths are its submenus).
-pub fn context_entries(app: &VectorcraftApp) -> Vec<MenuEntry> {
+pub fn context_entries(app: &PlumaApp) -> Vec<MenuEntry> {
     let mut out = vec![];
     flatten(app, vec![], &context_items(app), &mut out);
     out
 }
 
-fn flatten(app: &VectorcraftApp, path: Vec<String>, items: &[Item], out: &mut Vec<MenuEntry>) {
+fn flatten(app: &PlumaApp, path: Vec<String>, items: &[Item], out: &mut Vec<MenuEntry>) {
     for it in items {
         match it {
             Item::Cmd(l, id, p) => {

@@ -1,6 +1,6 @@
 use super::dnd::{group_of, selection};
 use super::libraries::SwatchLibraries;
-use super::{Kind, LibraryKind, Ui, Value, VectorcraftApp, View, active_paint, json, library_panel, menu_item, pstate, set_pstate, widgets};
+use super::{Kind, LibraryKind, PlumaApp, Ui, Value, View, active_paint, json, library_panel, menu_item, pstate, set_pstate, widgets};
 
 /// The selected swatches and groups that can be deleted (all but None and Registration).
 pub(super) fn deletable(sel: &[String]) -> Vec<String> {
@@ -9,7 +9,7 @@ pub(super) fn deletable(sel: &[String]) -> Vec<String> {
 
 /// The selected swatch when exactly one swatch with an editor is selected (not None, Registration
 /// or a group).
-fn editable(app: &VectorcraftApp, sel: &[String]) -> Option<String> {
+fn editable(app: &PlumaApp, sel: &[String]) -> Option<String> {
     match sel {
         [n] if !n.starts_with('[') && app.session.active().is_some_and(|st| st.doc.swatch(n).is_some()) => Some(n.clone()),
         _ => None,
@@ -17,24 +17,24 @@ fn editable(app: &VectorcraftApp, sel: &[String]) -> Option<String> {
 }
 
 /// The selected solid-colour swatches in selection order (Merge Swatches keeps the first).
-pub(super) fn mergeable(app: &VectorcraftApp, sel: &[String]) -> Vec<String> {
+pub(super) fn mergeable(app: &PlumaApp, sel: &[String]) -> Vec<String> {
     let Some(st) = app.session.active() else { return vec![] };
     sel.iter().filter(|n| st.doc.swatch(n).is_some_and(|w| w.paint.color().is_some())).cloned().collect()
 }
 
 /// The first selected colour group (Ungroup Color Group).
-pub(super) fn selected_group(app: &VectorcraftApp, sel: &[String]) -> Option<String> {
+pub(super) fn selected_group(app: &PlumaApp, sel: &[String]) -> Option<String> {
     let d = &app.session.active()?.doc;
     sel.iter().find(|n| d.swatch_groups.iter().any(|g| g.name == **n)).cloned()
 }
 
 /// Edit or Apply Color Group: Recolor Artwork on colour group `group` (and the selected art).
-pub(super) fn edit_group(app: &mut VectorcraftApp, group: &str) {
+pub(super) fn edit_group(app: &mut PlumaApp, group: &str) {
     app.run("ui.recolorDialog", json!({ "group": group })).ok();
 }
 
 /// Delete `names` (swatches and colour groups) after asking, or at once with `now` (Alt-click).
-pub(super) fn delete(app: &mut VectorcraftApp, names: Vec<String>, now: bool) {
+pub(super) fn delete(app: &mut PlumaApp, names: Vec<String>, now: bool) {
     let params = json!({"names": names});
     if now {
         app.run("swatch.delete", params).ok();
@@ -47,7 +47,7 @@ pub(super) fn delete(app: &mut VectorcraftApp, names: Vec<String>, now: bool) {
     crate::dialogs::confirm::ask(app, &message, tl!("Art using a deleted global swatch keeps its colour."), "swatch.delete", params);
 }
 
-pub(super) fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, sel: &[String]) {
+pub(super) fn bottom(app: &mut PlumaApp, ui: &mut Ui, sel: &[String]) {
     let kind: Kind = pstate(ui.ctx(), "swatch-kind");
     widgets::bottom_bar(ui, |ui| {
         let open = library_panel::any_open::<SwatchLibraries>(&app.ui);
@@ -94,14 +94,14 @@ pub(super) fn bottom(app: &mut VectorcraftApp, ui: &mut Ui, sel: &[String]) {
 
 /// The colour group the selection points at: the last selected group, or the group of the last
 /// selected swatch.
-fn target_group(app: &VectorcraftApp, sel: &[String]) -> Option<String> {
+fn target_group(app: &PlumaApp, sel: &[String]) -> Option<String> {
     group_of(&app.session.active()?.doc, sel.last()?)
 }
 
 /// New Swatch from the active paint (a color goes into the selected color group), for a click
 /// with modifiers `m`: a plain click opens the dialog and an Alt-click saves at once. Cmd/Ctrl
 /// makes a color a spot color, and Cmd/Ctrl+Shift makes it a global process color.
-pub(super) fn new_swatch(app: &mut VectorcraftApp, sel: &[String], m: egui::Modifiers) {
+pub(super) fn new_swatch(app: &mut PlumaApp, sel: &[String], m: egui::Modifiers) {
     let paint = active_paint(app);
     let group = paint.color().and_then(|_| target_group(app, sel));
     let (spot, global) = (m.command && !m.shift, m.command && m.shift);
@@ -120,7 +120,7 @@ pub(super) fn new_swatch(app: &mut VectorcraftApp, sel: &[String], m: egui::Modi
     app.run("swatch.new", params).ok();
 }
 
-pub fn menu(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn menu(app: &mut PlumaApp, ui: &mut Ui) {
     let view: View = pstate(ui.ctx(), "swatch-view");
     let selected = selection(app, ui);
     let del = deletable(&selected);

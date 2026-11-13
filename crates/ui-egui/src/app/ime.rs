@@ -1,7 +1,7 @@
-use super::VectorcraftApp;
+use super::PlumaApp;
 use crate::ime;
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Did the Type tool end an IME composition on its own this frame? Interrupting the IME
     /// through egui (`should_interrupt_composition`) doesn't reach the macOS input context, which
     /// keeps the marked text and types it again into the next composition: the host discards it.
@@ -10,7 +10,7 @@ impl VectorcraftApp {
     }
 }
 
-impl VectorcraftApp {
+impl PlumaApp {
     /// Install once during host Context creation, before its first run_ui.
     pub fn install_ime_reset_hooks(ctx: &egui::Context) {
         ime::install_hooks(ctx);

@@ -6,15 +6,15 @@
 //!
 //! Field: `selected` (a preset's name).
 
+use pluma_engine::cmd::fileio::pdf;
+use pluma_engine::cmd::pdfcmds::PRESET_FORMAT;
 use serde_json::{Value, json};
-use vectorcraft_engine::cmd::fileio::pdf;
-use vectorcraft_engine::cmd::pdfcmds::PRESET_FORMAT;
 
 use super::DialogSpec;
 use super::save_pdf::{open_preset, option_label, option_rows, section_of};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of PDF Presets.
 pub const KIND: &str = "pdfPresets";
@@ -32,7 +32,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 };
 
 /// Open the presets manager on `selected` (default: the app default).
-pub fn open(app: &mut VectorcraftApp, selected: Option<&str>) {
+pub fn open(app: &mut PlumaApp, selected: Option<&str>) {
     app.ui.dialog = Some(Dialog::new(KIND, json!({ "selected": selected.unwrap_or(pdf::DEFAULT_PRESET) })));
 }
 
@@ -46,7 +46,7 @@ enum Action {
     Export,
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let t = Tokens::get(ui.ctx());
     let presets = app.session.pdf_presets();
     let builtins = presets.len() - app.session.prefs.pdf_presets.len();
@@ -121,10 +121,10 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 
 /// What sets the preset apart: its settings that differ from the app default, and the notes on
 /// what Save PDF can't honour or apply yet.
-fn details(ui: &mut egui::Ui, t: &Tokens, preset: &vectorcraft_pdf::PdfPreset, builtin: bool) {
+fn details(ui: &mut egui::Ui, t: &Tokens, preset: &pluma_pdf::PdfPreset, builtin: bool) {
     let dim = |ui: &mut egui::Ui, text: &str| ui.label(egui::RichText::new(tl!(text)).color(t.text_dim).size(11.5));
     widgets::dim_label(ui, &crate::i18n::fmt(tl!("Differences from {preset}:"), &[("preset", pdf::DEFAULT_PRESET)]));
-    let base = vectorcraft_pdf::builtin_preset(pdf::DEFAULT_PRESET).map(|p| p.settings).unwrap_or_default();
+    let base = pluma_pdf::builtin_preset(pdf::DEFAULT_PRESET).map(|p| p.settings).unwrap_or_default();
     let mut changed = pdf::changes(&preset.settings, &base);
     changed.sort_by_key(|c| section_of(c["option"].as_str().unwrap_or_default()));
     egui::ScrollArea::vertical().id_salt("pdf-preset-details").max_height(180.0).show(ui, |ui| {
@@ -151,7 +151,7 @@ fn select(d: &mut Dialog, name: &str) {
     d.fields.insert("selected".into(), json!(name));
 }
 
-fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> Result<(), String> {
+fn run(app: &mut PlumaApp, d: &mut Dialog, act: Action, current: &str) -> Result<(), String> {
     match act {
         Action::Select(name) => select(d, &name),
         // The editor replaces this dialog; its OK comes back here.
@@ -167,7 +167,7 @@ fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> 
             let i = app.session.prefs.pdf_presets.iter().position(|p| p.name == current);
             app.run("pdf.preset.delete", json!({ "name": current }))?;
             // The one above it takes its place (the last built-in one above the first saved one).
-            let builtins = vectorcraft_pdf::builtin_presets().len();
+            let builtins = pluma_pdf::builtin_presets().len();
             let next = app.session.pdf_presets().get((i.unwrap_or(0) + builtins).saturating_sub(1)).map(|p| p.name.clone());
             select(d, &next.unwrap_or_default());
         }
@@ -178,7 +178,7 @@ fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> 
                 return Ok(());
             }
             let pick = crate::FilePick {
-                filters: vec![crate::FilePick::filter("PDF presets", vectorcraft_engine::cmd::pdfcmds::PRESET_EXTS)],
+                filters: vec![crate::FilePick::filter("PDF presets", pluma_engine::cmd::pdfcmds::PRESET_EXTS)],
                 ..Default::default()
             };
             let path = crate::picks::open(app, &pick).ok_or("cancelled")?;
@@ -197,21 +197,21 @@ fn run(app: &mut VectorcraftApp, d: &mut Dialog, act: Action, current: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_engine::Session;
+    use pluma_engine::Session;
 
-    fn frame(app: &mut VectorcraftApp) {
+    fn frame(app: &mut PlumaApp) {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx);
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::super::show(app, ui.ctx()));
         out.textures_delta.clear();
     }
 
-    fn kind(app: &VectorcraftApp) -> Option<&str> {
+    fn kind(app: &PlumaApp) -> Option<&str> {
         app.ui.dialog.as_ref().map(|d| d.kind.as_str())
     }
 
     /// Press a manager button on the preset `current`, as the body does.
-    fn press(app: &mut VectorcraftApp, act: Action, current: &str) {
+    fn press(app: &mut PlumaApp, act: Action, current: &str) {
         let mut d = app.ui.dialog.take().unwrap();
         run(app, &mut d, act, current).unwrap();
         app.ui.dialog = Some(d);
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn new_edit_and_delete_go_through_the_preset_editor() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("ui.pdfPresetsDialog", json!({"selected": "Press Quality"})).unwrap();
         frame(&mut app);
         assert_eq!(kind(&app), Some(KIND));
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn save_pdf_saves_its_settings_as_a_preset() {
-        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        let mut app = PlumaApp::new(Session::new(), Default::default());
         app.run("file.new", json!({"width": 100, "height": 80})).unwrap();
         app.run("ui.savePdfDialog", json!({"preset": "High Quality Print", "compatibility": "1.5"})).unwrap();
         frame(&mut app);
@@ -282,10 +282,7 @@ mod tests {
         assert_eq!(saved.compatibility.id(), "1.5");
         assert_eq!(
             saved,
-            &vectorcraft_pdf::PdfSettings {
-                compatibility: saved.compatibility,
-                ..vectorcraft_pdf::builtin_preset("High Quality Print").unwrap().settings
-            }
+            &pluma_pdf::PdfSettings { compatibility: saved.compatibility, ..pluma_pdf::builtin_preset("High Quality Print").unwrap().settings }
         );
         // A built-in name is refused and the row stays.
         app.ui.dialog.as_mut().unwrap().fields.insert("__savePresetAs".into(), json!("Press Quality"));
@@ -305,7 +302,7 @@ mod tests {
             write: Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string()))),
             ..Default::default()
         };
-        let mut app = VectorcraftApp::new(Session::new(), services);
+        let mut app = PlumaApp::new(Session::new(), services);
         app.run("pdf.preset.save", json!({"name": "Mine", "thumbnails": true})).unwrap();
         app.run("ui.pdfPresetsDialog", json!({"selected": "Mine"})).unwrap();
         frame(&mut app);

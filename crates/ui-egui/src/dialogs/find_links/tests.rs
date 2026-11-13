@@ -1,27 +1,27 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::findfiles::Rules;
+use pluma_engine::Session;
+use pluma_engine::cmd::findfiles::Rules;
 
 use super::*;
 
-fn frame(app: &mut VectorcraftApp) -> String {
+fn frame(app: &mut PlumaApp) -> String {
     crate::tests_labels::painted_text(app, |app, ui| super::super::show(app, ui.ctx()))
 }
 
 /// A fresh temporary folder (canonical, as a search reports it).
 fn folder(tag: &str) -> PathBuf {
-    let dir = vectorcraft_testkit::temp_dir(&format!("find-links-{tag}"));
+    let dir = pluma_testkit::temp_dir(&format!("find-links-{tag}"));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    vectorcraft_engine::cmd::findfiles::plain(std::fs::canonicalize(&dir).unwrap())
+    pluma_engine::cmd::findfiles::plain(std::fs::canonicalize(&dir).unwrap())
 }
 
 /// An app that reads files, shows a folder picker and whose searches may go anywhere in `root`,
 /// on two threads.
-fn app_for(root: &Path) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app_for(root: &Path) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.services.read = Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string())));
     app.services.pick_folder = Some(Box::new(|| None));
     app.session.search_rules = Some(Rules { user_content: vec![root.to_path_buf()], ..Rules::default() });
@@ -48,9 +48,9 @@ fn png(n: u8) -> Vec<u8> {
     out
 }
 
-/// A document linking to files `names` in `root/orig`, saved as `root/doc/doc.vectorcraft`; the
+/// A document linking to files `names` in `root/orig`, saved as `root/doc/doc.pluma`; the
 /// files are then deleted and the document opened again → each file's bytes.
-fn opened_without(app: &mut VectorcraftApp, root: &Path, names: &[&str]) -> Vec<Vec<u8>> {
+fn opened_without(app: &mut PlumaApp, root: &Path, names: &[&str]) -> Vec<Vec<u8>> {
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let mut files = vec![];
     for (n, name) in (0..).zip(names) {
@@ -59,7 +59,7 @@ fn opened_without(app: &mut VectorcraftApp, root: &Path, names: &[&str]) -> Vec<
         app.run("file.place", json!({"path": path})).unwrap();
         files.push(png(n));
     }
-    let doc = at(root, "doc/doc.vectorcraft");
+    let doc = at(root, "doc/doc.pluma");
     std::fs::create_dir_all(doc.parent().unwrap()).unwrap();
     app.run("document.save", json!({"path": doc})).unwrap();
     std::fs::remove_dir_all(root.join("orig")).unwrap();
@@ -75,7 +75,7 @@ fn opened_without(app: &mut VectorcraftApp, root: &Path, names: &[&str]) -> Vec<
 const WAIT: Duration = Duration::from_secs(30);
 
 /// Draw the dialog until its search ends ([`WAIT`] at most).
-fn searched(app: &mut VectorcraftApp) {
+fn searched(app: &mut PlumaApp) {
     let until = Instant::now() + WAIT;
     while app.ui.dialog.as_ref().is_some_and(|d| d.str("state") == "searching") && Instant::now() < until {
         frame(app);
@@ -83,7 +83,7 @@ fn searched(app: &mut VectorcraftApp) {
     }
 }
 
-fn kind(app: &VectorcraftApp) -> Option<&str> {
+fn kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
@@ -262,14 +262,14 @@ fn copy_leaves_placed_documents_where_they_are() {
     let mut app = app_for(&root);
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
-    let badge = at(&root, "orig/badge.vectorcraft");
+    let badge = at(&root, "orig/badge.pluma");
     std::fs::create_dir_all(badge.parent().unwrap()).unwrap();
     app.run("document.save", json!({"path": badge})).unwrap();
-    let found = at(&root, "found/badge.vectorcraft");
+    let found = at(&root, "found/badge.pluma");
     write(&found, &std::fs::read(&badge).unwrap());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("file.place", json!({"path": badge, "link": true})).unwrap();
-    let doc = at(&root, "doc/doc.vectorcraft");
+    let doc = at(&root, "doc/doc.pluma");
     std::fs::create_dir_all(doc.parent().unwrap()).unwrap();
     app.run("document.save", json!({"path": doc})).unwrap();
     std::fs::remove_dir_all(root.join("orig")).unwrap();
@@ -281,7 +281,7 @@ fn copy_leaves_placed_documents_where_they_are() {
     app.ui.dialog.as_mut().unwrap().fields.insert("copy".into(), json!(true));
     let r = super::super::confirm(&mut app).unwrap();
     assert_eq!((r["relinked"].as_array().unwrap().len(), &r["failed"]), (1, &json!([])), "{r}");
-    assert!(!at(&root, "doc/badge.vectorcraft").exists());
+    assert!(!at(&root, "doc/badge.pluma").exists());
     assert_eq!(app.run("links.check", json!({})).unwrap()["links"][0]["path"], json!(found));
 }
 

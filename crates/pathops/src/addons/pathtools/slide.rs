@@ -3,7 +3,7 @@
 //! that point (an exact split) with the old one removed by the shared keep-shape refit.
 
 use kurbo::{CubicBez, ParamCurve, ParamCurveDeriv, ParamCurveNearest, Point};
-use vectorcraft_geom::SubPath;
+use pluma_geom::SubPath;
 
 use super::{ACCURACY, TINY, insert_at, neighbours};
 use crate::addons::keep_shape::remove_anchor_keep_shape;

@@ -1,7 +1,7 @@
 use super::{Anchor, BezPath, CubicBez, PI, ParamCurve, PathData, Point, SubPath};
 
 // =====================================================================================
-// Warp maps (shared with vectorcraft-effects' Warp effects)
+// Warp maps (shared with pluma-effects' Warp effects)
 // =====================================================================================
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -223,8 +223,8 @@ pub(super) fn flatten_subpath(sp: &SubPath, tol: f64) -> Vec<Point> {
     let mut bp = BezPath::new();
     sp.to_bezpath_into(&mut bp);
     let mut pts: Vec<Point> = Vec::new();
-    vectorcraft_geom::kurbo::flatten(bp.iter(), tol, |el| match el {
-        vectorcraft_geom::PathEl::MoveTo(p) | vectorcraft_geom::PathEl::LineTo(p) if pts.last().is_none_or(|q| q.distance(p) > 1e-9) => pts.push(p),
+    pluma_geom::kurbo::flatten(bp.iter(), tol, |el| match el {
+        pluma_geom::PathEl::MoveTo(p) | pluma_geom::PathEl::LineTo(p) if pts.last().is_none_or(|q| q.distance(p) > 1e-9) => pts.push(p),
         _ => {}
     });
     pts

@@ -1,12 +1,12 @@
+use pluma_engine::Session;
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
 use super::{ControlRequest, MAX_DIALOG_FIELDS, Outcome, handle};
 use crate::state::Dialog;
-use crate::{Services, VectorcraftApp};
+use crate::{PlumaApp, Services};
 
-fn input_request(app: &mut VectorcraftApp, method: &str, params: Value) -> Value {
+fn input_request(app: &mut PlumaApp, method: &str, params: Value) -> Value {
     let (req, _) = ControlRequest::new(method, params);
     let Outcome::Done(r) = handle(app, &egui::Context::default(), &req) else { panic!("expected immediate reply") };
     r
@@ -14,7 +14,7 @@ fn input_request(app: &mut VectorcraftApp, method: &str, params: Value) -> Value
 
 #[test]
 fn deferred_pointer_reply_uses_the_gesture_document_after_file_new() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 40, "height": 40})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
@@ -35,11 +35,11 @@ fn deferred_pointer_reply_uses_the_gesture_document_after_file_new() {
 
 #[test]
 fn control_lists_and_selects_optional_addon_tools() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     let listed = input_request(&mut app, "ui.tool.list", json!({}));
     assert_eq!(listed["ok"], true);
     let groups = listed["result"].as_array().unwrap();
-    for tool in vectorcraft_tools::addons::GROUPS.iter().flat_map(|group| group.iter()) {
+    for tool in pluma_tools::addons::GROUPS.iter().flat_map(|group| group.iter()) {
         let matching: Vec<_> = groups.iter().flat_map(|group| group.as_array().unwrap()).filter(|entry| entry["id"] == tool.id).collect();
         assert_eq!(matching.len(), 1, "{}", tool.id);
         assert_eq!(matching[0]["label"], tool.label);
@@ -52,7 +52,7 @@ fn control_lists_and_selects_optional_addon_tools() {
 
 #[test]
 fn ui_set_turns_the_image_trace_preview_off_and_on() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     assert!(app.ui.image_trace_preview);
     for on in [false, true] {
         let r = input_request(&mut app, "ui.set", json!({"imageTracePreview": on}));
@@ -65,7 +65,7 @@ fn ui_set_turns_the_image_trace_preview_off_and_on() {
 /// and sets nothing else either.
 #[test]
 fn ui_set_outline_sets_the_active_documents_view() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     for params in [json!({"outline": false}), json!({"outline": true, "grid": true})] {
         let r = input_request(&mut app, "ui.set", params);
         assert_eq!(r["ok"], false, "{r}");
@@ -81,7 +81,7 @@ fn ui_set_outline_sets_the_active_documents_view() {
 
 #[test]
 fn the_image_trace_preview_is_a_command() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     assert!(crate::menus::UI_COMMANDS.iter().any(|c| c.0 == "imageTrace.preview"));
     assert_eq!(app.run("imageTrace.preview", json!({})), Ok(json!(false)), "toggles");
     assert!(!app.ui.image_trace_preview);
@@ -99,7 +99,7 @@ fn the_image_trace_preview_is_a_command() {
 fn control_input_rejects_excessive_counts_before_mutation() {
     // Only modest over-limit values on the baseline: never exercise an unbounded loop.
     for (method, params) in [("ui.click", json!({"count": 17})), ("ui.drag", json!({"steps": 257})), ("ui.drag", json!({"steps": 2, "count": 17}))] {
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         app.synthetic.push(egui::Event::Text("already queued".into()));
         let before = format!("{:?}", app.synthetic);
         let r = input_request(&mut app, method, params);
@@ -110,7 +110,7 @@ fn control_input_rejects_excessive_counts_before_mutation() {
 
 #[test]
 fn control_input_respects_existing_queue_budget() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.synthetic = vec![egui::Event::PointerMoved(egui::pos2(1.0, 2.0)); 1023];
     let before = format!("{:?}", app.synthetic);
     let r = input_request(&mut app, "ui.click", json!({}));
@@ -121,7 +121,7 @@ fn control_input_respects_existing_queue_budget() {
 #[test]
 fn control_input_yields_control_channel_after_frame_budget() {
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), Services::default()).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), Services::default()).with_control(rx);
     let mut replies = vec![];
     for _ in 0..65 {
         let (req, reply) = ControlRequest::new("ui.move", json!({"x": 1, "y": 2}));
@@ -140,7 +140,7 @@ fn control_input_yields_control_channel_after_frame_budget() {
 fn control_input_rejects_invalid_and_extreme_counts() {
     for value in [json!(u64::MAX), json!(-1), json!(1.5), json!("2"), Value::Null] {
         for (method, key) in [("ui.click", "count"), ("ui.drag", "count"), ("ui.drag", "steps")] {
-            let mut app = VectorcraftApp::new(Session::new(), Services::default());
+            let mut app = PlumaApp::new(Session::new(), Services::default());
             app.synthetic.push(egui::Event::Text("pending".into()));
             let before = format!("{:?}", app.synthetic);
             let mut params = json!({});
@@ -155,7 +155,7 @@ fn control_input_rejects_invalid_and_extreme_counts() {
 
 #[test]
 fn control_input_accepts_boundary_gestures_and_preserves_event_order() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     let r = input_request(
         &mut app,
         "ui.drag",
@@ -196,7 +196,7 @@ fn control_input_budget_covers_every_synthetic_method() {
         ("ui.click", json!({})),
         ("ui.drag", json!({"steps": 1})),
     ] {
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         app.synthetic = vec![egui::Event::PointerMoved(egui::pos2(1.0, 2.0)); 1024];
         let before = format!("{:?}", app.synthetic);
         let r = input_request(&mut app, method, params);
@@ -210,9 +210,9 @@ fn control_input_budget_covers_every_synthetic_method() {
 /// `ui.dialog.set {fields}` stores the whole list in order, or nothing when an item is refused.
 #[test]
 fn dialog_set_stores_a_field_list_whole_or_not_at_all() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.ui.dialog = Some(crate::state::Dialog::new("move", json!({"dx": "0 pt", "dy": "0 pt"})));
-    let fields = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| serde_json::to_value(&d.fields).unwrap());
+    let fields = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| serde_json::to_value(&d.fields).unwrap());
     let before = fields(&app);
     for params in [
         json!({"fields": [{"field": "copy", "value": true}, {"value": 1}]}),
@@ -241,7 +241,7 @@ fn dialog_set_stores_a_field_list_whole_or_not_at_all() {
 /// `ui.dialog.set {fields}` stores at most `MAX_DIALOG_FIELDS` items; a longer list stores none.
 #[test]
 fn dialog_set_refuses_a_field_list_over_the_limit() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.ui.dialog = Some(crate::state::Dialog::new("move", json!({"dx": "0 pt"})));
     let list = |n: usize| Value::Array((0..n).map(|i| json!({"field": "dx", "value": format!("{i} pt")})).collect());
     let r = input_request(&mut app, "ui.dialog.set", json!({"fields": list(MAX_DIALOG_FIELDS + 1)}));
@@ -259,7 +259,7 @@ fn dialog_set_refuses_a_field_list_over_the_limit() {
 #[test]
 fn render_takes_the_artboard_asked_for() {
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), Services::default()).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), Services::default()).with_control(rx);
     let mut request = |method: &str, params: Value| {
         let (req, reply) = ControlRequest::new(method, params);
         tx.send(req).unwrap();
@@ -286,7 +286,7 @@ fn render_takes_the_artboard_asked_for() {
 
 #[test]
 fn synthetic_pointer_backquote_keeps_solid_object_in_place() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     let tile = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap()["id"].as_u64().unwrap();
     app.run("object.pattern.make", json!({"ids": [tile], "name": "Dots", "width": 20, "height": 20})).unwrap();
@@ -296,8 +296,8 @@ fn synthetic_pointer_backquote_keeps_solid_object_in_place() {
     let solid = app.run("shape.rectangle", json!({"x": 220, "y": 100, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
     app.run("paint.setFill", json!({"ids": [solid], "color": "#3366cc"})).unwrap();
     app.run("select.set", json!({"ids": [id, solid]})).unwrap();
-    let before = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
-    let before_solid = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(solid)).unwrap().clone();
+    let before = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
+    let before_solid = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(solid)).unwrap().clone();
     let r = input_request(
         &mut app,
         "ui.pointer",
@@ -308,10 +308,10 @@ fn synthetic_pointer_backquote_keeps_solid_object_in_place() {
     ], "backquote": true}),
     );
     assert_eq!(r["ok"], true, "{r}");
-    let after = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+    let after = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap();
     assert_eq!(after.geometric_bounds(), before.geometric_bounds());
-    assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(solid)).unwrap(), &before_solid);
-    let vectorcraft_color::Paint::Pattern { xf, .. } = after.appearance.fill_paint() else { panic!("pattern fill expected") };
+    assert_eq!(app.session.doc().unwrap().doc.node(pluma_doc::NodeId(solid)).unwrap(), &before_solid);
+    let pluma_color::Paint::Pattern { xf, .. } = after.appearance.fill_paint() else { panic!("pattern fill expected") };
     assert_eq!(xf.as_coeffs()[4], 20.0, "synthetic backquote drag changes pattern paint");
 }
 
@@ -319,12 +319,12 @@ fn synthetic_pointer_backquote_keeps_solid_object_in_place() {
 /// event, before any of the events runs.
 #[test]
 fn synthetic_pointer_rejects_a_backquote_that_is_not_a_boolean() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 100, "y": 100, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({"ids": [id]})).unwrap();
     assert_eq!(input_request(&mut app, "ui.tool.select", json!({"tool": "selection"}))["ok"], true);
-    let before = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().clone();
+    let before = app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap().clone();
     let down = json!({"kind": "down", "x": 125, "y": 125});
     let drag = json!({"kind": "drag", "x": 145, "y": 125});
     for params in [
@@ -334,7 +334,7 @@ fn synthetic_pointer_rejects_a_backquote_that_is_not_a_boolean() {
         let r = input_request(&mut app, "ui.pointer", params.clone());
         assert_eq!(r["ok"], false, "{params}: {r}");
         assert!(r["error"].as_str().is_some_and(|e| e.contains("`backquote` must be a boolean")), "{r}");
-        assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap(), &before, "{params}");
+        assert_eq!(app.session.doc().unwrap().doc.node(pluma_doc::NodeId(id)).unwrap(), &before, "{params}");
     }
 }
 
@@ -342,14 +342,14 @@ fn synthetic_pointer_rejects_a_backquote_that_is_not_a_boolean() {
 /// the key, and a click on the key again lets it go.
 #[test]
 fn pointer_replies_name_the_key_object() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let a = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     let b = app.run("shape.rectangle", json!({"x": 100, "y": 10, "width": 20, "height": 20})).unwrap()["id"].clone();
     app.run("select.set", json!({"ids": [a, b]})).unwrap();
     app.run("tool.select", json!({"tool": "selection"})).unwrap();
     let ctx = egui::Context::default();
-    let click = |app: &mut VectorcraftApp| {
+    let click = |app: &mut PlumaApp| {
         let events = json!([{"kind": "down", "x": 110, "y": 20}, {"kind": "up", "x": 110, "y": 20}]);
         let (req, _) = ControlRequest::new("ui.pointer", json!({"events": events}));
         let Outcome::Done(r) = handle(app, &ctx, &req) else { panic!("not done") };
@@ -365,7 +365,7 @@ fn pointer_replies_name_the_key_object() {
 #[test]
 fn pointer_reply_waits_for_a_merge_on_another_thread() {
     let (tx, rx) = std::sync::mpsc::channel();
-    let mut app = VectorcraftApp::new(Session::new(), Services::default()).with_control(rx);
+    let mut app = PlumaApp::new(Session::new(), Services::default()).with_control(rx);
     app.run("file.new", json!({"width": 800, "height": 200})).unwrap();
     for k in 0..40 {
         app.run("shape.rectangle", json!({"x": k * 10, "y": 0, "width": 20, "height": 20})).unwrap();
@@ -373,7 +373,7 @@ fn pointer_reply_waits_for_a_merge_on_another_thread() {
     app.run("select.all", json!({})).unwrap();
     app.run("tool.select", json!({"tool": "shapeBuilder"})).unwrap();
     let ctx = egui::Context::default();
-    let send = |app: &mut VectorcraftApp, events: Value| {
+    let send = |app: &mut PlumaApp, events: Value| {
         let (req, reply) = ControlRequest::new("ui.pointer", json!({"events": events}));
         tx.send(req).unwrap();
         app.drain_control(&ctx);
@@ -436,7 +436,7 @@ fn a_held_cmd_click_makes_its_artboard_active() {
 }
 
 fn held_cmd_click(then: &str) {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     if then == "another document" {
         // A document with an artboard where the press is, whose view keeps its own.
         app.run("file.new", json!({"width": 1400, "height": 200})).unwrap();
@@ -452,7 +452,7 @@ fn held_cmd_click(then: &str) {
     app.run("tool.select", json!({"tool": "shapeBuilder"})).unwrap();
     app.view_mut().unwrap().artboard = 0;
     let view = app.view_info();
-    let at = |kind, x, mods| PointerEvent { kind, pos: vectorcraft_geom::Point::new(x, 10.0), mods, pressure: 1.0, backquote: false, pen: None };
+    let at = |kind, x, mods| PointerEvent { kind, pos: pluma_geom::Point::new(x, 10.0), mods, pressure: 1.0, backquote: false, pen: None };
     crate::canvas::dispatch(&mut app, &at(PointerKind::Move, 15.0, Mods::default()), view);
     app.session.tool_poll(view, true).unwrap();
     crate::canvas::dispatch(&mut app, &at(PointerKind::Down, 15.0, Mods::default()), view);
@@ -491,7 +491,7 @@ fn held_cmd_click(then: &str) {
 #[test]
 fn menu_dialogs_open_after_a_merge_on_another_thread() {
     for route in ["menu", "ui.menuDialog", "app dialog from the menu", "app dialog from a panel"] {
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         app.run("file.new", json!({"width": 800, "height": 200})).unwrap();
         for k in 0..40 {
             app.run("shape.rectangle", json!({"x": k * 10, "y": 0, "width": 20, "height": 20})).unwrap();
@@ -499,14 +499,8 @@ fn menu_dialogs_open_after_a_merge_on_another_thread() {
         app.run("select.all", json!({})).unwrap();
         app.run("tool.select", json!({"tool": "shapeBuilder"})).unwrap();
         let view = app.view_info();
-        let at = |kind| PointerEvent {
-            kind,
-            pos: vectorcraft_geom::Point::new(15.0, 10.0),
-            mods: Mods::default(),
-            pressure: 1.0,
-            backquote: false,
-            pen: None,
-        };
+        let at =
+            |kind| PointerEvent { kind, pos: pluma_geom::Point::new(15.0, 10.0), mods: Mods::default(), pressure: 1.0, backquote: false, pen: None };
         crate::canvas::dispatch(&mut app, &at(PointerKind::Move), view);
         app.session.tool_poll(view, true).unwrap();
         crate::canvas::dispatch(&mut app, &at(PointerKind::Down), view);
@@ -541,7 +535,7 @@ fn panels_that_redraw_apply_a_merge_on_another_thread_first() {
         ("prefs.set", json!({"values": {"gridlineEvery": 90}})),
     ];
     for (id, params) in cases {
-        let mut app = VectorcraftApp::new(Session::new(), Services::default());
+        let mut app = PlumaApp::new(Session::new(), Services::default());
         app.run("file.new", json!({"width": 800, "height": 200})).unwrap();
         for k in 0..40 {
             app.run("shape.rectangle", json!({"x": k * 10, "y": 0, "width": 20, "height": 20})).unwrap();
@@ -549,14 +543,8 @@ fn panels_that_redraw_apply_a_merge_on_another_thread_first() {
         app.run("select.all", json!({})).unwrap();
         app.run("tool.select", json!({"tool": "shapeBuilder"})).unwrap();
         let view = app.view_info();
-        let at = |kind| PointerEvent {
-            kind,
-            pos: vectorcraft_geom::Point::new(15.0, 10.0),
-            mods: Mods::default(),
-            pressure: 1.0,
-            backquote: false,
-            pen: None,
-        };
+        let at =
+            |kind| PointerEvent { kind, pos: pluma_geom::Point::new(15.0, 10.0), mods: Mods::default(), pressure: 1.0, backquote: false, pen: None };
         crate::canvas::dispatch(&mut app, &at(PointerKind::Move), view);
         app.session.tool_poll(view, true).unwrap();
         crate::canvas::dispatch(&mut app, &at(PointerKind::Down), view);
@@ -577,10 +565,10 @@ fn panels_that_redraw_apply_a_merge_on_another_thread_first() {
 /// applies the merge first: the file holds it, and closing asks to save it.
 #[test]
 fn save_and_close_apply_a_merge_on_another_thread_first() {
-    let dir = vectorcraft_testkit::temp_dir("control-merge-save");
+    let dir = pluma_testkit::temp_dir("control-merge-save");
     for then in ["file.saveAs", "file.exportAs", "file.close"] {
         let services = Services { write: Some(Box::new(|p: &str, b: &[u8]| std::fs::write(p, b).map_err(|e| e.to_string()))), ..Default::default() };
-        let mut app = VectorcraftApp::new(Session::new(), services);
+        let mut app = PlumaApp::new(Session::new(), services);
         app.run("file.new", json!({"width": 800, "height": 200})).unwrap();
         for k in 0..40 {
             app.run("shape.rectangle", json!({"x": k * 10, "y": 0, "width": 20, "height": 20})).unwrap();
@@ -590,20 +578,14 @@ fn save_and_close_apply_a_merge_on_another_thread_first() {
         // As if just saved: only the merge modifies it.
         app.session.doc_mut().unwrap().mark_saved();
         let view = app.view_info();
-        let at = |kind| PointerEvent {
-            kind,
-            pos: vectorcraft_geom::Point::new(15.0, 10.0),
-            mods: Mods::default(),
-            pressure: 1.0,
-            backquote: false,
-            pen: None,
-        };
+        let at =
+            |kind| PointerEvent { kind, pos: pluma_geom::Point::new(15.0, 10.0), mods: Mods::default(), pressure: 1.0, backquote: false, pen: None };
         crate::canvas::dispatch(&mut app, &at(PointerKind::Move), view);
         app.session.tool_poll(view, true).unwrap();
         crate::canvas::dispatch(&mut app, &at(PointerKind::Down), view);
         crate::canvas::dispatch(&mut app, &at(PointerKind::Up), view);
         assert!(app.session.tool_editing() && !app.session.doc().unwrap().is_dirty(), "{then}");
-        let path = dir.join(if then == "file.exportAs" { "a.svg" } else { "a.vectorcraft" });
+        let path = dir.join(if then == "file.exportAs" { "a.svg" } else { "a.pluma" });
         let p = if then == "file.close" { json!({}) } else { json!({"path": path.to_string_lossy()}) };
         let r = app.run(then, p).unwrap();
         assert!(!app.session.tool_editing(), "{then}");
@@ -622,7 +604,7 @@ fn save_and_close_apply_a_merge_on_another_thread_first() {
 /// with a discard button, `preview` with a live preview, `__` fields and the spec's `inputs`.
 #[test]
 fn dialog_set_refuses_a_field_the_dialog_does_not_have() {
-    let mut app = VectorcraftApp::new(Session::new(), Services::default());
+    let mut app = PlumaApp::new(Session::new(), Services::default());
     let fields = json!({"index": 0, "uid": 1, "name": "Untitled-1", "then": "close"});
     app.ui.dialog = Some(Dialog::new(crate::unsaved::KIND, fields.clone()));
     let r = input_request(&mut app, "ui.dialog.set", json!({"field": "discrad", "value": true}));
@@ -635,7 +617,7 @@ fn dialog_set_refuses_a_field_the_dialog_does_not_have() {
     }
     // Move opens without Copy, which its checkbox adds once clicked; Scale's options and the
     // reference point belong to the other transform dialogs.
-    let set = |app: &mut VectorcraftApp, kind: &str, fields: Value, cases: &[(&str, bool)]| {
+    let set = |app: &mut PlumaApp, kind: &str, fields: Value, cases: &[(&str, bool)]| {
         app.ui.dialog = Some(Dialog::new(kind, fields));
         for (field, ok) in cases {
             let r = input_request(app, "ui.dialog.set", json!({"field": field, "value": true}));
@@ -655,7 +637,7 @@ fn dialog_set_refuses_a_field_the_dialog_does_not_have() {
     set(&mut app, "ellipse", json!({"x": 0, "y": 0, "width": 10, "height": 10}), &[("radius", false)]);
     // Corners that differ in kind and radius open without either.
     let mixed = json!({"id": 1, "corners": [0, 1, 2, 3], "relativeRadii": false});
-    set(&mut app, vectorcraft_tools::corners::DIALOG, mixed, &[("kind", true), ("radius", true), ("radii", false)]);
+    set(&mut app, pluma_tools::corners::DIALOG, mixed, &[("kind", true), ("radius", true), ("radii", false)]);
     set(&mut app, "saveForOffice", json!({"ppi": 150, "transparent": false, "artboard": 0}), &[("path", true)]);
     set(&mut app, "brushOptions", json!({"name": "Dots"}), &[("tips", true), ("tip", false)]);
     set(&mut app, "justification", json!({"wordDesired": 100}), &[("wordMin", true), ("singleWord", true), ("wordMid", false)]);

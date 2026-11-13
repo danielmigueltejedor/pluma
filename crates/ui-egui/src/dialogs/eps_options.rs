@@ -7,14 +7,14 @@
 //! options of `document.exportEps`. OK remembers the options for next time and writes the file
 //! (asking where when there is no path); bad options keep the dialog open.
 
+use pluma_engine::cmd::{FlattenOptions, fileio};
+use pluma_eps::{Level, Overprint, Preview};
 use serde_json::{Map, Value, json};
-use vectorcraft_engine::cmd::{FlattenOptions, fileio};
-use vectorcraft_eps::{Level, Overprint, Preview};
 
 use super::DialogSpec;
 use super::document_setup::{LABEL, check, choice};
 use crate::state::Dialog;
-use crate::{VectorcraftApp, io, widgets};
+use crate::{PlumaApp, io, widgets};
 
 pub(super) const KIND: &str = "epsOptions";
 
@@ -54,7 +54,7 @@ fn defaults() -> Map<String, Value> {
 
 /// Open EPS Options for an export whose params (path, artboard choice, any EPS option) are
 /// `params`, over the options used last.
-pub fn open(app: &mut VectorcraftApp, params: &Value) {
+pub fn open(app: &mut PlumaApp, params: &Value) {
     let mut fields = defaults();
     for given in [&app.ui.eps_options, params] {
         if let Some(o) = given.as_object() {
@@ -69,7 +69,7 @@ pub fn open(app: &mut VectorcraftApp, params: &Value) {
     app.ui.dialog = Some(Dialog::new(KIND, Value::Object(fields)));
 }
 
-fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn body(app: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::subheader(ui, tl!("Preview"));
     let previews: Vec<(&str, &str)> = Preview::ALL.iter().map(|p| (p.id(), p.label())).collect();
     choice(ui, d, "previewFormat", tl!("Format:"), &previews);
@@ -123,7 +123,7 @@ fn body(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
 }
 
 /// Check the options, remember them, and write the file(s).
-fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let params = fileio::eps::resolve(&super::form::params(d), &app.session.prefs.flattener_presets)?;
     // Nothing selected keeps the dialog open too.
     if let Some(st) = app.session.active() {

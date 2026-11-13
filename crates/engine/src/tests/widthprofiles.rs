@@ -1,8 +1,8 @@
 //! The width profile library (`stroke.widthProfile.*`): saved profiles kept with the preferences
 //! next to the built-in ones, applied by name with `stroke.set {profile}`.
 
+use pluma_doc::WidthProfile;
 use serde_json::{Value, json};
-use vectorcraft_doc::WidthProfile;
 
 use crate::*;
 

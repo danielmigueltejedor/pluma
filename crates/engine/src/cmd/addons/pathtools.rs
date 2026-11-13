@@ -17,10 +17,10 @@ mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use pluma_doc::{AnchorRef, Appearance, AppearanceItem, Document, LineCap, NodeId, NodeKind};
+use pluma_geom::{PathData, Point, SubPath};
+use pluma_pathops::addons::{self as po, pathtools as pt};
 use serde_json::{Value, json};
-use vectorcraft_doc::{AnchorRef, Appearance, AppearanceItem, Document, LineCap, NodeId, NodeKind};
-use vectorcraft_geom::{PathData, Point, SubPath};
-use vectorcraft_pathops::addons::{self as po, pathtools as pt};
 
 use super::super::draw2::{replace_with_pieces, usize_opt};
 use super::super::pathops::Beside;
@@ -836,9 +836,9 @@ fn expand_dashes(s: &mut Session, p: &Value) -> Result<Value> {
         let (Some(st), Some(bp)) = (n.appearance.stroke(), n.stroke_path()) else { continue };
         let Some(dash) = &st.dash else { continue };
         // The line the stroke draws: the path, its ends trimmed under any arrowheads.
-        let line = vectorcraft_render::effects::stroke::stroke_pieces(&bp, st).line;
+        let line = pluma_render::effects::stroke::stroke_pieces(&bp, st).line;
         // A pattern too fine to draw is drawn solid: it has too many dashes to expand.
-        let dashed = vectorcraft_render::effects::stroke::dash(&line, dash).ok_or_else(too_many)?;
+        let dashed = pluma_render::effects::stroke::dash(&line, dash).ok_or_else(too_many)?;
         let mut pieces = PathData::from_bezpath(&dashed.path).subpaths;
         // A dot paints its cap; a path that stays on its point is drawn so too. Under a butt cap it
         // paints nothing.

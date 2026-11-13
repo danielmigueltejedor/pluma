@@ -10,12 +10,12 @@
 
 use std::sync::{Arc, Mutex};
 
+use pluma_doc::hit::hit_test;
+use pluma_doc::{CharStyle, NodeId, NodeKind, TextObject};
+use pluma_geom::bez::unit;
+use pluma_geom::{Affine, Point, Vec2};
+use pluma_text::{FontDb, PositionedGlyph, TextLayout, edit};
 use serde_json::{Value, json};
-use vectorcraft_doc::hit::hit_test;
-use vectorcraft_doc::{CharStyle, NodeId, NodeKind, TextObject};
-use vectorcraft_geom::bez::unit;
-use vectorcraft_geom::{Affine, Point, Vec2};
-use vectorcraft_text::{FontDb, PositionedGlyph, TextLayout, edit};
 
 use crate::distort::perspective::in_quad;
 use crate::xform::BLUE;
@@ -206,7 +206,7 @@ impl TouchTypeTool {
         {
             return l.clone();
         }
-        let l = Arc::new(vectorcraft_text::layout(FontDb::global(), t));
+        let l = Arc::new(pluma_text::layout(FontDb::global(), t));
         *c = Some(((fonts, t.clone()), l.clone()));
         l
     }
@@ -224,7 +224,7 @@ impl TouchTypeTool {
     /// The character of a type object under `p` (document space): the one whose box holds it, else
     /// the nearest one in the object clicked.
     fn char_at(&self, cx: &ToolContext, p: Point) -> Option<(NodeId, usize)> {
-        let h = hit_test(cx.doc, p, vectorcraft_doc::hit::HitOptions { type_path_only: false, ..cx.hit_options() })?;
+        let h = hit_test(cx.doc, p, pluma_doc::hit::HitOptions { type_path_only: false, ..cx.hit_options() })?;
         let t = text_of(cx, h.leaf)?;
         let lay = self.layout(t);
         let local = t.xf.inverse() * p;

@@ -1,10 +1,10 @@
 //! The Transform effect's Transform Objects, Transform Patterns and Scale Strokes & Effects
 //! options (#885).
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, Effect, Node, NodeId, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, Effect, Node, NodeId, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
 
 use crate::distort::{TransformOptions, transform_map, transform_move};
 use crate::{bake_document, expand_outlined, has_transform_art, has_transform_options, reshape};
@@ -346,7 +346,7 @@ fn strokes_with_their_own_transform_keep_to_one_effect_budget() {
 #[test]
 fn a_fill_below_a_strokes_own_transform_counts_toward_the_effect_budget() {
     use crate::geometry::Budget;
-    use vectorcraft_geom::{PathData, Point, SubPath};
+    use pluma_geom::{PathData, Point, SubPath};
     let points: Vec<Point> = (0..600_000).map(|i| Point::new(f64::from(i) * 1.0e-4, f64::from(i % 2))).collect();
     let gray = Paint::solid(Color::rgb(0.5, 0.5, 0.5));
     let mut n = Node::path(NodeId(12), PathData::single(SubPath::polyline(&points, false)), Appearance::basic(gray, Paint::solid(Color::BLACK), 1.0));
@@ -367,7 +367,7 @@ fn a_fill_below_a_strokes_own_transform_counts_toward_the_effect_budget() {
 #[test]
 fn a_strokes_own_transform_leaves_room_for_a_fill_above_it() {
     use crate::geometry::Budget;
-    use vectorcraft_geom::{PathData, Point, SubPath};
+    use pluma_geom::{PathData, Point, SubPath};
     let points: Vec<Point> = (0..600_000).map(|i| Point::new(f64::from(i) * 1.0e-4, f64::from(i % 2))).collect();
     let gray = Paint::solid(Color::rgb(0.5, 0.5, 0.5));
     let mut n = Node::path(NodeId(13), PathData::single(SubPath::polyline(&points, false)), Appearance::basic(gray, Paint::solid(Color::BLACK), 1.0));
@@ -515,7 +515,7 @@ fn a_groups_copies_count_the_art_of_opacity_masks() {
     let empties = (0..5_000).map(|i| std::sync::Arc::new(Node::group(NodeId(100 + i), vec![]))).collect();
     let mut g = two_squares(json!({}));
     if let Some(members) = g.children_mut() {
-        let mask = vectorcraft_doc::OpacityMask::new(Node::group(NodeId(99), empties), true);
+        let mask = pluma_doc::OpacityMask::new(Node::group(NodeId(99), empties), true);
         std::sync::Arc::make_mut(&mut members[0]).extras_mut().mask = Some(Box::new(mask));
     }
     g.appearance.effects.clear();
@@ -671,7 +671,7 @@ fn a_groups_copies_are_whole_only_when_nothing_inside_makes_more_art() {
         !whole(&|m| {
             let mut art = Node::group(NodeId(43), vec![]);
             in_group(&mut art, &roughen);
-            m.extras_mut().mask = Some(Box::new(vectorcraft_doc::OpacityMask::new(art, true)));
+            m.extras_mut().mask = Some(Box::new(pluma_doc::OpacityMask::new(art, true)));
         }),
         "an effect in an opacity mask"
     );

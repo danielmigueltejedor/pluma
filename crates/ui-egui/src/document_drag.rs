@@ -1,11 +1,11 @@
 //! A selection dragged across document tabs remains editable and leaves its source intact.
 
 use egui::{Context, Id, Response};
+use pluma_doc::NodeId;
+use pluma_geom::Point;
 use serde_json::json;
-use vectorcraft_doc::NodeId;
-use vectorcraft_geom::Point;
 
-use crate::{VectorcraftApp, canvas, widgets};
+use crate::{PlumaApp, canvas, widgets};
 
 const HOVER_SECONDS: f64 = 0.4;
 
@@ -51,7 +51,7 @@ pub(crate) fn carrying_artwork(ctx: &Context) -> bool {
 }
 
 /// Record the Selection drag source and grab point, clearing any previous tab-hover timer.
-pub(crate) fn begin(app: &VectorcraftApp, ctx: &Context, grab: Point) {
+pub(crate) fn begin(app: &PlumaApp, ctx: &Context, grab: Point) {
     ctx.data_mut(|d| {
         d.remove::<Origin>(origin_id());
         d.remove::<Hover>(hover_id());
@@ -65,7 +65,7 @@ pub(crate) fn begin(app: &VectorcraftApp, ctx: &Context, grab: Point) {
 }
 
 /// Called before panels. Cancelled or abandoned transfers must never reach a later mouse-up.
-pub(crate) fn cleanup(app: &VectorcraftApp, ctx: &Context) {
+pub(crate) fn cleanup(app: &PlumaApp, ctx: &Context) {
     // Activating a tab can scroll the strip or change title widths. A tab moving under a
     // stationary pointer must not start another hover; actual pointer movement rearms it.
     let at = ctx.input(|i| i.pointer.interact_pos());
@@ -101,7 +101,7 @@ pub(crate) fn cleanup(app: &VectorcraftApp, ctx: &Context) {
 
 /// Hover uses `contains_pointer`: the source canvas still owns egui's dragged widget. The tab is
 /// window `win`'s: another view of the current document's is a tab to switch to as well.
-pub(crate) fn hover_tab(app: &mut VectorcraftApp, resp: &Response, win: crate::doc_windows::Win, close: egui::Rect) -> bool {
+pub(crate) fn hover_tab(app: &mut PlumaApp, resp: &Response, win: crate::doc_windows::Win, close: egui::Rect) -> bool {
     let ctx = &resp.ctx;
     let (index, view) = win;
     let eligible = resp.contains_pointer()
@@ -177,7 +177,7 @@ pub(crate) fn finish_tabs(ctx: &Context, hovering: bool) {
 }
 
 /// Release artwork into the active canvas; returning to the source resumes Move or Alt-copy.
-pub(crate) fn drop_on_canvas(app: &mut VectorcraftApp, resp: &Response, xf: &canvas::Xf) {
+pub(crate) fn drop_on_canvas(app: &mut PlumaApp, resp: &Response, xf: &canvas::Xf) {
     let Some(payload) = egui::DragAndDrop::payload::<Artwork>(&resp.ctx) else {
         return;
     };

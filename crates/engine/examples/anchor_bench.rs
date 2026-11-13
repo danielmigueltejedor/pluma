@@ -1,4 +1,4 @@
-//! `cargo run --release -p vectorcraft-engine --example anchor_bench` prints the wall time of the
+//! `cargo run --release -p pluma-engine --example anchor_bench` prints the wall time of the
 //! engine steps of editing anchors with Direct Selection, on four synthetic documents: one closed path of
 //! 50,000 anchors, 2,000 closed paths of 50 anchors each, one open path of 200,000 anchors, and the closed
 //! path of 50,000 anchors filled and with a dashed stroke.
@@ -9,13 +9,13 @@
 use std::hint::black_box;
 use std::time::Instant;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Dash, Document, Node, NodeId};
+use pluma_engine::tools::{Mods, PointerEvent, PointerKind};
+use pluma_engine::{Session, ViewInfo};
+use pluma_geom::{Affine, Anchor, PathData, Point, SubPath, Vec2};
+use pluma_render::{RenderOptions, Renderer};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Dash, Document, Node, NodeId};
-use vectorcraft_engine::tools::{Mods, PointerEvent, PointerKind};
-use vectorcraft_engine::{Session, ViewInfo};
-use vectorcraft_geom::{Affine, Anchor, PathData, Point, SubPath, Vec2};
-use vectorcraft_render::{RenderOptions, Renderer};
 
 /// Anchors are 10 pt apart and their handles 3 pt long, along the path.
 const STEP: f64 = 10.0;
@@ -199,10 +199,10 @@ fn bench(shape: Shape) {
     let none = Mods::default();
     {
         let doc = s.doc().unwrap().doc.clone();
-        let opt = vectorcraft_doc::hit::HitOptions { tol: 3.0, clip_outlines: true, ..Default::default() };
-        row("hit test at an anchor", time(|| drop(black_box(vectorcraft_doc::hit::hit_test(&doc, a, opt)))));
-        row("hit test at a segment", time(|| drop(black_box(vectorcraft_doc::hit::hit_test(&doc, shape.segment, opt)))));
-        row("hit test beside the path", time(|| drop(black_box(vectorcraft_doc::hit::hit_test(&doc, shape.segment + Vec2::new(0.0, 40.0), opt)))));
+        let opt = pluma_doc::hit::HitOptions { tol: 3.0, clip_outlines: true, ..Default::default() };
+        row("hit test at an anchor", time(|| drop(black_box(pluma_doc::hit::hit_test(&doc, a, opt)))));
+        row("hit test at a segment", time(|| drop(black_box(pluma_doc::hit::hit_test(&doc, shape.segment, opt)))));
+        row("hit test beside the path", time(|| drop(black_box(pluma_doc::hit::hit_test(&doc, shape.segment + Vec2::new(0.0, 40.0), opt)))));
     }
 
     // Hover with nothing selected, then with one anchor of the path selected.

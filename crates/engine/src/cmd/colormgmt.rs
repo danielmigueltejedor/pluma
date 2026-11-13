@@ -2,20 +2,20 @@
 //! through the CMS, gamut checks, View → Proof Setup / Proof Colors / Overprint Preview, the
 //! Separations Preview panel, Overprint Black and spot swatches.
 //!
-//! Colour settings and the proof view are process-wide (`vectorcraft_color::cms::active`,
-//! `vectorcraft_render::proof::view`). A document's assigned profiles are stored in
+//! Colour settings and the proof view are process-wide (`pluma_color::cms::active`,
+//! `pluma_render::proof::view`). A document's assigned profiles are stored in
 //! `Document::color_profiles` (files before format v3: `Document.unknown["colorProfiles"]`) and
 //! become active when assigned.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use pluma_color::cms::{self, ColorSettings, Intent, Model, ProofTarget};
+use pluma_color::recolor::Neutral;
+use pluma_color::{Color, Paint};
+use pluma_doc::ColorMode;
+use pluma_render::proof;
 use serde_json::{Value, json};
-use vectorcraft_color::cms::{self, ColorSettings, Intent, Model, ProofTarget};
-use vectorcraft_color::recolor::Neutral;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::ColorMode;
-use vectorcraft_render::proof;
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::EngineError;
@@ -23,7 +23,7 @@ use super::{CommandSpec, Result, Session, always, bad, cmd, color_value, has_doc
 
 /// `Document.unknown` key under which files before format v3 kept the assigned profiles (migrated
 /// to `Document::color_profiles` on load).
-pub const PROFILES_KEY: &str = vectorcraft_doc::profiles::LEGACY_PROFILES_KEY;
+pub const PROFILES_KEY: &str = pluma_doc::profiles::LEGACY_PROFILES_KEY;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -41,7 +41,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Load Color Profile…",
             [],
             None,
-            "{path: .icc/.icm file of at most 32 MB} register an ICC profile (native only). The desktop app and vectorcraft-cli keep a copy of the file in the `Color Profiles` folder next to the preferences and register it again at every start (not with VECTORCRAFT_NO_PREFS, or in a confined `mcp --automation-*-root` server: there it lasts until the process ends) → {name, kind, remembered: whether a copy was kept}",
+            "{path: .icc/.icm file of at most 32 MB} register an ICC profile (native only). The desktop app and pluma-cli keep a copy of the file in the `Color Profiles` folder next to the preferences and register it again at every start (not with PLUMA_NO_PREFS, or in a confined `mcp --automation-*-root` server: there it lasts until the process ends) → {name, kind, remembered: whether a copy was kept}",
             always,
             load_profile
         ),
@@ -241,7 +241,7 @@ fn load_profile(_: &mut Session, _: &Value) -> Result<Value> {
 }
 
 /// The document's assigned profiles (`None` = working space).
-pub fn doc_profiles(d: &vectorcraft_doc::Document) -> (Option<String>, Option<String>) {
+pub fn doc_profiles(d: &pluma_doc::Document) -> (Option<String>, Option<String>) {
     let get = |n: &Option<String>| n.as_deref().map(|n| cms::canonical_name(n).to_string());
     (get(&d.color_profiles.rgb), get(&d.color_profiles.cmyk))
 }
@@ -266,7 +266,7 @@ fn assign_profile(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let changed = pick("rgb", &mut rgb, cms::ProfileKind::Rgb)? | pick("cmyk", &mut cmyk, cms::ProfileKind::Cmyk)?;
     if changed {
-        let profiles = vectorcraft_doc::ColorProfiles { rgb: rgb.clone(), cmyk: cmyk.clone() };
+        let profiles = pluma_doc::ColorProfiles { rgb: rgb.clone(), cmyk: cmyk.clone() };
         s.edit("Assign Profile", |d, _| {
             d.color_profiles = profiles;
             Ok(())
@@ -366,7 +366,7 @@ pub(crate) fn commit_new_art_colors(s: &mut Session) -> Result<()> {
     Ok(())
 }
 
-fn record_new_art_colors(s: &mut Session, before: vectorcraft_tools::PaintDefaults) -> Result<()> {
+fn record_new_art_colors(s: &mut Session, before: pluma_tools::PaintDefaults) -> Result<()> {
     let after = s.paint.clone();
     if before != after || s.batch_stash.is_some() || s.doc()?.undo_group.is_some() {
         let st = s.doc_mut()?;
@@ -391,7 +391,7 @@ fn record_new_art_colors(s: &mut Session, before: vectorcraft_tools::PaintDefaul
     Ok(())
 }
 
-fn new_art_colors_before(s: &Session) -> Result<vectorcraft_tools::PaintDefaults> {
+fn new_art_colors_before(s: &Session) -> Result<pluma_tools::PaintDefaults> {
     let st = s.doc()?;
     Ok(st.undo_group.as_ref().map(|g| &g.paint).or_else(|| st.interaction.as_ref().map(|it| &it.paint)).cloned().unwrap_or_else(|| s.paint.clone()))
 }
@@ -410,8 +410,8 @@ fn convert_new_art_colors(s: &mut Session, mode: ColorMode, intent: Option<Inten
     if let Some(a) = s.paint.appearance.as_mut() {
         for it in &mut a.items {
             let paint = match it {
-                vectorcraft_doc::AppearanceItem::Fill(l) => &mut l.paint,
-                vectorcraft_doc::AppearanceItem::Stroke(l) => &mut l.paint,
+                pluma_doc::AppearanceItem::Fill(l) => &mut l.paint,
+                pluma_doc::AppearanceItem::Stroke(l) => &mut l.paint,
             };
             map_paint_colors(paint, &mut f);
         }
@@ -437,7 +437,7 @@ fn mode_converter(mode: ColorMode, intent: Option<Intent>, grays: Grays) -> impl
 }
 
 /// The name and color of each global swatch of `d`, for [`mode_color`].
-fn global_bases(d: &vectorcraft_doc::Document) -> Vec<(String, Color)> {
+fn global_bases(d: &pluma_doc::Document) -> Vec<(String, Color)> {
     d.swatches_iter().filter_map(|w| Some((w.name.clone(), d.global_color(&w.name)?))).collect()
 }
 
@@ -464,7 +464,7 @@ fn mode_color(col: &Color, link: proof::Link, bases: &[(String, Color)], conv: &
 /// (spot color definitions) are device independent and fit either mode. A tint of a global
 /// swatch becomes the converted swatch's color at its tint. Document Color Mode and
 /// `document.open {colorMode}` both convert this way.
-pub(crate) fn set_color_mode(d: &mut vectorcraft_doc::Document, mode: ColorMode, convert: bool, intent: Option<Intent>, grays: Grays) -> usize {
+pub(crate) fn set_color_mode(d: &mut pluma_doc::Document, mode: ColorMode, convert: bool, intent: Option<Intent>, grays: Grays) -> usize {
     d.color_mode = mode;
     if !convert {
         return 0;
@@ -506,8 +506,8 @@ pub(crate) fn set_color_mode(d: &mut vectorcraft_doc::Document, mode: ColorMode,
     for g in &mut d.graphic_styles {
         for it in &mut g.appearance.items {
             let paint = match it {
-                vectorcraft_doc::AppearanceItem::Fill(l) => &mut l.paint,
-                vectorcraft_doc::AppearanceItem::Stroke(l) => &mut l.paint,
+                pluma_doc::AppearanceItem::Fill(l) => &mut l.paint,
+                pluma_doc::AppearanceItem::Stroke(l) => &mut l.paint,
             };
             map_paint_colors(paint, &mut count);
         }
@@ -517,11 +517,11 @@ pub(crate) fn set_color_mode(d: &mut vectorcraft_doc::Document, mode: ColorMode,
     // it matches (a tint of a global swatch included), so the key still matches the converted art;
     // a key that matches no art color converts on its own.
     let in_styles = changed.get();
-    let mut brushes = vectorcraft_brush::library(d);
+    let mut brushes = pluma_brush::library(d);
     let mut keys = false;
     for b in &mut brushes {
         let old_key = match b.kind.colorization() {
-            vectorcraft_brush::Colorization::HueShift { key } => Some(key),
+            pluma_brush::Colorization::HueShift { key } => Some(key),
             _ => None,
         };
         let mut new_key = None;
@@ -535,19 +535,19 @@ pub(crate) fn set_color_mode(d: &mut vectorcraft_doc::Document, mode: ColorMode,
             });
         }
         let colorization = match &mut b.kind {
-            vectorcraft_brush::BrushKind::Art(a) => Some(&mut a.colorization),
-            vectorcraft_brush::BrushKind::Scatter(s) => Some(&mut s.colorization),
-            vectorcraft_brush::BrushKind::Pattern(p) => Some(&mut p.colorization),
-            vectorcraft_brush::BrushKind::Calligraphic(_) | vectorcraft_brush::BrushKind::Bristle(_) => None,
+            pluma_brush::BrushKind::Art(a) => Some(&mut a.colorization),
+            pluma_brush::BrushKind::Scatter(s) => Some(&mut s.colorization),
+            pluma_brush::BrushKind::Pattern(p) => Some(&mut p.colorization),
+            pluma_brush::BrushKind::Calligraphic(_) | pluma_brush::BrushKind::Bristle(_) => None,
         };
-        if let Some(vectorcraft_brush::Colorization::HueShift { key }) = colorization {
+        if let Some(pluma_brush::Colorization::HueShift { key }) = colorization {
             let n = new_key.unwrap_or_else(|| conv(key));
             keys |= n != *key;
             *key = n;
         }
     }
     if keys || changed.get() > in_styles {
-        vectorcraft_brush::store(d, &brushes);
+        pluma_brush::store(d, &brushes);
     }
     // This pass gives tint swatches their converted swatch's color at their tint; the passes above already did the same for the art's tints.
     d.map_solid_paints(&mut |c, link, tint| match bases.iter().find(|(n, _)| Some(n) == link.as_ref()) {
@@ -561,7 +561,7 @@ pub(crate) fn set_color_mode(d: &mut vectorcraft_doc::Document, mode: ColorMode,
 }
 
 /// [`proof::map_node_colors`] over `n`'s subtree, then [`map_more_colors`].
-fn map_art_colors(n: &mut vectorcraft_doc::Node, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
+fn map_art_colors(n: &mut pluma_doc::Node, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
     proof::map_node_colors(n, f);
     map_more_colors(n, f);
 }
@@ -569,7 +569,7 @@ fn map_art_colors(n: &mut vectorcraft_doc::Node, f: &mut dyn FnMut(&Color, proof
 /// `f` applied to the colors in `n`'s subtree that [`proof::map_node_colors`] does not visit: the
 /// effect colors ([`map_effect_colors`]), the series paints and label styles a graph keeps
 /// ([`map_graph_colors`]) and the art of every opacity mask.
-fn map_more_colors(n: &mut vectorcraft_doc::Node, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
+fn map_more_colors(n: &mut pluma_doc::Node, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
     map_effect_colors(&mut n.appearance, f);
     if let Some(e) = n.extras_if_any() {
         if let Some(g) = e.graph.as_deref_mut() {
@@ -596,7 +596,7 @@ fn matches_key(c: &Color, key: &Color) -> bool {
 /// each fill and stroke) that has one ([`super::params::effect_color`]). An effect that draws its
 /// default color stores the new color as its own. The light colors of the 3D effects stay as they
 /// are.
-fn map_effect_colors(a: &mut vectorcraft_doc::Appearance, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
+fn map_effect_colors(a: &mut pluma_doc::Appearance, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
     let items = a.items.iter_mut().flat_map(|i| i.effects_mut().iter_mut());
     for e in a.effects.iter_mut().chain(items) {
         if !(e.params.is_object() || e.params.is_null()) {
@@ -618,7 +618,7 @@ fn map_effect_colors(a: &mut vectorcraft_doc::Appearance, f: &mut dyn FnMut(&Col
 
 /// `f` applied to the series paints and the label styles that graph `g` keeps, which its marks and
 /// labels take each time it is drawn again.
-fn map_graph_colors(g: &mut vectorcraft_doc::GraphSpec, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
+fn map_graph_colors(g: &mut pluma_doc::GraphSpec, f: &mut dyn FnMut(&Color, proof::Link) -> Color) {
     for p in g.series_paints.iter_mut() {
         for paint in [&mut p.fill, &mut p.stroke].into_iter().flatten() {
             map_paint_colors(paint, f);
@@ -695,7 +695,7 @@ fn gamut_check(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         let st = s.doc()?;
         let ids = targets(s, p)?;
-        let mut collect = |n: &vectorcraft_doc::Node| {
+        let mut collect = |n: &pluma_doc::Node| {
             let mut n = n.clone();
             proof::map_node_colors(&mut n, &mut |c, _| {
                 cols.push(*c);

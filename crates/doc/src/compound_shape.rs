@@ -1,6 +1,6 @@
 //! Compound shapes (Pathfinder panel › Make Compound Shape): a group whose members each have a
 //! shape mode. It draws as the one area the modes make, from the backmost member up, painted with
-//! the group's own appearance; the members stay editable. Evaluated in `vectorcraft-effects`.
+//! the group's own appearance; the members stay editable. Evaluated in `pluma-effects`.
 
 use serde::{Deserialize, Deserializer, Serialize};
 

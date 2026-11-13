@@ -2,10 +2,10 @@
 //! the links SVG export writes for objects with a URL, and what objects keep for other software
 //! (their `data-*` attributes and their attributes in other applications' namespaces).
 
+use pluma_doc::{ImageMap, NodeKind};
+use pluma_geom::{Affine, FillRule};
+use pluma_render::{RenderOptions, Renderer};
 use serde_json::{Value, json};
-use vectorcraft_doc::{ImageMap, NodeKind};
-use vectorcraft_geom::{Affine, FillRule};
-use vectorcraft_render::{RenderOptions, Renderer};
 
 use crate::*;
 
@@ -168,7 +168,7 @@ fn attributes_survive_a_native_round_trip() {
     let a = rect(&mut s, 10.0);
     run(&mut s, "attributes.set", json!({"showCenter": false, "imageMap": "polygon", "url": "https://example.com/x", "note": "keep"}));
     let doc = s.doc().unwrap().doc.clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&doc, false)).unwrap();
     assert_eq!(back.node(a).unwrap().extras().attrs, doc.node(a).unwrap().extras().attrs);
     assert!(back.node(a).unwrap().extras().attrs.is_some());
 }
@@ -179,10 +179,10 @@ fn svg_export_links_objects_and_import_reads_the_links_back() {
     let a = rect(&mut s, 10.0);
     rect(&mut s, 50.0);
     run(&mut s, "attributes.set", json!({"ids": [a.0], "url": "https://example.com/?a=1&b=2"}));
-    let svg = vectorcraft_svg::export(&s.doc().unwrap().doc, &Default::default());
+    let svg = pluma_svg::export(&s.doc().unwrap().doc, &Default::default());
     assert_eq!(svg.matches("<a ").count(), 1, "{svg}");
     assert!(svg.contains("xlink:href=\"https://example.com/?a=1&amp;b=2\""), "{svg}");
-    let back = vectorcraft_svg::import(&svg).unwrap();
+    let back = pluma_svg::import(&svg).unwrap();
     let mut urls = vec![];
     back.walk(|n| {
         if let NodeKind::Path { .. } = n.kind {
@@ -211,8 +211,8 @@ fn object_data_is_set_saved_and_written_to_svg() {
     }
     let svg = run(&mut s, "document.serialize", json!({"format": "svg"}))["text"].as_str().unwrap().to_string();
     assert!(svg.contains("data-pivot=\"60,100\" data-z=\"3\""), "{svg}");
-    let native = vectorcraft_format::save(&s.doc().unwrap().doc, false);
-    let back = vectorcraft_format::load(&native).unwrap();
+    let native = pluma_format::save(&s.doc().unwrap().doc, false);
+    let back = pluma_format::load(&native).unwrap();
     assert_eq!(back.node(a).unwrap().extras().attrs, s.doc().unwrap().doc.node(a).unwrap().extras().attrs);
 }
 
@@ -224,9 +224,9 @@ fn other_applications_attributes_go_with_their_object() {
     let mut s = Session::new();
     let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:plotter="https://example.org/plotter" width="100" height="100">
         <rect width="20" height="20" plotter:pen="2"/></svg>"#;
-    run(&mut s, "document.open", json!({"name": "pens.svg", "dataBase64": vectorcraft_format::base64_encode(svg.as_bytes())}));
+    run(&mut s, "document.open", json!({"name": "pens.svg", "dataBase64": pluma_format::base64_encode(svg.as_bytes())}));
     // The `plotter:pen` values on the document's objects.
-    let pens = |d: &vectorcraft_doc::Document| {
+    let pens = |d: &pluma_doc::Document| {
         let mut out = vec![];
         d.walk(|n| out.extend(n.extras().attrs.iter().flat_map(|a| a.foreign.iter().map(|f| f.value.clone()))));
         out
@@ -240,7 +240,7 @@ fn other_applications_attributes_go_with_their_object() {
     assert_eq!(pens(&s.doc().unwrap().doc), ["2", "2", "2"], "so does a duplicate");
     run(&mut s, "edit.clear", json!({}));
     assert_eq!(pens(&s.doc().unwrap().doc), ["2", "2"], "a deleted object leaves none behind");
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(pens(&back), ["2", "2"], "the native file keeps them");
     let out = run(&mut s, "document.serialize", json!({"format": "svg"}))["text"].as_str().unwrap().to_string();
     assert_eq!((out.matches("xmlns:plotter=\"https://example.org/plotter\"").count(), out.matches("plotter:pen=\"2\"").count()), (1, 2), "{out}");

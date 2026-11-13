@@ -4,11 +4,11 @@
 
 use std::sync::Arc;
 
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, ImageBlob, ImageObject, Node, NodeKind};
+use pluma_geom::{Affine, Rect, shapes};
+use pluma_svg::{ExportOptions, export};
 use serde_json::json;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, AppearanceItem, Document, Effect, FillLayer, ImageBlob, ImageObject, Node, NodeKind};
-use vectorcraft_geom::{Affine, Rect, shapes};
-use vectorcraft_svg::{ExportOptions, export};
 
 /// A group of a red and a blue square with a green fill of its own (`below`: under the members).
 fn doc(below: bool, effects: Vec<Effect>) -> Document {
@@ -52,7 +52,7 @@ fn group_effects_bake_into_the_members_and_filter_the_group() {
     let open = svg.find("<g filter=\"url(#").expect("a filter group");
     assert!(svg[open..].contains("#ff0000") && svg[open..].contains("#0000ff") && svg[open..].contains("#00ff00"), "{svg}");
     // The members moved down by 100 pt.
-    let doc = vectorcraft_effects::bake_document(&doc(false, vec![fx("distort.transform", json!({"moveV": 100}))])).unwrap();
+    let doc = pluma_effects::bake_document(&doc(false, vec![fx("distort.transform", json!({"moveV": 100}))])).unwrap();
     let g = &doc.layers[0].children().unwrap()[0];
     let b = g.geometric_bounds().unwrap();
     assert!((b.y0 - 120.0).abs() < 1e-6, "{b:?}");

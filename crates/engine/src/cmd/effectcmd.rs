@@ -1,17 +1,17 @@
 //! Effect menu commands (live effects) and Object → Expand Appearance.
 //!
 //! Effects are stored on the object's appearance (`appearance.effects`) and evaluated at render
-//! time by `vectorcraft-effects` (re-exported by the renderer). The commands edit the objects'
+//! time by `pluma-effects` (re-exported by the renderer). The commands edit the objects'
 //! own stacks, groups and layers included (layers through `ids`), or with `target: "contents"`
 //! the objects inside them (see `appearance`).
 
 use std::sync::Arc;
 
+use pluma_doc::appearance::SharedStack;
+use pluma_doc::{Document, Effect, Node, NodeKind, StrokeLayer};
+use pluma_geom::{FillRule, PathData};
+use pluma_render::effects;
 use serde_json::{Value, json};
-use vectorcraft_doc::appearance::SharedStack;
-use vectorcraft_doc::{Document, Effect, Node, NodeKind, StrokeLayer};
-use vectorcraft_geom::{FillRule, PathData};
-use vectorcraft_render::effects;
 
 use super::appearance::{ItemTarget, aligned, appearance_targets, index_param, item_indices, item_target, item_target_at};
 use super::expand::has_seeded;
@@ -338,7 +338,7 @@ fn list(s: &mut Session, p: &Value) -> Result<Value> {
                 e.iter()
                     .map(|e| {
                         let mut v = serde_json::to_value(e).unwrap_or(Value::Null);
-                        if vectorcraft_plugins::effect::skipped(&e.id)
+                        if pluma_plugins::effect::skipped(&e.id)
                             && let Some(o) = v.as_object_mut()
                         {
                             o.insert("skipped".into(), json!(true));
@@ -674,7 +674,7 @@ fn load_texture(params: &mut Value, cmd: &str) -> Result<()> {
 pub(crate) fn expandable(n: &Node) -> bool {
     match &n.kind {
         NodeKind::Path { clipping: true, .. } | NodeKind::Path { guide: true, .. } => false,
-        NodeKind::Path { .. } | NodeKind::Compound { .. } => !n.appearance.is_basic() || vectorcraft_brush::has_brush(n),
+        NodeKind::Path { .. } | NodeKind::Compound { .. } => !n.appearance.is_basic() || pluma_brush::has_brush(n),
         NodeKind::Group { children, .. } | NodeKind::Layer { children, .. } => {
             !n.appearance.items.is_empty() || !n.appearance.effects.is_empty() || children.iter().any(|c| expandable(c))
         }
@@ -724,7 +724,7 @@ fn expand_pieces(
     d: &mut Document,
     m: &mut Node,
     all: bool,
-    brushes: &[vectorcraft_brush::Brush],
+    brushes: &[pluma_brush::Brush],
     stroke_art: effects::StrokeArt,
 ) -> std::collections::HashMap<NodeId, Vec<Listed>> {
     let id = m.id;
@@ -760,7 +760,7 @@ fn repeats_an_id(n: &Node, seen: &std::collections::HashSet<NodeId>) -> bool {
 type Listed = (NodeId, usize);
 
 /// [`expanded_node`] of `c` in place. Returns what the expansion lists, by places in the walk of `c`.
-fn expand_in_place(d: &mut Document, c: &mut Node, brushes: &[vectorcraft_brush::Brush]) -> Vec<Listed> {
+fn expand_in_place(d: &mut Document, c: &mut Node, brushes: &[pluma_brush::Brush]) -> Vec<Listed> {
     let mut listed = vec![];
     if let Some(e) = expanded_node(d, c.clone(), brushes, &mut listed) {
         *c = e;
@@ -785,7 +785,7 @@ fn fresh_ids_listed(d: &mut Document, c: &mut Node, seen: &mut std::collections:
 /// stroke becomes an object of its own (a stroke a path stroked by it alone, brushes as their art),
 /// geometry effects are baked, raster effects become an embedded image, and the object keeps its
 /// transparency.
-pub(crate) fn expand_node(d: &mut Document, id: NodeId, brushes: &[vectorcraft_brush::Brush], out: &mut Vec<NodeId>) {
+pub(crate) fn expand_node(d: &mut Document, id: NodeId, brushes: &[pluma_brush::Brush], out: &mut Vec<NodeId>) {
     let Some(n) = d.node(id).cloned() else { return };
     let mut listed = vec![];
     let m = expanded_node(d, n, brushes, &mut listed);
@@ -802,7 +802,7 @@ pub(crate) fn expand_node(d: &mut Document, id: NodeId, brushes: &[vectorcraft_b
 /// [`expand_node`] of `n`, which need not be in `d`: `n` with its appearance expanded, `None` when
 /// it has nothing to expand. `out` gets the objects whose appearance expands, by places in the walk
 /// of the expanded `n`, `n`'s first when its own does.
-fn expanded_node(d: &mut Document, mut n: Node, brushes: &[vectorcraft_brush::Brush], out: &mut Vec<Listed>) -> Option<Node> {
+fn expanded_node(d: &mut Document, mut n: Node, brushes: &[pluma_brush::Brush], out: &mut Vec<Listed>) -> Option<Node> {
     let id = n.id;
     if !expandable(&n) {
         return None;
@@ -847,7 +847,7 @@ fn expanded_node(d: &mut Document, mut n: Node, brushes: &[vectorcraft_brush::Br
         return Some(m);
     }
     // Vector Halftone: the object becomes its dots, a group (with `id`) of paths with ids of their own.
-    if let Some(mut m) = vectorcraft_render::addons::halftone::art(d, &n) {
+    if let Some(mut m) = pluma_render::addons::halftone::art(d, &n) {
         let mut seen = std::collections::HashSet::from([id]);
         for c in m.children_mut().into_iter().flatten() {
             effects::fresh_ids(d, Arc::make_mut(c), &mut seen);
@@ -889,7 +889,7 @@ fn expanded_node(d: &mut Document, mut n: Node, brushes: &[vectorcraft_brush::Br
                 // their outlines.
                 let symbol = match &n.kind {
                     NodeKind::SymbolInstance { symbol, .. } => {
-                        d.symbols.iter().find(|s| s.name == *symbol).map(|s| vectorcraft_render::instance_art(&s.art, &n))
+                        d.symbols.iter().find(|s| s.name == *symbol).map(|s| pluma_render::instance_art(&s.art, &n))
                     }
                     _ => None,
                 };
@@ -943,7 +943,7 @@ fn expanded_node(d: &mut Document, mut n: Node, brushes: &[vectorcraft_brush::Br
 /// object that expands ([`expandable`]; in a symbol's art, `in_art`, every object does). A symbol's
 /// art counts where an instance of it expands. `seen` holds the symbols already looked into.
 fn holds_plugin_effect(d: &Document, n: &Node, in_art: bool, seen: &mut std::collections::HashSet<String>) -> bool {
-    let plugin = |e: &Effect| e.visible && vectorcraft_plugins::effect::plugin_id(&e.id).is_some();
+    let plugin = |e: &Effect| e.visible && pluma_plugins::effect::plugin_id(&e.id).is_some();
     let mut symbols = vec![];
     let mut holds = false;
     n.walk(&mut |c| {
@@ -965,19 +965,19 @@ fn expand_appearance(s: &mut Session, p: &Value) -> Result<Value> {
     let roots = appearance_targets(s, p)?;
     // In Safe Mode a plug-in effect draws nothing: expanding it would drop the effect and keep the
     // geometry it hasn't changed.
-    if vectorcraft_plugins::safe_mode::active() {
+    if pluma_plugins::safe_mode::active() {
         let d = &s.doc()?.doc;
         let mut seen = std::collections::HashSet::new();
         if roots.iter().filter_map(|id| d.node(*id)).any(|n| holds_plugin_effect(d, n, false, &mut seen)) {
             return Err(EngineError::Other("Expand Appearance: a plug-in effect in the selection can't be expanded in Safe Mode".into()));
         }
     }
-    let failed = vectorcraft_render::decode_failures();
+    let failed = pluma_render::decode_failures();
     let colorized_ok = super::paint::check_colorized(&s.doc()?.doc).is_ok();
     let ids = s.edit("Expand Appearance", |d, _| {
         let before = d.clone();
         let mut ended = super::dimension::end_links(d, &roots);
-        let brushes = vectorcraft_brush::library(d);
+        let brushes = pluma_brush::library(d);
         let mut out = vec![];
         let threaded = super::threads::frames(d);
         for id in &roots {

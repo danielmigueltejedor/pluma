@@ -1,6 +1,6 @@
 use egui::{Pos2, Rect, pos2};
-use vectorcraft_doc::NodeId;
-use vectorcraft_engine::Session;
+use pluma_doc::NodeId;
+use pluma_engine::Session;
 
 thread_local! {
     /// Stroke previews rendered (cache misses), and drawn, on this test thread.
@@ -9,7 +9,7 @@ thread_local! {
 }
 
 /// One frame of the panel → (previews rendered, previews drawn) in it.
-fn counted(ctx: &egui::Context, app: &mut VectorcraftApp) -> (usize, usize) {
+fn counted(ctx: &egui::Context, app: &mut PlumaApp) -> (usize, usize) {
     BUILDS.with(|b| b.set(0));
     DRAWN.with(|d| d.set(0));
     frame(ctx, app, vec![]);
@@ -19,7 +19,7 @@ fn counted(ctx: &egui::Context, app: &mut VectorcraftApp) -> (usize, usize) {
 use super::*;
 
 /// One headless frame of the panel, 236 pt wide as in the dock.
-fn frame(ctx: &egui::Context, app: &mut VectorcraftApp, events: Vec<egui::Event>) {
+fn frame(ctx: &egui::Context, app: &mut PlumaApp, events: Vec<egui::Event>) {
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 600.0))), events, ..Default::default() };
     let mut out = ctx.run_ui(raw, |ui| show(app, ui));
     out.textures_delta.clear();
@@ -32,11 +32,11 @@ fn button(at: Pos2, pressed: bool) -> egui::Event {
 /// One frame of `draw` at `time` with `modifiers` held, its output kept.
 fn frame_with(
     ctx: &egui::Context,
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     events: Vec<egui::Event>,
     modifiers: egui::Modifiers,
     time: f64,
-    draw: fn(&mut VectorcraftApp, &mut Ui),
+    draw: fn(&mut PlumaApp, &mut Ui),
 ) -> egui::FullOutput {
     let screen_rect = Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 600.0)));
     let events = std::iter::once(egui::Event::ModifiersChanged(modifiers)).chain(events).collect();
@@ -47,7 +47,7 @@ fn frame_with(
 }
 
 /// A click at `at` with `modifiers` held, in a frame of `draw` at `time`.
-fn click(ctx: &egui::Context, app: &mut VectorcraftApp, at: Pos2, modifiers: egui::Modifiers, time: f64, draw: fn(&mut VectorcraftApp, &mut Ui)) {
+fn click(ctx: &egui::Context, app: &mut PlumaApp, at: Pos2, modifiers: egui::Modifiers, time: f64, draw: fn(&mut PlumaApp, &mut Ui)) {
     let press = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers };
     frame_with(ctx, app, vec![egui::Event::PointerMoved(at), press(true), press(false)], modifiers, time, draw);
 }
@@ -72,13 +72,13 @@ fn clickable(out: &egui::FullOutput) -> Vec<(Option<String>, Rect)> {
 /// painted with it). A single click only applies the brush.
 #[test]
 fn double_clicking_a_brush_opens_its_options() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let ctx = egui::Context::default();
     let clicks = |at: Pos2, n: usize| -> Vec<egui::Event> {
         std::iter::once(egui::Event::PointerMoved(at)).chain((0..n).flat_map(|_| [button(at, true), button(at, false)])).collect()
     };
-    let at_time = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
+    let at_time = |app: &mut PlumaApp, time: f64, events: Vec<egui::Event>| {
         let raw =
             egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 600.0))), time: Some(time), events, ..Default::default() };
         ctx.run_ui(raw, |ui| show(app, ui)).textures_delta.clear();
@@ -110,7 +110,7 @@ fn double_clicking_a_brush_opens_its_options() {
 /// too, and make no brush.
 #[test]
 fn the_new_brush_button_and_menu_item_open_new_brush() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
@@ -118,7 +118,7 @@ fn the_new_brush_button_and_menu_item_open_new_brush() {
     let out = frame_with(&ctx, &mut app, vec![], egui::Modifiers::NONE, 0.0, show);
     let new = clickable(&out).into_iter().find(|(l, _)| l.as_deref() == Some("New Brush")).expect("a New Brush button").1.center();
     click(&ctx, &mut app, new, egui::Modifiers::NONE, 1.0, show);
-    let kind = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
+    let kind = |app: &PlumaApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
     assert_eq!(kind(&app).as_deref(), Some(crate::dialogs::new_brush::KIND));
     app.ui.dialog = None;
     menu_click(&ctx, &mut app, "New Brush…", 2.0);
@@ -138,25 +138,25 @@ fn lit(ctx: &egui::Context, out: &egui::FullOutput) -> Vec<Rect> {
         .collect()
 }
 
-fn brush_of(app: &VectorcraftApp, id: NodeId) -> Option<String> {
+fn brush_of(app: &PlumaApp, id: NodeId) -> Option<String> {
     app.session.active().unwrap().doc.node(id).unwrap().appearance.stroke().and_then(|s| s.brush.clone())
 }
 
-fn names(app: &mut VectorcraftApp) -> Vec<String> {
+fn names(app: &mut PlumaApp) -> Vec<String> {
     brushes(app).0.into_iter().map(|b| b.0).collect()
 }
 
-fn undo_count(app: &VectorcraftApp) -> usize {
+fn undo_count(app: &PlumaApp) -> usize {
     app.session.active().unwrap().history.undo.len()
 }
 
-fn delete_button(ctx: &egui::Context, app: &mut VectorcraftApp, modifiers: egui::Modifiers, time: f64) {
+fn delete_button(ctx: &egui::Context, app: &mut PlumaApp, modifiers: egui::Modifiers, time: f64) {
     let out = frame_with(ctx, app, vec![], egui::Modifiers::NONE, time, show);
     let at = clickable(&out).into_iter().find(|(label, _)| label.as_deref() == Some("Delete Brush")).expect("Delete Brush button").1.center();
     click(ctx, app, at, modifiers, time + 0.5, show);
 }
 
-fn assert_delete_dialog(app: &VectorcraftApp, message: &str) {
+fn assert_delete_dialog(app: &PlumaApp, message: &str) {
     let d = app.ui.dialog.as_ref().expect("Delete Brush asks first");
     assert_eq!(d.kind, crate::dialogs::brush_delete::KIND);
     assert_eq!(d.str("message"), message);
@@ -169,7 +169,7 @@ const IN_USE: &str = "Strokes use one or more of these brushes. Take the brushes
 /// Deleting several unused brushes asks one question about the selection, with no count in it.
 #[test]
 fn deleting_five_brushes_uses_one_selection_question() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let five: Vec<String> = names(&mut app).into_iter().take(5).collect();
     assert_eq!(five.len(), 5);
@@ -183,7 +183,7 @@ fn deleting_five_brushes_uses_one_selection_question() {
 }
 
 /// Click the panel menu's item `label` (frames at `time`, `time + 0.5`).
-fn menu_click(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, time: f64) {
+fn menu_click(ctx: &egui::Context, app: &mut PlumaApp, label: &str, time: f64) {
     let out = frame_with(ctx, app, vec![], egui::Modifiers::NONE, time, menu);
     let at = clickable(&out).into_iter().find(|(l, _)| l.as_deref() == Some(label)).unwrap_or_else(|| panic!("no `{label}`")).1.center();
     click(ctx, app, at, egui::Modifiers::NONE, time + 0.5, menu);
@@ -192,7 +192,7 @@ fn menu_click(ctx: &egui::Context, app: &mut VectorcraftApp, label: &str, time: 
 /// The first three brushes (the Calligraphic ones): a click on the first applies it to the
 /// selected rectangle, and then a Shift-click on the third selects all three without applying
 /// the third.
-fn select_three(ctx: &egui::Context, app: &mut VectorcraftApp, rect: NodeId) -> (Vec<String>, Vec<Rect>) {
+fn select_three(ctx: &egui::Context, app: &mut PlumaApp, rect: NodeId) -> (Vec<String>, Vec<Rect>) {
     let out = frame_with(ctx, app, vec![], egui::Modifiers::NONE, 0.0, show);
     let tiles: Vec<Rect> = clickable(&out).into_iter().map(|c| c.1).filter(|r| r.width() == 64.0).take(3).collect();
     let (list, _) = brushes(app);
@@ -209,7 +209,7 @@ fn select_three(ctx: &egui::Context, app: &mut VectorcraftApp, rect: NodeId) -> 
 /// highlights them, and Duplicate Brush and Delete Brush act on all of them in one undo step.
 #[test]
 fn shift_and_command_clicks_select_brushes_for_delete_and_duplicate() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let rect = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
     let ctx = egui::Context::default();
@@ -246,9 +246,9 @@ fn shift_and_command_clicks_select_brushes_for_delete_and_duplicate() {
 /// brush and Delete Brush deletes it alone.
 #[test]
 fn selecting_other_art_ends_the_brush_multi_selection() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
-    let rect = |app: &mut VectorcraftApp, x: f64| {
+    let rect = |app: &mut PlumaApp, x: f64| {
         NodeId(app.run("shape.rectangle", json!({"x": x, "y": 10, "width": 40, "height": 40})).unwrap()["id"].as_u64().unwrap())
     };
     let a = rect(&mut app, 10.0);
@@ -281,7 +281,7 @@ fn selecting_other_art_ends_the_brush_multi_selection() {
 /// the brush clicked before.
 #[test]
 fn a_shift_click_after_selecting_other_art_starts_from_its_brush() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
     let ctx = egui::Context::default();
@@ -301,7 +301,7 @@ fn a_shift_click_after_selecting_other_art_starts_from_its_brush() {
 /// Duplicate Brush are off.
 #[test]
 fn command_clicks_deselect_every_brush() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let a = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
     let ctx = egui::Context::default();
@@ -324,7 +324,7 @@ fn command_clicks_deselect_every_brush() {
 /// painted with, and Delete Brush then deletes all of them.
 #[test]
 fn select_all_unused_selects_the_brushes_no_stroke_paints_with() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let (list, _) = brushes(&mut app);
     let a = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
@@ -347,7 +347,7 @@ fn select_all_unused_selects_the_brushes_no_stroke_paints_with() {
 
 #[test]
 fn delete_button_cancel_keeps_selected_brushes_strokes_and_history() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let rect = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
     let ctx = egui::Context::default();
@@ -371,7 +371,7 @@ fn delete_button_cancel_keeps_selected_brushes_strokes_and_history() {
 
 #[test]
 fn alt_delete_button_asks_when_a_selected_brush_is_used() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let rect = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
     let ctx = egui::Context::default();
@@ -392,7 +392,7 @@ fn alt_delete_button_asks_when_a_selected_brush_is_used() {
 
 #[test]
 fn alt_delete_button_deletes_unused_brush_without_a_question() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
@@ -409,7 +409,7 @@ fn alt_delete_button_deletes_unused_brush_without_a_question() {
 
 #[test]
 fn menu_delete_used_brush_requires_remove_strokes_or_cancel() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let rect = NodeId(app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap()["id"].as_u64().unwrap());
     let ctx = egui::Context::default();
@@ -431,7 +431,7 @@ fn menu_delete_used_brush_requires_remove_strokes_or_cancel() {
 
 #[test]
 fn art_dropped_on_the_panel_becomes_an_art_brush_and_a_brush_drags_out() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let id = app.run("shape.star", json!({"cx": 50, "cy": 50, "radius1": 20, "radius2": 9, "points": 5})).unwrap()["id"].as_u64().unwrap();
     let ctx = egui::Context::default();
@@ -466,7 +466,7 @@ fn art_dropped_on_the_panel_becomes_an_art_brush_and_a_brush_drags_out() {
 /// type, it stays where it is and the status bar says why.
 #[test]
 fn a_brush_dragged_onto_another_of_its_type_moves_before_it() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
@@ -484,7 +484,7 @@ fn a_brush_dragged_onto_another_of_its_type_moves_before_it() {
         lines.collect()
     };
     // Press on a tile, drag it to `to`, hold it there for a frame (its output returned) and release.
-    let drag = |app: &mut VectorcraftApp, from: Pos2, to: Pos2, time: f64| -> egui::FullOutput {
+    let drag = |app: &mut PlumaApp, from: Pos2, to: Pos2, time: f64| -> egui::FullOutput {
         frame_with(&ctx, app, vec![egui::Event::PointerMoved(from), button(from, true)], egui::Modifiers::NONE, time, show);
         frame_with(&ctx, app, vec![egui::Event::PointerMoved(from + vec2(20.0, 0.0))], egui::Modifiers::NONE, time + 0.1, show);
         frame_with(&ctx, app, vec![egui::Event::PointerMoved(to)], egui::Modifiers::NONE, time + 0.2, show);
@@ -492,10 +492,9 @@ fn a_brush_dragged_onto_another_of_its_type_moves_before_it() {
         frame_with(&ctx, app, vec![button(to, false)], egui::Modifiers::NONE, time + 0.4, show);
         held
     };
-    let undo = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+    let undo = |app: &PlumaApp| app.session.active().unwrap().history.undo.len();
     let steps = undo(&app);
-    let calligraphic =
-        |app: &mut VectorcraftApp| -> Vec<String> { brushes(app).0.into_iter().filter(|b| b.1 == "calligraphic").map(|b| b.0).collect() };
+    let calligraphic = |app: &mut PlumaApp| -> Vec<String> { brushes(app).0.into_iter().filter(|b| b.1 == "calligraphic").map(|b| b.0).collect() };
     // "10 pt. Oval" onto the left half of "3 pt. Round".
     let held = drag(&mut app, tiles[2].center(), tiles[0].center() - vec2(16.0, 0.0), 1.0);
     assert_eq!(bars(&held), [tiles[0].left() - 1.5]);
@@ -515,7 +514,7 @@ fn a_brush_dragged_onto_another_of_its_type_moves_before_it() {
 /// and those of them that are Pinstripes blue.
 fn pixels(doc: &Document, def: &Value) -> (usize, usize) {
     let preview = preview_doc(doc, def, 80.0, 40.0).expect("a preview");
-    let img = vectorcraft_render::Renderer::new().render_region(&preview, vectorcraft_geom::Rect::new(0.0, 0.0, 80.0, 40.0), 2.0, false);
+    let img = pluma_render::Renderer::new().render_region(&preview, pluma_geom::Rect::new(0.0, 0.0, 80.0, 40.0), 2.0, false);
     let painted: Vec<&[u8; 4]> = img.pixels.as_chunks::<4>().0.iter().filter(|p| p[3] > 200).collect();
     let blue = painted.iter().filter(|p| p[2] > 170 && p[0] < 90 && (100..160).contains(&p[1])).count();
     (painted.len(), blue)
@@ -534,13 +533,13 @@ fn library_brush_previews_show_the_patterns_their_art_uses() {
     assert_eq!(blue, 0, "without the pattern: {painted} painted");
     // A square tile still shows a stroke.
     let square = preview_doc(&lib.doc, &def, 40.0, 40.0).unwrap();
-    let img = vectorcraft_render::Renderer::new().render_region(&square, vectorcraft_geom::Rect::new(0.0, 0.0, 40.0, 40.0), 2.0, false);
+    let img = pluma_render::Renderer::new().render_region(&square, pluma_geom::Rect::new(0.0, 0.0, 40.0, 40.0), 2.0, false);
     assert!(img.pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 200));
 }
 
 #[test]
 fn a_library_brush_dropped_on_the_panel_is_added() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
     frame(&ctx, &mut app, vec![]);
@@ -548,7 +547,7 @@ fn a_library_brush_dropped_on_the_panel_is_added() {
     egui::DragAndDrop::set_payload(&ctx, PanelDrag::LibraryBrush { library: "pattern-borders".into(), name: "Beads".into() });
     frame(&ctx, &mut app, vec![egui::Event::PointerMoved(at)]);
     frame(&ctx, &mut app, vec![button(at, false)]);
-    assert!(vectorcraft_brush::find(&app.session.active().unwrap().doc, "Beads").is_some());
+    assert!(pluma_brush::find(&app.session.active().unwrap().doc, "Beads").is_some());
 }
 
 /// A preview is cached by its brush and the patterns and symbols its art shows: adding other
@@ -557,17 +556,17 @@ fn a_library_brush_dropped_on_the_panel_is_added() {
 /// Symbol thumbnails are keyed the same way.
 #[test]
 fn previews_render_again_only_when_what_they_show_changes() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
-    let count = |app: &mut VectorcraftApp| brushes(app).0.len();
+    let count = |app: &mut PlumaApp| brushes(app).0.len();
     let n = count(&mut app);
     assert_eq!(counted(&ctx, &mut app), (n, n), "the first frame renders and draws every preview");
     assert_eq!(counted(&ctx, &mut app), (0, n), "then they are cached");
     // Striped Ribbon brings its pattern, Sparkles its symbol: only they render.
     app.run("brush.addFromLibrary", json!({"library": "art-ribbons", "name": "Striped Ribbon"})).unwrap();
     assert_eq!(counted(&ctx, &mut app), (1, n + 1));
-    let symbol_key = |app: &VectorcraftApp, name: &str| super::super::symbols::document_symbols(app.session.active().unwrap()).key(name).unwrap_or(0);
+    let symbol_key = |app: &PlumaApp, name: &str| super::super::symbols::document_symbols(app.session.active().unwrap()).key(name).unwrap_or(0);
     let sparkle_before = symbol_key(&app, "Sparkle");
     app.run("brush.addFromLibrary", json!({"library": "scatter-shapes", "name": "Sparkles"})).unwrap();
     assert_eq!(counted(&ctx, &mut app), (1, n + 2));
@@ -581,8 +580,7 @@ fn previews_render_again_only_when_what_they_show_changes() {
     app.session
         .edit("Pattern", |d, _| {
             let p = d.patterns.iter_mut().find(|p| p.name == "Pinstripes").unwrap();
-            let dot =
-                Node::path(NodeId(0), vectorcraft_geom::shapes::ellipse(vectorcraft_geom::Rect::new(0.0, 0.0, 3.0, 3.0)), Appearance::default_art());
+            let dot = Node::path(NodeId(0), pluma_geom::shapes::ellipse(pluma_geom::Rect::new(0.0, 0.0, 3.0, 3.0)), Appearance::default_art());
             p.art = vec![std::sync::Arc::new(dot)];
             Ok(())
         })
@@ -600,10 +598,10 @@ fn keyed() -> usize {
 /// Options works its preview's key out again only when its definition or the document changes.
 #[test]
 fn frames_after_the_first_serialise_and_hash_no_brush() {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     let ctx = egui::Context::default();
-    let n = vectorcraft_brush::library(&app.session.active().unwrap().doc).len();
+    let n = pluma_brush::library(&app.session.active().unwrap().doc).len();
     keyed();
     assert_eq!(counted(&ctx, &mut app), (n, n));
     assert_eq!(keyed(), n, "the first frame works each brush out");
@@ -631,7 +629,7 @@ fn frames_after_the_first_serialise_and_hash_no_brush() {
     // Brush Options' preview of a definition.
     let (_, lib) = brushlib::library(&app.session, "art-ribbons").unwrap();
     let mut def = serde_json::to_value(lib.brush("Striped Ribbon").unwrap()).unwrap();
-    let options = |app: &VectorcraftApp, def: &Value| {
+    let options = |app: &PlumaApp, def: &Value| {
         let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(300.0, 100.0))), ..Default::default() };
         let mut out = ctx.run_ui(raw, |ui| definition_chip(ui, Rect::from_min_size(Pos2::ZERO, vec2(200.0, 40.0)), app.session.active(), def));
         out.textures_delta.clear();
@@ -653,7 +651,7 @@ fn frames_after_the_first_serialise_and_hash_no_brush() {
 }
 
 /// One headless frame of the Symbols panel → thumbnails rendered in it.
-fn symbols_rendered(ctx: &egui::Context, app: &mut VectorcraftApp) -> usize {
+fn symbols_rendered(ctx: &egui::Context, app: &mut PlumaApp) -> usize {
     use super::super::symbols::{self, counters::RENDERED};
     RENDERED.with(|c| c.set(0));
     let raw = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(236.0, 600.0))), ..Default::default() };
@@ -675,9 +673,9 @@ fn png(rgb: [u8; 3]) -> Vec<u8> {
 /// one they don't use does.
 #[test]
 fn previews_follow_the_swatches_images_and_pattern_options_their_art_uses() {
-    use vectorcraft_doc::pattern::{Overlap, TileType};
-    use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind, Symbol};
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    use pluma_doc::pattern::{Overlap, TileType};
+    use pluma_doc::{ImageBlob, ImageObject, NodeKind, Symbol};
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     // Striped Ribbon brings Pinstripes.
     app.run("brush.addFromLibrary", json!({"library": "art-ribbons", "name": "Striped Ribbon"})).unwrap();
@@ -685,16 +683,13 @@ fn previews_follow_the_swatches_images_and_pattern_options_their_art_uses() {
     let wave = lib.brush("Wave").unwrap().clone();
     let striped = lib.brush("Striped Ribbon").unwrap().art()[0].clone();
     let ink = Paint::Solid { color: Color::BLACK, swatch: Some("Ink".into()), tint: 1.0 };
-    let inked = Node::path(
-        NodeId(0),
-        vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 20.0, 10.0)),
-        Appearance::basic(ink, Paint::None, 0.0),
-    );
+    let inked =
+        Node::path(NodeId(0), pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 20.0, 10.0)), Appearance::basic(ink, Paint::None, 0.0));
     let im = ImageObject {
         key: "pic".into(),
         width: 4,
         height: 4,
-        xf: vectorcraft_geom::Affine::scale(5.0),
+        xf: pluma_geom::Affine::scale(5.0),
         link: None,
         placement: Default::default(),
         pixels: None,
@@ -702,34 +697,34 @@ fn previews_follow_the_swatches_images_and_pattern_options_their_art_uses() {
     let pictured = Node::new(NodeId(0), NodeKind::Image(Box::new(im)));
     // Filled with the gradient swatch Fade.
     let fade = |c: Color| {
-        use vectorcraft_color::{Gradient, GradientKind, GradientPaint, GradientStop};
+        use pluma_color::{Gradient, GradientKind, GradientPaint, GradientStop};
         GradientPaint::new(Gradient::new(GradientKind::Linear, vec![GradientStop::new(0.0, Color::WHITE), GradientStop::new(1.0, c)]))
     };
     let mut faded_paint = fade(Color::BLACK);
     faded_paint.swatch = Some("Fade".into());
     let faded = Node::path(
         NodeId(0),
-        vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(0.0, 0.0, 20.0, 10.0)),
+        pluma_geom::shapes::rectangle(pluma_geom::Rect::new(0.0, 0.0, 20.0, 10.0)),
         Appearance::basic(Paint::Gradient(Box::new(faded_paint)), Paint::None, 0.0),
     );
     app.session
         .edit("Resources", |d, _| {
             for name in ["Ink", "Other"] {
-                d.swatches.push(vectorcraft_color::Swatch { name: name.into(), paint: Paint::solid(Color::BLACK), global: true, spot: false });
+                d.swatches.push(pluma_color::Swatch { name: name.into(), paint: Paint::solid(Color::BLACK), global: true, spot: false });
             }
             let paint = Paint::Gradient(Box::new(fade(Color::BLACK)));
-            d.swatches.push(vectorcraft_color::Swatch { name: "Fade".into(), paint, global: false, spot: false });
+            d.swatches.push(pluma_color::Swatch { name: "Fade".into(), paint, global: false, spot: false });
             d.images.insert("pic".into(), ImageBlob::png(png([255, 0, 0])));
-            let mut brushes = vectorcraft_brush::library(d);
+            let mut brushes = pluma_brush::library(d);
             for (name, art) in [("Inked", &inked), ("Pictured", &pictured), ("Faded", &faded)] {
                 let mut b = wave.clone();
                 b.name = name.into();
-                if let vectorcraft_brush::BrushKind::Art(a) = &mut b.kind {
+                if let pluma_brush::BrushKind::Art(a) = &mut b.kind {
                     a.art = art.clone();
                 }
                 brushes.push(b);
             }
-            vectorcraft_brush::store(d, &brushes);
+            pluma_brush::store(d, &brushes);
             for (name, art) in [("Ink Symbol", &inked), ("Picture Symbol", &pictured), ("Stripes Symbol", &striped), ("Fade Symbol", &faded)] {
                 d.symbols.push(Symbol { dynamic: false, name: name.into(), art: Arc::new(art.clone()) });
             }
@@ -740,7 +735,7 @@ fn previews_follow_the_swatches_images_and_pattern_options_their_art_uses() {
     let n = brushes(&mut app).0.len();
     assert_eq!((counted(&ctx, &mut app).0, symbols_rendered(&ctx, &mut app)), (n, 4));
     assert_eq!((counted(&ctx, &mut app).0, symbols_rendered(&ctx, &mut app)), (0, 0));
-    let change = |app: &mut VectorcraftApp, what: &str, f: &dyn Fn(&mut Document)| {
+    let change = |app: &mut PlumaApp, what: &str, f: &dyn Fn(&mut Document)| {
         app.session
             .edit("Change", |d, _| {
                 f(d);
@@ -751,7 +746,7 @@ fn previews_follow_the_swatches_images_and_pattern_options_their_art_uses() {
     };
     let swatch =
         |name: &'static str| move |d: &mut Document| d.swatches.iter_mut().find(|w| w.name == name).unwrap().paint = Paint::solid(Color::WHITE);
-    fn pinstripes(d: &mut Document) -> &mut vectorcraft_doc::pattern::PatternDef {
+    fn pinstripes(d: &mut Document) -> &mut pluma_doc::pattern::PatternDef {
         d.patterns.iter_mut().find(|p| p.name == "Pinstripes").unwrap()
     }
     type Case<'a> = (&'a str, (usize, usize), &'a dyn Fn(&mut Document));

@@ -1,7 +1,7 @@
 //! Object › Objects on Path (#2545): objects attached to a path and spread along it.
 //!
 //! `object.objectsOnPath.attach` puts the selected objects and a path in an Objects on Path group:
-//! a group with a [`ObjectsOnPath`] record ([`vectorcraft_doc::objects_on_path`]), the path at its
+//! a group with a [`ObjectsOnPath`] record ([`pluma_doc::objects_on_path`]), the path at its
 //! bottom. Called without a path (Object › Objects on Path › Attach) it chooses the Objects on Path
 //! tool, whose click on a path attaches the selected objects to that path. The objects go along the
 //! path column by column from left to right, top to bottom in each column, spread evenly from its
@@ -22,10 +22,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pluma_doc::objects_on_path::{CENTER, Held, ObjectsOnPath, attachable_path, held, is_objects_on_path, place};
+use pluma_doc::{Document, Node, NodeId, NodeKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::objects_on_path::{CENTER, Held, ObjectsOnPath, attachable_path, held, is_objects_on_path, place};
-use vectorcraft_doc::{Document, Node, NodeId, NodeKind};
-use vectorcraft_geom::Rect;
 
 use super::edit::{roots_of, selected_roots};
 use super::{CommandSpec, EngineError, Result, Session, bad, check_numbers, checked_id, checked_ids_param, cmd, has_selection};

@@ -322,7 +322,7 @@ pub(crate) fn sample(c: &CubicBez, n: usize, out: &mut Vec<Point>, include_start
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vectorcraft_geom::{Anchor, PathData, SubPath};
+    use pluma_geom::{Anchor, PathData, SubPath};
 
     #[test]
     fn fits_a_cubic_exactly() {

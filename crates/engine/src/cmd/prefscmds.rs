@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 use super::{CommandSpec, EngineError, Result, Session, always, bad, cmd, str_param};
 use crate::Prefs;
 use crate::units::Measure;
-use vectorcraft_doc::{GridPrefs, Unit};
+use pluma_doc::{GridPrefs, Unit};
 
 /// What kind of value a preference holds.
 #[derive(Clone, Copy, Debug)]
@@ -351,7 +351,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     p!("openDocumentsAsTabs", "User Interface", "", "Open Documents As Tabs", bool),
     p!("largeTabs", "User Interface", "", "Large Tabs", bool),
     p!("systemTitleBar", "User Interface", "", "System Title Bar", bool),
-    p!("appTitleBar", "User Interface", "", "VectorCraft Title Bar on Every Desktop", bool),
+    p!("appTitleBar", "User Interface", "", "Pluma Title Bar on Every Desktop", bool),
     p!("uiScaling", "User Interface", "UI Scaling", "Scale", num(0.75, 2.0, "×")),
     p!("scaleCursorWithUi", "User Interface", "UI Scaling", "Scale Cursor Proportional to UI", bool),
     // `auto` or a language code the shell registers (`zh-hant`); the shell shows it as a dropdown.
@@ -415,7 +415,7 @@ pub const PREF_SPECS: &[PrefSpec] = &[
     p!("newArtBasic", "General", "Appearance Panel", "New Art Has Basic Appearance", bool),
     // File Handling (continued)
     p!("templatesFolder", "File Handling", "Files", "Templates Folder", text),
-    // Off: raster images open in PhotoCraft where it is installed (#5236).
+    // Off: raster images open in Lienzo where it is installed (#5236).
     p!("editOriginalSystemDefaults", "File Handling", "Files", "Use System Defaults for Edit Original", bool),
     p!("appendConverted", "File Handling", "Files", "Mark Older Files as [Converted] When Opened", bool),
     // Native saves (`document.save {compress}`)
@@ -467,7 +467,7 @@ fn validate_group(key: &str, current: &Value, v: &Value) -> std::result::Result<
             cur.merged(v).map(|o| json!(o))
         }
         "glyphSnap" => {
-            let cur: vectorcraft_tools::GlyphSnap = serde_json::from_value(current.clone()).unwrap_or_default();
+            let cur: pluma_tools::GlyphSnap = serde_json::from_value(current.clone()).unwrap_or_default();
             cur.merged(v).map(|o| json!(o))
         }
         "perspectiveWidget" => {
@@ -475,9 +475,7 @@ fn validate_group(key: &str, current: &Value, v: &Value) -> std::result::Result<
             if let (Some(o), Some(p)) = (merged.as_object_mut(), v.as_object()) {
                 o.extend(p.clone());
             }
-            serde_json::from_value::<vectorcraft_tools::distort::perspective::widget::WidgetOptions>(merged)
-                .map(|o| json!(o))
-                .map_err(|e| e.to_string())
+            serde_json::from_value::<pluma_tools::distort::perspective::widget::WidgetOptions>(merged).map(|o| json!(o)).map_err(|e| e.to_string())
         }
         _ => Err(format!("unknown preference `{key}`")),
     }
@@ -578,7 +576,7 @@ fn writable_folder(path: &str) -> std::result::Result<(), String> {
     let refused = |e: std::io::Error| format!("Data Recovery can't keep copies in {path}: {e}");
     std::fs::read_dir(dir).map_err(refused)?;
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |t| t.as_nanos());
-    let check = dir.join(format!(".vectorcraft-write-check-{}-{nanos}", std::process::id()));
+    let check = dir.join(format!(".pluma-write-check-{}-{nanos}", std::process::id()));
     std::fs::create_dir(&check).map_err(refused)?;
     std::fs::remove_dir(&check).map_err(refused)
 }
@@ -718,19 +716,19 @@ impl Session {
             let folder = self.prefs.fonts_folder.trim();
             // A folder an automation caller chose is read without following its links out of it.
             let confined = crate::file_access::current().is_some();
-            vectorcraft_text::set_user_font_dirs_confined(if folder.is_empty() { vec![] } else { vec![folder.into()] }, confined);
+            pluma_text::set_user_font_dirs_confined(if folder.is_empty() { vec![] } else { vec![folder.into()] }, confined);
             // Once the fonts were scanned, scan again now: the folder's fonts appear (or go) in the
             // font menus, and type in them lays out again. The first scan reads it anyway.
-            if vectorcraft_text::FontDb::global().installed_fonts_changed() {
+            if pluma_text::FontDb::global().installed_fonts_changed() {
                 // Its result only counts the faces cataloged.
                 let _ = super::fonts::rescan(self, &serde_json::Value::Null);
             }
         }
         if hyphen_exceptions_changed {
             // Preferences › Hyphenation › Exceptions (#394): the layout reads the process-wide list.
-            vectorcraft_text::set_hyphenation_exceptions(&self.prefs.hyphenation_exceptions);
+            pluma_text::set_hyphenation_exceptions(&self.prefs.hyphenation_exceptions);
         }
-        vectorcraft_render::set_default_threads(u16::try_from(self.prefs.render_threads).ok());
+        pluma_render::set_default_threads(u16::try_from(self.prefs.render_threads).ok());
         for st in &mut self.docs {
             if history_changed {
                 st.history.limit = self.prefs.history_states as usize;

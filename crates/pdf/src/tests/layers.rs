@@ -3,10 +3,10 @@
 //! for the overprinting fills and strokes).
 
 use craft_pdf::syntax::object::{Array, Dict, Name, ObjectIdentifier};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, CharStyle, Document, LayerColor, Node, NodeKind, TextObject};
+use pluma_geom::{Point, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, CharStyle, Document, LayerColor, Node, NodeKind, TextObject};
-use vectorcraft_geom::{Point, Rect, shapes};
 
 use crate::*;
 

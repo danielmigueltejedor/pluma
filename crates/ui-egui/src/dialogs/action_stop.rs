@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use super::{DialogAction, DialogSpec};
 use crate::state::Dialog;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 /// The dialog kind of Record Stop.
 pub const RECORD_KIND: &str = "actionStopRecord";
@@ -41,7 +41,7 @@ pub(super) const MESSAGE_SPEC: DialogSpec = DialogSpec {
 
 /// Opens Record Stop for action `target` as (set, action), after `step`, else for the recording in
 /// progress.
-pub fn open_record(app: &mut VectorcraftApp, target: Option<(usize, usize)>, step: Option<usize>) {
+pub fn open_record(app: &mut PlumaApp, target: Option<(usize, usize)>, step: Option<usize>) {
     let mut fields = json!({"message": "", "allowContinue": false});
     if let Some((set, action)) = target {
         fields["set"] = json!(set);
@@ -53,7 +53,7 @@ pub fn open_record(app: &mut VectorcraftApp, target: Option<(usize, usize)>, ste
     app.ui.dialog = Some(Dialog::new(RECORD_KIND, fields));
 }
 
-fn record_body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
+fn record_body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::label_row(ui, "Message:", LABEL_W, |ui| {
         super::form::text(ui, d, "message", 240.0);
     });
@@ -61,7 +61,7 @@ fn record_body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> boo
     false
 }
 
-fn record_confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn record_confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     let mut params = json!({"message": d.str("message"), "allowContinue": d.bool("allowContinue")});
     for key in ["set", "action", "step"] {
         if let Some(value) = d.fields.get(key) {
@@ -74,11 +74,11 @@ fn record_confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String>
 }
 
 /// Shows the message box of a stop in the action named `action`.
-pub(crate) fn open_message(app: &mut VectorcraftApp, action: &str, message: &str, allow_continue: bool) {
+pub(crate) fn open_message(app: &mut PlumaApp, action: &str, message: &str, allow_continue: bool) {
     app.ui.dialog = Some(Dialog::new(MESSAGE_KIND, json!({"action": action, "message": message, "allowContinue": allow_continue})));
 }
 
-fn message_body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> DialogAction {
+fn message_body(_: &mut PlumaApp, ui: &mut egui::Ui, d: &mut Dialog) -> DialogAction {
     let message = d.str("message");
     if !message.is_empty() {
         ui.label(message);
@@ -98,7 +98,7 @@ fn message_body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> Di
     action
 }
 
-fn message_confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
+fn message_confirm(app: &mut PlumaApp, d: &Dialog) -> Result<Value, String> {
     if d.bool("allowContinue") {
         return app.run(crate::panels::actions::CONTINUE_PLAYBACK, json!({}));
     }

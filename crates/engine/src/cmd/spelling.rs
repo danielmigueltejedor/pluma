@@ -12,8 +12,8 @@ use std::ops::Range;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use craft_proof::{IssueKind, Options, ProofLang};
+use pluma_doc::{Document, NodeId, NodeKind, TextObject};
 use serde_json::{Value, json};
-use vectorcraft_doc::{Document, NodeId, NodeKind, TextObject};
 
 use super::menucmds::whole_or;
 use super::typemenu::{all_texts, text_ids};

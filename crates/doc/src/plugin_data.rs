@@ -5,7 +5,7 @@
 //! perspective grid and the brushes are, so the native file has no section of its own for them
 //! and a version from before them keeps them when it saves. The host never reads them: a filter
 //! plug-in writes its own and reads only its own back, and an exporter, which is given the whole
-//! document, can read them all (`vectorcraft-plugins`, which caps what one plug-in keeps).
+//! document, can read them all (`pluma-plugins`, which caps what one plug-in keeps).
 
 use serde_json::{Map, Value};
 

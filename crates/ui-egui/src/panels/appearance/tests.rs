@@ -2,8 +2,8 @@ use super::super::tests_long_popups::{PopupWindow, assert_last_row_scrolls_into_
 use super::*;
 
 /// A selected rectangle, for the fill row's swatch picker and the Add Effect button.
-fn app_with_a_selected_rectangle() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn app_with_a_selected_rectangle() -> PlumaApp {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({ "ids": [id] })).unwrap();
@@ -11,9 +11,9 @@ fn app_with_a_selected_rectangle() -> VectorcraftApp {
 }
 
 /// The swatch of a fill row at the top of the window, with the size of its click target.
-fn swatch_button_at_the_top() -> (impl FnMut(&mut VectorcraftApp, &mut Ui), egui::Vec2) {
+fn swatch_button_at_the_top() -> (impl FnMut(&mut PlumaApp, &mut Ui), egui::Vec2) {
     let row = Rect::from_min_size(pos2(0.0, 8.0), vec2(400.0, 22.0));
-    (move |app: &mut VectorcraftApp, ui: &mut Ui| swatch_button(app, ui, row, &Paint::None, Painted::Item(0)), vec2(22.0, 22.0))
+    (move |app: &mut PlumaApp, ui: &mut Ui| swatch_button(app, ui, row, &Paint::None, Painted::Item(0)), vec2(22.0, 22.0))
 }
 
 /// One tile of the swatch picker.
@@ -68,7 +68,7 @@ fn fx_button(window: &PopupWindow) -> egui::Pos2 {
     window.clickable(vec2(24.0, 24.0))[2].center()
 }
 
-fn draw_bottom_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
+fn draw_bottom_bar(app: &mut PlumaApp, ui: &mut Ui) {
     let node = first_subject(app);
     bottom(app, ui, node.as_ref(), Sel::None);
 }
@@ -85,7 +85,7 @@ fn the_add_effect_popup_scrolls_inside_a_short_window() {
 /// does: the active row's copy becomes active, the anchor's copy the anchor.
 #[test]
 fn a_duplicate_highlights_the_copies_above_the_originals() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({ "ids": [id] })).unwrap();
@@ -94,7 +94,7 @@ fn a_duplicate_highlights_the_copies_above_the_originals() {
     }
     let owner = Some(NodeId(id));
     let ctx = egui::Context::default();
-    let duplicate = |app: &mut VectorcraftApp| {
+    let duplicate = |app: &mut PlumaApp| {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             let node = first_subject(app);
             let sel = current_sel(app, ui.ctx(), node.as_ref());
@@ -140,14 +140,14 @@ fn a_duplicate_highlights_the_copies_above_the_originals() {
 /// item (so the Transparency panel keeps editing it); removing that item clears the selection.
 #[test]
 fn removing_items_keeps_a_surviving_item_opacity_row_selected() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({ "ids": [id] })).unwrap();
     app.run("appearance.duplicateItem", json!({ "indices": [0] })).unwrap();
     let owner = Some(NodeId(id));
     let ctx = egui::Context::default();
-    let remove = |app: &mut VectorcraftApp, k: usize| {
+    let remove = |app: &mut PlumaApp, k: usize| {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             let n = first_subject(app).unwrap();
             let sel = current_sel(app, ui.ctx(), Some(&n));
@@ -170,7 +170,7 @@ fn removing_items_keeps_a_surviving_item_opacity_row_selected() {
 /// object's own, or a fill's, leaving the other untouched. Duplicate stays off for it.
 #[test]
 fn deleting_an_opacity_row_sets_it_back_to_default() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("select.set", json!({ "ids": [id] })).unwrap();
@@ -178,7 +178,7 @@ fn deleting_an_opacity_row_sets_it_back_to_default() {
     app.run("transparency.set", json!({"item": 0, "opacity": 40, "blend": "Screen"})).unwrap();
     let owner = Some(NodeId(id));
     let ctx = egui::Context::default();
-    let delete = |app: &mut VectorcraftApp| {
+    let delete = |app: &mut PlumaApp| {
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             let node = first_subject(app);
             let sel = current_sel(app, ui.ctx(), node.as_ref());
@@ -187,7 +187,7 @@ fn deleting_an_opacity_row_sets_it_back_to_default() {
         });
         out.textures_delta.clear();
     };
-    let node = |app: &VectorcraftApp| first_subject(app).unwrap();
+    let node = |app: &PlumaApp| first_subject(app).unwrap();
     // The fill's Opacity row: only the fill goes back to Default.
     app.run("appearance.setActiveItem", json!({ "index": 0 })).unwrap();
     set_pstate(&ctx, "ap-sel", (owner, Sel::ItemOpacity(0)));
@@ -230,7 +230,7 @@ fn labels() {
 /// click on Darkness sets the effect's `shade`.
 #[test]
 fn the_drop_shadow_editor_chooses_color_or_darkness() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "stylize.dropShadow"})).unwrap();
@@ -238,7 +238,7 @@ fn the_drop_shadow_editor_chooses_color_or_darkness() {
     crate::theme::install_fonts(&ctx);
     set_pstate(&ctx, "ap-fx-open-None-0", true);
     let mut time = 0.0;
-    let mut run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let mut run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         time += 0.1;
         let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
@@ -267,8 +267,8 @@ fn the_drop_shadow_editor_chooses_color_or_darkness() {
 }
 
 /// A rectangle with `effect` applied, its inline editor open, after a first frame in `ctx`.
-fn editing(effect: &str) -> (VectorcraftApp, egui::Context, NodeId) {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+fn editing(effect: &str) -> (PlumaApp, egui::Context, NodeId) {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": effect})).unwrap();
@@ -280,7 +280,7 @@ fn editing(effect: &str) -> (VectorcraftApp, egui::Context, NodeId) {
 }
 
 /// One frame of the panel in `ctx` with `events`: the texts drawn and where.
-fn panel_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
+fn panel_frame(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<(String, Rect)> {
     fn texts(s: &egui::Shape, out: &mut Vec<(String, Rect)>) {
         match s {
             egui::Shape::Text(t) => out.push((t.galley.text().to_string(), t.visual_bounding_rect())),
@@ -297,7 +297,7 @@ fn panel_frame(app: &mut VectorcraftApp, ctx: &egui::Context, events: Vec<egui::
 }
 
 /// Clicks the text `label` drawn in the panel (the last one drawn when there are several).
-fn click_text(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
+fn click_text(app: &mut PlumaApp, ctx: &egui::Context, label: &str) {
     let shown = panel_frame(app, ctx, vec![]);
     let at = shown.iter().rev().find(|(s, _)| s == label).unwrap_or_else(|| panic!("no {label:?} in {shown:?}")).1.center();
     let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -306,7 +306,7 @@ fn click_text(app: &mut VectorcraftApp, ctx: &egui::Context, label: &str) {
     }
 }
 
-fn shown_texts(app: &mut VectorcraftApp, ctx: &egui::Context) -> Vec<String> {
+fn shown_texts(app: &mut PlumaApp, ctx: &egui::Context) -> Vec<String> {
     panel_frame(app, ctx, vec![]).into_iter().map(|(s, _)| s).collect()
 }
 
@@ -349,11 +349,11 @@ fn the_effect_editor_labels_parameters_as_the_dialog_does() {
 /// called `mode` and its value names a blend mode.
 #[test]
 fn a_plug_in_choice_lists_the_plug_ins_values() {
-    use vectorcraft_plugins::wat as tpl;
+    use pluma_plugins::wat as tpl;
     let params = r#"{"mode":{"type":"choice","options":["normal","screen","dots"],"default":"screen"}}"#;
     let src = tpl::module(&tpl::manifest("test.ui.inlinechoice", "effect", params), tpl::ECHO, "", 1);
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "plugin.test.ui.inlinechoice"})).unwrap();
@@ -363,7 +363,7 @@ fn a_plug_in_choice_lists_the_plug_ins_values() {
     panel_frame(&mut app, &ctx, vec![]);
     click_text(&mut app, &ctx, "screen");
     click_text(&mut app, &ctx, "dots");
-    let mode = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(NodeId(id)).unwrap().appearance.effects[0].params["mode"].clone();
+    let mode = |app: &PlumaApp| app.session.doc().unwrap().doc.node(NodeId(id)).unwrap().appearance.effects[0].params["mode"].clone();
     assert_eq!(mode(&app), json!("dots"));
     click_text(&mut app, &ctx, "dots");
     click_text(&mut app, &ctx, "screen");
@@ -379,14 +379,14 @@ fn a_plug_in_choice_lists_the_plug_ins_values() {
 /// way.
 #[test]
 fn a_plug_in_effect_s_editor_follows_its_manifest() {
-    use vectorcraft_plugins::wat as tpl;
+    use pluma_plugins::wat as tpl;
     let params = r#"{"outline":{"type":"bool","default":true,"label":"Outline"},
             "spacing":{"type":"number","min":0.1,"max":10,"default":1.5,"label":"Spacing","unit":"mm","help":"Distance between the lines."},
             "angles":{"type":"numberList","min":0,"max":360,"default":[45,135],"minItems":1,"maxItems":4,"unit":"°"},
             "width":{"type":"number","min":0,"max":10,"default":0.5,"label":"Width","unit":"pt","visibleWhen":{"outline":[true]}}}"#;
     let src = tpl::module(&tpl::manifest("test.ui.inlinekeys", "effect", params), tpl::ECHO, "", 1);
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&wat::parse_str(src).unwrap())})).unwrap();
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "plugin.test.ui.inlinekeys"})).unwrap();
@@ -421,7 +421,7 @@ fn the_effect_editor_lists_a_loaded_glass_texture() {
     image::RgbaImage::from_pixel(4, 4, image::Rgba([90, 120, 150, 255]))
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
-    let stored = vectorcraft_engine::cmd::fileio::texture_image(&png).unwrap();
+    let stored = pluma_engine::cmd::fileio::texture_image(&png).unwrap();
     let (mut app, ctx, id) = editing("distort.glass");
     app.run("effect.setParams", json!({"item": null, "index": 0, "params": {"texture": "loaded", "textureImage": stored}})).unwrap();
     let texts = shown_texts(&mut app, &ctx);
@@ -504,7 +504,7 @@ fn the_effect_editor_lists_earlier_parameters_in_their_current_form() {
 /// Escape drops what is typed.
 #[test]
 fn the_effect_editor_keeps_text_typed_across_frames() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
     app.run("effect.apply", json!({"effect": "stylize.dropShadow"})).unwrap();
@@ -512,7 +512,7 @@ fn the_effect_editor_keeps_text_typed_across_frames() {
     crate::theme::install_fonts(&ctx);
     set_pstate(&ctx, "ap-fx-open-None-0", true);
     let mut time = 0.0;
-    let mut run = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let mut run = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         time += 0.1;
         let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), ..Default::default() }, |ui| show(app, ui));
         out.textures_delta.clear();
@@ -549,7 +549,7 @@ fn the_effect_editor_keeps_text_typed_across_frames() {
     assert!(shown.iter().any(|(t, _)| t == "#ff0000"), "the field shows what was typed: {shown:?}");
     run(&mut app, vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
     run(&mut app, vec![]);
-    let color = |app: &VectorcraftApp| app.session.active().unwrap().doc.node(NodeId(id)).unwrap().appearance.effects[0].params["color"].clone();
+    let color = |app: &PlumaApp| app.session.active().unwrap().doc.node(NodeId(id)).unwrap().appearance.effects[0].params["color"].clone();
     assert_eq!(color(&app), json!("#ff0000"));
     assert_eq!(app.session.active().unwrap().history.undo.len(), undo + 1, "one undo step");
     // Escape drops what is typed.
@@ -568,9 +568,9 @@ fn the_effect_editor_keeps_text_typed_across_frames() {
 /// Each place a dragged row can be dropped picks the command it runs and its parameters.
 #[test]
 fn drops_pick_the_command() {
-    use vectorcraft_doc::{Appearance, FillLayer};
+    use pluma_doc::{Appearance, FillLayer};
     let fx = |id: &str| Effect { id: id.into(), params: Value::Null, visible: true };
-    let mut n = Node::path(NodeId(1), vectorcraft_geom::PathData::default(), Appearance::default_art());
+    let mut n = Node::path(NodeId(1), pluma_geom::PathData::default(), Appearance::default_art());
     n.appearance.items.push(AppearanceItem::Fill(FillLayer::new(Paint::None))); // [F, S, F]
     n.appearance.items[1].effects_mut().extend([fx("distort.twist"), fx("distort.roughen")]);
     n.appearance.effects.push(fx("stylize.dropShadow"));
@@ -610,7 +610,7 @@ fn drops_pick_the_command() {
 /// top-down `S3, FA*, Contents, S1*, F0` (paint order F0 S1 FA S3, Contents above two).
 #[test]
 fn several_rows_drop_as_one_block() {
-    use vectorcraft_doc::FillLayer;
+    use pluma_doc::FillLayer;
     let mut n = Node::group(NodeId(1), vec![]);
     n.appearance.items = (0..4).map(|_| AppearanceItem::Fill(FillLayer::new(Paint::None))).collect();
     n.appearance.set_contents_at(2);
@@ -649,7 +649,7 @@ fn several_rows_drop_as_one_block() {
     assert_eq!(drop(2, 3, true), cp(2, 4));
     // Effects of one list: they land together; on one of their own rows nothing happens.
     let fx = |id: &str| Effect { id: id.into(), params: Value::Null, visible: true };
-    let mut p = Node::path(NodeId(2), vectorcraft_geom::PathData::default(), vectorcraft_doc::Appearance::default_art());
+    let mut p = Node::path(NodeId(2), pluma_geom::PathData::default(), pluma_doc::Appearance::default_art());
     p.appearance.effects.extend([fx("a"), fx("b"), fx("c")]);
     let fslots = [
         Slot::Object { top: true },
@@ -673,7 +673,7 @@ fn several_rows_drop_as_one_block() {
 }
 
 /// One headless frame of the panel: the texts drawn, top to bottom.
-fn frame(app: &mut VectorcraftApp) -> Vec<String> {
+fn frame(app: &mut PlumaApp) -> Vec<String> {
     fn texts(s: &egui::Shape, out: &mut Vec<(f32, String)>) {
         match s {
             egui::Shape::Text(t) => out.push((t.pos.y, t.galley.text().to_string())),
@@ -692,8 +692,8 @@ fn frame(app: &mut VectorcraftApp) -> Vec<String> {
 
 #[test]
 fn groups_show_a_contents_row_and_type_a_characters_row_in_their_slot() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let a = run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}))["id"].clone();
     let b = run(&mut app, "shape.rectangle", json!({"x": 30, "y": 0, "width": 20, "height": 20}))["id"].clone();
@@ -716,7 +716,7 @@ fn groups_show_a_contents_row_and_type_a_characters_row_in_their_slot() {
 /// right above it and is then the only selected row.
 #[test]
 fn add_new_fill_selects_the_new_fill_alone() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     let id = NodeId(app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap());
     app.run("appearance.addFill", json!({})).unwrap(); // [Fill, Stroke, Fill]
@@ -736,13 +736,13 @@ fn add_new_fill_selects_the_new_fill_alone() {
 
 #[test]
 fn images_show_a_contents_row_with_new_fills_and_strokes_below_it() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     let rows = |t: Vec<String>| t.into_iter().filter(|t| ["Fill:", "Stroke:", "Contents"].contains(&t.as_str())).collect::<Vec<_>>();
     let mut png = vec![];
     image::RgbaImage::from_pixel(4, 4, image::Rgba([255, 0, 0, 255])).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    run(&mut app, "file.place", json!({"name": "red.png", "dataBase64": vectorcraft_format::base64_encode(&png)}));
+    run(&mut app, "file.place", json!({"name": "red.png", "dataBase64": pluma_format::base64_encode(&png)}));
     assert_eq!(rows(frame(&mut app)), ["Contents"]);
     run(&mut app, "appearance.addStroke", json!({}));
     assert_eq!(rows(frame(&mut app)), ["Contents", "Stroke:"]);
@@ -750,7 +750,7 @@ fn images_show_a_contents_row_with_new_fills_and_strokes_below_it() {
 
 #[test]
 fn drops_move_items_across_the_contents_row_and_the_row_itself() {
-    use vectorcraft_doc::FillLayer;
+    use pluma_doc::FillLayer;
     // A group [F0 | F1 F2]: the Contents row sits above item 0.
     let mut n = Node::group(NodeId(1), vec![]);
     n.appearance.items = (0..3).map(|_| AppearanceItem::Fill(FillLayer::new(Paint::None))).collect();
@@ -782,8 +782,8 @@ fn drops_move_items_across_the_contents_row_and_the_row_itself() {
 
 #[test]
 fn with_nothing_selected_it_lists_what_new_art_gets() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}));
     run(&mut app, "appearance.addFill", json!({}));
@@ -809,14 +809,14 @@ fn with_nothing_selected_it_lists_what_new_art_gets() {
 #[test]
 fn inline_stroke_weight_and_effect_fields_are_named() {
     use egui_kittest::kittest::Queryable;
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
     app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap();
     app.run("appearance.addStroke", json!({})).unwrap();
     app.run("effect.apply", json!({"effect": "stylize.dropShadow"})).unwrap();
     let mut first = true;
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(360.0, 760.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if std::mem::replace(&mut first, false) {
                 crate::theme::install_fonts(ui.ctx());
                 set_pstate(ui.ctx(), "ap-fx-open-None-0", true);
@@ -835,8 +835,8 @@ fn inline_stroke_weight_and_effect_fields_are_named() {
 /// field has an id of its own (egui flags a clash with a 🔥 warning drawn over the widgets).
 #[test]
 fn new_art_rows_of_the_same_kind_have_their_own_widget_ids() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 100, "height": 100}));
     run(&mut app, "shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20}));
     run(&mut app, "appearance.addFill", json!({}));
@@ -872,8 +872,8 @@ fn new_art_rows_of_the_same_kind_have_their_own_widget_ids() {
 /// Feather and the opacity, not the fills. A path with type names them "Mixed Objects".
 #[test]
 fn a_mixed_selection_lists_what_its_objects_share() {
-    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
-    let run = |app: &mut VectorcraftApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), Default::default());
+    let run = |app: &mut PlumaApp, id: &str, p: Value| app.session.execute(id, &p).unwrap();
     run(&mut app, "file.new", json!({"width": 300, "height": 200}));
     let mut ids = vec![];
     for (x, color) in [(0, "#ffff00"), (150, "#ff0000")] {
@@ -885,7 +885,7 @@ fn a_mixed_selection_lists_what_its_objects_share() {
     }
     run(&mut app, "select.set", json!({"ids": ids}));
     let shown = frame(&mut app);
-    let kind = app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(ids[0].as_u64().unwrap())).unwrap().kind_label();
+    let kind = app.session.active().unwrap().doc.node(pluma_doc::NodeId(ids[0].as_u64().unwrap())).unwrap().kind_label();
     assert_eq!(shown.iter().find(|t| *t != "?").map(String::as_str), Some(kind), "the object row names their kind: {shown:?}");
     assert!(shown.iter().any(|t| t == "Mixed Appearances"), "{shown:?}");
     assert!(shown.iter().any(|t| t == "Stroke:") && !shown.iter().any(|t| t == "Fill:"), "the stroke, not the fills: {shown:?}");

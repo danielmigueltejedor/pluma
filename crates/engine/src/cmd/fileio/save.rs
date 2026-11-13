@@ -9,8 +9,8 @@
 use std::io::Write as _;
 use std::sync::Arc;
 
+use pluma_doc::Document;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::Document;
 
 use super::super::{CommandSpec, Result, Session, always, bad, bool_or, clock_date, cmd, date_param, has_doc, str_param};
 use super::{
@@ -120,13 +120,13 @@ fn stamp_doc_dates(d: &mut Document, at: i64) {
     d.metadata.modified = Some(at);
 }
 
-/// The Templates folder: the `templatesFolder` preference, else `VectorCraft Templates` in the
+/// The Templates folder: the `templatesFolder` preference, else `Pluma Templates` in the
 /// user's documents folder (none where there is no home folder, as on the web).
 pub fn templates_folder(prefs: &Prefs) -> Option<String> {
     if !prefs.templates_folder.is_empty() {
         return Some(prefs.templates_folder.clone());
     }
-    Some(documents_folder()?.join("VectorCraft Templates").to_string_lossy().to_string())
+    Some(documents_folder()?.join("Pluma Templates").to_string_lossy().to_string())
 }
 
 /// The Templates folder for a file dialog to start in (#703): made when it's missing; where it
@@ -380,7 +380,7 @@ pub fn remembered_save_options(st: &DocState) -> Map<String, Value> {
     for k in ARTBOARD_PARAMS {
         let named = match (k, options.get(k)) {
             ("range", Some(Value::String(r))) if r.trim().is_empty() || r.trim().eq_ignore_ascii_case("all") => continue,
-            ("range", Some(Value::String(r))) => match vectorcraft_doc::range::parse_range(r, count) {
+            ("range", Some(Value::String(r))) => match pluma_doc::range::parse_range(r, count) {
                 Ok(v) => v,
                 Err(_) => {
                     moved.push((k, Some(vec![])));
@@ -401,7 +401,7 @@ pub fn remembered_save_options(st: &DocState) -> Map<String, Value> {
         // A range that reads differently against the artboards there are now (`"2-"` once one
         // was added) is written out as the artboards it named.
         let reads = match (k, options.get(k)) {
-            ("range", Some(Value::String(r))) => vectorcraft_doc::range::parse_range(r, ids.len()).ok(),
+            ("range", Some(Value::String(r))) => pluma_doc::range::parse_range(r, ids.len()).ok(),
             _ => Some(named),
         };
         moved.push((k, (reads.as_ref() != Some(&there)).then_some(there)));
@@ -502,7 +502,7 @@ pub(super) fn moved_active_artboard(st: &DocState, doc: &Document, f: &Format) -
 fn fidelity_warning(f: &Format) -> Option<String> {
     (!is_native(f)).then(|| {
         format!(
-            "{} keeps the artwork but not everything a VectorCraft document holds (editable effects, symbols, swatches, styles): save as VectorCraft to keep it all editable",
+            "{} keeps the artwork but not everything a Pluma document holds (editable effects, symbols, swatches, styles): save as Pluma to keep it all editable",
             f.label
         )
     })
@@ -578,7 +578,7 @@ pub(super) fn artboard_doc(doc: &Document, i: usize) -> Document {
 
 /// Reduce `d` to the objects touching `r`, in their layers (resources are kept), opening
 /// fitted to its artboard rather than at the master file's view.
-pub(super) fn keep_art_on(d: &mut Document, r: vectorcraft_geom::Rect) {
+pub(super) fn keep_art_on(d: &mut Document, r: pluma_geom::Rect) {
     d.last_view = None;
     d.layers_open = None;
     for layer in &mut d.layers {
@@ -587,8 +587,8 @@ pub(super) fn keep_art_on(d: &mut Document, r: vectorcraft_geom::Rect) {
 }
 
 /// Keep in layer `n` (and its sublayers) only the objects touching `r`, and those without bounds.
-fn keep_on(n: &mut Arc<vectorcraft_doc::Node>, r: vectorcraft_geom::Rect) {
-    let touches = |b: vectorcraft_geom::Rect| b.x0 <= r.x1 && b.x1 >= r.x0 && b.y0 <= r.y1 && b.y1 >= r.y0;
+fn keep_on(n: &mut Arc<pluma_doc::Node>, r: pluma_geom::Rect) {
+    let touches = |b: pluma_geom::Rect| b.x0 <= r.x1 && b.x1 >= r.x0 && b.y0 <= r.y1 && b.y1 >= r.y0;
     if let Some(children) = Arc::make_mut(n).children_mut() {
         // An object whose bounds can't be measured (type in a missing font) stays: dropping it loses art.
         children.retain(|c| c.is_layer() || c.visual_bounds().is_none_or(touches));
@@ -610,10 +610,9 @@ fn blank_pages(doc: &Document) -> Document {
 }
 
 /// Why a `.ai` file saved without PDF content looks empty elsewhere.
-const NOT_PDF_COMPATIBLE: &str = "saved without PDF content: VectorCraft opens it as before, other apps show empty pages";
+const NOT_PDF_COMPATIBLE: &str = "saved without PDF content: Pluma opens it as before, other apps show empty pages";
 /// The same, for a file that carries the editing copy of its art.
-const NOT_PDF_COMPATIBLE_EDITING: &str =
-    "saved without PDF content: VectorCraft and apps that read its editing data open it, other apps show empty pages";
+const NOT_PDF_COMPATIBLE_EDITING: &str = "saved without PDF content: Pluma and apps that read its editing data open it, other apps show empty pages";
 
 /// `f` (`.ai` or `.ait`) named, in its option errors, as a file saved without PDF content.
 fn without_pdf(f: &Format) -> Format {
@@ -730,11 +729,8 @@ pub(super) fn encode_ai(cmd: &str, f: &Format, doc: &Document, p: &Value) -> Res
         };
         // With the artboards' background colors, as the pages draw them.
         let art = super::export::with_artboard_fills(art, &params, 0..art.artboards.len()).map_err(|e| bad(cmd, e))?;
-        let o = vectorcraft_eps::AiEditingOptions {
-            title: doc.title.clone(),
-            created: doc.metadata.created.or_else(vectorcraft_doc::metadata::output_time),
-        };
-        let (data, lost) = vectorcraft_eps::ai_private_data(&art, &o).map_err(|e| bad(cmd, e))?;
+        let o = pluma_eps::AiEditingOptions { title: doc.title.clone(), created: doc.metadata.created.or_else(pluma_doc::metadata::output_time) };
+        let (data, lost) = pluma_eps::ai_private_data(&art, &o).map_err(|e| bad(cmd, e))?;
         // Placed files that weren't found are written as their previews here too.
         resolved_warnings.extend(lost);
         carries_editing.set(true);
@@ -919,7 +915,7 @@ impl SaveJob {
     }
 
     /// [`SaveJob::write`] through `stream`, which writes the file at a path with what the filler
-    /// it is given writes (atomically, as [`vectorcraft_format::write_atomic_with`]). A native
+    /// it is given writes (atomically, as [`pluma_format::write_atomic_with`]). A native
     /// file goes into it as it is encoded ([`SaveJob::streams`]), never held whole in memory;
     /// other files are encoded first, then written into it.
     pub fn write_streamed(&self, stream: StreamWrite) -> Result<Value> {
@@ -1104,7 +1100,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save Document",
             [],
             None,
-            "{path?, format?: vectorcraft|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own format), options?: {…the format's options, see file.formatOptions; default: as last saved}, svg?: {…SVG options} (an SVG save keeps hidden layers, display:none, unless hiddenLayers is false), …the SVG and PDF options given flat instead (an option given flat or in svg and in options with different values is an error), compress?: bool (native, also in options: gzip; default: the useCompression preference; warnings say when the format doesn't read compress, version, preview or precision given flat, or a key given in options), version?: 4 (3, 2 or 1: for older VectorCraft versions; 1 and 2 are never compressed), preview?: false (embed a PNG of the first artboard, at most 256 px), precision?: 0..9 (native: round path anchors and handles to this many decimal places, a smaller file; colors, transforms and type stay exact; default: exact, and a later save without it writes exactly again), separateArtboards?: false (native and .ai: also save each artboard of `range` to <name>-<artboard>.<ext> beside the file, holding that artboard and the art touching it; the result's files lists every file written), range?: \"1-3, 5\"|\"all\" (default; with separateArtboards), includeLinked?: false (keep linked files' own pixels, not just their previews; they stay linked), embedProfiles?: true (carry the ICC profiles loaded from files that the document is tagged with; opening the file installs them where missing), pdfCompatible?: true (native: also carry a PDF of every artboard; false omits it) | true for .ai (false: blank pages, only the native document; a .ai file's compress, default true, is its compression.compressText), modified?: Unix seconds|null (the File Info modified date, and created date when there is none, a save to a file stamps; default now, recorded in the journal so a replay matches; null: leave the dates)} → {path, format, bytes, warnings, files?: [path…] (the file and its artboards' files), linked?: [path…] (images an SVG links to)}. Save writes one artboard, except a .ai file: a PDF-compatible file of every artboard carrying the native document (preserveEditing always on; PDF options flat or in options), which document.open restores exactly, on the active artboard (the app's, else the one the document opened on; with editingData: false, the first); separateArtboards writes more files, one per artboard. EPS saves the chosen artboard (first by default), retaining its page margins and the whole editable document; its PostScript appearance flattens transparency, as EPS requires. Without a path it writes the document's own file in its own format: a document opened from or saved as SVG/PDF/EPS saves as that again (warnings name what the format loses). No path known (never saved, converted from an older version, restored by Data Recovery, or another format) → {dataBase64, format, name, folder?, warnings} and the document stays modified. A key that no save format takes, beside the path or in options, and an unknown key inside a PDF option's object or svg, are refused",
+            "{path?, format?: pluma|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own format), options?: {…the format's options, see file.formatOptions; default: as last saved}, svg?: {…SVG options} (an SVG save keeps hidden layers, display:none, unless hiddenLayers is false), …the SVG and PDF options given flat instead (an option given flat or in svg and in options with different values is an error), compress?: bool (native, also in options: gzip; default: the useCompression preference; warnings say when the format doesn't read compress, version, preview or precision given flat, or a key given in options), version?: 4 (3, 2 or 1: for older Pluma versions; 1 and 2 are never compressed), preview?: false (embed a PNG of the first artboard, at most 256 px), precision?: 0..9 (native: round path anchors and handles to this many decimal places, a smaller file; colors, transforms and type stay exact; default: exact, and a later save without it writes exactly again), separateArtboards?: false (native and .ai: also save each artboard of `range` to <name>-<artboard>.<ext> beside the file, holding that artboard and the art touching it; the result's files lists every file written), range?: \"1-3, 5\"|\"all\" (default; with separateArtboards), includeLinked?: false (keep linked files' own pixels, not just their previews; they stay linked), embedProfiles?: true (carry the ICC profiles loaded from files that the document is tagged with; opening the file installs them where missing), pdfCompatible?: true (native: also carry a PDF of every artboard; false omits it) | true for .ai (false: blank pages, only the native document; a .ai file's compress, default true, is its compression.compressText), modified?: Unix seconds|null (the File Info modified date, and created date when there is none, a save to a file stamps; default now, recorded in the journal so a replay matches; null: leave the dates)} → {path, format, bytes, warnings, files?: [path…] (the file and its artboards' files), linked?: [path…] (images an SVG links to)}. Save writes one artboard, except a .ai file: a PDF-compatible file of every artboard carrying the native document (preserveEditing always on; PDF options flat or in options), which document.open restores exactly, on the active artboard (the app's, else the one the document opened on; with editingData: false, the first); separateArtboards writes more files, one per artboard. EPS saves the chosen artboard (first by default), retaining its page margins and the whole editable document; its PostScript appearance flattens transparency, as EPS requires. Without a path it writes the document's own file in its own format: a document opened from or saved as SVG/PDF/EPS saves as that again (warnings name what the format loses). No path known (never saved, converted from an older version, restored by Data Recovery, or another format) → {dataBase64, format, name, folder?, warnings} and the document stays modified. A key that no save format takes, beside the path or in options, and an unknown key inside a PDF option's object or svg, are refused",
             has_doc,
             |s, p| save(s, SaveMode::Save, p)
         ),
@@ -1113,7 +1109,7 @@ pub(super) fn specs() -> Vec<CommandSpec> {
             "Save As…",
             ["File"],
             Some("Cmd+Shift+S"),
-            "{…as document.save} {path?, format?: vectorcraft|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own; ait, a .ait template, is written by file.saveAsTemplate), options?, svg?, precision?, modified?} the document takes on the new path, name and format (except a template, which is always a copy) → {path, format, bytes, warnings}; no path → {dataBase64, format, name, folder?, warnings}",
+            "{…as document.save} {path?, format?: pluma|template|pdf|svg|svgz|ai|eps (default: the path's extension, else the document's own; ait, a .ait template, is written by file.saveAsTemplate), options?, svg?, precision?, modified?} the document takes on the new path, name and format (except a template, which is always a copy) → {path, format, bytes, warnings}; no path → {dataBase64, format, name, folder?, warnings}",
             has_doc,
             |s, p| save(s, SaveMode::SaveAs, p)
         ),
@@ -1204,7 +1200,7 @@ mod tests_folders {
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
         let mut prefs = crate::Prefs::default();
-        let wanted = base.join("Modelli").join("VectorCraft Templates");
+        let wanted = base.join("Modelli").join("Pluma Templates");
         prefs.templates_folder = wanted.to_string_lossy().into_owned();
         assert_eq!(super::templates_dialog_folder(&prefs).map(PathBuf::from), Some(wanted.clone()));
         assert!(wanted.is_dir(), "made");

@@ -3,9 +3,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use pluma_engine::Session;
+use pluma_engine::cmd::fileio;
 use serde_json::json;
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::fileio;
 
 use super::*;
 use crate::Services;
@@ -15,12 +15,12 @@ pub(super) type Written = Rc<RefCell<Vec<(String, Vec<u8>)>>>;
 
 /// An app with `artboards` 60×40 pt artboards whose save dialog answers `/out/<suggested>` and
 /// whose writer records what it is given.
-pub(super) fn app(artboards: usize) -> (VectorcraftApp, Written) {
+pub(super) fn app(artboards: usize) -> (PlumaApp, Written) {
     app_saving(artboards, |p| format!("/out/{}", p.name))
 }
 
 /// [`app`], with a save dialog that answers `pick`.
-pub(super) fn app_saving(artboards: usize, pick: fn(&crate::FilePick) -> String) -> (VectorcraftApp, Written) {
+pub(super) fn app_saving(artboards: usize, pick: fn(&crate::FilePick) -> String) -> (PlumaApp, Written) {
     let written = Written::default();
     let w = written.clone();
     let services = Services {
@@ -31,7 +31,7 @@ pub(super) fn app_saving(artboards: usize, pick: fn(&crate::FilePick) -> String)
         })),
         ..Default::default()
     };
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 60, "height": 40, "artboards": artboards})).unwrap();
     app.run("paint.setStroke", json!({"none": true})).unwrap();
     app.run("shape.ellipse", json!({"x": 5, "y": 4, "width": 30, "height": 20})).unwrap();
@@ -39,18 +39,18 @@ pub(super) fn app_saving(artboards: usize, pick: fn(&crate::FilePick) -> String)
 }
 
 /// One headless frame of the dialog layer.
-pub(super) fn frame(app: &mut VectorcraftApp) {
+pub(super) fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     let mut out = ctx.run_ui(Default::default(), |ui| show(app, ui.ctx()));
     out.textures_delta.clear();
 }
 
-pub(super) fn kind(app: &VectorcraftApp) -> Option<&str> {
+pub(super) fn kind(app: &PlumaApp) -> Option<&str> {
     app.ui.dialog.as_ref().map(|d| d.kind.as_str())
 }
 
-pub(super) fn set(app: &mut VectorcraftApp, field: &str, value: serde_json::Value) {
+pub(super) fn set(app: &mut PlumaApp, field: &str, value: serde_json::Value) {
     app.ui.dialog.as_mut().expect("a dialog is open").fields.insert(field.into(), value);
 }
 
@@ -196,7 +196,7 @@ fn svg_continues_in_svg_options_and_pdf_art_is_written_directly() {
     app.run("file.exportAs", json!({"format": "pdf"})).unwrap();
     let r = confirm(&mut app).unwrap();
     assert_eq!(r["path"], "/out/Untitled-1.pdf");
-    let pdf = vectorcraft_pdf::import(&written.borrow()[2].1).unwrap();
+    let pdf = pluma_pdf::import(&written.borrow()[2].1).unwrap();
     assert_eq!((pdf.artboards[0].rect.width().round(), pdf.artboards[0].rect.height().round()), (30.0, 20.0), "the ellipse's bounds");
 }
 
@@ -273,7 +273,7 @@ fn pdf_artboards_continue_in_the_save_pdf_dialog() {
     assert!(written.borrow().is_empty());
     frame(&mut app);
     confirm(&mut app).unwrap();
-    let pdf = vectorcraft_pdf::import(&written.borrow()[0].1).unwrap();
+    let pdf = pluma_pdf::import(&written.borrow()[0].1).unwrap();
     assert_eq!(pdf.artboards.len(), 2, "one page per artboard in the range");
 }
 
@@ -309,15 +309,15 @@ fn export_as_writes_only_the_chosen_artboard_in_every_format() {
 #[test]
 fn the_enter_that_closed_the_save_panel_does_not_confirm_the_options() {
     let params = r#"{"speed":{"type":"number","min":1,"max":100,"default":40}}"#;
-    let module = wat::parse_str(vectorcraft_plugins::wat::returning(
-        &vectorcraft_plugins::wat::exporter("test.ui.held", r#"["tuh"]"#, params),
+    let module = wat::parse_str(pluma_plugins::wat::returning(
+        &pluma_plugins::wat::exporter("test.ui.held", r#"["tuh"]"#, params),
         r#"{"dataBase64":"SGk="}"#,
     ))
     .unwrap();
     let enter = |pressed| egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed, repeat: false, modifiers: Default::default() };
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -325,7 +325,7 @@ fn the_enter_that_closed_the_save_panel_does_not_confirm_the_options() {
     let formats = [("png", false), ("svg", false), ("pdf", true), ("txt", false), ("dxf", false), ("eps", false), ("plugin.test.ui.held", false)];
     for (format, artboards) in formats {
         let (mut app, written) = app(1);
-        app.run("plugin.install", json!({"dataBase64": vectorcraft_format::base64_encode(&module)})).unwrap();
+        app.run("plugin.install", json!({"dataBase64": pluma_format::base64_encode(&module)})).unwrap();
         app.run("file.exportAs", json!({"format": format})).unwrap();
         set(&mut app, "useArtboards", json!(artboards));
         confirm(&mut app).unwrap();
@@ -339,5 +339,5 @@ fn the_enter_that_closed_the_save_panel_does_not_confirm_the_options() {
         assert!(app.ui.dialog.is_none(), "{format}: Enter pressed again confirms");
         assert!(!written.borrow().is_empty(), "{format}: and writes");
     }
-    vectorcraft_plugins::registry::remove("test.ui.held");
+    pluma_plugins::registry::remove("test.ui.held");
 }

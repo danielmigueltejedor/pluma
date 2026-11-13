@@ -1,7 +1,7 @@
 # Hindi interface terminology and verification
 
-The `hi` catalog is a machine-assisted Hindi draft written from VectorCraft's English strings.
-It starts from matching entries in PhotoCraft's clean-room Hindi catalog. VectorCraft's current
+The `hi` catalog is a machine-assisted Hindi draft written from Pluma's English strings.
+It starts from matching entries in Lienzo's clean-room Hindi catalog. Pluma's current
 loanword preferences below take precedence over that starting vocabulary.
 The remaining drafts used the local Argos English–Hindi 1.1 model, followed by an agent wording
 pass on commands, vector vocabulary, counted messages, warnings and diagnostic identifiers.
@@ -68,7 +68,7 @@ A separate scan of the release's `tl!` literals checks strings beyond its catalo
 main added paragraph labels, spine-index validation and two error messages: six rows in total.
 Main's workspace version is still 0.21.0; this PR does not change release versioning.
 
-`cargo test -p vectorcraft-ui-egui --lib i18n::tests` passes all 55 tests in Ubuntu 24.04 (WSL).
+`cargo test -p pluma-ui-egui --lib i18n::tests` passes all 55 tests in Ubuntu 24.04 (WSL).
 The untranslated report has no Hindi section, meaning it found no missing Hindi rows among the
 categories it checks. This does not check dynamically assembled strings that the scanners miss.
 Additional checks compare placeholders, backtick-delimited identifiers and numeric values.

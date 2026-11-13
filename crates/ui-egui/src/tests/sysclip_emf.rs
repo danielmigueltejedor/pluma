@@ -1,11 +1,11 @@
 //! Windows metafiles another app copied paste as vector art (M4.95, through the system clipboard
 //! service of M4.57).
 
+use pluma_doc::NodeKind;
+use pluma_engine::Session;
+use pluma_engine::cmd::clipboard::{AI, EMF, EPS, Flavour, PASTE_ORDER, PDF, PNG, TEXT, file_flavour};
+use pluma_testkit::ai;
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::clipboard::{AI, EMF, EPS, Flavour, PASTE_ORDER, PDF, PNG, TEXT, file_flavour};
-use vectorcraft_testkit::ai;
 
 use crate::sysclip::import_command;
 use crate::tests_sysclip::{app, blue_png, copy_elsewhere, pasted, run};
@@ -17,7 +17,7 @@ fn an_emf_from_another_app_pastes_as_vectors_ahead_of_its_bitmap() {
     other.execute("file.new", &json!({"width": 100, "height": 100})).unwrap();
     other.execute("shape.ellipse", &json!({"x": 10, "y": 10, "width": 30, "height": 30})).unwrap();
     let emf = other.execute("document.export", &json!({"format": "emf"})).unwrap();
-    let emf = vectorcraft_format::base64_decode(emf["dataBase64"].as_str().unwrap()).unwrap();
+    let emf = pluma_format::base64_decode(emf["dataBase64"].as_str().unwrap()).unwrap();
     let flavour = Flavour { mime: EMF, data: emf.clone() };
     assert_eq!(import_command(&flavour, None).0, "clipboard.importEmf");
     copy_elsewhere(&board, vec![(PNG, blue_png()), (EMF, emf)]);
@@ -43,7 +43,7 @@ fn an_eps_from_another_app_pastes_as_vectors() {
     run(&mut app, "edit.paste", json!({}));
     let p = pasted(&app);
     assert!(!p.is_empty(), "something pasted");
-    let path = |n: &vectorcraft_doc::Node| matches!(n.kind, NodeKind::Path { .. });
+    let path = |n: &pluma_doc::Node| matches!(n.kind, NodeKind::Path { .. });
     let mut paths = vec![];
     p.iter().for_each(|n| n.walk(&mut |c| paths.extend(path(c).then(|| c.geometric_bounds().unwrap()))));
     assert_eq!(paths.len(), 1, "{p:?}");
@@ -52,7 +52,7 @@ fn an_eps_from_another_app_pastes_as_vectors() {
     // A PDF beside it is the better copy: the apps that offer both mean the same picture.
     assert!(PASTE_ORDER.iter().position(|m| *m == PDF) < PASTE_ORDER.iter().position(|m| *m == EPS));
     // Not PostScript: refused, nothing pasted over.
-    let pdf = vectorcraft_format::base64_encode(b"%PDF-1.7");
+    let pdf = pluma_format::base64_encode(b"%PDF-1.7");
     assert!(app.session.execute("clipboard.importEps", &json!({"dataBase64": pdf})).is_err());
     // An .eps file copied in a file manager is that flavour too (told by its bytes, not its name).
     assert_eq!(file_flavour("equation.eps", &eps, &PASTE_ORDER), Some(EPS));

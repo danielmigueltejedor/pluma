@@ -1,12 +1,12 @@
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::{ID, KIND, show};
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 300, "height": 300})).unwrap();
     app
 }
@@ -56,7 +56,7 @@ fn the_plugins_submenu_selects_the_tools_and_opens_the_anchor_inspector() {
 fn the_inspector_shows_the_selected_anchor_and_its_buttons_edit() {
     let mut app = app();
     let r = app.run("path.create", json!({"anchors": [{"x": 10, "y": 10}, {"x": 110, "y": 10}, {"x": 110, "y": 110}], "closed": false})).unwrap();
-    let id = vectorcraft_doc::NodeId(r["id"].as_u64().unwrap());
+    let id = pluma_doc::NodeId(r["id"].as_u64().unwrap());
     let text = painted_text(&mut app, show);
     assert!(text.contains("Direct-select anchor points to edit them.") && text.contains("Make Smooth") && text.contains("Close Path:"), "{text}");
     app.session
@@ -135,11 +135,8 @@ fn the_corner_tool_item_selects_the_tool_and_opens_its_panel_section() {
     assert_eq!(app.session.tool_id(), "cornerTool");
     assert!(crate::panel_docking::showing(&app.ui, ID), "the panel opens");
     // Neither toolbar shows it, the All Tools list does.
-    assert!(
-        vectorcraft_tools::catalog::all_tools().any(|t| t.id == "cornerTool")
-            && vectorcraft_tools::catalog::all_tools().any(|t| t.id == "slideAnchor")
-    );
-    assert!(!vectorcraft_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).any(|t| t.id == "cornerTool" || t.id == "slideAnchor"));
+    assert!(pluma_tools::catalog::all_tools().any(|t| t.id == "cornerTool") && pluma_tools::catalog::all_tools().any(|t| t.id == "slideAnchor"));
+    assert!(!pluma_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).any(|t| t.id == "cornerTool" || t.id == "slideAnchor"));
 }
 
 #[test]
@@ -152,9 +149,9 @@ fn the_shared_edge_item_selects_the_tool_and_opens_its_panel_section() {
     assert_eq!(app.session.tool_id(), "sharedEdge");
     assert!(crate::panel_docking::showing(&app.ui, ID), "the panel opens");
     // Neither toolbar shows it and it has no shortcut; the All Tools list does.
-    let tool = vectorcraft_tools::catalog::all_tools().find(|t| t.id == "sharedEdge").expect("in All Tools");
+    let tool = pluma_tools::catalog::all_tools().find(|t| t.id == "sharedEdge").expect("in All Tools");
     assert!(tool.shortcut.is_none());
-    assert!(!vectorcraft_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).any(|t| t.id == "sharedEdge"));
+    assert!(!pluma_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).any(|t| t.id == "sharedEdge"));
     // The panel's section shows the tool's values and its option acts.
     let text = painted_text(&mut app, show);
     assert!(text.contains("Shared Edges") && text.contains("Coincidence:") && text.contains("Keep Shared Points Together"), "{text}");
@@ -168,7 +165,7 @@ fn the_corner_section_shows_the_tools_values_and_applies_them_to_the_selection()
     let r = app
         .run("path.create", json!({"anchors": [{"x": 10, "y": 10}, {"x": 110, "y": 10}, {"x": 110, "y": 110}, {"x": 10, "y": 110}], "closed": true}))
         .unwrap();
-    let id = vectorcraft_doc::NodeId(r["id"].as_u64().unwrap());
+    let id = pluma_doc::NodeId(r["id"].as_u64().unwrap());
     let text = painted_text(&mut app, show);
     assert!(
         text.contains("Corners selected: 4") && text.contains("Radius:") && text.contains("Round") && text.contains("Apply to Selected Anchors"),
@@ -232,7 +229,7 @@ fn effect_path_effects_lists_the_live_effects_and_their_dialogs_pick_from_their_
         ("addon.path.retract", "handles"),
         ("addon.path.split", "anchors"),
     ] {
-        let doc = vectorcraft_effects::effect_info(effect).unwrap();
+        let doc = pluma_effects::effect_info(effect).unwrap();
         let options = super::effect_choices(effect, key).expect(key);
         let default = doc.defaults[key].as_str().unwrap();
         assert!(options.iter().any(|(_, value)| *value == default), "{effect} {key}");

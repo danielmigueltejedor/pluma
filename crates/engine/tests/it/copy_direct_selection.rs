@@ -1,10 +1,10 @@
 //! Direct-selection Copy and Cut tests (#2122).
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_engine::Session;
+use pluma_geom::FillRule;
+use pluma_testkit::invariants::check_session;
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_engine::Session;
-use vectorcraft_geom::FillRule;
-use vectorcraft_testkit::invariants::check_session;
 
 fn run(s: &mut Session, command: &str, params: Value) -> Value {
     s.execute(command, &params).unwrap()
@@ -174,7 +174,7 @@ fn pen_tool_drawing_copies_whole_path_not_single_anchor() {
     let mut s = Session::new();
     run(&mut s, "file.new", json!({"width": 200, "height": 200}));
     // Start drawing with Pen tool
-    s.select_tool("pen", vectorcraft_engine::ViewInfo::default()).unwrap();
+    s.select_tool("pen", pluma_engine::ViewInfo::default()).unwrap();
     let id = NodeId(run(&mut s, "path.create", json!({"anchors": [{"x": 10, "y": 10}]}))["id"].as_u64().unwrap());
     run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 50, "y": 10}));
     run(&mut s, "path.appendAnchor", json!({"id": id.0, "x": 50, "y": 50}));

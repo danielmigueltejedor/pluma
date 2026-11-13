@@ -1,16 +1,16 @@
+use pluma_engine::Session;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
 
 use super::{COMMAND, KIND, choose_shown, message, refresh, shown, toggle};
 use crate::tests_labels::painted_text;
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// A fresh folder for one test (removed when dropped).
 struct Folder(std::path::PathBuf);
 
 impl Folder {
     fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("vectorcraft-ui-select-links-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pluma-ui-select-links-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Self(dir)
@@ -39,10 +39,10 @@ fn png(w: u32, h: u32) -> Vec<u8> {
 
 /// A document with `river.png` linked, `harbour.png` linked and then deleted (missing), and
 /// `stamp.png` embedded → (app, river, harbour, stamp).
-fn app(dir: &Folder) -> (VectorcraftApp, u64, u64, u64) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app(dir: &Folder) -> (PlumaApp, u64, u64, u64) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
-    let place = |app: &mut VectorcraftApp, path: &str, at: [u32; 2], link: bool| {
+    let place = |app: &mut PlumaApp, path: &str, at: [u32; 2], link: bool| {
         app.run("file.place", json!({"path": path, "at": at, "link": link})).unwrap()["ids"][0].as_u64().unwrap()
     };
     let (a, b, c) = (dir.file("river.png", &png(40, 30)), dir.file("harbour.png", &png(30, 20)), dir.file("stamp.png", &png(20, 20)));
@@ -55,7 +55,7 @@ fn app(dir: &Folder) -> (VectorcraftApp, u64, u64, u64) {
 }
 
 /// The selected objects' ids, sorted.
-fn selected(app: &VectorcraftApp) -> Vec<u64> {
+fn selected(app: &PlumaApp) -> Vec<u64> {
     let mut ids: Vec<u64> = app.session.active().unwrap().selection.objects.iter().map(|id| id.0).collect();
     ids.sort_unstable();
     ids
@@ -109,7 +109,7 @@ fn menu_items_are_on_for_the_statuses_present_and_shift_adds() {
     {
         assert_eq!(item(label).enabled, on, "{label}");
     }
-    let run = |app: &mut VectorcraftApp, label: &str, shift: bool| {
+    let run = |app: &mut PlumaApp, label: &str, shift: bool| {
         let e = item(label);
         let target = menus::click_target(&e.label, e.command.as_deref().unwrap(), &e.params);
         let held = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };

@@ -23,7 +23,7 @@ pub const EDITING_FILE: &str = "vectorcraft-editing.vectorcraft";
 pub const LEGACY_EDITING_FILE: &str = "drawcraft-editing.drawcraft";
 
 /// The editing file's description: this text, then the hash of the pages.
-const DESCRIPTION: &str = "VectorCraft editing data; page hash ";
+const DESCRIPTION: &str = "Pluma editing data; page hash ";
 /// Stands for the hash while the PDF is written: as long as a hash, so writing the hash over it
 /// keeps every offset.
 const PLACEHOLDER: &str = "0000000000000000";

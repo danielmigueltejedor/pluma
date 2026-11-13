@@ -114,10 +114,10 @@ fn compose_para(
 
 /// The list marker of each of the paragraphs `paras` of `t` (None for none): bullets, and numbers
 /// counted per level through consecutive list paragraphs from [`TextObject::list_counts`], as
-/// [`vectorcraft_doc::text::ParaList::next_marker`] counts them.
+/// [`pluma_doc::text::ParaList::next_marker`] counts them.
 pub(super) fn list_markers(t: &TextObject, paras: &[Range<usize>]) -> Vec<Option<String>> {
     let mut counts = t.list_counts();
-    paras.iter().enumerate().map(|(pi, pr)| vectorcraft_doc::text::ParaList::next_marker(t.para_at(pi).list, pr.is_empty(), &mut counts)).collect()
+    paras.iter().enumerate().map(|(pi, pr)| pluma_doc::text::ParaList::next_marker(t.para_at(pi).list, pr.is_empty(), &mut counts)).collect()
 }
 
 /// Whether paragraph `para` (right to left when `rtl`) has its indents mirrored: a horizontal
@@ -236,7 +236,7 @@ fn prepare_paragraph<'a, 'text>(
     }
     // …and Auto Leading: characters whose leading is Auto take this paragraph's share of their size.
     let auto_leading = |style: &CharStyle| style.leading.unwrap_or_else(|| para.justification.auto_leading_for(style.size));
-    if para.justification.auto_leading != vectorcraft_doc::JustificationOptions::default().auto_leading {
+    if para.justification.auto_leading != pluma_doc::JustificationOptions::default().auto_leading {
         for glyph in sg.iter_mut().filter(|glyph| glyph.inline.is_none()) {
             glyph.leading = auto_leading(cx.style_at(glyph.byte));
         }

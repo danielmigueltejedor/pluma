@@ -1,8 +1,8 @@
 //! Symbol editing mode (`symbol.edit`, `symbol.exitEditing`).
 
+use pluma_doc::{Node, NodeKind};
+use pluma_geom::Rect;
 use serde_json::{Value, json};
-use vectorcraft_doc::{Node, NodeKind};
-use vectorcraft_geom::Rect;
 
 use crate::*;
 
@@ -537,7 +537,7 @@ fn instances_in_pattern_tiles_graph_designs_and_brushes_follow_an_edit_of_their_
     // A stored entry that does not parse, and a field the brush definition does not read, are kept.
     let junk = json!({"name": "Unreadable", "kind": 7});
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
-    let Some(Value::Array(entries)) = doc.unknown.get_mut(vectorcraft_brush::DOC_KEY) else { panic!("no stored brushes") };
+    let Some(Value::Array(entries)) = doc.unknown.get_mut(pluma_brush::DOC_KEY) else { panic!("no stored brushes") };
     entries.iter_mut().filter(|e| e["name"] == "Pair Band").for_each(|e| e["note"] = json!("kept"));
     entries.push(junk.clone());
     // The changes of each instance of "Pair" in `n`, by path and color.
@@ -554,7 +554,7 @@ fn instances_in_pattern_tiles_graph_designs_and_brushes_follow_an_edit_of_their_
         let mut out: [Vec<(Vec<u32>, String)>; 3] = Default::default();
         d.patterns.iter().filter(|p| p.name == "Tile").flat_map(|p| &p.art).for_each(|n| changes(n, &mut out[0]));
         d.graph_designs.iter().for_each(|g| changes(&g.art, &mut out[1]));
-        let brush = vectorcraft_brush::find(d, "Pair Band").expect("the brush");
+        let brush = pluma_brush::find(d, "Pair Band").expect("the brush");
         brush.art().into_iter().for_each(|n| changes(n, &mut out[2]));
         out
     };
@@ -576,7 +576,7 @@ fn instances_in_pattern_tiles_graph_designs_and_brushes_follow_an_edit_of_their_
     assert_eq!(held(&s), [left.clone(), left.clone(), left.clone()]);
     run(&mut s, "symbol.exitEditing", json!({}));
     assert_eq!(held(&s), [left.clone(), left.clone(), left]);
-    let stored = &s.doc().unwrap().doc.unknown[vectorcraft_brush::DOC_KEY];
+    let stored = &s.doc().unwrap().doc.unknown[pluma_brush::DOC_KEY];
     assert!(stored.as_array().is_some_and(|a| a.contains(&junk)), "{stored}");
     assert!(stored.as_array().is_some_and(|a| a.iter().any(|e| e["name"] == "Pair Band" && e["note"] == "kept")), "{stored}");
 }
@@ -602,7 +602,7 @@ fn an_instance_in_an_opacity_mask_follows_an_edit_of_its_dynamic_symbol() {
         let d = &s.doc().unwrap().doc;
         let mask = d.node(masked).and_then(|n| n.extras().mask.clone()).expect("the opacity mask");
         let mut out = vec![];
-        vectorcraft_doc::swatches::walk_with_masks(&mask.art, &mut |n| {
+        pluma_doc::swatches::walk_with_masks(&mask.art, &mut |n| {
             if matches!(&n.kind, NodeKind::SymbolInstance { symbol, .. } if symbol == "Pair") {
                 out.extend(n.extras().symbol_overrides.iter().map(|o| (o.path.clone(), o.fill.as_ref().and_then(|p| p.color()).unwrap().to_hex())));
             }
@@ -678,7 +678,7 @@ fn undoing_entry_with_a_group_isolated_inside_the_art_goes_back_to_before() {
 }
 
 /// The text wrap of the area type in `n`.
-fn wrap_in(n: &Node) -> Vec<vectorcraft_doc::WrapShape> {
+fn wrap_in(n: &Node) -> Vec<pluma_doc::WrapShape> {
     let mut wrap = None;
     n.walk(&mut |n| {
         if let NodeKind::Text(t) = &n.kind {

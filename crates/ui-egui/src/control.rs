@@ -37,11 +37,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 
+use pluma_render::encode::{RasterExportOptions, RasterFormat};
+use pluma_tools::{Mods, PointerEvent, PointerKind};
 use serde_json::{Value, json};
-use vectorcraft_render::encode::{RasterExportOptions, RasterFormat};
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind};
 
-use crate::VectorcraftApp;
+use crate::PlumaApp;
 use crate::canvas::Xf;
 
 /// Synthetic pointer input advances one event per frame: keep gestures and backlog modest.
@@ -87,7 +87,7 @@ fn dialog_fields(p: &Value) -> Result<Vec<(String, Value)>, String> {
         .collect()
 }
 
-fn reserve_synthetic(app: &mut VectorcraftApp, additional: usize) -> Result<(), String> {
+fn reserve_synthetic(app: &mut PlumaApp, additional: usize) -> Result<(), String> {
     if additional > MAX_SYNTHETIC_EVENTS.saturating_sub(app.synthetic.len()) {
         return Err(format!("synthetic input queue limit ({MAX_SYNTHETIC_EVENTS} events); retry after pending input drains"));
     }
@@ -175,7 +175,7 @@ pub enum Outcome {
         data: bool,
     },
     /// A `ui.pointer` reply ([`pointer_reply`]), sent once the events numbered `from..to`
-    /// ([`vectorcraft_engine::Session::input_applied`]) have been made and the edit they started
+    /// ([`pluma_engine::Session::input_applied`]) have been made and the edit they started
     /// on another thread is applied, so it shows the selection after the edit.
     AfterToolEdit {
         from: u64,
@@ -185,11 +185,11 @@ pub enum Outcome {
 }
 
 /// The reply to `ui.pointer`: the selection, the key object and the active tool.
-pub(crate) fn pointer_reply(app: &mut VectorcraftApp) -> Value {
+pub(crate) fn pointer_reply(app: &mut PlumaApp) -> Value {
     pointer_reply_for(app, app.session.active().map(|d| d.uid))
 }
 
-pub(crate) fn pointer_reply_for(app: &VectorcraftApp, document: Option<u64>) -> Value {
+pub(crate) fn pointer_reply_for(app: &PlumaApp, document: Option<u64>) -> Value {
     let state = document.and_then(|uid| app.session.documents().iter().find(|d| d.uid == uid));
     match state {
         Some(state) => json!({
@@ -217,7 +217,7 @@ fn wrap(r: Result<Value, String>) -> Outcome {
     }
 }
 
-pub fn all_commands(app: &VectorcraftApp) -> Value {
+pub fn all_commands(app: &PlumaApp) -> Value {
     let mut v: Vec<Value> = app.session.commands().into_iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect();
     for (id, label, sc, params) in crate::menus::UI_COMMANDS {
         v.push(json!({"id": id, "label": label, "shortcut": sc, "params": params, "enabled": crate::menus::enabled(app, id), "ui": true}));
@@ -225,7 +225,7 @@ pub fn all_commands(app: &VectorcraftApp) -> Value {
     Value::Array(v)
 }
 
-pub fn inspect(app: &VectorcraftApp, ctx: &egui::Context) -> Value {
+pub fn inspect(app: &PlumaApp, ctx: &egui::Context) -> Value {
     let r = ctx.content_rect();
     let mut ui = serde_json::to_value(&app.ui).unwrap_or_default();
     // The old floating panels' record, kept only to read older preferences: `ui.docking` has
@@ -314,7 +314,7 @@ fn modifiers(p: &Value) -> egui::Modifiers {
     egui::Modifiers { alt: b("alt"), ctrl: b("ctrl"), shift: b("shift"), mac_cmd: b("cmd") && cfg!(target_os = "macos"), command: b("cmd") }
 }
 
-pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+pub fn handle(app: &mut PlumaApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     match req.method.as_str() {
@@ -336,7 +336,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
         "ui.contextMenu.list" => ok(serde_json::to_value(crate::menus::context_entries(app)).unwrap_or_default()),
         "ui.tool.select" => wrap(app.run("tool.select", json!({"tool": s("tool").unwrap_or("")}))),
         "ui.tool.list" => {
-            let groups: Vec<_> = vectorcraft_tools::TOOL_GROUPS.iter().chain(vectorcraft_tools::addons::GROUPS).copied().collect();
+            let groups: Vec<_> = pluma_tools::TOOL_GROUPS.iter().chain(pluma_tools::addons::GROUPS).copied().collect();
             ok(serde_json::to_value(groups).unwrap_or_default())
         }
         "ui.pointer" => pointer_events(app, ctx, req),
@@ -440,7 +440,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
         }
         "ui.screenshot" => {
             // Refused now rather than once the frame comes (it is checked again then).
-            if let Some(Err(e)) = s("path").map(vectorcraft_engine::file_access::check_write) {
+            if let Some(Err(e)) = s("path").map(pluma_engine::file_access::check_write) {
                 return err(e);
             }
             if p.get("focus").and_then(Value::as_bool).unwrap_or(true) {
@@ -456,7 +456,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
             let index = p.get("artboard").and_then(Value::as_u64).map_or(Some(0), |i| usize::try_from(i).ok());
             let Some(r) = index.and_then(|i| doc.artboards.get(i)).map(|a| a.rect) else { return err("no such artboard") };
             let scale = p.get("scale").and_then(Value::as_f64).unwrap_or(1.0);
-            if let Err(e) = vectorcraft_render::raster_size(r, scale) {
+            if let Err(e) = pluma_render::raster_size(r, scale) {
                 return err(e);
             }
             // Rendered with the options of a PNG export on white, so its pixels are the exported file's.
@@ -522,7 +522,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
 }
 
 /// `app.save` (`method`) or `app.export` with params `p`.
-fn save_or_export(app: &mut VectorcraftApp, method: &str, p: &Value) -> Result<Value, String> {
+fn save_or_export(app: &mut PlumaApp, method: &str, p: &Value) -> Result<Value, String> {
     if method == "app.save" {
         return app.run("file.save", p.clone());
     }
@@ -537,7 +537,7 @@ fn save_or_export(app: &mut VectorcraftApp, method: &str, p: &Value) -> Result<V
 /// `result` with the PNG as `pngBase64` when there is one.
 fn with_data(mut result: Value, png: Option<&[u8]>) -> Value {
     if let Some(png) = png {
-        result["pngBase64"] = json!(vectorcraft_format::base64_encode(png));
+        result["pngBase64"] = json!(pluma_format::base64_encode(png));
     }
     result
 }
@@ -555,7 +555,7 @@ fn screenshot_rgba_bytes(w: usize, h: usize) -> Option<usize> {
 
 /// The reply to `ui.screenshot`: the window capture `image` written to `path`, and sent back as
 /// `pngBase64` with `data`.
-pub fn save_screenshot(app: &mut VectorcraftApp, image: &egui::ColorImage, path: Option<&str>, data: bool) -> Value {
+pub fn save_screenshot(app: &mut PlumaApp, image: &egui::ColorImage, path: Option<&str>, data: bool) -> Value {
     save_screenshot_with_limit(app, image, path, data, MAX_SCREENSHOT_PNG_REPLY_BYTES)
 }
 
@@ -563,7 +563,7 @@ pub fn save_screenshot(app: &mut VectorcraftApp, image: &egui::ColorImage, path:
 /// the over-limit path without allocating a multi-megapixel frame. The public function always uses
 /// [`MAX_SCREENSHOT_PNG_REPLY_BYTES`].
 pub(crate) fn save_screenshot_with_limit(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     image: &egui::ColorImage,
     path: Option<&str>,
     data: bool,
@@ -582,7 +582,7 @@ pub(crate) fn save_screenshot_with_limit(
         )});
     }
     let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-    let img = vectorcraft_render::Rendered { width: w as u32, height: h as u32, pixels: rgba };
+    let img = pluma_render::Rendered { width: w as u32, height: h as u32, pixels: rgba };
     let png = match img.to_png() {
         Ok(png) => png,
         Err(e) => return json!({"ok": false, "error": e}),
@@ -622,13 +622,7 @@ pub(crate) struct RotateViewPress {
 
 /// Rotate View belongs to the canvas, not the engine's placeholder tool. Keep its press mapping
 /// across requests so document-coordinate drags do not move again as the view turns underneath.
-fn rotate_view_pointer(
-    app: &mut VectorcraftApp,
-    kind: PointerKind,
-    position: vectorcraft_geom::Point,
-    screen: bool,
-    shift: bool,
-) -> Result<(), String> {
+fn rotate_view_pointer(app: &mut PlumaApp, kind: PointerKind, position: pluma_geom::Point, screen: bool, shift: bool) -> Result<(), String> {
     let window = app.session.active().zip(crate::doc_windows::current(app)).map(|(d, w)| (d.uid, w.1)).ok_or("no document")?;
     let document_resets = app.session.tool_resets();
     let stored = if kind == PointerKind::Down { None } else { app.control_rotate_press };
@@ -697,7 +691,7 @@ fn validate_rotate_view_events(params: &Value, events: &[Value]) -> Result<(), S
 }
 
 /// `ui.pointer`: pointer events through the tools.
-fn pointer_events(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+fn pointer_events(app: &mut PlumaApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     let rotating = app.session.tool_id() == "rotateView";
     let before = if rotating { app.view().map(|view| view.rotation) } else { None };
     let outcome = pointer_events_inner(app, ctx, req);
@@ -713,7 +707,7 @@ fn pointer_events(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRe
 }
 
 /// Apply a pointer packet after Rotate View validation; other tools retain their existing routing.
-fn pointer_events_inner(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+fn pointer_events_inner(app: &mut PlumaApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     let p = &req.params;
     let Some(events) = p.get("events").and_then(Value::as_array) else { return err("missing `events`") };
     let rotating = app.session.tool_id() == "rotateView";
@@ -744,7 +738,7 @@ fn pointer_events_inner(app: &mut VectorcraftApp, ctx: &egui::Context, req: &Con
         let screen = e.get("space").and_then(Value::as_str) == Some("screen");
         let mods = e.get("mods").and_then(|m| serde_json::from_value(m.clone()).ok()).unwrap_or(base_mods);
         if rotating {
-            if let Err(e) = rotate_view_pointer(app, kind, vectorcraft_geom::Point::new(x, y), screen, mods.shift) {
+            if let Err(e) = rotate_view_pointer(app, kind, pluma_geom::Point::new(x, y), screen, mods.shift) {
                 return err(e);
             }
             continue;
@@ -755,7 +749,7 @@ fn pointer_events_inner(app: &mut VectorcraftApp, ctx: &egui::Context, req: &Con
                 None => return err("no canvas yet"),
             }
         } else {
-            vectorcraft_geom::Point::new(x, y)
+            pluma_geom::Point::new(x, y)
         };
         // A tilt given in screen axes leans the same way on the page as on the screen.
         let pen = PointerEvent::json_pen(e).map(|q| match xf {
@@ -782,7 +776,7 @@ fn pointer_events_inner(app: &mut VectorcraftApp, ctx: &egui::Context, req: &Con
 }
 
 /// `ui.click` and `ui.drag`: pointer input through egui itself.
-fn synthetic_click(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+fn synthetic_click(app: &mut PlumaApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     // Validate the entire expansion before appending even the initial move/press.
@@ -831,7 +825,7 @@ fn synthetic_click(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlR
 }
 
 /// `ui.set`: view flags, panels and status.
-fn set_ui(app: &mut VectorcraftApp, req: &ControlRequest) -> Outcome {
+fn set_ui(app: &mut PlumaApp, req: &ControlRequest) -> Outcome {
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     // Outline is a setting of the active document's view: without one, nothing is set.

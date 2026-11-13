@@ -4,10 +4,10 @@
 //! the path's tangent is at a multiple of 45° from the constrain angle. Ends of open paths don't
 //! slide.
 
+use pluma_doc::{NodeId, NodeKind};
+use pluma_geom::{Point, SubPath};
+use pluma_pathops::addons::pathtools::{slide_stops, slide_t_at};
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
-use vectorcraft_geom::{Point, SubPath};
-use vectorcraft_pathops::addons::pathtools::{slide_stops, slide_t_at};
 
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
@@ -130,8 +130,8 @@ impl Tool for SlideAnchorTool {
 mod tests {
     use super::*;
     use crate::testutil::*;
-    use vectorcraft_doc::{Appearance, Document, Node, Selection};
-    use vectorcraft_geom::PathData;
+    use pluma_doc::{Appearance, Document, Node, Selection};
+    use pluma_geom::PathData;
 
     /// A document with an open zigzag (100, 100), (200, 100), (300, 100) and a circle-ish curve.
     fn doc_with_line() -> (Document, NodeId) {
@@ -202,11 +202,11 @@ mod tests {
         let mut d = Document::new(500.0, 500.0);
         let l = d.layers[0].id;
         let id = d.alloc_id();
-        let a = |x: f64, y: f64, h: (f64, f64), o: (f64, f64)| vectorcraft_geom::Anchor {
+        let a = |x: f64, y: f64, h: (f64, f64), o: (f64, f64)| pluma_geom::Anchor {
             p: Point::new(x, y),
             h_in: Point::new(h.0, h.1),
             h_out: Point::new(o.0, o.1),
-            kind: vectorcraft_geom::AnchorKind::Smooth,
+            kind: pluma_geom::AnchorKind::Smooth,
         };
         let sp = SubPath::new(
             vec![

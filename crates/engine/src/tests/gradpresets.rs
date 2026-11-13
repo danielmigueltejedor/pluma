@@ -2,8 +2,8 @@
 //! applied in place to the gradient behind a proxy, and gradients saved beside them with the
 //! preferences.
 
+use pluma_color::{Color, GradientKind, GradientMethod, Paint};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, GradientKind, GradientMethod, Paint};
 
 use crate::*;
 
@@ -16,7 +16,7 @@ fn session_with(fill: Value) -> (Session, NodeId) {
     (s, NodeId(r["id"].as_u64().unwrap()))
 }
 
-fn paint(s: &Session, id: NodeId, stroke: bool) -> vectorcraft_color::GradientPaint {
+fn paint(s: &Session, id: NodeId, stroke: bool) -> pluma_color::GradientPaint {
     let n = s.doc().unwrap().doc.node(id).unwrap();
     match n.appearance.paint_at(None, !stroke).unwrap().clone() {
         Paint::Gradient(g) => *g,
@@ -91,7 +91,7 @@ fn saving_listing_applying_and_deleting_a_preset() {
     s.execute("gradient.selectStop", &json!({"index": 1})).unwrap();
     let mut linked = paint(&s, id, false).gradient.stops.clone();
     linked[1].set_color(Color::rgb8(0x12, 0x34, 0x56), Some(("Brand".into(), 1.0)));
-    s.execute("paint.editGradient", &json!({"stops": vectorcraft_tools::params::stops_json(&linked)})).unwrap();
+    s.execute("paint.editGradient", &json!({"stops": pluma_tools::params::stops_json(&linked)})).unwrap();
     assert_eq!(paint(&s, id, false).gradient.stops[1].swatch.as_deref(), Some("Brand"));
     assert_eq!(s.next_gradient_preset_name(), "Gradient Preset 1");
     assert_eq!(s.execute("gradient.presets.save", &json!({})).unwrap()["name"], "Gradient Preset 1");
@@ -214,10 +214,8 @@ fn the_save_check_matches_saving_with_and_without_a_gradient() {
                 s.execute("appearance.addFill", &json!({})).unwrap();
                 s.execute("paint.setFill", &json!({"gradient": {}, "item": null})).unwrap();
                 let items = &s.doc().unwrap().doc.node(s.doc().unwrap().selection.objects[0]).unwrap().appearance.items;
-                let solid = items
-                    .iter()
-                    .position(|i| matches!(i, vectorcraft_doc::AppearanceItem::Fill(f) if matches!(f.paint, Paint::Solid { .. })))
-                    .unwrap();
+                let solid =
+                    items.iter().position(|i| matches!(i, pluma_doc::AppearanceItem::Fill(f) if matches!(f.paint, Paint::Solid { .. }))).unwrap();
                 s.execute("appearance.setActiveItem", &json!({"index": solid})).unwrap();
                 s
             },
@@ -249,10 +247,10 @@ fn the_unmeasured_proxy_paint_is_the_measured_one() {
     .unwrap();
     let text = NodeId(s.execute("text.create", &json!({"x": 10, "y": 200, "text": "type"})).unwrap()["id"].as_u64().unwrap());
     let d = &s.doc().unwrap().doc;
-    let mut nodes: Vec<vectorcraft_doc::Node> = [id, plain, colorized, text].iter().map(|i| d.node(*i).unwrap().clone()).collect();
-    nodes.push(vectorcraft_doc::Node::path(NodeId(9999), Default::default(), (*d.node(plain).unwrap().appearance).clone()));
+    let mut nodes: Vec<pluma_doc::Node> = [id, plain, colorized, text].iter().map(|i| d.node(*i).unwrap().clone()).collect();
+    nodes.push(pluma_doc::Node::path(NodeId(9999), Default::default(), (*d.node(plain).unwrap().appearance).clone()));
     let mut runless = d.node(text).unwrap().clone();
-    if let vectorcraft_doc::NodeKind::Text(t) = &mut runless.kind {
+    if let pluma_doc::NodeKind::Text(t) = &mut runless.kind {
         t.runs.clear();
     }
     nodes.push(runless);
@@ -275,10 +273,10 @@ fn the_unmeasured_proxy_paint_is_the_measured_one_on_varied_objects() {
     let text = NodeId(s.execute("text.create", &json!({"x": 10, "y": 200, "text": "type"})).unwrap()["id"].as_u64().unwrap());
     let d = &s.doc().unwrap().doc;
     let mut runless = d.node(text).unwrap().clone();
-    if let vectorcraft_doc::NodeKind::Text(t) = &mut runless.kind {
+    if let pluma_doc::NodeKind::Text(t) = &mut runless.kind {
         t.runs.clear();
     }
-    let empty = vectorcraft_doc::Node::path(NodeId(9999), Default::default(), Default::default());
+    let empty = pluma_doc::Node::path(NodeId(9999), Default::default(), Default::default());
     let bases = [d.node(rect).unwrap().clone(), empty, d.node(text).unwrap().clone(), runless];
     let mut seed: u64 = 0x9a1d_5eed_c0de;
     let mut next = |n: u64| {
@@ -289,13 +287,13 @@ fn the_unmeasured_proxy_paint_is_the_measured_one_on_varied_objects() {
     for _ in 0..200 {
         let mut n = bases[next(4) as usize].clone();
         let paints = [Paint::None, Paint::solid(Color::rgb8(next(256) as u8, 0, 0)), gradient.clone()];
-        let mut look = vectorcraft_doc::Appearance::default();
+        let mut look = pluma_doc::Appearance::default();
         for _ in 0..next(5) {
             let p = paints[next(3) as usize].clone();
             look.items.push(if next(2) == 0 {
-                vectorcraft_doc::AppearanceItem::Fill(vectorcraft_doc::FillLayer::new(p))
+                pluma_doc::AppearanceItem::Fill(pluma_doc::FillLayer::new(p))
             } else {
-                vectorcraft_doc::AppearanceItem::Stroke(vectorcraft_doc::StrokeLayer::new(p, 1.0 + next(5) as f64))
+                pluma_doc::AppearanceItem::Stroke(pluma_doc::StrokeLayer::new(p, 1.0 + next(5) as f64))
             });
         }
         n.appearance = look.into();

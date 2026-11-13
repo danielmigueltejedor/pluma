@@ -1,13 +1,13 @@
 //! Font weights in SVG and CSS: every style is written with its numeric weight (Semibold 600,
 //! Light 300, Black 900…; Bold as `bold`), and SVG import reads the numbers back to the same face.
 
-use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, TextObject};
-use vectorcraft_geom::Point;
-use vectorcraft_svg::{CssOptions, ExportOptions, css_rules, export, import};
-use vectorcraft_text::FontDb;
+use pluma_doc::{CharStyle, Document, Node, NodeKind, TextObject};
+use pluma_geom::Point;
+use pluma_svg::{CssOptions, ExportOptions, css_rules, export, import};
+use pluma_text::FontDb;
 
 /// A document with one text in `family` `style`.
-fn doc(family: &str, style: &str) -> (Document, vectorcraft_doc::NodeId) {
+fn doc(family: &str, style: &str) -> (Document, pluma_doc::NodeId) {
     let mut d = Document::new(300.0, 100.0);
     let st = CharStyle { font_family: family.into(), font_style: style.into(), size: 24.0, ..CharStyle::default() };
     let n = Node::new(d.alloc_id(), NodeKind::Text(Box::new(TextObject::point(Point::new(10.0, 50.0), "Weight", st))));

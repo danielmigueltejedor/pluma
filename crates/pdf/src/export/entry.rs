@@ -10,7 +10,7 @@ pub fn export(doc: &Document, opts: &PdfOptions) -> Result<Vec<u8>, PdfError> {
 /// [`crate::PdfSettings::warnings`]) and features approximated or dropped.
 pub fn export_with_report(doc: &Document, opts: &PdfOptions) -> Result<ExportReport, PdfError> {
     // Type in the document's composite fonts is drawn in them, whether or not an app has the document open.
-    let _lent = vectorcraft_text::FontDb::global().lend_composite_fonts(&doc.composite_fonts);
+    let _lent = pluma_text::FontDb::global().lend_composite_fonts(&doc.composite_fonts);
     write::guard(|| leaving_out_undecodable(doc, |left_out| export_with_report_inner(doc, opts, left_out)))
 }
 
@@ -42,21 +42,21 @@ pub(crate) fn leaving_out_undecodable<T>(doc: &Document, mut write: impl FnMut(&
 fn export_with_report_inner(doc: &Document, opts: &PdfOptions, left_out: &mut HashSet<String>) -> Result<ExportReport, PdfError> {
     let set = &opts.settings;
     set.check()?;
-    vectorcraft_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
+    pluma_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
     // Live geometry effects export as their result; raster effects are reported below.
-    let baked = vectorcraft_effects::bake_document(doc);
+    let baked = pluma_effects::bake_document(doc);
     // Baking stops early when cancelled, leaving a half-baked copy that must not be written.
-    vectorcraft_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
+    pluma_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
     let doc = baked.as_ref().unwrap_or(doc);
     let pages = pages(doc, opts)?;
 
     let title = crate::pdfx::title(set.standard, opts.title.clone().unwrap_or_else(|| doc.title.clone()));
     // The time of writing (none on the web) dates the editing data and the page information.
-    let now = vectorcraft_doc::metadata::output_time();
+    let now = pluma_doc::metadata::output_time();
     let created_at = opts.created.or(now);
     crate::pdfx::require_date(set.standard, created_at)?;
     let display_doc_title = opts.display_doc_title || opts.title.as_deref().is_some_and(|title| !title.trim().is_empty());
-    let mut w = Writer::new(doc, set, &title, created_at, doc.color_mode == vectorcraft_doc::ColorMode::Cmyk)?;
+    let mut w = Writer::new(doc, set, &title, created_at, doc.color_mode == pluma_doc::ColorMode::Cmyk)?;
     // Preserve Editing: the native document as an embedded file (`check` refused PDF/A with it).
     let mut warnings = set.warnings();
     let native = opts.native.as_deref().filter(|_| set.preserve_editing);
@@ -95,8 +95,8 @@ fn export_with_report_inner(doc: &Document, opts: &PdfOptions, left_out: &mut Ha
     let total = pages.len() as u64;
     for (written, (i, boxes)) in pages.into_iter().enumerate() {
         // The page count and the page being written, for a client that asked for progress.
-        vectorcraft_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
-        vectorcraft_doc::cancel::progress(written as u64 + 1, total, &format!("Writing page {} of {total}", written + 1));
+        pluma_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
+        pluma_doc::cancel::progress(written as u64 + 1, total, &format!("Writing page {} of {total}", written + 1));
         let (m, r) = (boxes.media, boxes.bleed);
         let info = if marks.page_info { crate::marks::page_info(doc, &title, i, now) } else { String::new() };
         let art = crate::marks::art(doc, &marks, &boxes, bleed, &info);
@@ -124,7 +124,7 @@ fn export_with_report_inner(doc: &Document, opts: &PdfOptions, left_out: &mut Ha
         };
         w.page(&mut ex, &sheet).map_err(|_| PdfError::BadArtboard(i))?;
     }
-    vectorcraft_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
+    pluma_doc::cancel::check().map_err(|_| PdfError::Cancelled)?;
     let (layers, overprinted, invisible) = (ex.layers, ex.overprinted, ex.invisible);
     w.absorb(ex);
     let (bytes, more) = w.finish(left_out, display_doc_title)?;

@@ -6,9 +6,9 @@
 //! either makes the shape a whole ellipse again. The Selection tool hits the widgets and the canvas
 //! draws them from the same geometry.
 
+use pluma_doc::{Document, LiveShape, NodeId, NodeKind, Selection};
+use pluma_geom::{Affine, Point};
 use serde_json::json;
-use vectorcraft_doc::{Document, LiveShape, NodeId, NodeKind, Selection};
-use vectorcraft_geom::{Affine, Point};
 
 use crate::{Action, Overlay, PointerEvent, ToolContext};
 
@@ -202,7 +202,7 @@ mod tests {
     use crate::select::SelectionTool;
     use crate::testutil::*;
     use crate::{Cursor, Mods, PointerKind, Tool};
-    use vectorcraft_doc::{Appearance, Node};
+    use pluma_doc::{Appearance, Node};
 
     /// A document holding a live 200 × 100 ellipse at (100, 100) with pie angles `pie`, and a
     /// selection of it.

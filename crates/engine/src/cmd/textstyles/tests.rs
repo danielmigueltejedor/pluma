@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn captured_character_style_excludes_a_one_character_glyph_choice() {
     let style = CharStyle {
-        glyph_alternate: Some(vectorcraft_doc::GlyphChoice { ch: 'a', gid: 42, font: "Test-Regular".into(), version: "1".into() }),
+        glyph_alternate: Some(pluma_doc::GlyphChoice { ch: 'a', gid: 42, font: "Test-Regular".into(), version: "1".into() }),
         ..Default::default()
     };
     assert!(!char_attrs(&style).contains_key("glyphAlternate"));
@@ -15,7 +15,7 @@ fn character_style_edit_keeps_a_linked_runs_glyph_choice() {
     let (mut s, id) = session_with_text("Styled");
     s.execute("charStyle.new", &json!({"name": "Body", "attrs": {"size": 24}})).unwrap();
     s.execute("charStyle.apply", &json!({"name": "Body", "id": id})).unwrap();
-    let choice = vectorcraft_doc::GlyphChoice { ch: 'S', gid: 42, font: "Test-Regular".into(), version: "1".into() };
+    let choice = pluma_doc::GlyphChoice { ch: 'S', gid: 42, font: "Test-Regular".into(), version: "1".into() };
     if let Some(NodeKind::Text(t)) = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc).node_mut(NodeId(id)).map(|n| &mut n.kind) {
         t.runs[0].style.glyph_alternate = Some(choice.clone());
     }
@@ -45,7 +45,7 @@ fn session_with_text(text: &str) -> (Session, u64) {
     (s, id)
 }
 
-fn runs(s: &Session, id: u64) -> Vec<vectorcraft_doc::TextRun> {
+fn runs(s: &Session, id: u64) -> Vec<pluma_doc::TextRun> {
     match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
         NodeKind::Text(t) => t.runs.clone(),
         _ => panic!(),
@@ -54,7 +54,7 @@ fn runs(s: &Session, id: u64) -> Vec<vectorcraft_doc::TextRun> {
 
 fn embedded_style(s: &Session, container: &str) -> (Option<String>, f64, Option<String>) {
     let d = &s.doc().unwrap().doc;
-    let brushes = vectorcraft_brush::library(d);
+    let brushes = pluma_brush::library(d);
     let roots: Vec<&Node> = match container {
         "symbol" => d.symbols.iter().map(|s| &*s.art).collect(),
         "pattern" => d.patterns.iter().flat_map(|p| p.art.iter().map(|a| &**a)).collect(),
@@ -64,7 +64,7 @@ fn embedded_style(s: &Session, container: &str) -> (Option<String>, f64, Option<
     };
     let mut found = None;
     for root in roots {
-        vectorcraft_doc::swatches::walk_with_masks(root, &mut |n| {
+        pluma_doc::swatches::walk_with_masks(root, &mut |n| {
             if let NodeKind::Text(t) = &n.kind {
                 found = Some((t.runs[0].style.style_name.clone(), t.runs[0].style.size, t.para.style_name.clone()));
             }
@@ -228,7 +228,7 @@ fn character_style_options_edit_applies_to_users_and_is_one_saved_undo_step() {
     s.execute("charStyle.apply", &json!({"name":"Text","id":future})).unwrap();
     s.execute("text.editRange", &json!({"id":future,"start":0,"end":0,"insert":"Later"})).unwrap();
     assert_eq!((runs(&s, future)[0].style.size, runs(&s, future)[0].style.tracking), (18.0, 40.0));
-    let saved = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let saved = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(
         saved.char_styles.iter().find(|d| d.name == "Text").unwrap().attrs,
         s.doc().unwrap().doc.char_styles.iter().find(|d| d.name == "Text").unwrap().attrs
@@ -261,7 +261,7 @@ fn character_style_options_edit_sets_the_advanced_character_formats() {
             .collect::<Vec<_>>(),
         [(80.0, 120.0, -2.0, 15.0, Some("de".to_string())), (80.0, 120.0, -2.0, 30.0, Some("de".to_string()))]
     );
-    let saved = vectorcraft_format::load(&vectorcraft_format::save(&changed, false)).unwrap();
+    let saved = pluma_format::load(&pluma_format::save(&changed, false)).unwrap();
     assert_eq!(saved.char_styles.iter().find(|d| d.name == "Body").unwrap().attrs, def.attrs);
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(s.doc().unwrap().doc, before);
@@ -295,7 +295,7 @@ fn new_character_style_keeps_a_language_tag_from_the_text() {
 }
 
 /// The fill of the first run of `id` and its overprint flags, its stroke and stroke weight.
-fn run_paints(s: &Session, id: u64) -> (vectorcraft_color::Paint, vectorcraft_color::Paint, f64, bool, bool) {
+fn run_paints(s: &Session, id: u64) -> (pluma_color::Paint, pluma_color::Paint, f64, bool, bool) {
     let st = runs(s, id)[0].style.clone();
     (st.fill, st.stroke, st.stroke_width, st.overprint_fill, st.overprint_stroke)
 }
@@ -317,7 +317,7 @@ fn character_style_color_and_features_reach_text_and_follow_swatch_edits() {
     assert_eq!(runs(&s, id)[0].style.features, ["dlig", "-liga", "tnum", "lnum", "-onum", "-pnum", "ss02", "-ss01"]);
     let def = |s: &Session| s.doc().unwrap().doc.char_styles.iter().find(|d| d.name == "Ink").unwrap().attrs.clone();
     assert_eq!(def(&s)["stroke"], serde_json::to_value(&want_stroke).unwrap());
-    let saved = vectorcraft_format::load(&vectorcraft_format::save(&s.doc().unwrap().doc, false)).unwrap();
+    let saved = pluma_format::load(&pluma_format::save(&s.doc().unwrap().doc, false)).unwrap();
     assert_eq!(saved.char_styles.iter().find(|d| d.name == "Ink").unwrap().attrs, def(&s));
 
     s.execute("swatch.edit", &json!({"name": "Brand", "color": "#a02050"})).unwrap();
@@ -344,7 +344,7 @@ fn character_style_color_and_features_are_checked() {
     s.execute("swatch.new", &json!({"name": "Local", "color": "#102030"})).unwrap();
     let mut local = missing.clone();
     local["swatch"] = json!("Local");
-    let many: Vec<String> = (0..=vectorcraft_text::MAX_STYLE_FEATURES).map(|_| "dlig".to_string()).collect();
+    let many: Vec<String> = (0..=pluma_text::MAX_STYLE_FEATURES).map(|_| "dlig".to_string()).collect();
     let before = s.doc().unwrap().doc.clone();
     let undo = s.doc().unwrap().history.undo.len();
     for (attrs, message) in [
@@ -448,16 +448,16 @@ fn style_paints_count_as_swatch_uses_and_gradient_stops_are_checked() {
     assert!(!names.as_array().unwrap().contains(&json!("Brand")), "{names}");
     assert!(names.as_array().unwrap().contains(&json!("Spare")), "{names}");
 
-    let mut g = vectorcraft_color::GradientPaint::new(vectorcraft_color::Gradient::default());
+    let mut g = pluma_color::GradientPaint::new(pluma_color::Gradient::default());
     g.gradient.stops[0].swatch = Some("Brand".into());
     g.gradient.stops[0].tint = 0.25;
-    let fill = serde_json::to_value(vectorcraft_color::Paint::Gradient(Box::new(g.clone()))).unwrap();
+    let fill = serde_json::to_value(pluma_color::Paint::Gradient(Box::new(g.clone()))).unwrap();
     s.execute("charStyle.new", &json!({"name": "Fade", "attrs": {"fill": fill}})).unwrap();
     let def = s.doc().unwrap().doc.char_styles.iter().find(|d| d.name == "Fade").unwrap().attrs.clone();
     let want = s.doc().unwrap().doc.global_color("Brand").unwrap().tinted(0.25);
     assert_eq!(def["fill"]["gradient"]["stops"][0]["color"], serde_json::to_value(want).unwrap());
     g.gradient.stops[0].swatch = Some("Gone".into());
-    let gone = serde_json::to_value(vectorcraft_color::Paint::Gradient(Box::new(g))).unwrap();
+    let gone = serde_json::to_value(pluma_color::Paint::Gradient(Box::new(g))).unwrap();
     let error = s.execute("charStyle.new", &json!({"name": "Bad", "attrs": {"fill": gone}})).unwrap_err().to_string();
     assert!(error.contains("no swatch `Gone`"), "{error}");
 }
@@ -558,7 +558,7 @@ fn char_style_new_apply_range_redefine_keeps_overrides() {
 
 /// Applying and redefining a style record a step named from a template with the style's name
 /// in it (`HistoryEntry::named`), and undo and redo keep it. The Normal styles' names are
-/// marked as names VectorCraft gives. A new style's step has a name of its own.
+/// marked as names Pluma gives. A new style's step has a name of its own.
 #[test]
 fn style_steps_are_named_from_a_template() {
     let (mut s, id) = session_with_text("Hello");
@@ -744,7 +744,7 @@ fn styles_file(char: &[(&str, Value)], para: &[(&str, Value)]) -> String {
     };
     d.char_styles = defs(char).into();
     d.para_styles = defs(para).into();
-    vectorcraft_format::base64_encode(&vectorcraft_format::save(&d, false))
+    pluma_format::base64_encode(&pluma_format::save(&d, false))
 }
 
 /// Load Character Styles and Load Paragraph Styles copy the other document's styles of their kind
@@ -769,7 +769,7 @@ fn styles_load_from_another_document_in_one_step() {
         let data = styles_file(&file, &file);
         let before = s.doc().unwrap().doc.clone();
         let undo = s.doc().unwrap().history.undo.len();
-        let r = s.execute(&format!("{p}.load"), &json!({"dataBase64": data, "name": "Other.vectorcraft"})).unwrap();
+        let r = s.execute(&format!("{p}.load"), &json!({"dataBase64": data, "name": "Other.pluma"})).unwrap();
         assert_eq!(r, json!({"added": ["Accent 3", "Fresh"], "existing": ["Body"], "skipped": ["Bad", " "]}), "{p}");
         assert_eq!(listed(&mut s, p), [normal, "Body", "Accent", "Accent 2", "Accent 3", "Fresh"], "{p}");
         let d = s.doc().unwrap().doc.clone();
@@ -783,7 +783,7 @@ fn styles_load_from_another_document_in_one_step() {
         assert_eq!(d.node(NodeId(id)), before.node(NodeId(id)), "{p}");
         assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "{p}");
         // Loading the same file again adds nothing and makes no undo step.
-        let again = s.execute(&format!("{p}.load"), &json!({"dataBase64": data, "name": "Other.vectorcraft"})).unwrap();
+        let again = s.execute(&format!("{p}.load"), &json!({"dataBase64": data, "name": "Other.pluma"})).unwrap();
         assert_eq!(again["added"], json!([]), "{p}");
         assert_eq!(again["existing"], json!(["Body", "Accent 3", "Fresh"]), "{p}");
         assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "{p}");
@@ -801,11 +801,11 @@ fn load_all_styles_loads_both_kinds_in_one_step() {
     let data = styles_file(&[("Lead", json!({"size": 30.0}))], &[("Centered", json!({"justify": "Center"}))]);
     let dir = std::env::temp_dir().join(format!("vc-load-styles-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("Other.vectorcraft");
-    std::fs::write(&path, vectorcraft_format::base64_decode(&data).unwrap()).unwrap();
+    let path = dir.join("Other.pluma");
+    std::fs::write(&path, pluma_format::base64_decode(&data).unwrap()).unwrap();
     let before = s.doc().unwrap().doc.clone();
     let undo = s.doc().unwrap().history.undo.len();
-    for bad in [json!({}), json!({"data": "not a document", "name": "x.vectorcraft"}), json!({"dataBase64": "!"})] {
+    for bad in [json!({}), json!({"data": "not a document", "name": "x.pluma"}), json!({"dataBase64": "!"})] {
         assert!(s.execute("textStyle.loadAll", &bad).is_err(), "{bad}");
     }
     let r = s.execute("textStyle.loadAll", &json!({"path": path.to_string_lossy()})).unwrap();
@@ -832,7 +832,7 @@ fn loaded_styles_out_of_range_are_skipped() {
         ("Fine", json!({"size": 12.0, "h_scale": 50.0})),
     ];
     let data = styles_file(&file, &[]);
-    let r = s.execute("charStyle.load", &json!({"dataBase64": data, "name": "Other.vectorcraft"})).unwrap();
+    let r = s.execute("charStyle.load", &json!({"dataBase64": data, "name": "Other.pluma"})).unwrap();
     assert_eq!(r, json!({"added": ["Fine"], "existing": [], "skipped": ["Huge", "Flat", "Shifted", "Thick"]}));
     assert_eq!(listed(&mut s, "charStyle"), [NORMAL_CHAR, "Fine"]);
 }
@@ -856,16 +856,16 @@ fn loaded_styles_bring_the_patterns_and_swatches_they_paint_with() {
     src.execute("charStyle.new", &json!({"name": "Patterned", "id": id})).unwrap();
     src.execute("paint.setFill", &json!({"swatch": "Ink", "ids": [id]})).unwrap();
     src.execute("charStyle.new", &json!({"name": "Inked", "id": id})).unwrap();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&src.doc().unwrap().doc, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&src.doc().unwrap().doc, false));
     let (mut s, id) = painted(30.0, "#ff0000");
-    let r = s.execute("charStyle.load", &json!({"dataBase64": data, "name": "Other.vectorcraft"})).unwrap();
+    let r = s.execute("charStyle.load", &json!({"dataBase64": data, "name": "Other.pluma"})).unwrap();
     assert_eq!(r["added"], json!(["Patterned", "Inked"]));
     let d = s.doc().unwrap().doc.clone();
     let fill = |name: &str| super::style_attrs(&d, false, name).unwrap()["fill"].to_string();
     assert!(d.pattern("Dots 2").is_some() && fill("Patterned").contains("\"Dots 2\""), "{}", fill("Patterned"));
     assert!(fill("Inked").contains("\"Ink\"") && d.swatch("Ink 2").is_none(), "{}", fill("Inked"));
     s.execute("charStyle.apply", &json!({"name": "Patterned", "id": id})).unwrap();
-    assert!(matches!(&runs(&s, id)[0].style.fill, vectorcraft_color::Paint::Pattern { pattern, .. } if pattern == "Dots 2"));
+    assert!(matches!(&runs(&s, id)[0].style.fill, pluma_color::Paint::Pattern { pattern, .. } if pattern == "Dots 2"));
 }
 
 /// A pattern whose type is set in a loaded style that was renamed on the way in ("Accent 2") is
@@ -891,10 +891,10 @@ fn reloaded_patterns_follow_the_renamed_styles_their_type_uses() {
         let other = src.execute("text.create", &json!({"x": 10, "y": 90, "text": "B"})).unwrap()["id"].as_u64().unwrap();
         src.execute("paint.setFill", &json!({"swatch": "Tiles", "ids": [other]})).unwrap();
         src.execute("charStyle.new", &json!({"name": "Tiled", "id": other})).unwrap();
-        let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&src.doc().unwrap().doc, false));
+        let data = pluma_format::base64_encode(&pluma_format::save(&src.doc().unwrap().doc, false));
         let (mut s, _) = session_with_text("X");
         s.execute("charStyle.new", &json!({"name": "Accent", "attrs": {"kerning": 10}})).unwrap();
-        let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+        let load = json!({"dataBase64": data, "name": "Other.pluma"});
         s.execute("charStyle.load", &load).unwrap();
         let counts = |s: &Session| {
             let d = &s.doc().unwrap().doc;
@@ -925,14 +925,14 @@ fn a_style_and_the_pattern_that_uses_it_load_together() {
     let painted = source.char_styles.iter().find(|s| s.name == "Painted").unwrap().attrs.clone();
     source.char_styles.retain(|s| s.name != "Painted");
     source.char_styles.iter_mut().find(|s| s.name == "Accent").unwrap().attrs = painted;
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&source, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&source, false));
     let fill = |s: &Session, name: &str| super::style_attrs(&s.doc().unwrap().doc, false, name).unwrap()["fill"].to_string();
     let source_fill = super::style_attrs(&source, false, "Accent").unwrap()["fill"].to_string();
     assert!(source_fill.contains("\"Dots\""), "{source_fill}");
     let (mut s, _) = session_with_text("X");
     let square = s.execute("shape.rectangle", &json!({"x": 200, "y": 200, "width": 30, "height": 30})).unwrap()["id"].clone();
     s.execute("object.pattern.make", &json!({"name": "Dots", "edit": false, "ids": [square]})).unwrap();
-    let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+    let load = json!({"dataBase64": data, "name": "Other.pluma"});
     s.execute("charStyle.load", &load).unwrap();
     assert!(s.doc().unwrap().doc.pattern("Dots 2").is_some());
     assert!(fill(&s, "Accent").contains("\"Dots 2\""), "{}", fill(&s, "Accent"));
@@ -961,13 +961,13 @@ fn a_style_in_a_loop_is_not_matched_to_a_style_that_paints_with_another_pattern(
     let painted = source.char_styles.iter().find(|s| s.name == "Painted").unwrap().attrs.clone();
     source.char_styles.retain(|s| s.name != "Painted");
     source.char_styles.iter_mut().find(|s| s.name == "Accent").unwrap().attrs = painted.clone();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&source, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&source, false));
     let (mut s, _) = session_with_text("X");
     let square = s.execute("shape.rectangle", &json!({"x": 200, "y": 200, "width": 30, "height": 30})).unwrap()["id"].clone();
     s.execute("object.pattern.make", &json!({"name": "Dots", "edit": false, "ids": [square]})).unwrap();
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
     doc.char_styles.push(TextStyleDef { name: "Accent".into(), attrs: painted });
-    let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+    let load = json!({"dataBase64": data, "name": "Other.pluma"});
     let r = s.execute("charStyle.load", &load).unwrap();
     assert_eq!(r["added"], json!(["Accent 2"]), "{r}");
     let d = s.doc().unwrap().doc.clone();
@@ -1008,14 +1008,14 @@ fn reloaded_brushes_follow_the_renamed_styles_their_art_uses() {
     let other = src.execute("text.create", &json!({"x": 10, "y": 90, "text": "B"})).unwrap()["id"].as_u64().unwrap();
     src.execute("paint.setFill", &json!({"swatch": "Tiles", "ids": [other]})).unwrap();
     src.execute("charStyle.new", &json!({"name": "Tiled", "id": other})).unwrap();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&src.doc().unwrap().doc, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&src.doc().unwrap().doc, false));
     let (mut s, _) = session_with_text("X");
     s.execute("charStyle.new", &json!({"name": "Accent", "attrs": {"kerning": 10}})).unwrap();
-    let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+    let load = json!({"dataBase64": data, "name": "Other.pluma"});
     let r = s.execute("charStyle.load", &load).unwrap();
     assert!(r["added"].as_array().unwrap().contains(&json!("Accent 2")), "{r}");
     let d = s.doc().unwrap().doc.clone();
-    let lib = vectorcraft_brush::library(&d);
+    let lib = pluma_brush::library(&d);
     let brush = lib.iter().find(|b| b.name == "Lettering").unwrap();
     let mut styles = vec![];
     for a in brush.art() {
@@ -1047,9 +1047,9 @@ fn loaded_style_keeps_the_name_used_by_pattern_type() {
     let art = std::sync::Arc::make_mut(&mut tile.art[0]);
     let NodeKind::Text(text) = &mut art.kind else { panic!("pattern art should be type") };
     text.runs[0].style.style_name = Some(" Accent ".into());
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&source, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&source, false));
     let (mut dst, _) = session_with_text("X");
-    let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+    let load = json!({"dataBase64": data, "name": "Other.pluma"});
     dst.execute("charStyle.load", &load).unwrap();
     let doc = &dst.doc().unwrap().doc;
     assert!(doc.char_styles.iter().any(|s| s.name == " Accent "));
@@ -1068,10 +1068,10 @@ fn loaded_pattern_type_keeps_its_paragraph_style() {
     let other = src.execute("text.create", &json!({"x": 10, "y": 90, "text": "B"})).unwrap()["id"].as_u64().unwrap();
     src.execute("paint.setFill", &json!({"swatch": "Tiles", "ids": [other]})).unwrap();
     src.execute("charStyle.new", &json!({"name": "Tiled", "id": other})).unwrap();
-    let data = vectorcraft_format::base64_encode(&vectorcraft_format::save(&src.doc().unwrap().doc, false));
+    let data = pluma_format::base64_encode(&pluma_format::save(&src.doc().unwrap().doc, false));
     let (mut s, _) = session_with_text("X");
     s.execute("paraStyle.new", &json!({"name": "Centered", "attrs": {"justify": "Right"}})).unwrap();
-    let load = json!({"dataBase64": data, "name": "Other.vectorcraft"});
+    let load = json!({"dataBase64": data, "name": "Other.pluma"});
     let r = s.execute("charStyle.load", &load).unwrap();
     assert_eq!(r, json!({"added": ["Tiled"], "existing": [], "skipped": []}));
     let d = s.doc().unwrap().doc.clone();
@@ -1094,7 +1094,7 @@ fn self_referencing_pattern_is_not_added_again() {
     let tile = src.execute("shape.rectangle", &json!({"x": 200, "y": 200, "width": 10, "height": 10})).unwrap()["id"].clone();
     src.execute("paint.setFill", &json!({"swatch": "Dots", "ids": [tile]})).unwrap();
     let art = src.doc().unwrap().doc.node(NodeId(tile.as_u64().unwrap())).unwrap().clone();
-    assert!(art.appearance.items.iter().any(|item| matches!(item.paint(), vectorcraft_color::Paint::Pattern { pattern, .. } if pattern == "Dots")));
+    assert!(art.appearance.items.iter().any(|item| matches!(item.paint(), pluma_color::Paint::Pattern { pattern, .. } if pattern == "Dots")));
     let mut source = (*src.doc().unwrap().doc).clone();
     source.patterns.iter_mut().find(|p| p.name == "Dots").unwrap().art = vec![std::sync::Arc::new(art)];
     src.execute("paint.setFill", &json!({"swatch": "Dots", "ids": [id]})).unwrap();
@@ -1112,7 +1112,7 @@ fn self_referencing_pattern_is_not_added_again() {
             .appearance
             .items
             .iter()
-            .any(|item| matches!(item.paint(), vectorcraft_color::Paint::Pattern { pattern, .. } if pattern == "Dots 2"))
+            .any(|item| matches!(item.paint(), pluma_color::Paint::Pattern { pattern, .. } if pattern == "Dots 2"))
     );
     let before = dst.doc().unwrap().doc.clone();
     let target = std::sync::Arc::make_mut(&mut dst.doc_mut().unwrap().doc);
@@ -1236,7 +1236,7 @@ fn styles_take_attributes_left_out_at_their_defaults() {
     assert_eq!((st.kerning, st.small_caps), (Some(20.0), Some(70.0)));
     s.execute("paraStyle.apply", &json!({"name": "Punctuation", "id": id})).unwrap();
     let NodeKind::Text(t) = &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind else { panic!() };
-    assert_eq!((t.para.mojikumi, t.para.direction), (vectorcraft_doc::Mojikumi::LineEndHalf, Some(vectorcraft_doc::ParaDirection::RightToLeft)));
+    assert_eq!((t.para.mojikumi, t.para.direction), (pluma_doc::Mojikumi::LineEndHalf, Some(pluma_doc::ParaDirection::RightToLeft)));
     // A library keeps the captured attributes and makes the style again where it's used.
     s.execute("select.set", &json!({"ids": [id]})).unwrap();
     let lib = s.execute("library.add", &json!({"kind": "charStyle", "name": "Lib Spaced"})).unwrap();
@@ -1272,7 +1272,7 @@ fn auto_leading_redefine_keeps_overrides_and_history() {
         assert_eq!(s.doc().unwrap().doc, before);
         s.execute("edit.redo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().doc, after);
-        let back = vectorcraft_format::load(&vectorcraft_format::save(&after, false)).unwrap();
+        let back = pluma_format::load(&pluma_format::save(&after, false)).unwrap();
         assert_eq!(back.char_styles, after.char_styles);
         for id in ids {
             let NodeKind::Text(t) = &back.node(NodeId(id)).unwrap().kind else { panic!("not text") };
@@ -1302,7 +1302,7 @@ fn settable<T: DeserializeOwned>() -> std::collections::BTreeSet<String> {
 /// attributes `setAttrs` leaves out return to the base value.
 #[test]
 fn para_style_redefined_to_the_defaults_updates_its_paragraphs() {
-    use vectorcraft_doc::{Composer, HyphenationOptions};
+    use pluma_doc::{Composer, HyphenationOptions};
     let (mut s, source) = session_with_text("Source");
     let [linked, local] =
         ["Linked", "Local"].map(|text| s.execute("text.create", &json!({"x": 10, "y": 90, "text": text})).unwrap()["id"].as_u64().unwrap());
@@ -1339,7 +1339,7 @@ fn para_style_redefined_to_the_defaults_updates_its_paragraphs() {
 /// one character, so it is not a reusable style attribute.
 #[test]
 fn char_style_redefined_to_the_defaults_updates_its_text() {
-    use vectorcraft_doc::CharAlign;
+    use pluma_doc::CharAlign;
     let (mut s, source) = session_with_text("Source");
     let [linked, local] =
         ["Linked", "Local"].map(|text| s.execute("text.create", &json!({"x": 10, "y": 90, "text": text})).unwrap()["id"].as_u64().unwrap());
@@ -1372,8 +1372,8 @@ fn char_style_redefined_to_the_defaults_updates_its_text() {
 #[test]
 fn variable_font_settings_are_captured_explicitly() {
     let _fonts = crate::adding_fonts();
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
-    vectorcraft_text::FontDb::global().add_font(two_axis_font().unwrap());
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
+    pluma_text::FontDb::global().add_font(two_axis_font().unwrap());
     let (mut s, source) = session_with_text("Source");
     let linked = s.execute("text.create", &json!({"x": 10, "y": 90, "text": "Linked"})).unwrap()["id"].as_u64().unwrap();
     let ids = [source, linked];
@@ -1396,8 +1396,8 @@ fn variable_font_settings_are_captured_explicitly() {
 #[test]
 fn another_font_from_a_style_clears_the_old_fonts_version_and_settings() {
     let _fonts = crate::adding_fonts();
-    use vectorcraft_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
-    vectorcraft_text::FontDb::global().add_font(two_axis_font().unwrap());
+    use pluma_text::test_fonts::{TWO_AXIS_FAMILY, two_axis_font};
+    pluma_text::FontDb::global().add_font(two_axis_font().unwrap());
     let (mut s, id) = session_with_text("Source");
     let set_variable = |s: &mut Session| {
         s.execute("text.setStyle", &json!({"ids": [id], "font": TWO_AXIS_FAMILY})).unwrap();
@@ -1477,12 +1477,12 @@ fn paragraph_styles_and_survive_save() {
         NodeKind::Text(t) => t.para.clone(),
         _ => panic!(),
     };
-    assert_eq!((para(&s).justify, para(&s).space_after), (vectorcraft_doc::Justify::Center, 6.0));
+    assert_eq!((para(&s).justify, para(&s).space_after), (pluma_doc::Justify::Center, 6.0));
     // The Normal style can be redefined too (stored once redefined).
     s.execute("paraStyle.redefine", &json!({"name": NORMAL_PARA})).unwrap();
     assert_eq!(s.execute("paraStyle.list", &json!({})).unwrap()["styles"][0]["attrs"]["justify"], "Center");
     let d = s.doc().unwrap().doc.clone();
-    let back = vectorcraft_format::load(&vectorcraft_format::save(&d, false)).unwrap();
+    let back = pluma_format::load(&pluma_format::save(&d, false)).unwrap();
     assert_eq!(back.para_styles, d.para_styles);
 }
 

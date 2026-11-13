@@ -3,7 +3,7 @@ use super::{
     Appearance, AppearanceItem, BezPath, Effect, FillRule, Node, NodeKind, PathData, Rect, StrokeLayer, Value, WarpStyle, distort, stroke, stylize,
     util, warp,
 };
-use vectorcraft_doc::Document;
+use pluma_doc::Document;
 
 /// Context the geometry effects may need from the object's appearance.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -125,7 +125,7 @@ fn is_terminal_offset_eligible(e: &Effect) -> bool {
         return false;
     }
     let p = merged_params(&e.id, &e.params);
-    util::join(&p, "joins") == vectorcraft_pathops::Join::Round && util::num(&p, "offset", 10.0) >= 0.0
+    util::join(&p, "joins") == pluma_pathops::Join::Round && util::num(&p, "offset", 10.0) >= 0.0
 }
 
 /// Optimize a list of visible geometry effects: move pure-translation Transform effects with
@@ -192,16 +192,16 @@ pub struct Carry(Vec<CarryStep>);
 /// Does `m` fix a gradient fitted to the object to its fit before mapping it? It does when a refit
 /// would not reproduce the map (a turn, a reflection or an uneven scale) and `m` keeps area: a map
 /// that flattens the geometry to a line (a scale of 0) leaves the gradient fitted, since mapping it
-/// would flatten it to one color ([`vectorcraft_doc::node::flattens`]).
-pub(crate) fn fixes_fit(m: vectorcraft_geom::Affine) -> bool {
-    !vectorcraft_doc::node::flattens(m) && !vectorcraft_doc::node::keeps_gradient_fit(m)
+/// would flatten it to one color ([`pluma_doc::node::flattens`]).
+pub(crate) fn fixes_fit(m: pluma_geom::Affine) -> bool {
+    !pluma_doc::node::flattens(m) && !pluma_doc::node::keeps_gradient_fit(m)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum CarryStep {
     /// Map `m`; `from` is the geometric bounds of the geometry it takes, which a fitted gradient
     /// fits before `m` moves it (none: fitted gradients stay fitted).
-    Affine { m: vectorcraft_geom::Affine, from: Option<Rect> },
+    Affine { m: pluma_geom::Affine, from: Option<Rect> },
     /// From box `from` to box `to` (strokes: their stroke-inflated boxes).
     Boxes { from: Rect, to: Rect },
 }
@@ -216,7 +216,7 @@ impl Carry {
         match id {
             "distort.transform" => {
                 let (m, copies) = distort::transform_map(b, p, seed);
-                copies == 0 && m != vectorcraft_geom::Affine::IDENTITY && m.is_finite()
+                copies == 0 && m != pluma_geom::Affine::IDENTITY && m.is_finite()
             }
             "distort.freeDistort" => {
                 let corners = distort::free_distort_corners(b, p);
@@ -376,9 +376,9 @@ fn builds_within(id: &str) -> bool {
 /// [`apply_one`] whose result may pass `max` when the effect doesn't build within it.
 fn apply_unchecked(id: &str, p: &Value, path: &PathData, b: Rect, ctx: &GeomContext, max: usize) -> PathData {
     use util::{join, num};
-    if let Some(plugin) = vectorcraft_plugins::effect::plugin_id(id) {
-        let paints = vectorcraft_plugins::effect::Paints { appearance: ctx.appearance, item: ctx.item };
-        return vectorcraft_plugins::effect::apply(plugin, p, path, b, ctx.rule, paints, ctx.doc).unwrap_or_else(|| path.clone());
+    if let Some(plugin) = pluma_plugins::effect::plugin_id(id) {
+        let paints = pluma_plugins::effect::Paints { appearance: ctx.appearance, item: ctx.item };
+        return pluma_plugins::effect::apply(plugin, p, path, b, ctx.rule, paints, ctx.doc).unwrap_or_else(|| path.clone());
     }
     match id {
         "distort.freeDistort" => distort::free_distort(path, b, p, max),
@@ -393,7 +393,7 @@ fn apply_unchecked(id: &str, p: &Value, path: &PathData, b: Rect, ctx: &GeomCont
             if off.abs() < 1e-9 {
                 return path.clone();
             }
-            vectorcraft_pathops::offset_path(path, off, join(p, "joins"), num(p, "miterLimit", 4.0).clamp(1.0, 500.0))
+            pluma_pathops::offset_path(path, off, join(p, "joins"), num(p, "miterLimit", 4.0).clamp(1.0, 500.0))
         }
         // Outline Object returns the geometry unchanged. Type reaches every geometry effect as its
         // glyph outlines (`reshape::reshape`), so type that carries it is drawn as those outlines.
@@ -403,7 +403,7 @@ fn apply_unchecked(id: &str, p: &Value, path: &PathData, b: Rect, ctx: &GeomCont
             let base = match ctx.stroke {
                 Some(s) => s,
                 None => {
-                    fallback = StrokeLayer::new(vectorcraft_doc::color::Paint::None, 1.0);
+                    fallback = StrokeLayer::new(pluma_doc::color::Paint::None, 1.0);
                     &fallback
                 }
             };

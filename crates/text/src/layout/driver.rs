@@ -151,7 +151,7 @@ pub fn decorations(layout: &TextLayout, db: &FontDb, t: &TextObject) -> Vec<(usi
 /// flattened to within 1/1000 of their size, and images, color glyphs and inline graphics count by
 /// their boxes' corners. What an envelope maps type from ([`register_envelope_ink`]). `None` when
 /// nothing draws.
-pub fn envelope_ink(t: &TextObject, m: Affine, projection: Option<(vectorcraft_geom::Homography, Affine)>) -> Option<Rect> {
+pub fn envelope_ink(t: &TextObject, m: Affine, projection: Option<(pluma_geom::Homography, Affine)>) -> Option<Rect> {
     let db = FontDb::global();
     let laid = layout(db, t);
     let bars = decorations(&laid, db, t).into_iter().map(|(_, bar)| bar);
@@ -189,9 +189,9 @@ pub fn envelope_ink(t: &TextObject, m: Affine, projection: Option<(vectorcraft_g
 }
 
 /// Make envelopes map type from [`envelope_ink`], measured again when the fonts or the hyphenation
-/// exceptions change (the first registration stays, see `vectorcraft_doc::live::set_type_ink`).
+/// exceptions change (the first registration stays, see `pluma_doc::live::set_type_ink`).
 pub fn register_envelope_ink() {
-    vectorcraft_doc::live::set_type_ink(envelope_ink, envelope_ink_inputs);
+    pluma_doc::live::set_type_ink(envelope_ink, envelope_ink_inputs);
 }
 
 /// A number that changes whenever what [`envelope_ink`] reads besides the type changes: the
@@ -393,8 +393,8 @@ fn layout_runs(db: &FontDb, t: &TextObject, opts: &LayoutOptions, set: Option<&T
         TextKind::Point => flow(&mut cx, &paras, t, None),
         TextKind::Area { frame } => {
             let to_lines = line_xf.inverse();
-            let wrap: Vec<vectorcraft_doc::WrapShape> = if vertical {
-                t.wrap.iter().map(|w| vectorcraft_doc::WrapShape { path: w.path.transformed(to_lines), ..w.clone() }).collect()
+            let wrap: Vec<pluma_doc::WrapShape> = if vertical {
+                t.wrap.iter().map(|w| pluma_doc::WrapShape { path: w.path.transformed(to_lines), ..w.clone() }).collect()
             } else {
                 t.wrap.clone()
             };

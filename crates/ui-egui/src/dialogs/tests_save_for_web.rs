@@ -3,8 +3,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use pluma_engine::Session;
 use serde_json::json;
-use vectorcraft_engine::Session;
 
 use super::tests_export::{frame, kind, set};
 use super::*;
@@ -14,7 +14,7 @@ type Log = Rc<RefCell<Vec<String>>>;
 
 /// An app with a 60×40 pt document (an ellipse), whose save panel answers inside `dir`; `web`
 /// downloads instead (into the log).
-fn app(dir: &std::path::Path, web: bool) -> (VectorcraftApp, Log) {
+fn app(dir: &std::path::Path, web: bool) -> (PlumaApp, Log) {
     let log = Log::default();
     let (l1, l2) = (log.clone(), log.clone());
     let dir = dir.to_string_lossy().replace('\\', "/");
@@ -29,7 +29,7 @@ fn app(dir: &std::path::Path, web: bool) -> (VectorcraftApp, Log) {
             Ok(())
         }));
     }
-    let mut app = VectorcraftApp::new(Session::new(), services);
+    let mut app = PlumaApp::new(Session::new(), services);
     app.run("file.new", json!({"width": 60, "height": 40})).unwrap();
     app.run("paint.setStroke", json!({"none": true})).unwrap();
     app.run("shape.ellipse", json!({"x": 5, "y": 4, "width": 30, "height": 20})).unwrap();
@@ -38,7 +38,7 @@ fn app(dir: &std::path::Path, web: bool) -> (VectorcraftApp, Log) {
 }
 
 /// Two distinct export regions: 60×40 red and 32×24 blue, with no antialiased edges at the sample.
-fn two_artboards(dir: &std::path::Path) -> VectorcraftApp {
+fn two_artboards(dir: &std::path::Path) -> PlumaApp {
     let (mut app, _) = app(dir, false);
     app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 60, "height": 40})).unwrap();
     app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
@@ -52,7 +52,7 @@ fn two_artboards(dir: &std::path::Path) -> VectorcraftApp {
 fn opens_on_the_artboard_tools_active_artboard_and_exports_it() {
     let mut outputs = Vec::new();
     for remembered in [false, true] {
-        let dir = vectorcraft_testkit::temp_dir(if remembered { "sfw-active-remembered" } else { "sfw-active-default" });
+        let dir = pluma_testkit::temp_dir(if remembered { "sfw-active-remembered" } else { "sfw-active-default" });
         let mut app = two_artboards(&dir);
         if remembered {
             app.run("webExport.settings", json!({"artboard": 0, "quality": 70})).unwrap();
@@ -74,7 +74,7 @@ fn opens_on_the_artboard_tools_active_artboard_and_exports_it() {
 #[test]
 fn opens_on_the_active_artboard_with_the_selection_tool_and_exports_it() {
     for (active, size, color) in [(1, (32, 24), [0, 0, 255, 255]), (0, (60, 40), [255, 0, 0, 255])] {
-        let dir = vectorcraft_testkit::temp_dir(&format!("sfw-selection-active-{active}"));
+        let dir = pluma_testkit::temp_dir(&format!("sfw-selection-active-{active}"));
         let mut app = two_artboards(&dir);
         app.run("webExport.settings", json!({"artboard": 1 - active, "format": "png24", "quality": 73})).unwrap();
         let saved = app.session.last_web_settings().to_json();
@@ -95,7 +95,7 @@ fn opens_on_the_active_artboard_with_the_selection_tool_and_exports_it() {
 
 #[test]
 fn explicit_artboard_changes_update_the_preview_and_saved_pixels() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-explicit-artboard");
+    let dir = pluma_testkit::temp_dir("sfw-explicit-artboard");
     let mut app = two_artboards(&dir);
     app.run("tool.select", json!({"tool": "artboard"})).unwrap();
     app.run("tool.setOption", json!({"key": "active", "value": 1})).unwrap();
@@ -134,13 +134,13 @@ fn explicit_artboard_changes_update_the_preview_and_saved_pixels() {
 #[test]
 fn choosing_the_second_artboard_in_the_dropdown_exports_its_pixels() {
     use egui_kittest::kittest::{By, Queryable};
-    let dir = vectorcraft_testkit::temp_dir("sfw-dropdown-artboard");
+    let dir = pluma_testkit::temp_dir("sfw-dropdown-artboard");
     let mut app = two_artboards(&dir);
     app.run("file.saveForWeb", json!({})).unwrap();
     set(&mut app, "format", json!("png24"));
     let mut fonts = false;
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 1200.0)).build_ui_state(
-        move |ui, app: &mut VectorcraftApp| {
+        move |ui, app: &mut PlumaApp| {
             if !std::mem::replace(&mut fonts, true) {
                 crate::theme::install_fonts(ui.ctx());
                 return;
@@ -163,7 +163,7 @@ fn choosing_the_second_artboard_in_the_dropdown_exports_its_pixels() {
 
 #[test]
 fn opening_uses_the_active_artboard_in_a_multiselection_and_preserves_other_settings() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-settings-artboard");
+    let dir = pluma_testkit::temp_dir("sfw-settings-artboard");
     let mut app = two_artboards(&dir);
     app.run("webExport.settings", json!({"preset": "JPEG, quality 50", "artboard": 0, "quality": 73, "width": 96, "metadata": "all"})).unwrap();
     let saved = app.session.last_web_settings().to_json();
@@ -191,7 +191,7 @@ fn opening_uses_the_active_artboard_in_a_multiselection_and_preserves_other_sett
 
 #[test]
 fn a_remembered_artboard_missing_from_another_document_falls_back_to_its_first() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-other-document");
+    let dir = pluma_testkit::temp_dir("sfw-other-document");
     let mut app = two_artboards(&dir);
     app.run("webExport.settings", json!({"artboard": 1, "format": "png24"})).unwrap();
     app.run("file.new", json!({"width": 20, "height": 12})).unwrap();
@@ -208,7 +208,7 @@ fn a_remembered_artboard_missing_from_another_document_falls_back_to_its_first()
 
 #[test]
 fn explicit_command_artboards_override_the_ui_active_artboard() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-api-artboard");
+    let dir = pluma_testkit::temp_dir("sfw-api-artboard");
     let mut app = two_artboards(&dir);
     app.run("tool.select", json!({"tool": "artboard"})).unwrap();
     for (active, explicit, size, color) in [(0, 1, (32, 24), [0, 0, 255, 255]), (1, 0, (60, 40), [255, 0, 0, 255])] {
@@ -227,7 +227,7 @@ fn explicit_command_artboards_override_the_ui_active_artboard() {
 
 #[test]
 fn every_view_and_format_draws() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-views");
+    let dir = pluma_testkit::temp_dir("sfw-views");
     let (mut app, _) = app(&dir, false);
     assert_eq!(crate::menus::shortcut_of("file.saveForWeb"), Some("Cmd+Alt+Shift+S"));
     assert!(crate::menus::enabled(&app, "file.saveForWeb"));
@@ -257,7 +257,7 @@ fn every_view_and_format_draws() {
 
 #[test]
 fn save_remembers_and_writes_and_done_only_remembers() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-save");
+    let dir = pluma_testkit::temp_dir("sfw-save");
     let (mut app, _) = app(&dir, false);
     app.run("file.saveForWeb", json!({})).unwrap();
     // A preset field loads the preset; the keys set after it win.
@@ -280,7 +280,7 @@ fn save_remembers_and_writes_and_done_only_remembers() {
     set(&mut app, "discard", json!(true));
     assert_eq!(confirm(&mut app).unwrap()["remembered"], true);
     assert!(app.ui.dialog.is_none());
-    assert_eq!(app.session.last_web_settings().format, vectorcraft_engine::cmd::webexport::WebFormat::Png24);
+    assert_eq!(app.session.last_web_settings().format, pluma_engine::cmd::webexport::WebFormat::Png24);
     assert!(!dir.join("Untitled-1.png").exists());
     // Bad settings keep the dialog open, with nothing written.
     app.run("file.saveForWeb", json!({})).unwrap();
@@ -291,7 +291,7 @@ fn save_remembers_and_writes_and_done_only_remembers() {
 
 #[test]
 fn html_output_with_slices_saves_the_page_and_images() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-html");
+    let dir = pluma_testkit::temp_dir("sfw-html");
     let (mut app, _) = app(&dir, false);
     app.run("object.slice.create", json!({"x": 0, "y": 0, "width": 30, "height": 20})).unwrap();
     app.run("file.saveForWeb", json!({})).unwrap();
@@ -307,7 +307,7 @@ fn html_output_with_slices_saves_the_page_and_images() {
 
 #[test]
 fn the_web_downloads_and_has_no_browser_preview() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-web");
+    let dir = pluma_testkit::temp_dir("sfw-web");
     let (mut app, log) = app(&dir, true);
     assert_eq!((spec(save_for_web::KIND).ok_label.unwrap())(&app), "Download");
     let r = app.run("file.saveForWeb", json!({"format": "png8", "output": "html"})).unwrap();
@@ -324,7 +324,7 @@ fn preview_in_browser_stays_in_its_folder_and_is_the_persons_to_open() {
     {
         assert_eq!(save_for_web::preview_name(title), name, "{title}");
     }
-    let dir = vectorcraft_testkit::temp_dir("sfw-browser-automation");
+    let dir = pluma_testkit::temp_dir("sfw-browser-automation");
     let (mut app, log) = app(&dir, false);
     app.ui.answering_control = true;
     assert!(app.run("file.saveForWeb.browser", json!({"format": "jpg"})).unwrap_err().contains("opens another app"));
@@ -334,7 +334,7 @@ fn preview_in_browser_stays_in_its_folder_and_is_the_persons_to_open() {
 
 #[test]
 fn preview_in_browser_opens_the_page() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-browser");
+    let dir = pluma_testkit::temp_dir("sfw-browser");
     let (mut app, log) = app(&dir, false);
     let r = app.run("file.saveForWeb.browser", json!({"format": "jpg"})).unwrap();
     let page = r["path"].as_str().unwrap().to_string();
@@ -348,7 +348,7 @@ fn preview_in_browser_opens_the_page() {
 /// first page and its image as they were.
 #[test]
 fn a_later_browser_preview_leaves_an_earlier_one_alone() {
-    let dir = vectorcraft_testkit::temp_dir("sfw-browser-two");
+    let dir = pluma_testkit::temp_dir("sfw-browser-two");
     let (mut first, _) = app(&dir, false);
     let (mut second, _) = app(&dir, false);
     let page = |r: serde_json::Value| r["path"].as_str().unwrap().to_string();
@@ -356,7 +356,7 @@ fn a_later_browser_preview_leaves_an_earlier_one_alone() {
     let gif = page(second.run("file.saveForWeb.browser", json!({"format": "gif"})).unwrap());
     let png = page(first.run("file.saveForWeb.browser", json!({"format": "png24"})).unwrap());
     assert!(jpg != gif && jpg != png && gif != png, "{jpg} {gif} {png}");
-    let root = std::env::temp_dir().join("VectorCraft Save for Web").to_string_lossy().replace('\\', "/");
+    let root = std::env::temp_dir().join("Pluma Save for Web").to_string_lossy().replace('\\', "/");
     for (page, image) in [(&jpg, "images/Untitled-1.jpg"), (&gif, "images/Untitled-1.gif"), (&png, "images/Untitled-1.png")] {
         assert!(page.starts_with(&root) && page.ends_with("/Untitled-1.html"), "{page}");
         assert!(std::fs::read_to_string(page).unwrap().contains(image), "{page}");
@@ -369,7 +369,7 @@ fn a_later_browser_preview_leaves_an_earlier_one_alone() {
 /// older, and keeps younger ones.
 #[test]
 fn a_browser_preview_removes_old_previews() {
-    let root = vectorcraft_testkit::temp_dir("sfw-browser-old").join("previews");
+    let root = pluma_testkit::temp_dir("sfw-browser-old").join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let earlier = save_for_web::preview_folder(&root, std::time::Duration::from_secs(3600)).unwrap();
     std::fs::create_dir_all(format!("{earlier}/images")).unwrap();
@@ -390,7 +390,7 @@ fn a_browser_preview_removes_old_previews() {
 /// `<digits>-<digits>`, and a file with a preview folder's name.
 #[test]
 fn a_browser_preview_removes_only_preview_folders() {
-    let root = vectorcraft_testkit::temp_dir("sfw-browser-filter").join("previews");
+    let root = pluma_testkit::temp_dir("sfw-browser-filter").join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let earlier = save_for_web::preview_folder(&root, std::time::Duration::from_secs(3600)).unwrap();
     let folders = ["notes", "12-", "-3", "12-3a", "a12-3", "12_3"];
@@ -412,12 +412,12 @@ fn a_browser_preview_removes_only_preview_folders() {
     assert_eq!(std::fs::read_dir(&root).unwrap().count(), folders.len() + files.len() + 1);
 }
 
-/// When `VectorCraft Save for Web` in the temporary folder is a file, the preview goes to a new
+/// When `Pluma Save for Web` in the temporary folder is a file, the preview goes to a new
 /// folder of its own in the temporary folder, and the file stays as it was.
 #[test]
 fn a_browser_preview_goes_beside_a_root_that_is_not_a_folder() {
-    let tmp = vectorcraft_testkit::temp_dir("sfw-browser-file-root");
-    let root = tmp.join("VectorCraft Save for Web");
+    let tmp = pluma_testkit::temp_dir("sfw-browser-file-root");
+    let root = tmp.join("Pluma Save for Web");
     std::fs::write(&root, b"a file").unwrap();
     let keep = std::time::Duration::ZERO;
     let e = save_for_web::preview_folder(&root, keep).unwrap_err();
@@ -425,7 +425,7 @@ fn a_browser_preview_goes_beside_a_root_that_is_not_a_folder() {
     let dir = save_for_web::preview_folder_in(&tmp, keep).unwrap();
     let dir = std::path::Path::new(&dir);
     assert!(dir.is_dir() && dir.parent() == Some(tmp.as_path()), "{}", dir.display());
-    assert!(dir.file_name().unwrap().to_string_lossy().starts_with("VectorCraft Save for Web "), "{}", dir.display());
+    assert!(dir.file_name().unwrap().to_string_lossy().starts_with("Pluma Save for Web "), "{}", dir.display());
     assert_eq!(std::fs::read(&root).unwrap(), b"a file");
 }
 
@@ -434,15 +434,15 @@ fn a_browser_preview_goes_beside_a_root_that_is_not_a_folder() {
 /// ones and other entries stay.
 #[test]
 fn a_browser_preview_removes_old_folders_made_beside_the_root() {
-    let tmp = vectorcraft_testkit::temp_dir("sfw-browser-beside-old");
-    let root = tmp.join("VectorCraft Save for Web");
+    let tmp = pluma_testkit::temp_dir("sfw-browser-beside-old");
+    let root = tmp.join("Pluma Save for Web");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::write(&root, b"a file").unwrap();
     let hour = std::time::Duration::from_secs(3600);
     let first = save_for_web::preview_folder_in(&tmp, hour).unwrap();
     let second = save_for_web::preview_folder_in(&tmp, hour).unwrap();
     assert!(std::path::Path::new(&first).is_dir() && std::path::Path::new(&second).is_dir(), "{first} {second}");
-    let others = ["VectorCraft Save for Web 7-7", "VectorCraft Save for Web 7-7.html", "VectorCraft Save for Web notes"];
+    let others = ["Pluma Save for Web 7-7", "Pluma Save for Web 7-7.html", "Pluma Save for Web notes"];
     std::fs::write(tmp.join(others[0]), b"kept").unwrap();
     std::fs::write(tmp.join(others[1]), b"kept").unwrap();
     std::fs::create_dir_all(tmp.join(others[2])).unwrap();
@@ -469,14 +469,14 @@ fn mode(path: impl AsRef<std::path::Path>) -> u32 {
 #[test]
 fn a_browser_preview_makes_private_folders() {
     use std::os::unix::fs::PermissionsExt;
-    let tmp = vectorcraft_testkit::temp_dir("sfw-browser-private");
+    let tmp = pluma_testkit::temp_dir("sfw-browser-private");
     let root = tmp.join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let dir = save_for_web::preview_folder(&root, std::time::Duration::from_secs(3600)).unwrap();
     assert_eq!((mode(&root), mode(&dir)), (0o700, 0o700));
     // Beside a root it can't use, too.
     std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o777)).unwrap();
-    let shared = tmp.join("VectorCraft Save for Web");
+    let shared = tmp.join("Pluma Save for Web");
     let _ = std::fs::remove_dir_all(&shared);
     std::fs::rename(&root, &shared).unwrap();
     let own = save_for_web::preview_folder_in(&tmp, std::time::Duration::from_secs(3600)).unwrap();
@@ -490,10 +490,10 @@ fn a_browser_preview_makes_private_folders() {
 #[test]
 fn a_browser_preview_refuses_a_linked_root() {
     use std::os::unix::fs::symlink;
-    let tmp = vectorcraft_testkit::temp_dir("sfw-browser-linked-root");
+    let tmp = pluma_testkit::temp_dir("sfw-browser-linked-root");
     let elsewhere = tmp.join("elsewhere");
     std::fs::create_dir_all(elsewhere.join("5-1")).unwrap();
-    let root = tmp.join("VectorCraft Save for Web");
+    let root = tmp.join("Pluma Save for Web");
     let _ = std::fs::remove_file(&root);
     symlink(&elsewhere, &root).unwrap();
     let keep = std::time::Duration::ZERO;
@@ -511,7 +511,7 @@ fn a_browser_preview_refuses_a_linked_root() {
 #[test]
 fn a_browser_preview_refuses_a_root_others_can_write_to() {
     use std::os::unix::fs::PermissionsExt;
-    let root = vectorcraft_testkit::temp_dir("sfw-browser-shared-root").join("previews");
+    let root = pluma_testkit::temp_dir("sfw-browser-shared-root").join("previews");
     let keep = std::time::Duration::ZERO;
     for bits in [0o777, 0o770, 0o703] {
         let _ = std::fs::remove_dir_all(&root);
@@ -530,7 +530,7 @@ fn a_browser_preview_refuses_a_root_others_can_write_to() {
 #[test]
 fn a_browser_preview_leaves_a_link_named_like_a_preview_folder() {
     use std::os::unix::fs::symlink;
-    let tmp = vectorcraft_testkit::temp_dir("sfw-browser-link-entry");
+    let tmp = pluma_testkit::temp_dir("sfw-browser-link-entry");
     let root = tmp.join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let outside = tmp.join("outside");
@@ -548,7 +548,7 @@ fn a_browser_preview_leaves_a_link_named_like_a_preview_folder() {
 #[cfg(unix)]
 #[test]
 fn a_browser_preview_leaves_what_another_user_owns() {
-    let root = vectorcraft_testkit::temp_dir("sfw-browser-other-user").join("previews");
+    let root = pluma_testkit::temp_dir("sfw-browser-other-user").join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let keep = std::time::Duration::ZERO;
     let theirs = save_for_web::preview_folder(&root, keep).unwrap();
@@ -568,7 +568,7 @@ fn a_browser_preview_leaves_what_another_user_owns() {
 /// the preview makes a new, empty one.
 #[test]
 fn a_browser_preview_skips_a_folder_an_earlier_process_left() {
-    let root = vectorcraft_testkit::temp_dir("sfw-browser-reused").join("previews");
+    let root = pluma_testkit::temp_dir("sfw-browser-reused").join("previews");
     let _ = std::fs::remove_dir_all(&root);
     let keep = std::time::Duration::from_secs(3600);
     let earlier = save_for_web::preview_folder(&root, keep).unwrap();
@@ -593,8 +593,8 @@ fn saving_says_in_the_status_bar_when_an_image_could_not_be_decoded() {
     image::RgbaImage::from_pixel(64, 32, image::Rgba([200, 30, 30, 255]))
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
         .unwrap();
-    let place = |app: &mut VectorcraftApp| vectorcraft_testkit::fixtures::place_cut_png(&mut app.session, &png, json!({"at": [30, 20]}));
-    let dir = vectorcraft_testkit::temp_dir("sfw-undecoded");
+    let place = |app: &mut PlumaApp| pluma_testkit::fixtures::place_cut_png(&mut app.session, &png, json!({"at": [30, 20]}));
+    let dir = pluma_testkit::temp_dir("sfw-undecoded");
     let (mut desktop, _) = app(&dir, false);
     desktop.run("file.saveForWeb", json!({"format": "png24"})).unwrap();
     assert!(!desktop.ui.status.contains("note"), "{}", desktop.ui.status);

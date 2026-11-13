@@ -3,17 +3,17 @@
 
 use egui::emath::GuiRounding as _;
 use egui::{Color32, CornerRadius, Pos2, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
+use pluma_doc::text::TextKind;
+use pluma_doc::{Node, NodeKind, SymbolBoxes, Unit};
+use pluma_geom::{Affine, BezPath, PathEl, Point, Rect};
+use pluma_tools::{Cursor, Mods, Overlay, PenPose, PointerEvent, PointerKind};
 use serde_json::json;
-use vectorcraft_doc::text::TextKind;
-use vectorcraft_doc::{Node, NodeKind, SymbolBoxes, Unit};
-use vectorcraft_geom::{Affine, BezPath, PathEl, Point, Rect};
-use vectorcraft_tools::{Cursor, Mods, Overlay, PenPose, PointerEvent, PointerKind};
 
 use crate::opening;
 use crate::state::View;
 use crate::stylus::StylusFeed;
 use crate::theme::{self, Tokens};
-use crate::{CacheKey, VectorcraftApp, now_ms, widgets};
+use crate::{CacheKey, PlumaApp, now_ms, widgets};
 
 mod artboards;
 mod context;
@@ -119,10 +119,10 @@ impl Xf {
         [Point::new(r.x0, r.y0), Point::new(r.x1, r.y0), Point::new(r.x1, r.y1), Point::new(r.x0, r.y1)].iter().map(|p| self.to_screen(*p)).collect()
     }
     /// Convert a screen-space delta to a document delta.
-    pub fn delta_to_doc(&self, d: egui::Vec2) -> vectorcraft_geom::Vec2 {
+    pub fn delta_to_doc(&self, d: egui::Vec2) -> pluma_geom::Vec2 {
         let (sn, cs) = self.rot.sin_cos();
         let (dx, dy) = (d.x as f64, d.y as f64);
-        vectorcraft_geom::Vec2::new((dx * cs + dy * sn) / self.zoom, (-dx * sn + dy * cs) / self.zoom)
+        pluma_geom::Vec2::new((dx * cs + dy * sn) / self.zoom, (-dx * sn + dy * cs) / self.zoom)
     }
     pub fn rect_to_screen(&self, r: Rect) -> egui::Rect {
         egui::Rect::from_two_pos(self.to_screen(Point::new(r.x0, r.y0)), self.to_screen(Point::new(r.x1, r.y1)))
@@ -179,7 +179,7 @@ pub(crate) fn dragging(ctx: &egui::Context) -> bool {
 /// The part of `outer` inside the scroll bars, and the part of that inside the rulers, which shows
 /// the document. Normal Screen Mode and Full Screen Mode with Menu Bar keep the scroll bars along
 /// the right and bottom edges; Full Screen and Presentation Mode have none.
-fn view_rects(app: &VectorcraftApp, outer: egui::Rect, ppp: f32) -> (egui::Rect, egui::Rect) {
+fn view_rects(app: &PlumaApp, outer: egui::Rect, ppp: f32) -> (egui::Rect, egui::Rect) {
     let full = if app.ui.screen_mode < 2 { egui::Rect::from_min_max(outer.min, outer.max - vec2(SCROLL_BAR, SCROLL_BAR)) } else { outer };
     let rect = if app.ui.view.rulers && app.ui.screen_mode < 3 { egui::Rect::from_min_max(full.min + vec2(RULER, RULER), full.max) } else { full };
     // Dock layout can differ by fractions of a device pixel between fresh windows.
@@ -211,14 +211,14 @@ fn view_key(v: &View, rect: egui::Rect) -> ViewKey {
 /// Whether the opening fit still follows the canvas `rect` (the view is unfitted, or unmoved since
 /// the fit and the user hasn't acted), and whether the canvas moved under it this frame, so the view
 /// is fitted again.
-fn opening_fit_follows(app: &VectorcraftApp, ui: &Ui, rect: egui::Rect, fitted: bool) -> (bool, bool) {
+fn opening_fit_follows(app: &PlumaApp, ui: &Ui, rect: egui::Rect, fitted: bool) -> (bool, bool) {
     let following = !fitted || (!ui.input(acted) && app.canvas.opening_fit.zip(app.view()).is_some_and(|(was, v)| view_key(v, was.rect) == was));
     let settling = fitted && following && app.canvas.opening_fit.is_some_and(|was| was.rect != rect);
     (following, settling)
 }
 
 /// Paint the document canvas, complete or cached artwork, navigation and tool overlays.
-pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
+pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let full = ui.available_rect_before_wrap();
     // `hidden_chars` holds the marks Show Hidden Characters kept and the text nodes they were laid
@@ -318,7 +318,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let smooth_images = pixel.is_none() || app.session.prefs.anti_aliased_bitmaps;
     let key = cache_key(app, ui, st, &t, &v, (w, h, ppp), (pixel, smooth_images));
     // Placed documents' bitmaps are being made: draw again when they are ready.
-    if vectorcraft_render::placed_document::busy() {
+    if pluma_render::placed_document::busy() {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(30));
     }
     poll_worker(app, ui, key.doc);
@@ -352,7 +352,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     // The status bar reports each image that a renderer (this thread's or the worker's) could not
     // decode, once per image in the process.
-    let undecoded = vectorcraft_render::newly_undecodable(doc.images.values());
+    let undecoded = pluma_render::newly_undecodable(doc.images.values());
     if undecoded > 0 {
         app.status(crate::i18n::msg_n(
             undecoded as u64,
@@ -429,7 +429,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// The pointer on the canvas: the tool's input, unless the context menu or the 3D gizmo has the press.
-fn canvas_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: egui::Rect) {
+fn canvas_input(app: &mut PlumaApp, ui: &Ui, resp: &egui::Response, rect: egui::Rect) {
     // A press on the canvas while the context menu is open only closes it (a drag too, which egui
     // alone would leave open); the tool doesn't get it.
     if app.ui.dialog.as_ref().is_some_and(crate::dialogs::revolve_gizmo::active) {
@@ -451,7 +451,7 @@ fn canvas_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
 }
 
 /// The pointer over the canvas: the view tools' cursors, else the tool's own.
-fn canvas_cursor(app: &mut VectorcraftApp, ui: &Ui, view_info: vectorcraft_engine::ViewInfo, hover_still: bool) {
+fn canvas_cursor(app: &mut PlumaApp, ui: &Ui, view_info: pluma_engine::ViewInfo, hover_still: bool) {
     if opening::long_operation_busy(app) {
         ui.ctx().set_cursor_icon(cursor_icon(Cursor::Busy));
         return;
@@ -488,7 +488,7 @@ fn canvas_cursor(app: &mut VectorcraftApp, ui: &Ui, view_info: vectorcraft_engin
     // cannot change the owner, so do not preview the borrowed tool's cursor. A drag that started
     // with a borrowed selection tool keeps its Command modifier and cursor.
     let mut cursor_mods = mods(m, space);
-    if tool_holds && !vectorcraft_tools::catalog::is_selection_tool(app.session.tool_id()) {
+    if tool_holds && !pluma_tools::catalog::is_selection_tool(app.session.tool_id()) {
         cursor_mods.cmd = false;
     }
     // In Presentation Mode the pointer is the default one, with no tool cursor.
@@ -502,8 +502,8 @@ fn canvas_cursor(app: &mut VectorcraftApp, ui: &Ui, view_info: vectorcraft_engin
             crate::place::paint_cursor(app, ui.ctx(), &painter, hp);
         }
         // The glyph cursors are drawn here; General › Use Precise Cursors (the session turns the drawing tools' pointers
-        // into crosshairs, `Cursor::precise`) needs no handling. VECTORCRAFT_SYSTEM_CURSORS opts out of the glyphs.
-        let custom = std::env::var_os("VECTORCRAFT_SYSTEM_CURSORS").is_none();
+        // into crosshairs, `Cursor::precise`) needs no handling. PLUMA_SYSTEM_CURSORS opts out of the glyphs.
+        let custom = std::env::var_os("PLUMA_SYSTEM_CURSORS").is_none();
         // User Interface › Scale Cursor Proportional to UI: the glyphs grow with UI Scaling;
         // off, they keep their size.
         let ui_scale = if app.session.prefs.scale_cursor_with_ui { 1.0 } else { ui.ctx().zoom_factor() };
@@ -540,7 +540,7 @@ fn canvas_cursor(app: &mut VectorcraftApp, ui: &Ui, view_info: vectorcraft_engin
 }
 
 /// The rulers, and the origin being dragged out of their corner.
-fn ruler_bands(app: &VectorcraftApp, ui: &Ui, xf: &Xf, (full, rect): (egui::Rect, egui::Rect), origin_preview: Option<Point>, t: &Tokens) {
+fn ruler_bands(app: &PlumaApp, ui: &Ui, xf: &Xf, (full, rect): (egui::Rect, egui::Rect), origin_preview: Option<Point>, t: &Tokens) {
     let painter = ui.painter_at(rect);
     if let Some(origin) = origin_preview {
         let at = xf.to_screen(origin);
@@ -559,9 +559,9 @@ fn ruler_bands(app: &VectorcraftApp, ui: &Ui, xf: &Xf, (full, rect): (egui::Rect
 
 /// What the cached frame depends on.
 fn cache_key(
-    app: &VectorcraftApp,
+    app: &PlumaApp,
     ui: &Ui,
-    st: &vectorcraft_engine::DocState,
+    st: &pluma_engine::DocState,
     t: &Tokens,
     v: &View,
     (w, h, ppp): (u32, u32, f32),
@@ -589,7 +589,7 @@ fn cache_key(
         anti_alias: app.session.prefs.anti_aliased_artwork,
         highlight_alternate_glyphs: app.session.prefs.highlight_alternate_glyphs,
         highlight_substituted_fonts: app.session.prefs.highlight_substituted_fonts,
-        placed: vectorcraft_render::placed_document::generation(),
+        placed: pluma_render::placed_document::generation(),
         pixel,
         smooth_images,
         isolated: st.isolation.map(|id| id.0),
@@ -603,10 +603,10 @@ fn cache_key(
 }
 
 /// Start the render worker, and upload the frame it finished.
-fn poll_worker(app: &mut VectorcraftApp, ui: &Ui, key_doc: usize) {
+fn poll_worker(app: &mut PlumaApp, ui: &Ui, key_doc: usize) {
     if !app.canvas.worker_started {
         app.canvas.worker_started = true;
-        if std::env::var_os("VECTORCRAFT_SYNC_RENDER").is_none() {
+        if std::env::var_os("PLUMA_SYNC_RENDER").is_none() {
             app.canvas.worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
             app.canvas.fill_worker = crate::render_worker::Worker::spawn(ui.ctx().clone());
         }
@@ -619,7 +619,7 @@ fn poll_worker(app: &mut VectorcraftApp, ui: &Ui, key_doc: usize) {
 /// Upload frame `done` from the render worker when it is of document `key_doc` and not older than
 /// the frame shown. This prevents canvas freezes during continuous edits (drags, arrow nudges, MCP
 /// command bursts) while ensuring obsolete out-of-order frames are dropped.
-fn show_worker_frame(app: &mut VectorcraftApp, ctx: &egui::Context, done: crate::render_worker::Done, key_doc: usize) {
+fn show_worker_frame(app: &mut PlumaApp, ctx: &egui::Context, done: crate::render_worker::Done, key_doc: usize) {
     let not_older = app.canvas.key.as_ref().filter(|k| k.doc == done.key.doc).is_none_or(|k| done.key.revision >= k.revision);
     if done.key.doc != key_doc || !not_older {
         return;
@@ -653,20 +653,15 @@ fn frame_view(pixel: Option<[i64; 4]>, (w, h): (u32, u32), v: &View, ppp: f32) -
 }
 
 /// The options the canvas renders the document with.
-fn frame_options(
-    app: &VectorcraftApp,
-    key: &CacheKey,
-    mask_view: Option<vectorcraft_doc::NodeId>,
-    smooth_images: bool,
-) -> vectorcraft_render::RenderOptions {
-    let opts = vectorcraft_render::RenderOptions { outline: key.outline, background: None, artboards: false, ..Default::default() };
-    vectorcraft_render::RenderOptions {
-        proof: vectorcraft_render::proof::active_proof(),
-        overprint_preview: vectorcraft_render::proof::overprint_preview_on(),
+fn frame_options(app: &PlumaApp, key: &CacheKey, mask_view: Option<pluma_doc::NodeId>, smooth_images: bool) -> pluma_render::RenderOptions {
+    let opts = pluma_render::RenderOptions { outline: key.outline, background: None, artboards: false, ..Default::default() };
+    pluma_render::RenderOptions {
+        proof: pluma_render::proof::active_proof(),
+        overprint_preview: pluma_render::proof::overprint_preview_on(),
         trim: app.ui.view.trim_view,
         hide_templates: !app.ui.view.templates,
         hide_guides: !app.ui.view.guides,
-        tile_edge: vectorcraft_color::Color::from_hex(&app.session.prefs.pattern_tile_edge_color).map_or(opts.tile_edge, |c| {
+        tile_edge: pluma_color::Color::from_hex(&app.session.prefs.pattern_tile_edge_color).map_or(opts.tile_edge, |c| {
             let [r, g, b, _] = c.to_rgba8(1.0);
             [r, g, b]
         }),
@@ -679,14 +674,14 @@ fn frame_options(
         highlight_substituted_fonts: app.session.prefs.highlight_substituted_fonts,
         // General › Anti-aliased Artwork: off, edges are hard on screen (raster effects and
         // pattern tiles stay smooth), as in Illustrator.
-        anti_alias: if app.session.prefs.anti_aliased_artwork { vectorcraft_render::AntiAlias::Art } else { vectorcraft_render::AntiAlias::None },
+        anti_alias: if app.session.prefs.anti_aliased_artwork { pluma_render::AntiAlias::Art } else { pluma_render::AntiAlias::None },
         progressive_placed: true,
         trace_views: true,
         // Image Trace › the eye button held: the source image of the selected objects.
         trace_source: key.trace_source.clone(),
         smooth_images,
         // Isolation mode: the art around the isolated group or layer is dimmed (#833).
-        isolated: key.isolated.map(vectorcraft_doc::NodeId),
+        isolated: key.isolated.map(pluma_doc::NodeId),
         // Images far smaller on screen than they are sample their mip levels (#1244).
         image_mips: true,
         // An image whose pixels can't be decoded shows as a crossed box, and the status message
@@ -706,10 +701,10 @@ fn frame_options(
 /// A frame to render: here, or on the worker.
 struct Frame<'a> {
     key: &'a CacheKey,
-    doc: &'a std::sync::Arc<vectorcraft_doc::Document>,
+    doc: &'a std::sync::Arc<pluma_doc::Document>,
     size: (u32, u32),
     view: Affine,
-    opts: vectorcraft_render::RenderOptions,
+    opts: pluma_render::RenderOptions,
     pixel: Option<[i64; 4]>,
 }
 
@@ -717,7 +712,7 @@ struct Frame<'a> {
 /// shows the document's paper without the art: about a frame at 60 Hz.
 pub(crate) const FIRST_FRAME_GRACE: std::time::Duration = std::time::Duration::from_millis(16);
 
-fn draw_frame(app: &mut VectorcraftApp, ui: &Ui, frame: Frame) {
+fn draw_frame(app: &mut PlumaApp, ui: &Ui, frame: Frame) {
     let Frame { key, doc, size: (w, h), view, opts, pixel } = frame;
     // Frames that would be slow on this thread (the last one took over 8 ms) go
     // to the worker. An interaction's frames stay on the worker once it drew the frame shown:
@@ -767,7 +762,7 @@ fn draw_frame(app: &mut VectorcraftApp, ui: &Ui, frame: Frame) {
                 h,
                 view,
                 opts,
-                scope: vectorcraft_engine::file_access::ScopeHandle::capture(),
+                scope: pluma_engine::file_access::ScopeHandle::capture(),
                 may_copy,
                 may_keep: true,
             });
@@ -807,8 +802,8 @@ const OUTLINE_DIM: Color32 = Color32::from_gray(0x4b);
 /// the whole canvas in [`OUTLINE_CANVAS`], with no paper drawn for the artboards: no Simulate
 /// Colored Paper color, no artboard background color, and no paper with View › Hide Artboards.
 fn paint_paper(
-    app: &VectorcraftApp,
-    st: &vectorcraft_engine::DocState,
+    app: &PlumaApp,
+    st: &pluma_engine::DocState,
     ui: &Ui,
     painter: &egui::Painter,
     xf: &Xf,
@@ -834,7 +829,7 @@ fn paint_paper(
         painter.rect_filled(rect, 0.0, if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE });
     } else {
         let setup = &doc.setup;
-        let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
+        let grid = (st.transparency_grid && setup.background == pluma_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
         let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
         for ab in &doc.artboards {
             let q = xf.quad(ab.rect);
@@ -854,7 +849,7 @@ fn paint_paper(
 }
 
 /// The last rendered frame, placed through the current view while a new one is on its way.
-fn reproject_frame(app: &VectorcraftApp, painter: &egui::Painter, xf: &Xf, rect: egui::Rect, (key_doc, rotation): (usize, f64)) {
+fn reproject_frame(app: &PlumaApp, painter: &egui::Painter, xf: &Xf, rect: egui::Rect, (key_doc, rotation): (usize, f64)) {
     if let (Some(tex), Some(k)) = (&app.canvas.texture, &app.canvas.key)
         && k.doc == key_doc
     {
@@ -895,7 +890,7 @@ fn reproject_frame(app: &VectorcraftApp, painter: &egui::Painter, xf: &Xf, rect:
 /// darkens it while the Artboard tool is active, and with Update While Dragging off it draws as
 /// usual while the tool moves or resizes an artboard. Presentation Mode, exports and prints never
 /// draw the fade.
-fn fades_outside_artboards(app: &VectorcraftApp) -> bool {
+fn fades_outside_artboards(app: &PlumaApp) -> bool {
     let prefs = &app.session.prefs;
     app.ui.screen_mode != 3
         && app.session.tool_id() == "artboard"
@@ -909,7 +904,7 @@ const FADE_OUTSIDE: Color32 = Color32::from_black_alpha(102);
 /// Fade Region Outside Artboard: over the pasteboard and the art on it, one mesh in [`FADE_OUTSIDE`]
 /// that covers the canvas outside the artboards of `doc`, drawn through the view. The mesh is not
 /// anti-aliased, so its rectangles meet without seams.
-fn fade_outside_artboards(painter: &egui::Painter, xf: &Xf, doc: &vectorcraft_doc::Document) {
+fn fade_outside_artboards(painter: &egui::Painter, xf: &Xf, doc: &pluma_doc::Document) {
     let boards: Vec<Rect> = doc.artboards.iter().map(|a| a.rect).collect();
     let mut mesh = egui::Mesh::default();
     for (n, r) in (0u32..).zip(fade_rects(view_bounds(xf), &boards)) {
@@ -1003,12 +998,12 @@ fn outside_rects(bounds: Rect, boards: &[Rect], limit: usize) -> Option<Vec<Rect
 
 /// Do the artboards show? View › Hide Artboards hides them, except for the Artboard tool, which
 /// edits them.
-fn shows_artboards(app: &VectorcraftApp) -> bool {
+fn shows_artboards(app: &PlumaApp) -> bool {
     app.ui.view.artboards || app.session.tool_id() == "artboard"
 }
 
 /// The artboards' edges, bleeds, marks and names.
-fn artboard_outlines(app: &VectorcraftApp, ui: &Ui, painter: &egui::Painter, xf: &Xf, t: &Tokens) {
+fn artboard_outlines(app: &PlumaApp, ui: &Ui, painter: &egui::Painter, xf: &Xf, t: &Tokens) {
     if !shows_artboards(app) {
         return;
     }
@@ -1032,8 +1027,8 @@ fn dim_on_canvas(t: &Tokens, outline: bool) -> Color32 {
 /// The edges, bleeds, marks and names of `doc`'s artboards, `active_ab` the active one, the names
 /// in `label`; the artboards `unlabelled` gives are not named.
 fn artboard_edges(
-    app: &VectorcraftApp,
-    doc: &vectorcraft_doc::Document,
+    app: &PlumaApp,
+    doc: &pluma_doc::Document,
     (painter, xf, t): (&egui::Painter, &Xf, &Tokens),
     (active_ab, label): (usize, Color32),
     unlabelled: impl Fn(usize) -> bool,
@@ -1059,14 +1054,14 @@ fn artboard_edges(
 }
 
 /// The ruler guides.
-fn guide_lines(app: &VectorcraftApp, painter: &egui::Painter, xf: &Xf, rect: egui::Rect, t: &Tokens) {
+fn guide_lines(app: &PlumaApp, painter: &egui::Painter, xf: &Xf, rect: egui::Rect, t: &Tokens) {
     if let Some(st) = app.session.active() {
         guides_of(app, st, (painter, xf, t), rect);
     }
 }
 
 /// The ruler guides of document `st`, its selected guides in the selection colour.
-fn guides_of(app: &VectorcraftApp, st: &vectorcraft_engine::DocState, (painter, xf, t): (&egui::Painter, &Xf, &Tokens), rect: egui::Rect) {
+fn guides_of(app: &PlumaApp, st: &pluma_engine::DocState, (painter, xf, t): (&egui::Painter, &Xf, &Tokens), rect: egui::Rect) {
     let doc = &st.doc;
     let look = LineLook::guides(&app.session.prefs, t);
     let picked = LineLook { color: t.selection, ..look };
@@ -1096,12 +1091,12 @@ fn guides_of(app: &VectorcraftApp, st: &vectorcraft_engine::DocState, (painter, 
 
 /// The selection's visuals and the tools' overlays, to be drawn.
 fn selection_visuals(
-    app: &mut VectorcraftApp,
+    app: &mut PlumaApp,
     painter: &egui::Painter,
     xf: &Xf,
     (hidden_chars, mut marks, hover_still): (HiddenChars, SelectionMarks, bool),
     revolve_edit: bool,
-    view_info: vectorcraft_engine::ViewInfo,
+    view_info: pluma_engine::ViewInfo,
 ) -> Vec<Overlay> {
     // View → Hide Gradient Annotator hides the Gradient tool's annotator.
     let mut overlays = if !revolve_edit && (app.session.tool_id() != "gradient" || app.ui.view.gradient_annotator) {

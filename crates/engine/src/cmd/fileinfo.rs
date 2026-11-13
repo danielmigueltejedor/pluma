@@ -3,9 +3,9 @@
 //! SVG (with `metadata`), PDF and PNG writers carry it, and a PDF or `.ai` opens with the File Info
 //! it gives ([`read_pdf`]).
 
+use pluma_doc::metadata::{MAX_RATING, iso8601};
+use pluma_doc::{ColorMode, CopyrightStatus, DocMetadata, Document};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::metadata::{MAX_RATING, iso8601};
-use vectorcraft_doc::{ColorMode, CopyrightStatus, DocMetadata, Document};
 
 use super::{Result, Session, bad};
 
@@ -63,10 +63,10 @@ pub(crate) fn file_info(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(info_json(&s.doc()?.doc))
 }
 
-/// The File Info a PDF or PDF-compatible `.ai` gives ([`vectorcraft_pdf::file_info`]) into `m`: each
+/// The File Info a PDF or PDF-compatible `.ai` gives ([`pluma_pdf::file_info`]) into `m`: each
 /// field that `file.info` would take (a value it refuses is left out), and the created and
 /// modified dates.
-pub(crate) fn read_pdf(m: &mut DocMetadata, f: vectorcraft_pdf::FileInfo) {
+pub(crate) fn read_pdf(m: &mut DocMetadata, f: pluma_pdf::FileInfo) {
     let status = f.copyrighted.map(|c| if c { CopyrightStatus::Copyrighted } else { CopyrightStatus::PublicDomain });
     let fields = [
         ("author", f.author.map(Value::from)),

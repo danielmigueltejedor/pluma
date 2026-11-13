@@ -29,8 +29,8 @@ mod sketch_ink;
 mod texture;
 mod video;
 
+use pluma_geom::{Affine, Point, Rect};
 use serde_json::Value;
-use vectorcraft_geom::{Affine, Point, Rect};
 
 use crate::util::{flag, num, text};
 
@@ -249,7 +249,7 @@ pub enum PixelFx {
     TornEdges { image_balance: f64, smoothness: f64, contrast: f64 },
     /// Sketch › Water Paper: colours flow on damp fibrous paper; `fiber_length` (3..50) sets the
     /// fibers and daubs, `brightness` and `contrast` (0..100) adjust the wash. Ranges and defaults
-    /// are unverified VectorCraft choices (helpx documents the controls only).
+    /// are unverified Pluma choices (helpx documents the controls only).
     WaterPaper { fiber_length: f64, brightness: f64, contrast: f64 },
     /// Stylize › Glowing Edges: bright coloured Sobel outlines on black.
     GlowingEdges { width: f64, brightness: f64, smoothness: f64 },
@@ -352,7 +352,7 @@ pub(crate) fn parse(id: &str, p: &Value) -> Option<PixelFx> {
         "artistic.neonGlow" => PixelFx::NeonGlow {
             size: num(p, "glowSize", 5.0).clamp(-24.0, 24.0),
             brightness: num(p, "glowBrightness", 15.0).clamp(0.0, 50.0),
-            colour: crate::raster::color_param(p, vectorcraft_doc::color::Color::rgb(0.3, 0.65, 1.0)).to_rgb(),
+            colour: crate::raster::color_param(p, pluma_doc::color::Color::rgb(0.3, 0.65, 1.0)).to_rgb(),
         },
         "artistic.paletteKnife" => PixelFx::PaletteKnife {
             stroke_size: num(p, "strokeSize", 10.0).clamp(1.0, 50.0),
@@ -1094,7 +1094,7 @@ pub fn gaussian_rgba(data: &mut [u8], w: usize, h: usize, sigma: f64) {
 /// <https://www.w3.org/TR/filter-effects-1/#ColorInterpolationFiltersProperty>). The blur runs on
 /// 16-bit values, so dark linear tones keep their steps.
 pub fn gaussian_rgba_linear(data: &mut [u8], w: usize, h: usize, sigma: f64) {
-    use vectorcraft_doc::color::cms::lab::{linear_to_srgb, srgb_to_linear};
+    use pluma_doc::color::cms::lab::{linear_to_srgb, srgb_to_linear};
     if let Some(px) = pixels(data, w, h)
         && sigma >= 0.2
     {

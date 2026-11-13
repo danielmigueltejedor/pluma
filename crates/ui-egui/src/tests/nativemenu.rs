@@ -7,20 +7,20 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use egui::{Event, Key, KeyboardShortcut, Modifiers, PointerButton, Pos2, Rect, vec2};
+use pluma_engine::Session;
+use pluma_engine::cmd::prefscmds::PREF_CATEGORIES;
 use serde_json::{Value, json};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::prefscmds::PREF_CATEGORIES;
 
 use crate::i18n::Lang;
 use crate::native_menu::{self, Backend, MenuBar, MenuRole, NativeMenu, Node, Standard};
-use crate::{VectorcraftApp, menus};
+use crate::{PlumaApp, menus};
 
 /// A new app, after the installed fonts' scan it starts has ended: until then Type › Font lists
 /// only the loaded fonts (#5483), and a scan that ends part way through a test adds items between
 /// two reads of the menus.
-fn app(doc: bool) -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
-    vectorcraft_text::FontDb::global().family_list();
+fn app(doc: bool) -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
+    pluma_text::FontDb::global().family_list();
     if doc {
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("shape.rectangle", json!({"x": 20, "y": 20, "width": 37, "height": 40})).unwrap();
@@ -28,7 +28,7 @@ fn app(doc: bool) -> VectorcraftApp {
     app
 }
 
-fn bar(app: &VectorcraftApp) -> MenuBar {
+fn bar(app: &PlumaApp) -> MenuBar {
     native_menu::mac_layout(app, &native_menu::from_tree(app, &menus::menu_tree()), Lang::EN).bar
 }
 
@@ -70,10 +70,10 @@ fn find<'a>(bar: &'a MenuBar, command: &str) -> &'a native_menu::Item {
 }
 
 #[test]
-fn vectorcraft_gets_a_mac_app_menu() {
+fn pluma_gets_a_mac_app_menu() {
     let bar = bar(&app(true));
     let titles: Vec<&str> = bar.menus.iter().map(|m| m.title.as_str()).collect();
-    assert_eq!(titles, ["VectorCraft", "File", "Edit", "Object", "Type", "Select", "Effect", "View", "Window", "Help"]);
+    assert_eq!(titles, ["Pluma", "File", "Edit", "Object", "Type", "Select", "Effect", "View", "Window", "Help"]);
     let app_menu = &bar.menus[0];
     assert_eq!(app_menu.role, MenuRole::App);
     assert_eq!(
@@ -98,10 +98,10 @@ fn vectorcraft_gets_a_mac_app_menu() {
         let it = find(&bar, command);
         (it.label.as_str(), it.shortcut)
     };
-    assert_eq!(shown("help.about"), ("About VectorCraft", None));
-    assert_eq!(shown("app.quit"), ("Quit VectorCraft", Some("Cmd+Q")), "Quit is the app's own, so unsaved documents are asked about");
+    assert_eq!(shown("help.about"), ("About Pluma", None));
+    assert_eq!(shown("app.quit"), ("Quit Pluma", Some("Cmd+Q")), "Quit is the app's own, so unsaved documents are asked about");
     // ⌘H stays View › Hide Edges (Illustrator's); Hide takes ⌃⌘H.
-    assert_eq!(shown(native_menu::HIDE), ("Hide VectorCraft", Some("Ctrl+Cmd+H")));
+    assert_eq!(shown(native_menu::HIDE), ("Hide Pluma", Some("Ctrl+Cmd+H")));
     assert_eq!(shown(native_menu::HIDE_OTHERS), ("Hide Others", Some("Cmd+Alt+H")));
     assert_eq!(find(&bar, "view.edges").shortcut, Some("Cmd+H"));
     assert_eq!(bar.menu(MenuRole::Help).map(|m| m.title.as_str()), Some("Help"));
@@ -186,7 +186,7 @@ fn every_in_window_item_is_in_the_mac_menu_bar_once() {
         assert_eq!(m, want, "{key:?} is listed {m} times on the Mac, {n} in the window");
     }
     let system = [native_menu::HIDE, native_menu::HIDE_OTHERS, native_menu::MINIMIZE];
-    // Language and Appearance have no in-window menu (synthesized in the App menu, as in PhotoCraft).
+    // Language and Appearance have no in-window menu (synthesized in the App menu, as in Lienzo).
     let synthesized = ["app.language", "window.brightness"];
     for key in b.keys() {
         assert!(a.contains_key(key) || system.contains(&key.0.as_str()) || synthesized.contains(&key.0.as_str()), "{key:?} isn't an in-window item");
@@ -204,7 +204,7 @@ fn the_window_menu_has_the_system_items() {
     let window = ids(&bar.menu(MenuRole::Window).unwrap().children);
     assert_eq!(window[..3], [native_menu::MINIMIZE.to_string(), "<Zoom>".into(), "---".into()]);
     assert_eq!(window[window.len() - 2..], ["---".to_string(), "<BringAllToFront>".into()]);
-    assert_eq!(window[3], "window.newWindow", "then VectorCraft's own items");
+    assert_eq!(window[3], "window.newWindow", "then Pluma's own items");
     assert_eq!(find(&bar, native_menu::MINIMIZE).shortcut, Some("Ctrl+Cmd+M"));
     assert!(!window.iter().any(|i| i == "window.brightness"), "the theme is only in the app menu");
     assert_eq!(Standard::Zoom.label(), "Zoom");
@@ -232,7 +232,7 @@ fn a_command_keeps_a_system_key_it_is_bound_to() {
 #[test]
 fn documents_and_selections_change_state_not_structure() {
     let (_m, (empty, drawn, typed, recent)) = undisturbed(|_| {
-        let key = |app: &VectorcraftApp| native_menu::structure_key(&bar(app));
+        let key = |app: &PlumaApp| native_menu::structure_key(&bar(app));
         let empty = key(&app(false));
         let mut a = app(true);
         let drawn = key(&a);
@@ -300,7 +300,7 @@ impl Fake {
 /// The app with the fake native menu (or none), driven a whole frame at a time like the desktop
 /// app.
 struct Mac {
-    app: VectorcraftApp,
+    app: PlumaApp,
     fake: Fake,
     ctx: egui::Context,
     time: f64,
@@ -352,7 +352,7 @@ impl Mac {
 
     /// Where the document's point (`x`, `y`) is on the screen.
     fn on_canvas(&self, x: f64, y: f64) -> Pos2 {
-        crate::canvas::Xf::new(self.app.canvas_rect.unwrap(), self.app.view().unwrap()).to_screen(vectorcraft_geom::Point::new(x, y))
+        crate::canvas::Xf::new(self.app.canvas_rect.unwrap(), self.app.view().unwrap()).to_screen(pluma_geom::Point::new(x, y))
     }
 
     /// Run `n` frames, each with the events that `step` returns (`step` may act on the app first),
@@ -405,7 +405,7 @@ fn click(at: Pos2, pressed: bool) -> Event {
 /// running alongside can bump them (a font it adds, the installed fonts' scan ending), and the app
 /// then reads the menus again, so every step whose menu reads a test counts runs inside `drag`.
 fn undisturbed<R>(drag: impl Fn(&mut Mac) -> R) -> (Mac, R) {
-    let fonts = vectorcraft_text::FontDb::global();
+    let fonts = pluma_text::FontDb::global();
     let generations = || {
         (
             crate::shortcut_editor::GENERATION.load(std::sync::atomic::Ordering::Relaxed),
@@ -443,7 +443,7 @@ fn key_equivalents_run_through_the_normal_shortcut_path_once() {
     // Idle frames don't read the menus again. The shortcut, plug-in and font generations are
     // process-wide, and tests running alongside with other shortcuts or fonts bump them (rightly
     // reading the menus again), so judge two idle frames in which they held still.
-    let fonts = vectorcraft_text::FontDb::global();
+    let fonts = pluma_text::FontDb::global();
     let globals = || {
         (
             crate::shortcut_editor::GENERATION.load(std::sync::atomic::Ordering::Relaxed),
@@ -572,8 +572,8 @@ fn applying_a_dialog_preview_reads_the_menus() {
 /// next frame read them again, with no click or key, so Type › Font lists them.
 #[test]
 fn fonts_that_load_read_the_menus_again() {
-    use vectorcraft_text::test_fonts as t;
-    let db = vectorcraft_text::FontDb::global();
+    use pluma_text::test_fonts as t;
+    let db = pluma_text::FontDb::global();
     // A test font no other test loaded yet, so adding it changes the fonts.
     let fonts = [t::vertical_font(true), t::two_axis_font(), t::variable_font()];
     let mut m = Mac::new(true);
@@ -737,8 +737,8 @@ fn the_menu_bar_is_inert_while_a_file_dialog_is_open() {
 /// the release the key equivalent makes is what tells the paste. Each press pastes once.
 #[test]
 fn a_key_equivalent_paste_pastes_a_picture_from_another_app() {
-    use vectorcraft_doc::NodeKind;
-    use vectorcraft_engine::cmd::clipboard::PNG;
+    use pluma_doc::NodeKind;
+    use pluma_engine::cmd::clipboard::PNG;
     let (mut app, board) = super::sysclip::app();
     super::sysclip::copy_elsewhere(&board, vec![(PNG, super::sysclip::blue_png())]);
     let fake = Fake::default();

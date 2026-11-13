@@ -1,23 +1,23 @@
 //! The Import PDF dialog: opening and placing multi-page and password-protected PDFs.
 
+use pluma_doc::NodeKind;
+use pluma_engine::Session;
+use pluma_testkit::ai;
+use pluma_testkit::pdf::{PdfPage, first_extra, pdf, pdf_with};
 use serde_json::json;
-use vectorcraft_doc::NodeKind;
-use vectorcraft_engine::Session;
-use vectorcraft_testkit::ai;
-use vectorcraft_testkit::pdf::{PdfPage, first_extra, pdf, pdf_with};
 
 use super::*;
 use crate::io;
 use crate::theme;
 
-fn app() -> VectorcraftApp {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> PlumaApp {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 400, "height": 400})).unwrap();
     app
 }
 
 /// One headless frame of the dialog layer.
-fn frame(app: &mut VectorcraftApp) {
+fn frame(app: &mut PlumaApp) {
     let ctx = egui::Context::default();
     theme::install_fonts(&ctx);
     theme::apply(&ctx, Default::default());
@@ -25,11 +25,11 @@ fn frame(app: &mut VectorcraftApp) {
     out.textures_delta.clear();
 }
 
-fn set(app: &mut VectorcraftApp, key: &str, v: serde_json::Value) {
+fn set(app: &mut PlumaApp, key: &str, v: serde_json::Value) {
     app.ui.dialog.as_mut().unwrap().fields.insert(key.into(), v);
 }
 
-fn field(app: &VectorcraftApp, key: &str) -> serde_json::Value {
+fn field(app: &PlumaApp, key: &str) -> serde_json::Value {
     app.ui.dialog.as_ref().unwrap().fields[key].clone()
 }
 
@@ -40,7 +40,7 @@ fn three_pages() -> Vec<u8> {
     pdf(&[PdfPage::new(100.0, 100.0, "0 g 0 0 10 10 re f"), second, PdfPage::new(300.0, 100.0, "1 0 0 rg 0 0 30 30 re f")], None)
 }
 
-fn artboard_widths(app: &VectorcraftApp) -> Vec<f64> {
+fn artboard_widths(app: &PlumaApp) -> Vec<f64> {
     app.session.active().unwrap().doc.artboards.iter().map(|a| a.rect.width()).collect()
 }
 
@@ -118,15 +118,15 @@ fn a_password_protected_pdf_asks_for_its_password() {
 }
 
 /// The placed object: its kind (clip group or not) and bounds.
-fn placed(app: &VectorcraftApp) -> (bool, vectorcraft_geom::Rect) {
+fn placed(app: &PlumaApp) -> (bool, pluma_geom::Rect) {
     let st = app.session.active().unwrap();
     let n = st.doc.node(st.selection.objects[0]).unwrap();
     let NodeKind::Group { clip, .. } = n.kind else { panic!("{:?}", n.kind) };
     (clip, n.geometric_bounds().unwrap())
 }
 
-fn place(app: &mut VectorcraftApp, bytes: &[u8], extra: serde_json::Value) -> Result<serde_json::Value, String> {
-    let mut p = json!({"name": "three.pdf", "dataBase64": vectorcraft_format::base64_encode(bytes)});
+fn place(app: &mut PlumaApp, bytes: &[u8], extra: serde_json::Value) -> Result<serde_json::Value, String> {
+    let mut p = json!({"name": "three.pdf", "dataBase64": pluma_format::base64_encode(bytes)});
     if let (Some(o), serde_json::Value::Object(e)) = (p.as_object_mut(), extra) {
         o.extend(e);
     }
@@ -151,7 +151,7 @@ fn placing_a_pdf_page_asks_for_the_page_and_crop_box() {
     let (clip, b) = placed(&app);
     assert!(clip, "clipped to the art box");
     assert_eq!((b.width(), b.height()), (50.0, 60.0));
-    assert_eq!(b.center(), vectorcraft_geom::Point::new(100.0, 120.0), "where `at` asked");
+    assert_eq!(b.center(), pluma_geom::Point::new(100.0, 120.0), "where `at` asked");
     assert_eq!(app.session.clipboard, clipboard, "the clipboard is untouched");
     assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
     // With a page, no dialog; Bounding Box places the art itself.
@@ -167,7 +167,7 @@ fn placing_a_pdf_page_asks_for_the_page_and_crop_box() {
     assert_eq!(placed(&app).1.width(), 80.0);
 }
 
-/// A saved `.ai` with several artboards carries its VectorCraft document: opening it restores that
+/// A saved `.ai` with several artboards carries its Pluma document: opening it restores that
 /// document (artboards, layers) instead of asking which pages to import.
 #[test]
 fn opening_a_saved_ai_with_several_artboards_restores_it_without_asking() {
@@ -176,8 +176,8 @@ fn opening_a_saved_ai_with_several_artboards_restores_it_without_asking() {
     app.run("layer.new", json!({"name": "Front"})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 40})).unwrap();
     let saved = app.run("document.save", json!({"format": "ai"})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
-    assert!(vectorcraft_pdf::info(&bytes, None).unwrap().pages.len() > 1, "a page per artboard");
+    let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    assert!(pluma_pdf::info(&bytes, None).unwrap().pages.len() > 1, "a page per artboard");
 
     io::open_bytes(&mut app, "two.ai", &bytes, Some("/tmp/two.ai".into())).unwrap();
     assert!(app.ui.dialog.is_none(), "no Import PDF dialog");
@@ -188,13 +188,13 @@ fn opening_a_saved_ai_with_several_artboards_restores_it_without_asking() {
     assert!(doc.layers.iter().any(|l| l.name.as_deref() == Some("Front")), "layers come back");
 }
 
-/// A PDF without a VectorCraft document still asks, and placing a saved `.ai` still asks for the page.
+/// A PDF without a Pluma document still asks, and placing a saved `.ai` still asks for the page.
 #[test]
 fn placing_a_saved_ai_still_asks_for_the_page() {
     let mut app = app();
     app.run("artboard.new", json!({"width": 200, "height": 100})).unwrap();
     let saved = app.run("document.save", json!({"format": "ai"})).unwrap();
-    let bytes = vectorcraft_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
+    let bytes = pluma_format::base64_decode(saved["dataBase64"].as_str().unwrap()).unwrap();
     assert!(import_pdf::offer(&mut app, "two.ai", &bytes, None, Some(&json!({}))));
     assert_eq!(app.ui.dialog.as_ref().unwrap().str("mode"), "place");
 }

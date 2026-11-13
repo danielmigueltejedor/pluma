@@ -69,19 +69,19 @@ impl Builder {
             Blend::Color => BlendMode::Color,
             Blend::Luminosity => BlendMode::Luminosity,
             _ => {
-                self.warn("blend modes VectorCraft doesn't have (Add, Linear Light, Vivid Light, Pin Light, Hard Mix, Subtract, Darker/Lighter Colour, Average, Negation, Reflect, Glow, Erase) import as Normal");
+                self.warn("blend modes Pluma doesn't have (Add, Linear Light, Vivid Light, Pin Light, Hard Mix, Subtract, Darker/Lighter Colour, Average, Negation, Reflect, Glow, Erase) import as Normal");
                 BlendMode::Normal
             }
         }
     }
 
-    /// `n` with its colour and gradient overlays baked into its paint and pixels (VectorCraft has
+    /// `n` with its colour and gradient overlays baked into its paint and pixels (Pluma has
     /// no overlay effect).
     fn overlaid<'n>(&mut self, n: &'n af::Node) -> std::borrow::Cow<'n, af::Node> {
         // Each kind of message once, however often it is heard.
         let mut warnings: Vec<String> = Vec::new();
         let mut work = self.overlay_work;
-        let out = vectorcraft_affinity::overlay::apply(n, &mut work, &mut |w| {
+        let out = pluma_affinity::overlay::apply(n, &mut work, &mut |w| {
             if !warnings.iter().any(|x| x == w) {
                 warnings.push(w.to_string());
             }
@@ -93,7 +93,7 @@ impl Builder {
         out
     }
 
-    /// One Affinity node (and its subtree) as VectorCraft art; `to_doc` maps document pixels to
+    /// One Affinity node (and its subtree) as Pluma art; `to_doc` maps document pixels to
     /// points. `layer_level`: the node is directly in a spread or a layer, so a layer stays a layer.
     pub(super) fn node(
         &mut self,
@@ -107,19 +107,19 @@ impl Builder {
             self.warn("objects nested too deeply (left out)");
             return None;
         }
-        // VectorCraft documents stay within `MAX_COORD` of the origin (renderers and exports rely
+        // Pluma documents stay within `MAX_COORD` of the origin (renderers and exports rely
         // on it): objects reaching beyond it are left out.
         if let Some(b) = af::kind_bounds(&n.kind) {
             let r = to_doc.transform_rect_bbox(rect_of(b));
             if ![r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite() && v.abs() <= crate::MAX_COORD) {
-                self.warn("objects beyond the document range VectorCraft supports (left out)");
+                self.warn("objects beyond the document range Pluma supports (left out)");
                 return None;
             }
         }
         // So must its vector mask, which becomes a clipping path: every control point, not just
         // the finite ones a bounding box takes.
         if n.mask.as_ref().is_some_and(|m| !path_in_range(m, to_doc)) {
-            self.warn("objects beyond the document range VectorCraft supports (left out)");
+            self.warn("objects beyond the document range Pluma supports (left out)");
             return None;
         }
         let n = &*self.overlaid(n);
@@ -134,7 +134,7 @@ impl Builder {
             ));
         }
         let child_level = matches!(n.kind, Kind::Layer) && layer_level;
-        let embeds = n.class == vectorcraft_affinity::stream::Tag::of(b"EmbN");
+        let embeds = n.class == pluma_affinity::stream::Tag::of(b"EmbN");
         self.embedded += usize::from(embeds);
         let children: Vec<Arc<Node>> = n.children.iter().filter_map(|c| self.node(c, to_doc, boards, child_level, depth + 1)).collect();
         self.embedded -= usize::from(embeds);
@@ -164,7 +164,7 @@ impl Builder {
                     p.appearance = appearance.into();
                     p
                 } else {
-                    // A shape clips its children: VectorCraft's clipping path keeps its paint, its
+                    // A shape clips its children: Pluma's clipping path keeps its paint, its
                     // fill behind the clipped art and its stroke over it, as Affinity draws it.
                     let mut clip = Node::new(self.doc.alloc_id(), NodeKind::Path { path: data, rule, live: None, clipping: true, guide: false });
                     clip.appearance = appearance.into();

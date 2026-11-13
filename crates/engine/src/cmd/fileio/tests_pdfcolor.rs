@@ -1,8 +1,8 @@
 //! `document.open` keeps a PDF's CMYK, Gray and spot colours, and `colorMode` picks the mode.
 
+use pluma_color::{Color, Paint};
+use pluma_doc::ColorMode;
 use serde_json::json;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::ColorMode;
 
 use super::*;
 
@@ -57,8 +57,7 @@ fn color_mode_opens_the_file_in_the_mode_asked_for() {
     svg.execute("file.new", &json!({"width": 20, "height": 20})).unwrap();
     svg.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
     let text = svg.execute("document.serialize", &json!({"format": "svg"})).unwrap()["text"].as_str().unwrap().to_string();
-    s.execute("document.open", &json!({"name": "a.svg", "dataBase64": vectorcraft_format::base64_encode(text.as_bytes()), "colorMode": "cmyk"}))
-        .unwrap();
+    s.execute("document.open", &json!({"name": "a.svg", "dataBase64": pluma_format::base64_encode(text.as_bytes()), "colorMode": "cmyk"})).unwrap();
     assert_eq!(s.active().unwrap().doc.color_mode, ColorMode::Cmyk);
     assert!(fills(&s).iter().all(|p| !matches!(p.color(), Some(Color::Rgb { .. }))));
     let e = s.execute("document.open", &json!({"name": "press.pdf", "dataBase64": cmyk_pdf(), "colorMode": "lab"})).unwrap_err().to_string();

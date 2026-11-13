@@ -152,7 +152,7 @@ fn several_paths(kind: &TextKind) -> bool {
 /// The font type in style `st` is set in: its PostScript name, whether it's TrueType, and its
 /// ascent and descent (ems). A font that isn't installed is named after its family and style.
 pub(super) fn font_of(st: &CharStyle) -> (String, bool, f64, f64) {
-    let db = vectorcraft_text::FontDb::global();
+    let db = pluma_text::FontDb::global();
     match db.face_version(&st.font_family, &st.font_style, st.font_version.as_deref()) {
         Some(face) => {
             let (ascent, descent) = face.vertical_metrics();

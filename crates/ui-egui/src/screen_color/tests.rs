@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, channel};
 
-use vectorcraft_color::cms::{ColorSettings, DISPLAY_P3};
-use vectorcraft_engine::Session;
+use pluma_color::cms::{ColorSettings, DISPLAY_P3};
+use pluma_engine::Session;
 
 use super::*;
 
@@ -11,8 +11,8 @@ use super::*;
 type Shown = Rc<RefCell<Vec<Sender<Answer>>>>;
 
 /// An app with a document and a selected rectangle, whose host has a stand-in sampler.
-fn app() -> (VectorcraftApp, Shown) {
-    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+fn app() -> (PlumaApp, Shown) {
+    let mut app = PlumaApp::new(Session::new(), Default::default());
     app.run("file.new", json!({"width": 200, "height": 200})).unwrap();
     app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
     let shown = Shown::default();
@@ -26,18 +26,18 @@ fn app() -> (VectorcraftApp, Shown) {
 }
 
 /// The person picks `hex` (or cancels, `None`) in the last sampler shown; the next frame takes it.
-fn pick(app: &mut VectorcraftApp, shown: &Shown, hex: Option<&str>) {
+fn pick(app: &mut PlumaApp, shown: &Shown, hex: Option<&str>) {
     let srgb = hex.map(|h| Color::from_hex(h).unwrap().to_rgb());
     shown.borrow().last().unwrap().send(Ok(srgb)).unwrap();
     poll(app, &egui::Context::default());
 }
 
-fn paints(app: &VectorcraftApp) -> (String, String) {
+fn paints(app: &PlumaApp) -> (String, String) {
     let (f, s) = crate::panels::current_paints(app);
     (f.color().map_or("none".into(), |c| c.to_hex()), s.color().map_or("none".into(), |c| c.to_hex()))
 }
 
-fn undo_len(app: &VectorcraftApp) -> usize {
+fn undo_len(app: &PlumaApp) -> usize {
     app.session.doc().unwrap().history.undo.len()
 }
 
@@ -80,7 +80,7 @@ fn the_color_picker_takes_the_sampled_color() {
     let (mut app, shown) = app();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let frame = |app: &mut VectorcraftApp| {
+    let frame = |app: &mut PlumaApp| {
         let mut out = ctx.run_ui(Default::default(), |ui| crate::dialogs::show(app, ui.ctx()));
         out.textures_delta.clear();
     };
@@ -92,7 +92,7 @@ fn the_color_picker_takes_the_sampled_color() {
     app.run("ui.sampleScreenColor", json!({"picker": true})).unwrap();
     pick(&mut app, &shown, Some("#123456"));
     let d = app.ui.dialog.as_ref().unwrap();
-    assert_eq!(d.fields.get("color").and_then(vectorcraft_engine::cmd::color_value).map(|c| c.to_hex()).as_deref(), Some("#123456"));
+    assert_eq!(d.fields.get("color").and_then(pluma_engine::cmd::color_value).map(|c| c.to_hex()).as_deref(), Some("#123456"));
     frame(&mut app);
     assert_eq!(app.ui.dialog.as_ref().unwrap().str("hex"), "123456");
     assert_eq!(paints(&app).0, "#123456", "previewed on the selection");
@@ -145,7 +145,7 @@ fn the_color_pickers_eyedropper_samples_into_it() {
     app.run("ui.colorPicker", json!({})).unwrap();
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
-    let frame = |app: &mut VectorcraftApp, events: Vec<egui::Event>| {
+    let frame = |app: &mut PlumaApp, events: Vec<egui::Event>| {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 900.0));
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| {
             app.logic(ui.ctx());
@@ -186,7 +186,7 @@ fn the_color_pickers_eyedropper_samples_into_it() {
 fn inspect_reports_the_open_sampler() {
     let (mut app, shown) = app();
     let ctx = egui::Context::default();
-    let open = |app: &VectorcraftApp| crate::control::inspect(app, &ctx)["screenSampler"].clone();
+    let open = |app: &PlumaApp| crate::control::inspect(app, &ctx)["screenSampler"].clone();
     assert_eq!(open(&app), json!(false));
     app.run("ui.sampleScreenColor", json!({})).unwrap();
     assert_eq!(open(&app), json!(true));
@@ -289,8 +289,8 @@ fn without_a_sampler_the_command_is_unavailable() {
 fn junk_params_never_panic() {
     let (mut app, shown) = app();
     let doc = crate::menus::UI_COMMANDS.iter().find(|c| c.0 == "ui.sampleScreenColor").unwrap().3;
-    let mut params = vectorcraft_testkit::strategies::junk_params(doc, "/nonexistent");
-    params.extend(vectorcraft_testkit::strategies::junk_values());
+    let mut params = pluma_testkit::strategies::junk_params(doc, "/nonexistent");
+    params.extend(pluma_testkit::strategies::junk_values());
     assert!(params.len() > 40);
     for p in params {
         let _ = app.run("ui.sampleScreenColor", p);

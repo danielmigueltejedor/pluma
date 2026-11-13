@@ -1,32 +1,32 @@
 [package]
-name = "vectorcraft-eps"
+name = "pluma-eps"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft Encapsulated PostScript: a hand-written EPS writer (PostScript Level 2 and 3) with TIFF previews"
+description = "Pluma Encapsulated PostScript: a hand-written EPS writer (PostScript Level 2 and 3) with TIFF previews"
 
 [lints]
 workspace = true
 
 [dependencies]
-vectorcraft-geom = { workspace = true }
-vectorcraft-color = { workspace = true }
-vectorcraft-doc = { workspace = true }
-vectorcraft-effects = { workspace = true }
+pluma-geom = { workspace = true }
+pluma-color = { workspace = true }
+pluma-doc = { workspace = true }
+pluma-effects = { workspace = true }
 # The editing data for other apps writes clipped art cut to its clipping path.
-vectorcraft-pathops = { workspace = true }
-vectorcraft-brush = { workspace = true }
-vectorcraft-text = { workspace = true }
+pluma-pathops = { workspace = true }
+pluma-brush = { workspace = true }
+pluma-text = { workspace = true }
 # The glyph outlines of Type 42 fonts a composite font shows.
 skrifa = { workspace = true }
 # Windows metafile previews, opened when a file's PostScript can't be read.
-vectorcraft-metafile = { workspace = true }
+pluma-metafile = { workspace = true }
 # Non-native art in Illustrator editing data (a placed PDF's content, kept as a PDF).
-vectorcraft-pdf = { workspace = true }
+pluma-pdf = { workspace = true }
 # The predefined CMaps that strings of legacy type in CJK fonts are decoded by.
 craft-pdf = { workspace = true }
 # The TIFF writer (previews) and PackBits, shared with raster export.
-vectorcraft-render = { workspace = true }
+pluma-render = { workspace = true }
 kurbo = { workspace = true }
 image = { workspace = true }
 flate2 = { workspace = true }
@@ -41,7 +41,7 @@ memchr = { workspace = true }
 encoding_rs = { workspace = true }
 
 [dev-dependencies]
-vectorcraft-testkit = { workspace = true }
-vectorcraft-text = { workspace = true, features = ["test-fonts"] }
+pluma-testkit = { workspace = true }
+pluma-text = { workspace = true, features = ["test-fonts"] }
 # Tests: a Group 4 encoder and the T.4 run codes, to write CCITT test images.
 fax = "0.2"

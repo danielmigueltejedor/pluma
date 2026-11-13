@@ -2,9 +2,9 @@
 //! group's members, text outlines; with nothing to clip by the clipped art is hidden.
 
 use crate::*;
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, CharStyle};
-use vectorcraft_geom::{PathData, Point, SubPath, shapes};
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, CharStyle};
+use pluma_geom::{PathData, Point, SubPath, shapes};
 
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const CLEAR: [u8; 4] = [0, 0, 0, 0];
@@ -76,7 +76,7 @@ fn group_clip_is_the_union_of_its_members() {
 #[test]
 fn text_clips_by_its_glyph_outlines() {
     let mut d = Document::new(100.0, 100.0);
-    let t = vectorcraft_doc::TextObject::point(Point::new(5.0, 80.0), "O", CharStyle { size: 90.0, ..CharStyle::default() });
+    let t = pluma_doc::TextObject::point(Point::new(5.0, 80.0), "O", CharStyle { size: 90.0, ..CharStyle::default() });
     let text = Arc::new(Node::new(d.alloc_id(), NodeKind::Text(Box::new(t))));
     let b = text.geometric_bounds().unwrap();
     let r = clipped(d, text);

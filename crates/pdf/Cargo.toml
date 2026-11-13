@@ -1,24 +1,24 @@
 [package]
-name = "vectorcraft-pdf"
+name = "pluma-pdf"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "VectorCraft PDF export and import"
+description = "Pluma PDF export and import"
 
 [lints]
 workspace = true
 
 [features]
-# `vectorcraft_pdf::reads_of` and `imports_of` for other crates' tests (dev-dependencies only).
+# `pluma_pdf::reads_of` and `imports_of` for other crates' tests (dev-dependencies only).
 read-count = []
 
 [dependencies]
-vectorcraft-geom = { workspace = true }
-vectorcraft-doc = { workspace = true }
-vectorcraft-effects = { workspace = true }
-vectorcraft-brush = { workspace = true }
-vectorcraft-color = { workspace = true }
-vectorcraft-text = { workspace = true }
+pluma-geom = { workspace = true }
+pluma-doc = { workspace = true }
+pluma-effects = { workspace = true }
+pluma-brush = { workspace = true }
+pluma-color = { workspace = true }
+pluma-text = { workspace = true }
 skrifa = { workspace = true }
 kurbo = { workspace = true }
 thiserror = { workspace = true }
@@ -46,9 +46,9 @@ getrandom = "0.4"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
-vectorcraft-testkit = { workspace = true }
+pluma-testkit = { workspace = true }
 # A variable font built in code (no font file is committed).
-vectorcraft-text = { workspace = true, features = ["test-fonts"] }
+pluma-text = { workspace = true, features = ["test-fonts"] }
 serde_json = { workspace = true }
 # `draw_text`, to write test files with live text as other writers do.
 krilla = { workspace = true, features = ["simple-text"] }

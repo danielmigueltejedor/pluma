@@ -3,10 +3,10 @@
 //! its swatch and labelled with the swatch's name and colour values, as one group made in one undo
 //! step.
 
+use pluma_color::{Color, Paint, cms::Model};
+use pluma_doc::{Appearance, AreaFit, Node, NodeKind, TextKind, TextObject};
+use pluma_geom::{Point, Rect, shapes};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint, cms::Model};
-use vectorcraft_doc::{Appearance, AreaFit, Node, NodeKind, TextKind, TextObject};
-use vectorcraft_geom::{Point, Rect, shapes};
 
 use super::super::super::{CommandSpec, bad, cmd, has_doc};
 use crate::{Result, Session};
@@ -107,8 +107,8 @@ fn legend(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let st = s.doc()?;
     let doc = &st.doc;
-    let colour = |w: &&vectorcraft_color::Swatch| w.paint.color().is_some();
-    let swatches: Vec<vectorcraft_color::Swatch> = match p.get("names") {
+    let colour = |w: &&pluma_color::Swatch| w.paint.color().is_some();
+    let swatches: Vec<pluma_color::Swatch> = match p.get("names") {
         None | Some(Value::Null) => doc.swatches_iter().filter(colour).cloned().collect(),
         Some(Value::Array(a)) => {
             let mut out = vec![];

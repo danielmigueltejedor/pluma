@@ -1,9 +1,9 @@
 //! Direction, source-cluster and editing regressions; no RTL font assets required.
 use crate::*;
 use kurbo::{Affine, BezPath, Point, Rect, Shape};
+use pluma_doc::{CharStyle, ParaDirection, TextKind, TextRun};
 use std::ops::Range;
 use std::sync::Arc;
-use vectorcraft_doc::{CharStyle, ParaDirection, TextKind, TextRun};
 
 fn text_layout(s: &str) -> TextLayout {
     layout(FontDb::global(), &TextObject::point(Point::ZERO, s, CharStyle::default()))
@@ -226,7 +226,7 @@ fn arrows_keep_to_their_line_where_a_wrapped_line_starts_at_the_same_x() {
 fn wrapping_retains_logical_line_ranges_and_reorders_each_line() {
     let s = "שלום עולם שלום עולם שלום עולם";
     let mut t = TextObject::point(Point::ZERO, s, CharStyle::default());
-    t.kind = TextKind::Area { frame: vectorcraft_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 55.0, 400.0).to_path(0.1)) };
+    t.kind = TextKind::Area { frame: pluma_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 55.0, 400.0).to_path(0.1)) };
     let l = layout(FontDb::global(), &t);
     assert!(l.lines.len() > 1);
     assert!(!l.overflow);
@@ -416,8 +416,8 @@ fn bidi_isolates_numbers_and_brackets_keep_valid_clusters() {
 #[test]
 fn right_aligned_wrapped_rtl_keeps_trailing_spaces_outside_content() {
     let mut t = TextObject::point(Point::ZERO, "שלום עולם שלום עולם שלום עולם", CharStyle::default());
-    t.kind = TextKind::Area { frame: vectorcraft_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 80.0, 400.0).to_path(0.1)) };
-    t.para.justify = vectorcraft_doc::Justify::Right;
+    t.kind = TextKind::Area { frame: pluma_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 80.0, 400.0).to_path(0.1)) };
+    t.para.justify = pluma_doc::Justify::Right;
     let l = layout(FontDb::global(), &t);
     assert!(l.lines.len() > 1);
     for line in &l.lines {
@@ -438,20 +438,20 @@ fn automatic_alignment_follows_each_paragraph_and_explicit_choices_win() {
     let db = FontDb::global();
     for s in ["שלום", "مرحبا", "123 שלום"] {
         let mut t = TextObject::point(Point::ZERO, s, CharStyle::default());
-        t.para.justify = vectorcraft_doc::Justify::Auto;
+        t.para.justify = pluma_doc::Justify::Auto;
         let l = layout(db, &t);
         assert!((l.lines[0].x1).abs() < 1e-6, "RTL point type grows left from its anchor: {s}");
-        t.kind = TextKind::Area { frame: vectorcraft_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 200.0, 200.0).to_path(0.1)) };
+        t.kind = TextKind::Area { frame: pluma_geom::PathData::from_bezpath(&Rect::new(0.0, 0.0, 200.0, 200.0).to_path(0.1)) };
         let l = layout(db, &t);
         assert!((l.lines[0].x1 - 200.0).abs() < 1e-6);
-        t.para.justify = vectorcraft_doc::Justify::Left;
+        t.para.justify = pluma_doc::Justify::Left;
         assert_eq!(layout(db, &t).lines[0].x0, 0.0, "explicit left alignment is preserved");
-        t.para.justify = vectorcraft_doc::Justify::Center;
+        t.para.justify = pluma_doc::Justify::Center;
         let l = layout(db, &t);
         assert!((l.lines[0].x0 + l.lines[0].x1 - 200.0).abs() < 1e-6);
     }
     let mut t = TextObject::point(Point::ZERO, "English\nשלום\nمرحبا\nEnglish again", CharStyle::default());
-    t.para.justify = vectorcraft_doc::Justify::Auto;
+    t.para.justify = pluma_doc::Justify::Auto;
     let l = layout(db, &t);
     assert_eq!(l.lines[0].x0, 0.0);
     assert!(l.lines[1].x0 < 0.0 && l.lines[1].x1.abs() < 1e-6);
@@ -464,7 +464,7 @@ fn automatic_alignment_follows_each_paragraph_and_explicit_choices_win() {
 /// stop on the left; Hebrew set left to right starts on the left.
 #[test]
 fn paragraph_direction_overrides_the_first_strong_character() {
-    use vectorcraft_doc::{Justify, ParaDirection};
+    use pluma_doc::{Justify, ParaDirection};
     let db = FontDb::global();
     let order = |s: &str, direction| {
         let mut t = TextObject::point(Point::ZERO, s, CharStyle::default());
@@ -510,7 +510,7 @@ fn visual_text_comes_back_in_logical_order() {
     for visual in ["123 םולש", "abc םולש"] {
         let (text, rtl) = logical(visual).unwrap();
         let mut t = TextObject::point(Point::ZERO, &text, CharStyle::default());
-        t.para.direction = Some(if rtl { vectorcraft_doc::ParaDirection::RightToLeft } else { vectorcraft_doc::ParaDirection::LeftToRight });
+        t.para.direction = Some(if rtl { pluma_doc::ParaDirection::RightToLeft } else { pluma_doc::ParaDirection::LeftToRight });
         let l = layout(FontDb::global(), &t);
         let shown: String = l.glyphs.iter().filter_map(|g| text.get(g.byte..)?.chars().next()).collect();
         assert_eq!(shown, visual);
@@ -521,7 +521,7 @@ fn visual_text_comes_back_in_logical_order() {
 /// reads and aligns (Auto) right to left while the next, left to right, starts on the left.
 #[test]
 fn paragraph_direction_is_per_paragraph() {
-    use vectorcraft_doc::{Justify, ParaDirection, ParaStyle};
+    use pluma_doc::{Justify, ParaDirection, ParaStyle};
     let s = "Hello.\nHello.";
     let mut t = TextObject::point(Point::ZERO, s, CharStyle::default());
     let dir = |direction| ParaStyle { justify: Justify::Auto, direction, ..ParaStyle::default() };
@@ -564,7 +564,7 @@ fn craft_arabic_fonts_load_and_noto_sans_arabic_is_the_arabic_fallback() {
 /// Arabic-Indic digits.
 #[test]
 fn digits_draw_every_digit_in_the_styles_numeral_system() {
-    use vectorcraft_doc::Digits;
+    use pluma_doc::Digits;
     let db = FontDb::global();
     let Some(face) = ["Arial", "Noto Sans Arabic", "Geeza Pro", "Segoe UI", "DejaVu Sans"]
         .into_iter()
@@ -601,7 +601,7 @@ fn digits_draw_every_digit_in_the_styles_numeral_system() {
 /// needs an installed font with its digits; one without is skipped.
 #[test]
 fn indic_digits_draw_the_scripts_own_digits() {
-    use vectorcraft_doc::Digits;
+    use pluma_doc::Digits;
     let indic = [
         (Digits::Devanagari, '३'),
         (Digits::Bengali, '৩'),
@@ -643,7 +643,7 @@ fn overflowing_rtl_type_on_a_path_keeps_the_start_of_its_text() {
     let s = "שלום עולם ".repeat(8);
     let mut t = TextObject::point(Point::ZERO, &s, CharStyle::default());
     let line = kurbo::Line::new((0.0, 0.0), (100.0, 0.0)).to_path(0.1);
-    t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
+    t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
     let l = layout(FontDb::global(), &t);
     assert!(l.overflow && !l.glyphs.is_empty());
     let shown: Vec<_> = source_clusters(&l).into_iter().map(|(byte, _)| byte).collect();
@@ -665,7 +665,7 @@ fn overflowing_rtl_type_on_a_spaced_curve_keeps_the_start_of_its_text() {
     path.line_to((60.0, 0.0));
     path.extend(kurbo::Arc::new((60.0, 12.0), (12.0, 12.0), -std::f64::consts::FRAC_PI_2, std::f64::consts::PI, 0.0).append_iter(0.1));
     let mut t = TextObject::point(Point::ZERO, &s, CharStyle::default());
-    t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
+    t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&path), start: 0.0, end: None };
     for spacing in (-12..=12).map(|i| f64::from(i) * 5.0) {
         t.path_spacing = spacing;
         let l = layout(FontDb::global(), &t);
@@ -684,13 +684,13 @@ fn mixed_type_on_a_path_hangs_its_final_period() {
     let s = "bא.";
     let line = kurbo::Line::new((0.0, 0.0), (400.0, 0.0)).to_path(0.1);
     let mut t = TextObject::point(Point::ZERO, s, CharStyle::default());
-    t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
+    t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&line), start: 0.0, end: None };
     t.para.roman_hanging = true;
     let advances: Vec<f64> = layout(FontDb::global(), &t).glyphs.iter().map(|g| g.advance).collect();
     assert_eq!(advances.len(), 3);
     // The end bracket halfway through the period, with path beyond it.
     let end = advances[0] + advances[1] + advances[2] * 0.5;
-    t.kind = TextKind::OnPath { path: vectorcraft_geom::PathData::from_bezpath(&line), start: 0.0, end: Some(end / 400.0) };
+    t.kind = TextKind::OnPath { path: pluma_geom::PathData::from_bezpath(&line), start: 0.0, end: Some(end / 400.0) };
     let l = layout(FontDb::global(), &t);
     assert!(l.glyphs.iter().any(|g| g.byte == s.len() - 1), "the period shows");
     assert!(!l.overflow, "all of it fits");

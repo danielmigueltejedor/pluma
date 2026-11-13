@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
+use pluma_doc::NodeKind;
 use serde_json::{Value, json};
-use vectorcraft_doc::NodeKind;
 
 use super::*;
 use crate::cmd::parse_range;
@@ -19,12 +19,11 @@ fn tmp_dir(tag: &str) -> std::path::PathBuf {
 }
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 fn open(s: &mut Session, name: &str, bytes: &[u8]) -> Value {
-    s.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}))
-        .unwrap_or_else(|e| panic!("{name}: {e}"))
+    s.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
 /// A `w`×`h` image of one colour in `format`.
@@ -40,7 +39,7 @@ fn image_bytes(w: u32, h: u32, format: image::ImageFormat) -> Vec<u8> {
     out
 }
 
-fn image_of(s: &Session) -> vectorcraft_doc::ImageObject {
+fn image_of(s: &Session) -> pluma_doc::ImageObject {
     let doc = &s.doc().unwrap().doc;
     match &doc.layers[0].children().unwrap()[0].kind {
         NodeKind::Image(im) => (**im).clone(),
@@ -55,10 +54,10 @@ fn opens_every_readable_format() {
     let native = b64(&s.execute("document.serialize", &json!({})).unwrap());
     let svg = s.execute("document.serialize", &json!({"format": "svg"})).unwrap()["text"].as_str().unwrap().to_string();
     let pdf = b64(&s.execute("document.serialize", &json!({"format": "pdf"})).unwrap());
-    let svgz = vectorcraft_svg::compress(&svg);
+    let svgz = pluma_svg::compress(&svg);
 
     for (name, bytes, format) in [
-        ("a.vectorcraft", native.clone(), "vectorcraft"),
+        ("a.pluma", native.clone(), "vectorcraft"),
         ("a.drawcraft", native, "vectorcraft"),
         ("a.svg", svg.into_bytes(), "svg"),
         ("a.svgz", svgz, "svgz"),
@@ -105,8 +104,8 @@ fn webp_opens_at_its_pixel_size() {
 
 #[test]
 fn cmyk_tiffs_keep_their_inks_and_other_tiffs_become_png() {
-    let inks = vectorcraft_doc::cmyk::Inks::new(2, 1, vec![0, 102, 255, 0, 10, 20, 30, 40]).unwrap();
-    let tiff = vectorcraft_doc::ImageBlob::cmyk_tiff(&inks).unwrap();
+    let inks = pluma_doc::cmyk::Inks::new(2, 1, vec![0, 102, 255, 0, 10, 20, 30, 40]).unwrap();
+    let tiff = pluma_doc::ImageBlob::cmyk_tiff(&inks).unwrap();
     let r = raster_image(&tiff.bytes).unwrap();
     assert_eq!((r.width, r.height, r.blob.mime.as_str()), (2, 1, "image/tiff"));
     assert_eq!(r.blob.cmyk(), Some(inks));
@@ -117,8 +116,8 @@ fn cmyk_tiffs_keep_their_inks_and_other_tiffs_become_png() {
 /// A 3 × 2 TIFF at 150 ppi of `channels` (`extra`: their ExtraSamples values), 8 or 16 `bits` a
 /// sample, chunky or `planar`.
 fn hand_tiff(photometric: u16, bits: u16, extra: &[u16], planar: bool, channels: &[Vec<u16>]) -> Vec<u8> {
-    let t = vectorcraft_testkit::tiff::Tiff { width: 3, height: 2, photometric, bits, extra, planar, ppi: Some(150), channels };
-    vectorcraft_testkit::tiff::tiff(&t)
+    let t = pluma_testkit::tiff::Tiff { width: 3, height: 2, photometric, bits, extra, planar, ppi: Some(150), channels };
+    pluma_testkit::tiff::tiff(&t)
 }
 
 /// What Place keeps of TIFF `bytes`: the ink amounts, when it keeps them, and the pixels any image
@@ -186,7 +185,7 @@ fn planar_tiffs_with_more_strips_than_can_be_counted_are_too_large() {
     let e = raster_image(&file).err().expect("refused");
     assert!(e.to_string().contains("an image of 3 × 2147483649 pixels is too large to draw"), "{e}");
     assert!(load::too_large_note(&file).is_some());
-    assert_eq!(vectorcraft_doc::cmyk::oversized_tiff(&file), Some((3, 1 << 31 | 1)));
+    assert_eq!(pluma_doc::cmyk::oversized_tiff(&file), Some((3, 1 << 31 | 1)));
 }
 
 /// A 16-bit RGB TIFF whose samples need more than the allowance (6 bytes a pixel), though its RGBA
@@ -218,7 +217,7 @@ fn planar_cmyk_tiffs_open_and_place_with_their_inks() {
     let blob = &s.doc().unwrap().doc.images[&image_of(&s).key];
     assert_eq!(blob.cmyk().map(|i| i.data), Some(want.clone()), "Open keeps the inks");
     let mut s = session(100.0, 100.0, 1);
-    s.execute("file.place", &json!({"name": "planar.tif", "dataBase64": vectorcraft_format::base64_encode(&file)})).unwrap();
+    s.execute("file.place", &json!({"name": "planar.tif", "dataBase64": pluma_format::base64_encode(&file)})).unwrap();
     let blob = &s.doc().unwrap().doc.images[&image_of(&s).key];
     assert_eq!(blob.cmyk().map(|i| i.data), Some(want), "Place keeps the inks");
     assert!(image::load_from_memory(&blob.bytes).is_ok(), "the image decoder reads the stored image");
@@ -234,9 +233,8 @@ fn fax_picture() -> Vec<Vec<bool>> {
 /// `compression` 2 or 3 with `t4_options`, white is zero, the highest bit of each byte first.
 fn group3_tiff(compression: u16, t4_options: u32, rows: usize) -> Vec<u8> {
     let rows = &fax_picture()[..rows];
-    let g =
-        vectorcraft_testkit::tiff::Group3 { rows, compression, t4_options, photometric: 0, fill_order: 1, rows_per_strip: 7, tile: None, rtc: false };
-    vectorcraft_testkit::tiff::group3(&g)
+    let g = pluma_testkit::tiff::Group3 { rows, compression, t4_options, photometric: 0, fill_order: 1, rows_per_strip: 7, tile: None, rtc: false };
+    pluma_testkit::tiff::group3(&g)
 }
 
 /// 1-bit TIFFs compressed with CCITT Group 3 open and place with their pixels (#1466): Compression
@@ -255,17 +253,8 @@ fn ccitt_group3_tiffs_open_and_place_with_their_pixels() {
                     let what = format!(
                         "Compression {compression}, T4Options {t4_options}, {rows_per_strip} rows a strip, tiles {tile:?}, FillOrder {fill_order}, photometric {photometric}"
                     );
-                    let g = vectorcraft_testkit::tiff::Group3 {
-                        rows: &rows,
-                        compression,
-                        t4_options,
-                        photometric,
-                        fill_order,
-                        rows_per_strip,
-                        tile,
-                        rtc,
-                    };
-                    let file = vectorcraft_testkit::tiff::group3(&g);
+                    let g = pluma_testkit::tiff::Group3 { rows: &rows, compression, t4_options, photometric, fill_order, rows_per_strip, tile, rtc };
+                    let file = pluma_testkit::tiff::group3(&g);
                     assert!(image::load_from_memory(&file).is_err(), "{what}: the image decoder reads Group 3 now");
                     // A black run's pixels are 1 bits, which show as black when white is zero.
                     let want: Vec<u8> = rows.concat().iter().map(|&black| if black == (photometric == 0) { 0 } else { 255 }).collect();
@@ -276,7 +265,7 @@ fn ccitt_group3_tiffs_open_and_place_with_their_pixels() {
                     open(&mut s, "fax.tif", &file);
                     assert_eq!(pixels(&s), want, "{what}: Open");
                     let mut placed = session(100.0, 100.0, 1);
-                    placed.execute("file.place", &json!({"name": "fax.tif", "dataBase64": vectorcraft_format::base64_encode(&file)})).unwrap();
+                    placed.execute("file.place", &json!({"name": "fax.tif", "dataBase64": pluma_format::base64_encode(&file)})).unwrap();
                     assert_eq!(pixels(&placed), want, "{what}: Place");
                 }
             }
@@ -314,7 +303,7 @@ fn ccitt_group3_tiffs_too_large_or_cut_short_are_refused() {
     assert!(e.to_string().contains("could not decode image: unexpected end of input"), "{e}");
     // A tile wider than the allowance: TileWidth (the eighth entry, its value at offset 102).
     let rows = fax_picture();
-    let g = vectorcraft_testkit::tiff::Group3 {
+    let g = pluma_testkit::tiff::Group3 {
         rows: &rows,
         compression: 3,
         t4_options: 1,
@@ -324,7 +313,7 @@ fn ccitt_group3_tiffs_too_large_or_cut_short_are_refused() {
         tile: Some((80, 16)),
         rtc: false,
     };
-    let mut wide = vectorcraft_testkit::tiff::group3(&g);
+    let mut wide = pluma_testkit::tiff::group3(&g);
     assert_eq!(wide[102..106], 80u32.to_le_bytes(), "TileWidth");
     wide[102..106].copy_from_slice(&u32::MAX.to_le_bytes());
     let e = raster_image(&wide).err().expect("refused");
@@ -345,7 +334,7 @@ fn content_beats_a_wrong_extension() {
 fn templates_open_untitled() {
     let mut s = session(100.0, 100.0, 1);
     let dir = tmp_dir("tpl");
-    let path = dir.join("t.vectorcraft").to_string_lossy().to_string();
+    let path = dir.join("t.pluma").to_string_lossy().to_string();
     // A template under a native file name still opens untitled.
     std::fs::write(&path, b64(&s.execute("file.saveAsTemplate", &json!({})).unwrap())).unwrap();
     let r = s.execute("document.open", &json!({"path": path})).unwrap();
@@ -506,7 +495,7 @@ fn ranges_parse_one_based() {
 
 /// Pages in a PDF, counted by importing it (one artboard per page).
 fn pdf_pages(bytes: &[u8]) -> usize {
-    vectorcraft_pdf::import(bytes).unwrap().artboards.len()
+    pluma_pdf::import(bytes).unwrap().artboards.len()
 }
 
 #[test]
@@ -531,12 +520,12 @@ fn pdf_export_honours_artboard_and_range() {
 fn export_without_path_returns_bytes_and_never_retargets() {
     let mut s = session(100.0, 100.0, 1);
     let dir = tmp_dir("retarget");
-    let doc_path = dir.join("doc.vectorcraft").to_string_lossy().to_string();
+    let doc_path = dir.join("doc.pluma").to_string_lossy().to_string();
     s.execute("document.save", &json!({"path": doc_path})).unwrap();
-    let copy = dir.join("copy.vectorcraft").to_string_lossy().to_string();
+    let copy = dir.join("copy.pluma").to_string_lossy().to_string();
     let r = s.execute("document.export", &json!({"path": copy})).unwrap();
     assert_eq!(r["format"], "vectorcraft");
-    assert!(vectorcraft_format::sniff(&std::fs::read(&copy).unwrap()));
+    assert!(pluma_format::sniff(&std::fs::read(&copy).unwrap()));
     assert_eq!(s.doc().unwrap().path.as_deref(), Some(doc_path.as_str()), "exporting the native format keeps the document's path");
     let r = s.execute("document.export", &json!({"format": "jpg"})).unwrap();
     assert_eq!(&b64(&r)[..2], [0xFF, 0xD8]);
@@ -545,7 +534,7 @@ fn export_without_path_returns_bytes_and_never_retargets() {
     // A never-saved document hands its native bytes back.
     let mut s = session(10.0, 10.0, 1);
     let r = s.execute("document.save", &json!({})).unwrap();
-    assert!(vectorcraft_format::sniff(&b64(&r)));
+    assert!(pluma_format::sniff(&b64(&r)));
     assert_eq!(s.doc().unwrap().path, None);
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -607,7 +596,7 @@ fn export_for_screens_one_page_per_pdf_unique_names() {
     assert_eq!(image::load_from_memory(&b64(&r["files"][0])).unwrap().width(), 50);
     // A native row: each artboard as a document of its own to edit.
     let r = s.execute("document.exportForScreens", &json!({"range": "1", "formats": [{"format": "vectorcraft"}]})).unwrap();
-    assert!(r["files"][0]["name"].as_str().unwrap().ends_with(".vectorcraft"), "{r}");
+    assert!(r["files"][0]["name"].as_str().unwrap().ends_with(".pluma"), "{r}");
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -618,7 +607,7 @@ fn template_sublayers_are_left_out_too() {
     s.execute("layer.setCurrent", &json!({"id": sub})).unwrap();
     s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
     let red = s.execute("shape.rectangle", &json!({"x": 0, "y": 0, "width": 50, "height": 100})).unwrap()["id"].as_u64().unwrap();
-    assert_eq!(s.doc().unwrap().doc.ancestry(vectorcraft_doc::NodeId(red)).unwrap().len(), 3, "the square is on a sublayer");
+    assert_eq!(s.doc().unwrap().doc.ancestry(pluma_doc::NodeId(red)).unwrap().len(), 3, "the square is on a sublayer");
     assert!(has_red(&b64(&s.execute("document.export", &json!({"format": "png"})).unwrap())));
     s.execute("layer.setProps", &json!({"id": sub, "template": true})).unwrap();
     assert!(!has_red(&b64(&s.execute("document.export", &json!({"format": "png"})).unwrap())), "a template sublayer is left out");
@@ -678,7 +667,7 @@ fn a_native_save_streams_the_bytes_the_encoder_makes() {
     let d = tmp_dir("stream");
     let mut s = session(200.0, 100.0, 1);
     s.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 20})).unwrap();
-    for (name, compress) in [("a.vectorcraft", false), ("b.vectorcraft", true), ("c.vctemplate", true)] {
+    for (name, compress) in [("a.pluma", false), ("b.pluma", true), ("c.vctemplate", true)] {
         let path = d.join(name).to_string_lossy().to_string();
         // A PDF-compatible file's PDF is dated to the second it is written, so the byte comparison
         // uses files without one.
@@ -690,21 +679,21 @@ fn a_native_save_streams_the_bytes_the_encoder_makes() {
         let job = save_job(&mut s, plan).unwrap();
         assert!(job.streams());
         assert_eq!(written, job.encode().unwrap().files[0].1, "{name}");
-        assert_eq!(vectorcraft_format::load(&written).unwrap().template, name.ends_with("vctemplate"));
+        assert_eq!(pluma_format::load(&written).unwrap().template, name.ends_with("vctemplate"));
     }
     // A save with the default options streams a file that carries its PDF.
-    let path = d.join("d.vectorcraft").to_string_lossy().to_string();
+    let path = d.join("d.pluma").to_string_lossy().to_string();
     let p = json!({"path": path});
     let r = s.execute("file.saveCopy", &p).unwrap();
     let written = std::fs::read(&path).unwrap();
     assert_eq!(r["bytes"], written.len(), "{r}");
-    assert!(vectorcraft_format::pdf_content(&written).is_some());
+    assert!(pluma_format::pdf_content(&written).is_some());
     let plan = save_plan(&s, SaveMode::Copy, &p).unwrap();
     let job = save_job(&mut s, plan).unwrap();
     assert!(job.streams());
-    assert!(vectorcraft_format::pdf_content(&job.encode().unwrap().files[0].1).is_some());
+    assert!(pluma_format::pdf_content(&job.encode().unwrap().files[0].1).is_some());
     // A writer that fails: the save fails with its error.
-    let plan = save_plan(&s, SaveMode::Copy, &json!({"path": "/x/y.vectorcraft"})).unwrap();
+    let plan = save_plan(&s, SaveMode::Copy, &json!({"path": "/x/y.pluma"})).unwrap();
     let job = save_job(&mut s, plan).unwrap();
     let e = job
         .write_streamed(&mut |_, fill| {
@@ -724,7 +713,7 @@ fn a_save_refuses_disagreeing_options_and_names_unread_native_ones() {
     let d = tmp_dir("save-options");
     let mut s = session(200.0, 100.0, 1);
     s.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 20})).unwrap();
-    let path = d.join("both.vectorcraft").to_string_lossy().to_string();
+    let path = d.join("both.pluma").to_string_lossy().to_string();
     for cmd in ["document.save", "file.saveAs", "file.saveCopy", "file.saveAsTemplate"] {
         let e = s.execute(cmd, &json!({"path": path, "compress": true, "options": {"compress": false}})).unwrap_err().to_string();
         assert!(e.contains("`compress: true` and `options.compress: false` disagree") && e.contains(&format!("`{cmd}`")), "{cmd}: {e}");
@@ -771,7 +760,7 @@ fn a_save_refuses_disagreeing_options_and_names_unread_native_ones() {
         let w: Vec<&str> = r["warnings"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
         assert!(w.iter().any(|w| w.starts_with("`precision` was not used:")), "{name}: {w:?}");
     }
-    for name in ["p.vectorcraft", "p.vctemplate"] {
+    for name in ["p.pluma", "p.vctemplate"] {
         let r = s.execute("file.saveCopy", &json!({"path": d.join(name).to_string_lossy(), "precision": 2})).unwrap();
         assert_eq!(r["warnings"], json!([]), "{name}: {r}");
     }
@@ -807,7 +796,7 @@ fn a_save_that_fails_while_streaming_leaves_the_file_as_it_was() {
         s.execute("shape.rectangle", &json!({"x": i % 100 * 20, "y": i / 100 * 20, "width": 10, "height": 10})).unwrap();
     }
     for compress in [false, true] {
-        let path = d.join("a.vectorcraft").to_string_lossy().to_string();
+        let path = d.join("a.pluma").to_string_lossy().to_string();
         s.execute("file.saveCopy", &json!({"path": path, "compress": compress})).unwrap();
         let before = std::fs::read(&path).unwrap();
         s.execute("shape.ellipse", &json!({"x": 0, "y": 0, "width": 50, "height": 50})).unwrap();
@@ -828,25 +817,25 @@ fn a_failed_save_does_not_stamp_the_documents_dates() {
     s.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 50, "height": 20})).unwrap();
     let before = s.doc().unwrap().doc.metadata.clone();
     let dirty = s.doc().unwrap().is_dirty();
-    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/y.vectorcraft", "modified": 12345})).unwrap();
+    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/y.pluma", "modified": 12345})).unwrap();
     let e = save_with(&mut s, plan, |_, _| Err(EngineError::Other("disk full".into()))).unwrap_err();
     assert_eq!(e.to_string(), "disk full");
     let st = s.doc().unwrap();
     assert_eq!(st.doc.metadata, before);
     assert_eq!(st.is_dirty(), dirty);
     // Options the encoder refuses: the same.
-    assert!(s.execute("file.saveAs", &json!({"path": "/x/y.vectorcraft", "version": 99, "modified": 12345})).is_err());
+    assert!(s.execute("file.saveAs", &json!({"path": "/x/y.pluma", "version": 99, "modified": 12345})).is_err());
     let st = s.doc().unwrap();
     assert_eq!(st.doc.metadata, before);
     assert_eq!(st.is_dirty(), dirty);
-    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/y.vectorcraft", "modified": 12345})).unwrap();
+    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/y.pluma", "modified": 12345})).unwrap();
     save_with(&mut s, plan, |_, _| Ok(())).unwrap();
     let st = s.doc().unwrap();
     assert_eq!(st.doc.metadata.modified, Some(12345));
     assert!(!st.is_dirty());
     // Edited while the file is written (Background Save): the dates go on once it is, and the
     // edit keeps the document modified.
-    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/z.vectorcraft", "modified": 777})).unwrap();
+    let plan = save_plan(&s, SaveMode::SaveAs, &json!({"path": "/x/z.pluma", "modified": 777})).unwrap();
     let job = save_job(&mut s, plan).unwrap();
     let uid = s.doc().unwrap().uid;
     assert_eq!(s.doc().unwrap().doc.metadata.modified, Some(12345));
@@ -855,7 +844,7 @@ fn a_failed_save_does_not_stamp_the_documents_dates() {
     job.complete(&mut s, uid);
     let st = s.doc().unwrap();
     assert_eq!(st.doc.metadata.modified, Some(777));
-    assert_eq!(st.path.as_deref(), Some("/x/z.vectorcraft"));
+    assert_eq!(st.path.as_deref(), Some("/x/z.pluma"));
     assert!(st.is_dirty());
     // Undoing the edit is back at what the file holds.
     s.execute("edit.undo", &json!({})).unwrap();
@@ -896,7 +885,7 @@ fn a_photo_places_the_way_its_exif_orientation_says() {
 /// error, whatever its content.
 #[test]
 fn read_path_for_a_named_importer_stops_at_the_limit() {
-    let limit = vectorcraft_plugins::import::MAX_INPUT_BYTES as u64;
+    let limit = pluma_plugins::import::MAX_INPUT_BYTES as u64;
     let dir = tmp_dir("read-path-limit");
     let path = dir.join("drawing.tuv");
     let name = path.to_string_lossy().into_owned();

@@ -2,12 +2,12 @@
 //! and the text reflows at its size; Direct Selection reshapes the frame by a corner or an edge.
 //! Point type still scales. The type widget converts point type to area type and back.
 
+use pluma_doc::{NodeKind, TextKind, TextObject};
+use pluma_geom::{Affine, Point, Rect};
+use pluma_text::TextLayout;
+use pluma_tools::bbox::Handle;
+use pluma_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
-use vectorcraft_doc::{NodeKind, TextKind, TextObject};
-use vectorcraft_geom::{Affine, Point, Rect};
-use vectorcraft_text::TextLayout;
-use vectorcraft_tools::bbox::Handle;
-use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
 use crate::*;
 
@@ -55,7 +55,7 @@ fn frame(s: &Session, id: NodeId) -> Rect {
 }
 
 fn layout(s: &Session, id: NodeId) -> TextLayout {
-    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &text(s, id))
+    pluma_text::layout(pluma_text::FontDb::global(), &text(s, id))
 }
 
 fn undo_len(s: &Session) -> usize {
@@ -391,10 +391,10 @@ fn type_in_a_dragged_frame_resizes_with_the_selection_tool() {
 
 /// The type widget beside the selected type's bounding box (as the Selection tool shows it at
 /// the default view).
-fn widget(s: &Session) -> vectorcraft_tools::typewidget::TypeWidget {
+fn widget(s: &Session) -> pluma_tools::typewidget::TypeWidget {
     let st = s.doc().unwrap();
     let bx = s.transform_box(&st.selection.objects).unwrap();
-    vectorcraft_tools::typewidget::TypeWidget::of(&st.doc, &st.selection, &bx, ViewInfo::default().zoom).unwrap()
+    pluma_tools::typewidget::TypeWidget::of(&st.doc, &st.selection, &bx, ViewInfo::default().zoom).unwrap()
 }
 
 fn double_click(s: &mut Session, p: Point) {
@@ -414,7 +414,7 @@ fn the_type_widget_converts_point_and_area_type() {
     s.execute("text.setRangeStyle", &json!({"id": id.0, "start": 4, "end": 9, "size": 24})).unwrap();
     sel(&mut s, &[id]);
     let before = text(&s, id);
-    let glyph = |t: &TextObject| t.xf * vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t).glyphs[0].origin;
+    let glyph = |t: &TextObject| t.xf * pluma_text::layout(pluma_text::FontDb::global(), t).glyphs[0].origin;
     let w = widget(&s);
     assert!(!w.area);
     let n = undo_len(&s);
@@ -444,7 +444,7 @@ fn the_type_widget_converts_point_and_area_type() {
 
 #[test]
 fn area_type_options_align_the_lines_vertically() {
-    use vectorcraft_doc::VerticalAlign;
+    use pluma_doc::VerticalAlign;
     let mut s = session();
     let id = area(&mut s, 40.0, 40.0, 200.0, 300.0, "Short story");
     sel(&mut s, &[id]);
@@ -481,7 +481,7 @@ fn area_type_options_align_the_lines_vertically() {
 /// rows, is reported back, refuses other values and undoes.
 #[test]
 fn area_type_options_set_the_text_flow() {
-    use vectorcraft_doc::TextFlow;
+    use pluma_doc::TextFlow;
     let mut s = session();
     let id = area(&mut s, 0.0, 0.0, 420.0, 300.0, &"Words flow from cell to cell in order. ".repeat(40));
     sel(&mut s, &[id]);

@@ -22,7 +22,7 @@ pub(super) fn silhouette(pm: &vello_cpu::Pixmap, colored: bool) -> Vec<u8> {
     if colored { pm.data().iter().flat_map(|p| [p.r, p.g, p.b, p.a]).collect() } else { pm.data().iter().map(|p| p.a).collect() }
 }
 
-pub(super) fn pcolor(ink: Ink, c: &vectorcraft_doc::color::Color) -> peniko::Color {
+pub(super) fn pcolor(ink: Ink, c: &pluma_doc::color::Color) -> peniko::Color {
     let [r, g, b] = ink.rgb(c);
     peniko::Color::new([r, g, b, 1.0])
 }
@@ -86,7 +86,7 @@ pub(super) fn looks_around(fx: &RasterFx, line: f64) -> Option<f64> {
 pub(crate) struct PixelEntry {
     pub(super) node: Drawn,
     pub(super) linear: [u64; 4],
-    pub(super) anchor: vectorcraft_geom::Point,
+    pub(super) anchor: pluma_geom::Point,
     pub(super) rel: (f64, f64),
     pub(super) k: f64,
     pub(crate) image: std::sync::Arc<vello_cpu::Pixmap>,

@@ -24,11 +24,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::blend::{blend_expand, blend_steps};
-use vectorcraft_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
-use vectorcraft_doc::{AppearanceItem, Node, NodeId, NodeKind};
-use vectorcraft_geom::{PathData, Point, SubPath};
+use pluma_color::{Color, Paint};
+use pluma_doc::blend::{blend_expand, blend_steps};
+use pluma_doc::live::{BlendOrientation, BlendSpacing, BlendSpec};
+use pluma_doc::{AppearanceItem, Node, NodeId, NodeKind};
+use pluma_geom::{PathData, Point, SubPath};
 
 /// The plugin that writes blends.
 pub(super) const PLUGIN: &str = "Adobe Path Blends"; // brand-ok: the plugin name the files use
@@ -46,7 +46,7 @@ const PLACE_TOLERANCE: f64 = 0.5;
 /// How far a step's colour (each channel, 0 to 1) may be from the drawn one.
 const COLOR_TOLERANCE: f32 = 0.02;
 /// The note for a blend that keeps its drawn steps.
-pub(super) const DRAWN: &str = "a blend VectorCraft couldn't read as a live blend comes in as its drawn steps";
+pub(super) const DRAWN: &str = "a blend Pluma couldn't read as a live blend comes in as its drawn steps";
 
 /// A blend part an object's dictionary names: its type (`K`, `S`) and its id.
 pub(super) type Roles = HashMap<NodeId, (String, Option<String>)>;
@@ -210,7 +210,7 @@ fn on_spine(keys: &[Arc<Node>], spine: &PathData) -> Option<Vec<u32>> {
 }
 
 /// The straight lines between the centres of `keys`, taken in the order of the record's `ids`: a
-/// blend's spine until it is edited or replaced, as [`vectorcraft_doc::blend::blend_spine`] lays
+/// blend's spine until it is edited or replaced, as [`pluma_doc::blend::blend_spine`] lays
 /// out a blend with no spine of its own.
 fn straight_spine(keys: &[Arc<Node>], ids: &[String], roles: &Roles) -> Option<PathData> {
     let centres = ids
@@ -374,10 +374,10 @@ mod tests {
     /// and the roles naming its parts.
     fn two_keys() -> (Node, Node, Roles) {
         let square = |id: u64, x: f64| {
-            let path = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 40.0, x + 20.0, 60.0));
+            let path = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 40.0, x + 20.0, 60.0));
             Arc::new(Node::path(NodeId(id), path, Default::default()))
         };
-        let spine = vectorcraft_geom::shapes::line(Point::new(10.0, 50.0), Point::new(110.0, 50.0));
+        let spine = pluma_geom::shapes::line(Point::new(10.0, 50.0), Point::new(110.0, 50.0));
         let spine = Arc::new(Node::path(NodeId(3), spine, Default::default()));
         let edit = Node::new(NodeId(10), NodeKind::Group { children: vec![square(1, 0.0), square(2, 100.0), spine], clip: false });
         let steps = (0..5u32).map(|i| square(20 + u64::from(i), f64::from(i) * 25.0)).collect();
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn each_laid_step_matches_one_drawn_step() {
         let square = |x: f64| {
-            let path = vectorcraft_geom::shapes::rectangle(vectorcraft_geom::Rect::new(x, 0.0, x + 10.0, 10.0));
+            let path = pluma_geom::shapes::rectangle(pluma_geom::Rect::new(x, 0.0, x + 10.0, 10.0));
             Node::path(NodeId(0), path, Default::default())
         };
         let laid = [square(0.0), square(50.0)];

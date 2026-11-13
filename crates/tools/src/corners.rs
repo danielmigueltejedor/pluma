@@ -8,11 +8,11 @@
 //! Selection and Direct Selection tools share this, and the canvas draws the widgets from the same
 //! geometry.
 
+use pluma_doc::{Document, LiveCorners, LiveShape, NodeId, NodeKind, Selection};
+use pluma_geom::corners::{Corner, cut_corners};
+use pluma_geom::shapes::CornerKind;
+use pluma_geom::{Affine, BezPath, PathData, Point, Vec2};
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{Document, LiveCorners, LiveShape, NodeId, NodeKind, Selection};
-use vectorcraft_geom::corners::{Corner, cut_corners};
-use vectorcraft_geom::shapes::CornerKind;
-use vectorcraft_geom::{Affine, BezPath, PathData, Point, Vec2};
 
 use crate::{Action, Overlay, PointerEvent, ToolContext};
 

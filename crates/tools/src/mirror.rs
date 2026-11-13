@@ -1,8 +1,8 @@
 //! Mirror Repeat's on-canvas axis. Drawing and hit testing share document-space geometry;
 //! gestures preview the existing Repeat Options command and commit as one undo step.
+use pluma_doc::{Document, NodeId, NodeKind, Selection, pattern::RepeatKind};
+use pluma_geom::{Point, Vec2};
 use serde_json::json;
-use vectorcraft_doc::{Document, NodeId, NodeKind, Selection, pattern::RepeatKind};
-use vectorcraft_geom::{Point, Vec2};
 
 use crate::{Action, Cursor, Mods, ToolContext};
 
@@ -149,8 +149,8 @@ impl MirrorDrag {
 mod tests {
     use super::*;
     use crate::testutil::{cx, doc_with_rect, paint};
+    use pluma_doc::pattern::RepeatSpec;
     use std::sync::Arc;
-    use vectorcraft_doc::pattern::RepeatSpec;
 
     #[test]
     fn mirror_axis_hit_targets_match_zoom_and_reject_invalid_geometry() {

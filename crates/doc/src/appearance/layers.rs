@@ -2,7 +2,7 @@ use super::profile::{AngleProfile, PressureProfile, WidthProfile};
 use super::stroke_style::{ArrowAlign, Arrowhead, Dash, LineCap, LineJoin, StrokeAlign};
 use super::{BlendMode, Deserialize, Paint, Serialize};
 
-/// A live effect in an appearance stack. Parameters are interpreted by `vectorcraft-effects`.
+/// A live effect in an appearance stack. Parameters are interpreted by `pluma-effects`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Effect {
     /// Stable id, e.g. `stylize.dropShadow`, `distort.roughen`, `path.offsetPath`, `warp.arc`.
@@ -231,16 +231,14 @@ impl StrokeLayer {
         (side * miter.max(cap)).max(self.arrow_reach())
     }
     /// The box an unplaced gradient on this stroke fits to (see [`stroke_paint_bounds`]).
-    pub fn paint_bounds(&self, geometric: vectorcraft_geom::Rect) -> vectorcraft_geom::Rect {
+    pub fn paint_bounds(&self, geometric: pluma_geom::Rect) -> pluma_geom::Rect {
         stroke_paint_bounds(geometric, self.width)
     }
     /// The gradient this stroke lays along or across its path: its linear or radial gradient
     /// paint when [`Self::gradient_mode`] isn't Within (freeform gradients always paint within).
-    pub fn path_gradient(&self) -> Option<&vectorcraft_color::GradientPaint> {
+    pub fn path_gradient(&self) -> Option<&pluma_color::GradientPaint> {
         match &self.paint {
-            Paint::Gradient(g)
-                if self.gradient_mode != StrokeGradientMode::Within && g.gradient.kind != vectorcraft_color::GradientKind::Freeform =>
-            {
+            Paint::Gradient(g) if self.gradient_mode != StrokeGradientMode::Within && g.gradient.kind != pluma_color::GradientKind::Freeform => {
                 Some(g)
             }
             _ => None,
@@ -250,6 +248,6 @@ impl StrokeLayer {
 
 /// The box an unplaced gradient on a stroke of `width` fits to: the geometric bounds grown by half
 /// the weight (object strokes and type strokes alike, on screen and in exports).
-pub fn stroke_paint_bounds(geometric: vectorcraft_geom::Rect, width: f64) -> vectorcraft_geom::Rect {
+pub fn stroke_paint_bounds(geometric: pluma_geom::Rect, width: f64) -> pluma_geom::Rect {
     geometric.inflate(width / 2.0, width / 2.0)
 }

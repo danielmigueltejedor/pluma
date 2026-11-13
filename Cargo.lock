@@ -6311,7 +6311,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft"
+name = "pluma"
 version = "0.21.0"
 dependencies = [
  "arboard",
@@ -6340,10 +6340,10 @@ dependencies = [
  "smithay-clipboard",
  "socket2",
  "tempfile",
- "vectorcraft-engine",
- "vectorcraft-render",
- "vectorcraft-text",
- "vectorcraft-ui-egui",
+ "pluma-engine",
+ "pluma-render",
+ "pluma-text",
+ "pluma-ui-egui",
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
@@ -6357,7 +6357,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft-affinity"
+name = "pluma-affinity"
 version = "0.21.0"
 dependencies = [
  "crc32fast",
@@ -6368,42 +6368,42 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft-apischema"
+name = "pluma-apischema"
 version = "0.21.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
-name = "vectorcraft-brush"
+name = "pluma-brush"
 version = "0.21.0"
 dependencies = [
  "kurbo 0.13.1",
  "serde",
  "serde_json",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
 ]
 
 [[package]]
-name = "vectorcraft-cad"
+name = "pluma-cad"
 version = "0.21.0"
 dependencies = [
  "image",
  "kurbo 0.13.1",
  "serde_json",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-text",
 ]
 
 [[package]]
-name = "vectorcraft-cli"
+name = "pluma-cli"
 version = "0.21.0"
 dependencies = [
  "log",
@@ -6411,22 +6411,22 @@ dependencies = [
  "objc2-core-text",
  "serde_json",
  "tempfile",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-mcp",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-mcp",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
  "windows",
  "winsafe",
 ]
 
 [[package]]
-name = "vectorcraft-color"
+name = "pluma-color"
 version = "0.21.0"
 dependencies = [
  "kurbo 0.13.1",
@@ -6438,7 +6438,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft-doc"
+name = "pluma-doc"
 version = "0.21.0"
 dependencies = [
  "chrono",
@@ -6451,13 +6451,13 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tiff",
- "vectorcraft-color",
- "vectorcraft-geom",
+ "pluma-color",
+ "pluma-geom",
  "zune-jpeg 0.5.15",
 ]
 
 [[package]]
-name = "vectorcraft-effects"
+name = "pluma-effects"
 version = "0.21.0"
 dependencies = [
  "image",
@@ -6465,17 +6465,17 @@ dependencies = [
  "resvg 0.48.1",
  "serde_json",
  "svgtypes 0.16.1",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-plugins",
- "vectorcraft-text",
- "vectorcraft-three-d",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-plugins",
+ "pluma-text",
+ "pluma-three-d",
 ]
 
 [[package]]
-name = "vectorcraft-engine"
+name = "pluma-engine"
 version = "0.21.0"
 dependencies = [
  "cfb",
@@ -6501,34 +6501,34 @@ dependencies = [
  "serde_json",
  "skrifa 0.47.0",
  "thiserror 2.0.21",
- "vectorcraft-affinity",
- "vectorcraft-apischema",
- "vectorcraft-brush",
- "vectorcraft-cad",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-eps",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-js",
- "vectorcraft-metafile",
- "vectorcraft-pathops",
- "vectorcraft-pdf",
- "vectorcraft-plugins",
- "vectorcraft-render",
- "vectorcraft-scriptcheck",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "vectorcraft-tools",
- "vectorcraft-trace",
+ "pluma-affinity",
+ "pluma-apischema",
+ "pluma-brush",
+ "pluma-cad",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-eps",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-js",
+ "pluma-metafile",
+ "pluma-pathops",
+ "pluma-pdf",
+ "pluma-plugins",
+ "pluma-render",
+ "pluma-scriptcheck",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
+ "pluma-tools",
+ "pluma-trace",
  "wat",
  "zune-core 0.5.3",
  "zune-jpegxl",
 ]
 
 [[package]]
-name = "vectorcraft-eps"
+name = "pluma-eps"
 version = "0.21.0"
 dependencies = [
  "craft-pdf",
@@ -6542,21 +6542,21 @@ dependencies = [
  "ruzstd",
  "serde_json",
  "skrifa 0.47.0",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-metafile",
- "vectorcraft-pathops",
- "vectorcraft-pdf",
- "vectorcraft-render",
- "vectorcraft-testkit",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-metafile",
+ "pluma-pathops",
+ "pluma-pdf",
+ "pluma-render",
+ "pluma-testkit",
+ "pluma-text",
 ]
 
 [[package]]
-name = "vectorcraft-format"
+name = "pluma-format"
 version = "0.21.0"
 dependencies = [
  "craft-vectorcraft-format",
@@ -6566,13 +6566,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "vectorcraft-doc",
- "vectorcraft-geom",
- "vectorcraft-testkit",
+ "pluma-doc",
+ "pluma-geom",
+ "pluma-testkit",
 ]
 
 [[package]]
-name = "vectorcraft-geom"
+name = "pluma-geom"
 version = "0.21.0"
 dependencies = [
  "kurbo 0.13.1",
@@ -6580,11 +6580,11 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "vectorcraft-testkit",
+ "pluma-testkit",
 ]
 
 [[package]]
-name = "vectorcraft-js"
+name = "pluma-js"
 version = "0.21.0"
 dependencies = [
  "chrono",
@@ -6593,7 +6593,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft-mcp"
+name = "pluma-mcp"
 version = "0.21.0"
 dependencies = [
  "image",
@@ -6601,44 +6601,44 @@ dependencies = [
  "proptest",
  "serde_json",
  "socket2",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-tools",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-tools",
 ]
 
 [[package]]
-name = "vectorcraft-metafile"
+name = "pluma-metafile"
 version = "0.21.0"
 dependencies = [
  "image",
  "kurbo 0.13.1",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-text",
 ]
 
 [[package]]
-name = "vectorcraft-pathops"
+name = "pluma-pathops"
 version = "0.21.0"
 dependencies = [
  "kurbo 0.13.1",
  "linesweeper",
  "proptest",
  "thiserror 2.0.21",
- "vectorcraft-geom",
- "vectorcraft-testkit",
+ "pluma-geom",
+ "pluma-testkit",
 ]
 
 [[package]]
-name = "vectorcraft-pdf"
+name = "pluma-pdf"
 version = "0.21.0"
 dependencies = [
  "aes",
@@ -6661,18 +6661,18 @@ dependencies = [
  "skrifa 0.47.0",
  "smallvec",
  "thiserror 2.0.21",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-testkit",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-testkit",
+ "pluma-text",
  "weezl 0.2.1",
 ]
 
 [[package]]
-name = "vectorcraft-plugins"
+name = "pluma-plugins"
 version = "0.21.0"
 dependencies = [
  "craft-vectorcraft-format",
@@ -6682,15 +6682,15 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.21",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-geom",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-geom",
  "wasmi",
  "wat",
 ]
 
 [[package]]
-name = "vectorcraft-render"
+name = "pluma-render"
 version = "0.21.0"
 dependencies = [
  "flate2",
@@ -6704,14 +6704,14 @@ dependencies = [
  "serde_json",
  "tiff",
  "unicode-general-category",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-plugins",
- "vectorcraft-testkit",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-plugins",
+ "pluma-testkit",
+ "pluma-text",
  "vello_common",
  "vello_cpu",
  "wat",
@@ -6720,14 +6720,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorcraft-scriptcheck"
+name = "pluma-scriptcheck"
 version = "0.21.0"
 dependencies = [
  "proptest",
 ]
 
 [[package]]
-name = "vectorcraft-svg"
+name = "pluma-svg"
 version = "0.21.0"
 dependencies = [
  "craft-docpath",
@@ -6743,18 +6743,18 @@ dependencies = [
  "svgtypes 0.16.1",
  "thiserror 2.0.21",
  "usvg 0.48.1",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-testkit",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-testkit",
+ "pluma-text",
 ]
 
 [[package]]
-name = "vectorcraft-testkit"
+name = "pluma-testkit"
 version = "0.21.0"
 dependencies = [
  "fax",
@@ -6762,17 +6762,17 @@ dependencies = [
  "kurbo 0.13.1",
  "proptest",
  "serde_json",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-render",
- "vectorcraft-svg",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-render",
+ "pluma-svg",
 ]
 
 [[package]]
-name = "vectorcraft-text"
+name = "pluma-text"
 version = "0.21.0"
 dependencies = [
  "harfrust 0.13.3",
@@ -6785,40 +6785,40 @@ dependencies = [
  "unicode-general-category",
  "unicode-script",
  "unicode-segmentation",
- "vectorcraft-doc",
- "vectorcraft-geom",
+ "pluma-doc",
+ "pluma-geom",
  "vello_cpu",
  "windows-registry",
  "write-fonts",
 ]
 
 [[package]]
-name = "vectorcraft-three-d"
+name = "pluma-three-d"
 version = "0.21.0"
 dependencies = [
- "vectorcraft-geom",
- "vectorcraft-pathops",
+ "pluma-geom",
+ "pluma-pathops",
 ]
 
 [[package]]
-name = "vectorcraft-tools"
+name = "pluma-tools"
 version = "0.21.0"
 dependencies = [
  "image",
  "kurbo 0.13.1",
  "serde",
  "serde_json",
- "vectorcraft-brush",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-geom",
- "vectorcraft-pathops",
- "vectorcraft-text",
+ "pluma-brush",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-geom",
+ "pluma-pathops",
+ "pluma-text",
 ]
 
 [[package]]
-name = "vectorcraft-trace"
+name = "pluma-trace"
 version = "0.21.0"
 dependencies = [
  "image",
@@ -6826,11 +6826,11 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "vectorcraft-geom",
+ "pluma-geom",
 ]
 
 [[package]]
-name = "vectorcraft-ui-egui"
+name = "pluma-ui-egui"
 version = "0.21.0"
 dependencies = [
  "bytemuck",
@@ -6846,29 +6846,29 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
- "vectorcraft-brush",
- "vectorcraft-cad",
- "vectorcraft-color",
- "vectorcraft-doc",
- "vectorcraft-effects",
- "vectorcraft-engine",
- "vectorcraft-eps",
- "vectorcraft-format",
- "vectorcraft-geom",
- "vectorcraft-pdf",
- "vectorcraft-plugins",
- "vectorcraft-render",
- "vectorcraft-svg",
- "vectorcraft-testkit",
- "vectorcraft-text",
- "vectorcraft-three-d",
- "vectorcraft-tools",
+ "pluma-brush",
+ "pluma-cad",
+ "pluma-color",
+ "pluma-doc",
+ "pluma-effects",
+ "pluma-engine",
+ "pluma-eps",
+ "pluma-format",
+ "pluma-geom",
+ "pluma-pdf",
+ "pluma-plugins",
+ "pluma-render",
+ "pluma-svg",
+ "pluma-testkit",
+ "pluma-text",
+ "pluma-three-d",
+ "pluma-tools",
  "wat",
  "web-time",
 ]
 
 [[package]]
-name = "vectorcraft-web"
+name = "pluma-web"
 version = "0.21.0"
 dependencies = [
  "craft-web-api",
@@ -6878,10 +6878,10 @@ dependencies = [
  "log",
  "rfd",
  "serde_json",
- "vectorcraft-engine",
- "vectorcraft-format",
- "vectorcraft-text",
- "vectorcraft-ui-egui",
+ "pluma-engine",
+ "pluma-format",
+ "pluma-text",
+ "pluma-ui-egui",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

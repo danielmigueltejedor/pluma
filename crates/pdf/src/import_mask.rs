@@ -8,10 +8,10 @@
 use std::sync::Arc;
 
 use kurbo::{Rect, Shape};
-use vectorcraft_color::blend::MASK_LUM;
-use vectorcraft_color::{BlendMode, Color, Paint};
-use vectorcraft_doc::node::whiten;
-use vectorcraft_doc::{AppearanceItem, Node, NodeKind, OpacityMask};
+use pluma_color::blend::MASK_LUM;
+use pluma_color::{BlendMode, Color, Paint};
+use pluma_doc::node::whiten;
+use pluma_doc::{AppearanceItem, Node, NodeKind, OpacityMask};
 
 /// What a soft mask does to what it masks.
 #[derive(Clone, Debug, PartialEq)]

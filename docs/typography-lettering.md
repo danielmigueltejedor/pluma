@@ -1,10 +1,10 @@
-# Typography and Custom Lettering in VectorCraft
+# Typography and Custom Lettering in Pluma
 
 ## What you can do
 
 - **Typesetting:** use an available font to create editable text, then adjust its size, style and spacing.
 - **Custom lettering:** convert text to vector outlines and reshape the letters for a title or logo.
-- **Reusable font files:** VectorCraft does not currently create or export installable TTF or OTF fonts.
+- **Reusable font files:** Pluma does not currently create or export installable TTF or OTF fonts.
 
 This guide covers the first two workflows. The steps apply to the v0.13.1 release; the desktop app
 can use installed system fonts, while the web app uses the fonts supplied by its deployment.
@@ -28,20 +28,20 @@ can use installed system fonts, while the web app uses the fonts supplied by its
 7. To change only part of the text, select **Type Tool**, click into the text and drag across the
    characters before using the Character panel. Press **Escape** when finished. Keep the text
    editable until its wording, font and spacing are settled.
-8. Choose **File → Save As…**, select the **VectorCraft** format, and save the document as
-   `lettering-editable.vectorcraft`.
+8. Choose **File → Save As…**, select the **Pluma** format, and save the document as
+   `lettering-editable.pluma`.
 
 The desktop app scans system fonts and loads faces as needed. If you install a font while it is
 open, use **Refresh Font List** in the Character panel's menu. On the web, installing a font on your
-computer does not add it to VectorCraft's font menu; the available fonts depend on the hosted build.
+computer does not add it to Pluma's font menu; the available fonts depend on the hosted build.
 
 ## Turning text into editable outlines
 
 Create Outlines replaces text with vector paths. You can reshape those paths, but you can no longer
 edit the words or choose a different font for them with the Type Tool.
 
-1. Keep the editable file saved above. Choose **File → Save As…** again, select **VectorCraft**,
-   and save as `lettering-outlines.vectorcraft`. Continue in this second file so later saves do not
+1. Keep the editable file saved above. Choose **File → Save As…** again, select **Pluma**,
+   and save as `lettering-outlines.pluma`. Continue in this second file so later saves do not
    overwrite your editable original.
 2. With **Selection Tool** (**V**), select the text object you want to convert.
 3. Choose **Type → Create Outlines**. The default shortcut is **Ctrl+Shift+O** on Windows and Linux,
@@ -75,8 +75,8 @@ a ligature, which becomes a single glyph outline.
 
 ## Saving and exporting your artwork
 
-- **Keep the project:** use **File → Save** to save `lettering-outlines.vectorcraft`. Retain
-  `lettering-editable.vectorcraft` separately for future wording or font changes. A native file keeps
+- **Keep the project:** use **File → Save** to save `lettering-outlines.pluma`. Retain
+  `lettering-editable.pluma` separately for future wording or font changes. A native file keeps
   editable text only where you have left text objects unconverted.
 - **Export vector artwork:** choose **File → Export → Export As…**, select **SVG** or **PDF**, and
   continue through the export options. The outlined letters are vector shapes in the output, not
@@ -85,15 +85,15 @@ a ligature, which becomes a single glyph outline.
 - **Create an installable font:** SVG and PDF exports are artwork, not TTF/OTF files. Renaming their
   extension does not turn them into fonts.
 
-## Can VectorCraft create a font file?
+## Can Pluma create a font file?
 
-No. VectorCraft does not currently provide a complete font-authoring workflow or TTF/OTF export.
+No. Pluma does not currently provide a complete font-authoring workflow or TTF/OTF export.
 It does not turn your letter paths into a reusable font with character encoding, glyph metrics and
 font-wide kerning definitions. Character panel spacing changes format the text in your drawing;
 they do not edit a font's kerning tables.
 
 To make an installable typeface, use a dedicated font editor to assign glyphs to characters, set
-metrics and spacing, and generate the font file. VectorCraft's outline tools are useful for custom
+metrics and spacing, and generate the font file. Pluma's outline tools are useful for custom
 lettering artwork, but exporting that artwork is only one part of making a font.
 
 ## Troubleshooting
@@ -107,8 +107,8 @@ lettering artwork, but exporting that artwork is only one part of making a font.
 - **I cannot change the words after Create Outlines.** The result is paths, not text. Use
   **Edit → Undo** if the conversion is still in the undo history, or reopen your editable original.
 - **I cannot install my modified letters as a font.** They are drawing objects. SVG/PDF export
-  does not add the structure required by an installable font; see [Can VectorCraft create a font
-  file?](#can-vectorcraft-create-a-font-file).
-- **How do I keep text editable?** Save the text in a native `.vectorcraft` file before outlining,
+  does not add the structure required by an installable font; see [Can Pluma create a font
+  file?](#can-pluma-create-a-font-file).
+- **How do I keep text editable?** Save the text in a native `.pluma` file before outlining,
   then use a different file name for the outlined version. Saving paths in the native format does
   not turn them back into text.

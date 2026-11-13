@@ -1,9 +1,9 @@
 //! Placed documents on screen: drawn from bitmaps made in the background (a placeholder until
 //! then), the same as drawn exactly; exports draw them exactly at once.
 
-use vectorcraft_color::{Color, Paint};
-use vectorcraft_doc::{Appearance, ImageBlob, LinkInfo, Node, NodeId, NodeKind, PlacedDocument};
-use vectorcraft_geom::shapes;
+use pluma_color::{Color, Paint};
+use pluma_doc::{Appearance, ImageBlob, LinkInfo, Node, NodeId, NodeKind, PlacedDocument};
+use pluma_geom::shapes;
 
 use crate::*;
 
@@ -21,7 +21,7 @@ fn blue_page(p: &PlacedDocument, bytes: &[u8]) -> Option<(Document, Node, Rect)>
     let mut children = vec![Arc::new(Node::path(NodeId(1), shapes::rectangle(Rect::new(0.0, 0.0, 40.0, 20.0)), blue))];
     if bytes.starts_with(b"cut") {
         d.images.insert("cut-image".into(), ImageBlob::new("image/png", b"not a PNG: placed document".to_vec()));
-        let im = vectorcraft_doc::ImageObject {
+        let im = pluma_doc::ImageObject {
             key: "cut-image".into(),
             width: 20,
             height: 20,
@@ -42,7 +42,7 @@ fn blue_page(p: &PlacedDocument, bytes: &[u8]) -> Option<(Document, Node, Rect)>
 
 /// A 100×100 document showing one placed file (`bytes` under `key`) in the box (10, 10)–(90, 50).
 fn doc_with(key: &str, bytes: &[u8]) -> Document {
-    vectorcraft_doc::placed_document::set_loader(gated_blue_page);
+    pluma_doc::placed_document::set_loader(gated_blue_page);
     let mut d = Document::new(100.0, 100.0);
     d.images.insert(key.into(), ImageBlob::new("application/json", bytes.to_vec()));
     let l = d.layers[0].id;
@@ -53,7 +53,7 @@ fn doc_with(key: &str, bytes: &[u8]) -> Document {
 /// Object `id` showing file `key` in a `width`×`height` box placed by `xf`.
 fn placed_node(id: u64, key: &str, width: f64, height: f64, xf: Affine) -> Node {
     let p = PlacedDocument {
-        link: LinkInfo::new("/art/card.vectorcraft"),
+        link: LinkInfo::new("/art/card.pluma"),
         key: key.into(),
         bounding: false,
         page_box: Default::default(),
@@ -135,7 +135,7 @@ fn an_enveloped_placed_document_shows_its_file_once_read() {
     let placed = d.remove(NodeId(50)).unwrap();
     let NodeKind::PlacedDocument(p) = &placed.kind else { panic!("a placed document") };
     let p = (**p).clone();
-    let kind = vectorcraft_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 30.0, h: 0.0, v: 0.0, horizontal: true };
+    let kind = pluma_doc::EnvelopeKind::Warp { style: "arc".into(), bend: 30.0, h: 0.0, v: 0.0, horizontal: true };
     let envelope = NodeKind::Envelope {
         content: vec![placed],
         kind: Box::new(kind),
@@ -151,7 +151,7 @@ fn an_enveloped_placed_document_shows_its_file_once_read() {
     let before = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     // Exporting the document as PDF, SVG or EPS reads the file.
     d.with_placed_art();
-    assert!(vectorcraft_doc::placed_document::read_cached(&p).is_some(), "the file is read");
+    assert!(pluma_doc::placed_document::read_cached(&p).is_some(), "the file is read");
     let after = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     assert!(after != before, "the file's art shows");
     assert!(after == Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts).pixels, "as a new renderer draws it");
@@ -162,7 +162,7 @@ fn a_placed_document_with_a_drop_shadow_shows_its_file_once_read() {
     let mut d = doc("shadowed-1");
     let n = d.node_mut(NodeId(50)).unwrap();
     let params = serde_json::json!({"x": 4, "y": 4, "blur": 1, "opacity": 100});
-    n.appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params, visible: true });
+    n.appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params, visible: true });
     let NodeKind::PlacedDocument(p) = &n.kind else { panic!("a placed document") };
     let p = (**p).clone();
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), ..Default::default() };
@@ -170,7 +170,7 @@ fn a_placed_document_with_a_drop_shadow_shows_its_file_once_read() {
     let before = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     // Exporting the document as PDF, SVG or EPS reads the file.
     d.with_placed_art();
-    assert!(vectorcraft_doc::placed_document::read_cached(&p).is_some(), "the file is read");
+    assert!(pluma_doc::placed_document::read_cached(&p).is_some(), "the file is read");
     let after = r.render(&d, 100, 100, Affine::IDENTITY, &opts).pixels;
     assert!(after != before, "the file's art shows");
     assert!(after == Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts).pixels, "as a new renderer draws it");
@@ -218,7 +218,7 @@ fn copies_of_one_placed_document_share_its_bitmap() {
 #[test]
 fn nine_large_bitmaps_on_screen_are_not_made_again() {
     let _serial = serial();
-    vectorcraft_doc::placed_document::set_loader(gated_blue_page);
+    pluma_doc::placed_document::set_loader(gated_blue_page);
     let mut d = Document::new(100.0, 100.0);
     let l = d.layers[0].id;
     let keys: Vec<String> = (0..9).map(|i| format!("nine-{i}")).collect();
@@ -306,7 +306,7 @@ fn bitmaps_with_and_without_undecoded_marks_are_asked_for_apart() {
 #[test]
 fn a_ready_bitmap_draws_again_where_its_file_shows() {
     let _serial = serial();
-    vectorcraft_doc::placed_document::set_loader(gated_blue_page);
+    pluma_doc::placed_document::set_loader(gated_blue_page);
     let mut d = Document::new(100.0, 100.0);
     for key in ["area-a", "area-b"] {
         d.images.insert(key.into(), ImageBlob::new("application/json", format!("{{\"doc\": \"{key}\"}}").into_bytes()));
@@ -320,7 +320,7 @@ fn a_ready_bitmap_draws_again_where_its_file_shows() {
     d.insert(Some(l), 1, Node::new(NodeId(62), group)).unwrap();
     let mut shadowed = placed_node(63, "area-a", 40.0, 20.0, at(30.0, 40.0));
     let params = serde_json::json!({"x": 4, "y": 4, "blur": 1, "opacity": 100});
-    shadowed.appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params, visible: true });
+    shadowed.appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params, visible: true });
     d.insert(Some(l), 2, shadowed).unwrap();
     d.insert(Some(l), 3, placed_node(64, "area-b", 40.0, 20.0, at(75.0, 5.0))).unwrap();
     let opts = RenderOptions { background: Some([255, 255, 255, 255]), progressive_placed: true, ..Default::default() };
@@ -337,7 +337,7 @@ fn a_ready_bitmap_draws_again_where_its_file_shows() {
     let only_a = files(&["area-a"]);
     let Changed::Area(a) = placed_area(&d, &only_a) else { panic!("an area") };
     for (x, y) in [(6.0, 6.0), (24.0, 14.0), (31.0, 41.0), (53.0, 53.0), (6.0, 81.0), (24.0, 89.0)] {
-        assert!(a.contains(vectorcraft_geom::Point::new(x, y)), "({x}, {y}) in {a:?}");
+        assert!(a.contains(pluma_geom::Point::new(x, y)), "({x}, {y}) in {a:?}");
     }
     assert!(a.x1 < 75.0, "not B: {a:?}");
     // Drawn again only there, it is what the whole frame drawn again shows.
@@ -355,15 +355,11 @@ fn a_ready_bitmap_draws_again_where_its_file_shows() {
     // Other files change nothing; art of a brush or a symbol showing the file changes everything.
     assert_eq!(placed_area(&d, &files(&["area-z"])), Changed::Nothing);
     let mut brushed = d.clone();
-    let scatter = vectorcraft_brush::Scatter { art: placed_node(66, "area-a", 40.0, 20.0, Affine::IDENTITY), ..Default::default() };
-    let brush = vectorcraft_brush::Brush { name: "Cards".into(), kind: vectorcraft_brush::BrushKind::Scatter(scatter) };
-    vectorcraft_brush::store(&mut brushed, &[brush]);
+    let scatter = pluma_brush::Scatter { art: placed_node(66, "area-a", 40.0, 20.0, Affine::IDENTITY), ..Default::default() };
+    let brush = pluma_brush::Brush { name: "Cards".into(), kind: pluma_brush::BrushKind::Scatter(scatter) };
+    pluma_brush::store(&mut brushed, &[brush]);
     assert_eq!(placed_area(&brushed, &only_a), Changed::Everything);
-    d.symbols.push(vectorcraft_doc::Symbol {
-        dynamic: false,
-        name: "Card".into(),
-        art: Arc::new(placed_node(65, "area-a", 40.0, 20.0, Affine::IDENTITY)),
-    });
+    d.symbols.push(pluma_doc::Symbol { dynamic: false, name: "Card".into(), art: Arc::new(placed_node(65, "area-a", 40.0, 20.0, Affine::IDENTITY)) });
     assert_eq!(placed_area(&d, &only_a), Changed::Everything);
 }
 

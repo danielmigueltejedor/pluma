@@ -215,16 +215,16 @@ mod tests {
         assert_ne!(add, delete, "plus and minus differ");
     }
 
-    /// The seven type tools each have an icon of their own, drawn for VectorCraft (the vertical
+    /// The seven type tools each have an icon of their own, drawn for Pluma (the vertical
     /// Area and Path tools used to borrow the horizontal ones' icons).
     #[test]
     fn every_type_tool_has_its_own_icon_with_the_same_t() {
         let tools = ["type", "areaType", "typeOnPath", "verticalType", "verticalAreaType", "verticalTypeOnPath", "touchType"];
-        let names: Vec<&str> = tools.iter().map(|id| tool_icon(vectorcraft_tools::catalog::tool_info(id).unwrap().icon)).collect();
+        let names: Vec<&str> = tools.iter().map(|id| tool_icon(pluma_tools::catalog::tool_info(id).unwrap().icon)).collect();
         let unique: std::collections::BTreeSet<_> = names.iter().collect();
         assert_eq!(unique.len(), tools.len(), "{names:?}");
         for name in &names {
-            assert!(name.starts_with("dc-"), "{name} is drawn for VectorCraft");
+            assert!(name.starts_with("dc-"), "{name} is drawn for Pluma");
             assert!(exists(name), "{name}");
         }
     }

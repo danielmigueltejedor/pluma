@@ -15,8 +15,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use pluma_doc::{DataSet, DataValue, Document, NodeId, NodeKind, Selection, Variable, VariableKind, Variables};
 use serde_json::{Value, json};
-use vectorcraft_doc::{DataSet, DataValue, Document, NodeId, NodeKind, Selection, Variable, VariableKind, Variables};
 
 use super::edit::selected_roots;
 use super::fileio::{absolute_path, read_file_head, write_file};
@@ -142,7 +142,7 @@ fn names_param(p: &Value, cmd: &str, fallback: Option<String>, nothing: &str) ->
 /// art on a locked artboard, and, unless `kind` is visibility, art that is locked or on a locked
 /// layer or in a locked group; a text variable only drives type; an image variable only drives an
 /// image object; a variable of unknown kind drives nothing.
-fn check_bindable(doc: &vectorcraft_doc::Document, ids: &[NodeId], kind: VariableKind, cmd: &str) -> Result<()> {
+fn check_bindable(doc: &pluma_doc::Document, ids: &[NodeId], kind: VariableKind, cmd: &str) -> Result<()> {
     if kind == VariableKind::Unknown {
         return Err(bad(cmd, "a variable of unknown kind can't be bound to objects"));
     }
@@ -169,9 +169,8 @@ fn check_bindable(doc: &vectorcraft_doc::Document, ids: &[NodeId], kind: Variabl
 /// Why `variable_target` refuses `id` for a variable of `kind`: the object is locked, a group or
 /// layer that holds it is locked, one that holds it is hidden, or it is on a locked artboard,
 /// checked in that order. For a visibility variable, the object and group lock checks are skipped.
-fn not_a_target(doc: &vectorcraft_doc::Document, id: NodeId, kind: VariableKind) -> String {
-    let holders: Vec<&vectorcraft_doc::Node> =
-        doc.ancestry(id).unwrap_or_default().into_iter().filter(|i| *i != id).filter_map(|i| doc.node(i)).collect();
+fn not_a_target(doc: &pluma_doc::Document, id: NodeId, kind: VariableKind) -> String {
+    let holders: Vec<&pluma_doc::Node> = doc.ancestry(id).unwrap_or_default().into_iter().filter(|i| *i != id).filter_map(|i| doc.node(i)).collect();
     let locks = kind != VariableKind::Visibility;
     if locks && doc.node(id).is_some_and(|n| n.locked) {
         format!("node {} is locked", id.0)
@@ -188,7 +187,7 @@ fn not_a_target(doc: &vectorcraft_doc::Document, id: NodeId, kind: VariableKind)
 /// a type object holds one text variable. The error names the one it has (the first defined, in
 /// a document that holds two). An object already bound to `name` is not refused, and variables
 /// of other kinds are not counted.
-fn check_one_text_variable(doc: &vectorcraft_doc::Document, ids: &[NodeId], name: &str, cmd: &str) -> Result<()> {
+fn check_one_text_variable(doc: &pluma_doc::Document, ids: &[NodeId], name: &str, cmd: &str) -> Result<()> {
     for id in ids {
         let Some(bound) = doc.variables.bindings.get(id).filter(|b| !b.contains(name)) else { continue };
         let held = doc.variables.variables.iter().find(|v| v.kind == VariableKind::Text && bound.contains(&v.name));

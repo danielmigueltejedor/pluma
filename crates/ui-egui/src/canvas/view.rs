@@ -1,5 +1,5 @@
 use super::drag::{drag_id, drop_press};
-use super::{CornerRadius, Drag, Point, Pos2, Rect, SCROLL_BAR, Sense, Stroke, Tokens, Ui, VectorcraftApp, View, Xf, pos2, vec2};
+use super::{CornerRadius, Drag, PlumaApp, Point, Pos2, Rect, SCROLL_BAR, Sense, Stroke, Tokens, Ui, View, Xf, pos2, vec2};
 
 /// The mouse and control-channel Rotate View gestures use the same angle and Shift snapping.
 pub(crate) fn drag_rotation(center: Pos2, point: Pos2, start_angle: f64, start_rotation: f64, snap: bool) -> f64 {
@@ -8,11 +8,11 @@ pub(crate) fn drag_rotation(center: Pos2, point: Pos2, start_angle: f64, start_r
     if snap {
         degrees = (degrees / 15.0).round() * 15.0;
     }
-    vectorcraft_geom::normalize_deg(degrees)
+    pluma_geom::normalize_deg(degrees)
 }
 
 /// Fit the view (View → Fit Artboard / Fit All / Actual Size, Arrange Tools › Zoom to Selection).
-pub fn fit(app: &mut VectorcraftApp, how: &str) {
+pub fn fit(app: &mut PlumaApp, how: &str) {
     let Some(rect) = app.canvas_rect else {
         if let Some(v) = app.view_mut() {
             v.fitted = false;
@@ -97,7 +97,7 @@ pub(super) const HOLD_ZOOM: f64 = std::f64::consts::LN_2;
 /// Performance › Animated Zoom, which needs GPU Performance as in Illustrator: the Zoom tool zooms
 /// as it is dragged sideways or held, instead of zooming to the area dragged across, and a wheel
 /// notch's zoom glides in ([`wheel`]).
-pub(crate) fn animated_zoom(p: &vectorcraft_engine::Prefs) -> bool {
+pub(crate) fn animated_zoom(p: &pluma_engine::Prefs) -> bool {
     p.animated_zoom && p.gpu_performance
 }
 
@@ -121,7 +121,7 @@ pub(super) fn zoom_about(vm: &mut View, rect: egui::Rect, p: Pos2, zoom: f64) {
 /// screen point `p` where it is.
 pub(super) fn rotate_about(vm: &mut View, rect: egui::Rect, p: Pos2, degrees: f64) {
     let before = Xf::new(rect, vm).to_doc(p);
-    vm.rotation = vectorcraft_geom::normalize_deg(vm.rotation + degrees);
+    vm.rotation = pluma_geom::normalize_deg(vm.rotation + degrees);
     vm.center += before - Xf::new(rect, vm).to_doc(p);
 }
 
@@ -130,7 +130,7 @@ pub(super) fn rotate_about(vm: &mut View, rect: egui::Rect, p: Pos2, degrees: f6
 pub(super) fn pan_pixels(vm: &mut View, ppp: f32, (dx, dy): (f64, f64)) {
     let (sn, cs) = vm.rotation.to_radians().sin_cos();
     let k = vm.zoom * f64::from(ppp);
-    vm.center -= vectorcraft_geom::Vec2::new((dx * cs + dy * sn) / k, (-dx * sn + dy * cs) / k);
+    vm.center -= pluma_geom::Vec2::new((dx * cs + dy * sn) / k, (-dx * sn + dy * cs) / k);
 }
 
 /// Screen points `d` in the nearest whole device pixels, at `ppp` device pixels a point.
@@ -153,7 +153,7 @@ pub(super) struct ScrollRest {
 /// touch screen, a scroll bar), in whole device pixels: the part of a pixel left over is added to
 /// the next scroll. It is dropped when the view changed in between (a zoom, a turn, Fit, a pan
 /// of another kind, another document) or the device pixels a point did.
-pub(super) fn scroll_view(app: &mut VectorcraftApp, ui: &Ui, by: egui::Vec2) {
+pub(super) fn scroll_view(app: &mut PlumaApp, ui: &Ui, by: egui::Vec2) {
     let ppp = ui.ctx().pixels_per_point();
     let Some(doc) = app.session.active().map(|st| st.uid) else { return };
     let Some(vm) = app.view_mut() else { return };
@@ -276,7 +276,7 @@ pub(super) fn scroll_tracks(rect: egui::Rect, outer: egui::Rect) -> [egui::Rect;
 /// The window's scroll bars ([`scroll_spans`]): a thumb dragged scrolls the view along the
 /// screen's axis (a turned view too), a click on the track pages towards it, and the wheel over a
 /// bar scrolls along it.
-pub(super) fn scroll_bars(app: &mut VectorcraftApp, ui: &Ui, rect: egui::Rect, outer: egui::Rect, t: &Tokens) {
+pub(super) fn scroll_bars(app: &mut PlumaApp, ui: &Ui, rect: egui::Rect, outer: egui::Rect, t: &Tokens) {
     let content = app.content_bounds();
     let Some(v) = app.view().copied() else { return };
     let xf = Xf::new(rect, &v);
@@ -390,7 +390,7 @@ pub(super) fn fine_steps(unit: egui::MouseWheelUnit, delta: egui::Vec2, source: 
 /// once either way.
 pub(super) fn wheel(
     i: &egui::InputState,
-    prefs: &vectorcraft_engine::Prefs,
+    prefs: &pluma_engine::Prefs,
     wheel_zooms: bool,
     animate: bool,
     line: f32,
@@ -530,7 +530,7 @@ pub(super) fn wheel(
 /// Enable Touch Gestures: this frame's finger contacts on the canvas ([`crate::touch`]). A second
 /// finger drops the press the first one began (its tool interaction rolled back; the rest of the
 /// gesture presses nothing), and a tap of two fingers undoes, one of three redoes.
-pub(super) fn touch_gestures(app: &mut VectorcraftApp, ui: &Ui, rect: egui::Rect, view: vectorcraft_engine::ViewInfo) {
+pub(super) fn touch_gestures(app: &mut PlumaApp, ui: &Ui, rect: egui::Rect, view: pluma_engine::ViewInfo) {
     if !app.session.prefs.touch_gestures {
         return;
     }

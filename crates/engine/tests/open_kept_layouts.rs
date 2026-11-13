@@ -7,14 +7,14 @@
 
 use std::sync::{Mutex, MutexGuard};
 
+use pluma_doc::{CharStyle, Document, Node, NodeKind, TextObject, TextRun};
+use pluma_engine::Session;
+use pluma_engine::cmd::fileio;
+use pluma_geom::{Affine, Point};
+use pluma_render::{RenderOptions, Renderer};
+use pluma_text::test_fonts::{drop_kept_layouts, layouts_on_this_thread};
+use pluma_text::{FontDb, KeptLayoutsFrame};
 use serde_json::{Value, json};
-use vectorcraft_doc::{CharStyle, Document, Node, NodeKind, TextObject, TextRun};
-use vectorcraft_engine::Session;
-use vectorcraft_engine::cmd::fileio;
-use vectorcraft_geom::{Affine, Point};
-use vectorcraft_render::{RenderOptions, Renderer};
-use vectorcraft_text::test_fonts::{drop_kept_layouts, layouts_on_this_thread};
-use vectorcraft_text::{FontDb, KeptLayoutsFrame};
 
 const WIDTH: u32 = 900;
 const HEIGHT: u32 = 1300;
@@ -38,7 +38,7 @@ fn file_of(objects: Vec<TextObject>) -> Vec<u8> {
         let id = doc.alloc_id();
         doc.insert(Some(layer), usize::MAX, Node::new(id, NodeKind::Text(Box::new(t)))).unwrap();
     }
-    vectorcraft_format::save_file(&doc)
+    pluma_format::save_file(&doc)
 }
 
 fn latin() -> Vec<u8> {
@@ -79,7 +79,7 @@ fn threaded_story() -> Vec<u8> {
         &json!({"x": 10, "y": 300, "text": "Area type on its own. ".repeat(20), "size": 12, "area": {"width": 300, "height": 200}}),
     )
     .unwrap();
-    vectorcraft_format::save_file(&s.doc().unwrap().doc)
+    pluma_format::save_file(&s.doc().unwrap().doc)
 }
 
 fn documents() -> Vec<(&'static str, Vec<u8>)> {
@@ -88,7 +88,7 @@ fn documents() -> Vec<(&'static str, Vec<u8>)> {
 
 /// The session `bytes` opened in, as `document.open` reads a file and then opens it.
 fn open(bytes: &[u8]) -> Session {
-    let name = "layouts.vectorcraft";
+    let name = "layouts.pluma";
     let mut s = Session::new();
     let read = fileio::read_for_open(name, bytes, Some(name.into()), &Value::Null, false, false).unwrap();
     fileio::open_read(&mut s, read).unwrap();
@@ -142,12 +142,12 @@ fn the_kept_layouts_are_the_layouts_of_the_opened_objects() {
         let mut taken = 0;
         let frame_drawn = KeptLayoutsFrame::begin();
         for t in type_objects(doc) {
-            let fresh = vectorcraft_text::layout(FontDb::global(), &t);
+            let fresh = pluma_text::layout(FontDb::global(), &t);
             assert_eq!(t.cached_bounds, Some(fresh.bounds), "{name}: {:?}", t.plain_text());
             assert_eq!(t.cached_baselines, fresh.baselines(), "{name}: {:?}", t.plain_text());
-            if let Some(kept) = vectorcraft_text::take_kept_layout(&t) {
+            if let Some(kept) = pluma_text::take_kept_layout(&t) {
                 let outlines =
-                    |l: &vectorcraft_text::TextLayout| l.glyphs.iter().map(|g| (g.font_id, g.gid, g.origin, g.outline.clone())).collect::<Vec<_>>();
+                    |l: &pluma_text::TextLayout| l.glyphs.iter().map(|g| (g.font_id, g.gid, g.origin, g.outline.clone())).collect::<Vec<_>>();
                 assert!(outlines(&kept) == outlines(&fresh), "{name}: {:?}", t.plain_text());
                 assert_eq!(kept.bounds, fresh.bounds, "{name}: {:?}", t.plain_text());
                 taken += 1;
@@ -209,13 +209,13 @@ fn changing_the_hyphenation_exceptions_or_the_fonts_lays_every_object_out_again(
     fonts_loaded(&bytes);
     let s = open(&bytes);
     let doc = &s.doc().unwrap().doc;
-    vectorcraft_text::set_hyphenation_exceptions("");
+    pluma_text::set_hyphenation_exceptions("");
     let before = layouts_on_this_thread();
     frame(doc);
     assert_eq!(layouts_on_this_thread() - before, 3, "hyphenation exceptions were set");
     let s = open(&bytes);
     let doc = &s.doc().unwrap().doc;
-    FontDb::global().add_font(vectorcraft_text::test_fonts::variable_font().unwrap());
+    FontDb::global().add_font(pluma_text::test_fonts::variable_font().unwrap());
     let generation = FontDb::global().generation();
     let before = layouts_on_this_thread();
     frame(doc);
@@ -236,7 +236,7 @@ fn a_frame_lets_go_of_what_it_did_not_draw() {
     assert_eq!(small.width, 300);
     let out = type_objects(doc).into_iter().find(|t| t.plain_text() == "Out of view 2").unwrap();
     let _frame = KeptLayoutsFrame::begin();
-    assert!(vectorcraft_text::take_kept_layout(&out).is_none());
+    assert!(pluma_text::take_kept_layout(&out).is_none());
 }
 
 /// A thumbnail lays its object out, and the first frame still takes that object's layout.
@@ -271,9 +271,9 @@ fn an_ink_frame_lets_go_of_what_it_did_not_draw() {
     fonts_loaded(&bytes);
     let s = open(&bytes);
     let doc = &s.doc().unwrap().doc;
-    let region = vectorcraft_geom::Rect::new(0.0, 0.0, 300.0, 100.0);
+    let region = pluma_geom::Rect::new(0.0, 0.0, 300.0, 100.0);
     assert!(!Renderer::new().render_region_inks(doc, region, 1.0, &RenderOptions::default()).is_empty());
     let out = type_objects(doc).into_iter().find(|t| t.plain_text() == "Out of view 2").unwrap();
     let _frame = KeptLayoutsFrame::begin();
-    assert!(vectorcraft_text::take_kept_layout(&out).is_none());
+    assert!(pluma_text::take_kept_layout(&out).is_none());
 }

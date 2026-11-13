@@ -4,13 +4,13 @@
 //! `box3d`) is active.
 
 use egui::Ui;
+use pluma_geom::shapes::EllipseMode;
+use pluma_tools::addons::box3d::{self, CustomShape};
 use serde_json::{Value, json};
-use vectorcraft_geom::shapes::EllipseMode;
-use vectorcraft_tools::addons::box3d::{self, CustomShape};
 
 use crate::menus::Item;
 use crate::theme::Tokens;
-use crate::{VectorcraftApp, widgets};
+use crate::{PlumaApp, widgets};
 
 pub fn menu() -> Vec<Item> {
     vec![Item::Cmd("3D Box Tool", "tool.select", json!({"tool": box3d::ID}))]
@@ -18,7 +18,7 @@ pub fn menu() -> Vec<Item> {
 
 /// Draw context-sensitive shape customization controls in the top Control bar when a shape tool is
 /// active. Returns `true` when controls were drawn.
-pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
+pub fn control_bar(app: &mut PlumaApp, ui: &mut Ui) -> bool {
     let tool = app.session.tool_id().to_string();
     if !matches!(tool.as_str(), "rectangle" | "roundedRectangle" | "ellipse" | "polygon" | "star" | "spiral" | "box3d") {
         return false;
@@ -56,7 +56,7 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) -> bool {
     true
 }
 
-fn apply_shape(app: &mut VectorcraftApp, tool_kvs: &[(&str, Value)], live_patch: Value) {
+fn apply_shape(app: &mut PlumaApp, tool_kvs: &[(&str, Value)], live_patch: Value) {
     for (k, v) in tool_kvs {
         app.run("tool.setOption", json!({ "key": *k, "value": v.clone() })).ok();
     }
@@ -65,7 +65,7 @@ fn apply_shape(app: &mut VectorcraftApp, tool_kvs: &[(&str, Value)], live_patch:
     }
 }
 
-fn draw_arc_controls(app: &mut VectorcraftApp, ui: &mut Ui, start_deg: f64, end_deg: f64, mode: &str) {
+fn draw_arc_controls(app: &mut PlumaApp, ui: &mut Ui, start_deg: f64, end_deg: f64, mode: &str) {
     let t = Tokens::get(ui.ctx());
     widgets::field_label(ui, egui::RichText::new(tl!("Start:")).size(12.0).color(t.text_dim));
     if let Some(v) = widgets::plain_field(ui, ("cb-shape", "arc-start"), start_deg, "°", 1, 52.0) {
@@ -97,7 +97,7 @@ fn draw_arc_controls(app: &mut VectorcraftApp, ui: &mut Ui, start_deg: f64, end_
     }
 }
 
-fn draw_ellipse_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
+fn draw_ellipse_controls(app: &mut PlumaApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
     let (start_deg, end_deg, mode) = match selected_custom {
         Some(CustomShape::Ellipse { pie: (a0, a1), arc_mode, .. }) => (a0, a1, mode_str(arc_mode)),
         _ => (opts["arcStart"].as_f64().unwrap_or(0.0), opts["arcEnd"].as_f64().unwrap_or(0.0), opts["arcMode"].as_str().unwrap_or("whole")),
@@ -109,7 +109,7 @@ fn draw_ellipse_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, se
     ui.separator();
 }
 
-fn draw_rectangle_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
+fn draw_rectangle_controls(app: &mut PlumaApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
     let t = Tokens::get(ui.ctx());
     let unit = app.session.general_unit();
     let sym = opts["cornerSymmetry"].as_bool().unwrap_or(true);
@@ -167,7 +167,7 @@ fn draw_rectangle_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, 
     ui.separator();
 }
 
-fn draw_polygon_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, active_shape: &str, selected_custom: Option<CustomShape>) {
+fn draw_polygon_controls(app: &mut PlumaApp, ui: &mut Ui, opts: &Value, active_shape: &str, selected_custom: Option<CustomShape>) {
     let t = Tokens::get(ui.ctx());
     let mut is_star = if active_shape == "star" { true } else { opts["polyIsStar"].as_bool().unwrap_or(false) };
     let mut count = if is_star { opts["points"].as_u64().unwrap_or(5) } else { opts["sides"].as_u64().unwrap_or(6) } as u32;
@@ -228,7 +228,7 @@ fn draw_polygon_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, ac
     ui.separator();
 }
 
-fn draw_spiral_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
+fn draw_spiral_controls(app: &mut PlumaApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
     let t = Tokens::get(ui.ctx());
     let (mut turns, mut divergence, mut inner_r) =
         (opts["turns"].as_f64().unwrap_or(3.0), opts["divergence"].as_f64().unwrap_or(1.0), opts["innerRadius"].as_f64().unwrap_or(0.0));
@@ -258,7 +258,7 @@ fn draw_spiral_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, sel
     ui.separator();
 }
 
-fn draw_box3d_controls(app: &mut VectorcraftApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
+fn draw_box3d_controls(app: &mut PlumaApp, ui: &mut Ui, opts: &Value, selected_custom: Option<CustomShape>) {
     let t = Tokens::get(ui.ctx());
     let (mut ax, mut ay, mut az) =
         (opts["angleX"].as_f64().unwrap_or(30.0), opts["angleY"].as_f64().unwrap_or(30.0), opts["angleZ"].as_f64().unwrap_or(0.0));

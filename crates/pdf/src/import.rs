@@ -1,4 +1,4 @@
-//! PDF → Document (hayro-interpret device that builds a VectorCraft node tree).
+//! PDF → Document (hayro-interpret device that builds a Pluma node tree).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,12 +14,12 @@ use craft_pdf::interpret::{
 use craft_pdf::syntax::object::Name;
 use craft_pdf::syntax::page::Page;
 use kurbo::{Affine, BezPath, PathEl, Rect, Shape};
-use vectorcraft_color::{BlendMode, Color, Paint, Swatch};
-use vectorcraft_doc::{
+use pluma_color::{BlendMode, Color, Paint, Swatch};
+use pluma_doc::{
     Appearance, AppearanceItem, Artboard, ColorMode, Dash, Document, FillLayer, ImageBlob, ImageObject, Knockout, LayerColor, LineCap, LineJoin,
     Node, NodeId, NodeKind, OpacityMask, PatternDef, StrokeLayer,
 };
-use vectorcraft_geom::{FillRule, PathData};
+use pluma_geom::{FillRule, PathData};
 
 use crate::import_color::{Colors, Native};
 use crate::import_mask::{MaskSpec, contains, is_rectangle, luminance, mask_spec, white_cover};

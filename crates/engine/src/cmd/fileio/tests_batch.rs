@@ -1,13 +1,13 @@
 //! Batch exports through Export for Screens (#1935): a file name pattern (the document's and the
 //! item's names, a counter, the date), folders by format, by item or both, layers and the selection
-//! as what is exported, and document formats (VectorCraft, Illustrator, EPS) as rows.
+//! as what is exported, and document formats (Pluma, Illustrator, EPS) as rows.
 
 use serde_json::{Value, json};
 
 use super::*;
 
 fn b64(v: &Value) -> Vec<u8> {
-    vectorcraft_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
+    pluma_format::base64_decode(v["dataBase64"].as_str().expect("dataBase64")).unwrap()
 }
 
 /// A document of `artboards` 40×30 pt artboards side by side with a 20 pt square on the first.
@@ -62,7 +62,7 @@ fn the_logo_package_of_the_request() {
     let f = files(&r);
     let page = |name: &str| {
         let bytes = &f.iter().find(|(n, _)| n == name).unwrap().1;
-        let d = vectorcraft_pdf::import(bytes).unwrap();
+        let d = pluma_pdf::import(bytes).unwrap();
         let a = d.artboards.first().unwrap().rect;
         (a.width(), a.height())
     };
@@ -143,11 +143,11 @@ fn document_formats_write_one_artboard_each() {
     s.execute("shape.ellipse", &json!({"x": second.x0 + 5.0, "y": 5, "width": 10, "height": 10})).unwrap();
     let r = export(&mut s, json!({"formats": [{"format": "vectorcraft"}, {"format": "ai"}, {"format": "eps"}]}));
     let n = names(&r);
-    assert_eq!(n, ["Artboard-1.vectorcraft", "Artboard-1.ai", "Artboard-1.eps", "Artboard-2.vectorcraft", "Artboard-2.ai", "Artboard-2.eps"]);
+    assert_eq!(n, ["Artboard-1.pluma", "Artboard-1.ai", "Artboard-1.eps", "Artboard-2.pluma", "Artboard-2.ai", "Artboard-2.eps"]);
     let all = files(&r);
     for (name, bytes) in &all {
         let mut t = Session::new();
-        t.execute("document.open", &json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)})).unwrap();
+        t.execute("document.open", &json!({"name": name, "dataBase64": pluma_format::base64_encode(bytes)})).unwrap();
         let d = &t.doc().unwrap().doc;
         assert_eq!(d.artboards.len(), 1, "{name}: that artboard alone");
         let objects: usize = d.layers.iter().filter_map(|l| l.children()).map(|c| c.len()).sum();
@@ -354,7 +354,7 @@ fn export_presets_import_refuses_oversize_input_from_every_source() {
     for params in [
         json!({"path": path.to_string_lossy()}),
         json!({"data": oversized}),
-        json!({"dataBase64": vectorcraft_format::base64_encode(oversized.as_bytes())}),
+        json!({"dataBase64": pluma_format::base64_encode(oversized.as_bytes())}),
     ] {
         let error = s.execute("document.exportPresets.import", &params).unwrap_err().to_string();
         assert!(error.contains("larger than 4194304 bytes"), "{error}");
@@ -377,10 +377,10 @@ fn export_presets_import_accepts_wrapped_base64_near_size_limit() {
     })
     .to_string();
     assert_eq!(file.len(), LIMIT - 1);
-    let encoded = vectorcraft_format::base64_encode(file.as_bytes());
+    let encoded = pluma_format::base64_encode(file.as_bytes());
     let wrapped = encoded.as_bytes().chunks(76).map(|line| std::str::from_utf8(line).unwrap()).collect::<Vec<_>>().join("\n");
     assert!(wrapped.len() > LIMIT.div_ceil(3) * 4);
-    assert_eq!(vectorcraft_format::base64_decode(&wrapped).as_deref(), Some(file.as_bytes()));
+    assert_eq!(pluma_format::base64_decode(&wrapped).as_deref(), Some(file.as_bytes()));
 
     let mut s = session(1);
     let reply = s.execute("document.exportPresets.import", &json!({"dataBase64": wrapped})).unwrap();

@@ -4,8 +4,8 @@
 //! crate). Which plane an object lies on is kept on the object, so copies, duplicates and pastes
 //! stay attached and deleted objects leave nothing stale behind.
 
+use pluma_geom::{Homography, Rect};
 use serde::{Deserialize, Serialize};
-use vectorcraft_geom::{Homography, Rect};
 
 use crate::{Node, NodeKind};
 
@@ -60,7 +60,7 @@ impl Node {
 
     /// Keep a projection drawing the same picture moved by `a` (the flat art moves by `a` too). An
     /// invertible `a` that the projection cannot follow removes it, and the art is drawn flat.
-    pub(crate) fn transform_projection(&mut self, a: vectorcraft_geom::Affine) {
+    pub(crate) fn transform_projection(&mut self, a: pluma_geom::Affine) {
         if let Some(p) = self.extras_if_any().and_then(|e| e.perspective.as_deref_mut())
             && let Some(h) = p.homography()
             && Homography::affine_is_invertible(a)

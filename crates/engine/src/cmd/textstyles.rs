@@ -5,10 +5,10 @@
 //! (Clear Overrides first resets to the Normal style). Redefining a style updates its users but keeps
 //! their local overrides: an attribute changes only where it still had the old style's value.
 
+use pluma_doc::{CharStyle, Document, Node, NodeId, NodeKind, ParaStyle, TextStyleDef};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
-use vectorcraft_doc::{CharStyle, Document, Node, NodeId, NodeKind, ParaStyle, TextStyleDef};
 
 use super::clipboard::resources::import_text_styles;
 use super::typecmd::{refresh_bounds, text_targets};
@@ -125,7 +125,7 @@ macro_rules! style_cmds {
 }
 
 /// The params of `charStyle.load`, `paraStyle.load` and `textStyle.loadAll`.
-const LOAD_PARAMS: &str = "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} copy the styles of this kind (textStyle.loadAll: character and paragraph styles) from a document VectorCraft opens (see document.formats) into this one, after its own, in one undo step, with the swatches and patterns they paint with, the symbols and brushes those patterns use, and the styles of either kind that type in those patterns and symbols is set in, as Paste brings those of pasted type (a global or spot color whose name this document gives another color is this document's). A style that is the same as the style here of its name, or of its name with a number (`Body 2`), isn't added again; any other is added under a free name (`Body 2`). The file's Normal styles aren't loaded, and a style whose attributes don't read or are out of the range charStyle.new takes, or whose name is empty, is skipped → {added: [names here], existing: [names already here], skipped: [names in the file]} (textStyle.loadAll: {charStyles: {…}, paraStyles: {…}}); charStyle.load and paraStyle.load list only the styles of their own kind";
+const LOAD_PARAMS: &str = "{path? | data?: file text | dataBase64?, name?: file name (default: the path's)} copy the styles of this kind (textStyle.loadAll: character and paragraph styles) from a document Pluma opens (see document.formats) into this one, after its own, in one undo step, with the swatches and patterns they paint with, the symbols and brushes those patterns use, and the styles of either kind that type in those patterns and symbols is set in, as Paste brings those of pasted type (a global or spot color whose name this document gives another color is this document's). A style that is the same as the style here of its name, or of its name with a number (`Body 2`), isn't added again; any other is added under a free name (`Body 2`). The file's Normal styles aren't loaded, and a style whose attributes don't read or are out of the range charStyle.new takes, or whose name is empty, is skipped → {added: [names here], existing: [names already here], skipped: [names in the file]} (textStyle.loadAll: {charStyles: {…}, paraStyles: {…}}); charStyle.load and paraStyle.load list only the styles of their own kind";
 
 pub fn specs() -> Vec<CommandSpec> {
     let mut v = style_cmds!(
@@ -151,7 +151,7 @@ pub fn specs() -> Vec<CommandSpec> {
 // ---------- attribute plumbing ----------
 
 /// `v` as a JSON map with one key per attribute: Auto alignment, which files save as its
-/// direction's alignment plus `justify_auto` (see `vectorcraft_doc::ParaStyle`), is `"justify":
+/// direction's alignment plus `justify_auto` (see `pluma_doc::ParaStyle`), is `"justify":
 /// "Auto"`, so a style's `justify` replaces it.
 fn to_map<T: Serialize>(v: &T) -> Option<Map<String, Value>> {
     let Ok(Value::Object(mut m)) = serde_json::to_value(v) else { return None };
@@ -328,14 +328,14 @@ fn font_change(before: &CharStyle, mut st: CharStyle, attrs: &Map<String, Value>
 
 /// Change text in layers, symbols, graph designs, pattern tiles, saved pattern tiles restored by
 /// Cancel, and brush art, including opacity masks in those trees.
-pub(crate) fn each_text_mut(d: &mut Document, f: &mut impl FnMut(&mut vectorcraft_doc::TextObject) -> Result<()>) -> Result<()> {
+pub(crate) fn each_text_mut(d: &mut Document, f: &mut impl FnMut(&mut pluma_doc::TextObject) -> Result<()>) -> Result<()> {
     fn has_text(n: &Node) -> bool {
         matches!(n.kind, NodeKind::Text(_))
             || n.extras().mask.as_ref().is_some_and(|mask| has_text(&mask.art))
             || n.children().is_some_and(|children| children.iter().any(|child| has_text(child)))
     }
 
-    fn visit(n: &mut Node, f: &mut impl FnMut(&mut vectorcraft_doc::TextObject) -> Result<()>) -> Result<()> {
+    fn visit(n: &mut Node, f: &mut impl FnMut(&mut pluma_doc::TextObject) -> Result<()>) -> Result<()> {
         if let NodeKind::Text(t) = &mut n.kind {
             f(t)?;
         }
@@ -358,18 +358,18 @@ pub(crate) fn each_text_mut(d: &mut Document, f: &mut impl FnMut(&mut vectorcraf
             visit(std::sync::Arc::make_mut(root), f)?;
         }
     }
-    let mut brushes = vectorcraft_brush::library(d);
+    let mut brushes = pluma_brush::library(d);
     let original_brushes = brushes.clone();
     for art in brushes.iter_mut().flat_map(|b| b.art_mut()) {
         visit(art, f)?;
     }
     if brushes != original_brushes {
-        vectorcraft_brush::store(d, &brushes);
+        pluma_brush::store(d, &brushes);
     }
     Ok(())
 }
 
-fn text_mut(d: &mut Document, id: NodeId) -> Option<&mut vectorcraft_doc::TextObject> {
+fn text_mut(d: &mut Document, id: NodeId) -> Option<&mut pluma_doc::TextObject> {
     match d.node_mut(id).map(|n| &mut n.kind) {
         Some(NodeKind::Text(t)) => Some(t),
         _ => None,
@@ -382,11 +382,11 @@ fn text_mut(d: &mut Document, id: NodeId) -> Option<&mut vectorcraft_doc::TextOb
 fn uses(d: &Document, kind: Kind) -> std::collections::HashMap<Option<String>, usize> {
     let mut n = std::collections::HashMap::new();
     let mut count = |name: &Option<String>| *n.entry(name.clone()).or_insert(0) += 1;
-    let brushes = vectorcraft_brush::library(d);
+    let brushes = pluma_brush::library(d);
     let trees = d.layers.iter().map(|l| &**l).chain(d.symbols.iter().map(|s| &*s.art)).chain(d.graph_designs.iter().map(|g| &*g.art));
     let trees = trees.chain(d.patterns.iter().flat_map(|p| p.art.iter().map(|a| &**a))).chain(brushes.iter().flat_map(|b| b.art()));
     for tree in trees {
-        vectorcraft_doc::swatches::walk_with_masks(tree, &mut |node| {
+        pluma_doc::swatches::walk_with_masks(tree, &mut |node| {
             if let NodeKind::Text(t) = &node.kind {
                 match kind {
                     Kind::Char => t.runs.iter().for_each(|r| count(&r.style.style_name)),
@@ -453,8 +453,8 @@ fn selection_attrs(s: &Session, p: &Value, kind: Kind, verb: &str) -> Result<Opt
     Ok(Some(match kind {
         Kind::Char => {
             let style = match p.get("end").and_then(Value::as_u64).map(index) {
-                Some(end) => vectorcraft_text::edit::insertion_style(&t.runs, at.min(end), at.max(end)),
-                None => vectorcraft_text::edit::style_at(&t.runs, at),
+                Some(end) => pluma_text::edit::insertion_style(&t.runs, at.min(end), at.max(end)),
+                None => pluma_text::edit::style_at(&t.runs, at),
             };
             char_attrs(&style)
         }
@@ -538,14 +538,14 @@ fn attrs_param(d: &Document, p: &Value, kind: Kind, verb: &str, kept: Option<&Ma
                     if let Some(l) = &st.language
                         && kept.and_then(|k| k.get("language")) != m.get("language")
                     {
-                        st.language = vectorcraft_doc::setup::char_language(l).map_err(|e| bad(&c, e))?.map(str::to_string);
+                        st.language = pluma_doc::setup::char_language(l).map_err(|e| bad(&c, e))?.map(str::to_string);
                     }
                     for (key, paint) in [("fill", &mut st.fill), ("stroke", &mut st.stroke)] {
                         if changed(key) {
                             style_paint(d, paint, key, &c)?;
                         }
                     }
-                    let (key, lo, hi) = ("stroke_width", 0.0, vectorcraft_doc::MAX_COORD);
+                    let (key, lo, hi) = ("stroke_width", 0.0, pluma_doc::MAX_COORD);
                     if changed(key) && !(lo..=hi).contains(&st.stroke_width) {
                         return Err(bad(&c, format!("`{key}` must be from {lo} to {hi}")));
                     }
@@ -564,10 +564,10 @@ fn attrs_param(d: &Document, p: &Value, kind: Kind, verb: &str, kept: Option<&Ma
 
 /// Check a character style's `fill` or `stroke` (`key`): each solid color and gradient stop has a
 /// tint from 0 to 1, and a link to a global swatch of `d`, whose color at that tint it takes.
-fn style_paint(d: &Document, paint: &mut vectorcraft_color::Paint, key: &str, c: &str) -> Result<()> {
+fn style_paint(d: &Document, paint: &mut pluma_color::Paint, key: &str, c: &str) -> Result<()> {
     match paint {
-        vectorcraft_color::Paint::Solid { color, swatch, tint } => style_color(d, color, swatch.as_deref(), *tint, key, c),
-        vectorcraft_color::Paint::Gradient(g) => {
+        pluma_color::Paint::Solid { color, swatch, tint } => style_color(d, color, swatch.as_deref(), *tint, key, c),
+        pluma_color::Paint::Gradient(g) => {
             g.gradient.stops.iter_mut().try_for_each(|stop| style_color(d, &mut stop.color, stop.swatch.as_deref(), stop.tint, key, c))
         }
         _ => Ok(()),
@@ -575,7 +575,7 @@ fn style_paint(d: &Document, paint: &mut vectorcraft_color::Paint, key: &str, c:
 }
 
 /// Check one color of a character style's `key` paint for [`style_paint`].
-fn style_color(d: &Document, color: &mut vectorcraft_color::Color, swatch: Option<&str>, tint: f32, key: &str, c: &str) -> Result<()> {
+fn style_color(d: &Document, color: &mut pluma_color::Color, swatch: Option<&str>, tint: f32, key: &str, c: &str) -> Result<()> {
     if !(0.0..=1.0).contains(&tint) {
         let (key, lo, hi) = (format!("{key}.tint"), 0, 1);
         return Err(bad(c, format!("`{key}` must be from {lo} to {hi}")));
@@ -590,17 +590,17 @@ fn style_color(d: &Document, color: &mut vectorcraft_color::Color, swatch: Optio
     Ok(())
 }
 
-/// Check a character style's OpenType `features`: at most [`vectorcraft_text::MAX_STYLE_FEATURES`]
+/// Check a character style's OpenType `features`: at most [`pluma_text::MAX_STYLE_FEATURES`]
 /// tags, or no more than the `kept` attributes already list, each one the shaper knows or one the
 /// `kept` attributes already list.
 fn style_features(features: &[String], kept: Option<&Map<String, Value>>, c: &str) -> Result<()> {
     let kept: Vec<&str> = kept.and_then(|k| k.get("features")).and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
-    let max = vectorcraft_text::MAX_STYLE_FEATURES;
+    let max = pluma_text::MAX_STYLE_FEATURES;
     if features.len() > max.max(kept.len()) {
         return Err(bad(c, format!("features lists at most {max} tags")));
     }
     // One `-` or `+` at most, as the shaper reads a tag.
-    let known = |t: &str| vectorcraft_text::OtFeatures::known_tag(t) && !t.strip_prefix(['-', '+']).unwrap_or(t).starts_with(['-', '+']);
+    let known = |t: &str| pluma_text::OtFeatures::known_tag(t) && !t.strip_prefix(['-', '+']).unwrap_or(t).starts_with(['-', '+']);
     match features.iter().find(|t| !known(t) && !kept.contains(&t.as_str())) {
         Some(t) => Err(bad(c, format!("unknown OpenType feature `{t}`"))),
         None => Ok(()),
@@ -616,11 +616,11 @@ fn new_style_attrs(s: &Session, kind: Kind) -> Map<String, Value> {
     }
     let (set, default) = match kind {
         Kind::Char => {
-            let st = CharStyle { char_align: vectorcraft_doc::CharAlign::EmBoxCenter, ..CharStyle::default() };
+            let st = CharStyle { char_align: pluma_doc::CharAlign::EmBoxCenter, ..CharStyle::default() };
             (to_attrs(&st), to_attrs(&CharStyle::default()))
         }
         Kind::Para => {
-            let st = ParaStyle { leading_model: vectorcraft_doc::LeadingModel::EmBoxTop, ..ParaStyle::default() };
+            let st = ParaStyle { leading_model: pluma_doc::LeadingModel::EmBoxTop, ..ParaStyle::default() };
             (to_attrs(&st), to_attrs(&ParaStyle::default()))
         }
     };
@@ -712,13 +712,13 @@ fn apply(s: &mut Session, p: &Value, kind: Kind) -> Result<Value> {
             let Some(t) = text_mut(d, *id) else { continue };
             match kind {
                 Kind::Char => {
-                    let len = vectorcraft_text::edit::runs_len(&t.runs);
+                    let len = pluma_text::edit::runs_len(&t.runs);
                     let (a, b) = match (range, text_range) {
                         (Some(_), Some(r)) => r.bytes(t),
                         _ => (0, len),
                     };
                     let mut err = None;
-                    vectorcraft_text::edit::style_range(&mut t.runs, a.min(b), a.max(b), |st| match char_fn(st) {
+                    pluma_text::edit::style_range(&mut t.runs, a.min(b), a.max(b), |st| match char_fn(st) {
                         Ok(n) => *st = n,
                         Err(e) => err = Some(e),
                     });
@@ -955,7 +955,7 @@ fn load(s: &mut Session, p: &Value, kinds: &[Kind]) -> Result<Value> {
     let bytes = match (path, str_param(p, "data"), str_param(p, "dataBase64")) {
         (Some(path), ..) => super::fileio::read_file(path)?,
         (None, Some(text), _) => text.as_bytes().to_vec(),
-        (None, None, Some(b64)) => vectorcraft_format::base64_decode(b64).ok_or_else(|| bad(c, "bad dataBase64"))?,
+        (None, None, Some(b64)) => pluma_format::base64_decode(b64).ok_or_else(|| bad(c, "bad dataBase64"))?,
         _ => return Err(bad(c, "give `path`, `data` or `dataBase64`")),
     };
     let file = str_param(p, "name").or(path).unwrap_or("Styles");

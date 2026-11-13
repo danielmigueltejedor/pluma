@@ -2,8 +2,8 @@
 //! Info), naming and kinds, Swatch Options edits reaching linked art, deleting, new swatches in
 //! groups and colour groups made from artwork.
 
+use pluma_color::{Color, Paint};
 use serde_json::{Value, json};
-use vectorcraft_color::{Color, Paint};
 
 use crate::*;
 
@@ -21,7 +21,7 @@ fn rect(s: &mut Session) -> NodeId {
     NodeId(run(s, "shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10}))["id"].as_u64().unwrap())
 }
 
-fn doc(s: &Session) -> &vectorcraft_doc::Document {
+fn doc(s: &Session) -> &pluma_doc::Document {
     &s.doc().unwrap().doc
 }
 
@@ -48,7 +48,7 @@ fn document_color_mode_converts_grouped_swatches() {
 }
 
 /// The first solid fill color in the subtree of `n`.
-fn first_fill(n: &vectorcraft_doc::Node) -> Color {
+fn first_fill(n: &pluma_doc::Node) -> Color {
     let mut out = None;
     n.walk(&mut |m| {
         if out.is_none() {
@@ -62,8 +62,8 @@ fn first_fill(n: &vectorcraft_doc::Node) -> Color {
 /// the fill of graphic style "Red" and the fill of the art of `masked`'s opacity mask.
 fn colors_outside_the_layers(s: &Session, masked: NodeId) -> Vec<Color> {
     let d = doc(s);
-    let brush = vectorcraft_brush::find(d, "Holder").unwrap();
-    let vectorcraft_brush::Colorization::HueShift { key } = brush.kind.colorization() else { panic!("not Hue Shift") };
+    let brush = pluma_brush::find(d, "Holder").unwrap();
+    let pluma_brush::Colorization::HueShift { key } = brush.kind.colorization() else { panic!("not Hue Shift") };
     vec![
         first_fill(&d.graph_designs.iter().find(|g| g.name == "Bar").unwrap().art),
         first_fill(brush.art()[0]),
@@ -132,8 +132,8 @@ fn document_color_mode_keeps_a_hue_shift_key_on_its_tinted_art() {
     run(&mut s, "brush.new", json!({"type": "art", "name": "Holder", "params": {"colorization": {"method": "hueShift"}}}));
     run(&mut s, "edit.clear", json!({"ids": [id.0]}));
     let key_and_art = |s: &Session| {
-        let brush = vectorcraft_brush::find(doc(s), "Holder").unwrap();
-        let vectorcraft_brush::Colorization::HueShift { key } = brush.kind.colorization() else { panic!("not Hue Shift") };
+        let brush = pluma_brush::find(doc(s), "Holder").unwrap();
+        let pluma_brush::Colorization::HueShift { key } = brush.kind.colorization() else { panic!("not Hue Shift") };
         (key, first_fill(brush.art()[0]))
     };
     let (key, art) = key_and_art(&s);
@@ -163,7 +163,7 @@ fn document_color_mode_counts_the_colors_of_the_art_only() {
         run(&mut s, "paint.setFill", json!({"color": "#ff0000", "ids": [id.0]}));
         let r = run(&mut s, "file.documentColorMode", json!({"mode": "cmyk"}));
         if library {
-            let brush = vectorcraft_brush::find(doc(&s), "Holder").unwrap();
+            let brush = pluma_brush::find(doc(&s), "Holder").unwrap();
             assert!(matches!(first_fill(brush.art()[0]), Color::Cmyk { .. }));
         }
         r["changed"].as_u64().unwrap()
@@ -194,8 +194,8 @@ fn document_color_mode_converts_the_tile_that_pattern_cancel_puts_back() {
 
 /// The `color` stored in each effect of `a` (the object's, then each fill's and stroke's) that has
 /// one, read as a color, and the `lightColor` of each effect that has one.
-fn effect_colors(a: &vectorcraft_doc::Appearance) -> (Vec<Color>, Vec<Value>) {
-    let effects: Vec<&vectorcraft_doc::Effect> = a.effects.iter().chain(a.items.iter().flat_map(|i| i.effects())).collect();
+fn effect_colors(a: &pluma_doc::Appearance) -> (Vec<Color>, Vec<Value>) {
+    let effects: Vec<&pluma_doc::Effect> = a.effects.iter().chain(a.items.iter().flat_map(|i| i.effects())).collect();
     let colors = effects
         .iter()
         .filter_map(|e| e.params.get("color"))
@@ -273,12 +273,12 @@ fn document_color_mode_converts_the_paints_a_graph_keeps() {
     let id = NodeId(
         run(&mut s, "graph.create", json!({"type": "column", "x": 10, "y": 10, "width": 60, "height": 40, "csv": csv}))["id"].as_u64().unwrap(),
     );
-    let part = |s: &Session, name: &str| -> vectorcraft_doc::Node {
+    let part = |s: &Session, name: &str| -> pluma_doc::Node {
         let g = doc(s).node(id).unwrap();
         g.children().unwrap().iter().find(|c| c.name.as_deref() == Some(name)).map(|c| (**c).clone()).unwrap_or_else(|| panic!("no {name}"))
     };
     let series = part(&s, "2024").id;
-    let label = part(&s, "Axes").children().unwrap().iter().find(|c| matches!(c.kind, vectorcraft_doc::NodeKind::Text(_))).unwrap().id;
+    let label = part(&s, "Axes").children().unwrap().iter().find(|c| matches!(c.kind, pluma_doc::NodeKind::Text(_))).unwrap().id;
     for target in [series, label] {
         run(&mut s, "paint.setFill", json!({"color": "#ff0000", "ids": [target.0]}));
     }
@@ -315,7 +315,7 @@ fn document_color_mode_converts_the_colors_new_art_takes() {
     run(&mut s, "paint.setStroke", json!({"color": "#0000ff"}));
     let old = rect(&mut s);
     run(&mut s, "file.documentColorMode", json!({"mode": "cmyk"}));
-    let paints = |a: &vectorcraft_doc::Appearance| (a.fill_paint().color(), a.stroke().and_then(|st| st.paint.color()));
+    let paints = |a: &pluma_doc::Appearance| (a.fill_paint().color(), a.stroke().and_then(|st| st.paint.color()));
     let converted = paints(&doc(&s).node(old).unwrap().appearance);
     assert!(matches!(converted, (Some(Color::Cmyk { .. }), Some(Color::Cmyk { .. }))), "{converted:?}");
     assert_eq!(paints(&s.new_art()), converted);
@@ -360,7 +360,7 @@ fn color_mode_undo_restores_original_new_art_colors_and_redo_reapplies_them() {
         assert_ne!(before.fill, after.fill);
         run(&mut s, "edit.undo", json!({}));
         assert_eq!(s.paint, before, "batch {batch}: exact original values");
-        assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+        assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
         run(&mut s, "edit.redo", json!({}));
         assert_eq!(s.paint, after, "batch {batch}");
         let id = rect(&mut s);
@@ -510,12 +510,12 @@ fn color_mode_restores_paints_when_conversion_changes_none(batch: bool, convert:
     }
     let after = s.paint.clone();
     assert_ne!(after.fill, before.fill);
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     run(&mut s, "edit.undo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before, "batch {batch}: undo restores the group's starting paints");
     run(&mut s, "edit.redo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert_eq!(s.paint, after, "batch {batch}: redo restores the group's final paints");
 }
 
@@ -549,10 +549,10 @@ fn color_mode_ungrouped_skips_unchanged_paint_snapshot() {
     assert_eq!(s.paint, before);
     assert!(s.doc().unwrap().history.undo.last().unwrap().color_mode_paints.is_none());
     run(&mut s, "edit.undo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     run(&mut s, "edit.redo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert_eq!(s.paint, before);
 }
 
@@ -572,7 +572,7 @@ fn a_failed_batch_keeps_the_paints_of_a_settled_color_mode_preview() {
     s.preview("file.documentColorMode", &json!({"mode": "cmyk"})).unwrap();
     let r = s.execute("command.batch", &json!({"commands": [{"command": "no.such.command", "params": {}}]}));
     assert!(r.is_err());
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert_eq!(s.paint, converted);
 }
 
@@ -585,7 +585,7 @@ fn canceling_a_batch_preview_restores_the_document_and_paints() {
     s.begin_interaction("Batch Preview").unwrap();
     s.preview("command.batch", &json!({"commands": [{"command": "file.documentColorMode", "params": {"mode": "cmyk"}}]})).unwrap();
     s.cancel_interaction().unwrap();
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     assert_eq!(s.doc().unwrap().history.undo.len(), depth);
     assert_eq!(s.journal.len(), journal);
@@ -603,14 +603,14 @@ fn accepting_a_batch_preview_restores_new_art_paints_on_undo_and_redo() {
     s.commit_interaction().unwrap();
     let after = s.paint.clone();
     assert_ne!(after.fill, before.fill);
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert_eq!(s.doc().unwrap().history.undo.len(), depth + 1);
     assert_eq!(s.journal.len(), journal + 1);
     run(&mut s, "edit.undo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     run(&mut s, "edit.redo", json!({}));
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Cmyk);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Cmyk);
     assert_eq!(s.paint, after);
 }
 
@@ -631,7 +631,7 @@ fn batch_preview_with_later_paint_restores_or_keeps_the_final_paint() {
     s.begin_interaction("Batch Preview").unwrap();
     s.preview("command.batch", &commands).unwrap();
     s.cancel_interaction().unwrap();
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     assert_eq!(s.doc().unwrap().history.undo.len(), depth);
     assert_eq!(s.journal.len(), journal);
@@ -672,7 +672,7 @@ fn failed_batch_preview_leaves_no_document_paint_or_journal_change() {
         ]}),
     );
     assert!(result.is_err());
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     s.cancel_interaction().unwrap();
     assert_eq!(s.doc().unwrap().history.undo.len(), depth);
@@ -719,7 +719,7 @@ fn batch_preview_that_switches_documents_rolls_back_every_step() {
     assert!(result.is_err());
     assert_eq!(s.docs.len(), docs);
     assert_eq!(s.active, active);
-    assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+    assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
     assert_eq!(s.paint, before);
     s.cancel_interaction().unwrap();
     assert_eq!(s.journal.len(), journal);
@@ -731,7 +731,7 @@ fn color_mode_undo_restores_template_paints_and_effect_colors() {
     run(&mut s, "paint.setFill", json!({"color": "#ab6739"}));
     run(&mut s, "paint.setStroke", json!({"color": "#123456"}));
     let mut appearance = s.new_art();
-    appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: json!({"color":"#d37a42"}), visible: true });
+    appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params: json!({"color":"#d37a42"}), visible: true });
     s.paint.appearance = Some(appearance);
     let before = s.paint.clone();
     run(&mut s, "file.documentColorMode", json!({"mode": "cmyk"}));
@@ -780,7 +780,7 @@ fn color_mode_preview_session(selected: bool) -> Session {
     run(&mut s, "paint.setFill", json!({"color": "#808080"}));
     run(&mut s, "paint.setStroke", json!({"color": "#123456"}));
     let mut appearance = s.new_art();
-    appearance.effects.push(vectorcraft_doc::Effect { id: "stylize.dropShadow".into(), params: json!({"color":"#d37a42"}), visible: true });
+    appearance.effects.push(pluma_doc::Effect { id: "stylize.dropShadow".into(), params: json!({"color":"#d37a42"}), visible: true });
     s.paint.appearance = Some(appearance);
     s
 }
@@ -808,11 +808,11 @@ fn color_mode_preview_commit_converts_new_art_once_and_keeps_exact_history() {
         let e = s.doc().unwrap().history.undo.last().unwrap();
         assert_eq!(e.color_mode_paints, Some((before.clone(), after.clone())));
         let history_bytes = e.bytes;
-        assert!(history_bytes >= 2 * std::mem::size_of::<vectorcraft_tools::PaintDefaults>());
+        assert!(history_bytes >= 2 * std::mem::size_of::<pluma_tools::PaintDefaults>());
         for _ in 0..3 {
             run(&mut s, "edit.undo", json!({}));
             assert_eq!(s.paint, before);
-            assert_eq!(doc(&s).color_mode, vectorcraft_doc::ColorMode::Rgb);
+            assert_eq!(doc(&s).color_mode, pluma_doc::ColorMode::Rgb);
             assert_eq!(s.doc().unwrap().history.redo.last().unwrap().color_mode_paints, Some((before.clone(), after.clone())));
             run(&mut s, "edit.redo", json!({}));
             assert_eq!(s.paint, after);
@@ -890,8 +890,7 @@ fn grouped_spot_swatches_print_on_their_own_plate() {
     assert!(plates["plates"].as_array().unwrap().iter().any(|p| p["name"] == "Signal Orange" && p["spot"] == true), "{plates}");
     let a = rect(&mut s);
     run(&mut s, "paint.setFill", json!({"ids": [a.0], "swatch": "Signal Orange"}));
-    let bytes =
-        vectorcraft_pdf::export(doc(&s), &vectorcraft_pdf::PdfOptions { created: Some(0), ..vectorcraft_pdf::PdfOptions::uncompressed() }).unwrap();
+    let bytes = pluma_pdf::export(doc(&s), &pluma_pdf::PdfOptions { created: Some(0), ..pluma_pdf::PdfOptions::uncompressed() }).unwrap();
     let pdf = String::from_utf8_lossy(&bytes);
     assert!(pdf.contains("/Separation") && pdf.contains("Signal#20Orange"), "a grouped spot swatch is a Separation");
     let info = run(&mut s, "document.info", json!({}));
@@ -982,7 +981,7 @@ fn editing_a_global_swatch_recolours_linked_art_in_one_step() {
     assert_eq!(fill_of(&s, a), linked("#ff0000", "Brand"));
     assert_eq!(fill_of(&s, b), Paint::solid(Color::from_hex("#2a6fb0").unwrap()), "unlinked art keeps its colour");
     let text_fill = |s: &Session| match &doc(s).node(t).unwrap().kind {
-        vectorcraft_doc::NodeKind::Text(tx) => tx.runs[0].style.fill.clone(),
+        pluma_doc::NodeKind::Text(tx) => tx.runs[0].style.fill.clone(),
         _ => panic!("type"),
     };
     assert_eq!(text_fill(&s), linked("#ff0000", "Brand"), "text runs follow the swatch");
@@ -1219,7 +1218,7 @@ fn global_swatch_edits_reach_opacity_mask_art() {
 
 #[test]
 fn color_mode_converts_freeform_defaults_templates_and_stored_graph_paints() {
-    use vectorcraft_color::{Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint};
+    use pluma_color::{Freeform, FreeformPoint, Gradient, GradientKind, GradientPaint};
     let mut s = session();
     let id = NodeId(
         run(
@@ -1243,7 +1242,7 @@ fn color_mode_converts_freeform_defaults_templates_and_stored_graph_paints() {
     let paint = Paint::Gradient(Box::new(gradient));
     s.edit("Stored graph paint", |d, _| {
         d.node_mut(id).unwrap().extras_mut().graph.as_mut().unwrap().series_paints =
-            vec![vectorcraft_doc::SeriesPaint { fill: Some(paint.clone()), stroke: Some(paint.clone()), ..Default::default() }];
+            vec![pluma_doc::SeriesPaint { fill: Some(paint.clone()), stroke: Some(paint.clone()), ..Default::default() }];
         Ok(())
     })
     .unwrap();
@@ -1297,7 +1296,7 @@ fn color_mode_converts_freeform_defaults_templates_and_stored_graph_paints() {
 fn fills_outside_the_layers(s: &Session) -> Vec<String> {
     let d = doc(s);
     let mut out = vec![];
-    let mut tree = |place: &str, n: &vectorcraft_doc::Node| {
+    let mut tree = |place: &str, n: &pluma_doc::Node| {
         n.walk(&mut |m| {
             if let Paint::Solid { color, swatch, .. } = m.appearance.fill_paint() {
                 out.push(format!("{place}: {}, {}", color.to_hex(), swatch.as_deref().unwrap_or("-")));
@@ -1305,7 +1304,7 @@ fn fills_outside_the_layers(s: &Session) -> Vec<String> {
         })
     };
     tree("design", &d.graph_designs.iter().find(|g| g.name == "Bar").unwrap().art);
-    vectorcraft_brush::find(d, "Holder").unwrap().art().into_iter().for_each(|n| tree("brush art", n));
+    pluma_brush::find(d, "Holder").unwrap().art().into_iter().for_each(|n| tree("brush art", n));
     out
 }
 
@@ -1367,12 +1366,12 @@ fn global_swatch_edits_keep_unreadable_brush_entries() {
     run(&mut s, "brush.new", json!({"type": "art", "name": "Holder", "ids": [id.0]}));
     let junk = json!({"name": "Unreadable", "kind": 7});
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
-    let Some(Value::Array(entries)) = doc.unknown.get_mut(vectorcraft_brush::DOC_KEY) else { panic!("no stored brushes") };
+    let Some(Value::Array(entries)) = doc.unknown.get_mut(pluma_brush::DOC_KEY) else { panic!("no stored brushes") };
     entries.push(junk.clone());
     run(&mut s, "swatch.edit", json!({"name": "Tone", "color": "#0000ff"}));
-    let stored = &s.doc().unwrap().doc.unknown[vectorcraft_brush::DOC_KEY];
+    let stored = &s.doc().unwrap().doc.unknown[pluma_brush::DOC_KEY];
     assert!(stored.as_array().is_some_and(|a| a.contains(&junk)), "{stored}");
-    assert!(vectorcraft_brush::find(&s.doc().unwrap().doc, "Holder").is_some());
+    assert!(pluma_brush::find(&s.doc().unwrap().doc, "Holder").is_some());
 }
 
 /// A global swatch edit that recolors brush art keeps the fields of stored brush entries that the
@@ -1407,31 +1406,31 @@ fn global_swatch_edits_keep_unread_brush_fields() {
     run(&mut s, "paint.setFill", json!({"swatch": "Tone", "ids": [id.0]}));
     run(&mut s, "brush.new", json!({"type": "art", "name": "Holder", "ids": [id.0]}));
     let doc = std::sync::Arc::make_mut(&mut s.doc_mut().unwrap().doc);
-    let Some(Value::Array(entries)) = doc.unknown.get_mut(vectorcraft_brush::DOC_KEY) else { panic!("no stored brushes") };
+    let Some(Value::Array(entries)) = doc.unknown.get_mut(pluma_brush::DOC_KEY) else { panic!("no stored brushes") };
     for e in entries.iter_mut() {
         if let Some(o) = e.as_object_mut() {
             o.insert("extra".into(), json!(7));
         }
         tag_links(e);
     }
-    let links = tagged(&doc.unknown[vectorcraft_brush::DOC_KEY]).len();
-    assert!(links > 0, "{}", doc.unknown[vectorcraft_brush::DOC_KEY]);
+    let links = tagged(&doc.unknown[pluma_brush::DOC_KEY]).len();
+    assert!(links > 0, "{}", doc.unknown[pluma_brush::DOC_KEY]);
     run(&mut s, "swatch.edit", json!({"name": "Tone", "color": "#0000ff"}));
-    let stored = &s.doc().unwrap().doc.unknown[vectorcraft_brush::DOC_KEY];
+    let stored = &s.doc().unwrap().doc.unknown[pluma_brush::DOC_KEY];
     let entries = stored.as_array().map(Vec::as_slice).unwrap_or_default();
     assert!(entries.len() > 1, "{stored}");
     assert!(entries.iter().all(|e| e["extra"] == json!(7)), "{stored}");
     assert_eq!(tagged(stored).len(), links, "{stored}");
-    let holder = vectorcraft_brush::find(&s.doc().unwrap().doc, "Holder").unwrap();
+    let holder = pluma_brush::find(&s.doc().unwrap().doc, "Holder").unwrap();
     let fill = holder.art().first().map(|n| n.appearance.fill_paint().color().map(|c| c.to_hex()));
     assert_eq!(fill, Some(Some("#0000ff".to_string())));
 
     run(&mut s, "swatch.delete", json!({"name": "Tone"}));
-    let stored = &s.doc().unwrap().doc.unknown[vectorcraft_brush::DOC_KEY];
+    let stored = &s.doc().unwrap().doc.unknown[pluma_brush::DOC_KEY];
     let unlinked = tagged(stored);
     assert_eq!(unlinked.len(), links, "{stored}");
     assert!(unlinked.iter().all(|o| o.get("swatch").is_none()), "{stored}");
-    let holder = vectorcraft_brush::find(&s.doc().unwrap().doc, "Holder").unwrap();
+    let holder = pluma_brush::find(&s.doc().unwrap().doc, "Holder").unwrap();
     let fill = holder.art().first().map(|n| n.appearance.fill_paint().color().map(|c| c.to_hex()));
     assert_eq!(fill, Some(Some("#0000ff".to_string())));
 }

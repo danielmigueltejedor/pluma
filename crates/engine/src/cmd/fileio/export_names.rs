@@ -4,18 +4,18 @@ use super::{Encoded, EngineError, Result, Session, Value, json};
 /// File-name parts for artboards `boards` of `doc`: the artboard's name with unsafe characters as
 /// `-`, `Artboard-N` when unnamed, and `-2`, `-3`… after a name already used (compared without
 /// case: `Icon` and `icon` are one file on most desktop file systems).
-pub fn artboard_file_names(doc: &vectorcraft_doc::Document, boards: &[usize]) -> Vec<String> {
+pub fn artboard_file_names(doc: &pluma_doc::Document, boards: &[usize]) -> Vec<String> {
     unique_file_names(artboard_names(doc, boards))
 }
 
 /// [`artboard_file_names`] with the dots of a name kept (`example.artboard`), for Export for Screens,
 /// which puts every stem through `safe_file_name` after this (trailing periods, device names).
-pub(crate) fn artboard_file_names_keeping_dots(doc: &vectorcraft_doc::Document, boards: &[usize]) -> Vec<String> {
+pub(crate) fn artboard_file_names_keeping_dots(doc: &pluma_doc::Document, boards: &[usize]) -> Vec<String> {
     unique_file_names_keeping_dots(artboard_names(doc, boards))
 }
 
 /// Each of `boards`' name, with the file name to use when it has none.
-fn artboard_names<'a>(doc: &'a vectorcraft_doc::Document, boards: &'a [usize]) -> impl Iterator<Item = (&'a str, String)> {
+fn artboard_names<'a>(doc: &'a pluma_doc::Document, boards: &'a [usize]) -> impl Iterator<Item = (&'a str, String)> {
     boards.iter().map(|&b| (doc.artboards.get(b).map_or("", |a| a.name.as_str()), format!("Artboard-{}", b + 1)))
 }
 
@@ -74,12 +74,12 @@ pub(super) fn distinct_names_by(names: impl IntoIterator<Item = String>, key: im
 /// Write an export's files for the destination `path` → `{path, bytes, files?, linked?, …extra}`
 /// (`files`: every file when there are several; `linked`: the images it links to); with no path
 /// → the same with `dataBase64` and `{name, dataBase64}` rows, named after `name`.
-pub(super) fn write_encoded(path: Option<&str>, name: &str, doc: &vectorcraft_doc::Document, enc: &Encoded, extra: Value) -> Result<Value> {
+pub(super) fn write_encoded(path: Option<&str>, name: &str, doc: &pluma_doc::Document, enc: &Encoded, extra: Value) -> Result<Value> {
     let files = enc.named(doc, path.unwrap_or(name));
     let (main, linked) = files.split_at(enc.files.len());
     let row = |(name, bytes): &(String, std::borrow::Cow<[u8]>)| match path {
         Some(_) => json!(name),
-        None => json!({ "name": name, "dataBase64": vectorcraft_format::base64_encode(bytes) }),
+        None => json!({ "name": name, "dataBase64": pluma_format::base64_encode(bytes) }),
     };
     if path.is_some() {
         for (p, bytes) in &files {
@@ -89,7 +89,7 @@ pub(super) fn write_encoded(path: Option<&str>, name: &str, doc: &vectorcraft_do
     let Some((first, bytes)) = main.first() else { return Err(EngineError::Other("the export wrote no file".into())) };
     let mut out = match path {
         Some(_) => json!({ "path": first, "bytes": bytes.len() }),
-        None => json!({ "dataBase64": vectorcraft_format::base64_encode(bytes), "bytes": bytes.len() }),
+        None => json!({ "dataBase64": pluma_format::base64_encode(bytes), "bytes": bytes.len() }),
     };
     if main.len() > 1 {
         out["files"] = main.iter().map(row).collect();
@@ -115,7 +115,7 @@ pub(crate) fn with_black_output(s: &Session, p: &Value) -> Value {
 }
 
 /// A file name for bytes handed back without a path: the document's title with `ext`.
-pub(crate) fn default_name(doc: &vectorcraft_doc::Document, ext: &str) -> String {
+pub(crate) fn default_name(doc: &pluma_doc::Document, ext: &str) -> String {
     let stem = std::path::Path::new(&doc.title).file_stem().map(|s| s.to_string_lossy().into_owned()).filter(|s| !s.is_empty());
     format!("{}.{ext}", stem.as_deref().unwrap_or("Untitled"))
 }
@@ -127,7 +127,7 @@ pub(crate) fn write_or_return(path: Option<&str>, bytes: &[u8], extra: Value) ->
             write_file(path, bytes)?;
             json!({ "path": path, "bytes": bytes.len() })
         }
-        None => json!({ "dataBase64": vectorcraft_format::base64_encode(bytes), "bytes": bytes.len() }),
+        None => json!({ "dataBase64": pluma_format::base64_encode(bytes), "bytes": bytes.len() }),
     };
     Ok(merge(out, extra))
 }
