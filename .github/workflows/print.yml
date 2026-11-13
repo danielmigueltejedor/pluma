@@ -21,13 +21,11 @@ jobs:
   # Desktop printing on Windows, through the suite's shared gate. Pull requests restore the cache
   # but never save one; a manual run on main saves the cache they restore.
   windows:
-    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
-    uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
+    uses: getnodalia/foundation/.github/workflows/rust-gate.yml@976581262c95c0d95c0184149c0e1ba55485ccb3 # foundation main
     with:
       os: '["windows-2022"]'
       timeout-minutes: 90
       # As before: printing builds and tests without craft-fonts, nextest or the wasm target.
-      craft-fonts-ref: ""
       tools: ""
       targets: ""
       # A filter that matches nothing still passes, so the printps run fails unless some test ran.

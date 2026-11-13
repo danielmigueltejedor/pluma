@@ -25,9 +25,14 @@ permissions:
 
 jobs:
   freebsd:
-    # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
-    uses: storytold/craft-common-actions/.github/workflows/freebsd.yml@main
+    uses: getnodalia/foundation/.github/workflows/freebsd.yml@976581262c95c0d95c0184149c0e1ba55485ccb3 # foundation main
     with:
-      require-craft-fonts: true
-      craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
-      run-package-check: true
+      fonts-repository: getnodalia/foundation
+      fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      # Build and test, then the release package and its tarball.
+      command: >-
+        cargo build --workspace --all-targets --locked &&
+        cargo test --workspace --locked &&
+        CARGO_BUILD_JOBS=4 bash packaging/freebsd/package.sh &&
+        ls dist/release/*-freebsd-x86_64.tar.gz &&
+        for a in dist/release/*-freebsd-x86_64.tar.gz; do tar -tzf "$a" > /dev/null; done
