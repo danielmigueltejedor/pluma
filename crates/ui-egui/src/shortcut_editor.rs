@@ -18,7 +18,9 @@ use serde_json::{Value, json};
 use crate::keymap::{command_of, effective_with, entry_key, entry_of_stored, keymap_with, stored, vc_chord, vc_format};
 
 use crate::state::{Dialog, UiState};
-use crate::theme::{self, Tokens};
+#[cfg(test)]
+use crate::theme;
+use crate::theme::Tokens;
 use crate::{PlumaApp, menus, widgets};
 
 pub const PRESETS: &[&str] = &["Pluma Defaults", "Classic Defaults"];
