@@ -94,7 +94,7 @@ pub(crate) fn combo_named<R>(
     egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, t.input_border))
-        .corner_radius(CornerRadius::same(3))
+        .corner_radius(t.field_radius())
         .show(ui, |ui| {
             let button_id = combo_button_id(ui, &id);
             let enter_for_combo = ui.memory(|m| m.has_focus(button_id)) || craft_ui::ComboBox::is_open(ui.ctx(), button_id);
@@ -152,7 +152,7 @@ pub(crate) fn combo_menu_field<R>(
     egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, t.input_border))
-        .corner_radius(CornerRadius::same(3))
+        .corner_radius(t.field_radius())
         .show(ui, |ui| {
             let armed = take_armed_focus(ui, &id);
             let resp = combo_field(ui, id_with(ui.scope_id(), id), label, None, current, width - 4.0);

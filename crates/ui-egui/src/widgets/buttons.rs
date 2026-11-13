@@ -214,3 +214,28 @@ pub fn menu_item_name(ui: &mut Ui, label: &str, enabled: bool, checked: bool) ->
     let text = if checked { format!("✓ {label}") } else { format!("   {label}") };
     ui.add_enabled(enabled, egui::Button::new(egui::RichText::new(text).size(12.5)).frame_when_inactive(false)).clicked()
 }
+
+/// One tab of a small in-dialog tab row (Keyboard Shortcuts' Tools / Menu Commands). In Nodalia
+/// Design the selected tab is a grey pill in the strong text colour, like the selected
+/// Preferences category; elsewhere it is egui's selectable label.
+pub fn segment_tab(ui: &mut Ui, selected: bool, text: &str) -> Response {
+    let t = Tokens::get(ui.ctx());
+    let font = theme::semibold(12.5);
+    if !t.nodalia {
+        return ui.selectable_label(selected, egui::RichText::new(text).font(font));
+    }
+    let galley = ui.painter().layout_no_wrap(text.to_owned(), font, if selected { t.text_strong } else { t.text_dim });
+    let size = vec2(galley.size().x + 20.0, 26.0);
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, text));
+    let fill = if selected {
+        t.hover
+    } else if resp.hovered() {
+        t.hover.gamma_multiply(0.5)
+    } else {
+        Color32::TRANSPARENT
+    };
+    ui.painter().rect_filled(rect, CornerRadius::same(t.radius), fill);
+    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, t.text);
+    resp
+}
