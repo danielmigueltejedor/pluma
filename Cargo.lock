@@ -3375,7 +3375,7 @@ dependencies = [
 [[package]]
 name = "nodalia-update"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/danielmigueltejedor/nodalia-design?rev=3b2f529f10dd549b9fcbc15794419c26ba8460ab#3b2f529f10dd549b9fcbc15794419c26ba8460ab"
+source = "git+https://github.com/danielmigueltejedor/nodalia-design?rev=ed8c8829a3dad688e17ce00ca1e15416bc7ba16e#ed8c8829a3dad688e17ce00ca1e15416bc7ba16e"
 dependencies = [
  "egui",
  "serde_json",

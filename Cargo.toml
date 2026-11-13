@@ -23,7 +23,7 @@ craft-window = { git = "https://github.com/getnodalia/foundation", rev = "9be9a6
 # The `.vectorcraft` envelope: its members, version, embedded images and the data after the JSON.
 craft-vectorcraft-format = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # In-app updates from this app's GitHub releases, with the update windows for egui.
-nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "3b2f529f10dd549b9fcbc15794419c26ba8460ab", features = ["egui"] }
+nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "ed8c8829a3dad688e17ce00ca1e15416bc7ba16e", features = ["egui"] }
 # internal
 vectorcraft-geom = { path = "crates/geom" }
 vectorcraft-color = { path = "crates/color" }
