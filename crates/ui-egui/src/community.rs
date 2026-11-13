@@ -1,5 +1,5 @@
 //! Project links (About, Home): Pluma's page on the Nodalia website and its source code.
-//! Icons are Lucide's (ISC).
+//! Icons are Nodalia Design's.
 
 use egui::Ui;
 
