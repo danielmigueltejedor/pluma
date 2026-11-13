@@ -217,6 +217,19 @@ fn opening_fit_follows(app: &PlumaApp, ui: &Ui, rect: egui::Rect, fitted: bool) 
     (following, settling)
 }
 
+/// The Home screen in place of the canvas and the panels, which it hides as Lienzo's does: what
+/// the canvas keeps from one frame to the next is dropped, as on a frame that shows no document.
+pub(crate) fn home_screen(app: &mut PlumaApp, ui: &mut Ui) {
+    app.canvas.hidden_chars = Default::default();
+    app.canvas.selection_marks = Default::default();
+    app.ime_caret_rect = None;
+    if !ui.input(|i| i.pointer.any_down()) {
+        app.ui.trace_hold_source = None;
+    }
+    let rect = ui.available_rect_before_wrap();
+    home(app, ui, rect);
+}
+
 /// Paint the document canvas, complete or cached artwork, navigation and tool overlays.
 pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());

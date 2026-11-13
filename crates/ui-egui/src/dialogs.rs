@@ -654,6 +654,10 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     about::show(app, ctx);
     settle(app);
     confirm::show_waiting(app);
+    // The close disc of a dialog's title band, clicked on the last pass: as Escape.
+    if modal::take_close_clicked(ctx) && app.ui.dialog.is_some() {
+        cancel(app);
+    }
     // The kind of dialog shown last frame: a different one (or none) means this one just opened, and
     // its first field is to take the keyboard focus (`focus_id`, until a field takes it).
     let (shown_id, focus_id) = (egui::Id::unique("dialog-shown"), egui::Id::unique("dialog-focus-pending"));

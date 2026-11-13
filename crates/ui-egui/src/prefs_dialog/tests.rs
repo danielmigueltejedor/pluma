@@ -535,11 +535,14 @@ fn the_category_shown_is_highlighted() {
     out.textures_delta.clear();
     let mut shown = vec![];
     out.shapes.iter().for_each(|c| rects(&c.shape, &mut shown));
-    // The list's rows, top to bottom: only the fourth (Units) is filled.
-    let rows: Vec<_> = shown.iter().filter(|(r, _)| r.width() == 184.0 && r.height() < 30.0).collect();
-    assert_eq!(rows.len(), PREF_CATEGORIES.len(), "{shown:?}");
-    let filled: Vec<usize> = rows.iter().enumerate().filter(|(_, (_, c))| c.a() > 0).map(|(i, _)| i).collect();
-    assert_eq!(filled, vec![3], "{rows:?}");
+    // One row of the list is filled: Units', the fourth (the rows are 26 tall, one apart).
+    let filled: Vec<_> = shown.iter().filter(|(r, c)| r.width() == 184.0 && r.height() < 30.0 && c.a() > 0).collect();
+    assert_eq!(filled.len(), 1, "{shown:?}");
+    let list_top = shown.iter().filter(|(r, _)| r.width() > 190.0 && r.width() < 220.0 && r.height() > 300.0).map(|(r, _)| r.top()).next();
+    if let Some(top) = list_top {
+        let row = ((filled[0].0.top() - top - 6.0) / 27.0).round();
+        assert_eq!(row, 3.0, "the fourth row (Units): {filled:?} in a list at {top}");
+    }
 }
 
 /// One frame of the Preferences dialog with `events`, keys first as the app takes them.

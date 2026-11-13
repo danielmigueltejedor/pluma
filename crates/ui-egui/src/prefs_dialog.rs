@@ -366,10 +366,7 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
                             return;
                         }
                         for c in PREF_CATEGORIES {
-                            let sel = *c == cat;
-                            let text = egui::RichText::new(tl!(*c)).size(12.5).color(if sel { t.text_strong } else { t.text });
-                            let b = egui::Button::selectable(sel, text).min_size(egui::vec2(184.0, 24.0));
-                            if ui.add(b).clicked() {
+                            if category_row(ui, tl!(*c), *c == cat).clicked() {
                                 d.fields.insert("__category".into(), json!(c));
                             }
                         }
@@ -431,6 +428,34 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
     } else if ok && let Err(e) = confirm(app) {
         app.status(e);
     }
+}
+
+/// One row of the category list: lit while it is the category shown, inverted in Nodalia as the
+/// Home screen's rail marks its row, an accent tint elsewhere.
+fn category_row(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(184.0, 26.0), egui::Sense::click());
+    let radius = egui::CornerRadius::same(if t.nodalia { t.radius } else { 3 });
+    let ink = match (selected, t.nodalia) {
+        (true, true) => {
+            ui.painter().rect_filled(rect, radius, t.text);
+            t.panel
+        }
+        (true, false) => {
+            ui.painter().rect_filled(rect, radius, t.accent.gamma_multiply(0.35));
+            t.text_strong
+        }
+        (false, _) => {
+            if resp.hovered() {
+                ui.painter().rect_filled(rect, radius, t.hover);
+            }
+            t.text
+        }
+    };
+    let font = if selected { theme::semibold(12.5) } else { egui::FontId::proportional(12.5) };
+    ui.painter().text(egui::pos2(rect.left() + 8.0, rect.center().y), egui::Align2::LEFT_CENTER, label, font, ink);
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, label));
+    resp
 }
 
 fn category_fields(ui: &mut egui::Ui, app: &mut PlumaApp, d: &mut Dialog, cat: &str) {

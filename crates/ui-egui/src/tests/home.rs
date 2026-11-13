@@ -255,8 +255,8 @@ fn visible_home_texts(app: &mut PlumaApp, ctx: &egui::Context, (w, h): (f32, f32
     texts
 }
 
-/// Home scrolls when it is taller than the window: in a short window the Community section and
-/// the last preset card are below the fold, the wheel brings them into view, and a card scrolled
+/// Home's right column scrolls when it is taller than the window: in a short window the last
+/// preset card is below the fold, the wheel brings them into view, and a card scrolled
 /// into view still opens its preset.
 #[test]
 fn home_scrolls_in_a_short_window() {
@@ -268,8 +268,9 @@ fn home_scrolls_in_a_short_window() {
     let size = (800.0, 300.0);
     let has = |texts: &[(String, egui::Rect)], s: &str| texts.iter().any(|(t, _)| t == s);
     let texts = visible_home_texts(&mut app, &ctx, size, 0.0, vec![]);
-    assert!(has(&texts, "Welcome to Pluma"), "{texts:?}");
-    assert!(!has(&texts, "Community"), "below the fold at first");
+    let last_card = |texts: &[(String, egui::Rect)]| texts.iter().any(|(t, _)| t.starts_with("Social Square Post"));
+    assert!(has(&texts, "Pluma"), "{texts:?}");
+    assert!(!last_card(&texts), "below the fold at first");
     let at = egui::pos2(400.0, 150.0);
     let wheel = egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
@@ -283,8 +284,9 @@ fn home_scrolls_in_a_short_window() {
     for i in 2..40 {
         texts = visible_home_texts(&mut app, &ctx, size, f64::from(i) * 0.1, vec![]);
     }
-    assert!(has(&texts, "Community"), "the wheel reaches the bottom: {texts:?}");
-    assert!(!has(&texts, "Welcome to Pluma"), "the top scrolled away");
+    assert!(last_card(&texts), "the wheel reaches the bottom: {texts:?}");
+    assert!(!has(&texts, "Pluma"), "the top scrolled away");
+    assert!(has(&texts, "New file"), "the rail stays where it is");
     // The last preset card, scrolled into view, still takes a click.
     let card = texts.iter().find(|(t, _)| t.starts_with("Social Square Post")).map(|(_, r)| r.center()).unwrap();
     let press = |pressed| egui::Event::PointerButton { pos: card, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -454,28 +456,74 @@ fn text_centre_x(app: &mut PlumaApp, text: &str) -> Option<(f32, f32)> {
     Some((x, screen.center().x))
 }
 
-/// The Home screen centres its welcome, its New / Open buttons and its community block, as
-/// Lienzo's does (#4684).
+/// The Home screen has two columns, as Lienzo's: a rail on the left with New file, Open…, Home and
+/// the project's links, and the app's name with the presets to its right.
 #[test]
-fn home_welcome_and_community_are_centred() {
+fn home_is_a_rail_and_a_column_as_lienzos() {
     let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
-    for text in ["Welcome to Pluma", "Community", "Pluma Website", "Source code on GitHub"] {
-        let (x, centre) = text_centre_x(&mut app, text).unwrap_or_else(|| panic!("{text} is drawn"));
-        assert!((x - centre).abs() < 6.0, "{text} is centred: {x} vs {centre}");
+    let x = |app: &mut PlumaApp, text: &str| text_centre_x(app, text).unwrap_or_else(|| panic!("{text} is drawn")).0;
+    let column = x(&mut app, "Quickly start a new file");
+    for rail in ["New file", "Open…", "Home", "Pluma Website", "Source code on GitHub"] {
+        let at = x(&mut app, rail);
+        assert!(at < 260.0 && at < column, "{rail} is on the left rail: {at} vs the column at {column}");
     }
-    // The two buttons (a label's width plus 32, at least 72, each) lie symmetrically about the
-    // centre: the first one's left edge and the second one's right edge are equally far from it.
-    let width = |label: &str| {
-        let ctx = egui::Context::default();
-        crate::theme::install_fonts(&ctx);
-        let mut w = 0.0;
-        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| w = crate::widgets::button_width(ui, label));
-        out.textures_delta.clear();
-        w
+    assert!(x(&mut app, "Pluma") > 260.0, "the app's name heads the right column");
+    assert!(text_centre_x(&mut app, "Welcome to Pluma").is_none(), "no centred welcome any more");
+}
+
+/// Home's row in the rail goes back to the open documents; with none open there is nothing to go
+/// back to and Home stays.
+#[test]
+fn the_home_row_goes_back_to_the_documents() {
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let mut app = app_with_doc();
+    app.run("app.home", json!({})).unwrap();
+    let texts = home_texts(&mut app, &ctx, vec![]);
+    let home = texts.iter().find(|(t, _)| t == "Home").map(|(_, r)| r.center()).expect("the Home row");
+    let button = |pressed| egui::Event::PointerButton { pos: home, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    for e in [egui::Event::PointerMoved(home), button(true), button(false)] {
+        home_texts(&mut app, &ctx, vec![e]);
+    }
+    assert!(app.ui.home.is_none(), "back to the document");
+}
+
+/// Home hides the tools, the bars and the panels, as Lienzo's does: over an open document it is
+/// the only thing under the app bar, and the document's window comes back with them.
+#[test]
+fn home_hides_the_tools_bars_and_panels() {
+    crate::i18n::set_current(crate::i18n::Lang::EN);
+    let mut app = app_with_doc();
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    let texts = |app: &mut PlumaApp| {
+        fn walk(s: &egui::Shape, out: &mut Vec<String>) {
+            match s {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),
+                _ => {}
+            }
+        }
+        let mut all = vec![];
+        for _ in 0..2 {
+            let raw =
+                egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1400.0, 900.0))), ..Default::default() };
+            let mut out = ctx.run_ui(raw, |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            });
+            out.textures_delta.clear();
+            all.clear();
+            out.shapes.iter().for_each(|c| walk(&c.shape, &mut all));
+        }
+        all
     };
-    let (new_x, centre) = text_centre_x(&mut app, "New file").unwrap();
-    let (open_x, _) = text_centre_x(&mut app, "Open").unwrap();
-    let left = new_x - width("New file") / 2.0;
-    let right = open_x + width("Open") / 2.0;
-    assert!((centre - left - (right - centre)).abs() < 6.0, "New / Open row is centred: {left}..{right} about {centre}");
+    let document = texts(&mut app);
+    assert!(document.iter().any(|t| t == "Properties"), "the panels show with the document: {document:?}");
+    app.run("app.home", json!({})).unwrap();
+    let home = texts(&mut app);
+    assert!(home.iter().any(|t| t == "Quickly start a new file"), "{home:?}");
+    for gone in ["Properties", "Layers", "Selection"] {
+        assert!(!home.iter().any(|t| t == gone), "Home hides {gone}: {home:?}");
+    }
 }

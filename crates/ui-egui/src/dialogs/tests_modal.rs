@@ -847,3 +847,39 @@ fn offset_path_takes_a_decimal_comma() {
     let offset = app.ui.dialog.as_ref().unwrap().f64("offset", 0.0);
     assert!((offset - mm).abs() < 1e-9, "reopened on 0.1 mm: {offset} pt");
 }
+
+/// In Nodalia a dialog's heading carries the round close disc of the window controls, and a click
+/// on it closes the dialog as Cancel does (Preferences and Keyboard Shortcuts).
+#[test]
+fn the_close_disc_of_a_dialog_heading_cancels_it() {
+    for command in ["edit.preferences", "edit.keyboardShortcuts"] {
+        let ctx = ctx();
+        theme::apply_with(&ctx, Default::default(), Default::default(), theme::Scheme::Nodalia);
+        ctx.enable_accesskit();
+        let mut app = PlumaApp::new(Session::new(), crate::Services::default());
+        crate::menus::invoke(&mut app, command, json!({}));
+        assert!(app.ui.dialog.is_some(), "{command} opens its dialog");
+        let mut close = || {
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| show(&mut app, ui.ctx()));
+            out.textures_delta.clear();
+            out
+        };
+        // The window measures itself on the first passes it shows, and then settles.
+        for _ in 0..4 {
+            let _ = close();
+        }
+        let out = close();
+        let nodes: Vec<_> = out.platform_output.accesskit_update.map(|u| u.nodes.into_iter().map(|(_, n)| n).collect()).unwrap_or_default();
+        let disc = nodes
+            .iter()
+            .filter(|n| n.label() == Some("Close"))
+            .find_map(|n| n.bounds())
+            .map(|b| Pos2::new(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32))
+            .unwrap_or_else(|| panic!("{command}: its heading has a close disc"));
+        for events in [vec![Event::PointerMoved(disc)], vec![button(disc, true)], vec![button(disc, false)], vec![]] {
+            frame(&ctx, &mut app, events);
+        }
+        assert!(app.ui.dialog.is_none(), "{command}: the close disc closed it");
+    }
+}

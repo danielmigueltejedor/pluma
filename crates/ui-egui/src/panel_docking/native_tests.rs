@@ -321,6 +321,8 @@ fn a_floated_panel_opens_its_own_os_window_where_the_backend_has_viewports() {
     // Embedded viewports (the web) draw it in the app window.
     let ctx = egui::Context::default();
     let mut app = PlumaApp::new(Session::new(), Default::default());
+    // With a document, as the harness has: with none, Home fills the window instead of the panels.
+    app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.run("window.panel.float", json!({"panel": "swatches", "x": 200, "y": 200})).unwrap();
     for _ in 0..3 {
         let input = egui::RawInput { screen_rect: Some(SCREEN), ..Default::default() };

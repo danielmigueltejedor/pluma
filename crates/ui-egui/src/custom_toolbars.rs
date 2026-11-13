@@ -1217,6 +1217,8 @@ mod tests {
     fn a_tall_toolbar_scrolls_inside_the_window() {
         let mut app = app();
         let ctx = egui::Context::default();
+        // Toolbars show over a document: with none, Home fills the window instead.
+        app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("window.toolbar.new", json!({"name": "Tall"})).unwrap();
         for tool in pluma_tools::TOOL_GROUPS.iter().flat_map(|g| g.iter()).take(30) {
             app.run("toolbar.addTool", json!({"tool": tool.id, "toolbar": "Tall"})).unwrap();
