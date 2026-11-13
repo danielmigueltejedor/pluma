@@ -33,7 +33,7 @@
 //! The document has a version of its own (`document.version`, [`pluma_doc::FORMAT_VERSION`]),
 //! which readers do not check. A version 2 document's Twist effects turn clockwise for a positive
 //! angle. A version 1 document's Twist angles are negated when it opens, unless the file is of
-//! [`VERSION`] and its `generator` is Pluma 0.21.0 or later, which turned them clockwise
+//! [`VERSION`] and its `generator` is Pluma, or 0.21.0 or later of the app it grew from, which turned them clockwise
 //! already; [`save_with`] writes a version 1 document with them negated back for an older file
 //! version ([`pluma_doc::twist`]).
 #![forbid(unsafe_code)]
@@ -533,7 +533,7 @@ fn load_file_within(bytes: &[u8], max_nodes: usize, max_values: usize) -> Result
     })?;
     let pdf_compatible = pdf_member(file.json()).map_err(|e| FormatError::NotPluma(e.to_string()))?;
     let info = FileInfo { version: f.version, legacy: f.format == LEGACY_EXTENSION, pdf_compatible };
-    // A version 1 document saved before Pluma 0.21.0, or for an app before it (an older file
+    // A version 1 document saved before 0.21.0 of the app Pluma grew from, or for an app before it (an older file
     // version): its Twist angles turned the other way. The app that wrote it is read from the JSON
     // before the data after it is taken; the walk's depth is bounded by the JSON reader's nesting
     // limit.
@@ -1097,9 +1097,9 @@ mod tests {
         assert!(why.contains("more than 100 values before its type"), "{why}");
     }
 
-    /// A version 1 document written before Pluma 0.21.0 (or by an app the file does not
-    /// name) has its Twist angles negated when it opens; one written by 0.21.0 or later, and a
-    /// later document, keep them. Each opens as the current version. A save for an older file
+    /// A version 1 document written before 0.21.0 of the app Pluma grew from (or by an app the
+    /// file does not name) has its Twist angles negated when it opens; one written by Pluma or by
+    /// 0.21.0 or later, and a later document, keep them. Each opens as the current version. A save for an older file
     /// version negates them back.
     #[test]
     fn twist_angles_follow_the_document_version_and_generator() {
@@ -1131,22 +1131,24 @@ mod tests {
             let d = load(&serde_json::to_vec(&v).unwrap()).unwrap();
             (d.version, angle(&d))
         };
-        for g in [Some("Pluma 0.20.0"), Some("Pluma 0.9.12"), Some("DrawCraft 0.1.0"), Some("Pluma"), None] {
+        let earlier = ["VectorCraft 0.20.0", "VectorCraft 0.9.12"]; // rebrand: keep
+        for g in earlier.into_iter().chain(["DrawCraft 0.1.0", "Pluma"]).map(Some).chain([None]) {
             assert_eq!(opened(g), (now, Some(-30.0)), "{g:?}");
         }
-        for g in ["Pluma 0.21.0", "Pluma 0.21.3", "Pluma 1.0.0"] {
+        let clockwise = ["VectorCraft 0.21.0", "VectorCraft 0.21.3", "VectorCraft 1.0.0"]; // rebrand: keep
+        for g in ["Pluma 0.1.0"].into_iter().chain(clockwise) {
             assert_eq!(opened(Some(g)), (now, Some(30.0)), "{g}");
         }
         // A file may repeat `generator`: the first one names the app.
         let mut v: serde_json::Value = serde_json::from_slice(&current).unwrap();
         v["document"]["version"] = 1.into();
-        v["generator"] = "Pluma 0.21.0".into();
+        v["generator"] = "VectorCraft 0.21.0".into(); // rebrand: keep
         let text = serde_json::to_string(&v).unwrap();
-        let first = r#""generator":"Pluma 0.21.0""#;
+        let first = r#""generator":"VectorCraft 0.21.0""#; // rebrand: keep
         let twice = text.replacen(first, &format!(r#"{first},"generator":"DrawCraft 0.1.0""#), 1);
         assert_ne!(twice, text);
         assert_eq!(angle(&load(twice.as_bytes()).unwrap()), Some(30.0));
-        v["generator"] = "Pluma 0.20.0".into();
+        v["generator"] = "VectorCraft 0.20.0".into(); // rebrand: keep
         let old = load(&serde_json::to_vec(&v).unwrap()).unwrap();
         let again = load(&save(&old, false)).unwrap();
         assert_eq!((again.version, angle(&again)), (now, Some(-30.0)), "saved again, it is the current version");

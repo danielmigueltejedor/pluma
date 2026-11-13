@@ -342,6 +342,8 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `docs/images/shot-2-ribbons.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/ribbons.pluma` | MIT OR Apache-2.0 |  |
 | `docs/images/shot-3-sheet.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/feature-sheet.pluma` | MIT OR Apache-2.0 |  |
 | `docs/images/shot-4-bezier.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/feature-sheet.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/ui-dark.png` | Pluma contributors | Screenshot of Pluma itself in the Nodalia dark theme, editing `examples/neon-drive.pluma` | MIT OR Apache-2.0 |  |
+| `docs/images/ui-light.png` | Pluma contributors | Screenshot of Pluma itself in the Nodalia light theme, editing `examples/neon-drive.pluma` | MIT OR Apache-2.0 |  |
 | `docs/images/shot-5-perspective.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/perspective-city.pluma` | MIT OR Apache-2.0 |  |
 | `docs/images/shot-6-revolve.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/still-life.pluma` | MIT OR Apache-2.0 |  |
 | `docs/images/shot-7-dimensions.png` | VectorCraft contributors | Screenshot of Pluma itself, editing `examples/bracket-drawing.pluma` | MIT OR Apache-2.0 |  |

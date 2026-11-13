@@ -175,11 +175,12 @@ fn a_version_1_style_library_has_its_twist_angles_negated() {
 }
 
 #[test]
-fn releases_from_0_21_turned_twist_clockwise() {
-    for g in ["Pluma 0.21.0", "Pluma 0.21.4", "Pluma 0.22.0-dev", "Pluma 1.0.0"] {
+fn every_pluma_release_and_older_releases_from_0_21_turned_twist_clockwise() {
+    let older = |v: &str| format!("{}{v}", super::LEGACY_GENERATOR);
+    for g in ["Pluma 0.1.0", "Pluma 0.2.0-dev", "Pluma 1.0.0", &older("0.21.0"), &older("0.21.4"), &older("0.22.0-dev"), &older("1.0.0")] {
         assert!(written_clockwise(Some(g)), "{g}");
     }
-    for g in ["Pluma 0.20.0", "Pluma 0.9.12", "DrawCraft 0.1.0", "Pluma", "Pluma x.y", "pluma 0.21.0"] {
+    for g in [&older("0.20.0"), &older("0.9.12"), "DrawCraft 0.1.0", "Pluma", "Pluma x.y", "pluma 0.21.0"] {
         assert!(!written_clockwise(Some(g)), "{g}");
     }
     assert!(!written_clockwise(None));

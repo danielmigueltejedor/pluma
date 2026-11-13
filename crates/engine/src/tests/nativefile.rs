@@ -186,7 +186,7 @@ fn newer_keys_and_legacy_profiles_survive_open_and_save() {
     assert_eq!(v2["document"]["unknown"]["colorProfiles"]["rgb"], "sRGB IEC61966-2.1");
 }
 
-/// A version 1 document saved before Pluma 0.21.0 turned its Twist effects counterclockwise
+/// A version 1 document saved before 0.21.0 of the app Pluma grew from turned its Twist effects counterclockwise
 /// for a positive angle. It opens with the angles negated, so its art turns as it did; saved
 /// again it is a document of the current version, and saved for an older file version it is version 1 again.
 #[test]
@@ -202,7 +202,7 @@ fn a_version_1_documents_twist_turns_as_it_was_saved() {
     d.insert(Some(l), 0, Node::path(id, right.clone(), a)).unwrap();
     let mut j = json_of(&pluma_format::save(&d, false));
     j["document"]["version"] = json!(1);
-    j["generator"] = json!("Pluma 0.20.0");
+    j["generator"] = json!("VectorCraft 0.20.0"); // rebrand: keep
     let mut s = Session::new();
     open(&mut s, "old.pluma", &serde_json::to_vec(&j).unwrap());
     let doc = &s.doc().unwrap().doc;
