@@ -5,3 +5,9 @@ assets/app-icon/**
 apps/*/web/favicon.*
 docs/upstream.md
 docs/upstream-readme.md
+AGENTS.md
+CLAUDE.md
+SECURITY.md
+NODALIA_MIGRATION.md
+.github/workflows/**
+.github/pull_request_template.md

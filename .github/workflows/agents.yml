@@ -1,0 +1,26 @@
+name: AGENTS.md
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - AGENTS.md
+      - CLAUDE.md
+      - .github/workflows/agents.yml
+  pull_request:
+    paths:
+      - AGENTS.md
+      - CLAUDE.md
+      - .github/workflows/agents.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agents-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agents:
+    uses: getnodalia/foundation/.github/workflows/agents-check.yml@57e81c5afd33d40a3810cc742c72fd8111291e9f # foundation main

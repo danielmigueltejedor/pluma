@@ -4,7 +4,7 @@ name: Packaging lint
 
 on:
   push:
-    branches: [main, release]
+    branches: [master, release]
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]
   pull_request:
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]
@@ -19,8 +19,7 @@ concurrency:
 
 jobs:
   lint:
-    # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
-    uses: storytold/craft-common-actions/.github/workflows/packaging-lint.yml@main
+    uses: getnodalia/foundation/.github/workflows/packaging-lint.yml@57e81c5afd33d40a3810cc742c72fd8111291e9f # foundation main
     with:
       extra-checks-script: packaging/check-app-specific.sh
 
