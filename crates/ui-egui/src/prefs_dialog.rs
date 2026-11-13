@@ -437,9 +437,10 @@ fn category_row(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Respons
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(184.0, 26.0), egui::Sense::click());
     let radius = egui::CornerRadius::same(if t.nodalia { t.radius } else { 3 });
     let ink = match (selected, t.nodalia) {
+        // Nodalia: a quiet grey pill, as Lienzo's Preferences.
         (true, true) => {
-            ui.painter().rect_filled(rect, radius, t.text);
-            t.panel
+            ui.painter().rect_filled(rect, radius, t.hover);
+            t.text_strong
         }
         (true, false) => {
             ui.painter().rect_filled(rect, radius, t.accent.gamma_multiply(0.35));
@@ -447,7 +448,7 @@ fn category_row(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Respons
         }
         (false, _) => {
             if resp.hovered() {
-                ui.painter().rect_filled(rect, radius, t.hover);
+                ui.painter().rect_filled(rect, radius, if t.nodalia { t.hover.gamma_multiply(0.5) } else { t.hover });
             }
             t.text
         }

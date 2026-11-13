@@ -145,7 +145,9 @@ pub fn doc_tabs(app: &mut PlumaApp, ui: &mut Ui) {
     let (strip, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
     app.canvas.windows.strip = Some(strip);
     ui.painter().rect_filled(strip, 0.0, t.tab_strip);
-    ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], Stroke::new(1.0, t.border));
+    if !t.nodalia {
+        ui.painter().line_segment([strip.left_bottom(), strip.right_bottom()], Stroke::new(1.0, t.border));
+    }
     // On the Home screen no tab is the current one.
     let shown = crate::doc_windows::tab_window(app).filter(|_| app.ui.home.is_none());
     // The windows under the tabs; `active` is the position of the highlighted one.
@@ -186,12 +188,16 @@ pub fn doc_tabs(app: &mut PlumaApp, ui: &mut Ui) {
         if resp.dragged() || resp.drag_stopped() {
             dragged = Some((i, resp.drag_stopped()));
         }
+        // Nodalia: rounded tabs over the window's colour, with no dividers between them.
+        let (fill_rect, radius) = if t.nodalia { (r.shrink2(vec2(1.0, 3.0)), t.radius) } else { (r, 0) };
         if is_active {
-            ui.painter().rect_filled(r, 0.0, t.panel);
+            ui.painter().rect_filled(fill_rect, radius, t.panel);
         } else if resp.hovered() {
-            ui.painter().rect_filled(r, 0.0, t.hover.gamma_multiply(0.4));
+            ui.painter().rect_filled(fill_rect, radius, t.hover.gamma_multiply(0.4));
         }
-        ui.painter().line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.5, t.border));
+        if !t.nodalia {
+            ui.painter().line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.5, t.border));
+        }
         // The × where each platform puts a tab's: before the title on macOS, after it elsewhere
         // (#673).
         let (x_center, title_left) = if CLOSE_BEFORE_TITLE { (r.left() + 16.0, r.left() + 32.0) } else { (r.right() - 16.0, r.left() + 14.0) };

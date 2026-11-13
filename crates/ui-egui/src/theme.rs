@@ -526,6 +526,11 @@ impl Tokens {
     pub fn cr(&self) -> CornerRadius {
         CornerRadius::same(self.radius)
     }
+
+    /// The corner radius of a text or number field: rounded in Nodalia, as Lienzo's fields.
+    pub fn field_radius(&self) -> CornerRadius {
+        CornerRadius::same(if self.nodalia { self.radius.min(8) } else { 2 })
+    }
 }
 
 /// Pluma's accent in the Nodalia palette.

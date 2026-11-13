@@ -120,18 +120,23 @@ pub(crate) fn primary_button_width(ui: &mut Ui, text: &str, min_width: f32) -> R
 /// Returns its response with the enabled state and screen-reader name preserved.
 fn primary_button_sized(ui: &mut Ui, text: &str, enabled: bool, min_width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
-    let fg = if enabled { Color32::WHITE } else { t.text_disabled };
+    // Nodalia: the dark (light, in dark mode) filled button of Home's New file and Lienzo's OK.
+    let ink = if t.nodalia { t.panel } else { Color32::WHITE };
+    let fg = if enabled { ink } else { t.text_disabled };
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), fg);
     let w = galley.size().x + 32.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), if enabled { Sense::click() } else { Sense::hover() });
-    let bg = match (enabled, resp.hovered()) {
-        (false, _) => t.input,
-        (true, true) => t.accent,
-        (true, false) => t.accent_strong,
+    let bg = match (enabled, resp.hovered(), t.nodalia) {
+        (false, _, _) => t.input,
+        (true, true, true) => t.text.gamma_multiply(0.88),
+        (true, false, true) => t.text,
+        (true, true, false) => t.accent,
+        (true, false, false) => t.accent_strong,
     };
-    ui.painter().rect_filled(rect, CornerRadius::same(6), bg);
+    let radius = CornerRadius::same(if t.nodalia { t.radius } else { 6 });
+    ui.painter().rect_filled(rect, radius, bg);
     if !enabled {
-        ui.painter().rect_stroke(rect, CornerRadius::same(6), egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
+        ui.painter().rect_stroke(rect, radius, egui::Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
     }
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, fg);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled && ui.is_enabled(), tl!(text)));
@@ -149,7 +154,16 @@ pub(crate) fn secondary_button_width(ui: &mut Ui, text: &str, min_width: f32) ->
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), t.text);
     let w = galley.size().x + 32.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), Sense::click());
-    ui.painter().rect_filled(rect, CornerRadius::same(6), if resp.hovered() { t.hover } else { t.button });
+    if t.nodalia {
+        // Nodalia: outlined, as Home's Open… and Lienzo's Cancel.
+        let r = CornerRadius::same(t.radius);
+        if resp.hovered() {
+            ui.painter().rect_filled(rect, r, t.hover);
+        }
+        ui.painter().rect_stroke(rect, r, egui::Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
+    } else {
+        ui.painter().rect_filled(rect, CornerRadius::same(6), if resp.hovered() { t.hover } else { t.button });
+    }
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, t.text);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), tl!(text)));
     resp
