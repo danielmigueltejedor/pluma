@@ -1,9 +1,7 @@
-name: macOS
+name: Release macOS
 
-# Pluma's app and DMG on a standard macOS runner, like the other Nodalia apps. The shared release
-# workflow builds macOS on a larger runner, which a Free organisation never gets, so this is where
-# the macOS build comes from: an artifact on every run, and the release asset when a release is
-# published.
+# Pluma's app and DMG on a standard macOS runner, like the other Nodalia apps. An artifact on every
+# run, and the release asset when release-auto.yml calls it with a tag.
 on:
   push:
     branches: [master]
@@ -15,10 +13,15 @@ on:
       - "packaging/macos/**"
       - "packaging/env.sh"
       - "Cargo.lock"
-      - ".github/workflows/macos.yml"
-  release:
-    types: [published]
+      - ".github/workflows/release-macos.yml"
   workflow_dispatch:
+  # release-auto.yml, once a version with its notes lands on main.
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to attach the DMG to"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -37,7 +40,7 @@ jobs:
       CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
       DIST: ${{ github.workspace }}/dist
       # Releases ship one DMG for both architectures; everything else builds Apple Silicon only.
-      ARCH: ${{ github.event_name == 'release' && 'universal' || 'aarch64' }}
+      ARCH: ${{ inputs.tag && 'universal' || 'aarch64' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,7 +50,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: getnodalia/foundation # kept at vendor/craft-fonts/main
-          # Same commit as release.yml.
+          # Same commit as ci.yml and the other release-*.yml workflows.
           ref: b076417b5880bd4154bd22f00695b1d28c6bea83
           path: craft-fonts
           persist-credentials: false
@@ -114,8 +117,8 @@ jobs:
           retention-days: 14
 
       - name: Attach to the release
-        if: github.event_name == 'release'
+        if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag }}
         run: gh release upload "$TAG" "$DIST"/pluma-*-macos-* --clobber --repo "$GITHUB_REPOSITORY"

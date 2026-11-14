@@ -132,4 +132,4 @@ The sections above are this repository's rules. With them:
 
 ## Release
 
-`release.yml` runs on a push to the `release` branch and drafts the release; a maintainer reviews the draft and publishes it. It still calls the inherited release workflow (see `NODALIA_MIGRATION.md`).
+Merging a version bump with its notes (`docs/release-notes/vX.Y.Z.md`, format in that folder's README) releases it: `release-auto.yml` tags the merge through Foundation's `release-tag`, builds the packages with `release-linux.yml`, `release-macos.yml` (DMG on a standard macOS runner) and `release-windows.yml`, and publishes the release. Nobody pushes a tag by hand.

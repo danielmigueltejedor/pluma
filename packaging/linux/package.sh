@@ -9,7 +9,7 @@
 #
 # Usage: packaging/linux/package.sh [--skip-build] [--formats "appimage deb rpm tar"]
 #
-# Cross-compiling (release.yml's linux-riscv64 job): set CROSS_ARCH (riscv64), CROSS_TARGET (the Rust
+# Cross-compiling (a release workflow's riscv64 job): set CROSS_ARCH (riscv64), CROSS_TARGET (the Rust
 # target), CROSS_COMPILE (the binutils prefix, for strip) and EMULATOR (e.g. qemu-riscv64, to
 # smoke-test the CLI), and pass --formats tar.
 #
