@@ -20,7 +20,7 @@ jobs:
   gate:
     uses: getnodalia/foundation/.github/workflows/rust-gate.yml@976581262c95c0d95c0184149c0e1ba55485ccb3 # foundation main
     with:
-      # Same craft-fonts commit as release.yml.
+      # Same craft-fonts commit as the release-*.yml workflows.
       fonts-repository: getnodalia/foundation
       fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
       timeout-minutes: 90
