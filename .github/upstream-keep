@@ -18,3 +18,4 @@ assets/icons/log-out.svg
 docs/release-notes/**
 .github/CODEOWNERS
 CONTRIBUTING.md
+.github/ISSUE_TEMPLATE/**

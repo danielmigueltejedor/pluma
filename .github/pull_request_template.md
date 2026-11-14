@@ -15,3 +15,7 @@
       ([why and how](https://github.com/getnodalia/pluma/blob/main/docs/development.md#robustness-pluma-never-crashes)).
 - [ ] Clean-room: nothing copied from Adobe products or GPL/AGPL code ([AGENTS.md](https://github.com/getnodalia/pluma/blob/main/AGENTS.md)).
 - [ ] Every new asset has a row in `ASSETS.md`.
+
+## Compatibility and release impact
+
+<!-- Note affected platforms, migrations or distribution changes when applicable. -->
