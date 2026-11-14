@@ -165,6 +165,12 @@ pub fn show(app: &mut PlumaApp, ui: &mut Ui) {
             let docked = panel.resizable(false).show_separator_line(!island).exact_size(w + gap).frame(egui::Frame::NONE).show(ui, |ui| {
                 crate::theme::card(ui, &t, margin, |ui| body(app, ui, cols, None));
             });
+            if island {
+                // The title bar and tools that scroll under the card's edge would square its corners.
+                let mut card = docked.response.rect;
+                card.max.x -= gap;
+                crate::theme::round_island_corners(ui.painter(), &t, card);
+            }
             ui.ctx().data_mut(|d| d.insert_temp(docked_rect_id(), docked.response.rect));
         }
         Some(pos) => {
@@ -218,7 +224,9 @@ fn body(app: &mut PlumaApp, ui: &mut Ui, cols: usize, floating: Option<egui::Pos
     ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
     // Title bar with » and a grip strip: a drag on either floats the panel or moves it.
     let (hdr, hresp) = ui.allocate_exact_size(vec2(ui.available_width(), 14.0), Sense::click_and_drag());
-    ui.painter().rect_filled(hdr, 0.0, t.tab_strip);
+    // Nodalia: the title bar is the card's own top, under its rounded corners.
+    let hdr_fill = if t.nodalia { t.panel } else { t.tab_strip };
+    ui.painter().rect_filled(hdr, 0.0, hdr_fill);
     icons::paint(
         ui,
         if cols == 2 { "chevrons-left" } else { "chevrons-right" },

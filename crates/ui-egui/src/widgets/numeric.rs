@@ -1191,7 +1191,7 @@ pub fn opt_field_named(ui: &mut Ui, id: impl std::hash::Hash, name: Option<&str>
     let framed = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
-        .corner_radius(CornerRadius::same(2))
+        .corner_radius(t.field_radius())
         .inner_margin(egui::Margin::symmetric(4, 4))
         .show(ui, |ui| {
             ui.add(

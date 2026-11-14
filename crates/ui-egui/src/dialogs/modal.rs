@@ -59,7 +59,7 @@ pub(crate) fn heading(ui: &mut egui::Ui, text: &str) {
         // The label starts at the window's inner margin; the disc ends as far from the right edge.
         let right = outer.right() - (r.rect.left() - outer.left()).max(0.0);
         let rect = Rect::from_center_size(egui::pos2(right - CLOSE_SIZE / 2.0, r.rect.center().y), egui::vec2(CLOSE_SIZE, CLOSE_SIZE));
-        if crate::titlebar::ndl_close_button(ui, rect, ui.layer_id().id.with("heading-close")) {
+        if nodalia_theme::creator::close_button(ui, &t.creator(), rect, ui.layer_id().id.with("heading-close")) {
             ui.ctx().data_mut(|d| d.insert_temp(close_clicked_id(), true));
         }
     }

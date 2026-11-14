@@ -64,8 +64,9 @@ fn check_row_named(ui: &mut Ui, text: &str, name: &str, value: Option<bool>, ena
     let t = Tokens::get(ui.ctx());
     let (bx, resp, border) = choice_row(ui, text, enabled);
     let checked = value == Some(true);
-    ui.painter().rect_filled(bx, CornerRadius::same(2), if checked && enabled { t.accent_strong } else { t.input });
-    ui.painter().rect_stroke(bx, CornerRadius::same(2), Stroke::new(1.0, border), StrokeKind::Inside);
+    let r = CornerRadius::same(if t.nodalia { 4 } else { 2 });
+    ui.painter().rect_filled(bx, r, if checked && enabled { t.accent_strong } else { t.input });
+    ui.painter().rect_stroke(bx, r, Stroke::new(1.0, border), StrokeKind::Inside);
     match value {
         Some(true) => {
             let c = if enabled { Color32::WHITE } else { t.text_disabled };

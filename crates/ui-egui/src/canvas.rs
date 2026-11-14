@@ -12,7 +12,7 @@ use serde_json::json;
 use crate::opening;
 use crate::state::View;
 use crate::stylus::StylusFeed;
-use crate::theme::{self, Tokens};
+use crate::theme::Tokens;
 use crate::{CacheKey, PlumaApp, now_ms, widgets};
 
 mod artboards;
@@ -23,6 +23,7 @@ mod drag;
 mod fill;
 mod grid;
 mod home;
+mod home_thumbs;
 mod input;
 mod outline;
 mod overlays;

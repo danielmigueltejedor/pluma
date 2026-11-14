@@ -724,6 +724,9 @@ pub struct UiState {
     /// becoming active, leaves it.
     #[serde(skip)]
     pub home: Option<(Option<u64>, usize)>,
+    /// The Home screen shows Recent Files as a list rather than as cards.
+    #[serde(default)]
+    pub home_recent_list: bool,
     /// The Image Trace objects the canvas draws with the Source Image view while the Image Trace
     /// panel's eye button is held down ([`pluma_render::RenderOptions::trace_source`]).
     #[serde(skip)]
@@ -1107,6 +1110,7 @@ impl Default for UiState {
             rearrange_artboards_spacing: Value::Null,
             dxf_import: Value::Null,
             home: None,
+            home_recent_list: false,
             trace_hold_source: None,
             layers_panel: Default::default(),
             navigator_panel: Default::default(),

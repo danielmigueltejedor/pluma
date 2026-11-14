@@ -18,7 +18,9 @@ use serde_json::{Value, json};
 use crate::keymap::{command_of, effective_with, entry_key, entry_of_stored, keymap_with, stored, vc_chord, vc_format};
 
 use crate::state::{Dialog, UiState};
-use crate::theme::{self, Tokens};
+#[cfg(test)]
+use crate::theme;
+use crate::theme::Tokens;
 use crate::{PlumaApp, menus, widgets};
 
 pub const PRESETS: &[&str] = &["Pluma Defaults", "Classic Defaults"];
@@ -1232,14 +1234,29 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
         ui.horizontal(|ui| {
             let tab = d.str("tab");
             for (id, label) in [("tools", "Tools"), ("menu", "Menu Commands")] {
-                if ui.selectable_label(tab == id, egui::RichText::new(tl!(label)).font(theme::semibold(12.5))).clicked() {
+                if crate::widgets::segment_tab(ui, tab == id, tl!(label)).clicked() {
                     d.fields.insert("tab".into(), json!(id));
                 }
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let mut q = d.str("query");
-                if ui.add(egui::TextEdit::singleline(&mut q).align(egui::Align2::LEFT_CENTER).hint_text(tl!("Search")).desired_width(200.0)).changed()
-                {
+                let changed = egui::Frame::NONE
+                    .fill(t.input)
+                    .stroke(egui::Stroke::new(1.0, t.input_border))
+                    .corner_radius(t.field_radius())
+                    .inner_margin(egui::Margin::symmetric(8, 4))
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut q)
+                                .frame(egui::Frame::NONE)
+                                .align(egui::Align2::LEFT_CENTER)
+                                .hint_text(tl!("Search"))
+                                .desired_width(200.0),
+                        )
+                        .changed()
+                    })
+                    .inner;
+                if changed {
                     d.fields.insert("query".into(), json!(q));
                 }
             });
@@ -1250,56 +1267,61 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
         let selected = d.str("__selected");
         let rec = d.str("__recording");
         let scroll_to = d.fields.remove("__scrollTo").and_then(|v| v.as_str().map(str::to_string));
-        egui::Frame::NONE.fill(t.input).stroke(egui::Stroke::new(1.0, t.input_border)).inner_margin(egui::Margin::same(4)).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.allocate_ui_with_layout(egui::vec2(360.0, 16.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                    ui.set_min_width(360.0);
-                    ui.label(egui::RichText::new(if tools { tl!("Tool") } else { tl!("Command") }).color(t.text_dim).size(11.0));
-                });
-                ui.label(egui::RichText::new(tl!("Shortcut")).color(t.text_dim).size(11.0));
-            });
-            egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, false]).show(ui, |ui| {
-                for (i, e) in view.entries.iter().enumerate().filter(|(_, e)| e.is_tool == tools && listed(km.overrides(), e)) {
-                    let sc = match &km {
-                        Cow::Borrowed(_) => view.texts.get(i).cloned().flatten(),
-                        Cow::Owned(km) => dialog_shortcuts_with(km, &e.key, view.backtick.as_deref()),
-                    };
-                    let matches = e.label.to_lowercase().contains(&q)
-                        || shown_label(e).to_lowercase().contains(&q)
-                        || e.group.to_lowercase().contains(&q)
-                        || shown_group(&e.group).to_lowercase().contains(&q)
-                        || sc.as_deref().is_some_and(|s| s.to_lowercase().contains(&q));
-                    if !q.is_empty() && !matches {
-                        continue;
-                    }
-                    let row = ui.horizontal(|ui| {
-                        let name = shown_name(e);
-                        let r = ui
-                            .allocate_ui_with_layout(egui::vec2(360.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                ui.set_min_width(360.0);
-                                ui.add(egui::Button::selectable(selected == e.key, egui::RichText::new(name).color(t.text)).truncate())
-                            })
-                            .inner;
-                        if r.clicked() {
-                            d.fields.insert("__selected".into(), json!(e.key));
-                        }
-                        let label = if rec == e.key { tl!("Press keys…").to_string() } else { sc.unwrap_or_else(|| "—".into()) };
-                        let changed = crate::keymap::has_override(&saved, &e.key);
-                        let txt = egui::RichText::new(label).color(if changed { t.accent } else { t.text });
-                        let b = ui
-                            .add_sized([150.0, 20.0], egui::Button::new(txt).selected(rec == e.key))
-                            .on_hover_text(tl!("Click, then press the new shortcut (Esc cancels)"));
-                        if b.clicked() {
-                            d.fields.insert("__recording".into(), json!(e.key));
-                            d.fields.insert("__selected".into(), json!(e.key));
-                        }
+        egui::Frame::NONE
+            .fill(t.input)
+            .stroke(egui::Stroke::new(1.0, t.input_border))
+            .corner_radius(t.field_radius())
+            .inner_margin(egui::Margin::same(4))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.allocate_ui_with_layout(egui::vec2(360.0, 16.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(360.0);
+                        ui.label(egui::RichText::new(if tools { tl!("Tool") } else { tl!("Command") }).color(t.text_dim).size(11.0));
                     });
-                    if scroll_to.as_deref() == Some(e.key.as_str()) {
-                        row.response.scroll_to_me(Some(egui::Align::Center));
+                    ui.label(egui::RichText::new(tl!("Shortcut")).color(t.text_dim).size(11.0));
+                });
+                egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, false]).show(ui, |ui| {
+                    for (i, e) in view.entries.iter().enumerate().filter(|(_, e)| e.is_tool == tools && listed(km.overrides(), e)) {
+                        let sc = match &km {
+                            Cow::Borrowed(_) => view.texts.get(i).cloned().flatten(),
+                            Cow::Owned(km) => dialog_shortcuts_with(km, &e.key, view.backtick.as_deref()),
+                        };
+                        let matches = e.label.to_lowercase().contains(&q)
+                            || shown_label(e).to_lowercase().contains(&q)
+                            || e.group.to_lowercase().contains(&q)
+                            || shown_group(&e.group).to_lowercase().contains(&q)
+                            || sc.as_deref().is_some_and(|s| s.to_lowercase().contains(&q));
+                        if !q.is_empty() && !matches {
+                            continue;
+                        }
+                        let row = ui.horizontal(|ui| {
+                            let name = shown_name(e);
+                            let r = ui
+                                .allocate_ui_with_layout(egui::vec2(360.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    ui.set_min_width(360.0);
+                                    ui.add(egui::Button::selectable(selected == e.key, egui::RichText::new(name).color(t.text)).truncate())
+                                })
+                                .inner;
+                            if r.clicked() {
+                                d.fields.insert("__selected".into(), json!(e.key));
+                            }
+                            let label = if rec == e.key { tl!("Press keys…").to_string() } else { sc.unwrap_or_else(|| "—".into()) };
+                            let changed = crate::keymap::has_override(&saved, &e.key);
+                            let txt = egui::RichText::new(label).color(if changed { t.accent } else { t.text });
+                            let b = ui
+                                .add_sized([150.0, 20.0], egui::Button::new(txt).selected(rec == e.key))
+                                .on_hover_text(tl!("Click, then press the new shortcut (Esc cancels)"));
+                            if b.clicked() {
+                                d.fields.insert("__recording".into(), json!(e.key));
+                                d.fields.insert("__selected".into(), json!(e.key));
+                            }
+                        });
+                        if scroll_to.as_deref() == Some(e.key.as_str()) {
+                            row.response.scroll_to_me(Some(egui::Align::Center));
+                        }
                     }
-                }
+                });
             });
-        });
         ui.add_space(6.0);
         // Selected-row actions + message.
         ui.horizontal(|ui| {

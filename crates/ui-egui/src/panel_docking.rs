@@ -1171,11 +1171,28 @@ pub(crate) fn show(app: &mut PlumaApp, ui: &mut egui::Ui) {
     if let Some(panel) = app.dock_rt.raise.take() {
         dock = dock.raise_panel(panel);
     }
-    let mut content = PanelContent { app: &mut *app, layout: &layout, islands: Vec::new() };
+    let mut content = PanelContent {
+        app: &mut *app,
+        layout: &layout,
+        islands: Vec::new(),
+        column_bar: style.column_bar_height,
+        bars: Vec::new(),
+        rtl: style.right_to_left,
+    };
     let mut output = dock.show_content(ui, &layout, &style, &mut content);
     let t = crate::theme::Tokens::get(&ctx);
     for rect in std::mem::take(&mut content.islands) {
         crate::theme::round_island_corners(ui.painter(), &t, rect);
+    }
+    if t.nodalia {
+        // The tab strips are the island's colour, which craft-ui gives the column bars too: put
+        // the bars back on the window's colour, with their » or «.
+        let hover = ctx.pointer_hover_pos();
+        for (bar, button, glyph) in std::mem::take(&mut content.bars) {
+            ui.painter().rect_filled(bar, 0.0, t.app_bar);
+            let ink = if hover.is_some_and(|p| button.contains(p)) { style.text } else { style.inactive_text };
+            ui.painter().with_clip_rect(button).text(button.center(), egui::Align2::CENTER_CENTER, glyph, style.font.clone(), ink);
+        }
     }
     app.dock_rt.space = craft_ui::docking::float_space(&ctx, area);
     if let Some(panel) = output.focused.take() {
@@ -1318,6 +1335,10 @@ fn dock_style(ui: &egui::Ui) -> craft_ui::docking::DockStyle {
         // Islands: the canvas and every dock column stand apart on the window colour.
         style.gap = crate::theme::ISLAND_GAP;
         style.dock_gap = Some(crate::theme::ISLAND_GAP);
+        // The tabs sit on the island itself, as Lienzo's: the shown one in strong text, the rest
+        // dimmed, with no grey strip squaring the island's top corners.
+        style.tab_background = t.panel;
+        style.active_background = t.panel;
     }
     // New docks at the docked area's free sides but no full-height column from the window's left
     // or right edge; a drop on no target (the canvas) floats.
@@ -1352,27 +1373,57 @@ pub(crate) fn floating_size(panel: &str) -> egui::Vec2 {
     }
 }
 
+/// The width of a column bar's »/« button (craft-ui's).
+const COLLAPSE_WIDTH: f32 = 18.0;
+
 /// The panels' content, labels and icons.
 struct PanelContent<'a> {
     app: &'a mut PlumaApp,
     layout: &'a Layout<String>,
     /// The canvas's and the docked columns' rects this pass, whose corners Nodalia rounds.
     islands: Vec<egui::Rect>,
+    /// The height of the collapse bar (« ») over each column, which sits on the window's backdrop.
+    column_bar: f32,
+    /// Each column's collapse bar, its »/« button and the glyph on it, redrawn on the backdrop.
+    bars: Vec<(egui::Rect, egui::Rect, &'static str)>,
+    /// Whether the dock lays out right to left.
+    rtl: bool,
 }
 
 impl craft_ui::docking::DockContent<String> for PanelContent<'_> {
     /// Draw a registered panel body, fitting untouched flyouts and pinning sized panels' footers.
-    fn column_rect(&mut self, _ctx: &egui::Context, _column: &craft_ui::docking::Column<String>, rect: egui::Rect, _side: craft_ui::docking::Side) {
-        self.islands.push(rect);
+    fn column_rect(&mut self, _ctx: &egui::Context, column: &craft_ui::docking::Column<String>, rect: egui::Rect, side: craft_ui::docking::Side) {
+        // The island is the column under its collapse bar: rounded at the bar, its corners hid.
+        let mut island = rect;
+        island.min.y = (island.min.y + self.column_bar).min(island.max.y);
+        self.islands.push(island);
+        // The bar and its button at the column's outer end, as craft-ui lays them out.
+        let bar = egui::Rect::from_min_max(rect.min, egui::pos2(rect.right(), island.min.y));
+        let left = (side == craft_ui::docking::Side::Start) != self.rtl;
+        let w = COLLAPSE_WIDTH.min(bar.width());
+        let button = if left {
+            egui::Rect::from_min_max(bar.min, egui::pos2(bar.left() + w, bar.bottom()))
+        } else {
+            egui::Rect::from_min_max(egui::pos2(bar.right() - w, bar.top()), bar.max)
+        };
+        // The arrows point where the column goes: towards the window's edge when it collapses.
+        let glyph = if left != column.iconic { "«" } else { "»" };
+        self.bars.push((bar, button, glyph));
     }
 
     fn body(&mut self, ui: &mut egui::Ui, id: &String) {
         if id == CANVAS {
-            if ui.ctx().viewport_id() == egui::ViewportId::ROOT {
-                self.islands.push(ui.max_rect());
-            }
+            let mut island = ui.max_rect();
             crate::toolbar::show_beside_canvas(self.app, ui);
             self.app.canvas_area(ui);
+            if ui.ctx().viewport_id() == egui::ViewportId::ROOT {
+                // The document tabs sit on the window's colour over the canvas: the island is the
+                // canvas under them.
+                if let Some(strip) = self.app.canvas.windows.strip.filter(|s| (s.top() - island.top()).abs() < 1.0) {
+                    island.min.y = strip.bottom().min(island.max.y);
+                }
+                self.islands.push(island);
+            }
             return;
         }
         let floating = ui.ctx().viewport_id() != egui::ViewportId::ROOT;

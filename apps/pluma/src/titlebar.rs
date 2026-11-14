@@ -116,18 +116,15 @@ pub(crate) fn system_title_bar_applies(opted_into_system: bool, from_env: bool) 
 /// to one of those values ([`system_title_bar_applies`]).
 ///
 /// macOS and Windows keep today's behavior and are decided by [`CUSTOM_TITLEBAR`] rather than the
-/// probe: `craft-window` returns `Frame::Desktop` for both (the OS always draws a frame), but
-/// Pluma insets its content under the macOS traffic lights and draws its own caption buttons
-/// on Windows — an overdraw on an OS-decorated window that is Pluma's choice, not
-/// `craft-window`'s. Only Linux and the BSDs take the decision from the probe.
+/// probe: `craft-window` returns `Frame::Desktop` for both, and Nodalia Design keeps the native
+/// window controls there. Only Linux and the BSDs take the decision from the probe.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) fn custom_titlebar_from(frame: &craft_window::Frame, opted_into_system: bool) -> bool {
     matches!(frame, craft_window::Frame::App(_)) && !opted_into_system
 }
 
 /// macOS and Windows: today's behavior, independent of the `craft-window` probe (see
-/// [`custom_titlebar_from`]). macOS never draws its own frame (`CUSTOM_TITLEBAR` is `false`);
-/// Windows draws its own caption unless the user opted into the system title bar.
+/// [`custom_titlebar_from`]). Neither draws its own frame (`CUSTOM_TITLEBAR` is `false`).
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) fn custom_titlebar_from(_frame: &craft_window::Frame, opted_into_system: bool) -> bool {
     CUSTOM_TITLEBAR && !opted_into_system

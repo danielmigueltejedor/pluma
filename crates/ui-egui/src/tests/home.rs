@@ -166,21 +166,23 @@ fn home_texts(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>)
 }
 
 /// The Home screen lists the first recent files (#663), each by name and folder; a click opens it,
-/// and one that can't be opened says so. With none, there is no Recent Files section.
+/// and one that can't be opened says so. With none, the drop zone stands in their place.
 #[test]
 fn home_lists_recent_files_and_a_click_opens_one() {
     let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     crate::theme::install_fonts(&ctx);
     let has = |texts: &[(String, egui::Rect)], s: &str| texts.iter().any(|(t, _)| t == s);
-    assert!(!has(&home_texts(&mut app, &ctx, vec![]), "Recent Files"), "none: no section");
+    let drop = "Drop an SVG, PDF or Pluma file anywhere to open it.";
+    let texts = home_texts(&mut app, &ctx, vec![]);
+    assert!(texts.iter().any(|(t, _)| t.replace('\n', " ") == drop), "none: the drop zone {texts:?}");
     let dir = std::env::temp_dir().join("pluma-home-recent");
     let missing = dir.join("Gone.svg").to_string_lossy().into_owned();
-    app.ui.recent_files = (0..9).map(|i| dir.join(format!("Drawing {i}.svg")).to_string_lossy().into_owned()).collect();
+    app.ui.recent_files = (0..12).map(|i| dir.join(format!("Drawing {i}.svg")).to_string_lossy().into_owned()).collect();
     app.ui.recent_files.insert(0, missing);
     let texts = home_texts(&mut app, &ctx, vec![]);
-    assert!(has(&texts, "Recent Files") && has(&texts, "Gone.svg") && has(&texts, "Drawing 4.svg"), "{texts:?}");
-    assert!(!has(&texts, "Drawing 5.svg"), "the first six only");
+    assert!(has(&texts, "Recent Files") && has(&texts, "Gone.svg") && has(&texts, "Drawing 9.svg"), "{texts:?}");
+    assert!(!has(&texts, "Drawing 10.svg"), "the first eleven only");
     assert!(has(&texts, &dir.to_string_lossy()), "with its folder");
     let at = texts.iter().find(|(t, _)| t == "Gone.svg").map(|(_, r)| r.center()).unwrap();
     let press = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -188,6 +190,24 @@ fn home_lists_recent_files_and_a_click_opens_one() {
     home_texts(&mut app, &ctx, vec![press(false)]);
     assert!(app.session.documents().is_empty());
     assert!(!app.ui.status.is_empty(), "a file that can't be opened says so");
+}
+
+/// The switch beside Recent Files shows them as a list, and the choice is kept.
+#[test]
+fn recent_files_switch_between_cards_and_a_list() {
+    let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    app.ui.recent_files = vec![std::env::temp_dir().join("pluma-home-switch").join("A.svg").to_string_lossy().into_owned()];
+    assert!(!app.ui.home_recent_list, "cards by default");
+    let field = nodalia_theme::for_egui::color(crate::theme::Tokens::get(&ctx).creator().palette.control_field_bg);
+    let (rects, _) = home_fills(&mut app, &ctx, vec![], field);
+    let switch = rects.iter().find(|r| (r.width() - 64.0).abs() < 0.5).copied().expect("the switch");
+    let at = egui::pos2(switch.right() - 16.0, switch.center().y);
+    let press = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    home_texts(&mut app, &ctx, vec![egui::Event::PointerMoved(at), press(true)]);
+    home_texts(&mut app, &ctx, vec![press(false)]);
+    assert!(app.ui.home_recent_list, "the list button picked the list");
 }
 
 /// One Home screen frame with `events`: the filled rectangles drawn in `fill`, and the cursor.
@@ -208,8 +228,8 @@ fn home_fills(app: &mut PlumaApp, ctx: &egui::Context, events: Vec<egui::Event>,
     (rects, out.platform_output.cursor_icon)
 }
 
-/// A Recent Files row is one button: the pointer over its folder lights the whole row (icon, name
-/// and folder) with a pointing hand, and a click there opens the file like a click on its name.
+/// A Recent Files row (the list) is one button: the pointer over its folder lights the whole row
+/// (thumbnail, name and folder) with a pointing hand, and a click there opens the file like a click on its name.
 #[test]
 fn a_recent_file_row_lights_up_and_opens_from_anywhere_on_it() {
     let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
@@ -217,10 +237,11 @@ fn a_recent_file_row_lights_up_and_opens_from_anywhere_on_it() {
     crate::theme::install_fonts(&ctx);
     let dir = std::env::temp_dir().join("pluma-home-recent-row");
     app.ui.recent_files = vec![dir.join("Gone.svg").to_string_lossy().into_owned()];
+    app.ui.home_recent_list = true;
     let texts = home_texts(&mut app, &ctx, vec![]);
     let rect_of = |s: &str| texts.iter().find(|(t, _)| t == s).map(|(_, r)| *r).unwrap();
     let (name, folder) = (rect_of("Gone.svg"), rect_of(&dir.to_string_lossy()));
-    let hover = crate::theme::Tokens::get(&ctx).hover;
+    let hover = nodalia_theme::for_egui::color(crate::theme::Tokens::get(&ctx).creator().palette.control_bg_hover);
     let lit = |rects: &[egui::Rect]| rects.iter().any(|r| r.contains(name.center()) && r.contains(folder.center()));
     let (rects, cursor) = home_fills(&mut app, &ctx, vec![], hover);
     assert!(!lit(&rects) && cursor != egui::CursorIcon::PointingHand, "no highlight without the pointer");
@@ -456,14 +477,15 @@ fn text_centre_x(app: &mut PlumaApp, text: &str) -> Option<(f32, f32)> {
     Some((x, screen.center().x))
 }
 
-/// The Home screen has two columns, as Lienzo's: a rail on the left with New file, Open…, Home and
-/// the project's links, and the app's name with the presets to its right.
+/// The Home screen has two columns, the creator suite's (the same code as Lienzo's): a rail on the
+/// left with New file, Open…, Home, Learn and the project's links, and the app's name with the
+/// presets to its right.
 #[test]
 fn home_is_a_rail_and_a_column_as_lienzos() {
     let mut app = PlumaApp::new(pluma_engine::Session::new(), crate::Services::default());
     let x = |app: &mut PlumaApp, text: &str| text_centre_x(app, text).unwrap_or_else(|| panic!("{text} is drawn")).0;
     let column = x(&mut app, "Quickly start a new file");
-    for rail in ["New file", "Open…", "Home", "Pluma Website", "Source code on GitHub"] {
+    for rail in ["New file", "Open…", "Home", "Learn", "Website", "GitHub"] {
         let at = x(&mut app, rail);
         assert!(at < 260.0 && at < column, "{rail} is on the left rail: {at} vs the column at {column}");
     }
