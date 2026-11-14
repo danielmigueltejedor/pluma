@@ -63,12 +63,7 @@ fn side_rail(app: &mut PlumaApp, ui: &mut Ui) {
     ui.add_space(14.0);
     // Home is the screen showing: its row is lit, and with documents open it goes back to them.
     let resp = if t.nodalia {
-        // As wide as New file and Open…, as in Lienzo.
-        ui.scope(|ui| {
-            ui.set_max_width(BUTTON_W);
-            nodalia_theme::creator::home_row(ui, &t.creator(), "home", tl!("Home"), true)
-        })
-        .inner
+        nodalia_theme::creator::home_row(ui, &t.creator(), "home", tl!("Home"), true)
     } else {
         let (row, resp) = ui.allocate_exact_size(vec2(width, 32.0), egui::Sense::click());
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Home")));

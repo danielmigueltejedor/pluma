@@ -439,7 +439,7 @@ fn category_row(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Respons
         return ui
             .scope(|ui| {
                 ui.set_max_width(184.0);
-                nodalia_theme::creator::nav_row(ui, &t.creator(), label, selected)
+                nodalia_theme::creator::nav_row(ui, &t.creator(), label, selected, false)
             })
             .inner;
     }

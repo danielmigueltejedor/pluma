@@ -596,7 +596,9 @@ impl Tokens {
         p.border_default = rgba(self.input_border);
         p.border_subtle = rgba(self.divider);
         p.accent_default = rgba(self.accent);
-        nodalia_theme::creator::Look::new(p).strong_family(FontFamily::Name(FONT_UI_SEMIBOLD.into()))
+        nodalia_theme::creator::Look::new(p)
+            .strong_family(FontFamily::Name(FONT_UI_SEMIBOLD.into()))
+            .medium_family(FontFamily::Name(FONT_UI_SEMIBOLD.into()))
     }
 }
 /// `component.window.close`: coral under the pointer, in every mode.
