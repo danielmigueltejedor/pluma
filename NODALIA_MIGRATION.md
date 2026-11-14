@@ -18,7 +18,7 @@ interface follows Foundation's [NDL standard](https://github.com/getnodalia/foun
 
 | Dependency | Where | Replacement | Blocked on |
 |---|---|---|---|
-| `storytold/craft-common-actions` | `.github/workflows/release.yml`, `.github/workflows/windows-arm64.yml` | Pluma's own release workflows on Foundation's release-tag and release-publish | the CI pull request that follows this one |
+| `storytold/craft-common-actions` | `.github/workflows/windows-arm64.yml` | Pluma's own release workflows on Foundation's release-tag and release-publish | the CI pull request that follows this one |
 | upstream's repository (`docs/upstream.md`) | `.github/workflows/upstream-sync.yml` | none: the weekly sync reads upstream and renames it (`scripts/rebrand.py`, `.github/rebrand.toml`) | — |
 
 Resolved: craft-fonts is read from getnodalia/foundation's `vendor/craft-fonts/main` branch; the
@@ -60,3 +60,8 @@ D-Bus to the shell's global menu where the shell has one.
 
 1. Read AGENTS.md and this file.
 2. Pick the first item of "Recommended order".
+
+## Releases
+
+Pluma releases through `release-auto.yml` like every Nodalia app (Foundation's `release-tag` and
+`release-publish`, with `release-linux.yml`, `release-macos.yml` and `release-windows.yml`).

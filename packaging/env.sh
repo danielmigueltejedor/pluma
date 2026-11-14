@@ -57,7 +57,7 @@ copy_docs() {
   copy_font_licences "$dest"
 }
 
-# Built with craft-fonts (CRAFT_FONTS_DIR, set by release.yml): the embedded fonts' licences go with
+# Built with craft-fonts (CRAFT_FONTS_DIR, set by the release-*.yml workflows): the embedded fonts' licences go with
 # the package, as OFL-<family dir>.txt. Nothing to do without it.
 copy_font_licences() {
   local dest="$1" ofl family
