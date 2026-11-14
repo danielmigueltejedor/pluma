@@ -4,7 +4,7 @@ members = ["crates/*", "apps/*", "xtask"]
 default-members = ["crates/*", "apps/pluma", "apps/pluma-cli", "xtask"]
 
 [workspace.package]
-version = "0.21.0"
+version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
@@ -23,8 +23,8 @@ craft-window = { git = "https://github.com/getnodalia/foundation", rev = "9be9a6
 # The `.pluma` envelope: its members, version, embedded images and the data after the JSON.
 craft-vectorcraft-format = { git = "https://github.com/getnodalia/foundation", rev = "9be9a63782298ab59cd9b7a42ee9cba4f42a5ccb" }
 # In-app updates from this app's GitHub releases, with the update windows for egui.
-nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "9ad3e3b88a4210bf4a888a50b187ab9227142026", features = ["egui"] }
-nodalia-theme = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "9ad3e3b88a4210bf4a888a50b187ab9227142026" }
+nodalia-update = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "6d94e9c17c1767260bcb020f00c71eddd105561f", features = ["egui"] }
+nodalia-theme = { git = "https://github.com/danielmigueltejedor/nodalia-design", rev = "6d94e9c17c1767260bcb020f00c71eddd105561f" }
 # internal
 pluma-geom = { path = "crates/geom" }
 pluma-color = { path = "crates/color" }
