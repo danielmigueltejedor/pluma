@@ -434,6 +434,15 @@ pub fn show(app: &mut PlumaApp, ctx: &egui::Context) {
 /// Home screen's rail marks its row, an accent tint elsewhere.
 fn category_row(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
     let t = Tokens::get(ui.ctx());
+    if t.nodalia {
+        // The creator suite's Preferences navigation, as Lienzo's.
+        return ui
+            .scope(|ui| {
+                ui.set_max_width(184.0);
+                nodalia_theme::creator::nav_row(ui, &t.creator(), label, selected)
+            })
+            .inner;
+    }
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(184.0, 26.0), egui::Sense::click());
     let radius = egui::CornerRadius::same(if t.nodalia { t.radius } else { 3 });
     let ink = match (selected, t.nodalia) {

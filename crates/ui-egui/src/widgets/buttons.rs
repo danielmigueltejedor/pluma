@@ -120,6 +120,9 @@ pub(crate) fn primary_button_width(ui: &mut Ui, text: &str, min_width: f32) -> R
 /// Returns its response with the enabled state and screen-reader name preserved.
 fn primary_button_sized(ui: &mut Ui, text: &str, enabled: bool, min_width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
+    if t.nodalia {
+        return nodalia_theme::creator::primary_button_min(ui, &t.creator(), tl!(text), enabled, min_width);
+    }
     // Nodalia: the dark (light, in dark mode) filled button of Home's New file and Lienzo's OK.
     let ink = if t.nodalia { t.panel } else { Color32::WHITE };
     let fg = if enabled { ink } else { t.text_disabled };
@@ -151,6 +154,9 @@ pub fn secondary_button(ui: &mut Ui, text: &str) -> Response {
 /// Secondary dialog button with a minimum width, for aligned action columns.
 pub(crate) fn secondary_button_width(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
+    if t.nodalia {
+        return nodalia_theme::creator::secondary_button_min(ui, &t.creator(), tl!(text), true, min_width);
+    }
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), t.text);
     let w = galley.size().x + 32.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), Sense::click());
@@ -215,27 +221,12 @@ pub fn menu_item_name(ui: &mut Ui, label: &str, enabled: bool, checked: bool) ->
     ui.add_enabled(enabled, egui::Button::new(egui::RichText::new(text).size(12.5)).frame_when_inactive(false)).clicked()
 }
 
-/// One tab of a small in-dialog tab row (Keyboard Shortcuts' Tools / Menu Commands). In Nodalia
-/// Design the selected tab is a grey pill in the strong text colour, like the selected
-/// Preferences category; elsewhere it is egui's selectable label.
+/// One tab of a small in-dialog tab row (Keyboard Shortcuts' Tools / Menu Commands): the creator
+/// suite's tab in Nodalia Design, egui's selectable label elsewhere.
 pub fn segment_tab(ui: &mut Ui, selected: bool, text: &str) -> Response {
     let t = Tokens::get(ui.ctx());
-    let font = theme::semibold(12.5);
-    if !t.nodalia {
-        return ui.selectable_label(selected, egui::RichText::new(text).font(font));
+    if t.nodalia {
+        return nodalia_theme::creator::tab(ui, &t.creator(), text, selected);
     }
-    let galley = ui.painter().layout_no_wrap(text.to_owned(), font, if selected { t.text_strong } else { t.text_dim });
-    let size = vec2(galley.size().x + 20.0, 26.0);
-    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, text));
-    let fill = if selected {
-        t.hover
-    } else if resp.hovered() {
-        t.hover.gamma_multiply(0.5)
-    } else {
-        Color32::TRANSPARENT
-    };
-    ui.painter().rect_filled(rect, CornerRadius::same(t.radius), fill);
-    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, t.text);
-    resp
+    ui.selectable_label(selected, egui::RichText::new(text).font(theme::semibold(12.5)))
 }

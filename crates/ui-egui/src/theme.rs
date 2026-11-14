@@ -571,14 +571,32 @@ pub fn bar_frame(t: &Tokens, inner: egui::Margin, gap: Gap) -> (egui::Frame, f32
 /// column): a window-coloured ring outside a rounded `rect`, clipped to it, covers the square
 /// corners. Paint it after the contents. Nothing in the other schemes.
 pub fn round_island_corners(painter: &egui::Painter, t: &Tokens, rect: egui::Rect) {
-    if t.nodalia && rect.is_positive() {
-        let r = f32::from(t.card_radius);
-        painter.with_clip_rect(rect).rect_stroke(
-            rect,
-            egui::CornerRadius::same(t.card_radius),
-            egui::Stroke::new(r, t.app_bar),
-            egui::StrokeKind::Outside,
-        );
+    if t.nodalia {
+        nodalia_theme::creator::round_island_corners(painter, &t.creator(), rect);
+    }
+}
+
+impl Tokens {
+    /// The creator suite's shared parts (`nodalia_theme::creator`) in these tokens' colours, so
+    /// Pluma and Lienzo draw the workspace selector, dialog buttons, Home rail and Preferences
+    /// navigation with the same code.
+    pub fn creator(&self) -> nodalia_theme::creator::Look {
+        let mode = if self.dark { nodalia_theme::Mode::Dark } else { nodalia_theme::Mode::Light };
+        let mut p = mode.palette_with(PLUMA);
+        let rgba = |c: Color32| nodalia_theme::Rgba::new(c.r(), c.g(), c.b(), c.a());
+        p.surface_window = rgba(self.app_bar);
+        p.surface_panel = rgba(self.panel);
+        p.text_primary = rgba(self.text);
+        p.text_secondary = rgba(self.text_dim);
+        p.text_disabled = rgba(self.text_disabled);
+        p.control_bg = rgba(self.panel_darker);
+        p.control_bg_hover = rgba(self.hover);
+        p.control_bg_disabled = rgba(self.input);
+        p.control_field_bg = rgba(self.input);
+        p.border_default = rgba(self.input_border);
+        p.border_subtle = rgba(self.divider);
+        p.accent_default = rgba(self.accent);
+        nodalia_theme::creator::Look::new(p).strong_family(FontFamily::Name(FONT_UI_SEMIBOLD.into()))
     }
 }
 /// `component.window.close`: coral under the pointer, in every mode.

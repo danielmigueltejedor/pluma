@@ -22,7 +22,7 @@ interface-fonts = []
 [dependencies]
 craft-ui = { workspace = true }
 craft-keymap = { workspace = true, features = ["egui"] }
-nodalia-theme = { workspace = true }
+nodalia-theme = { workspace = true, features = ["creator"] }
 pluma-geom = { workspace = true }
 pluma-color = { workspace = true }
 pluma-doc = { workspace = true }

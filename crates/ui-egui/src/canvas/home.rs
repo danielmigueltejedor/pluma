@@ -62,12 +62,21 @@ fn side_rail(app: &mut PlumaApp, ui: &mut Ui) {
     separator(ui, BUTTON_W + 20.0);
     ui.add_space(14.0);
     // Home is the screen showing: its row is lit, and with documents open it goes back to them.
-    let (row, resp) = ui.allocate_exact_size(vec2(width, 32.0), egui::Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Home")));
-    let (bg, ink) = if t.nodalia { (t.text, t.panel) } else { (t.row_selected, t.text) };
-    ui.painter().rect_filled(row, CornerRadius::same(t.radius), bg);
-    crate::icons::paint(ui, "house", egui::Rect::from_center_size(egui::pos2(row.left() + 20.0, row.center().y), vec2(16.0, 16.0)), ink);
-    ui.painter().text(egui::pos2(row.left() + 34.0, row.center().y), egui::Align2::LEFT_CENTER, tl!("Home"), theme::semibold(13.5), ink);
+    let resp = if t.nodalia {
+        // As wide as New file and Open…, as in Lienzo.
+        ui.scope(|ui| {
+            ui.set_max_width(BUTTON_W);
+            nodalia_theme::creator::home_row(ui, &t.creator(), "home", tl!("Home"), true)
+        })
+        .inner
+    } else {
+        let (row, resp) = ui.allocate_exact_size(vec2(width, 32.0), egui::Sense::click());
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Home")));
+        ui.painter().rect_filled(row, CornerRadius::same(t.radius), t.row_selected);
+        crate::icons::paint(ui, "house", egui::Rect::from_center_size(egui::pos2(row.left() + 20.0, row.center().y), vec2(16.0, 16.0)), t.text);
+        ui.painter().text(egui::pos2(row.left() + 34.0, row.center().y), egui::Align2::LEFT_CENTER, tl!("Home"), theme::semibold(13.5), t.text);
+        resp
+    };
     if !app.session.documents().is_empty() && resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
         app.ui.home = None;
     }
@@ -97,12 +106,7 @@ fn new_file_button(ui: &mut Ui) -> egui::Response {
     if !t.nodalia {
         return widgets::primary_button_width(ui, tl!("New file"), BUTTON_W);
     }
-    let (rect, resp) = ui.allocate_exact_size(vec2(BUTTON_W, 32.0), egui::Sense::click());
-    let bg = if resp.hovered() { t.text.gamma_multiply(0.88) } else { t.text };
-    ui.painter().rect_filled(rect, CornerRadius::same(t.radius), bg);
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, tl!("New file"), theme::semibold(13.0), t.panel);
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("New file")));
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+    nodalia_theme::creator::primary_button_min(ui, &t.creator(), tl!("New file"), true, BUTTON_W).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// Open…: an outlined button.
@@ -111,15 +115,7 @@ fn open_button(ui: &mut Ui) -> egui::Response {
     if !t.nodalia {
         return widgets::secondary_button_width(ui, tl!("Open…"), BUTTON_W);
     }
-    let (rect, resp) = ui.allocate_exact_size(vec2(BUTTON_W, 30.0), egui::Sense::click());
-    let r = CornerRadius::same(t.radius);
-    if resp.hovered() {
-        ui.painter().rect_filled(rect, r, t.hover);
-    }
-    ui.painter().rect_stroke(rect, r, egui::Stroke::new(1.0, t.divider), egui::StrokeKind::Inside);
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, tl!("Open…"), theme::semibold(13.0), t.text);
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Open…")));
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+    nodalia_theme::creator::secondary_button_min(ui, &t.creator(), tl!("Open…"), true, BUTTON_W).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// A link at the rail's foot: dim, lit under the pointer, its address in the tooltip.

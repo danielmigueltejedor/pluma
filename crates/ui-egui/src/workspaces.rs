@@ -406,34 +406,52 @@ pub fn menu_items() -> Vec<crate::menus::Item> {
     v
 }
 
-/// The app-bar workspace switcher's menu.
-pub fn popup(app: &mut PlumaApp, ui: &mut egui::Ui) {
-    ui.set_min_width(210.0);
-    ui.set_max_width(240.0);
-    let mut clicked: Option<(&'static str, Value)> = None;
+/// The app-bar workspace switcher: the creator suite's selector (as Lienzo's), listing the
+/// workspaces of Window → Workspace and its Reset, New and Manage actions.
+pub fn switcher(app: &mut PlumaApp, ui: &mut egui::Ui, width: f32) {
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let mut workspaces: Vec<(String, Value)> = Vec::new();
+    let mut actions: Vec<(String, &'static str, Value)> = Vec::new();
+    let mut saved_from = None;
     for it in menu_items() {
-        match it {
-            crate::menus::Item::Sep => {
-                ui.separator();
-            }
-            crate::menus::Item::Cmd(label, id, p) => {
-                // As the Window menu draws it: custom workspace names (and Reset <name>) as they are.
-                let label = crate::menus::display_label(app, id, label);
-                let text = match crate::menus::checked(app, id, &p) {
-                    Some(true) => format!("✓  {label}"),
-                    Some(false) => format!("     {label}"),
-                    None => format!("     {label}"),
-                };
-                if ui.add(egui::Button::new(text).min_size(egui::vec2(220.0, 0.0))).clicked() {
-                    clicked = Some((id, if p.is_null() { json!({}) } else { p }));
-                    ui.close();
+        if let crate::menus::Item::Cmd(label, id, p) = it {
+            let label = crate::menus::display_label(app, id, label).to_string();
+            if id == "window.workspace" {
+                if saved_from.is_none() && p["name"].as_str().is_some_and(|n| !is_builtin(n)) {
+                    saved_from = Some(workspaces.len());
                 }
+                workspaces.push((label, p));
+            } else {
+                actions.push((label, id, if p.is_null() { json!({}) } else { p }));
             }
-            _ => {}
         }
     }
-    if let Some((id, p)) = clicked {
-        crate::menus::invoke(app, id, p);
+    // Built-in workspace names translate; the user's own stay as typed.
+    let current = if is_builtin(&app.ui.workspace) { tl!(&app.ui.workspace).to_string() } else { app.ui.workspace.clone() };
+    let names: Vec<&str> = workspaces.iter().map(|(l, _)| l.as_str()).collect();
+    let action_names: Vec<&str> = actions.iter().map(|(l, ..)| l.as_str()).collect();
+    let picked = nodalia_theme::creator::workspace_selector(
+        ui,
+        &t.creator(),
+        "workspace",
+        &current,
+        &names,
+        saved_from.unwrap_or(names.len()),
+        &action_names,
+        width,
+    );
+    match picked {
+        Some(nodalia_theme::creator::WorkspacePick::Workspace(i)) => {
+            if let Some((_, p)) = workspaces.get(i) {
+                crate::menus::invoke(app, "window.workspace", p.clone());
+            }
+        }
+        Some(nodalia_theme::creator::WorkspacePick::Action(i)) => {
+            if let Some((_, id, p)) = actions.get(i) {
+                crate::menus::invoke(app, id, p.clone());
+            }
+        }
+        None => {}
     }
 }
 
